@@ -582,7 +582,7 @@ update_specific_agent() {
             update_agent_file "$ROO_FILE" "Roo Code"
             ;;
         codebuddy)
-            update_agent_file "$CODEBUDDY_FILE" "CodeBuddy CLI"
+            update_agent_file "$CODEBUDDY_FILE" "CodeBuddy"
             ;;
         *)
             log_error "Unknown agent type '$agent_type'"
@@ -647,7 +647,7 @@ update_all_existing_agents() {
     fi
 
     if [[ -f "$CODEBUDDY_FILE" ]]; then
-        update_agent_file "$CODEBUDDY_FILE" "CodeBuddy CLI"
+        update_agent_file "$CODEBUDDY_FILE" "CodeBuddy"
         found_agent=true
     fi
     

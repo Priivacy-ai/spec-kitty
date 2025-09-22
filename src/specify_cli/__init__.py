@@ -74,7 +74,7 @@ AI_CHOICES = {
     "windsurf": "Windsurf",
     "kilocode": "Kilo Code",
     "auggie": "Auggie CLI",
-    "codebuddy": "CodeBuddy CLI",
+    "codebuddy": "CodeBuddy",
     "roo": "Roo Code",
 }
 # Add script type choices
@@ -763,7 +763,7 @@ def init(
     
     This command will:
     1. Check that required tools are installed (git is optional)
-    2. Let you choose your AI assistant (Claude Code, Gemini CLI, GitHub Copilot, Cursor, Qwen Code, opencode, Codex CLI, Windsurf, Kilo Code, Auggie CLI, Roo Code, or CodeBuddy CLI)
+    2. Let you choose your AI assistant (Claude Code, Gemini CLI, GitHub Copilot, Cursor, Qwen Code, opencode, Codex CLI, Windsurf, Kilo Code, Auggie CLI, Roo Code, or CodeBuddy)
     3. Download the appropriate template from GitHub
     4. Extract the template to a new project directory or current directory
     5. Initialize a fresh git repository (if not --no-git and no existing repo)
@@ -897,8 +897,8 @@ def init(
                 install_url = "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"
                 agent_tool_missing = True
         elif selected_ai == "codebuddy":
-            if not check_tool("codebuddy", "https://cnb.cool/codebuddy/codebuddy-code"):
-                install_url = "https://cnb.cool/codebuddy/codebuddy-code"
+            if not check_tool("codebuddy", "https://www.codebuddy.ai"):
+                install_url = "https://www.codebuddy.ai"
                 agent_tool_missing = True
         # GitHub Copilot and Cursor checks are not needed as they're typically available in supported IDEs
 
@@ -1104,7 +1104,7 @@ def check():
     tracker.add("codex", "Codex CLI")
     tracker.add("auggie", "Auggie CLI")
     tracker.add("roo", "Roo Code")
-    tracker.add("codebuddy", "CodeBuddy CLI")
+    tracker.add("codebuddy", "CodeBuddy")
     
     git_ok = check_tool_for_tracker("git", tracker)
     claude_ok = check_tool_for_tracker("claude", tracker)  
