@@ -277,6 +277,7 @@ specify init <project_name> --ai qwen
 specify init <project_name> --ai opencode
 specify init <project_name> --ai codex
 specify init <project_name> --ai windsurf
+specify init <project_name> --ai codebuddy
 # Or in current directory:
 specify init --here --ai claude
 specify init --here --ai codex
