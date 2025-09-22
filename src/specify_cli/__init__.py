@@ -74,6 +74,7 @@ AI_CHOICES = {
     "windsurf": "Windsurf",
     "kilocode": "Kilo Code",
     "auggie": "Auggie CLI",
+    "codebuddy": "CodeBuddy Code",
 }
 # Add script type choices
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
@@ -777,11 +778,13 @@ def init(
         specify init my-project --ai opencode
         specify init my-project --ai codex
         specify init my-project --ai windsurf
+        specify init my-project --ai kilocode
         specify init my-project --ai auggie
+        specify init my-project --ai codebuddy
         specify init --ignore-agent-tools my-project
         specify init --here --ai claude
         specify init --here --ai codex
-        specify init --here
+        specify init --here --ai codebuddy
     """
     # Show banner first
     show_banner()
@@ -891,6 +894,10 @@ def init(
         elif selected_ai == "auggie":
             if not check_tool("auggie", "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"):
                 install_url = "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"
+                agent_tool_missing = True
+        elif selected_ai == "codebuddy":
+            if not check_tool("codebuddy", "https://cnb.cool/codebuddy/codebuddy-code"):
+                install_url = "https://cnb.cool/codebuddy/codebuddy-code"
                 agent_tool_missing = True
         # GitHub Copilot and Cursor checks are not needed as they're typically available in supported IDEs
 
@@ -1015,6 +1022,7 @@ def init(
         "windsurf": ".windsurf/",
         "kilocode": ".kilocode/",
         "auggie": ".augment/",
+        "codebuddy": ".codebuddy/",
         "copilot": ".github/"
     }
     
@@ -1093,6 +1101,7 @@ def check():
     tracker.add("opencode", "opencode")
     tracker.add("codex", "Codex CLI")
     tracker.add("auggie", "Auggie CLI")
+    tracker.add("codebuddy", "CodeBuddy Code")
     
     git_ok = check_tool_for_tracker("git", tracker)
     claude_ok = check_tool_for_tracker("claude", tracker)  
@@ -1106,6 +1115,7 @@ def check():
     opencode_ok = check_tool_for_tracker("opencode", tracker)
     codex_ok = check_tool_for_tracker("codex", tracker)
     auggie_ok = check_tool_for_tracker("auggie", tracker)
+    codebuddy_ok = check_tool_for_tracker("codebuddy", tracker)
 
     console.print(tracker.render())
 
