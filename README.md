@@ -39,11 +39,37 @@ Spec-Driven Development **flips the script** on traditional software development
 
 ### 1. Install Specify
 
-Initialize your project depending on the coding agent you're using:
+Choose your preferred installation method:
+
+#### Option 1: Persistent Installation (Recommended)
+
+Install once and use everywhere:
+
+```bash
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
+```
+
+Then use the tool directly:
+
+```bash
+specify init <PROJECT_NAME>
+specify check
+```
+
+#### Option 2: One-time Usage
+
+Run directly without installing:
 
 ```bash
 uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME>
 ```
+
+**Benefits of persistent installation:**
+
+- Tool stays installed and available in PATH
+- No need to create shell aliases
+- Better tool management with `uv tool list`, `uv tool upgrade`, `uv tool uninstall`
+- Cleaner shell configuration
 
 ### 2. Establish project principles
 
@@ -131,6 +157,7 @@ The `specify` command supports the following options:
 | `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                             |
 | `--no-git`             | Flag     | Skip git repository initialization                                          |
 | `--here`               | Flag     | Initialize project in the current directory instead of creating a new one   |
+| `--force`              | Flag     | Force merge/overwrite when using `--here` in a non-empty directory (skip confirmation) |
 | `--skip-tls`           | Flag     | Skip SSL/TLS verification (not recommended)                                 |
 | `--debug`              | Flag     | Enable detailed debug output for troubleshooting                            |
 | `--github-token`       | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)  |
@@ -155,6 +182,9 @@ specify init my-project --ai copilot --script ps
 
 # Initialize in current directory
 specify init --here --ai copilot
+
+# Force merge into current (non-empty) directory without confirmation
+specify init --here --force --ai copilot
 
 # Skip git initialization
 specify init my-project --ai gemini --no-git
@@ -262,6 +292,8 @@ Or initialize in the current directory:
 
 ```bash
 specify init --here
+# Skip confirmation when the directory already has files
+specify init --here --force
 ```
 
 ![Specify CLI bootstrapping a new project in the terminal](./media/specify_cli.gif)
@@ -281,6 +313,8 @@ specify init <project_name> --ai codebuddy
 # Or in current directory:
 specify init --here --ai claude
 specify init --here --ai codex
+# Force merge into a non-empty current directory
+specify init --here --force --ai claude
 ```
 
 The CLI will check if you have Claude Code, Gemini CLI, Cursor CLI, Qwen CLI, opencode, or Codex CLI installed. If you do not, or you prefer to get the templates without checking for the right tools, use `--ignore-agent-tools` with your command:
