@@ -79,7 +79,8 @@ generate_commands() {
     # Remove the scripts: and agent_scripts: sections from frontmatter while preserving YAML structure
     body=$(printf '%s\n' "$body" | awk '
       /^---$/ { print; if (++dash_count == 1) in_frontmatter=1; else in_frontmatter=0; next }
-      in_frontmatter && /^(scripts|agent_scripts):$/ { skip_scripts=1; next }
+      in_frontmatter && /^scripts:$/ { skip_scripts=1; next }
+      in_frontmatter && /^agent_scripts:$/ { skip_scripts=1; next }
       in_frontmatter && /^[a-zA-Z].*:/ && skip_scripts { skip_scripts=0 }
       in_frontmatter && skip_scripts && /^[[:space:]]/ { next }
       { print }
