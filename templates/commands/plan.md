@@ -8,13 +8,15 @@ agent_scripts:
   ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
 
-The user input to you can be provided directly by the agent or as a command argument - you **MUST** consider it before proceeding with the prompt (if not empty).
+## User Input
 
-User input:
+```text
+$ARGUMENTS
+```
 
-`$ARGUMENTS`
+You **MUST** consider the user input before proceeding (if not empty).
 
-## Execution Steps
+## Outline
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.
    - Before proceeding: Check FEATURE_SPEC has `## Clarifications` section. If missing or ambiguous, instruct user to run `/clarify` first.

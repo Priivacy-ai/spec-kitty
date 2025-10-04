@@ -5,11 +5,15 @@ scripts:
    ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
 
-The user input to you can be provided directly by the agent or as a command argument - you **MUST** consider it before proceeding with the prompt (if not empty).
+## User Input
 
-User input:
+```text
+$ARGUMENTS
+```
 
-`$ARGUMENTS`
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Outline
 
 Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.
 

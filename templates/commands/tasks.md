@@ -5,13 +5,15 @@ scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json
 ---
 
-The user input to you can be provided directly by the agent or as a command argument - you **MUST** consider it before proceeding with the prompt (if not empty).
+## User Input
 
-User input:
+```text
+$ARGUMENTS
+```
 
-`$ARGUMENTS`
+You **MUST** consider the user input before proceeding (if not empty).
 
-## Execution Steps
+## Outline
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
 
