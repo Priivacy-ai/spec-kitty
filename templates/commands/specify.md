@@ -43,7 +43,7 @@ Given that feature description, do this:
 
 5. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
-   a. **Create Spec Quality Checklist**: Generate a checklist file at `FEATURE_DIR/checklists/spec.md` using the checklist template structure with these validation items:
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `FEATURE_DIR/checklists/requirements.md` using the checklist template structure with these validation items:
    
       ```markdown
       # Specification Quality Checklist: [FEATURE NAME]
@@ -91,26 +91,34 @@ Given that feature description, do this:
         2. For each clarification needed, present options to user in this format:
         
            ```markdown
-           ### Clarification Needed: [Topic]
+           ## Question [N]: [Topic]
            
            **Context**: [Quote relevant spec section]
            
-           **Question**: [Specific question from NEEDS CLARIFICATION marker]
+           **What we need to know**: [Specific question from NEEDS CLARIFICATION marker]
            
-           | Option | Description | Implications |
-           |--------|-------------|--------------|
-           | A | [First option] | [What this means for the feature] |
-           | B | [Second option] | [What this means for the feature] |
-           | C | [Third option] | [What this means for the feature] |
-           | Custom | Provide your own specification | [Explain how to provide custom input] |
+           **Suggested Answers**:
+           
+           | Option | Answer | Implications |
+           |--------|--------|--------------|
+           | A      | [First suggested answer] | [What this means for the feature] |
+           | B      | [Second suggested answer] | [What this means for the feature] |
+           | C      | [Third suggested answer] | [What this means for the feature] |
+           | Custom | Provide your own answer | [Explain how to provide custom input] |
            
            **Your choice**: _[Wait for user response]_
            ```
         
-        3. Wait for user to respond with their choice (A, B, C, or custom input)
-        4. Update the spec by replacing the [NEEDS CLARIFICATION] marker with the user's choice
-        5. Repeat for all clarification markers
-        6. Re-run validation after all clarifications are resolved
+        3. **CRITICAL - Table Formatting**: Ensure markdown tables are properly formatted:
+           - Use consistent spacing with pipes aligned
+           - Each cell should have spaces around content: `| Content |` not `|Content|`
+           - Header separator must have at least 3 dashes: `|--------|`
+           - Test that the table renders correctly in markdown preview
+        4. Number questions sequentially (Q1, Q2, Q3, etc.)
+        5. Present all questions together before waiting for responses
+        6. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
+        7. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
+        8. Re-run validation after all clarifications are resolved
    
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
