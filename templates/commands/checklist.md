@@ -73,6 +73,12 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Group items by category/section if applicable
    - Include brief explanations or links where helpful
    - Each `/checklist` run creates a NEW file (never overwrites existing checklists)
+   - **CRITICAL**: Focus checklist items on **specification and requirements quality** for the domain:
+     * Validate scenario coverage and edge cases
+     * Ensure requirements are clear, testable, and measurable
+     * Check for completeness of acceptance criteria
+     * Verify domain-specific considerations are addressed
+     * DO NOT include implementation details like unit tests, code quality, or deployment steps
 
 6. **Checklist structure**:
    ```markdown
@@ -105,28 +111,34 @@ To avoid clutter, use descriptive types and clean up obsolete checklists when do
 
 ## Example Checklist Types
 
-**Code Review:** `review.md`
-- Code quality checks
-- Documentation requirements
-- Test coverage verification
-- Security considerations
+**Specification Review:** `spec-review.md`
+- Requirement completeness and clarity
+- User scenarios and edge cases coverage
+- Acceptance criteria definition
+- Domain-specific considerations
 
-**Pre-Deployment:** `deploy.md`
-- Build verification
-- Test execution
-- Configuration validation
-- Rollback plan
+**Requirements Quality:** `requirements.md`
+- Testable and measurable outcomes
+- Stakeholder alignment verification
+- Assumptions and constraints documentation
+- Success metrics definition
 
-**Accessibility:** `ux.md` or `a11y.md`
-- WCAG compliance
-- Keyboard navigation
-- Screen reader compatibility
-- Color contrast
+**UX/Accessibility Scenarios:** `ux.md` or `a11y.md`
+- User journey completeness
+- Accessibility requirement coverage
+- Responsive design considerations
+- Internationalization needs
 
-**Security:** `security.md`
-- Input validation
-- Authentication/authorization
-- Data encryption
-- Dependency vulnerabilities
+**Security Requirements:** `security.md`
+- Threat model coverage
+- Authentication/authorization requirements
+- Data protection requirements
+- Compliance and regulatory needs
 
-Generate checklist items that are specific, actionable, and relevant to the feature context.
+**API/Integration Scenarios:** `api.md`
+- Contract completeness
+- Error handling scenarios
+- Backward compatibility considerations
+- Integration touchpoint coverage
+
+Generate checklist items that validate the **quality and completeness of specifications and requirements** for the domain, focusing on scenarios, edge cases, and requirement clarity rather than implementation details.

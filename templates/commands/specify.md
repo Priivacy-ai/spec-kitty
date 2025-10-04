@@ -40,7 +40,81 @@ Given that feature description, do this:
     7. Return: SUCCESS (spec ready for planning)
 
 4. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
-5. Report completion with branch name, spec file path, and readiness for the next phase.
+
+5. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
+
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `FEATURE_DIR/checklists/spec.md` using the checklist template structure with these validation items:
+   
+      ```markdown
+      # Specification Quality Checklist: [FEATURE NAME]
+      
+      **Purpose**: Validate specification completeness and quality before proceeding to planning
+      **Created**: [DATE]
+      **Feature**: [Link to spec.md]
+      
+      ## Content Quality
+      
+      - [ ] No implementation details (languages, frameworks, APIs)
+      - [ ] Focused on user value and business needs
+      - [ ] Written for non-technical stakeholders
+      - [ ] All mandatory sections completed
+      
+      ## Requirement Completeness
+      
+      - [ ] No [NEEDS CLARIFICATION] markers remain
+      - [ ] Requirements are testable and unambiguous
+      - [ ] Success criteria are measurable
+      - [ ] Scope is clearly bounded
+      - [ ] Dependencies and assumptions identified
+      
+      ## Notes
+      
+      - Items marked incomplete require spec updates before `/clarify` or `/plan`
+      ```
+   
+   b. **Run Validation Check**: Review the spec against each checklist item:
+      - For each item, determine if it passes or fails
+      - Document specific issues found (quote relevant spec sections)
+   
+   c. **Handle Validation Results**:
+      
+      - **If all items pass**: Mark checklist complete and proceed to step 6
+      
+      - **If items fail (excluding [NEEDS CLARIFICATION])**:
+        1. List the failing items and specific issues
+        2. Update the spec to address each issue
+        3. Re-run validation until all items pass (max 3 iterations)
+        4. If still failing after 3 iterations, document remaining issues in checklist notes and warn user
+      
+      - **If [NEEDS CLARIFICATION] markers remain**:
+        1. Extract all [NEEDS CLARIFICATION: ...] markers from the spec
+        2. For each clarification needed, present options to user in this format:
+        
+           ```markdown
+           ### Clarification Needed: [Topic]
+           
+           **Context**: [Quote relevant spec section]
+           
+           **Question**: [Specific question from NEEDS CLARIFICATION marker]
+           
+           | Option | Description | Implications |
+           |--------|-------------|--------------|
+           | A | [First option] | [What this means for the feature] |
+           | B | [Second option] | [What this means for the feature] |
+           | C | [Third option] | [What this means for the feature] |
+           | Custom | Provide your own specification | [Explain how to provide custom input] |
+           
+           **Your choice**: _[Wait for user response]_
+           ```
+        
+        3. Wait for user to respond with their choice (A, B, C, or custom input)
+        4. Update the spec by replacing the [NEEDS CLARIFICATION] marker with the user's choice
+        5. Repeat for all clarification markers
+        6. Re-run validation after all clarifications are resolved
+   
+   d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
+
+6. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/clarify` or `/plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 
