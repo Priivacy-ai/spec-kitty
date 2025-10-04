@@ -12,7 +12,7 @@ The user input to you can be provided directly by the agent or as a command argu
 
 User input:
 
-$ARGUMENTS
+`$ARGUMENTS`
 
 ## Execution Steps
 

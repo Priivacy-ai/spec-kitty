@@ -9,7 +9,7 @@ The user input to you can be provided directly by the agent or as a command argu
 
 User input:
 
-$ARGUMENTS
+`$ARGUMENTS`
 
 The text the user typed after `/specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
 
@@ -33,10 +33,7 @@ Given that feature description, do this:
        Each requirement must be testable
        Mark ambiguous requirements
     6. Identify Key Entities (if data involved)
-    7. Run Review Checklist
-       If any [NEEDS CLARIFICATION]: WARN "Spec has uncertainties"
-       If implementation details found: ERROR "Remove tech details"
-    8. Return: SUCCESS (spec ready for planning)
+    7. Return: SUCCESS (spec ready for planning)
 
 4. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
 5. Report completion with branch name, spec file path, and readiness for the next phase.
@@ -47,9 +44,10 @@ Given that feature description, do this:
 
 ## Quick Guidelines
 
-- Focus on WHAT users need and WHY
-- Avoid HOW to implement (no tech stack, APIs, code structure)
-- Written for business stakeholders, not developers
+- Focus on **WHAT** users need and **WHY**.
+- Avoid HOW to implement (no tech stack, APIs, code structure).
+- Written for business stakeholders, not developers.
+- DO NOT create any checklists that are embedded in the spec. That will be a separate command.
 
 ### Section Requirements
 
