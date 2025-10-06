@@ -60,64 +60,66 @@ You **MUST** consider the user input before proceeding (if not empty).
    - spec.md: Feature requirements and scope
    - plan.md (if exists): Technical details, dependencies
    - tasks.md (if exists): Implementation tasks
-   - Use context to enrich or validate checklist items (omit irrelevant categories)
+   
+   **Context Loading Strategy**:
+   - Load only necessary portions relevant to active focus areas (avoid full-file dumping)
+   - Prefer summarizing long sections into concise scenario/requirement bullets
+   - Use progressive disclosure: add follow-on retrieval only if gaps detected
+   - If source docs are large, generate interim summary items instead of embedding raw text
 
 5. **Generate checklist**:
    - Create `FEATURE_DIR/checklists/` directory if it doesn't exist
    - Generate unique checklist filename:
-     * Use short, descriptive name based on checklist type
-     * Format: `[type].md` (e.g., `ux.md`, `test.md`, `security.md`, `deploy.md`)
-     * If file exists, append to existing file (e.g., use the same UX checklist)
+     - Use short, descriptive name based on checklist type
+     - Format: `[type].md` (e.g., `ux.md`, `test.md`, `security.md`, `deploy.md`)
+     - If file exists, append to existing file (e.g., use the same UX checklist)
    - Number items sequentially starting from CHK001
-   - Group items by category/section ONLY using this controlled set:
-       - Primary Flows
-       - Alternate Flows
-       - Exception / Error Flows
-       - Recovery & Resilience
-       - Non-Functional Domains (sub‑grouped or prefixed: Performance, Reliability, Security & Privacy, Accessibility, Observability, Scalability, Data Lifecycle)
-       - Traceability & Coverage
-       - Ambiguities & Conflicts
-       - Assumptions & Dependencies
-   - Do NOT invent ad-hoc categories; merge sparse categories (<2 items) into the closest higher-signal category.
-   - Add traceability refs when possible (order: spec section, acceptance criterion). If no ID system exists, create an item: `Establish requirement & acceptance criteria ID scheme before proceeding`.
-   - Optional brief rationale ONLY if it clarifies requirement intent or risk; never include implementation strategy, code pointers, or test plan details.
    - Each `/checklist` run creates a NEW file (never overwrites existing checklists)
-   - **CRITICAL**: Focus on requirements & scenario coverage quality (NOT implementation). Enforce clarity, completeness, measurability, domain & cross-cutting obligations; surface ambiguities / assumptions / conflicts / dependencies. NEVER include implementation details (tests, code symbols, algorithms, deployment steps).
-   - Soft cap: If raw candidate items > 40, prioritize by risk/impact, consolidate minor edge cases, and add one consolidation item: `Consolidate remaining low-impact scenarios (see source docs) after priority review`.
-   - Minimum traceability coverage: ≥80% of items MUST include at least one traceability reference (spec section OR acceptance criterion). If impossible (missing structure), add corrective item: `Establish requirement & acceptance criteria ID scheme before proceeding` then proceed.
 
-   **Scenario Modeling & Traceability (MANDATORY)**:
-   - Classify scenarios into: Primary, Alternate, Exception/Error, Recovery/Resilience, Non-Functional (performance, reliability, security/privacy, accessibility, observability, scalability, data lifecycle) where applicable.
-   - At least one item per present scenario class; if a class is intentionally absent add: `Confirm intentional absence of <Scenario Class> scenarios`.
-   - Each item MUST include ≥1 of: scenario class tag, spec ref `[Spec §X.Y]`, acceptance criterion `[AC-##]`, or marker `(Assumption)/(Dependency)/(Ambiguity)/(Conflict)` (track coverage ratio for ≥80% traceability rule).
-   - Surface & cluster (
+   **Category Structure** - Group items ONLY using this controlled set:
+   - Primary Flows
+   - Alternate Flows
+   - Exception / Error Flows
+   - Recovery & Resilience
+   - Non-Functional Domains (sub‑grouped or prefixed: Performance, Reliability, Security & Privacy, Accessibility, Observability, Scalability, Data Lifecycle)
+   - Traceability & Coverage
+   - Ambiguities & Conflicts
+   - Assumptions & Dependencies
+   
+   Do NOT invent ad-hoc categories; merge sparse categories (<2 items) into the closest higher-signal category.
+
+   **Scenario Classification & Coverage**:
+   - Classify scenarios into: Primary, Alternate, Exception/Error, Recovery/Resilience, Non-Functional
+   - At least one item per present scenario class; if intentionally absent add: `Confirm intentional absence of <Scenario Class> scenarios`
+   - Include resilience/rollback coverage when state mutation or migrations occur (partial write, degraded mode, backward compatibility, rollback preconditions)
+   - If a major scenario lacks acceptance criteria, add an item to define measurable criteria
+
+   **Traceability Requirements**:
+   - MINIMUM: ≥80% of items MUST include at least one traceability reference
+   - Each item should include ≥1 of: scenario class tag, spec ref `[Spec §X.Y]`, acceptance criterion `[AC-##]`, or marker `(Assumption)/(Dependency)/(Ambiguity)/(Conflict)`
+   - If no ID system exists, create an item: `Establish requirement & acceptance criteria ID scheme before proceeding`
+
+   **Surface & Resolve Issues**:
+   - Cluster and create one resolution item per cluster for:
      - Ambiguities (vague terms: "fast", "robust", "secure")
      - Conflicts (contradictory statements)
      - Assumptions (unvalidated premises)
      - Dependencies (external systems, feature flags, migrations, upstream APIs)
-   ) — create one resolution item per cluster.
-   - Include resilience/rollback coverage when state mutation or migrations occur (partial write, degraded mode, backward compatibility, rollback preconditions).
-   - BANNED: references to specific tests ("unit test", "integration test"), code symbols, frameworks, algorithmic prescriptions, deployment steps. Rephrase any such user input into requirement clarity or coverage validation.
-   - If a major scenario lacks acceptance criteria, add an item to define measurable criteria.
 
-   **Context Curation (High-Signal Tokens Only)**:
-   - Load only necessary portions of `spec.md`, `plan.md`, `tasks.md` relevant to active focus areas (avoid full-file dumping where sections are irrelevant).
-   - Prefer summarizing long sections into concise scenario/requirement bullets before generating items (compaction principle).
-   - If source docs are large, generate interim summary items (e.g., `Confirm summary of §4 data retention rules is complete`) instead of embedding raw text.
-   - Use progressive disclosure: add follow-on retrieval only if a gap is detected (missing scenario class, unclear constraint).
-   - Treat context budget as finite: do not restate already-tagged requirements verbatim across multiple items.
-   - Merge near-duplicates when: same scenario class + same spec section + overlapping acceptance intent. Keep higher-risk phrasing; add note if consolidation occurred.
-   - Do not repeat identical spec or acceptance refs in >3 items unless covering distinct scenario classes.
-   - If >5 low-impact edge cases (minor parameter permutations), cluster into a single aggregated item.
-   - If user arguments are sparse, prioritize clarifying questions over speculative item generation.
+   **Content Consolidation**:
+   - Soft cap: If raw candidate items > 40, prioritize by risk/impact and add: `Consolidate remaining low-impact scenarios (see source docs) after priority review`
+   - Merge near-duplicates when: same scenario class + same spec section + overlapping acceptance intent
+   - If >5 low-impact edge cases, cluster into a single aggregated item
+   - Do not repeat identical spec or acceptance refs in >3 items unless covering distinct scenario classes
+   - Treat context budget as finite: do not restate already-tagged requirements verbatim across multiple items
 
-6. **Structure Reference**: Generate the checklist exactly following the canonical template in `templates/checklist-template.md`. Treat that file as the single source of truth for:
-   - Title + meta section placement
-   - Category headings
-   - Checklist line formatting and ID sequencing
-   - Prohibited content (implementation details)
+   **🚫 PROHIBITED CONTENT** (Requirements Focus ONLY):
+   - Focus on requirements & scenario coverage quality, NOT implementation
+   - NEVER include: specific tests ("unit test", "integration test"), code symbols, frameworks, algorithmic prescriptions, deployment steps, test plan details, implementation strategy
+   - Rephrase any such user input into requirement clarity or coverage validation
+   - Optional brief rationale ONLY if it clarifies requirement intent or risk
 
-   If (and only if) the canonical file is missing/unreadable, fall back to: H1 title, purpose/created meta lines, then one or more `##` category sections containing `- [ ] CHK### <imperative requirement-quality item>` lines with globally incrementing IDs starting at CHK001. No trailing explanatory footer.
+6. **Structure Reference**: Generate the checklist following the canonical template in `templates/checklist-template.md` for title, meta section, category headings, and ID formatting. If template is unavailable, use: H1 title, purpose/created meta lines, `##` category sections containing `- [ ] CHK### <requirement item>` lines with globally incrementing IDs starting at CHK001.
 
 7. **Report**: Output full path to created checklist, item count, and remind user that each run creates a new file. Summarize:
    - Focus areas selected
@@ -169,5 +171,3 @@ To avoid clutter, use descriptive types and clean up obsolete checklists when do
 - Error handling scenarios
 - Backward compatibility considerations
 - Integration touchpoint coverage
-
-Principle reminder: Checklist items validate requirements/scenario coverage quality—not implementation. If in doubt, transform any implementation phrasing into a requirement clarity or coverage validation item.
