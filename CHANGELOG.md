@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for using `.` as a shorthand for current directory in `specify init .` command, equivalent to `--here` flag but more intuitive for users.
 - Refactor the prompts and templates to simplify their capabilities and how they are tracked. No more polluting things with tests when they are not needed.
 - Ensure that tasks are created per user story (simplifies testing and validation).
+- Add support for Visual Studio Code prompt shortcuts and automatic script execution.
 
 ### Changed
 
