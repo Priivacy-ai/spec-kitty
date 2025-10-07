@@ -38,6 +38,7 @@ You **MUST** consider the user input before proceeding (if not empty).
        - If tests requested: Include tests specific to that story
      - Polish/Integration tasks (cross-cutting concerns)
    - **Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature spec or user asks for TDD approach
+   - Keep `tasks.md` concise—store detailed implementation notes in the per-task prompt files that `/speckitty.task-prompts` will generate.
    - Apply task rules:
      - Different files = mark [P] for parallel
      - Same file = sequential (no [P])
@@ -69,6 +70,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Parallel opportunities identified
    - Independent test criteria for each story
    - Suggested MVP scope (typically just User Story 1)
+   - Call out that `/speckitty.task-prompts` should run next to produce rich prompt files for each task
 
 Context for task generation: {ARGS}
 
@@ -112,4 +114,3 @@ The tasks.md should be immediately executable - each task must be specific enoug
      - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
    - Final Phase: Polish & Cross-Cutting Concerns
    - Each user story phase should be a complete, independently testable increment
-

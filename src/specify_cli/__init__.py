@@ -10,18 +10,12 @@
 # ]
 # ///
 """
-Specify CLI - Setup tool for Specify projects
+Spec Kitty CLI - setup tooling for Spec Kitty projects.
 
 Usage:
-    uvx specify-cli.py init <project-name>
-    uvx specify-cli.py init .
-    uvx specify-cli.py init --here
-
-Or install globally:
-    uv tool install --from specify-cli.py specify-cli
-    specify init <project-name>
-    specify init .
-    specify init --here
+    speckitty init <project-name>
+    speckitty init .
+    speckitty init --here
 """
 
 import os
@@ -32,8 +26,10 @@ import tempfile
 import shutil
 import shlex
 import json
+import re
 from pathlib import Path
 from typing import Optional, Tuple
+from importlib.resources import files
 
 import typer
 import httpx
@@ -79,20 +75,46 @@ AI_CHOICES = {
     "q": "Amazon Q Developer CLI",
 }
 
+AGENT_TOOL_REQUIREMENTS: dict[str, tuple[str, str]] = {
+    "claude": ("claude", "https://docs.anthropic.com/en/docs/claude-code/setup"),
+    "gemini": ("gemini", "https://github.com/google-gemini/gemini-cli"),
+    "qwen": ("qwen", "https://github.com/QwenLM/qwen-code"),
+    "opencode": ("opencode", "https://opencode.ai"),
+    "codex": ("codex", "https://github.com/openai/codex"),
+    "auggie": ("auggie", "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"),
+    "q": ("q", "https://aws.amazon.com/developer/learning/q-developer-cli/"),
+}
+
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
 
+DEFAULT_TEMPLATE_REPO = "spec-kitty/spec-kitty"
+
+AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
+    "claude": {"dir": ".claude/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "gemini": {"dir": ".gemini/commands", "ext": "toml", "arg_format": "{{args}}"},
+    "copilot": {"dir": ".github/prompts", "ext": "prompt.md", "arg_format": "$ARGUMENTS"},
+    "cursor": {"dir": ".cursor/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "qwen": {"dir": ".qwen/commands", "ext": "toml", "arg_format": "{{args}}"},
+    "opencode": {"dir": ".opencode/command", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "windsurf": {"dir": ".windsurf/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "codex": {"dir": ".codex/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "kilocode": {"dir": ".kilocode/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "auggie": {"dir": ".augment/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "roo": {"dir": ".roo/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "q": {"dir": ".amazonq/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
+}
+
 BANNER = """
-███████╗██████╗ ███████╗ ██████╗██╗███████╗██╗   ██╗
-██╔════╝██╔══██╗██╔════╝██╔════╝██║██╔════╝╚██╗ ██╔╝
-███████╗██████╔╝█████╗  ██║     ██║█████╗   ╚████╔╝ 
-╚════██║██╔═══╝ ██╔══╝  ██║     ██║██╔══╝    ╚██╔╝  
-███████║██║     ███████╗╚██████╗██║██║        ██║   
-╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝╚═╝        ╚═╝   
+ ____                   _  _ _ _        
+/ ___| _ __   ___  ___ | || (_) |_ ___  
+\___ \| '_ \ / _ \/ __|| __| | | __/ _ \\
+ ___) | | | |  __/\__ \| |_| | | ||  __/
+|____/|_| |_|\___||___/ \__|_|_|\__\___|
 """
 
-TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
+TAGLINE = "Spec Kitty - Spec-Driven Development Toolkit (forked from GitHub Spec Kit)"
 class StepTracker:
     """Track and render hierarchical steps without emojis, similar to Claude Code tree output.
     Supports live auto-refresh via an attached refresh callback.
@@ -191,7 +213,7 @@ def get_key():
     if key == readchar.key.ENTER:
         return 'enter'
 
-    if key == readchar.key.ESC:
+    if key == readchar.key.ESC or key == "\x1b":
         return 'escape'
 
     if key == readchar.key.CTRL_C:
@@ -275,6 +297,319 @@ def select_with_arrows(options: dict, prompt_text: str = "Select an option", def
     # Suppress explicit selection print; tracker / later logic will report consolidated status
     return selected_key
 
+
+def multi_select_with_arrows(
+    options: dict[str, str],
+    prompt_text: str = "Select options",
+    default_keys: list[str] | None = None,
+) -> list[str]:
+    """Allow selecting one or more options using arrow keys + space to toggle."""
+
+    option_keys = list(options.keys())
+    selected_indices: set[int] = set()
+    if default_keys:
+        for key in default_keys:
+            if key in option_keys:
+                selected_indices.add(option_keys.index(key))
+    if not selected_indices and option_keys:
+        selected_indices.add(0)
+
+    cursor_index = next(iter(selected_indices)) if selected_indices else 0
+
+    def build_panel():
+        table = Table.grid(padding=(0, 2))
+        table.add_column(style="cyan", justify="left", width=3)
+        table.add_column(style="white", justify="left")
+
+        for i, key in enumerate(option_keys):
+            indicator = "[cyan]☑" if i in selected_indices else "[bright_black]☐"
+            pointer = "▶" if i == cursor_index else " "
+            table.add_row(pointer, f"{indicator} [cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
+
+        table.add_row("", "")
+        table.add_row(
+            "",
+            "[dim]Use ↑/↓ to move, Space to toggle, Enter to confirm, Esc to cancel[/dim]",
+        )
+
+        return Panel(table, title=f"[bold]{prompt_text}[/bold]", border_style="cyan", padding=(1, 2))
+
+    def normalize_selection() -> list[str]:
+        # Preserve original order from option_keys
+        return [option_keys[i] for i in range(len(option_keys)) if i in selected_indices]
+
+    console.print()
+
+    with Live(build_panel(), console=console, transient=True, auto_refresh=False) as live:
+        while True:
+            try:
+                key = get_key()
+                if key == 'up':
+                    cursor_index = (cursor_index - 1) % len(option_keys)
+                elif key == 'down':
+                    cursor_index = (cursor_index + 1) % len(option_keys)
+                elif key in (' ', readchar.key.SPACE):
+                    if cursor_index in selected_indices:
+                        selected_indices.remove(cursor_index)
+                    else:
+                        selected_indices.add(cursor_index)
+                elif key == 'enter':
+                    current = normalize_selection()
+                    if current:
+                        return current
+                    # Require at least one selection; keep prompting
+                elif key == 'escape':
+                    console.print("\n[yellow]Selection cancelled[/yellow]")
+                    raise typer.Exit(1)
+
+                live.update(build_panel(), refresh=True)
+
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Selection cancelled[/yellow]")
+                raise typer.Exit(1)
+
+
+def get_local_repo_root() -> Path | None:
+    """Return repository root when running from a local checkout, else None."""
+    env_root = os.environ.get("SPECKITTY_TEMPLATE_ROOT")
+    if env_root:
+        root_path = Path(env_root).expanduser().resolve()
+        if (root_path / "templates" / "commands").exists():
+            return root_path
+        console.print(
+            f"[yellow]SPECKITTY_TEMPLATE_ROOT set to {root_path}, but templates/commands not found. Ignoring.[/yellow]"
+        )
+
+    candidate = Path(__file__).resolve().parents[2]
+    if (candidate / "templates" / "commands").exists():
+        return candidate
+    return None
+
+
+def parse_repo_slug(slug: str) -> tuple[str, str]:
+    parts = slug.strip().split("/")
+    if len(parts) != 2 or not all(parts):
+        raise ValueError(f"Invalid GitHub repo slug '{slug}'. Expected format owner/name")
+    return parts[0], parts[1]
+
+
+def rewrite_paths(text: str) -> str:
+    return text
+
+
+def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str) -> Path:
+    specify_root = project_path / ".specify"
+    specify_root.mkdir(parents=True, exist_ok=True)
+
+    memory_src = repo_root / "memory"
+    if memory_src.exists():
+        memory_dest = specify_root / "memory"
+        if memory_dest.exists():
+            shutil.rmtree(memory_dest)
+        shutil.copytree(memory_src, memory_dest)
+
+    scripts_src = repo_root / "scripts"
+    if scripts_src.exists():
+        scripts_dest = specify_root / "scripts"
+        if scripts_dest.exists():
+            shutil.rmtree(scripts_dest)
+        scripts_dest.mkdir(parents=True, exist_ok=True)
+        variant = "bash" if script_type == "sh" else "powershell"
+        variant_src = scripts_src / variant
+        if variant_src.exists():
+            shutil.copytree(variant_src, scripts_dest / variant)
+        for item in scripts_src.iterdir():
+            if item.is_file():
+                shutil.copy2(item, scripts_dest / item.name)
+
+    templates_src = repo_root / "templates"
+    if templates_src.exists():
+        templates_dest = specify_root / "templates"
+        if templates_dest.exists():
+            shutil.rmtree(templates_dest)
+        shutil.copytree(templates_src, templates_dest)
+
+    return (specify_root / "templates" / "commands")
+
+
+def render_command_template(
+    template_path: Path,
+    script_type: str,
+    agent_key: str,
+    arg_format: str,
+    extension: str,
+) -> str:
+    text = template_path.read_text(encoding="utf-8").replace("\r", "")
+
+    frontmatter_text = ""
+    body_text = text
+    if text.startswith("---\n"):
+        closing = text.find("\n---\n", 4)
+        if closing != -1:
+            frontmatter_text = text[4:closing]
+            body_text = text[closing + 5 :]
+
+    description = ""
+    scripts: dict[str, str] = {}
+    agent_scripts: dict[str, str] = {}
+    if frontmatter_text:
+        current_section = None
+        for line in frontmatter_text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if not line.startswith(" "):
+                current_section = None
+            if stripped == "scripts:":
+                current_section = "scripts"
+                continue
+            if stripped == "agent_scripts:":
+                current_section = "agent_scripts"
+                continue
+            if stripped.startswith("description:"):
+                description = stripped[len("description:") :].strip()
+                continue
+            if line.startswith("  ") and current_section:
+                key_value = stripped.split(":", 1)
+                if len(key_value) == 2:
+                    key = key_value[0].strip()
+                    value = key_value[1].strip()
+                    if value.startswith('"') and value.endswith('"'):
+                        value = value[1:-1]
+                    if current_section == "scripts":
+                        scripts[key] = value
+                    elif current_section == "agent_scripts":
+                        agent_scripts[key] = value
+
+    script_command = scripts.get(script_type, f"(Missing script command for {script_type})")
+    agent_script_command = agent_scripts.get(script_type)
+
+    if frontmatter_text:
+        filtered_lines = []
+        skipping = False
+        for line in frontmatter_text.splitlines():
+            stripped = line.strip()
+            if skipping:
+                if line.startswith(" ") or line.startswith("\t"):
+                    continue
+                skipping = False
+            if stripped in {"scripts:", "agent_scripts:"}:
+                skipping = True
+                continue
+            filtered_lines.append(line)
+        if filtered_lines:
+            frontmatter_clean = "---\n" + "\n".join(filtered_lines) + "\n---\n\n"
+        else:
+            frontmatter_clean = ""
+    else:
+        frontmatter_clean = ""
+
+    body_text = body_text.replace('{SCRIPT}', script_command)
+    if agent_script_command:
+        body_text = body_text.replace('{AGENT_SCRIPT}', agent_script_command)
+    else:
+        body_text = body_text.replace('{AGENT_SCRIPT}', "")
+    body_text = body_text.replace('{ARGS}', arg_format)
+    body_text = body_text.replace('__AGENT__', agent_key)
+    body_text = rewrite_paths(body_text)
+    if frontmatter_clean:
+        frontmatter_clean = rewrite_paths(frontmatter_clean)
+
+    if extension == "toml":
+        description_value = description.strip()
+        if description_value.startswith('"') and description_value.endswith('"'):
+            description_value = description_value[1:-1]
+        description_value = description_value.replace('"', '\\"')
+        if not body_text.endswith("\n"):
+            body_text += "\n"
+        return f'description = "{description_value}"\n\nprompt = """\n{body_text}"""\n'
+
+    if frontmatter_clean:
+        result = frontmatter_clean + body_text
+    else:
+        result = body_text
+    if not result.endswith("\n"):
+        result += "\n"
+    return result
+
+
+def generate_agent_assets(commands_dir: Path, project_path: Path, agent_key: str, script_type: str) -> None:
+    config = AGENT_COMMAND_CONFIG[agent_key]
+    output_dir = project_path / config["dir"]
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if not commands_dir.exists():
+        raise FileNotFoundError(f"Command templates directory not found at {commands_dir}")
+    for template_path in sorted(commands_dir.glob("*.md")):
+        rendered = render_command_template(
+            template_path,
+            script_type,
+            agent_key,
+            config["arg_format"],
+            config["ext"],
+        )
+        ext = config["ext"]
+        stem = template_path.stem
+        if agent_key == "codex":
+            stem = stem.replace('-', '_')
+        filename = f"speckitty.{stem}.{ext}" if ext else f"speckitty.{stem}"
+        (output_dir / filename).write_text(rendered, encoding="utf-8")
+
+    if agent_key == "copilot":
+        vscode_settings = commands_dir.parent / "vscode-settings.json"
+        if vscode_settings.exists():
+            vscode_dest = project_path / ".vscode"
+            vscode_dest.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(vscode_settings, vscode_dest / "settings.json")
+
+
+def copy_package_tree(resource, dest: Path) -> None:
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    for child in resource.iterdir():
+        target = dest / child.name
+        if child.is_dir():
+            copy_package_tree(child, target)
+        else:
+            with child.open('rb') as src, open(target, 'wb') as dst:
+                shutil.copyfileobj(src, dst)
+
+
+def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path:
+    data_root = files("specify_cli")
+    specify_root = project_path / ".specify"
+    specify_root.mkdir(parents=True, exist_ok=True)
+
+    memory_resource = data_root.joinpath("memory")
+    if memory_resource.exists():
+        copy_package_tree(memory_resource, specify_root / "memory")
+
+    scripts_resource = data_root.joinpath("scripts")
+    if scripts_resource.exists():
+        scripts_dest = specify_root / "scripts"
+        if scripts_dest.exists():
+            shutil.rmtree(scripts_dest)
+        scripts_dest.mkdir(parents=True, exist_ok=True)
+        variant_name = "bash" if script_type == "sh" else "powershell"
+        variant_resource = scripts_resource.joinpath(variant_name)
+        if variant_resource.exists():
+            copy_package_tree(variant_resource, scripts_dest / variant_name)
+        for child in scripts_resource.iterdir():
+            if child.is_file():
+                with child.open('rb') as src, open(scripts_dest / child.name, 'wb') as dst:
+                    shutil.copyfileobj(src, dst)
+
+    templates_resource = data_root.joinpath("templates")
+    if templates_resource.exists():
+        copy_package_tree(templates_resource, specify_root / "templates")
+
+    return specify_root / "templates" / "commands"
+
+
+
 console = Console()
 
 class BannerGroup(TyperGroup):
@@ -287,8 +622,8 @@ class BannerGroup(TyperGroup):
 
 
 app = typer.Typer(
-    name="specify",
-    help="Setup tool for Specify spec-driven development projects",
+    name="speckitty",
+    help="Setup tool for Spec Kitty spec-driven development projects",
     add_completion=False,
     invoke_without_command=True,
     cls=BannerGroup,
@@ -316,7 +651,7 @@ def callback(ctx: typer.Context):
     # (help is handled by BannerGroup)
     if ctx.invoked_subcommand is None and "--help" not in sys.argv and "-h" not in sys.argv:
         show_banner()
-        console.print(Align.center("[dim]Run 'specify --help' for usage information[/dim]"))
+        console.print(Align.center("[dim]Run 'speckitty --help' for usage information[/dim]"))
         console.print()
 
 def run_command(cmd: list[str], check_return: bool = True, capture: bool = False, shell: bool = False) -> Optional[str]:
@@ -406,9 +741,19 @@ def init_git_repo(project_path: Path, quiet: bool = False) -> bool:
     finally:
         os.chdir(original_cwd)
 
-def download_template_from_github(ai_assistant: str, download_dir: Path, *, script_type: str = "sh", verbose: bool = True, show_progress: bool = True, client: httpx.Client = None, debug: bool = False, github_token: str = None) -> Tuple[Path, dict]:
-    repo_owner = "github"
-    repo_name = "spec-kit"
+def download_template_from_github(
+    repo_owner: str,
+    repo_name: str,
+    ai_assistant: str,
+    download_dir: Path,
+    *,
+    script_type: str = "sh",
+    verbose: bool = True,
+    show_progress: bool = True,
+    client: httpx.Client = None,
+    debug: bool = False,
+    github_token: str = None,
+) -> Tuple[Path, dict]:
     if client is None:
         client = httpx.Client(verify=ssl_context)
 
@@ -440,7 +785,7 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
 
     # Find the template asset for the specified AI assistant
     assets = release_data.get("assets", [])
-    pattern = f"spec-kit-template-{ai_assistant}-{script_type}"
+    pattern = f"spec-kitty-template-{ai_assistant}-{script_type}"
     matching_assets = [
         asset for asset in assets
         if pattern in asset["name"] and asset["name"].endswith(".zip")
@@ -517,17 +862,39 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
     }
     return zip_path, metadata
 
-def download_and_extract_template(project_path: Path, ai_assistant: str, script_type: str, is_current_dir: bool = False, *, verbose: bool = True, tracker: StepTracker | None = None, client: httpx.Client = None, debug: bool = False, github_token: str = None) -> Path:
+def download_and_extract_template(
+    project_path: Path,
+    ai_assistant: str,
+    script_type: str,
+    is_current_dir: bool = False,
+    *,
+    verbose: bool = True,
+    tracker: StepTracker | None = None,
+    tracker_prefix: str | None = None,
+    allow_existing: bool = False,
+    client: httpx.Client = None,
+    debug: bool = False,
+    github_token: str = None,
+    repo_owner: str = "spec-kitty",
+    repo_name: str = "spec-kitty",
+) -> Path:
     """Download the latest release and extract it to create a new project.
     Returns project_path. Uses tracker if provided (with keys: fetch, download, extract, cleanup)
     """
     current_dir = Path.cwd()
 
     # Step: fetch + download combined
+    def tk(step: str) -> str:
+        if not tracker_prefix:
+            return step
+        return f"{tracker_prefix}-{step}"
+
     if tracker:
-        tracker.start("fetch", "contacting GitHub API")
+        tracker.start(tk("fetch"), "contacting GitHub API")
     try:
         zip_path, meta = download_template_from_github(
+            repo_owner,
+            repo_name,
             ai_assistant,
             current_dir,
             script_type=script_type,
@@ -535,23 +902,23 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
             show_progress=(tracker is None),
             client=client,
             debug=debug,
-            github_token=github_token
+            github_token=github_token,
         )
         if tracker:
-            tracker.complete("fetch", f"release {meta['release']} ({meta['size']:,} bytes)")
-            tracker.add("download", "Download template")
-            tracker.complete("download", meta['filename'])
+            tracker.complete(tk("fetch"), f"release {meta['release']} ({meta['size']:,} bytes)")
+            tracker.add(tk("download"), "Download template")
+            tracker.complete(tk("download"), meta['filename'])
     except Exception as e:
         if tracker:
-            tracker.error("fetch", str(e))
+            tracker.error(tk("fetch"), str(e))
         else:
             if verbose:
                 console.print(f"[red]Error downloading template:[/red] {e}")
         raise
 
     if tracker:
-        tracker.add("extract", "Extract template")
-        tracker.start("extract")
+        tracker.add(tk("extract"), "Extract template")
+        tracker.start(tk("extract"))
     elif verbose:
         console.print("Extracting template...")
 
@@ -564,8 +931,8 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
             # List all files in the ZIP for debugging
             zip_contents = zip_ref.namelist()
             if tracker:
-                tracker.start("zip-list")
-                tracker.complete("zip-list", f"{len(zip_contents)} entries")
+                tracker.start(tk("zip-list"))
+                tracker.complete(tk("zip-list"), f"{len(zip_contents)} entries")
             elif verbose:
                 console.print(f"[cyan]ZIP contains {len(zip_contents)} items[/cyan]")
 
@@ -578,8 +945,8 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                     # Check what was extracted
                     extracted_items = list(temp_path.iterdir())
                     if tracker:
-                        tracker.start("extracted-summary")
-                        tracker.complete("extracted-summary", f"temp {len(extracted_items)} items")
+                        tracker.start(tk("extracted-summary"))
+                        tracker.complete(tk("extracted-summary"), f"temp {len(extracted_items)} items")
                     elif verbose:
                         console.print(f"[cyan]Extracted {len(extracted_items)} items to temp location[/cyan]")
 
@@ -588,8 +955,8 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                     if len(extracted_items) == 1 and extracted_items[0].is_dir():
                         source_dir = extracted_items[0]
                         if tracker:
-                            tracker.add("flatten", "Flatten nested directory")
-                            tracker.complete("flatten")
+                            tracker.add(tk("flatten"), "Flatten nested directory")
+                            tracker.complete(tk("flatten"))
                         elif verbose:
                             console.print(f"[cyan]Found nested directory structure[/cyan]")
 
@@ -617,13 +984,36 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                         console.print(f"[cyan]Template files merged into current directory[/cyan]")
             else:
                 # Extract directly to project directory (original behavior)
-                zip_ref.extractall(project_path)
+                if allow_existing and project_path.exists():
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        temp_path = Path(temp_dir)
+                        zip_ref.extractall(temp_path)
+                        extracted_items = list(temp_path.iterdir())
+                        if tracker:
+                            tracker.start(tk("extracted-summary"))
+                            tracker.complete(tk("extracted-summary"), f"temp {len(extracted_items)} items")
+                        for item in extracted_items:
+                            dest_path = project_path / item.name
+                            if item.is_dir():
+                                if dest_path.exists():
+                                    for sub_item in item.rglob('*'):
+                                        if sub_item.is_file():
+                                            rel_path = sub_item.relative_to(item)
+                                            dest_file = dest_path / rel_path
+                                            dest_file.parent.mkdir(parents=True, exist_ok=True)
+                                            shutil.copy2(sub_item, dest_file)
+                                else:
+                                    shutil.copytree(item, dest_path)
+                            else:
+                                shutil.copy2(item, dest_path)
+                else:
+                    zip_ref.extractall(project_path)
 
                 # Check what was extracted
                 extracted_items = list(project_path.iterdir())
                 if tracker:
-                    tracker.start("extracted-summary")
-                    tracker.complete("extracted-summary", f"{len(extracted_items)} top-level items")
+                    tracker.start(tk("extracted-summary"))
+                    tracker.complete(tk("extracted-summary"), f"{len(extracted_items)} top-level items")
                 elif verbose:
                     console.print(f"[cyan]Extracted {len(extracted_items)} items to {project_path}:[/cyan]")
                     for item in extracted_items:
@@ -641,14 +1031,14 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                     # Rename temp directory to project directory
                     shutil.move(str(temp_move_dir), str(project_path))
                     if tracker:
-                        tracker.add("flatten", "Flatten nested directory")
-                        tracker.complete("flatten")
+                        tracker.add(tk("flatten"), "Flatten nested directory")
+                        tracker.complete(tk("flatten"))
                     elif verbose:
                         console.print(f"[cyan]Flattened nested directory structure[/cyan]")
 
     except Exception as e:
         if tracker:
-            tracker.error("extract", str(e))
+            tracker.error(tk("extract"), str(e))
         else:
             if verbose:
                 console.print(f"[red]Error extracting template:[/red] {e}")
@@ -660,15 +1050,15 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
         raise typer.Exit(1)
     else:
         if tracker:
-            tracker.complete("extract")
+            tracker.complete(tk("extract"))
     finally:
         if tracker:
-            tracker.add("cleanup", "Remove temporary archive")
+            tracker.add(tk("cleanup"), "Remove temporary archive")
         # Clean up downloaded ZIP file
         if zip_path.exists():
             zip_path.unlink()
             if tracker:
-                tracker.complete("cleanup")
+                tracker.complete(tk("cleanup"))
             elif verbose:
                 console.print(f"Cleaned up: {zip_path.name}")
 
@@ -722,7 +1112,7 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
 @app.command()
 def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
-    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor, qwen, opencode, codex, windsurf, kilocode, auggie or q"),
+    ai_assistant: str = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
@@ -737,23 +1127,24 @@ def init(
     
     This command will:
     1. Check that required tools are installed (git is optional)
-    2. Let you choose your AI assistant (Claude Code, Gemini CLI, GitHub Copilot, Cursor, Qwen Code, opencode, Codex CLI, Windsurf, Kilo Code, Auggie CLI, or Amazon Q Developer CLI)
+    2. Let you choose one or more AI assistants (Claude Code, Gemini CLI, GitHub Copilot, Cursor, Qwen Code, opencode, Codex CLI, Windsurf, Kilo Code, Auggie CLI, or Amazon Q Developer CLI)
     3. Download the appropriate template from GitHub
     4. Extract the template to a new project directory or current directory
     5. Initialize a fresh git repository (if not --no-git and no existing repo)
     6. Optionally set up AI assistant commands
     
     Examples:
-        specify init my-project
-        specify init my-project --ai claude
-        specify init my-project --ai copilot --no-git
-        specify init --ignore-agent-tools my-project
-        specify init . --ai claude         # Initialize in current directory
-        specify init .                     # Initialize in current directory (interactive AI selection)
-        specify init --here --ai claude    # Alternative syntax for current directory
-        specify init --here --ai codex
-        specify init --here
-        specify init --here --force  # Skip confirmation when current directory not empty
+        speckitty init my-project
+        speckitty init my-project --ai claude
+        speckitty init my-project --ai claude,codex
+        speckitty init my-project --ai copilot --no-git
+        speckitty init --ignore-agent-tools my-project
+        speckitty init . --ai claude         # Initialize in current directory
+        speckitty init .                     # Initialize in current directory (interactive AI selection)
+        speckitty init --here --ai claude    # Alternative syntax for current directory
+        speckitty init --here --ai codex
+        speckitty init --here
+        speckitty init --here --force  # Skip confirmation when current directory not empty
     """
 
     show_banner()
@@ -824,61 +1215,59 @@ def init(
             console.print("[yellow]Git not found - will skip repository initialization[/yellow]")
 
     if ai_assistant:
-        if ai_assistant not in AI_CHOICES:
-            console.print(f"[red]Error:[/red] Invalid AI assistant '{ai_assistant}'. Choose from: {', '.join(AI_CHOICES.keys())}")
+        raw_agents = [part.strip().lower() for part in ai_assistant.replace(";", ",").split(",") if part.strip()]
+        if not raw_agents:
+            console.print("[red]Error:[/red] --ai flag did not contain any valid agent identifiers")
             raise typer.Exit(1)
-        selected_ai = ai_assistant
+        selected_agents: list[str] = []
+        seen_agents: set[str] = set()
+        invalid_agents: list[str] = []
+        for key in raw_agents:
+            if key not in AI_CHOICES:
+                invalid_agents.append(key)
+                continue
+            if key not in seen_agents:
+                selected_agents.append(key)
+                seen_agents.add(key)
+        if invalid_agents:
+            console.print(
+                f"[red]Error:[/red] Invalid AI assistant(s): {', '.join(invalid_agents)}. "
+                f"Choose from: {', '.join(AI_CHOICES.keys())}"
+            )
+            raise typer.Exit(1)
     else:
-        # Use arrow-key selection interface
-        selected_ai = select_with_arrows(
-            AI_CHOICES, 
-            "Choose your AI assistant:", 
-            "copilot"
+        selected_agents = multi_select_with_arrows(
+            AI_CHOICES,
+            "Choose your AI assistant(s):",
+            default_keys=["copilot"],
         )
+
+    if not selected_agents:
+        console.print("[red]Error:[/red] No AI assistants selected")
+        raise typer.Exit(1)
 
     # Check agent tools unless ignored
     if not ignore_agent_tools:
-        agent_tool_missing = False
-        install_url = ""
-        if selected_ai == "claude":
-            if not check_tool("claude", "https://docs.anthropic.com/en/docs/claude-code/setup"):
-                install_url = "https://docs.anthropic.com/en/docs/claude-code/setup"
-                agent_tool_missing = True
-        elif selected_ai == "gemini":
-            if not check_tool("gemini", "https://github.com/google-gemini/gemini-cli"):
-                install_url = "https://github.com/google-gemini/gemini-cli"
-                agent_tool_missing = True
-        elif selected_ai == "qwen":
-            if not check_tool("qwen", "https://github.com/QwenLM/qwen-code"):
-                install_url = "https://github.com/QwenLM/qwen-code"
-                agent_tool_missing = True
-        elif selected_ai == "opencode":
-            if not check_tool("opencode", "https://opencode.ai"):
-                install_url = "https://opencode.ai"
-                agent_tool_missing = True
-        elif selected_ai == "codex":
-            if not check_tool("codex", "https://github.com/openai/codex"):
-                install_url = "https://github.com/openai/codex"
-                agent_tool_missing = True
-        elif selected_ai == "auggie":
-            if not check_tool("auggie", "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"):
-                install_url = "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"
-                agent_tool_missing = True
-        elif selected_ai == "q":
-            if not check_tool("q", "https://github.com/aws/amazon-q-developer-cli"):
-                install_url = "https://aws.amazon.com/developer/learning/q-developer-cli/"
-                agent_tool_missing = True
-        # GitHub Copilot and Cursor checks are not needed as they're typically available in supported IDEs
+        missing_agents: list[tuple[str, str, str]] = []  # (agent key, display, url)
+        for agent_key in selected_agents:
+            requirement = AGENT_TOOL_REQUIREMENTS.get(agent_key)
+            if not requirement:
+                continue
+            tool_name, url = requirement
+            if not check_tool(tool_name, url):
+                missing_agents.append((agent_key, AI_CHOICES[agent_key], url))
 
-        if agent_tool_missing:
+        if missing_agents:
+            lines = []
+            for agent_key, display_name, url in missing_agents:
+                lines.append(f"[cyan]{display_name}[/cyan] ({agent_key}) → install: [cyan]{url}[/cyan]")
+            lines.append("")
+            lines.append("Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check")
             error_panel = Panel(
-                f"[cyan]{selected_ai}[/cyan] not found\n"
-                f"Install with: [cyan]{install_url}[/cyan]\n"
-                f"{AI_CHOICES[selected_ai]} is required to continue with this project type.\n\n"
-                "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
-                title="[red]Agent Detection Error[/red]",
+                "\n".join(lines),
+                title="[red]Agent Tool(s) Missing[/red]",
                 border_style="red",
-                padding=(1, 2)
+                padding=(1, 2),
             )
             console.print()
             console.print(error_panel)
@@ -899,7 +1288,29 @@ def init(
         else:
             selected_script = default_script
 
-    console.print(f"[cyan]Selected AI assistant:[/cyan] {selected_ai}")
+    template_mode = "package"
+    local_repo = get_local_repo_root()
+    if local_repo is not None:
+        template_mode = "local"
+        if debug:
+            console.print(f"[cyan]Using local templates from[/cyan] {local_repo}")
+
+    repo_owner = repo_name = None
+    remote_slug_env = os.environ.get("SPECIFY_TEMPLATE_REPO")
+    if remote_slug_env:
+        try:
+            repo_owner, repo_name = parse_repo_slug(remote_slug_env)
+        except ValueError as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
+        template_mode = "remote"
+        if debug:
+            console.print(f"[cyan]Using remote templates from[/cyan] {repo_owner}/{repo_name}")
+    elif template_mode == "package" and debug:
+        console.print("[cyan]Using templates bundled with specify_cli package[/cyan]")
+
+    ai_display = ", ".join(AI_CHOICES[key] for key in selected_agents)
+    console.print(f"[cyan]Selected AI assistant(s):[/cyan] {ai_display}")
     console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
 
     # Download and set up project
@@ -910,24 +1321,33 @@ def init(
     # Pre steps recorded as completed before live rendering
     tracker.add("precheck", "Check required tools")
     tracker.complete("precheck", "ok")
-    tracker.add("ai-select", "Select AI assistant")
-    tracker.complete("ai-select", f"{selected_ai}")
+    tracker.add("ai-select", "Select AI assistant(s)")
+    tracker.complete("ai-select", ai_display)
     tracker.add("script-select", "Select script type")
     tracker.complete("script-select", selected_script)
+    for agent_key in selected_agents:
+        label = AI_CHOICES[agent_key]
+        tracker.add(f"{agent_key}-fetch", f"{label}: fetch latest release")
+        tracker.add(f"{agent_key}-download", f"{label}: download template")
+        tracker.add(f"{agent_key}-extract", f"{label}: extract template")
+        tracker.add(f"{agent_key}-zip-list", f"{label}: archive contents")
+        tracker.add(f"{agent_key}-extracted-summary", f"{label}: extraction summary")
+        tracker.add(f"{agent_key}-cleanup", f"{label}: cleanup")
     for key, label in [
-        ("fetch", "Fetch latest release"),
-        ("download", "Download template"),
-        ("extract", "Extract template"),
-        ("zip-list", "Archive contents"),
-        ("extracted-summary", "Extraction summary"),
         ("chmod", "Ensure scripts executable"),
-        ("cleanup", "Cleanup"),
         ("git", "Initialize git repository"),
-        ("final", "Finalize")
+        ("final", "Finalize"),
     ]:
         tracker.add(key, label)
 
-    # Use transient so live tree is replaced by the final static render (avoids duplicate output)
+    if template_mode in ("local", "package") and not here and not project_path.exists():
+        project_path.mkdir(parents=True)
+
+    commands_dir: Path | None = None
+    base_prepared = False
+    if template_mode == "remote" and (repo_owner is None or repo_name is None):
+        repo_owner, repo_name = parse_repo_slug(DEFAULT_TEMPLATE_REPO)
+
     with Live(tracker.render(), console=console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
         try:
@@ -936,7 +1356,53 @@ def init(
             local_ssl_context = ssl_context if verify else False
             local_client = httpx.Client(verify=local_ssl_context)
 
-            download_and_extract_template(project_path, selected_ai, selected_script, here, verbose=False, tracker=tracker, client=local_client, debug=debug, github_token=github_token)
+            for index, agent_key in enumerate(selected_agents):
+                if template_mode in ("local", "package"):
+                    source_detail = "local checkout" if template_mode == "local" else "packaged data"
+                    tracker.start(f"{agent_key}-fetch")
+                    tracker.complete(f"{agent_key}-fetch", source_detail)
+                    tracker.start(f"{agent_key}-download")
+                    tracker.complete(f"{agent_key}-download", "local files")
+                    tracker.start(f"{agent_key}-extract")
+                    try:
+                        if not base_prepared:
+                            if template_mode == "local":
+                                commands_dir = copy_specify_base_from_local(local_repo, project_path, selected_script)
+                            else:
+                                commands_dir = copy_specify_base_from_package(project_path, selected_script)
+                            base_prepared = True
+                        if commands_dir is None:
+                            raise RuntimeError("Command templates directory was not prepared")
+                        generate_agent_assets(commands_dir, project_path, agent_key, selected_script)
+                    except Exception as exc:
+                        tracker.error(f"{agent_key}-extract", str(exc))
+                        raise
+                    else:
+                        tracker.complete(f"{agent_key}-extract", "commands generated")
+                        tracker.start(f"{agent_key}-zip-list")
+                        tracker.complete(f"{agent_key}-zip-list", "templates ready")
+                        tracker.start(f"{agent_key}-extracted-summary")
+                        tracker.complete(f"{agent_key}-extracted-summary", "commands ready")
+                        tracker.start(f"{agent_key}-cleanup")
+                        tracker.complete(f"{agent_key}-cleanup", "done")
+                else:
+                    is_current_dir_flag = here if index == 0 else True
+                    allow_existing_flag = index > 0
+                    download_and_extract_template(
+                        project_path,
+                        agent_key,
+                        selected_script,
+                        is_current_dir_flag,
+                        verbose=False,
+                        tracker=tracker,
+                        tracker_prefix=agent_key,
+                        allow_existing=allow_existing_flag,
+                        client=local_client,
+                        debug=debug,
+                        github_token=github_token,
+                        repo_owner=repo_owner,
+                        repo_name=repo_name,
+                    )
 
             # Ensure scripts are executable (POSIX)
             ensure_executable_scripts(project_path, tracker=tracker)
@@ -996,14 +1462,24 @@ def init(
         "q": ".amazonq/"
     }
 
-    if selected_ai in agent_folder_map:
-        agent_folder = agent_folder_map[selected_ai]
+    notice_entries = []
+    for agent_key in selected_agents:
+        folder = agent_folder_map.get(agent_key)
+        if folder:
+            notice_entries.append((AI_CHOICES[agent_key], folder))
+
+    if notice_entries:
+        body_lines = [
+            "Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.",
+            "Consider adding the following folders (or subsets) to [cyan].gitignore[/cyan]:",
+            "",
+        ]
+        body_lines.extend(f"- {display}: [cyan]{folder}[/cyan]" for display, folder in notice_entries)
         security_notice = Panel(
-            f"Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.\n"
-            f"Consider adding [cyan]{agent_folder}[/cyan] (or parts of it) to [cyan].gitignore[/cyan] to prevent accidental credential leakage.",
+            "\n".join(body_lines),
             title="[yellow]Agent Folder Security[/yellow]",
             border_style="yellow",
-            padding=(1, 2)
+            padding=(1, 2),
         )
         console.print()
         console.print(security_notice)
@@ -1018,7 +1494,7 @@ def init(
         step_num = 2
 
     # Add Codex-specific setup step if needed
-    if selected_ai == "codex":
+    if "codex" in selected_agents:
         codex_path = project_path / ".codex"
         quoted_path = shlex.quote(str(codex_path))
         if os.name == "nt":  # Windows
@@ -1031,11 +1507,13 @@ def init(
 
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent:")
 
-    steps_lines.append("   2.1 [cyan]/speckit.constitution[/] - Establish project principles")
-    steps_lines.append("   2.2 [cyan]/speckit.specify[/] - Create baseline specification")
-    steps_lines.append("   2.3 [cyan]/speckit.plan[/] - Create implementation plan")
-    steps_lines.append("   2.4 [cyan]/speckit.tasks[/] - Generate actionable tasks")
-    steps_lines.append("   2.5 [cyan]/speckit.implement[/] - Execute implementation")
+    steps_lines.append("   2.1 [cyan]/speckitty.constitution[/] - Establish project principles")
+    steps_lines.append("   2.2 [cyan]/speckitty.specify[/] - Create baseline specification")
+    steps_lines.append("   2.3 [cyan]/speckitty.plan[/] - Create implementation plan")
+    steps_lines.append("   2.4 [cyan]/speckitty.tasks[/] - Generate actionable tasks")
+    steps_lines.append("   2.5 [cyan]/speckitty.task-prompts[/] - Build kanban-ready prompt files in /tasks/planned/")
+    steps_lines.append("   2.6 [cyan]/speckitty.implement[/] - Execute implementation from /tasks/doing/")
+    steps_lines.append("   2.7 [cyan]/speckitty.review[/] - Review prompts and move them to /tasks/done/")
 
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1,2))
     console.print()
@@ -1044,9 +1522,9 @@ def init(
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        f"○ [cyan]/speckit.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/speckit.plan[/] if used)",
-        f"○ [cyan]/speckit.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/speckit.tasks[/], before [cyan]/speckit.implement[/])",
-        f"○ [cyan]/speckit.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/speckit.plan[/])"
+        f"○ [cyan]/speckitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/speckitty.plan[/] if used)",
+        f"○ [cyan]/speckitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/speckitty.tasks[/], before [cyan]/speckitty.task-prompts[/])",
+        f"○ [cyan]/speckitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/speckitty.plan[/])"
     ]
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1,2))
     console.print()
@@ -1090,7 +1568,7 @@ def check():
 
     console.print(tracker.render())
 
-    console.print("\n[bold green]Specify CLI is ready to use![/bold green]")
+    console.print("\n[bold green]Spec Kitty CLI is ready to use![/bold green]")
 
     if not git_ok:
         console.print("[dim]Tip: Install git for repository management[/dim]")

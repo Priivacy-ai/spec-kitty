@@ -3,7 +3,9 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckitty.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+
+The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
 
 ## Summary
 
@@ -39,12 +41,12 @@
 
 ```
 specs/[###-feature]/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+├── plan.md              # This file (/speckitty.plan command output)
+├── research.md          # Phase 0 output (/speckitty.plan command)
+├── data-model.md        # Phase 1 output (/speckitty.plan command)
+├── quickstart.md        # Phase 1 output (/speckitty.plan command)
+├── contracts/           # Phase 1 output (/speckitty.plan command)
+└── tasks.md             # Phase 2 output (/speckitty.tasks command - NOT created by /speckitty.plan)
 ```
 
 ### Source Code (repository root)

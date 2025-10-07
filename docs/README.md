@@ -1,6 +1,10 @@
 # Documentation
 
-This folder contains the documentation source files for Spec Kit, built using [DocFX](https://dotnet.github.io/docfx/).
+This folder contains the documentation source files for Spec Kitty, built using [DocFX](https://dotnet.github.io/docfx/).
+
+The live CLI always negotiates specs and plans interactively; expect every command to open with a discovery interview before artifacts are written.
+
+Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit), and the documentation keeps references to the upstream project in accordance with the original license.
 
 ## Building Locally
 

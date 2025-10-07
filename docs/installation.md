@@ -1,5 +1,7 @@
 # Installation Guide
 
+> Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). Installation commands below target the spec-kitty distribution while crediting the original project.
+
 ## Prerequisites
 
 - **Linux/macOS** (or Windows; PowerShell scripts now supported without WSL)
@@ -15,28 +17,30 @@
 The easiest way to get started is to initialize a new project:
 
 ```bash
-uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME>
+uvx --from . speckitty init <PROJECT_NAME>
 ```
 
 Or initialize in the current directory:
 
 ```bash
-uvx --from git+https://github.com/github/spec-kit.git specify init .
+uvx --from . speckitty init .
 # or use the --here flag
-uvx --from git+https://github.com/github/spec-kit.git specify init --here
+uvx --from . speckitty init --here
 ```
 
-### Specify AI Agent
+> Run these commands from the Spec Kitty repository root so `.` resolves to this checkout.
+
+### Choose AI Agent
 
 You can proactively specify your AI agent during initialization:
 
 ```bash
-uvx --from git+https://github.com/github/spec-kit.git specify init <project_name> --ai claude
-uvx --from git+https://github.com/github/spec-kit.git specify init <project_name> --ai gemini
-uvx --from git+https://github.com/github/spec-kit.git specify init <project_name> --ai copilot
+uvx --from . speckitty init <project_name> --ai claude
+uvx --from . speckitty init <project_name> --ai gemini
+uvx --from . speckitty init <project_name> --ai copilot
 ```
 
-### Specify Script Type (Shell vs PowerShell)
+### Choose Script Type (Shell vs PowerShell)
 
 All automation scripts now have both Bash (`.sh`) and PowerShell (`.ps1`) variants.
 
@@ -47,8 +51,8 @@ Auto behavior:
 
 Force a specific script type:
 ```bash
-uvx --from git+https://github.com/github/spec-kit.git specify init <project_name> --script sh
-uvx --from git+https://github.com/github/spec-kit.git specify init <project_name> --script ps
+uvx --from . speckitty init <project_name> --script sh
+uvx --from . speckitty init <project_name> --script ps
 ```
 
 ### Ignore Agent Tools Check
@@ -56,15 +60,17 @@ uvx --from git+https://github.com/github/spec-kit.git specify init <project_name
 If you prefer to get the templates without checking for the right tools:
 
 ```bash
-uvx --from git+https://github.com/github/spec-kit.git specify init <project_name> --ai claude --ignore-agent-tools
+uvx --from . speckitty init <project_name> --ai claude --ignore-agent-tools
 ```
 
 ## Verification
 
 After initialization, you should see the following commands available in your AI agent:
-- `/speckit.specify` - Create specifications
-- `/speckit.plan` - Generate implementation plans  
-- `/speckit.tasks` - Break down into actionable tasks
+- `/speckitty.specify` - Create specifications
+- `/speckitty.plan` - Generate implementation plans  
+- `/speckitty.tasks` - Break down into actionable tasks
+
+When you run `/speckitty.specify` or `/speckitty.plan`, expect the assistant to pause with `WAITING_FOR_DISCOVERY_INPUT` or `WAITING_FOR_PLANNING_INPUT` until you answer its question tables.
 
 The `.specify/scripts` directory will contain both `.sh` and `.ps1` scripts.
 
