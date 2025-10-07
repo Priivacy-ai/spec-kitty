@@ -207,15 +207,27 @@ specify check
 
 After running `specify init`, your AI coding agent will have access to these slash commands for structured development:
 
+#### Core Commands
+
+Essential commands for the Spec-Driven Development workflow:
+
 | Command         | Description                                                           |
 |-----------------|-----------------------------------------------------------------------|
 | `/constitution` | Create or update project governing principles and development guidelines |
 | `/specify`      | Define what you want to build (requirements and user stories)        |
-| `/clarify`      | Clarify underspecified areas (must be run before `/plan` unless explicitly skipped; formerly `/quizme`) |
 | `/plan`         | Create technical implementation plans with your chosen tech stack     |
 | `/tasks`        | Generate actionable task lists for implementation                     |
-| `/analyze`      | Cross-artifact consistency & coverage analysis (run after /tasks, before /implement) |
 | `/implement`    | Execute all tasks to build the feature according to the plan         |
+
+#### Optional Commands
+
+Additional commands for enhanced quality and validation:
+
+| Command         | Description                                                           |
+|-----------------|-----------------------------------------------------------------------|
+| `/clarify`      | Clarify underspecified areas (recommended before `/plan`; formerly `/quizme`) |
+| `/analyze`      | Cross-artifact consistency & coverage analysis (run after /tasks, before /implement) |
+| `/checklist`    | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
 
 ### Environment Variables
 
@@ -314,20 +326,18 @@ You will be prompted to select the AI agent you are using. You can also proactiv
 specify init <project_name> --ai claude
 specify init <project_name> --ai gemini
 specify init <project_name> --ai copilot
-specify init <project_name> --ai cursor
-specify init <project_name> --ai qwen
-specify init <project_name> --ai opencode
-specify init <project_name> --ai codex
-specify init <project_name> --ai windsurf
-specify init <project_name> --ai q
+
 # Or in current directory:
 specify init . --ai claude
 specify init . --ai codex
+
 # or use --here flag
 specify init --here --ai claude
 specify init --here --ai codex
+
 # Force merge into a non-empty current directory
 specify init . --force --ai claude
+
 # or
 specify init --here --force --ai claude
 ```
