@@ -185,7 +185,7 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
-## Phase 4: User Story 3 - [Title] (Priority: P3)
+## Phase 3: User Story 3 - [Title] (Priority: P3)
 
 **Goal**: [Brief description of what this story delivers]
 
