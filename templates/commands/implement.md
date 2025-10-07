@@ -46,47 +46,155 @@ You **MUST** consider the user input before proceeding (if not empty).
      * Display the table showing all checklists passed
      * Automatically proceed to step 3
 
-3. Load and analyze the implementation context:
+3. **MANDATORY: Initialize Task Workflow** ⚠️ BLOCKING STEP
+
+   **For EACH task you will implement**:
+
+   a. **Move task prompt to doing lane**:
+      ```bash
+      # Get your shell PID
+      SHELL_PID=$(echo $$)
+
+      # Move prompt (example for T001)
+      git mv specs/FEATURE/tasks/planned/phase-X-name/TXXX-slug.md \
+              specs/FEATURE/tasks/doing/phase-X-name/TXXX-slug.md
+      ```
+
+   b. **Update frontmatter metadata** in the moved file:
+      ```yaml
+      lane: "doing"
+      assignee: "Your Name or Agent ID"
+      agent: "claude"  # or codex, gemini, etc.
+      shell_pid: "12345"  # from echo $$
+      ```
+
+   c. **Add activity log entry** at the bottom of the prompt file:
+      ```markdown
+      - 2025-10-07T16:00:00Z – claude – shell_pid=12345 – lane=doing – Started implementation
+      ```
+
+   d. **Commit the move**:
+      ```bash
+      git add specs/FEATURE/tasks/doing/phase-X-name/TXXX-slug.md
+      git commit -m "Start TXXX: Move to doing lane"
+      ```
+
+   **VALIDATION**: Before proceeding to implementation, verify:
+   - [ ] Prompt file exists in `tasks/doing/phase-X-name/`
+   - [ ] Frontmatter has `lane: "doing"`
+   - [ ] Frontmatter has your `shell_pid`
+   - [ ] Activity log has "Started implementation" entry
+   - [ ] Changes are committed to git
+
+   **If validation fails**: STOP and fix the workflow before implementing.
+   (Optional) Run `scripts/bash/validate-task-workflow.sh TXXX FEATURE_DIR` for automated checks.
+
+4. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
+   - **REQUIRED**: Read the task prompt file from `tasks/doing/phase-X-name/TXXX-slug.md` (moved in step 3)
+   - **VERIFY**: Frontmatter shows `lane: "doing"`, `agent`, and `shell_pid`
+   - **IF METADATA MISSING**: You skipped step 3. Pause and complete the workflow initialization before continuing.
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
    - **IF EXISTS**: Read data-model.md for entities and relationships
    - **IF EXISTS**: Read contracts/ for API specifications and test requirements
    - **IF EXISTS**: Read research.md for technical decisions and constraints
    - **IF EXISTS**: Read quickstart.md for integration scenarios
 
-4. Parse tasks.md structure and extract:
+5. Parse tasks.md structure and extract:
    - **Task phases**: Setup, Tests, Core, Integration, Polish
    - **Task dependencies**: Sequential vs parallel execution rules
    - **Task details**: ID, description, file paths, parallel markers [P]
    - **Execution flow**: Order and dependency requirements
 
-5. Execute implementation following the task plan:
+6. Execute implementation following the task plan:
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
+   - **Kanban discipline**: Use `git mv` to keep the prompt in `tasks/doing/` while working, update the Activity Log, and capture your shell PID (`echo $$`). These should already be complete from step 3—verify before coding.
 
-6. Implementation execution rules:
+7. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
    - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
    - **Core development**: Implement models, services, CLI commands, endpoints
    - **Integration work**: Database connections, middleware, logging, external services
    - **Polish and validation**: Unit tests, performance optimization, documentation
 
-7. Progress tracking and error handling:
+8. Progress tracking and error handling:
    - Report progress after each completed task
    - Halt execution if any non-parallel task fails
    - For parallel tasks [P], continue with successful tasks, report failed ones
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
-   - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+   - Leave the task checkbox unchecked—reviewers will mark completion when moving the prompt to `tasks/done/`.
+   - **After completing each task**:
+     - Update the prompt's activity log:
+       ```markdown
+       - 2025-10-07T17:00:00Z – claude – shell_pid=12345 – lane=doing – Completed implementation
+       ```
+     - Move prompt to for_review:
+       ```bash
+       git mv specs/FEATURE/tasks/doing/phase-X-name/TXXX-slug.md \
+               specs/FEATURE/tasks/for_review/phase-X-name/TXXX-slug.md
+       ```
+     - Update frontmatter:
+       ```yaml
+       lane: "for_review"
+       ```
+     - Add review-ready activity log entry:
+       ```markdown
+       - 2025-10-07T17:01:00Z – claude – shell_pid=12345 – lane=for_review – Ready for review
+       ```
+     - Commit:
+       ```bash
+       git add specs/FEATURE/tasks/for_review/phase-X-name/TXXX-slug.md
+       git commit -m "Complete TXXX: Move to for_review lane"
+       ```
+   - **VALIDATION BEFORE CONTINUING TO NEXT TASK**:
+     - [ ] Prompt is in `tasks/for_review/` lane
+     - [ ] Frontmatter shows `lane: "for_review"`
+     - [ ] Activity log has completion entry
+     - [ ] Git commit exists for the move
 
-8. Completion validation:
+9. Completion validation:
    - Verify all required tasks are completed
    - Check that implemented features match the original specification
    - Validate that tests pass and coverage meets requirements
    - Confirm the implementation follows the technical plan
    - Report final status with summary of completed work
+
+## Task Workflow Summary (Quick Reference)
+
+**For every task**:
+
+1. **START**: `planned/` → `doing/`
+   - `git mv` to doing lane
+   - Update frontmatter: `lane: "doing"`, add `shell_pid`, `agent`
+   - Add activity log entry
+   - Commit
+
+2. **WORK**: Implement the task
+   - Follow prompt guidance
+   - Create/modify files as specified
+   - Test your changes
+
+3. **COMPLETE**: `doing/` → `for_review/`
+   - Add completion entry to activity log
+   - `git mv` to for_review lane
+   - Update frontmatter: `lane: "for_review"`
+   - Add review-ready log entry
+   - Commit
+
+4. **REVIEW**: Reviewer moves `for_review/` → `done/`
+   - Reviewer validates work
+   - Reviewer updates tasks.md checkbox (`- [x]`)
+   - Reviewer moves to done lane and commits
+
+**Shell PID**: Capture once per session with `echo $$` and reuse it
+
+**Timestamp format**: ISO 8601 with timezone, e.g. `2025-10-07T16:00:00Z`
+
+**Agent identifiers**: claude, codex, gemini, copilot, cursor, windsurf, etc.
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/tasks` first to regenerate the task list.

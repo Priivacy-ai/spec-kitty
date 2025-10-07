@@ -1,7 +1,7 @@
 [project]
-name = "specify-cli"
-version = "0.0.18"
-description = "Specify CLI, part of GitHub Spec Kit. A tool to bootstrap your projects for Spec-Driven Development (SDD)."
+name = "speckitty-cli"
+version = "0.1.0"
+description = "Spec Kitty CLI, a community fork of GitHub's Spec Kit for bootstrapping Spec-Driven Development (SDD) projects."
 requires-python = ">=3.11"
 dependencies = [
     "typer",
@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-specify = "specify_cli:main"
+speckitty = "specify_cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -21,3 +21,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/specify_cli"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"templates" = "specify_cli/templates"
+"scripts" = "specify_cli/scripts"
+"memory" = "specify_cli/memory"

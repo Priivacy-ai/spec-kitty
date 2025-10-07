@@ -1,14 +1,18 @@
 # Local Development Guide
 
-This guide shows how to iterate on the `specify` CLI locally without publishing a release or committing to `main` first.
+This guide shows how to iterate on the `speckitty` CLI locally without publishing a release or committing to `main` first.
+
+Remember that CLI commands will pause with `WAITING_FOR_*` tokens until you answer their discovery questions—handy when testing new prompt changes.
+
+> Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). The workflows below target the spec-kitty repository while keeping upstream attribution intact.
 
 > Scripts now have both Bash (`.sh`) and PowerShell (`.ps1`) variants. The CLI auto-selects based on OS unless you pass `--script sh|ps`.
 
 ## 1. Clone and Switch Branches
 
 ```bash
-git clone https://github.com/github/spec-kit.git
-cd spec-kit
+git clone https://github.com/spec-kitty/spec-kitty.git
+cd spec-kitty
 # Work on a feature branch
 git checkout -b your-feature-branch
 ```
@@ -41,8 +45,8 @@ source .venv/bin/activate  # or on Windows PowerShell: .venv\Scripts\Activate.ps
 # Install project in editable mode
 uv pip install -e .
 
-# Now 'specify' entrypoint is available
-specify --help
+# Now 'speckitty' entrypoint is available
+speckitty --help
 ```
 
 Re-running after code edits requires no reinstall because of editable mode.
@@ -52,15 +56,15 @@ Re-running after code edits requires no reinstall because of editable mode.
 `uvx` can run from a local path (or a Git ref) to simulate user flows:
 
 ```bash
-uvx --from . specify init demo-uvx --ai copilot --ignore-agent-tools --script sh
+uvx --from . speckitty init demo-uvx --ai copilot --ignore-agent-tools --script sh
 ```
 
-You can also point uvx at a specific branch without merging:
+You can also point uvx at a specific branch without merging (optional if you want to exercise the published GitHub flow):
 
 ```bash
 # Push your working branch first
 git push origin your-feature-branch
-uvx --from git+https://github.com/github/spec-kit.git@your-feature-branch specify init demo-branch-test --script ps
+uvx --from git+https://github.com/spec-kitty/spec-kitty.git@your-feature-branch speckitty init demo-branch-test --script ps
 ```
 
 ### 4a. Absolute Path uvx (Run From Anywhere)
@@ -68,21 +72,21 @@ uvx --from git+https://github.com/github/spec-kit.git@your-feature-branch specif
 If you're in another directory, use an absolute path instead of `.`:
 
 ```bash
-uvx --from /mnt/c/GitHub/spec-kit specify --help
-uvx --from /mnt/c/GitHub/spec-kit specify init demo-anywhere --ai copilot --ignore-agent-tools --script sh
+uvx --from /mnt/c/GitHub/spec-kitty speckitty --help
+uvx --from /mnt/c/GitHub/spec-kitty speckitty init demo-anywhere --ai copilot --ignore-agent-tools --script sh
 ```
 
 Set an environment variable for convenience:
 ```bash
-export SPEC_KIT_SRC=/mnt/c/GitHub/spec-kit
-uvx --from "$SPEC_KIT_SRC" specify init demo-env --ai copilot --ignore-agent-tools --script ps
+export SPEC_KITTY_SRC=/mnt/c/GitHub/spec-kitty
+uvx --from "$SPEC_KITTY_SRC" speckitty init demo-env --ai copilot --ignore-agent-tools --script ps
 ```
 
 (Optional) Define a shell function:
 ```bash
-specify-dev() { uvx --from /mnt/c/GitHub/spec-kit specify "$@"; }
+speckitty-dev() { uvx --from "$SPEC_KITTY_SRC" speckitty "$@"; }
 # Then
-specify-dev --help
+speckitty-dev --help
 ```
 
 ## 5. Testing Script Permission Logic
@@ -127,8 +131,8 @@ Or copy only the modified CLI portion if you want a lighter sandbox.
 If you need to bypass TLS validation while experimenting:
 
 ```bash
-specify check --skip-tls
-specify init demo --skip-tls --ai gemini --ignore-agent-tools --script ps
+speckitty check --skip-tls
+speckitty init demo --skip-tls --ai gemini --ignore-agent-tools --script ps
 ```
 (Use only for local experimentation.)
 
@@ -137,10 +141,10 @@ specify init demo --skip-tls --ai gemini --ignore-agent-tools --script ps
 | Action | Command |
 |--------|---------|
 | Run CLI directly | `python -m src.specify_cli --help` |
-| Editable install | `uv pip install -e .` then `specify ...` |
-| Local uvx run (repo root) | `uvx --from . specify ...` |
-| Local uvx run (abs path) | `uvx --from /mnt/c/GitHub/spec-kit specify ...` |
-| Git branch uvx | `uvx --from git+URL@branch specify ...` |
+| Editable install | `uv pip install -e .` then `speckitty ...` |
+| Local uvx run (repo root) | `uvx --from . speckitty ...` |
+| Local uvx run (abs path) | `uvx --from /mnt/c/GitHub/spec-kitty speckitty ...` |
+| Git branch uvx | `uvx --from git+URL@branch speckitty ...` |
 | Build wheel | `uv build` |
 
 ## 11. Cleaning Up

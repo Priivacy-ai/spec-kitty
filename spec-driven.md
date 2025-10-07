@@ -1,5 +1,7 @@
 # Specification-Driven Development (SDD)
 
+> This guide is maintained as part of Spec Kitty, a community fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We preserve attribution to the original authors while expanding the methodology.
+
 ## The Power Inversion
 
 For decades, code has been king. Specifications served code—they were the scaffolding we built and then discarded once the "real work" of coding began. We wrote PRDs to guide development, created design docs to inform implementation, drew diagrams to visualize architecture. But these were always subordinate to the code itself. Code was truth. Everything else was, at best, good intentions. Code was the source of truth, and as it moved forward, specs rarely kept pace. As the asset (code) and the implementation are one, it's not easy to have a parallel implementation without trying to build from the code.
@@ -17,6 +19,10 @@ Debugging means fixing specifications and their implementation plans that genera
 The development team focuses in on their creativity, experimentation, their critical thinking.
 
 ## The SDD Workflow in Practice
+
+### Interactive Discovery Comes First
+
+Spec Kitty treats specification and planning as co-creation activities. Every command starts with an interview that collects goals, users, constraints, quality bars, and risks before any documents are generated. The workflow pauses whenever answers are missing—no assumptions are made on your behalf without explicit confirmation.
 
 The workflow begins with an idea—often vague and incomplete. Through iterative dialogue with AI, this idea becomes a comprehensive PRD. The AI asks clarifying questions, identifies edge cases, and helps define precise acceptance criteria. What might take days of meetings and documentation in traditional development happens in hours of focused specification work. This transforms the traditional SDLC—requirements and design become continuous activities rather than discrete phases. This is supportive of a **team process**, where team-reviewed specifications are expressed and versioned, created in branches, and merged.
 
@@ -74,7 +80,7 @@ The key is treating specifications as the source of truth, with code as the gene
 
 The SDD methodology is significantly enhanced through three powerful commands that automate the specification → planning → tasking workflow:
 
-### The `/speckit.specify` Command
+### The `/speckitty.specify` Command
 
 This command transforms a simple feature description (the user-prompt) into a complete, structured specification with automatic repository management:
 
@@ -83,7 +89,7 @@ This command transforms a simple feature description (the user-prompt) into a co
 3. **Template-Based Generation**: Copies and customizes the feature specification template with your requirements
 4. **Directory Structure**: Creates the proper `specs/[branch-name]/` structure for all related documents
 
-### The `/speckit.plan` Command
+### The `/speckitty.plan` Command
 
 Once a feature specification exists, this command creates a comprehensive implementation plan:
 
@@ -93,7 +99,7 @@ Once a feature specification exists, this command creates a comprehensive implem
 4. **Detailed Documentation**: Generates supporting documents for data models, API contracts, and test scenarios
 5. **Quickstart Validation**: Produces a quickstart guide capturing key validation scenarios
 
-### The `/speckit.tasks` Command
+### The `/speckitty.tasks` Command
 
 After a plan is created, this command analyzes the plan and related design documents to generate an executable task list:
 
@@ -101,6 +107,24 @@ After a plan is created, this command analyzes the plan and related design docum
 2. **Task Derivation**: Converts contracts, entities, and scenarios into specific tasks
 3. **Parallelization**: Marks independent tasks `[P]` and outlines safe parallel groups
 4. **Output**: Writes `tasks.md` in the feature directory, ready for execution by a Task agent
+
+### The `/speckitty.task-prompts` Command
+
+Transforms each task entry into a rich prompt file that feeds the mini kanban workflow:
+
+1. **Directory Setup**: Creates `/tasks/planned`, `/tasks/doing`, `/tasks/for_review`, `/tasks/done` (with optional phase subfolders for large efforts).
+2. **Prompt Generation**: For every task (e.g., `T001`), writes `tasks/planned/T001-short-title.md` using the prompt template, embedding all necessary context, references, and guidance.
+3. **Frontmatter Metadata**: Seeds lane, history, and logging fields so implementers and reviewers can capture agent + shell PID transitions.
+4. **Link Back**: Updates `tasks.md` entries to point at the corresponding prompt files, keeping the checklist concise while the prompt carries the details.
+
+### The `/speckitty.review` Command
+
+Provides a structured hand-off gate for work that lands in `tasks/for_review/`:
+
+1. **Selection**: Picks the oldest prompt in the review column (unless a specific file is supplied).
+2. **Deep Review**: Re-reads the prompt, supporting docs, and code changes before rendering findings.
+3. **Decision Flow**: Moves prompts back to `/planned/` with feedback or forward to `/done/` on approval, always updating frontmatter history and activity logs with agent + PID data.
+4. **Automation Hooks**: Invokes helper scripts to flip task checkboxes in `tasks.md` when review passes, keeping status in sync with the kanban board.
 
 ### Example: Building a Chat Feature
 
@@ -121,7 +145,7 @@ Total: ~12 hours of documentation work
 
 ```bash
 # Step 1: Create the feature specification (5 minutes)
-/speckit.specify Real-time chat system with message history and user presence
+/speckitty.specify Real-time chat system with message history and user presence
 
 # This automatically:
 # - Creates branch "003-chat-system"
@@ -129,10 +153,10 @@ Total: ~12 hours of documentation work
 # - Populates it with structured requirements
 
 # Step 2: Generate implementation plan (5 minutes)
-/speckit.plan WebSocket for real-time messaging, PostgreSQL for history, Redis for presence
+/speckitty.plan WebSocket for real-time messaging, PostgreSQL for history, Redis for presence
 
 # Step 3: Generate executable tasks (5 minutes)
-/speckit.tasks
+/speckitty.tasks
 
 # This automatically creates:
 # - specs/003-chat-system/plan.md

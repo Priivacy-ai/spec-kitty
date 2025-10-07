@@ -1,50 +1,63 @@
 # Quick Start Guide
 
-This guide will help you get started with Spec-Driven Development using Spec Kit.
+This guide will help you get started with Spec-Driven Development using Spec Kitty.
 
-> NEW: All automation scripts now provide both Bash (`.sh`) and PowerShell (`.ps1`) variants. The `specify` CLI auto-selects based on OS unless you pass `--script sh|ps`.
+> Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). All commands and examples have been updated to use the spec-kitty branding while honoring the upstream license.
+
+> NEW: All automation scripts now provide both Bash (`.sh`) and PowerShell (`.ps1`) variants. The `speckitty` CLI auto-selects based on OS unless you pass `--script sh|ps`.
 
 ## The 4-Step Process
 
-### 1. Install Specify
+### 1. Install Spec Kitty CLI
 
 Initialize your project depending on the coding agent you're using:
 
 ```bash
-uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME>
+uvx --from . speckitty init <PROJECT_NAME>
 ```
+
+> Run these commands from the Spec Kitty repository root so `.` resolves to this checkout.
+
+> Need more than one assistant? Pass a comma-separated list, e.g. `--ai claude,codex`, and the initializer will bring in the command files for both.
 
 Pick script type explicitly (optional):
 ```bash
-uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME> --script ps  # Force PowerShell
-uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME> --script sh  # Force POSIX shell
+uvx --from . speckitty init <PROJECT_NAME> --script ps  # Force PowerShell
+uvx --from . speckitty init <PROJECT_NAME> --script sh  # Force POSIX shell
 ```
 
 ### 2. Create the Spec
 
-Use the `/speckit.specify` command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
+Use the `/speckitty.specify` command to describe what you want to build. Focus on the **what** and **why**, not the tech stack. Expect the CLI to interview you first and stay in discovery mode until you answer its questions.
 
 ```bash
-/speckit.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
+/speckitty.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
+
+The command responds with `WAITING_FOR_DISCOVERY_INPUT` until you answer every question in its discovery table.
 
 ### 3. Create a Technical Implementation Plan
 
-Use the `/speckit.plan` command to provide your tech stack and architecture choices.
+Use the `/speckitty.plan` command to provide your tech stack and architecture choices. The command will challenge the specification, ask you non-functional questions, and pause until you reply.
 
 ```bash
-/speckit.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
+/speckitty.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
 ```
+
+Expect `WAITING_FOR_PLANNING_INPUT` prompts whenever the planner needs more architectural detail.
 
 ### 4. Break Down and Implement
 
-Use `/speckit.tasks` to create an actionable task list, then ask your agent to implement the feature.
+1. Run `/speckitty.tasks` to produce the summary checklist in `tasks.md`.
+2. Run `/speckitty.task-prompts` to generate the rich prompt files under `/tasks/planned/`.
+3. Use `/speckitty.implement` to move a prompt into `/tasks/doing/` and build the solution.
+4. Finish with `/speckitty.review` to process items in `/tasks/for_review/` and move approved work to `/tasks/done/`.
 
 ## Detailed Example: Building Taskify
 
 Here's a complete example of building a team productivity platform:
 
-### Step 1: Define Requirements with `/speckit.specify`
+### Step 1: Define Requirements with `/speckitty.specify`
 
 ```text
 Develop Taskify, a team productivity platform. It should allow users to create projects, add team members,
@@ -81,7 +94,7 @@ Also validate the specification checklist:
 Read the review and acceptance checklist, and check off each item in the checklist if the feature spec meets the criteria. Leave it empty if it does not.
 ```
 
-### Step 3: Generate Technical Plan with `/speckit.plan`
+### Step 3: Generate Technical Plan with `/speckitty.plan`
 
 Be specific about your tech stack and technical requirements:
 
@@ -91,9 +104,9 @@ Blazor server with drag-and-drop task boards, real-time updates. There should be
 tasks API, and a notifications API.
 ```
 
-### Step 4: Validate and Implement
+### Step 4: Validate, Generate Prompts, and Implement
 
-Have your AI agent audit the implementation plan:
+Audit the implementation plan:
 
 ```text
 Now I want you to go and audit the implementation plan and the implementation detail files.
@@ -101,10 +114,19 @@ Read through it with an eye on determining whether or not there is a sequence of
 to be doing that are obvious from reading this. Because I don't know if there's enough here.
 ```
 
-Finally, implement the solution:
+Then run the build commands in order:
 
 ```text
 implement specs/002-create-taskify/plan.md
+```
+
+Next:
+
+```text
+/speckitty.tasks
+/speckitty.task-prompts
+/speckitty.implement
+/speckitty.review
 ```
 
 ## Key Principles

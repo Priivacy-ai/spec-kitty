@@ -13,30 +13,41 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Discovery Gate (mandatory)
+
+Before running any scripts or writing to disk you **must** conduct a structured discovery interview.
+
+If the user provides no initial description, still build the discovery table and ask your first question (e.g., goal, user, success metrics).
+
+1. Build a **Discovery Questions** table with at least five targeted questions tailored to the request. The table must include columns `#`, `Question`, `Why it matters`, and `Current insight` (prefill `—` when nothing is known). Cover: primary goal/impact, target users & scenarios, success metrics, constraints (technical, regulatory, operational), risks/edge cases, and rollout/operational concerns.
+2. Examine the conversation for explicit answers. Treat vague phrases (e.g. "pretty fast") as unanswered.
+3. If any question lacks a concrete answer (including the first invocation), return the table, clearly ask the user to respond, and end the message with the literal token `WAITING_FOR_DISCOVERY_INPUT`. Do **not** call `{SCRIPT}` or create/modify files yet.
+4. Once every question has a solid answer, paraphrase them into an **Intent Summary** and confirm alignment. Note any assumptions you were forced to make and ask follow-up questions until both of you are confident.
+5. Throughout the rest of the workflow, if new ambiguities emerge, pause, ask the targeted question, and wait for the user before proceeding.
+
 ## Outline
 
-The text the user typed after `/speckit.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+The text the user typed after `/speckitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
 Given that feature description, do this:
 
-1. Run the script `{SCRIPT}` from repo root and parse its JSON output for BRANCH_NAME and SPEC_FILE. All file paths must be absolute.
-  **IMPORTANT** You must only ever run this script once. The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for.
-2. Load `templates/spec-template.md` to understand required sections.
+1. **Check discovery status**:
+   - If discovery questions have unanswered entries or you have not confirmed the **Intent Summary** with the user, present the table again and end your message with `WAITING_FOR_DISCOVERY_INPUT`. Do **not** call `{SCRIPT}` yet.
+   - Once every discovery question has an explicit answer and the user agrees with the Intent Summary, proceed to the next step.
 
-3. Follow this execution flow:
+2. Run the script `{SCRIPT}` from repo root and parse its JSON output for BRANCH_NAME and SPEC_FILE. All file paths must be absolute.
+   **IMPORTANT** You must only ever run this script once. The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for.
+3. Load `templates/spec-template.md` to understand required sections.
 
-    1. Parse user description from Input
-       If empty: ERROR "No feature description provided"
-    2. Extract key concepts from description
-       Identify: actors, actions, data, constraints
-    3. For unclear aspects:
-       - Make informed guesses based on context and industry standards
-       - Only mark with [NEEDS CLARIFICATION: specific question] if:
-         - The choice significantly impacts feature scope or user experience
-         - Multiple reasonable interpretations exist with different implications
-         - No reasonable default exists
-       - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
-       - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
+4. Follow this execution flow:
+
+    1. Use the discovery answers as your authoritative source of truth (do **not** rely on raw `$ARGUMENTS`).
+       Identify: actors, actions, data, constraints, motivations, success metrics
+    2. For any remaining ambiguity:
+       - Ask the user a focused follow-up question immediately and halt work until they answer
+       - Only use `[NEEDS CLARIFICATION: …]` when the user explicitly defers the decision
+       - Record any interim assumption in the Assumptions section and flag it for confirmation later
+       - Prioritize clarifications by impact: scope > outcomes > risks/security > user experience > technical details
     4. Fill User Scenarios & Testing section
        If no clear user flow: ERROR "Cannot determine user scenarios"
     5. Generate Functional Requirements
@@ -89,7 +100,7 @@ Given that feature description, do this:
       
       ## Notes
       
-      - Items marked incomplete require spec updates before `/speckit.clarify` or `/speckit.plan`
+      - Items marked incomplete require spec updates before `/speckitty.clarify` or `/speckitty.plan`
       ```
    
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -108,8 +119,8 @@ Given that feature description, do this:
       
       - **If [NEEDS CLARIFICATION] markers remain**:
         1. Extract all [NEEDS CLARIFICATION: ...] markers from the spec
-        2. **LIMIT CHECK**: If more than 3 markers exist, keep only the 3 most critical (by scope/security/UX impact) and make informed guesses for the rest
-        3. For each clarification needed (max 3), present options to user in this format:
+        2. Re-confirm with the user whether each outstanding decision truly needs to stay unresolved. Do not assume away critical gaps.
+        3. For each clarification the user has explicitly deferred, present options to the user in this format:
         
            ```markdown
            ## Question [N]: [Topic]
@@ -143,7 +154,7 @@ Given that feature description, do this:
    
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-6. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/speckit.clarify` or `/speckit.plan`).
+6. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/speckitty.clarify` or `/speckitty.plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 
