@@ -17,18 +17,28 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Before running any scripts or writing to disk you **must** conduct a structured discovery interview.
 
-- **First response rule**: On your very first reply after `/speckitty.specify`, ask a single focused discovery question (e.g., “What is the core outcome you want for this feature?”) and end the message with `WAITING_FOR_DISCOVERY_INPUT`. Do nothing else yet.
-- If the user provides no initial description (empty command), stay in **Interactive Interview Mode**: keep probing with one question at a time to surface goals, users, scenarios, constraints, and success metrics before taking any automation steps.
-- **Conversational cadence**: After each user reply, update your internal understanding and decide on the next most critical unanswered topic. Ask exactly one follow-up question referencing that topic (e.g., “Thanks! For the target users…”) and end with `WAITING_FOR_DISCOVERY_INPUT`. Do not bundle questions or progress while gaps remain.
-- **Scope proportionality**: Continuously gauge the inherent complexity of the feature. Keep discovery lightweight for simple requests (e.g., small UI tweaks or mini-games) and expand the questioning depth for expansive or high-risk initiatives (e.g., platforms, critical infrastructure). Let the final specification reflect that proportional level of detail.
+- **Scope proportionality (CRITICAL)**: FIRST, gauge the inherent complexity of the request:
+  - **Trivial/Test Features** (hello world, simple pages, proof-of-concept): Ask 1-2 questions maximum, then proceed. Examples: "a simple hello world page", "tic-tac-toe game", "basic contact form"
+  - **Simple Features** (small UI additions, minor enhancements): Ask 2-3 questions covering purpose and basic constraints
+  - **Complex Features** (new subsystems, integrations): Ask 3-5 questions covering goals, users, constraints, risks
+  - **Platform/Critical Features** (authentication, payments, infrastructure): Full discovery with 5+ questions
 
-Discovery requirements you must still satisfy:
+- **User signals to reduce questioning**: If the user says "just testing", "quick prototype", "skip to next phase", "stop asking questions" - recognize this as a signal to minimize discovery and proceed with reasonable defaults.
 
-1. Maintain a **Discovery Questions** table internally with at least five targeted questions covering: primary goal/impact, target users & scenarios, success metrics, constraints (technical, regulatory, operational), risks/edge cases, and rollout/operational concerns. Track columns `#`, `Question`, `Why it matters`, and `Current insight` (prefill `—` when unknown). Do **not** render this table to the user; it is for your internal consistency checks only.
-2. Examine the conversation for explicit answers. Treat vague phrases (e.g., "pretty fast") as unanswered and keep probing.
-3. Keep looping (ask → wait → update) until every row has a concrete answer you can restate with confidence. Never show the internal table in the conversation; instead, summarize findings conversationally.
-4. When all questions are resolved, paraphrase the answers into an **Intent Summary** and confirm alignment. Note any assumptions you were forced to make and ask follow-up questions until both of you are confident. In interview mode, synthesize what the user told you into a concise feature description and read it back for confirmation.
-5. Throughout the rest of the workflow, if new ambiguities emerge, pause, ask the targeted question, and wait for the user before proceeding.
+- **First response rule**:
+  - For TRIVIAL features (hello world, simple test): Ask ONE clarifying question, then if the answer confirms it's simple, proceed directly to spec generation
+  - For other features: Ask a single focused discovery question and end with `WAITING_FOR_DISCOVERY_INPUT`
+
+- If the user provides no initial description (empty command), stay in **Interactive Interview Mode**: keep probing with one question at a time.
+
+- **Conversational cadence**: After each user reply, decide if you have ENOUGH context for this feature's complexity level. For trivial features, 1-2 questions is sufficient. Only continue asking if truly necessary for the scope.
+
+Discovery requirements (scale to feature complexity):
+
+1. Maintain a **Discovery Questions** table internally covering questions appropriate to the feature's complexity (1-2 for trivial, up to 5+ for complex). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
+2. For trivial features, reasonable defaults are acceptable. Only probe if truly ambiguous.
+3. When you have sufficient context for the feature's scope, paraphrase into an **Intent Summary** and confirm. For trivial features, this can be very brief.
+4. If user explicitly asks to skip questions or says "just testing", acknowledge and proceed with minimal discovery.
 
 ## Outline
 
