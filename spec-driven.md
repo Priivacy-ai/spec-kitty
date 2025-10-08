@@ -22,7 +22,14 @@ The development team focuses in on their creativity, experimentation, their crit
 
 ### Interactive Discovery Comes First
 
-Spec Kitty treats specification and planning as co-creation activities. Every command starts with an interview that collects goals, users, constraints, quality bars, and risks before any documents are generated. The workflow pauses whenever answers are missing—no assumptions are made on your behalf without explicit confirmation.
+Spec Kitty treats specification and planning as co-creation activities. Every command starts with a mandatory interview that collects goals, users, constraints, quality bars, and risks before any documents are generated. The workflow pauses whenever answers are missing—no assumptions are made on your behalf without explicit confirmation.
+
+**Discovery Gates Enforce Completeness:**
+
+- `/speckitty.specify` enters a discovery interview on first invocation, asking one question at a time and blocking with `WAITING_FOR_DISCOVERY_INPUT` until all answers are provided and an Intent Summary is confirmed
+- `/speckitty.plan` follows the same pattern with `WAITING_FOR_PLANNING_INPUT`, interrogating tech stack, architecture, non-functional requirements, and operational constraints before generating artifacts
+- Proportional depth: lightweight features receive lightweight questioning, while complex platform builds demand exhaustive interrogation
+- No markdown tables rendered to users—agents track coverage internally and present one focused question per turn
 
 The workflow begins with an idea—often vague and incomplete. Through iterative dialogue with AI, this idea becomes a comprehensive PRD. The AI asks clarifying questions, identifies edge cases, and helps define precise acceptance criteria. What might take days of meetings and documentation in traditional development happens in hours of focused specification work. This transforms the traditional SDLC—requirements and design become continuous activities rather than discrete phases. This is supportive of a **team process**, where team-reviewed specifications are expressed and versioned, created in branches, and merged.
 
@@ -117,6 +124,58 @@ Provides a structured hand-off gate for work that lands in `tasks/for_review/`:
 2. **Deep Review**: Re-reads the prompt, supporting docs, and code changes before rendering findings.
 3. **Decision Flow**: Moves prompts back to `/planned/` with feedback or forward to `/done/` on approval, always updating frontmatter history and activity logs with agent + PID data.
 4. **Automation Hooks**: Invokes helper scripts to flip task checkboxes in `tasks.md` when review passes, keeping status in sync with the kanban board.
+
+### The `/speckitty.implement` Workflow: Kanban Discipline
+
+The implementation command enforces a rigorous task workflow that ensures traceability and prevents work from stalling:
+
+**Mandatory Initialization (Blocking):**
+
+Before any coding begins, `/speckitty.implement` requires each work package to transition through lanes with full metadata tracking:
+
+1. **Move prompt to doing lane**: `git mv specs/FEATURE/tasks/planned/WPxx-slug.md specs/FEATURE/tasks/doing/WPxx-slug.md`
+2. **Update frontmatter metadata**:
+   ```yaml
+   lane: "doing"
+   assignee: "Agent Name"
+   agent: "claude"  # or codex, gemini, copilot, etc.
+   shell_pid: "12345"  # from echo $$
+   ```
+3. **Add activity log entry**: Timestamped ISO 8601 entry recording the lane transition
+4. **Commit the move**: Preserve git history of the workflow transition
+
+**Validation Checkpoint:**
+
+The agent must verify before proceeding to implementation:
+- Prompt file exists in `tasks/doing/`
+- Frontmatter shows `lane: "doing"`
+- `shell_pid` is captured
+- Activity log has "Started implementation" entry
+- Changes are committed to git
+
+**Automation Helpers:**
+
+Spec Kitty ships with helper scripts to streamline the workflow:
+
+- `scripts/bash/move-task-to-doing.sh WPxx specs/FEATURE` – Automates the entire planned→doing transition with metadata updates
+- `scripts/bash/validate-task-workflow.sh WPxx specs/FEATURE` – Validates prompt is in correct lane with required metadata before implementation starts
+- `scripts/git-hooks/pre-commit-task-workflow.sh` – Optional git hook to enforce lane metadata in commits
+
+**Completion Flow:**
+
+After implementing the work package, the agent must:
+
+1. Add completion entry to activity log
+2. Move prompt to `for_review/` lane using `git mv`
+3. Update frontmatter: `lane: "for_review"`
+4. Add review-ready activity log entry
+5. Commit the transition
+
+This discipline ensures:
+- **Full traceability**: Every work package has complete history of who worked on it, when, and in which environment (shell_pid)
+- **No stalled work**: Prompts can't languish in doing without accountability
+- **Clear handoffs**: Review gates enforce quality checks before work is marked complete
+- **Parallel workflow visibility**: Multiple agents can work simultaneously, each with their own shell_pid tracking
 
 ### Example: Building a Chat Feature
 

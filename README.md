@@ -91,7 +91,7 @@ Use the **`/speckitty.specify`** command to describe what you want to build. Foc
 /speckitty.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
-When additional detail is required the assistant responds with `WAITING_FOR_DISCOVERY_INPUT` and the outstanding question table—answer every item to continue.
+The assistant asks **one focused question at a time**, blocks with `WAITING_FOR_DISCOVERY_INPUT`, and only generates the spec once an Intent Summary is confirmed. No assumptions without your explicit approval.
 
 ### 4. Create a technical implementation plan
 
@@ -101,7 +101,7 @@ Use the **`/speckitty.plan`** command to provide your tech stack and architectur
 /speckitty.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
 ```
 
-During planning you may see `WAITING_FOR_PLANNING_INPUT` until infrastructure and non-functional answers are provided.
+Like `/speckitty.specify`, the planner asks **one question at a time** and blocks with `WAITING_FOR_PLANNING_INPUT` until tech stack, architecture, and operational constraints are confirmed in an Engineering Alignment summary.
 
 ### 5. Break down into tasks & prompts
 
@@ -118,6 +118,8 @@ Use **`/speckitty.implement`** to pick up a prompt from `/tasks/planned/`, move 
 ```bash
 /speckitty.implement
 ```
+
+**Mandatory workflow initialization:** Before coding begins, the command enforces the kanban workflow by moving prompts to `/tasks/doing/`, updating frontmatter metadata (`lane`, `agent`, `shell_pid`), adding activity log entries, and committing the transition. After implementation completes, prompts move to `/tasks/for_review/` with completion metadata.
 
 ### 7. Review & close tasks
 
