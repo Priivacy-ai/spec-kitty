@@ -1569,10 +1569,15 @@ def init(
         port, thread = start_dashboard(project_path)
         dashboard_url = f"http://127.0.0.1:{port}"
 
+        # Save dashboard URL for later retrieval
+        dashboard_info_file = project_path / ".specify" / ".dashboard"
+        dashboard_info_file.write_text(f"{dashboard_url}\n{port}\n")
+
         dashboard_panel = Panel(
             f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n\n"
             f"[dim]The dashboard is running and will automatically update as you work.\n"
-            f"It will remain active until you close this terminal or press Ctrl+C.[/dim]",
+            f"It will remain active until you close this terminal or press Ctrl+C.[/dim]\n\n"
+            f"[yellow]Tip:[/yellow] Run [cyan]/speckitty.dashboard[/cyan] to open it in your browser",
             title="🌱 [bold green]Spec Kitty Dashboard Started[/bold green]",
             border_style="green",
             padding=(1, 2)
