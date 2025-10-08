@@ -276,6 +276,71 @@ def get_dashboard_html() -> str:
             line-height: 1.6;
         }
 
+        .status-summary {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 0 auto 25px auto;
+            max-width: 1800px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .status-card.total { border-left-color: #6366f1; }
+        .status-card.progress { border-left-color: #f59e0b; }
+        .status-card.review { border-left-color: #8b5cf6; }
+        .status-card.completed { border-left-color: #10b981; }
+        .status-card.agents { border-left-color: #ec4899; }
+
+        .status-label {
+            font-size: 0.85em;
+            color: #6b7280;
+            font-weight: 500;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #1f2937;
+            line-height: 1;
+        }
+
+        .status-detail {
+            font-size: 0.8em;
+            color: #9ca3af;
+            margin-top: 6px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            transition: width 0.3s ease;
+        }
+
         .kanban-board {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -491,10 +556,56 @@ def get_dashboard_html() -> str:
             // Build boards
             const boardsHTML = features.map(feature => {
                 const lanes = feature.lanes;
-                const totalTasks = Object.values(lanes).reduce((sum, tasks) => sum + tasks.length, 0);
+                const total = lanes.planned.length + lanes.doing.length + lanes.for_review.length + lanes.done.length;
+                const inProgress = lanes.doing.length;
+                const review = lanes.for_review.length;
+                const completed = lanes.done.length;
+                const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+                // Collect unique agents
+                const agents = new Set();
+                Object.values(lanes).forEach(tasks => {
+                    tasks.forEach(task => {
+                        if (task.agent && task.agent !== 'system') {
+                            agents.add(task.agent);
+                        }
+                    });
+                });
 
                 return `
                     <div class="feature-board" data-feature-id="${feature.id}">
+                        <div class="status-summary">
+                            <div class="status-grid">
+                                <div class="status-card total">
+                                    <div class="status-label">Total Work Packages</div>
+                                    <div class="status-value">${total}</div>
+                                    <div class="status-detail">${lanes.planned.length} planned</div>
+                                </div>
+                                <div class="status-card progress">
+                                    <div class="status-label">In Progress</div>
+                                    <div class="status-value">${inProgress}</div>
+                                    <div class="status-detail">actively working</div>
+                                </div>
+                                <div class="status-card review">
+                                    <div class="status-label">Awaiting Review</div>
+                                    <div class="status-value">${review}</div>
+                                    <div class="status-detail">needs approval</div>
+                                </div>
+                                <div class="status-card completed">
+                                    <div class="status-label">Completed</div>
+                                    <div class="status-value">${completed}</div>
+                                    <div class="status-detail">${completionRate}% done</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${completionRate}%"></div>
+                                    </div>
+                                </div>
+                                <div class="status-card agents">
+                                    <div class="status-label">Active Agents</div>
+                                    <div class="status-value">${agents.size}</div>
+                                    <div class="status-detail">${agents.size > 0 ? Array.from(agents).join(', ') : 'none'}</div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="kanban-board">
                             <div class="lane planned">
                                 <div class="lane-header">
