@@ -341,6 +341,25 @@ def get_dashboard_html() -> str:
             color: var(--medium-text);
         }
 
+        .constitution-link {
+            margin-left: 20px;
+            padding: 8px 16px;
+            background: var(--lavender);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+
+        .constitution-link:hover {
+            background: var(--grassy-green);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
         .container {
             display: flex;
             flex: 1;
@@ -677,7 +696,12 @@ def get_dashboard_html() -> str:
             </div>
             <div id="single-feature-name" style="display: none; font-size: 1.2em; color: var(--grassy-green); font-weight: 600;"></div>
         </div>
-        <div class="last-update">Last updated: <span id="last-update">Loading...</span></div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="#" onclick="showConstitution(); return false;" class="constitution-link">
+                📜 Constitution
+            </a>
+            <div class="last-update">Last updated: <span id="last-update">Loading...</span></div>
+        </div>
     </div>
 
     <div class="container">
@@ -769,6 +793,13 @@ def get_dashboard_html() -> str:
                 <div class="content-card">
                     <h2>Data Model</h2>
                     <div id="data-model-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-constitution" class="page">
+                <div class="content-card">
+                    <h2>📜 Project Constitution</h2>
+                    <div id="constitution-content" class="markdown-content"></div>
                 </div>
             </div>
 
@@ -1043,6 +1074,26 @@ def get_dashboard_html() -> str:
             return div.innerHTML;
         }
 
+        function showConstitution() {
+            // Switch to constitution page
+            currentPage = 'constitution';
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById('page-constitution').classList.add('active');
+
+            // Load constitution
+            fetch('/api/constitution')
+                .then(response => response.ok ? response.text() : Promise.reject('Not found'))
+                .then(content => {
+                    const htmlContent = marked.parse(content);
+                    document.getElementById('constitution-content').innerHTML = htmlContent;
+                })
+                .catch(error => {
+                    document.getElementById('constitution-content').innerHTML =
+                        '<div class="empty-state">Constitution not found. Run /speckitty.constitution to create it.</div>';
+                });
+        }
+
         function updateWorkflowIcons(workflow) {
             const iconMap = {
                 'complete': '✅',
@@ -1179,6 +1230,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
             lanes = scan_feature_kanban(Path(self.project_dir), feature_id)
             self.wfile.write(json.dumps(lanes).encode())
+
+        elif self.path == '/api/constitution':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.send_header('Cache-Control', 'no-cache')
+            self.end_headers()
+
+            constitution_file = Path(self.project_dir) / '.specify' / 'memory' / 'constitution.md'
+            if constitution_file.exists():
+                self.wfile.write(constitution_file.read_text().encode())
+            else:
+                self.wfile.write(b'Constitution not yet created. Run /speckitty.constitution to create it.')
 
         elif self.path.startswith('/api/artifact/'):
             parts = self.path.split('/')
