@@ -101,21 +101,13 @@ Once a feature specification exists, this command creates a comprehensive implem
 
 ### The `/speckitty.tasks` Command
 
-After a plan is created, this command analyzes the plan and related design documents to generate an executable task list:
+After a plan is created, this command analyzes the plan and related design documents to generate both the executable task list *and* the kanban-ready prompt bundles:
 
-1. **Inputs**: Reads `plan.md` (required) and, if present, `data-model.md`, `contracts/`, and `research.md`
-2. **Task Derivation**: Converts contracts, entities, and scenarios into specific tasks
-3. **Parallelization**: Marks independent tasks `[P]` and outlines safe parallel groups
-4. **Output**: Writes `tasks.md` in the feature directory, ready for execution by a Task agent
-
-### The `/speckitty.task-prompts` Command
-
-Transforms each task entry into a rich prompt file that feeds the mini kanban workflow:
-
-1. **Directory Setup**: Creates `/tasks/planned`, `/tasks/doing`, `/tasks/for_review`, `/tasks/done` (with optional phase subfolders for large efforts).
-2. **Prompt Generation**: For every task (e.g., `T001`), writes `tasks/planned/T001-short-title.md` using the prompt template, embedding all necessary context, references, and guidance.
-3. **Frontmatter Metadata**: Seeds lane, history, and logging fields so implementers and reviewers can capture agent + shell PID transitions.
-4. **Link Back**: Updates `tasks.md` entries to point at the corresponding prompt files, keeping the checklist concise while the prompt carries the details.
+1. **Inputs**: Reads `plan.md` (required) and, if present, `data-model.md`, `contracts/`, `research.md`, and `quickstart.md`.
+2. **Task Derivation**: Converts contracts, entities, and scenarios into fine-grained subtasks (`Txxx`), marking safe parallelization with `[P]`.
+3. **Work Package Grouping**: Rolls the subtasks into at most ten work packages (`WPxx`), each aligned with a user story or cohesive subsystem so teams can deliver in independent slices.
+4. **Prompt Generation**: Builds the `/tasks/` mini-board directories, writes one prompt file per work package in `tasks/planned/` using the bundle template (complete with metadata and implementation detail), and links each package from `tasks.md`.
+5. **Outputs**: Produces `tasks.md` plus the populated `/tasks/planned/` directory so implementers can immediately move bundled work into `/tasks/doing/` and start building.
 
 ### The `/speckitty.review` Command
 
@@ -164,7 +156,8 @@ Total: ~12 hours of documentation work
 # - specs/003-chat-system/data-model.md (Message and User schemas)
 # - specs/003-chat-system/contracts/ (WebSocket events, REST endpoints)
 # - specs/003-chat-system/quickstart.md (Key validation scenarios)
-# - specs/003-chat-system/tasks.md (Task list derived from the plan)
+# - specs/003-chat-system/tasks.md (Work packages with subtasks)
+# - specs/003-chat-system/tasks/planned/WP0x-*.md (Prompt bundles for each work package)
 ```
 
 In 15 minutes, you have:

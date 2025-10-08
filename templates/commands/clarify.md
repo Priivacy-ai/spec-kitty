@@ -91,21 +91,16 @@ Execution steps:
    - Only include questions whose answers materially impact architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation.
    - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved.
    - Exclude questions already answered, trivial stylistic preferences, or plan-level execution details (unless blocking correctness).
-   - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
+    - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
+    - Scale thoroughness to the feature’s complexity: a lightweight enhancement may only need one or two confirmations, while multi-system efforts warrant the full question budget if gaps remain critical.
    - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
 
 4. Sequential questioning loop (interactive):
     - Present EXACTLY ONE question at a time.
-    - For multiple‑choice questions render options as a Markdown table:
-
-       | Option | Description |
-       |--------|-------------|
-       | A | <Option A description> |
-       | B | <Option B description> |
-       | C | <Option C description> | (add D/E as needed up to 5)
-       | Short | Provide a different short answer (<=5 words) | (Include only if free-form alternative is appropriate)
-
-    - For short‑answer style (no meaningful discrete options), output a single line after the question: `Format: Short answer (<=5 words)`.
+    - For multiple-choice questions, list options inline using letter prefixes rather than tables, e.g.  
+      `Options: (A) describe option A · (B) describe option B · (C) describe option C · (D) short custom answer (<=5 words)`  
+      Ask the user to reply with the letter (or short custom text when offered).
+    - For short-answer style (no meaningful discrete options), output a single line after the question: `Format: Short answer (<=5 words)`.
     - After the user answers:
        * Validate the answer maps to one option or fits the <=5 word constraint.
        * If ambiguous, ask for a quick disambiguation (count still belongs to same question; do not advance).
@@ -149,7 +144,7 @@ Execution steps:
    - Number of questions asked & answered.
    - Path to updated spec.
    - Sections touched (list names).
-   - Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota or better suited for planning), Clear (already sufficient), Outstanding (still Partial/Missing but low impact).
+   - Coverage summary listing each taxonomy category with a status label (Resolved / Deferred / Clear / Outstanding). Present as plain text or bullet list, not a table.
    - If any Outstanding or Deferred remain, recommend whether to proceed to `/speckitty.plan` or run `/speckitty.clarify` again later post-plan.
    - Suggested next command.
 

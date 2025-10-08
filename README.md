@@ -103,23 +103,15 @@ Use the **`/speckitty.plan`** command to provide your tech stack and architectur
 
 During planning you may see `WAITING_FOR_PLANNING_INPUT` until infrastructure and non-functional answers are provided.
 
-### 5. Break down into tasks
+### 5. Break down into tasks & prompts
 
-Use **`/speckitty.tasks`** to create an actionable task list from your implementation plan.
+Use **`/speckitty.tasks`** to create an actionable task list *and* the matching prompt files for your mini-kanban board. The command writes `tasks.md`, groups subtasks into up to ten work packages, generates one prompt file per package under `/tasks/planned/`, and links each work package to its bundled brief.
 
 ```bash
 /speckitty.tasks
 ```
 
-### 6. Generate task prompts (mini-kanban setup)
-
-Run **`/speckitty.task-prompts`** to build rich prompt files under `/tasks/planned/` for each task. These files power the `/tasks` mini-kanban workflow and contain the detailed guidance implementers need.
-
-```bash
-/speckitty.task-prompts
-```
-
-### 7. Execute implementation
+### 6. Execute implementation
 
 Use **`/speckitty.implement`** to pick up a prompt from `/tasks/planned/`, move it to `/tasks/doing/`, and build the feature according to the plan.
 
@@ -127,7 +119,7 @@ Use **`/speckitty.implement`** to pick up a prompt from `/tasks/planned/`, move 
 /speckitty.implement
 ```
 
-### 8. Review & close tasks
+### 7. Review & close tasks
 
 Finish the cycle by running **`/speckitty.review`** to process files in `/tasks/for_review/`, capture feedback, and move approved work to `/tasks/done/` while marking the task complete in `tasks.md`.
 
@@ -240,8 +232,7 @@ Essential commands for the Spec-Driven Development workflow:
 | `/speckitty.constitution`  | Create or update project governing principles and development guidelines |
 | `/speckitty.specify`       | Define what you want to build (requirements and user stories)        |
 | `/speckitty.plan`          | Create technical implementation plans with your chosen tech stack     |
-| `/speckitty.tasks`         | Generate actionable task lists for implementation                     |
-| `/speckitty.task-prompts`  | Create kanban-ready prompt files in `/tasks/` for each task           |
+| `/speckitty.tasks`         | Generate actionable task lists and kanban-ready prompt files          |
 | `/speckitty.implement`     | Execute tasks by working from `/tasks/doing/` prompts                 |
 | `/speckitty.review`        | Review work in `/tasks/for_review/` and move finished prompts to `/tasks/done/` |
 
@@ -257,8 +248,9 @@ Additional commands for enhanced quality and validation:
 
 ## Task Workflow Automation
 
-- `scripts/bash/move-task-to-doing.sh T001 specs/FEATURE` – moves a prompt from `tasks/planned/` to `tasks/doing/`, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry, and prints the canonical location.
-- `scripts/bash/validate-task-workflow.sh T001 specs/FEATURE` – blocks implementation if the prompt is not in the `doing` lane or is missing required metadata.
+- `scripts/bash/move-task-to-doing.sh WP01 specs/FEATURE` – moves a work-package prompt from `tasks/planned/` to `tasks/doing/`, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry, and prints the canonical location.
+- `scripts/bash/validate-task-workflow.sh WP01 specs/FEATURE` – blocks implementation if the work-package prompt is not in the `doing` lane or is missing required metadata.
+- Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`.
 - Optional git hook: `ln -s ../../scripts/git-hooks/pre-commit-task-workflow.sh .git/hooks/pre-commit` to enforce lane metadata before every commit.
 
 ### Environment Variables
@@ -391,7 +383,7 @@ Go to the project folder and run your AI agent. In our example, we're using `cla
 
 ![Bootstrapping Claude Code environment](./media/bootstrap-claude-code.gif)
 
-You will know that things are configured correctly if you see the `/speckitty.constitution`, `/speckitty.specify`, `/speckitty.plan`, `/speckitty.tasks`, `/speckitty.task-prompts`, `/speckitty.implement`, and `/speckitty.review` commands available.
+You will know that things are configured correctly if you see the `/speckitty.constitution`, `/speckitty.specify`, `/speckitty.plan`, `/speckitty.tasks`, `/speckitty.implement`, and `/speckitty.review` commands available.
 
 The first step should be establishing your project's governing principles using the `/speckitty.constitution` command. This helps ensure consistent decision-making throughout all subsequent development phases:
 

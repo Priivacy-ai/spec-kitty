@@ -7,6 +7,16 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-10-07
+
+### Changed
+
+- `/speckitty.specify`, `/speckitty.plan`, and `/speckitty.clarify` now run fully conversational interviews—asking one question at a time, tracking internal coverage without rendering markdown tables, and only proceeding once summaries are confirmed—while continuing to resolve helper scripts via the `.specify/scripts/...` paths.
+- Added proportionality guidance so discovery, planning, and clarification depth scales with feature complexity (e.g., lightweight tic-tac-toe flows vs. an operating system build).
+- `/speckitty.tasks` now produces both `tasks.md` and the kanban prompt files in one pass; the separate `/speckitty.task-prompts` command has been removed.
+- Tasks are grouped into at most ten work packages with bundled prompts, reducing file churn and making prompt generation LLM-friendly.
+- Both shell and PowerShell feature bootstrap scripts now stop with guidance to return `WAITING_FOR_DISCOVERY_INPUT` when invoked without a confirmed feature description, aligning with the new discovery workflow.
+
 ## [0.1.0] - 2025-10-07
 
 ### Changed
@@ -50,4 +60,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - All command files now prefixed with `speckitty.` (e.g., `speckitty.specify.md`, `speckitty.plan.md`) for better discoverability and differentiation in IDE/CLI command palettes and file explorers
-

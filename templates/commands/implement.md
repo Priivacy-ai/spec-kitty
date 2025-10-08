@@ -107,6 +107,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Execution flow**: Order and dependency requirements
 
 6. Execute implementation following the task plan:
+   - Before you pull a new work package from `tasks/planned/`, list `tasks/for_review/phase-*` to see if anything is waiting on feedback. Handle at least one ready-for-review bundle (move it to doing, run the review flow, and hand it back to `tasks/done/`) before starting fresh work so the kanban never stalls.
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
@@ -198,3 +199,27 @@ You **MUST** consider the user input before proceeding (if not empty).
 **Agent identifiers**: claude, codex, gemini, copilot, cursor, windsurf, etc.
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/tasks` first to regenerate the task list.
+
+## Agent-Specific Parallelization Tips
+
+Leverage your agent’s native orchestration so one work package advances while another gets reviewed:
+
+- **Claude Code** – Use the `/agents` command to spin up specialized subagents and explicitly delegate work (for example, “Use the code-reviewer subagent to audit WP02”) so different assistants run in parallel.[^claude_subagents]
+- **OpenAI Codex** – Offload secondary tasks as cloud jobs with commands like `codex exec --cloud "refactor the adapters"`; cloud tasks are designed to run concurrently with your local session.[^codex_cloud]
+- **Cursor Agent CLI** – Launch multiple instances (`cursor-agent chat "…"`) in separate terminals or remote shells; the CLI explicitly supports parallel agents.[^cursor_parallel]
+- **GitHub Copilot CLI** – Schedule or review background work with `gh agent-task create`, `gh agent-task list`, and `gh agent-task view --log --follow` while you keep implementing locally.[^copilot_agent]
+- **Google Gemini CLI** – Pair Gemini with Container Use to open isolated shells (e.g., `cu shell --name=tests -- gemini-cli`) so two Gemini agents can run safely side by side.[^gemini_parallel]
+- **Qwen Code** – When you call the `/task` tool, include multiple `task` tool uses in one turn; the bundled guidance explicitly encourages launching several subagents concurrently.[^qwen_task]
+- **OpenCode** – The task tool reminds you to “launch multiple agents concurrently whenever possible”; start a review subagent while the build agent continues edits.[^opencode_parallel]
+- **Amazon Q Developer CLI** – Use Container Use recipes to create multiple isolated Q sessions so one agent handles reviews while another implements new changes.[^amazonq_parallel]
+
+If an agent lacks built-in subagents, mimic the pattern manually: open a second terminal, move a review prompt to `tasks/doing/`, and run the reviewer commands there while your primary session keeps coding.
+
+[^claude_subagents]: Anthropic, “Subagents,” showing how to create and invoke Claude Code subagents and explicitly request them for parallel work.
+[^codex_cloud]: OpenAI Developers, “Codex Concepts,” describing how cloud tasks let Codex work on multiple jobs in parallel.
+[^cursor_parallel]: Cursor, “Cursor Agent CLI,” announcing you can “have multiple agents run in parallel in the terminal or remotely.”
+[^copilot_agent]: GitHub, “Kick off and track Copilot coding agent sessions from the GitHub CLI,” documenting the `gh agent-task` commands.
+[^gemini_parallel]: Dagger, “Make Gemini CLI work in parallel and isolated dev environments,” demonstrating two Gemini CLI agents operating simultaneously via Container Use.
+[^qwen_task]: Moncef Abboud, “How Coding Agents Actually Work: Inside OpenCode,” detailing the task tool instructions (“launch multiple agents concurrently whenever possible”) that Qwen Code inherits.
+[^opencode_parallel]: Moncef Abboud, “How Coding Agents Actually Work: Inside OpenCode,” same section describing the concurrent subagent guidance.
+[^amazonq_parallel]: Dagger, “Parallel AI Experiments Using Dagger + Amazon Q Developer CLI,” showing multiple Amazon Q CLI sessions running in parallel.

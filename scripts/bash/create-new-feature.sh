@@ -14,7 +14,11 @@ done
 
 FEATURE_DESCRIPTION="${ARGS[*]}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
-    echo "Usage: $0 [--json] <feature_description>" >&2
+    cat >&2 <<'EOF'
+[specify] Error: Feature description missing.
+This script must only run after the discovery interview produces a confirmed intent summary.
+Return WAITING_FOR_DISCOVERY_INPUT, gather the answers, then invoke the script with the finalized description.
+EOF
     exit 1
 fi
 
