@@ -14,15 +14,40 @@ import re
 import urllib.parse
 
 
-def find_free_port(start_port: int = 8080, max_attempts: int = 100) -> int:
-    """Find an available port starting from start_port."""
+def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
+    """
+    Find an available port starting from start_port.
+
+    Default port 9237 is chosen to avoid common conflicts:
+    - 8080-8090: Common dev servers (npm, python -m http.server, etc.)
+    - 3000-3010: React, Next.js, etc.
+    - 5000-5010: Flask, Rails, etc.
+    - 9237: Uncommon, unlikely to conflict
+
+    Uses dual check: bind test AND connection test to detect existing servers.
+    """
     for port in range(start_port, start_port + max_attempts):
+        # Check 1: Try to connect (detects existing server)
+        try:
+            test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_sock.settimeout(0.1)
+            result = test_sock.connect_ex(('127.0.0.1', port))
+            test_sock.close()
+            if result == 0:
+                # Port is in use (something is listening)
+                continue
+        except:
+            pass
+
+        # Check 2: Try to bind (ensures we can actually use it)
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 s.bind(('127.0.0.1', port))
                 return port
         except OSError:
             continue
+
     raise RuntimeError(f"Could not find free port in range {start_port}-{start_port + max_attempts}")
 
 
