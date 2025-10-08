@@ -1645,47 +1645,74 @@ def check():
 def dashboard():
     """Open the Spec Kitty dashboard in your browser."""
     import webbrowser
+    import socket
 
     dashboard_file = Path('.specify/.dashboard')
 
     if not dashboard_file.exists():
         console.print()
-        console.print("[red]❌ No dashboard is currently running[/red]")
+        console.print("[red]❌ No dashboard information found[/red]")
         console.print()
         console.print("To start the dashboard, run:")
         console.print("  [cyan]speckitty init .[/cyan]")
         console.print()
         raise typer.Exit(1)
 
-    # Read dashboard URL
+    # Read dashboard URL and port
     content = dashboard_file.read_text().strip().split('\n')
     dashboard_url = content[0] if content else None
+    port_str = content[1] if len(content) > 1 else None
 
-    if not dashboard_url:
+    if not dashboard_url or not port_str:
         console.print()
-        console.print("[red]❌ Dashboard file exists but is empty[/red]")
+        console.print("[red]❌ Dashboard file is invalid or empty[/red]")
         console.print("   Try running: [cyan]speckitty init .[/cyan]")
         console.print()
         raise typer.Exit(1)
 
-    # Display URL
+    # Check if dashboard is actually running
+    port = int(port_str)
+    is_running = False
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex(('127.0.0.1', port))
+        sock.close()
+        is_running = (result == 0)
+    except:
+        is_running = False
+
+    # Display URL and status
     console.print()
     console.print("[bold green]🌱 Spec Kitty Dashboard[/bold green]")
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
     console.print(f"  [bold cyan]URL:[/bold cyan] {dashboard_url}")
+
+    if not is_running:
+        console.print()
+        console.print(f"  [yellow]⚠️  Status:[/yellow] Dashboard appears to be stopped")
+        console.print(f"             (Port {port} is not responding)")
+    else:
+        console.print()
+        console.print(f"  [green]✅ Status:[/green] Running on port {port}")
+
     console.print()
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
 
-    # Try to open in browser
-    try:
-        webbrowser.open(dashboard_url)
-        console.print("[green]✅ Opening dashboard in your browser...[/green]")
-        console.print()
-    except Exception as e:
-        console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
-        console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
+    if is_running:
+        # Try to open in browser
+        try:
+            webbrowser.open(dashboard_url)
+            console.print("[green]✅ Opening dashboard in your browser...[/green]")
+            console.print()
+        except Exception as e:
+            console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
+            console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
+            console.print()
+    else:
+        console.print("[yellow]💡 To start the dashboard, run:[/yellow] [cyan]speckitty init .[/cyan]")
         console.print()
 
 def main():

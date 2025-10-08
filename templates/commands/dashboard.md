@@ -25,13 +25,14 @@ This command helps you access the Spec Kitty dashboard that was started when you
 
 ```python
 import webbrowser
+import socket
 from pathlib import Path
 
 # Check for dashboard info file
 dashboard_file = Path('.specify/.dashboard')
 
 if not dashboard_file.exists():
-    print("❌ No dashboard is currently running")
+    print("❌ No dashboard information found")
     print()
     print("To start the dashboard, run:")
     print("  speckitty init .")
@@ -40,27 +41,56 @@ else:
     # Read dashboard URL
     content = dashboard_file.read_text().strip().split('\n')
     dashboard_url = content[0] if content else None
+    port_str = content[1] if len(content) > 1 else None
 
-    if dashboard_url:
+    if not dashboard_url or not port_str:
+        print("❌ Dashboard file is invalid or empty")
+        print("   Try running: speckitty init .")
+        print()
+    else:
+        # Verify dashboard is actually running on this port
+        port = int(port_str)
+        is_running = False
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex(('127.0.0.1', port))
+            sock.close()
+            is_running = (result == 0)
+        except:
+            is_running = False
+
         print()
         print("🌱 Spec Kitty Dashboard")
-        print("=" * 50)
+        print("=" * 60)
         print()
         print(f"  URL: {dashboard_url}")
+
+        if not is_running:
+            print()
+            print("  ⚠️  Status: Dashboard appears to be stopped")
+            print(f"             (Port {port} is not responding)")
+        else:
+            print()
+            print(f"  ✅ Status: Running on port {port}")
+
         print()
-        print("=" * 50)
+        print("=" * 60)
         print()
 
-        # Try to open in browser
-        try:
-            webbrowser.open(dashboard_url)
-            print("✅ Opening dashboard in your browser...")
-        except Exception as e:
-            print("⚠️  Could not automatically open browser")
-            print(f"   Please open this URL manually: {dashboard_url}")
-    else:
-        print("❌ Dashboard file exists but is empty")
-        print("   Try running: speckitty init .")
+        if is_running:
+            # Try to open in browser
+            try:
+                webbrowser.open(dashboard_url)
+                print("✅ Opening dashboard in your browser...")
+                print()
+            except Exception as e:
+                print("⚠️  Could not automatically open browser")
+                print(f"   Please open this URL manually: {dashboard_url}")
+                print()
+        else:
+            print("💡 To start the dashboard, run: speckitty init .")
+            print()
 ```
 
 ## Success Criteria
