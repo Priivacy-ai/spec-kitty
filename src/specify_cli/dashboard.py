@@ -239,6 +239,7 @@ def get_dashboard_html() -> str:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spec Kitty Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
     <style>
         :root {
             --baby-blue: #A7C7E7;
@@ -1026,8 +1027,9 @@ def get_dashboard_html() -> str:
             fetch(`/api/artifact/${currentFeature}/${artifactName}`)
                 .then(response => response.ok ? response.text() : Promise.reject('Not found'))
                 .then(content => {
-                    document.getElementById(`${artifactName}-content`).innerHTML =
-                        `<pre style="white-space: pre-wrap; font-family: inherit;">${escapeHtml(content)}</pre>`;
+                    // Render markdown to HTML
+                    const htmlContent = marked.parse(content);
+                    document.getElementById(`${artifactName}-content`).innerHTML = htmlContent;
                 })
                 .catch(error => {
                     document.getElementById(`${artifactName}-content`).innerHTML =
