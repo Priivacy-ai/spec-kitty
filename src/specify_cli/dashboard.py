@@ -91,6 +91,52 @@ def get_feature_artifacts(feature_dir: Path) -> Dict[str, Any]:
     return artifacts
 
 
+def get_workflow_status(artifacts: Dict[str, bool]) -> Dict[str, str]:
+    """
+    Determine workflow progression status.
+
+    Returns dict with step names and status ('complete', 'in_progress', 'pending')
+    """
+    has_spec = artifacts.get('spec', False)
+    has_plan = artifacts.get('plan', False)
+    has_tasks = artifacts.get('tasks', False)
+    has_kanban = artifacts.get('kanban', False)
+
+    # Workflow: specify → plan → tasks → implement
+    workflow = {}
+
+    if has_spec:
+        workflow['specify'] = 'complete'
+    else:
+        workflow['specify'] = 'pending'
+        workflow['plan'] = 'pending'
+        workflow['tasks'] = 'pending'
+        workflow['implement'] = 'pending'
+        return workflow
+
+    if has_plan:
+        workflow['plan'] = 'complete'
+    else:
+        workflow['plan'] = 'pending'
+        workflow['tasks'] = 'pending'
+        workflow['implement'] = 'pending'
+        return workflow
+
+    if has_tasks:
+        workflow['tasks'] = 'complete'
+    else:
+        workflow['tasks'] = 'pending'
+        workflow['implement'] = 'pending'
+        return workflow
+
+    if has_kanban:
+        workflow['implement'] = 'in_progress'
+    else:
+        workflow['implement'] = 'pending'
+
+    return workflow
+
+
 def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
     """Scan all features and return metadata."""
     specs_dir = project_dir / 'specs'
@@ -110,6 +156,9 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
         # Get artifacts
         artifacts = get_feature_artifacts(feature_dir)
 
+        # Get workflow status
+        workflow = get_workflow_status(artifacts)
+
         # Calculate kanban stats if available
         kanban_stats = {'total': 0, 'planned': 0, 'doing': 0, 'for_review': 0, 'done': 0}
         if artifacts['kanban']:
@@ -126,6 +175,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
             'name': feature_dir.name,
             'path': str(feature_dir.relative_to(project_dir)),
             'artifacts': artifacts,
+            'workflow': workflow,
             'kanban_stats': kanban_stats
         })
 
@@ -618,32 +668,39 @@ def get_dashboard_html() -> str:
                 <h1>🌱 Spec Kitty</h1>
                 <div class="project-path" id="project-path">Loading...</div>
             </div>
-            <div class="feature-selector">
+            <div class="feature-selector" id="feature-selector-container">
                 <label>Feature:</label>
                 <select id="feature-select" onchange="switchFeature(this.value)">
                     <option value="">Loading...</option>
                 </select>
             </div>
+            <div id="single-feature-name" style="display: none; font-size: 1.2em; color: var(--grassy-green); font-weight: 600;"></div>
         </div>
         <div class="last-update">Last updated: <span id="last-update">Loading...</span></div>
     </div>
 
     <div class="container">
         <div class="sidebar">
-            <div class="sidebar-item active" data-page="overview" onclick="switchPage('overview')">
-                📊 Overview
+            <div style="padding: 15px 30px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                Workflow
             </div>
-            <div class="sidebar-item" data-page="spec" onclick="switchPage('spec')">
-                📄 Spec
+            <div class="sidebar-item active" data-page="overview" data-step="overview" onclick="switchPage('overview')">
+                <span id="icon-overview">📊</span> Overview
             </div>
-            <div class="sidebar-item" data-page="plan" onclick="switchPage('plan')">
-                🏗️ Plan
+            <div class="sidebar-item" data-page="spec" data-step="specify" onclick="switchPage('spec')">
+                <span id="icon-specify">⏳</span> Specify
             </div>
-            <div class="sidebar-item" data-page="tasks" onclick="switchPage('tasks')">
-                📋 Tasks
+            <div class="sidebar-item" data-page="plan" data-step="plan" onclick="switchPage('plan')">
+                <span id="icon-plan">⏳</span> Plan
             </div>
-            <div class="sidebar-item" data-page="kanban" onclick="switchPage('kanban')">
-                🎯 Kanban
+            <div class="sidebar-item" data-page="tasks" data-step="tasks" onclick="switchPage('tasks')">
+                <span id="icon-tasks">⏳</span> Tasks
+            </div>
+            <div class="sidebar-item" data-page="kanban" data-step="implement" onclick="switchPage('kanban')">
+                <span id="icon-implement">⏳</span> Implement
+            </div>
+            <div style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                Artifacts
             </div>
             <div class="sidebar-item" data-page="research" onclick="switchPage('research')">
                 🔬 Research
@@ -711,6 +768,26 @@ def get_dashboard_html() -> str:
                 <div class="content-card">
                     <h2>Data Model</h2>
                     <div id="data-model-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-welcome" class="page">
+                <div class="content-card">
+                    <h2>Welcome to Spec Kitty!</h2>
+                    <div style="padding: 40px 20px; text-align: center;">
+                        <p style="font-size: 1.2em; margin-bottom: 30px; color: var(--medium-text);">
+                            Your project is initialized and the dashboard is ready.
+                        </p>
+                        <div style="background: var(--baby-blue); padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto;">
+                            <h3 style="color: var(--grassy-green); margin-bottom: 20px;">Get Started</h3>
+                            <ol style="text-align: left; line-height: 2; color: var(--dark-text);">
+                                <li>Run <code style="background: white; padding: 4px 8px; border-radius: 4px;">/speckitty.specify</code> to create your first feature</li>
+                                <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/speckitty.plan</code> to create the implementation plan</li>
+                                <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/speckitty.tasks</code> to generate the task breakdown</li>
+                                <li>Watch the dashboard update in real-time as you work!</li>
+                            </ol>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -964,29 +1041,72 @@ def get_dashboard_html() -> str:
             return div.innerHTML;
         }
 
+        function updateWorkflowIcons(workflow) {
+            const iconMap = {
+                'complete': '✅',
+                'in_progress': '🔄',
+                'pending': '⏳'
+            };
+
+            document.getElementById('icon-specify').textContent = iconMap[workflow.specify] || '⏳';
+            document.getElementById('icon-plan').textContent = iconMap[workflow.plan] || '⏳';
+            document.getElementById('icon-tasks').textContent = iconMap[workflow.tasks] || '⏳';
+            document.getElementById('icon-implement').textContent = iconMap[workflow.implement] || '⏳';
+        }
+
         function updateFeatureList(features) {
             allFeatures = features;
+            const selectContainer = document.getElementById('feature-selector-container');
             const select = document.getElementById('feature-select');
+            const singleFeatureName = document.getElementById('single-feature-name');
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
 
+            // Handle 0 features - show welcome page
             if (features.length === 0) {
-                select.innerHTML = '<option value="">No features</option>';
-                document.getElementById('no-features-message').style.display = 'block';
-                document.querySelector('.sidebar').style.display = 'none';
-                document.querySelector('.main-content').style.display = 'none';
+                selectContainer.style.display = 'none';
+                singleFeatureName.style.display = 'none';
+                sidebar.style.display = 'block';
+                mainContent.style.display = 'block';
+
+                // Show welcome page
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById('page-welcome').classList.add('active');
+                currentPage = 'welcome';
+
+                // Disable all sidebar items except overview
+                document.querySelectorAll('.sidebar-item').forEach(item => item.classList.add('disabled'));
                 return;
             }
 
-            document.getElementById('no-features-message').style.display = 'none';
-            document.querySelector('.sidebar').style.display = 'block';
-            document.querySelector('.main-content').style.display = 'block';
-
-            select.innerHTML = features.map(f =>
-                `<option value="${f.id}" ${f.id === currentFeature ? 'selected' : ''}>${f.name}</option>`
-            ).join('');
-
-            if (!currentFeature || !features.find(f => f.id === currentFeature)) {
+            // Handle 1 feature - show name directly (no dropdown)
+            if (features.length === 1) {
+                selectContainer.style.display = 'none';
+                singleFeatureName.style.display = 'block';
+                singleFeatureName.textContent = `Feature: ${features[0].name}`;
                 currentFeature = features[0].id;
-                select.value = currentFeature;
+            } else {
+                // Handle multiple features - show dropdown
+                selectContainer.style.display = 'block';
+                singleFeatureName.style.display = 'none';
+
+                select.innerHTML = features.map(f =>
+                    `<option value="${f.id}" ${f.id === currentFeature ? 'selected' : ''}>${f.name}</option>`
+                ).join('');
+
+                if (!currentFeature || !features.find(f => f.id === currentFeature)) {
+                    currentFeature = features[0].id;
+                    select.value = currentFeature;
+                }
+            }
+
+            sidebar.style.display = 'block';
+            mainContent.style.display = 'block';
+
+            // Update workflow icons based on current feature
+            const feature = features.find(f => f.id === currentFeature);
+            if (feature && feature.workflow) {
+                updateWorkflowIcons(feature.workflow);
             }
 
             updateSidebarState();
