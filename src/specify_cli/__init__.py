@@ -1541,12 +1541,13 @@ def init(
 
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent:")
 
-    steps_lines.append("   2.1 [cyan]/speckitty.constitution[/] - Establish project principles")
-    steps_lines.append("   2.2 [cyan]/speckitty.specify[/] - Create baseline specification")
-    steps_lines.append("   2.3 [cyan]/speckitty.plan[/] - Create implementation plan")
-    steps_lines.append("   2.4 [cyan]/speckitty.tasks[/] - Generate tasks and kanban-ready prompt files")
-    steps_lines.append("   2.5 [cyan]/speckitty.implement[/] - Execute implementation from /tasks/doing/")
-    steps_lines.append("   2.6 [cyan]/speckitty.review[/] - Review prompts and move them to /tasks/done/")
+    steps_lines.append("   - [cyan]/speckitty.dashboard[/] - Open the real-time kanban dashboard")
+    steps_lines.append("   - [cyan]/speckitty.constitution[/] - Establish project principles")
+    steps_lines.append("   - [cyan]/speckitty.specify[/] - Create baseline specification")
+    steps_lines.append("   - [cyan]/speckitty.plan[/] - Create implementation plan")
+    steps_lines.append("   - [cyan]/speckitty.tasks[/] - Generate tasks and kanban-ready prompt files")
+    steps_lines.append("   - [cyan]/speckitty.implement[/] - Execute implementation from /tasks/doing/")
+    steps_lines.append("   - [cyan]/speckitty.review[/] - Review prompts and move them to /tasks/done/")
 
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1,2))
     console.print()
