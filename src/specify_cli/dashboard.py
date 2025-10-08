@@ -70,24 +70,53 @@ def parse_frontmatter(content: str) -> Dict[str, Any]:
     return frontmatter
 
 
-def scan_tasks(project_dir: Path) -> Dict[str, List[Dict[str, Any]]]:
-    """Scan the tasks directory and return kanban state."""
+def scan_tasks(project_dir: Path) -> Dict[str, Any]:
+    """
+    Scan the tasks directory and return kanban state grouped by feature.
+
+    Returns:
+        {
+            'features': [
+                {
+                    'id': '001-feature-name',
+                    'name': '001-feature-name',
+                    'lanes': {'planned': [...], 'doing': [...], 'for_review': [...], 'done': [...]}
+                },
+                ...
+            ]
+        }
+    """
     specs_dir = project_dir / 'specs'
-    lanes = {'planned': [], 'doing': [], 'for_review': [], 'done': []}
+    features = []
 
     if not specs_dir.exists():
-        return lanes
+        return {'features': []}
 
-    # Find all feature directories
+    # Find all feature directories (must match pattern XXX-name)
+    feature_dirs = []
     for feature_dir in specs_dir.iterdir():
         if not feature_dir.is_dir():
+            continue
+
+        # Safeguard: Only process directories that look like feature directories
+        # Pattern: starts with digits (001, 002, etc.) or has a tasks subdirectory
+        if not (re.match(r'^\d+', feature_dir.name) or (feature_dir / 'tasks').exists()):
             continue
 
         tasks_dir = feature_dir / 'tasks'
         if not tasks_dir.exists():
             continue
 
+        feature_dirs.append(feature_dir)
+
+    # Sort features by name (most recent = highest number first)
+    feature_dirs.sort(key=lambda d: d.name, reverse=True)
+
+    # Scan each feature
+    for feature_dir in feature_dirs:
         feature_name = feature_dir.name
+        tasks_dir = feature_dir / 'tasks'
+        lanes = {'planned': [], 'doing': [], 'for_review': [], 'done': []}
 
         # Scan each lane
         for lane in lanes.keys():
@@ -96,10 +125,15 @@ def scan_tasks(project_dir: Path) -> Dict[str, List[Dict[str, Any]]]:
                 continue
 
             # Find all prompt files (including in phase subdirectories)
+            # Safeguard: Only files matching WP*.md pattern
             for prompt_file in lane_dir.rglob('WP*.md'):
                 try:
                     content = prompt_file.read_text()
                     fm = parse_frontmatter(content)
+
+                    # Safeguard: Skip files without work_package_id in frontmatter
+                    if 'work_package_id' not in fm:
+                        continue
 
                     # Extract title from first heading
                     title_match = re.search(r'^#\s+Work Package Prompt:\s+(.+)$', content, re.MULTILINE)
@@ -119,10 +153,17 @@ def scan_tasks(project_dir: Path) -> Dict[str, List[Dict[str, Any]]]:
 
                     lanes[lane].append(task_data)
                 except Exception as e:
-                    print(f"Error parsing {prompt_file}: {e}")
+                    # Safeguard: Skip files that can't be parsed
+                    print(f"Skipping {prompt_file}: {e}")
                     continue
 
-    return lanes
+        features.append({
+            'id': feature_name,
+            'name': feature_name,
+            'lanes': lanes
+        })
+
+    return {'features': features}
 
 
 def get_dashboard_html() -> str:
@@ -150,7 +191,7 @@ def get_dashboard_html() -> str:
         .header {
             text-align: center;
             color: white;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .header h1 {
@@ -164,12 +205,75 @@ def get_dashboard_html() -> str:
             opacity: 0.9;
         }
 
+        .tabs-container {
+            max-width: 1800px;
+            margin: 0 auto 20px auto;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tab {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            border: 2px solid transparent;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .tab.active {
+            background: rgba(255, 255, 255, 0.95);
+            color: #667eea;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.95);
+            font-weight: 600;
+        }
+
+        .feature-board {
+            display: none;
+        }
+
+        .feature-board.active {
+            display: block;
+        }
+
         .last-update {
             color: white;
             text-align: center;
             margin-bottom: 20px;
             opacity: 0.8;
             font-size: 0.9em;
+        }
+
+        .no-features {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 60px 40px;
+            text-align: center;
+            max-width: 600px;
+            margin: 40px auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .no-features h2 {
+            color: #6b7280;
+            margin-bottom: 15px;
+        }
+
+        .no-features p {
+            color: #9ca3af;
+            line-height: 1.6;
         }
 
         .kanban-board {
@@ -304,41 +408,20 @@ def get_dashboard_html() -> str:
 
     <div class="last-update">Last updated: <span id="last-update">Loading...</span></div>
 
-    <div class="kanban-board">
-        <div class="lane planned">
-            <div class="lane-header">
-                <span>📋 Planned</span>
-                <span class="count" id="count-planned">0</span>
-            </div>
-            <div id="lane-planned"></div>
-        </div>
+    <div class="tabs-container">
+        <div class="tabs" id="feature-tabs"></div>
+    </div>
 
-        <div class="lane doing">
-            <div class="lane-header">
-                <span>🚀 Doing</span>
-                <span class="count" id="count-doing">0</span>
-            </div>
-            <div id="lane-doing"></div>
-        </div>
+    <div id="feature-boards"></div>
 
-        <div class="lane for_review">
-            <div class="lane-header">
-                <span>👀 For Review</span>
-                <span class="count" id="count-for_review">0</span>
-            </div>
-            <div id="lane-for_review"></div>
-        </div>
-
-        <div class="lane done">
-            <div class="lane-header">
-                <span>✅ Done</span>
-                <span class="count" id="count-done">0</span>
-            </div>
-            <div id="lane-done"></div>
-        </div>
+    <div id="no-features" class="no-features" style="display: none;">
+        <h2>No Features Found</h2>
+        <p>Create your first feature specification using <code>/speckitty.specify</code></p>
     </div>
 
     <script>
+        let currentFeature = null;
+
         function createCard(task) {
             const subtasksText = task.subtasks && task.subtasks.length > 0
                 ? `<span class="badge subtasks">${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>`
@@ -353,7 +436,6 @@ def get_dashboard_html() -> str:
                     <div class="card-id">${task.id}</div>
                     <div class="card-title">${task.title}</div>
                     <div class="card-meta">
-                        <span class="badge feature">${task.feature}</span>
                         ${agentText}
                         ${subtasksText}
                     </div>
@@ -361,22 +443,117 @@ def get_dashboard_html() -> str:
             `;
         }
 
-        function updateDashboard(data) {
-            const lanes = ['planned', 'doing', 'for_review', 'done'];
+        function switchToFeature(featureId) {
+            currentFeature = featureId;
 
-            lanes.forEach(lane => {
-                const container = document.getElementById(`lane-${lane}`);
-                const count = document.getElementById(`count-${lane}`);
-                const tasks = data[lane] || [];
-
-                count.textContent = tasks.length;
-
-                if (tasks.length === 0) {
-                    container.innerHTML = '<div class="empty-state">No tasks</div>';
+            // Update tab active states
+            document.querySelectorAll('.tab').forEach(tab => {
+                if (tab.dataset.featureId === featureId) {
+                    tab.classList.add('active');
                 } else {
-                    container.innerHTML = tasks.map(createCard).join('');
+                    tab.classList.remove('active');
                 }
             });
+
+            // Update board visibility
+            document.querySelectorAll('.feature-board').forEach(board => {
+                if (board.dataset.featureId === featureId) {
+                    board.classList.add('active');
+                } else {
+                    board.classList.remove('active');
+                }
+            });
+        }
+
+        function updateDashboard(data) {
+            const features = data.features || [];
+            const tabsContainer = document.getElementById('feature-tabs');
+            const boardsContainer = document.getElementById('feature-boards');
+            const noFeatures = document.getElementById('no-features');
+
+            if (features.length === 0) {
+                tabsContainer.innerHTML = '';
+                boardsContainer.innerHTML = '';
+                noFeatures.style.display = 'block';
+                return;
+            }
+
+            noFeatures.style.display = 'none';
+
+            // Build tabs
+            const tabsHTML = features.map(feature =>
+                `<div class="tab" data-feature-id="${feature.id}" onclick="switchToFeature('${feature.id}')">
+                    ${feature.name}
+                </div>`
+            ).join('');
+            tabsContainer.innerHTML = tabsHTML;
+
+            // Build boards
+            const boardsHTML = features.map(feature => {
+                const lanes = feature.lanes;
+                const totalTasks = Object.values(lanes).reduce((sum, tasks) => sum + tasks.length, 0);
+
+                return `
+                    <div class="feature-board" data-feature-id="${feature.id}">
+                        <div class="kanban-board">
+                            <div class="lane planned">
+                                <div class="lane-header">
+                                    <span>📋 Planned</span>
+                                    <span class="count">${lanes.planned.length}</span>
+                                </div>
+                                <div>
+                                    ${lanes.planned.length === 0
+                                        ? '<div class="empty-state">No tasks</div>'
+                                        : lanes.planned.map(createCard).join('')}
+                                </div>
+                            </div>
+
+                            <div class="lane doing">
+                                <div class="lane-header">
+                                    <span>🚀 Doing</span>
+                                    <span class="count">${lanes.doing.length}</span>
+                                </div>
+                                <div>
+                                    ${lanes.doing.length === 0
+                                        ? '<div class="empty-state">No tasks</div>'
+                                        : lanes.doing.map(createCard).join('')}
+                                </div>
+                            </div>
+
+                            <div class="lane for_review">
+                                <div class="lane-header">
+                                    <span>👀 For Review</span>
+                                    <span class="count">${lanes.for_review.length}</span>
+                                </div>
+                                <div>
+                                    ${lanes.for_review.length === 0
+                                        ? '<div class="empty-state">No tasks</div>'
+                                        : lanes.for_review.map(createCard).join('')}
+                                </div>
+                            </div>
+
+                            <div class="lane done">
+                                <div class="lane-header">
+                                    <span>✅ Done</span>
+                                    <span class="count">${lanes.done.length}</span>
+                                </div>
+                                <div>
+                                    ${lanes.done.length === 0
+                                        ? '<div class="empty-state">No tasks</div>'
+                                        : lanes.done.map(createCard).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            boardsContainer.innerHTML = boardsHTML;
+
+            // Switch to current feature or default to first (most recent)
+            if (!currentFeature || !features.find(f => f.id === currentFeature)) {
+                currentFeature = features[0].id;
+            }
+            switchToFeature(currentFeature);
 
             document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
         }
