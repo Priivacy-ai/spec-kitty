@@ -1191,8 +1191,14 @@ def init(
         raise typer.Exit(1)
 
     if here:
-        project_name = Path.cwd().name
-        project_path = Path.cwd()
+        try:
+            project_path = Path.cwd()
+            project_name = project_path.name
+        except (OSError, FileNotFoundError) as e:
+            console.print("[red]Error:[/red] Cannot access current directory")
+            console.print(f"[dim]{e}[/dim]")
+            console.print("[yellow]Hint:[/yellow] Your current directory may have been deleted or is no longer accessible")
+            raise typer.Exit(1)
 
         existing_items = list(project_path.iterdir())
         if existing_items:
