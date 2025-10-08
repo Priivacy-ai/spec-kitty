@@ -49,7 +49,7 @@ import ssl
 import truststore
 
 # Dashboard server
-from specify_cli.dashboard_v2 import start_dashboard
+from specify_cli.dashboard import start_dashboard
 
 ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 client = httpx.Client(verify=ssl_context)
