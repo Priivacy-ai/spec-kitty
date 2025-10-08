@@ -240,6 +240,16 @@ def get_dashboard_html() -> str:
             text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
 
+        .project-path {
+            font-size: 0.75em;
+            color: var(--medium-text);
+            margin-top: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            background: rgba(0,0,0,0.05);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
         .feature-selector {
             min-width: 300px;
         }
@@ -604,7 +614,10 @@ def get_dashboard_html() -> str:
 <body>
     <div class="header">
         <div class="header-left">
-            <h1>🌱 Spec Kitty</h1>
+            <div>
+                <h1>🌱 Spec Kitty</h1>
+                <div class="project-path" id="project-path">Loading...</div>
+            </div>
             <div class="feature-selector">
                 <label>Feature:</label>
                 <select id="feature-select" onchange="switchFeature(this.value)">
@@ -986,6 +999,11 @@ def get_dashboard_html() -> str:
                 .then(data => {
                     updateFeatureList(data.features);
                     document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+                    // Update project path display
+                    if (data.project_path) {
+                        document.getElementById('project-path').textContent = data.project_path;
+                    }
                 })
                 .catch(error => console.error('Error fetching data:', error));
         }
@@ -1024,7 +1042,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
             features = scan_all_features(Path(self.project_dir))
-            self.wfile.write(json.dumps({'features': features}).encode())
+            response_data = {
+                'features': features,
+                'project_path': str(Path(self.project_dir).resolve())
+            }
+            self.wfile.write(json.dumps(response_data).encode())
 
         elif self.path.startswith('/api/kanban/'):
             feature_id = self.path.split('/')[-1]
@@ -1089,6 +1111,9 @@ def start_dashboard(project_dir: Path, port: int = None, background_process: boo
     if port is None:
         port = find_free_port()
 
+    # Resolve to absolute path
+    project_dir_abs = project_dir.resolve()
+
     if background_process:
         # Fork a detached background process that survives parent exit
         import subprocess
@@ -1102,7 +1127,7 @@ sys.path.insert(0, '{Path(__file__).parent}')
 from dashboard import DashboardHandler, HTTPServer
 
 handler_class = type('DashboardHandler', (DashboardHandler,), {{
-    'project_dir': '{project_dir}'
+    'project_dir': '{project_dir_abs}'
 }})
 
 server = HTTPServer(('127.0.0.1', {port}), handler_class)
@@ -1123,7 +1148,7 @@ server.serve_forever()
     else:
         # Original threaded approach (for compatibility)
         handler_class = type('DashboardHandler', (DashboardHandler,), {
-            'project_dir': str(project_dir)
+            'project_dir': str(project_dir_abs)
         })
 
         server = HTTPServer(('127.0.0.1', port), handler_class)
