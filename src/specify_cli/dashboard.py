@@ -16,13 +16,29 @@ import re
 
 
 def find_free_port(start_port: int = 8080, max_attempts: int = 100) -> int:
-    """Find an available port starting from start_port."""
+    """
+    Find an available port starting from start_port.
+
+    Automatically scans through ports to find one that's not in use.
+    For example, if 8080-8082 are occupied, it will return 8083.
+
+    Args:
+        start_port: First port to try (default: 8080)
+        max_attempts: Maximum number of ports to try (default: 100)
+
+    Returns:
+        First available port number
+
+    Raises:
+        RuntimeError: If no free port found in the range
+    """
     for port in range(start_port, start_port + max_attempts):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind(('127.0.0.1', port))
                 return port
         except OSError:
+            # Port in use, try next one
             continue
     raise RuntimeError(f"Could not find free port in range {start_port}-{start_port + max_attempts}")
 
