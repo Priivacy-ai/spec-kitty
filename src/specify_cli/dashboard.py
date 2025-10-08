@@ -665,14 +665,21 @@ def get_dashboard_html() -> str:
                 currentFeature = features[0].id;
             }
             switchToFeature(currentFeature);
+        }
 
-            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+        function updateTimestamp() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            document.getElementById('last-update').textContent = timeStr;
         }
 
         function fetchData() {
             fetch('/api/status')
                 .then(response => response.json())
-                .then(data => updateDashboard(data))
+                .then(data => {
+                    updateDashboard(data);
+                    updateTimestamp();
+                })
                 .catch(error => console.error('Error fetching data:', error));
         }
 
