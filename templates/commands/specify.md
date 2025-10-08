@@ -1,8 +1,8 @@
 ---
 description: Create or update the feature specification from a natural language feature description.
 scripts:
-  sh: scripts/bash/create-new-feature.sh --json "{ARGS}"
-  ps: scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
+  sh: .specify/scripts/bash/create-new-feature.sh --json "{ARGS}"
+  ps: .specify/scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
 ---
 
 ## User Input
@@ -17,12 +17,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Before running any scripts or writing to disk you **must** conduct a structured discovery interview.
 
-If the user provides no initial description, still build the discovery table and ask your first question (e.g., goal, user, success metrics).
+- **First response rule**: On your very first reply after `/speckitty.specify`, ask a single focused discovery question (e.g., “What is the core outcome you want for this feature?”) and end the message with `WAITING_FOR_DISCOVERY_INPUT`. Do nothing else yet.
+- If the user provides no initial description (empty command), stay in **Interactive Interview Mode**: keep probing with one question at a time to surface goals, users, scenarios, constraints, and success metrics before taking any automation steps.
+- **Conversational cadence**: After each user reply, update your internal understanding and decide on the next most critical unanswered topic. Ask exactly one follow-up question referencing that topic (e.g., “Thanks! For the target users…”) and end with `WAITING_FOR_DISCOVERY_INPUT`. Do not bundle questions or progress while gaps remain.
+- **Scope proportionality**: Continuously gauge the inherent complexity of the feature. Keep discovery lightweight for simple requests (e.g., small UI tweaks or mini-games) and expand the questioning depth for expansive or high-risk initiatives (e.g., platforms, critical infrastructure). Let the final specification reflect that proportional level of detail.
 
-1. Build a **Discovery Questions** table with at least five targeted questions tailored to the request. The table must include columns `#`, `Question`, `Why it matters`, and `Current insight` (prefill `—` when nothing is known). Cover: primary goal/impact, target users & scenarios, success metrics, constraints (technical, regulatory, operational), risks/edge cases, and rollout/operational concerns.
-2. Examine the conversation for explicit answers. Treat vague phrases (e.g. "pretty fast") as unanswered.
-3. If any question lacks a concrete answer (including the first invocation), return the table, clearly ask the user to respond, and end the message with the literal token `WAITING_FOR_DISCOVERY_INPUT`. Do **not** call `{SCRIPT}` or create/modify files yet.
-4. Once every question has a solid answer, paraphrase them into an **Intent Summary** and confirm alignment. Note any assumptions you were forced to make and ask follow-up questions until both of you are confident.
+Discovery requirements you must still satisfy:
+
+1. Maintain a **Discovery Questions** table internally with at least five targeted questions covering: primary goal/impact, target users & scenarios, success metrics, constraints (technical, regulatory, operational), risks/edge cases, and rollout/operational concerns. Track columns `#`, `Question`, `Why it matters`, and `Current insight` (prefill `—` when unknown). Do **not** render this table to the user; it is for your internal consistency checks only.
+2. Examine the conversation for explicit answers. Treat vague phrases (e.g., "pretty fast") as unanswered and keep probing.
+3. Keep looping (ask → wait → update) until every row has a concrete answer you can restate with confidence. Never show the internal table in the conversation; instead, summarize findings conversationally.
+4. When all questions are resolved, paraphrase the answers into an **Intent Summary** and confirm alignment. Note any assumptions you were forced to make and ask follow-up questions until both of you are confident. In interview mode, synthesize what the user told you into a concise feature description and read it back for confirmation.
 5. Throughout the rest of the workflow, if new ambiguities emerge, pause, ask the targeted question, and wait for the user before proceeding.
 
 ## Outline
@@ -31,17 +36,21 @@ The text the user typed after `/speckitty.specify` in the triggering message **i
 
 Given that feature description, do this:
 
-1. **Check discovery status**:
-   - If discovery questions have unanswered entries or you have not confirmed the **Intent Summary** with the user, present the table again and end your message with `WAITING_FOR_DISCOVERY_INPUT`. Do **not** call `{SCRIPT}` yet.
-   - Once every discovery question has an explicit answer and the user agrees with the Intent Summary, proceed to the next step.
+- **Generation Mode (arguments provided)**: Use the provided text as a starting point, validate it through discovery, and fill gaps with explicit questions or clearly documented assumptions (limit `[NEEDS CLARIFICATION: …]` to at most three critical decisions the user has postponed).
+- **Interactive Interview Mode (no arguments)**: Use the discovery interview to elicit all necessary context, synthesize the working feature description, and confirm it with the user before you generate any specification artifacts.
 
-2. Run the script `{SCRIPT}` from repo root and parse its JSON output for BRANCH_NAME and SPEC_FILE. All file paths must be absolute.
+1. **Check discovery status**:
+   - If this is your first message or discovery questions remain unanswered, stay in the one-question loop, capture the user’s response, update your internal table, and end with `WAITING_FOR_DISCOVERY_INPUT`. Do **not** surface the table; keep it internal. Do **not** call `{SCRIPT}` yet.
+   - Only proceed once every discovery question has an explicit answer and the user has acknowledged the Intent Summary.
+   - Empty invocation rule: stay in interview mode until you can restate the agreed-upon feature description. Do **not** call `{SCRIPT}` while the description is missing or provisional.
+
+2. When discovery is complete and the intent summary is confirmed, run the script `{SCRIPT}` from repo root and parse its JSON output for BRANCH_NAME and SPEC_FILE. All file paths must be absolute.
    **IMPORTANT** You must only ever run this script once. The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for.
 3. Load `templates/spec-template.md` to understand required sections.
 
 4. Follow this execution flow:
 
-    1. Use the discovery answers as your authoritative source of truth (do **not** rely on raw `$ARGUMENTS`).
+    1. Use the discovery answers as your authoritative source of truth (do **not** rely on raw `$ARGUMENTS`). For empty invocations, treat the synthesized interview summary as the canonical feature description.
        Identify: actors, actions, data, constraints, motivations, success metrics
     2. For any remaining ambiguity:
        - Ask the user a focused follow-up question immediately and halt work until they answer
@@ -120,36 +129,20 @@ Given that feature description, do this:
       - **If [NEEDS CLARIFICATION] markers remain**:
         1. Extract all [NEEDS CLARIFICATION: ...] markers from the spec
         2. Re-confirm with the user whether each outstanding decision truly needs to stay unresolved. Do not assume away critical gaps.
-        3. For each clarification the user has explicitly deferred, present options to the user in this format:
+        3. For each clarification the user has explicitly deferred, present options using plain text—no tables:
         
-           ```markdown
-           ## Question [N]: [Topic]
-           
-           **Context**: [Quote relevant spec section]
-           
-           **What we need to know**: [Specific question from NEEDS CLARIFICATION marker]
-           
-           **Suggested Answers**:
-           
-           | Option | Answer | Implications |
-           |--------|--------|--------------|
-           | A      | [First suggested answer] | [What this means for the feature] |
-           | B      | [Second suggested answer] | [What this means for the feature] |
-           | C      | [Third suggested answer] | [What this means for the feature] |
-           | Custom | Provide your own answer | [Explain how to provide custom input] |
-           
-           **Your choice**: _[Wait for user response]_
+           ```
+           Question [N]: [Topic]
+           Context: [Quote relevant spec section]
+           Need: [Specific question from NEEDS CLARIFICATION marker]
+           Options: (A) [First answer — implications] · (B) [Second answer — implications] · (C) [Third answer — implications] · (D) Custom (describe your own answer)
+           Reply with a letter or a custom answer.
            ```
         
-        4. **CRITICAL - Table Formatting**: Ensure markdown tables are properly formatted:
-           - Use consistent spacing with pipes aligned
-           - Each cell should have spaces around content: `| Content |` not `|Content|`
-           - Header separator must have at least 3 dashes: `|--------|`
-           - Test that the table renders correctly in markdown preview
-        5. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
-        6. Present all questions together before waiting for responses
-        7. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
-        8. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
+        4. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
+        5. Present all questions together before waiting for responses
+        6. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
+        7. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
         9. Re-run validation after all clarifications are resolved
    
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status

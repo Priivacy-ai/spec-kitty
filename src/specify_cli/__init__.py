@@ -394,6 +394,14 @@ def parse_repo_slug(slug: str) -> tuple[str, str]:
 
 
 def rewrite_paths(text: str) -> str:
+    import re
+    patterns = {
+        r'(?<!\.specify/)scripts/': '.specify/scripts/',
+        r'(?<!\.specify/)templates/': '.specify/templates/',
+        r'(?<!\.specify/)memory/': '.specify/memory/',
+    }
+    for pattern, replacement in patterns.items():
+        text = re.sub(pattern, replacement, text)
     return text
 
 
@@ -1510,10 +1518,9 @@ def init(
     steps_lines.append("   2.1 [cyan]/speckitty.constitution[/] - Establish project principles")
     steps_lines.append("   2.2 [cyan]/speckitty.specify[/] - Create baseline specification")
     steps_lines.append("   2.3 [cyan]/speckitty.plan[/] - Create implementation plan")
-    steps_lines.append("   2.4 [cyan]/speckitty.tasks[/] - Generate actionable tasks")
-    steps_lines.append("   2.5 [cyan]/speckitty.task-prompts[/] - Build kanban-ready prompt files in /tasks/planned/")
-    steps_lines.append("   2.6 [cyan]/speckitty.implement[/] - Execute implementation from /tasks/doing/")
-    steps_lines.append("   2.7 [cyan]/speckitty.review[/] - Review prompts and move them to /tasks/done/")
+    steps_lines.append("   2.4 [cyan]/speckitty.tasks[/] - Generate tasks and kanban-ready prompt files")
+    steps_lines.append("   2.5 [cyan]/speckitty.implement[/] - Execute implementation from /tasks/doing/")
+    steps_lines.append("   2.6 [cyan]/speckitty.review[/] - Review prompts and move them to /tasks/done/")
 
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1,2))
     console.print()
@@ -1523,7 +1530,7 @@ def init(
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
         f"○ [cyan]/speckitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/speckitty.plan[/] if used)",
-        f"○ [cyan]/speckitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/speckitty.tasks[/], before [cyan]/speckitty.task-prompts[/])",
+        f"○ [cyan]/speckitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/speckitty.tasks[/], before [cyan]/speckitty.implement[/])",
         f"○ [cyan]/speckitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/speckitty.plan[/])"
     ]
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1,2))

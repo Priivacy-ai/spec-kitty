@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
-  echo "Usage: $0 TASK_ID FEATURE_DIR" >&2
+  echo "Usage: $0 WORK_PACKAGE_ID FEATURE_DIR" >&2
   exit 1
 fi
 
@@ -21,7 +21,7 @@ if [[ -d "$FEATURE_DIR/tasks/doing" ]]; then
 fi
 
 if [[ -z "$PROMPT_PATH" ]]; then
-  echo "❌ ERROR: Task $TASK_ID not found in tasks/doing/." >&2
+  echo "❌ ERROR: Work package $TASK_ID not found in tasks/doing/." >&2
   echo "   Move the prompt from tasks/planned/ to tasks/doing/ with git mv before implementing." >&2
   exit 1
 fi
@@ -40,6 +40,6 @@ if ! grep -Eq '^[[:space:]]*agent:' "$PROMPT_PATH"; then
   echo "⚠️  WARNING: $PROMPT_PATH is missing agent in frontmatter." >&2
 fi
 
-echo "✅ Task $TASK_ID workflow validated"
+echo "✅ Work package $TASK_ID workflow validated"
 echo "   Prompt location: $PROMPT_PATH"
 exit 0

@@ -20,18 +20,24 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Before executing any scripts or generating artifacts you must interrogate the specification and stakeholders.
 
-If the user has not provided plan context, begin the interrogation anyway and craft questions that expose the architecture, constraints, and risks.
+- **First response rule**: On your very first reply after `/speckitty.plan`, ask a single architecture-focused question (e.g., “What baseline technical stack are you assuming?”) and end the message with `WAITING_FOR_PLANNING_INPUT`. Do nothing else yet.
+- If the user has not provided plan context, keep interrogating with one question at a time to surface architecture, constraints, and risks before running any automation.
 
-1. Build a **Planning Questions** table with at least five targeted questions covering: architectural drivers, non-functional requirements, integration points, deployment/operational constraints, data and compliance considerations, risks/unknowns. The table must include columns `#`, `Question`, `Why it matters`, and `Current insight` (prefill `—` when unknown). Tailor questions to spec gaps.
+- **Conversational cadence**: After each user reply, decide which planning dimension is still unclear. Ask exactly one follow-up question referencing that dimension (e.g., “Great. For integrations…”) and end with `WAITING_FOR_PLANNING_INPUT`. Do not bundle questions or progress while unknowns remain.
+- **Scope proportionality**: Calibrate planning depth to the feature’s complexity and risk profile. Lightweight enhancements may only need a brief checklist, whereas platform-level builds demand exhaustive architectural and operational interrogation before committing to a plan.
+
+Planning requirements you must still satisfy:
+
+1. Maintain a **Planning Questions** table internally with at least five targeted questions covering: architectural drivers, non-functional requirements, integration points, deployment/operational constraints, data and compliance considerations, risks/unknowns. Track columns `#`, `Question`, `Why it matters`, and `Current insight` (prefill `—` when unknown). Do **not** render this table to the user; it is solely for your internal coverage tracking.
 2. Inspect prior conversation for explicit answers. Treat hand-wavy phrases ("we want it scalable") as unanswered until quantified.
-3. If any question lacks a clear answer, present the table, request responses, and end the message with the literal token `WAITING_FOR_PLANNING_INPUT`. Do **not** invoke `{SCRIPT}` or mutate files yet.
+3. Continue the ask → wait → update loop until every row has a concrete answer. Never show the internal table in the conversation; summarize progress conversationally. End with `WAITING_FOR_PLANNING_INPUT` if additional confirmation is needed.
 4. After you have concrete answers for every question, summarise them into an **Engineering Alignment** note and confirm with the user before moving on.
 5. Continue to pause and seek clarification whenever new uncertainties surface during later phases.
 
 ## Outline
 
 1. **Check planning discovery status**:
-   - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, present the question table again and end your message with `WAITING_FOR_PLANNING_INPUT`. Do **not** run `{SCRIPT}` yet.
+   - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user’s response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run `{SCRIPT}` yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
 2. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.

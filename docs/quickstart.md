@@ -26,6 +26,16 @@ uvx --from . speckitty init <PROJECT_NAME> --script ps  # Force PowerShell
 uvx --from . speckitty init <PROJECT_NAME> --script sh  # Force POSIX shell
 ```
 
+### Optional: Automated Sandbox Setup
+
+If you frequently spin up disposable sandboxes, run the helper script from the repo root. It installs the local CLI build, points `SPECKITTY_TEMPLATE_ROOT` at this checkout, and initializes the project in one go:
+
+```bash
+scripts/bash/setup-sandbox.sh --agents claude ~/Code/new_specify
+```
+
+Add `--reset` to recreate an existing directory, `--script-type ps` for PowerShell workflows, or `--agents claude,copilot` to preload multiple assistants.
+
 ### 2. Create the Spec
 
 Use the `/speckitty.specify` command to describe what you want to build. Focus on the **what** and **why**, not the tech stack. Expect the CLI to interview you first and stay in discovery mode until you answer its questions.
@@ -34,7 +44,7 @@ Use the `/speckitty.specify` command to describe what you want to build. Focus o
 /speckitty.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
-The command responds with `WAITING_FOR_DISCOVERY_INPUT` until you answer every question in its discovery table.
+The command responds with `WAITING_FOR_DISCOVERY_INPUT` until you answer every discovery question it raises.
 
 ### 3. Create a Technical Implementation Plan
 
@@ -48,10 +58,9 @@ Expect `WAITING_FOR_PLANNING_INPUT` prompts whenever the planner needs more arch
 
 ### 4. Break Down and Implement
 
-1. Run `/speckitty.tasks` to produce the summary checklist in `tasks.md`.
-2. Run `/speckitty.task-prompts` to generate the rich prompt files under `/tasks/planned/`.
-3. Use `/speckitty.implement` to move a prompt into `/tasks/doing/` and build the solution.
-4. Finish with `/speckitty.review` to process items in `/tasks/for_review/` and move approved work to `/tasks/done/`.
+1. Run `/speckitty.tasks` to produce the summary checklist in `tasks.md` **and** generate up to ten bundled prompt files under `/tasks/planned/`. Each bundle covers a work package with the granular subtasks nested beneath it.
+2. Use `/speckitty.implement` to move a prompt into `/tasks/doing/` and build the solution.
+3. Finish with `/speckitty.review` to process items in `/tasks/for_review/` and move approved work to `/tasks/done/`.
 
 ## Detailed Example: Building Taskify
 
@@ -124,7 +133,6 @@ Next:
 
 ```text
 /speckitty.tasks
-/speckitty.task-prompts
 /speckitty.implement
 /speckitty.review
 ```

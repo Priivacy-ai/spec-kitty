@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
-  echo "Usage: $0 TASK_ID FEATURE_DIR [AGENT]" >&2
+  echo "Usage: $0 WORK_PACKAGE_ID FEATURE_DIR [AGENT]" >&2
   exit 1
 fi
 
@@ -18,7 +18,7 @@ fi
 
 PLANNED_PROMPT=$(find "$FEATURE_DIR/tasks/planned" -maxdepth 3 -name "${TASK_ID}-*.md" -print -quit | tr -d '\r')
 if [[ -z "$PLANNED_PROMPT" ]]; then
-  echo "❌ ERROR: Task $TASK_ID not found in tasks/planned/." >&2
+  echo "❌ ERROR: Work package $TASK_ID not found in tasks/planned/." >&2
   exit 1
 fi
 
@@ -104,7 +104,7 @@ else:
 prompt_path.write_text(text)
 PY
 
-echo "✅ Moved $TASK_ID to doing lane"
+echo "✅ Moved work package $TASK_ID to doing lane"
 echo "   Location: $DOING_PROMPT"
 echo "   Shell PID: $SHELL_PID"
 echo "   Agent: $AGENT"

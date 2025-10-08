@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
-    Write-Error "Usage: ./create-new-feature.ps1 [-Json] <feature description>"
+    Write-Error "[specify] Error: Feature description missing.`nThis script must only run after discovery produces a confirmed intent summary. Return WAITING_FOR_DISCOVERY_INPUT, gather answers, then rerun with the finalized description."
     exit 1
 }
 $featureDesc = ($FeatureDescription -join ' ').Trim()

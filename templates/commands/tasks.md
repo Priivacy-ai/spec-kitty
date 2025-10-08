@@ -1,8 +1,8 @@
 ---
-description: Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts.
+description: Generate grouped work packages with actionable subtasks and matching prompt files for the feature in one pass.
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json
-  ps: scripts/powershell/check-prerequisites.ps1 -Json
+  sh: scripts/bash/check-prerequisites.sh --json --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
 ---
 
 ## User Input
@@ -15,102 +15,78 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
+1. **Setup**: Run `{SCRIPT}` from repo root and capture `FEATURE_DIR` plus `AVAILABLE_DOCS`. All paths must be absolute.
 
-2. **Load design documents**: Read from FEATURE_DIR:
-   - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
-   - **Optional**: data-model.md (entities), contracts/ (API endpoints), research.md (decisions), quickstart.md (test scenarios)
-   - Note: Not all projects have all documents. Generate tasks based on what's available.
+2. **Load design documents** from `FEATURE_DIR` (only those present):
+   - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
+   - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
+   - Scale your effort to the feature: simple UI tweaks deserve lighter coverage, multi-system releases require deeper decomposition.
 
-3. **Execute task generation workflow** (follow the template structure):
-   - Load plan.md and extract tech stack, libraries, project structure
-   - **Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)**
-   - If data-model.md exists: Extract entities → map to user stories
-   - If contracts/ exists: Each file → map endpoints to user stories
-   - If research.md exists: Extract decisions → generate setup tasks
-   - **Generate tasks ORGANIZED BY USER STORY**:
-     - Setup tasks (shared infrastructure needed by all stories)
-     - **Foundational tasks (prerequisites that must complete before ANY user story can start)**
-     - For each user story (in priority order P1, P2, P3...):
-       - Group all tasks needed to complete JUST that story
-       - Include models, services, endpoints, UI components specific to that story
-       - Mark which tasks are [P] parallelizable
-       - If tests requested: Include tests specific to that story
-     - Polish/Integration tasks (cross-cutting concerns)
-   - **Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature spec or user asks for TDD approach
-   - Keep `tasks.md` concise—store detailed implementation notes in the per-task prompt files that `/speckitty.task-prompts` will generate.
-   - Apply task rules:
-     - Different files = mark [P] for parallel
-     - Same file = sequential (no [P])
-     - If tests requested: Tests before implementation (TDD order)
-   - Number tasks sequentially (T001, T002...)
-   - Generate dependency graph showing user story completion order
-   - Create parallel execution examples per user story
-   - Validate task completeness (each user story has all needed tasks, independently testable)
+3. **Derive fine-grained subtasks** (IDs `T001`, `T002`, ...):
+   - Parse plan/spec to enumerate concrete implementation steps, tests (only if explicitly requested), migrations, and operational work.
+   - Capture prerequisites, dependencies, and parallelizability markers (`[P]` means safe to parallelize per file/concern).
+   - Maintain the subtask list internally; it feeds the work-package roll-up and the prompts.
 
-4. **Generate tasks.md**: Use `.specify/templates/tasks-template.md` as structure, fill with:
-   - Correct feature name from plan.md
-   - Phase 1: Setup tasks (project initialization)
-   - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
-   - Phase 3+: One phase per user story (in priority order from spec.md)
-     - Each phase includes: story goal, independent test criteria, tests (if requested), implementation tasks
-     - Clear [Story] labels (US1, US2, US3...) for each task
-     - [P] markers for parallelizable tasks within each story
-     - Checkpoint markers after each story phase
-   - Final Phase: Polish & cross-cutting concerns
-   - Numbered tasks (T001, T002...) in execution order
-   - Clear file paths for each task
-   - Dependencies section showing story completion order
-   - Parallel execution examples per story
-   - Implementation strategy section (MVP first, incremental delivery)
+4. **Roll subtasks into work packages** (IDs `WP01`, `WP02`, ...):
+   - Target 4–10 work packages. Each should be independently implementable, rooted in a single user story or cohesive subsystem.
+   - Ensure every subtask appears in exactly one work package.
+   - Name each work package with a succinct goal (e.g., “User Story 1 – Real-time chat happy path”).
+   - Record per-package metadata: priority, success criteria, risks, dependencies, and list of included subtasks.
 
-5. **Report**: Output path to generated tasks.md and summary:
-   - Total task count
-   - Task count per user story
-   - Parallel opportunities identified
-   - Independent test criteria for each story
-   - Suggested MVP scope (typically just User Story 1)
-   - Call out that `/speckitty.task-prompts` should run next to produce rich prompt files for each task
+5. **Write `tasks.md`** using `.specify/templates/tasks-template.md`:
+   - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries.
+   - Under each work package include:
+     - Summary (goal, priority, independent test)
+     - Included subtasks (checkbox list referencing `Txxx`)
+     - Implementation sketch (high-level sequence)
+     - Parallel opportunities, dependencies, and risks
+   - Preserve the checklist style so implementers can mark progress.
 
-Context for task generation: {ARGS}
+6. **Generate prompt files (one per work package)**:
+   - Ensure `/tasks/planned/` exists (create `/tasks/doing/`, `/tasks/for_review/`, `/tasks/done/` if missing). Create optional phase subfolders when teams will benefit.
+   - For each work package:
+     - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`.
+     - Use `.specify/templates/task-prompt-template.md` (now tailored for bundles) to capture:
+       - Frontmatter with `work_package_id`, an ordered `subtasks` array listing each `Txxx`, `lane=planned`, and a history entry marking creation via `/speckitty.tasks`.
+       - Objective, context, and detailed guidance broken down by subtask.
+       - Consolidated test strategy (only when requested).
+       - Explicit Definition of Done, risks, reviewer guidance.
+     - Update the corresponding section in `tasks.md` to reference the prompt filename.
+   - Keep prompts exhaustive enough that a new agent can complete the entire work package unaided.
 
-The tasks.md should be immediately executable - each task must be specific enough that an LLM can complete it without additional context.
+7. **Report**: Provide a concise outcome summary:
+   - Path to `tasks.md`
+   - Work package count and per-package subtask tallies
+   - Parallelization highlights
+   - MVP scope recommendation (usually Work Package 1)
+  - Prompt generation stats (files written, directory structure, any skipped items with rationale)
+   - Next suggested command (e.g., `/speckitty.analyze` or `/speckitty.implement`)
+
+Context for work-package planning: {ARGS}
+
+The combination of `tasks.md` and the bundled prompt files must enable a new engineer to pick up any work package and deliver it end-to-end without further specification spelunking.
 
 ## Task Generation Rules
 
-**IMPORTANT**: Tests are optional. Only generate test tasks if the user explicitly requested testing or TDD approach in the feature specification.
+**Tests remain optional**. Only include testing tasks/steps if the feature spec or user explicitly demands them.
 
-**CRITICAL**: Tasks MUST be organized by user story to enable independent implementation and testing.
+1. **Subtask derivation**:
+   - Assign IDs `Txxx` sequentially in execution order.
+   - Use `[P]` for parallel-safe items (different files/components).
+   - Include migrations, data seeding, observability, and operational chores.
 
-1. **From User Stories (spec.md)** - PRIMARY ORGANIZATION:
-   - Each user story (P1, P2, P3...) gets its own phase
-   - Map all related components to their story:
-     - Models needed for that story
-     - Services needed for that story
-     - Endpoints/UI needed for that story
-     - If tests requested: Tests specific to that story
-   - Mark story dependencies (most stories should be independent)
-   
-2. **From Contracts**:
-   - Map each contract/endpoint → to the user story it serves
-   - If tests requested: Each contract → contract test task [P] before implementation in that story's phase
-   
-3. **From Data Model**:
-   - Map each entity → to the user story(ies) that need it
-   - If entity serves multiple stories: Put in earliest story or Setup phase
-   - Relationships → service layer tasks in appropriate story phase
-   
-4. **From Setup/Infrastructure**:
-   - Shared infrastructure → Setup phase (Phase 1)
-   - Foundational/blocking tasks → Foundational phase (Phase 2)
-     - Examples: Database schema setup, authentication framework, core libraries, base configurations
-     - These MUST complete before any user story can be implemented
-   - Story-specific setup → within that story's phase
+2. **Work package grouping**:
+   - Map subtasks to user stories or infrastructure themes.
+   - Keep each work package laser-focused on a single goal; avoid mixing unrelated stories.
+   - Do not exceed 10 work packages. Merge low-effort items into broader bundles when necessary.
 
-5. **Ordering**:
-   - Phase 1: Setup (project initialization)
-   - Phase 2: Foundational (blocking prerequisites - must complete before user stories)
-   - Phase 3+: User Stories in priority order (P1, P2, P3...)
-     - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
-   - Final Phase: Polish & Cross-Cutting Concerns
-   - Each user story phase should be a complete, independently testable increment
+3. **Prioritisation & dependencies**:
+   - Sequence work packages: setup → foundational → story phases (priority order) → polish.
+   - Call out inter-package dependencies explicitly in both `tasks.md` and the prompts.
+
+4. **Prompt composition**:
+   - Mirror subtask order inside the prompt.
+   - Provide actionable implementation and test guidance per subtask—short for trivial work, exhaustive for complex flows.
+   - Surface risks, integration points, and acceptance gates clearly so reviewers know what to verify.
+
+5. **Think like a tester**: Any vague requirement should be tightened until a reviewer can objectively mark it done or not done.
