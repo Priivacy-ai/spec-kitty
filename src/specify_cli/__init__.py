@@ -1640,6 +1640,53 @@ def check():
     if not (claude_ok or gemini_ok or cursor_ok or qwen_ok or windsurf_ok or kilocode_ok or opencode_ok or codex_ok or auggie_ok or q_ok):
         console.print("[dim]Tip: Install an AI assistant for the best experience[/dim]")
 
+@app.command()
+def dashboard():
+    """Open the Spec Kitty dashboard in your browser."""
+    import webbrowser
+
+    dashboard_file = Path('.specify/.dashboard')
+
+    if not dashboard_file.exists():
+        console.print()
+        console.print("[red]❌ No dashboard is currently running[/red]")
+        console.print()
+        console.print("To start the dashboard, run:")
+        console.print("  [cyan]speckitty init .[/cyan]")
+        console.print()
+        raise typer.Exit(1)
+
+    # Read dashboard URL
+    content = dashboard_file.read_text().strip().split('\n')
+    dashboard_url = content[0] if content else None
+
+    if not dashboard_url:
+        console.print()
+        console.print("[red]❌ Dashboard file exists but is empty[/red]")
+        console.print("   Try running: [cyan]speckitty init .[/cyan]")
+        console.print()
+        raise typer.Exit(1)
+
+    # Display URL
+    console.print()
+    console.print("[bold green]🌱 Spec Kitty Dashboard[/bold green]")
+    console.print("[cyan]" + "=" * 60 + "[/cyan]")
+    console.print()
+    console.print(f"  [bold cyan]URL:[/bold cyan] {dashboard_url}")
+    console.print()
+    console.print("[cyan]" + "=" * 60 + "[/cyan]")
+    console.print()
+
+    # Try to open in browser
+    try:
+        webbrowser.open(dashboard_url)
+        console.print("[green]✅ Opening dashboard in your browser...[/green]")
+        console.print()
+    except Exception as e:
+        console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
+        console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
+        console.print()
+
 def main():
     app()
 
