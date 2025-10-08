@@ -48,6 +48,9 @@ import readchar
 import ssl
 import truststore
 
+# Dashboard server
+from specify_cli.dashboard import start_dashboard
+
 ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 client = httpx.Client(verify=ssl_context)
 
@@ -107,10 +110,6 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
 }
 
 BANNER = """
-
-
-
-
 
 
            ▄█▄_                            ╓▄█_
@@ -1557,6 +1556,33 @@ def init(
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1,2))
     console.print()
     console.print(enhancements_panel)
+
+    # Start the dashboard server
+    console.print()
+    try:
+        port, thread = start_dashboard(project_path)
+        dashboard_url = f"http://127.0.0.1:{port}"
+
+        dashboard_panel = Panel(
+            f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n\n"
+            f"[dim]The dashboard is running and will automatically update as you work.\n"
+            f"It will remain active until you close this terminal or press Ctrl+C.[/dim]",
+            title="🌱 [bold green]Spec Kitty Dashboard Started[/bold green]",
+            border_style="green",
+            padding=(1, 2)
+        )
+        console.print(dashboard_panel)
+        console.print()
+
+        # Keep the main thread alive to maintain dashboard
+        console.print("[dim]Press Ctrl+C to stop the dashboard and exit[/dim]\n")
+        try:
+            thread.join()  # Wait for server thread (runs forever until interrupted)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Dashboard stopped[/yellow]")
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not start dashboard: {e}[/yellow]")
+        console.print("[dim]Continuing without dashboard...[/dim]")
 
 @app.command()
 def check():
