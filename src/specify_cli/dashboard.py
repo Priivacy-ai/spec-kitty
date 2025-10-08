@@ -1074,21 +1074,64 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
 
-def start_dashboard(project_dir: Path, port: int = None) -> tuple[int, threading.Thread]:
-    """Start the dashboard server in a background thread."""
+def start_dashboard(project_dir: Path, port: int = None, background_process: bool = False) -> tuple[int, threading.Thread]:
+    """
+    Start the dashboard server.
+
+    Args:
+        project_dir: Project directory to serve
+        port: Port to use (None = auto-find)
+        background_process: If True, fork a detached background process that survives parent exit
+
+    Returns:
+        Tuple of (port, thread)
+    """
     if port is None:
         port = find_free_port()
 
-    handler_class = type('DashboardHandler', (DashboardHandler,), {
-        'project_dir': str(project_dir)
-    })
+    if background_process:
+        # Fork a detached background process that survives parent exit
+        import subprocess
+        import sys
 
-    server = HTTPServer(('127.0.0.1', port), handler_class)
+        # Write a small Python script to run the server
+        script = f"""
+import sys
+from pathlib import Path
+sys.path.insert(0, '{Path(__file__).parent}')
+from dashboard import DashboardHandler, HTTPServer
 
-    def serve():
-        server.serve_forever()
+handler_class = type('DashboardHandler', (DashboardHandler,), {{
+    'project_dir': '{project_dir}'
+}})
 
-    thread = threading.Thread(target=serve, daemon=True)
-    thread.start()
+server = HTTPServer(('127.0.0.1', {port}), handler_class)
+server.serve_forever()
+"""
 
-    return port, thread
+        # Start detached process (survives parent exit)
+        process = subprocess.Popen(
+            [sys.executable, '-c', script],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True  # Detach from parent
+        )
+
+        # Return dummy thread (process is independent)
+        return port, None
+    else:
+        # Original threaded approach (for compatibility)
+        handler_class = type('DashboardHandler', (DashboardHandler,), {
+            'project_dir': str(project_dir)
+        })
+
+        server = HTTPServer(('127.0.0.1', port), handler_class)
+
+        def serve():
+            server.serve_forever()
+
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+
+        return port, thread

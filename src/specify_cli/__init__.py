@@ -1564,10 +1564,10 @@ def init(
     console.print()
     console.print(enhancements_panel)
 
-    # Start the dashboard server
+    # Start the dashboard server as detached background process
     console.print()
     try:
-        port, thread = start_dashboard(project_path)
+        port, _ = start_dashboard(project_path, background_process=True)
         dashboard_url = f"http://127.0.0.1:{port}"
 
         # Save dashboard URL for later retrieval
@@ -1576,22 +1576,15 @@ def init(
 
         dashboard_panel = Panel(
             f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n\n"
-            f"[dim]The dashboard is running and will automatically update as you work.\n"
-            f"It will remain active until you close this terminal or press Ctrl+C.[/dim]\n\n"
-            f"[yellow]Tip:[/yellow] Run [cyan]/speckitty.dashboard[/cyan] to open it in your browser",
+            f"[dim]The dashboard is running in the background and will continue even after\n"
+            f"this command exits. It will automatically update as you work.[/dim]\n\n"
+            f"[yellow]Tip:[/yellow] Run [cyan]/speckitty.dashboard[/cyan] or [cyan]speckitty dashboard[/cyan] to open it in your browser",
             title="🌱 [bold green]Spec Kitty Dashboard Started[/bold green]",
             border_style="green",
             padding=(1, 2)
         )
         console.print(dashboard_panel)
         console.print()
-
-        # Keep the main thread alive to maintain dashboard
-        console.print("[dim]Press Ctrl+C to stop the dashboard and exit[/dim]\n")
-        try:
-            thread.join()  # Wait for server thread (runs forever until interrupted)
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Dashboard stopped[/yellow]")
     except Exception as e:
         console.print(f"[yellow]Warning: Could not start dashboard: {e}[/yellow]")
         console.print("[dim]Continuing without dashboard...[/dim]")
