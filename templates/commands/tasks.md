@@ -17,6 +17,20 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 1. **Setup**: Run `{SCRIPT}` from repo root and capture `FEATURE_DIR` plus `AVAILABLE_DOCS`. All paths must be absolute.
 
+   **CRITICAL**: The script returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/specs/001-feature-name`).
+
+   **YOU MUST USE THIS PATH** for ALL subsequent file operations. Example:
+   ```
+   FEATURE_DIR = "/Users/robert/Code/new_specify/specs/001-a-simple-hello"
+   tasks.md location: FEATURE_DIR + "/tasks.md"
+   prompt location: FEATURE_DIR + "/tasks/planned/WP01-slug.md"
+   ```
+
+   **DO NOT CREATE** paths like:
+   - ❌ `tasks/planned/WP01-slug.md` (missing FEATURE_DIR prefix)
+   - ❌ `/tasks/planned/WP01-slug.md` (wrong root)
+   - ❌ `WP01-slug.md` (wrong directory)
+
 2. **Load design documents** from `FEATURE_DIR` (only those present):
    - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
    - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
@@ -34,25 +48,31 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Record per-package metadata: priority, success criteria, risks, dependencies, and list of included subtasks.
 
 5. **Write `tasks.md`** using `.specify/templates/tasks-template.md`:
-   - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries.
+   - **Location**: Write to `FEATURE_DIR/tasks.md` (use the absolute FEATURE_DIR path from step 1)
+   - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries
    - Under each work package include:
      - Summary (goal, priority, independent test)
      - Included subtasks (checkbox list referencing `Txxx`)
      - Implementation sketch (high-level sequence)
      - Parallel opportunities, dependencies, and risks
-   - Preserve the checklist style so implementers can mark progress.
+   - Preserve the checklist style so implementers can mark progress
 
 6. **Generate prompt files (one per work package)**:
-   - Ensure `/tasks/planned/` exists (create `/tasks/doing/`, `/tasks/for_review/`, `/tasks/done/` if missing). Create optional phase subfolders when teams will benefit.
+   - **CRITICAL PATH RULE**: All task directories and prompt files MUST be created under `FEATURE_DIR/tasks/`, NOT in the repo root!
+   - Correct structure: `FEATURE_DIR/tasks/planned/WPxx-slug.md`, `FEATURE_DIR/tasks/doing/`, `FEATURE_DIR/tasks/for_review/`, `FEATURE_DIR/tasks/done/`
+   - WRONG (do not create): `/tasks/planned/`, `tasks/planned/`, or any path not under FEATURE_DIR
+   - Ensure `FEATURE_DIR/tasks/planned/` exists (create `FEATURE_DIR/tasks/doing/`, `FEATURE_DIR/tasks/for_review/`, `FEATURE_DIR/tasks/done/` if missing)
+   - Create optional phase subfolders under each lane when teams will benefit (e.g., `FEATURE_DIR/tasks/planned/phase-1-setup/`)
    - For each work package:
-     - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`.
-     - Use `.specify/templates/task-prompt-template.md` (now tailored for bundles) to capture:
-       - Frontmatter with `work_package_id`, an ordered `subtasks` array listing each `Txxx`, `lane=planned`, and a history entry marking creation via `/speckitty.tasks`.
-       - Objective, context, and detailed guidance broken down by subtask.
-       - Consolidated test strategy (only when requested).
-       - Explicit Definition of Done, risks, reviewer guidance.
-     - Update the corresponding section in `tasks.md` to reference the prompt filename.
-   - Keep prompts exhaustive enough that a new agent can complete the entire work package unaided.
+     - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
+     - Full path example: `FEATURE_DIR/tasks/planned/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
+     - Use `.specify/templates/task-prompt-template.md` to capture:
+       - Frontmatter with `work_package_id`, `subtasks` array, `lane=planned`, history entry
+       - Objective, context, detailed guidance per subtask
+       - Test strategy (only if requested)
+       - Definition of Done, risks, reviewer guidance
+     - Update `tasks.md` to reference the prompt filename
+   - Keep prompts exhaustive enough that a new agent can complete the work package unaided
 
 7. **Report**: Provide a concise outcome summary:
    - Path to `tasks.md`
