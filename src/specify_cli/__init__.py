@@ -451,26 +451,38 @@ def is_git_repo(path: Path = None) -> bool:
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
-def init_git_repo(project_path: Path, quiet: bool = False) -> bool:
+def init_git_repo(project_path: Path, quiet: bool = False) -> Tuple[bool, Optional[str]]:
     """Initialize a git repository in the specified path.
-    quiet: if True suppress console output (tracker handles status)
+    
+    Args:
+        project_path: Path to initialize git repository in
+        quiet: if True suppress console output (tracker handles status)
+    
+    Returns:
+        Tuple of (success: bool, error_message: Optional[str])
     """
     try:
         original_cwd = Path.cwd()
         os.chdir(project_path)
         if not quiet:
             console.print("[cyan]Initializing git repository...[/cyan]")
-        subprocess.run(["git", "init"], check=True, capture_output=True)
-        subprocess.run(["git", "add", "."], check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "Initial commit from Specify template"], check=True, capture_output=True)
+        subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
+        subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
+        subprocess.run(["git", "commit", "-m", "Initial commit from Specify template"], check=True, capture_output=True, text=True)
         if not quiet:
             console.print("[green]✓[/green] Git repository initialized")
-        return True
+        return True, None
 
     except subprocess.CalledProcessError as e:
+        error_msg = f"Command: {' '.join(e.cmd)}\nExit code: {e.returncode}"
+        if e.stderr:
+            error_msg += f"\nError: {e.stderr.strip()}"
+        elif e.stdout:
+            error_msg += f"\nOutput: {e.stdout.strip()}"
+        
         if not quiet:
             console.print(f"[red]Error initializing git repository:[/red] {e}")
-        return False
+        return False, error_msg
     finally:
         os.chdir(original_cwd)
 
@@ -950,6 +962,9 @@ def init(
     ]:
         tracker.add(key, label)
 
+    # Track git error message outside Live context so it persists
+    git_error_message = None
+
     with Live(tracker.render(), console=console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
         try:
@@ -966,10 +981,12 @@ def init(
                 if is_git_repo(project_path):
                     tracker.complete("git", "existing repo detected")
                 elif should_init_git:
-                    if init_git_repo(project_path, quiet=True):
+                    success, error_msg = init_git_repo(project_path, quiet=True)
+                    if success:
                         tracker.complete("git", "initialized")
                     else:
                         tracker.error("git", "init failed")
+                        git_error_message = error_msg
                 else:
                     tracker.skip("git", "git not available")
             else:
@@ -996,6 +1013,23 @@ def init(
 
     console.print(tracker.render())
     console.print("\n[bold green]Project ready.[/bold green]")
+    
+    # Show git error details if initialization failed
+    if git_error_message:
+        console.print()
+        git_error_panel = Panel(
+            f"[yellow]Warning:[/yellow] Git repository initialization failed\n\n"
+            f"{git_error_message}\n\n"
+            f"[dim]You can initialize git manually later with:[/dim]\n"
+            f"[cyan]cd {project_path if not here else '.'}[/cyan]\n"
+            f"[cyan]git init[/cyan]\n"
+            f"[cyan]git add .[/cyan]\n"
+            f"[cyan]git commit -m \"Initial commit\"[/cyan]",
+            title="[red]Git Initialization Failed[/red]",
+            border_style="red",
+            padding=(1, 2)
+        )
+        console.print(git_error_panel)
 
     # Agent folder security notice
     agent_config = AGENT_CONFIG.get(selected_ai)
