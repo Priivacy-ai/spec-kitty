@@ -1106,7 +1106,7 @@ def check():
     if not git_ok:
         console.print("[dim]Tip: Install git for repository management[/dim]")
 
-    if not (claude_ok or gemini_ok or cursor_ok or qwen_ok or windsurf_ok or kilocode_ok or opencode_ok or codex_ok or auggie_ok or codebuddy_ok or q_ok):
+    if not (claude_ok or gemini_ok or cursor_ok or qwen_ok or windsurf_ok or kilocode_ok or opencode_ok or codex_ok or auggie_ok or roo_ok or codebuddy_ok or q_ok):
         console.print("[dim]Tip: Install an AI assistant for the best experience[/dim]")
 
 def main():
