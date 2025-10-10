@@ -399,12 +399,11 @@ def run_command(cmd: list[str], check_return: bool = True, capture: bool = False
             raise
         return None
 
-def check_tool(tool: str, install_hint: str = "", tracker: StepTracker = None) -> bool:
+def check_tool(tool: str, tracker: StepTracker = None) -> bool:
     """Check if a tool is installed. Optionally update tracker.
     
     Args:
         tool: Name of the tool to check
-        install_hint: URL or hint for installing the tool (for error messages)
         tracker: Optional StepTracker to update with results
         
     Returns:
@@ -1092,11 +1091,9 @@ def check():
 
     tracker = StepTracker("Check Available Tools")
 
-    # Add git check
     tracker.add("git", "Git version control")
     git_ok = check_tool("git", tracker=tracker)
     
-    # Check AI agent tools
     agent_results = {}
     for agent_key, agent_config in AGENT_CONFIG.items():
         agent_name = agent_config["name"]
