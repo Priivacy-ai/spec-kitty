@@ -77,10 +77,6 @@ agent_folder_map = {
     "kilocode": ".kilocode/",
     "auggie": ".auggie/",
     "copilot": ".github/",
-    "windsurf": ".windsurf/",  
-    "kilocode": ".kilocode/",
-    "auggie": ".auggie/",
-    "copilot": ".github/",
     "q": ".amazonq/",
     "codebuddy": ".codebuddy/"
 }
