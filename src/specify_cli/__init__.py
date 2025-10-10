@@ -64,21 +64,91 @@ def _github_auth_headers(cli_token: str | None = None) -> dict:
     token = _github_token(cli_token)
     return {"Authorization": f"Bearer {token}"} if token else {}
 
-AI_CHOICES = {
-    "copilot": "GitHub Copilot",
-    "claude": "Claude Code",
-    "gemini": "Gemini CLI",
-    "cursor": "Cursor",
-    "qwen": "Qwen Code",
-    "opencode": "opencode",
-    "codex": "Codex CLI",
-    "windsurf": "Windsurf",
-    "kilocode": "Kilo Code",
-    "auggie": "Auggie CLI",
-    "codebuddy": "CodeBuddy",
-    "roo": "Roo Code",
-    "q": "Amazon Q Developer CLI",
+# Agent configuration with name, folder, install URL, and CLI tool requirement
+AGENT_CONFIG = {
+    "copilot": {
+        "name": "GitHub Copilot",
+        "folder": ".github/",
+        "install_url": None,  # IDE-based, no CLI check needed
+        "requires_cli": False,
+    },
+    "claude": {
+        "name": "Claude Code",
+        "folder": ".claude/",
+        "install_url": "https://docs.anthropic.com/en/docs/claude-code/setup",
+        "requires_cli": True,
+    },
+    "gemini": {
+        "name": "Gemini CLI",
+        "folder": ".gemini/",
+        "install_url": "https://github.com/google-gemini/gemini-cli",
+        "requires_cli": True,
+    },
+    "cursor": {
+        "name": "Cursor",
+        "folder": ".cursor/",
+        "install_url": None,  # IDE-based
+        "requires_cli": False,
+    },
+    "qwen": {
+        "name": "Qwen Code",
+        "folder": ".qwen/",
+        "install_url": "https://github.com/QwenLM/qwen-code",
+        "requires_cli": True,
+    },
+    "opencode": {
+        "name": "opencode",
+        "folder": ".opencode/",
+        "install_url": "https://opencode.ai",
+        "requires_cli": True,
+    },
+    "codex": {
+        "name": "Codex CLI",
+        "folder": ".codex/",
+        "install_url": "https://github.com/openai/codex",
+        "requires_cli": True,
+    },
+    "windsurf": {
+        "name": "Windsurf",
+        "folder": ".windsurf/",
+        "install_url": None,  # IDE-based
+        "requires_cli": False,
+    },
+    "kilocode": {
+        "name": "Kilo Code",
+        "folder": ".kilocode/",
+        "install_url": None,  # IDE-based
+        "requires_cli": False,
+    },
+    "auggie": {
+        "name": "Auggie CLI",
+        "folder": ".augment/",
+        "install_url": "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli",
+        "requires_cli": True,
+    },
+    "codebuddy": {
+        "name": "CodeBuddy",
+        "folder": ".codebuddy/",
+        "install_url": "https://www.codebuddy.ai",
+        "requires_cli": True,
+    },
+    "roo": {
+        "name": "Roo Code",
+        "folder": ".roo/",
+        "install_url": None,  # IDE-based
+        "requires_cli": False,
+    },
+    "q": {
+        "name": "Amazon Q Developer CLI",
+        "folder": ".amazonq/",
+        "install_url": "https://aws.amazon.com/developer/learning/q-developer-cli/",
+        "requires_cli": True,
+    },
 }
+
+# Derived dictionaries for backward compatibility
+AI_CHOICES = {key: config["name"] for key, config in AGENT_CONFIG.items()}
+AGENT_FOLDER_MAP = {key: config["folder"] for key, config in AGENT_CONFIG.items()}
 
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
@@ -338,18 +408,17 @@ def run_command(cmd: list[str], check_return: bool = True, capture: bool = False
             raise
         return None
 
-def check_tool_for_tracker(tool: str, tracker: StepTracker) -> bool:
-    """Check if a tool is installed and update tracker."""
-    if shutil.which(tool):
-        tracker.complete(tool, "available")
-        return True
-    else:
-        tracker.error(tool, "not found")
-        return False
-
-def check_tool(tool: str, install_hint: str) -> bool:
-    """Check if a tool is installed."""
+def check_tool(tool: str, install_hint: str = "", tracker: StepTracker = None) -> bool:
+    """Check if a tool is installed. Optionally update tracker.
     
+    Args:
+        tool: Name of the tool to check
+        install_hint: URL or hint for installing the tool (for error messages)
+        tracker: Optional StepTracker to update with results
+        
+    Returns:
+        True if tool is found, False otherwise
+    """
     # Special handling for Claude CLI after `claude migrate-installer`
     # See: https://github.com/github/spec-kit/issues/123
     # The migrate-installer command REMOVES the original executable from PATH
@@ -357,12 +426,19 @@ def check_tool(tool: str, install_hint: str) -> bool:
     # This path should be prioritized over other claude executables in PATH
     if tool == "claude":
         if CLAUDE_LOCAL_PATH.exists() and CLAUDE_LOCAL_PATH.is_file():
+            if tracker:
+                tracker.complete(tool, "available")
             return True
     
-    if shutil.which(tool):
-        return True
-    else:
-        return False
+    found = shutil.which(tool) is not None
+    
+    if tracker:
+        if found:
+            tracker.complete(tool, "available")
+        else:
+            tracker.error(tool, "not found")
+    
+    return found
 
 def is_git_repo(path: Path = None) -> bool:
     """Check if the specified path is inside a git repository."""
@@ -840,55 +916,26 @@ def init(
 
     # Check agent tools unless ignored
     if not ignore_agent_tools:
-        agent_tool_missing = False
-        install_url = ""
-        if selected_ai == "claude":
-            if not check_tool("claude", "https://docs.anthropic.com/en/docs/claude-code/setup"):
-                install_url = "https://docs.anthropic.com/en/docs/claude-code/setup"
-                agent_tool_missing = True
-        elif selected_ai == "gemini":
-            if not check_tool("gemini", "https://github.com/google-gemini/gemini-cli"):
-                install_url = "https://github.com/google-gemini/gemini-cli"
-                agent_tool_missing = True
-        elif selected_ai == "qwen":
-            if not check_tool("qwen", "https://github.com/QwenLM/qwen-code"):
-                install_url = "https://github.com/QwenLM/qwen-code"
-                agent_tool_missing = True
-        elif selected_ai == "opencode":
-            if not check_tool("opencode", "https://opencode.ai"):
-                install_url = "https://opencode.ai"
-                agent_tool_missing = True
-        elif selected_ai == "codex":
-            if not check_tool("codex", "https://github.com/openai/codex"):
-                install_url = "https://github.com/openai/codex"
-                agent_tool_missing = True
-        elif selected_ai == "auggie":
-            if not check_tool("auggie", "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"):
-                install_url = "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"
-                agent_tool_missing = True
-        elif selected_ai == "codebuddy":
-            if not check_tool("codebuddy", "https://www.codebuddy.ai"):
-                install_url = "https://www.codebuddy.ai"
-                agent_tool_missing = True
-        elif selected_ai == "q":
-            if not check_tool("q", "https://github.com/aws/amazon-q-developer-cli"):
-                install_url = "https://aws.amazon.com/developer/learning/q-developer-cli/"
-                agent_tool_missing = True
-        # GitHub Copilot and Cursor checks are not needed as they're typically available in supported IDEs
-
-        if agent_tool_missing:
-            error_panel = Panel(
-                f"[cyan]{selected_ai}[/cyan] not found\n"
-                f"Install with: [cyan]{install_url}[/cyan]\n"
-                f"{AI_CHOICES[selected_ai]} is required to continue with this project type.\n\n"
-                "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
-                title="[red]Agent Detection Error[/red]",
-                border_style="red",
-                padding=(1, 2)
-            )
-            console.print()
-            console.print(error_panel)
-            raise typer.Exit(1)
+        agent_config = AGENT_CONFIG.get(selected_ai)
+        if agent_config and agent_config["requires_cli"]:
+            cli_tool = selected_ai
+            if selected_ai == "cursor":
+                cli_tool = "cursor-agent"
+            
+            install_url = agent_config["install_url"]
+            if not check_tool(cli_tool, install_url):
+                error_panel = Panel(
+                    f"[cyan]{selected_ai}[/cyan] not found\n"
+                    f"Install from: [cyan]{install_url}[/cyan]\n"
+                    f"{AI_CHOICES[selected_ai]} is required to continue with this project type.\n\n"
+                    "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
+                    title="[red]Agent Detection Error[/red]",
+                    border_style="red",
+                    padding=(1, 2)
+                )
+                console.print()
+                console.print(error_panel)
+                raise typer.Exit(1)
 
     # Determine script type (explicit, interactive, or OS default)
     if script_type:
@@ -987,24 +1034,8 @@ def init(
     console.print("\n[bold green]Project ready.[/bold green]")
 
     # Agent folder security notice
-    agent_folder_map = {
-        "claude": ".claude/",
-        "gemini": ".gemini/",
-        "cursor": ".cursor/",
-        "qwen": ".qwen/",
-        "opencode": ".opencode/",
-        "codex": ".codex/",
-        "windsurf": ".windsurf/",
-        "kilocode": ".kilocode/",
-        "auggie": ".augment/",
-        "codebuddy": ".codebuddy/",
-        "copilot": ".github/",
-        "roo": ".roo/",
-        "q": ".amazonq/"
-    }
-
-    if selected_ai in agent_folder_map:
-        agent_folder = agent_folder_map[selected_ai]
+    if selected_ai in AGENT_FOLDER_MAP:
+        agent_folder = AGENT_FOLDER_MAP[selected_ai]
         security_notice = Panel(
             f"Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.\n"
             f"Consider adding [cyan]{agent_folder}[/cyan] (or parts of it) to [cyan].gitignore[/cyan] to prevent accidental credential leakage.",
@@ -1067,37 +1098,28 @@ def check():
 
     tracker = StepTracker("Check Available Tools")
 
+    # Add git check
     tracker.add("git", "Git version control")
-    tracker.add("claude", "Claude Code CLI")
-    tracker.add("gemini", "Gemini CLI")
-    tracker.add("qwen", "Qwen Code CLI")
+    git_ok = check_tool("git", tracker=tracker)
+    
+    # Check AI agent tools
+    agent_results = {}
+    for agent_key, agent_config in AGENT_CONFIG.items():
+        agent_name = agent_config["name"]
+        # Determine the CLI tool name (usually same as agent key, with exceptions)
+        cli_tool = agent_key
+        if agent_key == "cursor":
+            cli_tool = "cursor-agent"
+        
+        tracker.add(cli_tool, agent_name)
+        agent_results[agent_key] = check_tool(cli_tool, tracker=tracker)
+    
+    # Check VS Code variants (not in agent config)
     tracker.add("code", "Visual Studio Code")
+    code_ok = check_tool("code", tracker=tracker)
+    
     tracker.add("code-insiders", "Visual Studio Code Insiders")
-    tracker.add("cursor-agent", "Cursor IDE agent")
-    tracker.add("windsurf", "Windsurf IDE")
-    tracker.add("kilocode", "Kilo Code IDE")
-    tracker.add("opencode", "opencode")
-    tracker.add("codex", "Codex CLI")
-    tracker.add("auggie", "Auggie CLI")
-    tracker.add("roo", "Roo Code")
-    tracker.add("codebuddy", "CodeBuddy")
-    tracker.add("q", "Amazon Q Developer CLI")
-
-    git_ok = check_tool_for_tracker("git", tracker)
-    claude_ok = check_tool_for_tracker("claude", tracker)  
-    gemini_ok = check_tool_for_tracker("gemini", tracker)
-    qwen_ok = check_tool_for_tracker("qwen", tracker)
-    code_ok = check_tool_for_tracker("code", tracker)
-    code_insiders_ok = check_tool_for_tracker("code-insiders", tracker)
-    cursor_ok = check_tool_for_tracker("cursor-agent", tracker)
-    windsurf_ok = check_tool_for_tracker("windsurf", tracker)
-    kilocode_ok = check_tool_for_tracker("kilocode", tracker)
-    opencode_ok = check_tool_for_tracker("opencode", tracker)
-    codex_ok = check_tool_for_tracker("codex", tracker)
-    auggie_ok = check_tool_for_tracker("auggie", tracker)
-    roo_ok = check_tool_for_tracker("roo", tracker)
-    codebuddy_ok = check_tool_for_tracker("codebuddy", tracker)
-    q_ok = check_tool_for_tracker("q", tracker)
+    code_insiders_ok = check_tool("code-insiders", tracker=tracker)
 
     console.print(tracker.render())
 
@@ -1106,7 +1128,7 @@ def check():
     if not git_ok:
         console.print("[dim]Tip: Install git for repository management[/dim]")
 
-    if not (claude_ok or gemini_ok or cursor_ok or qwen_ok or windsurf_ok or kilocode_ok or opencode_ok or codex_ok or auggie_ok or codebuddy_ok or q_ok):
+    if not any(agent_results.values()):
         console.print("[dim]Tip: Install an AI assistant for the best experience[/dim]")
 
 def main():
