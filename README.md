@@ -178,7 +178,7 @@ specify init my-project
 specify init my-project --ai claude
 
 # Initialize with Cursor support
-specify init my-project --ai cursor
+specify init my-project --ai cursor-agent
 
 # Initialize with Windsurf support
 specify init my-project --ai windsurf

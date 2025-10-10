@@ -84,7 +84,7 @@ AGENT_CONFIG = {
         "install_url": "https://github.com/google-gemini/gemini-cli",
         "requires_cli": True,
     },
-    "cursor": {
+    "cursor-agent": {
         "name": "Cursor",
         "folder": ".cursor/",
         "install_url": None,  # IDE-based
@@ -789,7 +789,7 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
 @app.command()
 def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
-    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, or q"),
+    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, or q"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
@@ -904,12 +904,8 @@ def init(
     if not ignore_agent_tools:
         agent_config = AGENT_CONFIG.get(selected_ai)
         if agent_config and agent_config["requires_cli"]:
-            cli_tool = selected_ai
-            if selected_ai == "cursor":
-                cli_tool = "cursor-agent"
-
             install_url = agent_config["install_url"]
-            if not check_tool(cli_tool, install_url):
+            if not check_tool(selected_ai, install_url):
                 error_panel = Panel(
                     f"[cyan]{selected_ai}[/cyan] not found\n"
                     f"Install from: [cyan]{install_url}[/cyan]\n"
@@ -1104,13 +1100,9 @@ def check():
     agent_results = {}
     for agent_key, agent_config in AGENT_CONFIG.items():
         agent_name = agent_config["name"]
-        # Determine the CLI tool name (usually same as agent key, with exceptions)
-        cli_tool = agent_key
-        if agent_key == "cursor":
-            cli_tool = "cursor-agent"
         
-        tracker.add(cli_tool, agent_name)
-        agent_results[agent_key] = check_tool(cli_tool, tracker=tracker)
+        tracker.add(agent_key, agent_name)
+        agent_results[agent_key] = check_tool(agent_key, tracker=tracker)
     
     # Check VS Code variants (not in agent config)
     tracker.add("code", "Visual Studio Code")
