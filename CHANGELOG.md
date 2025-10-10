@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support for CodeBuddy (thank you to [@lispking](https://github.com/lispking) for the contribution).
+- You can now see Git-sourced errors in the Specify CLI.
 
 ### Changed
 
