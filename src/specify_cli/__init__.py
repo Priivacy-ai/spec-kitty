@@ -146,10 +146,6 @@ AGENT_CONFIG = {
     },
 }
 
-# Derived dictionaries for backward compatibility
-AI_CHOICES = {key: config["name"] for key, config in AGENT_CONFIG.items()}
-AGENT_FOLDER_MAP = {key: config["folder"] for key, config in AGENT_CONFIG.items()}
-
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
@@ -202,7 +198,7 @@ class StepTracker:
                     s["detail"] = detail
                 self._maybe_refresh()
                 return
-        # If not present, add it
+
         self.steps.append({"key": key, "label": key, "status": status, "detail": detail})
         self._maybe_refresh()
 
@@ -219,7 +215,6 @@ class StepTracker:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
 
-            # Circles (unchanged styling)
             status = step["status"]
             if status == "done":
                 symbol = "[green]●[/green]"
@@ -343,7 +338,6 @@ def select_with_arrows(options: dict, prompt_text: str = "Select an option", def
         console.print("\n[red]Selection failed.[/red]")
         raise typer.Exit(1)
 
-    # Suppress explicit selection print; tracker / later logic will report consolidated status
     return selected_key
 
 console = Console()
@@ -367,7 +361,6 @@ app = typer.Typer(
 
 def show_banner():
     """Display the ASCII art banner."""
-    # Create gradient effect with different colors
     banner_lines = BANNER.strip().split('\n')
     colors = ["bright_blue", "blue", "cyan", "bright_cyan", "white", "bright_white"]
 
@@ -383,8 +376,6 @@ def show_banner():
 @app.callback()
 def callback(ctx: typer.Context):
     """Show banner when no subcommand is provided."""
-    # Show banner only when no subcommand and no help flag
-    # (help is handled by BannerGroup)
     if ctx.invoked_subcommand is None and "--help" not in sys.argv and "-h" not in sys.argv:
         show_banner()
         console.print(Align.center("[dim]Run 'specify --help' for usage information[/dim]"))
@@ -515,7 +506,6 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
         console.print(Panel(str(e), title="Fetch Error", border_style="red"))
         raise typer.Exit(1)
 
-    # Find the template asset for the specified AI assistant
     assets = release_data.get("assets", [])
     pattern = f"spec-kit-template-{ai_assistant}-{script_type}"
     matching_assets = [
@@ -600,7 +590,6 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
     """
     current_dir = Path.cwd()
 
-    # Step: fetch + download combined
     if tracker:
         tracker.start("fetch", "contacting GitHub API")
     try:
@@ -633,12 +622,10 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
         console.print("Extracting template...")
 
     try:
-        # Create project directory only if not using current directory
         if not is_current_dir:
             project_path.mkdir(parents=True)
 
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            # List all files in the ZIP for debugging
             zip_contents = zip_ref.namelist()
             if tracker:
                 tracker.start("zip-list")
@@ -646,13 +633,11 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
             elif verbose:
                 console.print(f"[cyan]ZIP contains {len(zip_contents)} items[/cyan]")
 
-            # For current directory, extract to a temp location first
             if is_current_dir:
                 with tempfile.TemporaryDirectory() as temp_dir:
                     temp_path = Path(temp_dir)
                     zip_ref.extractall(temp_path)
 
-                    # Check what was extracted
                     extracted_items = list(temp_path.iterdir())
                     if tracker:
                         tracker.start("extracted-summary")
@@ -660,7 +645,6 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                     elif verbose:
                         console.print(f"[cyan]Extracted {len(extracted_items)} items to temp location[/cyan]")
 
-                    # Handle GitHub-style ZIP with a single root directory
                     source_dir = temp_path
                     if len(extracted_items) == 1 and extracted_items[0].is_dir():
                         source_dir = extracted_items[0]
@@ -670,14 +654,12 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                         elif verbose:
                             console.print(f"[cyan]Found nested directory structure[/cyan]")
 
-                    # Copy contents to current directory
                     for item in source_dir.iterdir():
                         dest_path = project_path / item.name
                         if item.is_dir():
                             if dest_path.exists():
                                 if verbose and not tracker:
                                     console.print(f"[yellow]Merging directory:[/yellow] {item.name}")
-                                # Recursively copy directory contents
                                 for sub_item in item.rglob('*'):
                                     if sub_item.is_file():
                                         rel_path = sub_item.relative_to(item)
@@ -693,10 +675,8 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                     if verbose and not tracker:
                         console.print(f"[cyan]Template files merged into current directory[/cyan]")
             else:
-                # Extract directly to project directory (original behavior)
                 zip_ref.extractall(project_path)
 
-                # Check what was extracted
                 extracted_items = list(project_path.iterdir())
                 if tracker:
                     tracker.start("extracted-summary")
@@ -706,16 +686,14 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                     for item in extracted_items:
                         console.print(f"  - {item.name} ({'dir' if item.is_dir() else 'file'})")
 
-                # Handle GitHub-style ZIP with a single root directory
                 if len(extracted_items) == 1 and extracted_items[0].is_dir():
-                    # Move contents up one level
                     nested_dir = extracted_items[0]
                     temp_move_dir = project_path.parent / f"{project_path.name}_temp"
-                    # Move the nested directory contents to temp location
+
                     shutil.move(str(nested_dir), str(temp_move_dir))
-                    # Remove the now-empty project directory
+
                     project_path.rmdir()
-                    # Rename temp directory to project directory
+
                     shutil.move(str(temp_move_dir), str(project_path))
                     if tracker:
                         tracker.add("flatten", "Flatten nested directory")
@@ -731,7 +709,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                 console.print(f"[red]Error extracting template:[/red] {e}")
                 if debug:
                     console.print(Panel(str(e), title="Extraction Error", border_style="red"))
-        # Clean up project directory if created and not current directory
+
         if not is_current_dir and project_path.exists():
             shutil.rmtree(project_path)
         raise typer.Exit(1)
@@ -741,7 +719,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
     finally:
         if tracker:
             tracker.add("cleanup", "Remove temporary archive")
-        # Clean up downloaded ZIP file
+
         if zip_path.exists():
             zip_path.unlink()
             if tracker:
@@ -836,7 +814,6 @@ def init(
 
     show_banner()
 
-    # Handle '.' as shorthand for current directory (equivalent to --here)
     if project_name == ".":
         here = True
         project_name = None  # Clear project_name to use existing validation logic
@@ -887,14 +864,11 @@ def init(
         f"{'Working Path':<15} [dim]{current_dir}[/dim]",
     ]
 
-    # Add target path only if different from working dir
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
     console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
 
-    # Check git only if we might need it (not --no-git)
-    # Only set to True if the user wants it and the tool is available
     should_init_git = False
     if not no_git:
         should_init_git = check_tool("git", "https://git-scm.com/downloads")
@@ -902,32 +876,32 @@ def init(
             console.print("[yellow]Git not found - will skip repository initialization[/yellow]")
 
     if ai_assistant:
-        if ai_assistant not in AI_CHOICES:
-            console.print(f"[red]Error:[/red] Invalid AI assistant '{ai_assistant}'. Choose from: {', '.join(AI_CHOICES.keys())}")
+        if ai_assistant not in AGENT_CONFIG:
+            console.print(f"[red]Error:[/red] Invalid AI assistant '{ai_assistant}'. Choose from: {', '.join(AGENT_CONFIG.keys())}")
             raise typer.Exit(1)
         selected_ai = ai_assistant
     else:
-        # Use arrow-key selection interface
+        # Create options dict for selection (agent_key: display_name)
+        ai_choices = {key: config["name"] for key, config in AGENT_CONFIG.items()}
         selected_ai = select_with_arrows(
-            AI_CHOICES, 
+            ai_choices, 
             "Choose your AI assistant:", 
             "copilot"
         )
 
-    # Check agent tools unless ignored
     if not ignore_agent_tools:
         agent_config = AGENT_CONFIG.get(selected_ai)
         if agent_config and agent_config["requires_cli"]:
             cli_tool = selected_ai
             if selected_ai == "cursor":
                 cli_tool = "cursor-agent"
-            
+
             install_url = agent_config["install_url"]
             if not check_tool(cli_tool, install_url):
                 error_panel = Panel(
                     f"[cyan]{selected_ai}[/cyan] not found\n"
                     f"Install from: [cyan]{install_url}[/cyan]\n"
-                    f"{AI_CHOICES[selected_ai]} is required to continue with this project type.\n\n"
+                    f"{agent_config['name']} is required to continue with this project type.\n\n"
                     "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
                     title="[red]Agent Detection Error[/red]",
                     border_style="red",
@@ -937,16 +911,14 @@ def init(
                 console.print(error_panel)
                 raise typer.Exit(1)
 
-    # Determine script type (explicit, interactive, or OS default)
     if script_type:
         if script_type not in SCRIPT_TYPE_CHOICES:
             console.print(f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}")
             raise typer.Exit(1)
         selected_script = script_type
     else:
-        # Auto-detect default
         default_script = "ps" if os.name == "nt" else "sh"
-        # Provide interactive selection similar to AI if stdin is a TTY
+
         if sys.stdin.isatty():
             selected_script = select_with_arrows(SCRIPT_TYPE_CHOICES, "Choose script type (or press Enter)", default_script)
         else:
@@ -955,12 +927,10 @@ def init(
     console.print(f"[cyan]Selected AI assistant:[/cyan] {selected_ai}")
     console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
 
-    # Download and set up project
-    # New tree-based progress (no emojis); include earlier substeps
     tracker = StepTracker("Initialize Specify Project")
-    # Flag to allow suppressing legacy headings
+
     sys._specify_tracker_active = True
-    # Pre steps recorded as completed before live rendering
+
     tracker.add("precheck", "Check required tools")
     tracker.complete("precheck", "ok")
     tracker.add("ai-select", "Select AI assistant")
@@ -980,21 +950,17 @@ def init(
     ]:
         tracker.add(key, label)
 
-    # Use transient so live tree is replaced by the final static render (avoids duplicate output)
     with Live(tracker.render(), console=console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
         try:
-            # Create a httpx client with verify based on skip_tls
             verify = not skip_tls
             local_ssl_context = ssl_context if verify else False
             local_client = httpx.Client(verify=local_ssl_context)
 
             download_and_extract_template(project_path, selected_ai, selected_script, here, verbose=False, tracker=tracker, client=local_client, debug=debug, github_token=github_token)
 
-            # Ensure scripts are executable (POSIX)
             ensure_executable_scripts(project_path, tracker=tracker)
 
-            # Git step
             if not no_git:
                 tracker.start("git")
                 if is_git_repo(project_path):
@@ -1026,16 +992,15 @@ def init(
                 shutil.rmtree(project_path)
             raise typer.Exit(1)
         finally:
-            # Force final render
             pass
 
-    # Final static tree (ensures finished state visible after Live context ends)
     console.print(tracker.render())
     console.print("\n[bold green]Project ready.[/bold green]")
 
     # Agent folder security notice
-    if selected_ai in AGENT_FOLDER_MAP:
-        agent_folder = AGENT_FOLDER_MAP[selected_ai]
+    agent_config = AGENT_CONFIG.get(selected_ai)
+    if agent_config:
+        agent_folder = agent_config["folder"]
         security_notice = Panel(
             f"Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.\n"
             f"Consider adding [cyan]{agent_folder}[/cyan] (or parts of it) to [cyan].gitignore[/cyan] to prevent accidental credential leakage.",
@@ -1046,7 +1011,6 @@ def init(
         console.print()
         console.print(security_notice)
 
-    # Boxed "Next steps" section
     steps_lines = []
     if not here:
         steps_lines.append(f"1. Go to the project folder: [cyan]cd {project_name}[/cyan]")
