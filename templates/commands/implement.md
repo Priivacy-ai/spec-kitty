@@ -58,7 +58,11 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **REQUIRED**: Create/verify ignore files based on actual project setup:
    
    **Detection & Creation Logic**:
-   - Check `git rev-parse --git-dir 2>/dev/null` → create/verify .gitignore
+   - Check if the following command succeeds to determine if the repository is a git repo (create/verify .gitignore if so):
+
+     ```sh
+     git rev-parse --git-dir 2>/dev/null
+     ```
    - Check if Dockerfile* exists or Docker in plan.md → create/verify .dockerignore
    - Check if .eslintrc* or eslint.config.* exists → create/verify .eslintignore
    - Check if .prettierrc* exists → create/verify .prettierignore
