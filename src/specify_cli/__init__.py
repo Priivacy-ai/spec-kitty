@@ -882,7 +882,7 @@ def init(
 
     should_init_git = False
     if not no_git:
-        should_init_git = check_tool("git", "https://git-scm.com/downloads")
+        should_init_git = check_tool("git")
         if not should_init_git:
             console.print("[yellow]Git not found - will skip repository initialization[/yellow]")
 
@@ -904,7 +904,7 @@ def init(
         agent_config = AGENT_CONFIG.get(selected_ai)
         if agent_config and agent_config["requires_cli"]:
             install_url = agent_config["install_url"]
-            if not check_tool(selected_ai, install_url):
+            if not check_tool(selected_ai):
                 error_panel = Panel(
                     f"[cyan]{selected_ai}[/cyan] not found\n"
                     f"Install from: [cyan]{install_url}[/cyan]\n"
