@@ -38,8 +38,8 @@ Specify supports multiple AI agents by generating agent-specific command files a
 | **Qwen Code** | `.qwen/commands/` | TOML | `qwen` | Alibaba's Qwen Code CLI |
 | **opencode** | `.opencode/command/` | Markdown | `opencode` | opencode CLI |
 | **Windsurf** | `.windsurf/workflows/` | Markdown | N/A (IDE-based) | Windsurf IDE workflows |
+| **CodeBuddy** | `.codebuddy/commands/` | Markdown | `codebuddy` | CodeBuddy |
 | **Amazon Q Developer CLI** | `.amazonq/prompts/` | Markdown | `q` | Amazon Q Developer CLI |
-
 
 ### Step-by-Step Integration Guide
 
@@ -58,7 +58,8 @@ AI_CHOICES = {
     "qwen": "Qwen Code",
     "opencode": "opencode",
     "windsurf": "Windsurf",
-    "q": "Amazon Q Developer CLI"  # Add new agent here
+    "codebuddy": "CodeBuddy"
+    "q": "Amazon Q Developer CLI"
 }
 ```
 
@@ -72,11 +73,16 @@ agent_folder_map = {
     "qwen": ".qwen/",
     "opencode": ".opencode/",
     "codex": ".codex/",
+    "windsurf": ".windsurf/",
+    "kilocode": ".kilocode/",
+    "auggie": ".auggie/",
+    "copilot": ".github/",
     "windsurf": ".windsurf/",  
     "kilocode": ".kilocode/",
     "auggie": ".auggie/",
     "copilot": ".github/",
-    "q": ".amazonq/" # Add new agent folder here
+    "q": ".amazonq/",
+    "codebuddy": ".codebuddy/"
 }
 ```
 
@@ -201,6 +207,7 @@ Require a command-line tool to be installed:
 - **Cursor**: `cursor-agent` CLI
 - **Qwen Code**: `qwen` CLI
 - **opencode**: `opencode` CLI
+- **CodeBuddy**: `codebuddy` CLI
 
 ### IDE-Based Agents
 Work within integrated development environments:

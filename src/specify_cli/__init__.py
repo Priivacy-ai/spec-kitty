@@ -75,6 +75,7 @@ AI_CHOICES = {
     "windsurf": "Windsurf",
     "kilocode": "Kilo Code",
     "auggie": "Auggie CLI",
+    "codebuddy": "CodeBuddy",
     "roo": "Roo Code",
     "q": "Amazon Q Developer CLI",
 }
@@ -722,7 +723,7 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
 @app.command()
 def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
-    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor, qwen, opencode, codex, windsurf, kilocode, auggie or q"),
+    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, or q"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
@@ -737,7 +738,7 @@ def init(
     
     This command will:
     1. Check that required tools are installed (git is optional)
-    2. Let you choose your AI assistant (Claude Code, Gemini CLI, GitHub Copilot, Cursor, Qwen Code, opencode, Codex CLI, Windsurf, Kilo Code, Auggie CLI, or Amazon Q Developer CLI)
+    2. Let you choose your AI assistant
     3. Download the appropriate template from GitHub
     4. Extract the template to a new project directory or current directory
     5. Initialize a fresh git repository (if not --no-git and no existing repo)
@@ -752,6 +753,7 @@ def init(
         specify init .                     # Initialize in current directory (interactive AI selection)
         specify init --here --ai claude    # Alternative syntax for current directory
         specify init --here --ai codex
+        specify init --here --ai codebuddy
         specify init --here
         specify init --here --force  # Skip confirmation when current directory not empty
     """
@@ -863,6 +865,10 @@ def init(
         elif selected_ai == "auggie":
             if not check_tool("auggie", "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"):
                 install_url = "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"
+                agent_tool_missing = True
+        elif selected_ai == "codebuddy":
+            if not check_tool("codebuddy", "https://www.codebuddy.ai"):
+                install_url = "https://www.codebuddy.ai"
                 agent_tool_missing = True
         elif selected_ai == "q":
             if not check_tool("q", "https://github.com/aws/amazon-q-developer-cli"):
@@ -991,6 +997,7 @@ def init(
         "windsurf": ".windsurf/",
         "kilocode": ".kilocode/",
         "auggie": ".augment/",
+        "codebuddy": ".codebuddy/",
         "copilot": ".github/",
         "roo": ".roo/",
         "q": ".amazonq/"
@@ -1072,6 +1079,8 @@ def check():
     tracker.add("opencode", "opencode")
     tracker.add("codex", "Codex CLI")
     tracker.add("auggie", "Auggie CLI")
+    tracker.add("roo", "Roo Code")
+    tracker.add("codebuddy", "CodeBuddy")
     tracker.add("q", "Amazon Q Developer CLI")
 
     git_ok = check_tool_for_tracker("git", tracker)
@@ -1086,6 +1095,8 @@ def check():
     opencode_ok = check_tool_for_tracker("opencode", tracker)
     codex_ok = check_tool_for_tracker("codex", tracker)
     auggie_ok = check_tool_for_tracker("auggie", tracker)
+    roo_ok = check_tool_for_tracker("roo", tracker)
+    codebuddy_ok = check_tool_for_tracker("codebuddy", tracker)
     q_ok = check_tool_for_tracker("q", tracker)
 
     console.print(tracker.render())
@@ -1094,7 +1105,8 @@ def check():
 
     if not git_ok:
         console.print("[dim]Tip: Install git for repository management[/dim]")
-    if not (claude_ok or gemini_ok or cursor_ok or qwen_ok or windsurf_ok or kilocode_ok or opencode_ok or codex_ok or auggie_ok or q_ok):
+
+    if not (claude_ok or gemini_ok or cursor_ok or qwen_ok or windsurf_ok or kilocode_ok or opencode_ok or codex_ok or auggie_ok or codebuddy_ok or q_ok):
         console.print("[dim]Tip: Install an AI assistant for the best experience[/dim]")
 
 def main():
