@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.19] - 2025-10-10
 
+### Added
+
+- Support for CodeBuddy (thank you to [@lispking](https://github.com/lispking) for the contribution).
+
 ### Changed
 
 - Fixed the path to the constitution in `plan.md` (thank you to [@lyzno1](https://github.com/lyzno1) for spotting).
