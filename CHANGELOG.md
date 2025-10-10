@@ -7,6 +7,19 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.19] - 2025-10-10
+
+### Added
+
+- Support for CodeBuddy (thank you to [@lispking](https://github.com/lispking) for the contribution).
+- You can now see Git-sourced errors in the Specify CLI.
+
+### Changed
+
+- Fixed the path to the constitution in `plan.md` (thank you to [@lyzno1](https://github.com/lyzno1) for spotting).
+- Fixed backslash escapes in generated TOML files for Gemini (thank you to [@hsin19](https://github.com/hsin19) for the contribution).
+- Implementation command now ensures that the correct ignore files are added (thank you to [@sigent-amazon](https://github.com/sigent-amazon) for the contribution).
+
 ## [0.0.18] - 2025-10-06
 
 ### Added

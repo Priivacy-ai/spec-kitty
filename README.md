@@ -137,6 +137,7 @@ Want to see Spec Kit in action? Watch our [video overview](https://www.youtube.c
 | [Windsurf](https://windsurf.com/)                         | ✅ |                                                   |
 | [Kilo Code](https://github.com/Kilo-Org/kilocode)         | ✅ |                                                   |
 | [Auggie CLI](https://docs.augmentcode.com/cli/overview)   | ✅ |                                                   |
+| [CodeBuddy](https://www.codebuddy.ai/)                    | ✅ |                                                   |
 | [Roo Code](https://roocode.com/)                          | ✅ |                                                   |
 | [Codex CLI](https://github.com/openai/codex)              | ✅ |                                                   |
 | [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️ | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
@@ -157,7 +158,7 @@ The `specify` command supports the following options:
 | Argument/Option        | Type     | Description                                                                  |
 |------------------------|----------|------------------------------------------------------------------------------|
 | `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
-| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, or `q` |
+| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, or `q` |
 | `--script`             | Option   | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell)                 |
 | `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                             |
 | `--no-git`             | Flag     | Skip git repository initialization                                          |
@@ -177,7 +178,7 @@ specify init my-project
 specify init my-project --ai claude
 
 # Initialize with Cursor support
-specify init my-project --ai cursor
+specify init my-project --ai cursor-agent
 
 # Initialize with Windsurf support
 specify init my-project --ai windsurf
