@@ -4,7 +4,6 @@ Zero-footprint dashboard v2 with sidebar navigation and feature dropdown.
 """
 
 import json
-import os
 import socket
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -12,6 +11,10 @@ from pathlib import Path
 from typing import Dict, List, Any
 import re
 import urllib.parse
+import mimetypes
+
+STATIC_URL_PREFIX = '/static/'
+STATIC_DIR = (Path(__file__).parent / 'static').resolve()
 
 
 def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
@@ -73,6 +76,19 @@ def parse_frontmatter(content: str) -> Dict[str, Any]:
             frontmatter[key] = value
 
     return frontmatter
+
+
+def work_package_sort_key(task: Dict[str, Any]) -> tuple:
+    """Provide a natural sort key for work package identifiers."""
+    work_id = str(task.get('id', '')).strip()
+    if not work_id:
+        return ((), '')
+
+    number_parts = [
+        int(part.lstrip('0') or '0')
+        for part in re.findall(r'\d+', work_id)
+    ]
+    return (tuple(number_parts), work_id.lower())
 
 
 def get_feature_artifacts(feature_dir: Path) -> Dict[str, Any]:
@@ -214,6 +230,13 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
                 title_match = re.search(r'^#\s+Work Package Prompt:\s+(.+)$', content, re.MULTILINE)
                 title = title_match.group(1) if title_match else prompt_file.stem
 
+                # Extract prompt markdown without frontmatter so we can show it in the UI
+                prompt_body = content
+                if content.startswith('---'):
+                    parts = content.split('---', 2)
+                    if len(parts) >= 3:
+                        prompt_body = parts[2].strip()
+
                 task_data = {
                     'id': fm.get('work_package_id', prompt_file.stem),
                     'title': title,
@@ -222,11 +245,15 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
                     'agent': fm.get('agent', ''),
                     'assignee': fm.get('assignee', ''),
                     'phase': fm.get('phase', ''),
+                    'prompt_markdown': prompt_body,
+                    'prompt_path': str(prompt_file.relative_to(project_dir)) if prompt_file.is_relative_to(project_dir) else str(prompt_file),
                 }
 
                 lanes[lane].append(task_data)
             except Exception as e:
                 continue
+
+        lanes[lane].sort(key=work_package_sort_key)
 
     return lanes
 
@@ -282,6 +309,25 @@ def get_dashboard_html() -> str:
             display: flex;
             align-items: center;
             gap: 15px;
+        }
+
+        .header-logo-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            border: 2px solid rgba(123, 182, 97, 0.25);
+            overflow: hidden;
+        }
+
+        .header-logo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
         .header h1 {
@@ -647,6 +693,111 @@ def get_dashboard_html() -> str:
             font-style: italic;
         }
 
+        body.modal-open {
+            overflow: hidden;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal.hidden {
+            display: none;
+        }
+
+        .modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.65);
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-content {
+            position: relative;
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 900px;
+            width: min(90%, 900px);
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.35);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .modal-title {
+            font-size: 1.35em;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .modal-subtitle {
+            font-size: 0.9em;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .modal-close {
+            border: none;
+            background: transparent;
+            color: #6b7280;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .modal-close:hover,
+        .modal-close:focus {
+            color: #1f2937;
+        }
+
+        .modal-body {
+            position: relative;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .modal-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .modal-meta span {
+            background: #f3f4f6;
+            border-radius: 12px;
+            padding: 4px 12px;
+            font-size: 0.85em;
+            color: #4b5563;
+        }
+
+        .modal-content .markdown-content {
+            padding: 0;
+        }
+
+        .modal-content .markdown-content pre {
+            background: #111827;
+        }
+
         .no-features {
             text-align: center;
             padding: 60px 40px;
@@ -684,8 +835,11 @@ def get_dashboard_html() -> str:
 <body>
     <div class="header">
         <div class="header-left">
+            <div class="header-logo-wrapper">
+                <img src="/static/spec-kitty.png" alt="Spec Kitty logo" class="header-logo">
+            </div>
             <div>
-                <h1>🌱 Spec Kitty</h1>
+                <h1>Spec Kitty</h1>
                 <div class="project-path" id="project-path">Loading...</div>
             </div>
             <div class="feature-selector" id="feature-selector-container">
@@ -830,19 +984,61 @@ def get_dashboard_html() -> str:
         </div>
     </div>
 
+    <div id="prompt-modal" class="modal hidden" aria-hidden="true">
+        <div class="modal-overlay"></div>
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modal-title">Work Package Prompt</div>
+                    <div class="modal-subtitle" id="modal-subtitle"></div>
+                </div>
+                <button type="button" class="modal-close" id="modal-close-btn" aria-label="Close prompt viewer">✕</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <div class="modal-meta" id="modal-prompt-meta"></div>
+                <div id="modal-prompt-content" class="markdown-content"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentFeature = null;
         let currentPage = 'overview';
         let allFeatures = [];
+        let isConstitutionView = false;
+        let lastNonConstitutionPage = 'overview';
 
         function switchFeature(featureId) {
+            if (isConstitutionView) {
+                isConstitutionView = false;
+                if (lastNonConstitutionPage && lastNonConstitutionPage !== 'constitution') {
+                    currentPage = lastNonConstitutionPage;
+                } else {
+                    currentPage = 'overview';
+                }
+                document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+                document.getElementById(`page-${currentPage}`)?.classList.add('active');
+                document.querySelectorAll('.sidebar-item').forEach(item => {
+                    if (item.dataset.page === currentPage) {
+                        item.classList.add('active');
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
+            }
             currentFeature = featureId;
             loadCurrentPage();
             updateSidebarState();
         }
 
         function switchPage(pageName) {
+            if (pageName === 'constitution') {
+                showConstitution();
+                return;
+            }
+            isConstitutionView = false;
             currentPage = pageName;
+            lastNonConstitutionPage = pageName;
 
             // Update sidebar
             document.querySelectorAll('.sidebar-item').forEach(item => {
@@ -881,6 +1077,9 @@ def get_dashboard_html() -> str:
         }
 
         function loadCurrentPage() {
+            if (isConstitutionView || currentPage === 'constitution') {
+                return;
+            }
             if (!currentFeature) return;
 
             if (currentPage === 'overview') {
@@ -1010,7 +1209,7 @@ def get_dashboard_html() -> str:
             `;
 
             const createCard = (task) => `
-                <div class="card">
+                <div class="card" role="button">
                     <div class="card-id">${task.id}</div>
                     <div class="card-title">${task.title}</div>
                     <div class="card-meta">
@@ -1051,7 +1250,117 @@ def get_dashboard_html() -> str:
                     <div>${lanes.done.length === 0 ? '<div class="empty-state">No tasks</div>' : lanes.done.map(createCard).join('')}</div>
                 </div>
             `;
+
+            ['planned', 'doing', 'for_review', 'done'].forEach(laneName => {
+                const laneCards = document.querySelectorAll(`.lane.${laneName} .card`);
+                laneCards.forEach((card, index) => {
+                    const task = lanes[laneName][index];
+                    if (!task) return;
+                    if (!card.hasAttribute('tabindex')) {
+                        card.setAttribute('tabindex', '0');
+                    }
+                    card.addEventListener('click', () => showPromptModal(task));
+                    card.addEventListener('keydown', (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            showPromptModal(task);
+                        }
+                    });
+                });
+            });
         }
+
+        function formatLaneName(lane) {
+            if (!lane) return '';
+            return lane.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+        }
+
+        function showPromptModal(task) {
+            const modal = document.getElementById('prompt-modal');
+            if (!modal) return;
+
+            const titleEl = document.getElementById('modal-title');
+            const subtitleEl = document.getElementById('modal-subtitle');
+            const metaEl = document.getElementById('modal-prompt-meta');
+            const contentEl = document.getElementById('modal-prompt-content');
+            const modalBody = document.getElementById('modal-body');
+
+            if (titleEl) {
+                titleEl.textContent = task.title || 'Work Package Prompt';
+            }
+            if (subtitleEl) {
+                if (task.id) {
+                    subtitleEl.textContent = task.id;
+                    subtitleEl.style.display = 'block';
+                } else {
+                    subtitleEl.textContent = '';
+                    subtitleEl.style.display = 'none';
+                }
+            }
+
+            if (metaEl) {
+                const metaItems = [];
+                if (task.lane) metaItems.push(`<span>Lane: ${escapeHtml(formatLaneName(task.lane))}</span>`);
+                if (task.agent) metaItems.push(`<span>Agent: ${escapeHtml(task.agent)}</span>`);
+                if (task.subtasks && task.subtasks.length) {
+                    metaItems.push(`<span>${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>`);
+                }
+                if (task.phase) metaItems.push(`<span>Phase: ${escapeHtml(task.phase)}</span>`);
+                if (task.prompt_path) metaItems.push(`<span>Source: ${escapeHtml(task.prompt_path)}</span>`);
+
+                if (metaItems.length > 0) {
+                    metaEl.innerHTML = metaItems.join('');
+                    metaEl.style.display = 'flex';
+                } else {
+                    metaEl.innerHTML = '';
+                    metaEl.style.display = 'none';
+                }
+            }
+
+            if (contentEl) {
+                if (task.prompt_markdown) {
+                    contentEl.innerHTML = marked.parse(task.prompt_markdown);
+                } else {
+                    contentEl.innerHTML = '<div class="empty-state">Prompt content unavailable.</div>';
+                }
+            }
+
+            if (modalBody) {
+                modalBody.scrollTop = 0;
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+        }
+
+        function hidePromptModal() {
+            const modal = document.getElementById('prompt-modal');
+            if (!modal) return;
+
+            modal.classList.remove('show');
+            modal.classList.add('hidden');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+        }
+
+        const modalOverlay = document.querySelector('#prompt-modal .modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', hidePromptModal);
+        }
+        const modalCloseButton = document.getElementById('modal-close-btn');
+        if (modalCloseButton) {
+            modalCloseButton.addEventListener('click', hidePromptModal);
+        }
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('prompt-modal');
+                if (modal && modal.classList.contains('show')) {
+                    hidePromptModal();
+                }
+            }
+        });
 
         function loadArtifact(artifactName) {
             const artifactKey = artifactName.replace('-', '_');
@@ -1075,8 +1384,12 @@ def get_dashboard_html() -> str:
         }
 
         function showConstitution() {
+            if (!isConstitutionView && currentPage !== 'constitution') {
+                lastNonConstitutionPage = currentPage;
+            }
             // Switch to constitution page
             currentPage = 'constitution';
+            isConstitutionView = true;
             document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.getElementById('page-constitution').classList.add('active');
@@ -1121,6 +1434,7 @@ def get_dashboard_html() -> str:
                 singleFeatureName.style.display = 'none';
                 sidebar.style.display = 'block';
                 mainContent.style.display = 'block';
+                isConstitutionView = false;
 
                 // Show welcome page
                 document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1163,7 +1477,9 @@ def get_dashboard_html() -> str:
             }
 
             updateSidebarState();
-            loadCurrentPage();
+            if (!isConstitutionView) {
+                loadCurrentPage();
+            }
         }
 
         function fetchData() {
@@ -1202,13 +1518,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Handle GET requests."""
-        if self.path == '/':
+        parsed_path = urllib.parse.urlparse(self.path)
+        path = parsed_path.path
+
+        if path == '/':
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
             self.wfile.write(get_dashboard_html().encode())
 
-        elif self.path == '/api/features':
+        elif path == '/api/features':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Cache-Control', 'no-cache')
@@ -1221,8 +1540,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             }
             self.wfile.write(json.dumps(response_data).encode())
 
-        elif self.path.startswith('/api/kanban/'):
-            feature_id = self.path.split('/')[-1]
+        elif path.startswith('/api/kanban/'):
+            feature_id = path.split('/')[-1]
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Cache-Control', 'no-cache')
@@ -1231,7 +1550,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             lanes = scan_feature_kanban(Path(self.project_dir), feature_id)
             self.wfile.write(json.dumps(lanes).encode())
 
-        elif self.path == '/api/constitution':
+        elif path == '/api/constitution':
             self.send_response(200)
             self.send_header('Content-type', 'text/plain')
             self.send_header('Cache-Control', 'no-cache')
@@ -1243,8 +1562,42 @@ class DashboardHandler(BaseHTTPRequestHandler):
             else:
                 self.wfile.write(b'Constitution not yet created. Run /speckitty.constitution to create it.')
 
-        elif self.path.startswith('/api/artifact/'):
-            parts = self.path.split('/')
+        elif path.startswith(STATIC_URL_PREFIX):
+            relative_path = path[len(STATIC_URL_PREFIX):]
+            static_root = STATIC_DIR
+            try:
+                safe_path = (STATIC_DIR / relative_path).resolve()
+            except (RuntimeError, ValueError):
+                safe_path = None
+
+            if not relative_path or not safe_path:
+                self.send_response(404)
+                self.end_headers()
+                return
+
+            try:
+                safe_path.relative_to(static_root)
+            except ValueError:
+                self.send_response(404)
+                self.end_headers()
+                return
+
+            if not safe_path.is_file():
+                self.send_response(404)
+                self.end_headers()
+                return
+
+            mime_type, _ = mimetypes.guess_type(safe_path.name)
+            self.send_response(200)
+            self.send_header('Content-type', mime_type or 'application/octet-stream')
+            self.send_header('Cache-Control', 'no-cache')
+            self.end_headers()
+            with safe_path.open('rb') as static_file:
+                self.wfile.write(static_file.read())
+            return
+
+        elif path.startswith('/api/artifact/'):
+            parts = path.split('/')
             if len(parts) >= 4:
                 feature_id = parts[3]
                 artifact_name = parts[4] if len(parts) > 4 else ''
