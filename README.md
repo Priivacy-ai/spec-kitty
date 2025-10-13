@@ -545,7 +545,26 @@ You can also ask Claude Code (if you have the [GitHub CLI](https://docs.github.c
 >[!NOTE]
 >Before you have the agent implement it, it's also worth prompting Claude Code to cross-check the details to see if there are any over-engineered pieces (remember - it can be over-eager). If over-engineered components or decisions exist, you can ask Claude Code to resolve them. Ensure that Claude Code follows the [constitution](base/memory/constitution.md) as the foundational piece that it must adhere to when establishing the plan.
 
-### STEP 6: Implementation
+### **STEP 6:** Generate task breakdown with /speckit.tasks
+
+With the implementation plan validated, you can now break down the plan into specific, actionable tasks that can be executed in the correct order. Use the `/speckit.tasks` command to automatically generate a detailed task breakdown from your implementation plan:
+
+```text
+/speckit.tasks
+```
+
+This step creates a `tasks.md` file in your feature specification directory that contains:
+
+- **Task breakdown organized by user story** - Each user story becomes a separate implementation phase with its own set of tasks
+- **Dependency management** - Tasks are ordered to respect dependencies between components (e.g., models before services, services before endpoints)
+- **Parallel execution markers** - Tasks that can run in parallel are marked with `[P]` to optimize development workflow
+- **File path specifications** - Each task includes the exact file paths where implementation should occur
+- **Test-driven development structure** - If tests are requested, test tasks are included and ordered to be written before implementation
+- **Checkpoint validation** - Each user story phase includes checkpoints to validate independent functionality
+
+The generated tasks.md provides a clear roadmap for the `/speckit.implement` command, ensuring systematic implementation that maintains code quality and allows for incremental delivery of user stories.
+
+### **STEP 7:** Implementation
 
 Once ready, use the `/speckit.implement` command to execute your implementation plan:
 
