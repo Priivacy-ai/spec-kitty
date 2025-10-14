@@ -42,7 +42,7 @@ Spec-Driven Development **flips the script** on traditional software development
 
 ## ⚡ Get started
 
-### 1. Install Specify
+### 1. Install Specify CLI
 
 Choose your preferred installation method:
 
