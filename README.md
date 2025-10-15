@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-    <strong>An effort to allow organizations to focus on product scenarios rather than writing undifferentiated code with the help of Spec-Driven Development.</strong>
+    <strong>An open source toolkit that allows you to focus on product scenarios and predictable outcomes instead of vibe coding every piece from scratch.</strong>
 </p>
 
 <p align="center">
@@ -42,7 +42,7 @@ Spec-Driven Development **flips the script** on traditional software development
 
 ## ⚡ Get Started
 
-### 1. Install Specify
+### 1. Install Specify CLI
 
 Choose your preferred installation method:
 
@@ -623,3 +623,4 @@ This project is heavily influenced by and based on the work and research of [Joh
 ## 📄 License
 
 This project is licensed under the terms of the MIT open source license. Please refer to the [LICENSE](./LICENSE) file for the full terms.
+

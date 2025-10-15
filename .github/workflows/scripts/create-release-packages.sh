@@ -237,3 +237,4 @@ done
 
 echo "Archives in $GENRELEASES_DIR:"
 ls -1 "$GENRELEASES_DIR"/spec-kit-template-*-"${NEW_VERSION}".zip
+
