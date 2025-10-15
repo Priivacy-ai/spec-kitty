@@ -584,8 +584,8 @@ update_specific_agent() {
             update_agent_file "$ROO_FILE" "Roo Code"
             ;;
         codebuddy)
-        update_agent_file "$CODEBUDDY_FILE" "CodeBuddy CLI"
-        ;;
+            update_agent_file "$CODEBUDDY_FILE" "CodeBuddy CLI"
+            ;;
         amp)
             update_agent_file "$AMP_FILE" "Amp"
             ;;
