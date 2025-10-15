@@ -147,7 +147,7 @@ AGENT_CONFIG = {
     "amp": {
         "name": "Amp",
         "folder": ".agents/",
-        "install_url": "https://ampcode.com/",
+        "install_url": "https://ampcode.com/manual#install",
         "requires_cli": True,
     },
 }
