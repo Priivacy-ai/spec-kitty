@@ -583,7 +583,7 @@ update_specific_agent() {
             update_agent_file "$ROO_FILE" "Roo Code"
             ;;
         codebuddy)
-            update_agent_file "$CODEBUDDY_FILE" "CodeBuddy"
+            update_agent_file "$CODEBUDDY_FILE" "CodeBuddy CLI"
             ;;
         q)
             update_agent_file "$Q_FILE" "Amazon Q Developer CLI"
@@ -651,7 +651,7 @@ update_all_existing_agents() {
     fi
 
     if [[ -f "$CODEBUDDY_FILE" ]]; then
-        update_agent_file "$CODEBUDDY_FILE" "CodeBuddy"
+        update_agent_file "$CODEBUDDY_FILE" "CodeBuddy CLI"
         found_agent=true
     fi
 
