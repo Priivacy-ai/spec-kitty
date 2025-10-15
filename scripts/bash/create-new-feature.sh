@@ -13,6 +13,10 @@ while [ $i -lt $# ]; do
             JSON_MODE=true 
             ;;
         --short-name)
+            if [ $((i + 1)) -ge $# ]; then
+                echo 'Error: --short-name requires a value' >&2
+                exit 1
+            fi
             i=$((i + 1))
             SHORT_NAME="${!i}"
             ;;
