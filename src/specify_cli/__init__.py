@@ -485,7 +485,7 @@ def init_git_repo(project_path: Path, quiet: bool = False) -> Tuple[bool, Option
     finally:
         os.chdir(original_cwd)
 
-def handle_vscode_settings(sub_item, dest_file, rel_path, verbose=False, tracker=None):
+def handle_vscode_settings(sub_item, dest_file, rel_path, verbose=False, tracker=None) -> None:
     """Handle merging or copying of .vscode/settings.json files."""
     def log(message, color="green"):
         if verbose and not tracker:
