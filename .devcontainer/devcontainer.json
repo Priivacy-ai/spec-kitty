@@ -20,6 +20,9 @@
 		"ghcr.io/devcontainers/features/git:1": {
 			"ppa": true,
 			"version": "latest"
+		},
+		"ghcr.io/devcontainers/features/node": {
+			"version": "lts"
 		}
 	},
 

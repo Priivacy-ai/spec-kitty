@@ -21,43 +21,34 @@ run_command() {
     fi
 }
 
-# Note: We use Bun (instead of npm) as our package manager for its speed and overall efficiency
-# It is a drop-in replacement for Node.js, so we can install npm packages through it without issues
-echo "📦 Installing Bun Package Manager..."
-run_command "curl -fsSL https://bun.sh/install | bash"
-echo "✅ Done"
-
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-
 # Installing CLI-based AI Agents
 
 echo -e "\n🤖 Installing Copilot CLI..."
-run_command "bun add --global @github/copilot@latest"
+run_command "npm install -g @github/copilot@latest"
 echo "✅ Done"
 
 echo -e "\n🤖 Installing Claude CLI..."
-run_command "bun add --global @anthropic-ai/claude-code@latest"
+run_command "npm install -g @anthropic-ai/claude-code@latest"
 echo "✅ Done"
 
 echo -e "\n🤖 Installing Codex CLI..."
-run_command "bun add --global @openai/codex@latest"
+run_command "npm install -g @openai/codex@latest"
 echo "✅ Done"
 
 echo -e "\n🤖 Installing Gemini CLI..."
-run_command "bun add --global @google/gemini-cli@latest"
+run_command "npm install -g @google/gemini-cli@latest"
 echo "✅ Done"
 
 echo -e "\n🤖 Installing Augie CLI..."
-run_command "bun add --global @augmentcode/auggie@latest"
+run_command "npm install -g @augmentcode/auggie@latest"
 echo "✅ Done"
 
 echo -e "\n🤖 Installing Qwen Code CLI..."
-run_command "bun add --global @qwen-code/qwen-code@latest"
+run_command "npm install -g @qwen-code/qwen-code@latest"
 echo "✅ Done"
 
 echo -e "\n🤖 Installing OpenCode CLI..."
-run_command "bun add --global opencode-ai@latest"
+run_command "npm install -g opencode-ai@latest"
 echo "✅ Done"
 
 echo -e "\n🤖 Installing Amazon Q CLI..."
@@ -89,7 +80,7 @@ run_command "rm -rf ./q q.zip q.zip.sig amazonq-public-key.asc"
 echo "✅ Done"
 
 echo -e "\n🤖 Installing CodeBuddy CLI..."
-run_command "bun add --global @tencent-ai/codebuddy-code@latest"
+run_command "npm install -g @tencent-ai/codebuddy-code@latest"
 echo "✅ Done"
 
 # Installing UV (Python package manager)

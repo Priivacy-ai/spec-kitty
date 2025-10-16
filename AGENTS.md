@@ -271,7 +271,7 @@ For agents that require CLI tools, add installation commands to `.devcontainer/p
 # Existing installations...
 
 echo -e "\n🤖 Installing [New Agent Name] CLI..."
-# run_command "bun add --global [agent-cli-package]@latest" # Example for node-based CLI
+# run_command "npm install -g [agent-cli-package]@latest" # Example for node-based CLI
 # or other installation instructions (must be non-interactive and compatible with Linux Debian "Trixie" or later)...
 echo "✅ Done"
 
