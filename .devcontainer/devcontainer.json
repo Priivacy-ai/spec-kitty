@@ -48,7 +48,9 @@
 		// Roo Code
 		"RooVeterinaryInc.roo-cline",
 		// Amazon Developer Q
-		"AmazonWebServices.amazon-q-vscode"
+		"AmazonWebServices.amazon-q-vscode",
+		// Claude Code
+		"anthropic.claude-code"
 	],
       "settings": {
 		"debug.javascript.autoAttachFilter": "disabled", // fix running commands in integrated terminal
