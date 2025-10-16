@@ -60,7 +60,6 @@ echo -e "\n🤖 Installing OpenCode CLI..."
 run_command "bun add --global opencode-ai@latest"
 echo "✅ Done"
 
-
 echo -e "\n🤖 Installing Amazon Q CLI..."
 # 👉🏾 https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line-verify-download.html
 
