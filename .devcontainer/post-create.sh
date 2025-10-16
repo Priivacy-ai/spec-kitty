@@ -88,6 +88,10 @@ run_command "./q/install.sh --no-confirm"
 run_command "rm -rf ./q q.zip q.zip.sig amazonq-public-key.asc"
 echo "✅ Done"
 
+echo -e "\n🤖 Installing CodeBuddy CLI..."
+run_command "bun add --global @tencent-ai/codebuddy-code@latest"
+echo "✅ Done"
+
 # Installing UV (Python package manager)
 echo -e "\n🐍 Installing UV - Python Package Manager..."
 run_command "pipx install uv"
