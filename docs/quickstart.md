@@ -64,6 +64,16 @@ Expect `WAITING_FOR_PLANNING_INPUT` prompts whenever the planner needs more arch
 2. Use `/speckitty.implement` to move a prompt into `/tasks/doing/` and build the solution.
 3. Finish with `/speckitty.review` to process items in `/tasks/for_review/` and move approved work to `/tasks/done/`.
 
+### 5. Accept & Merge
+
+Once `/tasks/done/` contains every work package and the checklist is complete, run `/speckitty.accept` (or `speckitty accept`) to:
+
+- Validate that all prompts are in the correct lanes with required metadata and activity log entries.
+- Surface any remaining `NEEDS CLARIFICATION` markers or unchecked tasks.
+- Record acceptance metadata in `specs/<feature>/meta.json`, create a commit (optional), and print merge guidance (PR or local) plus cleanup steps (`git worktree remove`, branch deletion).
+
+If you just need the readiness report, pass `--mode checklist` to see the findings without committing or printing merge instructions.
+
 ## Detailed Example: Building Taskify
 
 Here's a complete example of building a team productivity platform:

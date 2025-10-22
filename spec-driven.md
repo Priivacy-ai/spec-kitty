@@ -128,6 +128,17 @@ Provides a structured hand-off gate for work that lands in `tasks/for_review/`:
 3. **Decision Flow**: Moves prompts back to `/planned/` with feedback or forward to `/done/` on approval, always updating frontmatter history and activity logs with agent + PID data.
 4. **Automation Hooks**: Invokes helper scripts to flip task checkboxes in `tasks.md` when review passes, keeping status in sync with the kanban board.
 
+### The `/speckitty.accept` Command
+
+Use this command after every work package is in `tasks/done/` and the checklist is complete:
+
+1. **Readiness Checks**: Confirms no work packages remain in `planned`, `doing`, or `for_review`; validates frontmatter metadata (`lane`, `agent`, `assignee`, `shell_pid`) and ensures Activity Log entries exist for each lane transition.
+2. **Artifact Audit**: Verifies `spec.md`, `plan.md`, `tasks.md`, and supporting documents are present and free from `NEEDS CLARIFICATION` markers; confirms all checkboxes in `tasks.md` are checked.
+3. **Acceptance Metadata**: Records timestamp, actor, mode, and parent commit in `specs/<feature>/meta.json`, creating an acceptance commit unless run in dry-run mode.
+4. **Guidance Output**: Produces merge instructions for either hosted PRs or local merges, plus cleanup commands to remove the feature worktree and branch once merged.
+
+`/speckitty.accept` is also exposed as `speckitty accept`, so the same workflow is available from the terminal with optional `--json`, `--mode`, and `--no-commit` switches.
+
 ### The `/speckitty.implement` Workflow: Kanban Discipline
 
 The implementation command enforces a rigorous task workflow that ensures traceability and prevents work from stalling:

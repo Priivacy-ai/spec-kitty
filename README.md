@@ -239,6 +239,7 @@ Essential commands for the Spec-Driven Development workflow:
 | `/speckitty.tasks`         | Generate actionable task lists and kanban-ready prompt files          |
 | `/speckitty.implement`     | Execute tasks by working from `/tasks/doing/` prompts                 |
 | `/speckitty.review`        | Review work in `/tasks/for_review/` and move finished prompts to `/tasks/done/` |
+| `/speckitty.accept`        | Run final acceptance checks, record metadata, and surface merge guidance |
 
 #### Optional Commands
 
@@ -249,6 +250,15 @@ Additional commands for enhanced quality and validation:
 | `/speckitty.clarify`   | Clarify underspecified areas (recommended before `/speckitty.plan`; formerly `/quizme`) |
 | `/speckitty.analyze`   | Cross-artifact consistency & coverage analysis (run after `/speckitty.tasks`, before `/speckitty.implement`) |
 | `/speckitty.checklist` | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
+
+## Feature Acceptance Workflow
+
+Once every work package lives in `tasks/done/`, finish the feature with `/speckitty.accept` (or run `speckitty accept` from the shell):
+
+- The command verifies kanban lanes, frontmatter metadata, activity logs, `tasks.md`, and required spec artifacts. Any gaps are reported so you can fix them before merging.
+- Pick `pr` mode to prepare a hosted pull request or `local` to receive local merge instructions. `checklist` mode gives you the readiness report without committing or printing merge steps.
+- Successful runs update `specs/<feature>/meta.json` (timestamp, actor, acceptance mode), create an acceptance commit (unless you pass `--no-commit`), and print next-step and cleanup guidance (`git worktree remove …`, `git branch -d …`).
+- Every supported agent ships the new `/speckitty.accept` template, so the workflow works the same way whether you drive it from an IDE or the CLI.
 
 ## Task Workflow Automation
 

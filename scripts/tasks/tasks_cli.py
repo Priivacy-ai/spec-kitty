@@ -1,318 +1,72 @@
 #!/usr/bin/env python3
-"""Helper utilities for managing Spec Kitty work-package prompts.
-
-This script is invoked by shell wrappers to move work packages between Kanban lanes,
-append history entries, list current assignments, and roll back a mistaken transition.
-
-It intentionally avoids `git mv` usage so the staging area only reflects the new file
-location and history entry, reducing merge conflicts when AI agents shuffle prompts.
-"""
+"""CLI utilities for managing Spec Kitty work-package prompts and acceptance."""
 
 from __future__ import annotations
 
 import argparse
-import re
-import subprocess
+import json
 import sys
-from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional
 
-
-LANES = ("planned", "doing", "for_review", "done")
-TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-
-
-class TaskCliError(RuntimeError):
-    """Raised when operations cannot be completed safely."""
-
-
-def find_repo_root(start: Optional[Path] = None) -> Path:
-    """Walk upward until a Git or .specify root is found."""
-    current = (start or Path.cwd()).resolve()
-    for candidate in [current, *current.parents]:
-        if (candidate / ".git").exists() or (candidate / ".specify").exists():
-            return candidate
-    raise TaskCliError("Unable to locate repository root (missing .git or .specify).")
-
-
-def run_git(args: List[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
-    """Run a git command inside the repository."""
-    try:
-        return subprocess.run(
-            ["git", *args],
-            cwd=str(cwd),
-            check=check,
-            text=True,
-            capture_output=True,
-        )
-    except FileNotFoundError as exc:
-        raise TaskCliError("git is not available on PATH.") from exc
-    except subprocess.CalledProcessError as exc:
-        if check:
-            message = exc.stderr.strip() or exc.stdout.strip() or "Unknown git error"
-            raise TaskCliError(message)
-        return exc
-
-
-def ensure_lane(value: str) -> str:
-    lane = value.strip().lower()
-    if lane not in LANES:
-        raise TaskCliError(f"Invalid lane '{value}'. Expected one of {', '.join(LANES)}.")
-    return lane
-
-
-def now_utc() -> str:
-    return datetime.now(timezone.utc).strftime(TIMESTAMP_FORMAT)
-
-
-def git_status_lines(repo_root: Path) -> List[str]:
-    result = run_git(["status", "--porcelain"], cwd=repo_root, check=True)
-    return [line for line in result.stdout.splitlines() if line.strip()]
-
-
-def normalize_note(note: Optional[str], target_lane: str) -> str:
-    default = f"Moved to {target_lane}"
-    cleaned = (note or default).strip()
-    return cleaned or default
-
-
-def detect_conflicting_wp_status(
-    status_lines: List[str], feature: str, old_path: Path, new_path: Path
-) -> List[str]:
-    """Return staged work-package entries unrelated to the requested move."""
-    prefix = f"specs/{feature}/tasks/"
-    allowed = {
-        str(old_path).lstrip("./"),
-        str(new_path).lstrip("./"),
-    }
-    conflicts = []
-    for line in status_lines:
-        path = line[3:] if len(line) > 3 else ""
-        if not path.startswith(prefix):
-            continue
-        clean = path.strip()
-        if clean not in allowed:
-            conflicts.append(line)
-    return conflicts
-
-
-def match_frontmatter_line(frontmatter: str, key: str) -> Optional[re.Match]:
-    pattern = re.compile(
-        rf"^({re.escape(key)}:\s*)(\".*?\"|'.*?'|[^#\n]*)(.*)$",
-        flags=re.MULTILINE,
-    )
-    return pattern.search(frontmatter)
-
-
-def extract_scalar(frontmatter: str, key: str) -> Optional[str]:
-    match = match_frontmatter_line(frontmatter, key)
-    if not match:
-        return None
-    raw_value = match.group(2).strip()
-    if raw_value.startswith('"') and raw_value.endswith('"'):
-        return raw_value[1:-1]
-    if raw_value.startswith("'") and raw_value.endswith("'"):
-        return raw_value[1:-1]
-    return raw_value.strip() or None
-
-
-def set_scalar(frontmatter: str, key: str, value: str) -> str:
-    """Replace or insert a scalar value while preserving trailing comments."""
-    match = match_frontmatter_line(frontmatter, key)
-    replacement_line = f'{key}: "{value}"'
-    if match:
-        prefix = match.group(1)
-        comment = match.group(3)
-        comment_suffix = f"{comment}" if comment else ""
-        return (
-            frontmatter[: match.start()]
-            + f'{prefix}"{value}"{comment_suffix}'
-            + frontmatter[match.end() :]
-        )
-
-    insertion = f'{replacement_line}\n'
-    history_match = re.search(r"^\s*history:\s*$", frontmatter, flags=re.MULTILINE)
-    if history_match:
-        idx = history_match.start()
-        return frontmatter[:idx] + insertion + frontmatter[idx:]
-
-    if frontmatter and not frontmatter.endswith("\n"):
-        frontmatter += "\n"
-    return frontmatter + insertion
-
-
-def split_frontmatter(text: str) -> Tuple[str, str, str]:
-    """Return (frontmatter, body, padding) where padding preserves spacing after frontmatter."""
-    normalized = text.replace("\r\n", "\n")
-    if not normalized.startswith("---\n"):
-        return "", normalized, ""
-
-    closing_idx = normalized.find("\n---", 4)
-    if closing_idx == -1:
-        return "", normalized, ""
-
-    front = normalized[4:closing_idx]
-    tail = normalized[closing_idx + 4 :]
-    padding = ""
-    while tail.startswith("\n"):
-        padding += "\n"
-        tail = tail[1:]
-    return front, tail, padding
-
-
-def build_document(frontmatter: str, body: str, padding: str) -> str:
-    frontmatter = frontmatter.rstrip("\n")
-    doc = f"---\n{frontmatter}\n---"
-    if padding or body:
-        doc += padding or "\n"
-    doc += body
-    if not doc.endswith("\n"):
-        doc += "\n"
-    return doc
-
-
-def append_activity_log(body: str, entry: str) -> str:
-    header = "## Activity Log"
-    if header not in body:
-        block = f"{header}\n\n{entry}\n"
-        if body and not body.endswith("\n\n"):
-            return body.rstrip() + "\n\n" + block
-        return body + "\n" + block if body else block
-
-    # Locate the Activity Log section and append before the next heading
-    pattern = re.compile(r"(## Activity Log.*?)(?=\n## |\Z)", flags=re.DOTALL)
-    match = pattern.search(body)
-    if not match:
-        return body + ("\n" if not body.endswith("\n") else "") + entry + "\n"
-
-    section = match.group(1).rstrip()
-    if not section.endswith("\n"):
-        section += "\n"
-    section += f"{entry}\n"
-    return body[: match.start(1)] + section + body[match.end(1) :]
-
-
-def activity_entries(body: str) -> List[Dict[str, str]]:
-    pattern = re.compile(
-        r"^\s*-\s*"
-        r"(?P<timestamp>[0-9T:-]+Z)\s*[–-]\s*"
-        r"(?P<agent>[^–-]+?)\s*[–-]\s*"
-        r"(?:shell_pid=(?P<shell>[^–-]*?)\s*[–-]\s*)?"
-        r"lane=(?P<lane>[a-z_]+)\s*[–-]\s*"
-        r"(?P<note>.*)$",
-        flags=re.MULTILINE,
-    )
-    entries: List[Dict[str, str]] = []
-    for match in pattern.finditer(body):
-        entries.append(
-            {
-                "timestamp": match.group("timestamp").strip(),
-                "agent": match.group("agent").strip(),
-                "lane": match.group("lane").strip(),
-                "note": match.group("note").strip(),
-                "shell_pid": (match.group("shell") or "").strip(),
-            }
-        )
-    return entries
-
-
-@dataclass
-class WorkPackage:
-    feature: str
-    path: Path
-    current_lane: str
-    relative_subpath: Path
-    frontmatter: str
-    body: str
-    padding: str
-
-    @property
-    def work_package_id(self) -> Optional[str]:
-        return extract_scalar(self.frontmatter, "work_package_id")
-
-    @property
-    def title(self) -> Optional[str]:
-        return extract_scalar(self.frontmatter, "title")
-
-    @property
-    def assignee(self) -> Optional[str]:
-        return extract_scalar(self.frontmatter, "assignee")
-
-    @property
-    def agent(self) -> Optional[str]:
-        return extract_scalar(self.frontmatter, "agent")
-
-    @property
-    def shell_pid(self) -> Optional[str]:
-        return extract_scalar(self.frontmatter, "shell_pid")
-
-
-def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
-    tasks_root = repo_root / "specs" / feature / "tasks"
-    if not tasks_root.exists():
-        raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")
-
-    candidates = []
-    for lane_dir in tasks_root.iterdir():
-        if not lane_dir.is_dir():
-            continue
-        lane = lane_dir.name
-        lane_path = tasks_root / lane
-        for path in lane_path.rglob("*.md"):
-            if path.name.startswith(wp_id):
-                candidates.append((lane, path, lane_path))
-
-    if not candidates:
-        raise TaskCliError(f"Work package '{wp_id}' not found under specs/{feature}/tasks.")
-    if len(candidates) > 1:
-        joined = "\n".join(str(item[1].relative_to(repo_root)) for item in candidates)
-        raise TaskCliError(
-            f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}"
-        )
-
-    lane, path, lane_path = candidates[0]
-    text = path.read_text(encoding="utf-8")
-    front, body, padding = split_frontmatter(text)
-    relative = path.relative_to(lane_path)
-    return WorkPackage(
-        feature=feature,
-        path=path,
-        current_lane=lane,
-        relative_subpath=relative,
-        frontmatter=front,
-        body=body,
-        padding=padding,
-    )
+from specify_cli.acceptance import (
+    AcceptanceError,
+    AcceptanceResult,
+    AcceptanceSummary,
+    choose_mode,
+    collect_feature_summary,
+    detect_feature_slug,
+    perform_acceptance,
+)
+from specify_cli.tasks_support import (
+    LANES,
+    TaskCliError,
+    WorkPackage,
+    append_activity_log,
+    activity_entries,
+    build_document,
+    detect_conflicting_wp_status,
+    ensure_lane,
+    find_repo_root,
+    git_status_lines,
+    normalize_note,
+    now_utc,
+    run_git,
+    set_scalar,
+    split_frontmatter,
+    locate_work_package,
+)
 
 
 def stage_move(
     repo_root: Path,
     wp: WorkPackage,
-    new_lane: str,
-    new_frontmatter: str,
-    new_body: str,
-    dry_run: bool,
+    target_lane: str,
+    agent: str,
+    shell_pid: str,
+    note: str,
+    timestamp: str,
+    dry_run: bool = False,
 ) -> Path:
-    target_dir = (
-        repo_root
-        / "specs"
-        / wp.feature
-        / "tasks"
-        / new_lane
-    )
+    target_dir = repo_root / "specs" / wp.feature / "tasks" / target_lane
     new_path = (target_dir / wp.relative_subpath).resolve()
 
     if dry_run:
         return new_path
 
-    new_path.parent.mkdir(parents=True, exist_ok=True)
-    new_content = build_document(new_frontmatter, new_body, wp.padding)
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    wp.frontmatter = set_scalar(wp.frontmatter, "lane", target_lane)
+    wp.frontmatter = set_scalar(wp.frontmatter, "agent", agent)
+    if shell_pid:
+        wp.frontmatter = set_scalar(wp.frontmatter, "shell_pid", shell_pid)
+    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={target_lane} – {note}"
+    new_body = append_activity_log(wp.body, log_entry)
+
+    new_content = build_document(wp.frontmatter, new_body, wp.padding)
     new_path.write_text(new_content, encoding="utf-8")
 
     run_git(["add", str(new_path.relative_to(repo_root))], cwd=repo_root, check=True)
-
     if wp.path.resolve() != new_path.resolve():
         run_git(
             ["rm", "--quiet", str(wp.path.relative_to(repo_root))],
@@ -325,41 +79,32 @@ def stage_move(
 
 def move_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    target_lane = ensure_lane(args.lane)
-    wp = locate_work_package(repo_root, args.feature, args.work_package)
+    feature = args.feature
+    wp = locate_work_package(repo_root, feature, args.work_package)
 
-    if wp.current_lane == target_lane:
-        raise TaskCliError(f"Work package already in lane '{target_lane}'.")
-
-    note = normalize_note(args.note, target_lane)
-    agent = args.agent or wp.agent or "system"
-    shell_pid = args.shell_pid or wp.shell_pid or ""
-    if args.shell_pid:
-        wp.frontmatter = set_scalar(wp.frontmatter, "shell_pid", args.shell_pid)
-    elif not wp.shell_pid:
-        # ensure the key exists for consistency
-        wp.frontmatter = set_scalar(wp.frontmatter, "shell_pid", shell_pid)
-
-    wp.frontmatter = set_scalar(wp.frontmatter, "lane", target_lane)
-    wp.frontmatter = set_scalar(wp.frontmatter, "agent", agent)
-    if args.assignee is not None:
-        wp.frontmatter = set_scalar(wp.frontmatter, "assignee", args.assignee)
+    if wp.current_lane == args.lane:
+        raise TaskCliError(f"Work package already in lane '{args.lane}'.")
 
     timestamp = args.timestamp or now_utc()
-    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={target_lane} – {note}"
-    updated_body = append_activity_log(wp.body, log_entry)
+    agent = args.agent or wp.agent or "system"
+    shell_pid = args.shell_pid or wp.shell_pid or ""
+    note = normalize_note(args.note, args.lane)
 
+    status_lines = git_status_lines(repo_root)
     new_path = (
         repo_root
         / "specs"
-        / wp.feature
+        / feature
         / "tasks"
-        / target_lane
+        / args.lane
         / wp.relative_subpath
     )
-
-    status_lines = git_status_lines(repo_root)
-    conflicts = detect_conflicting_wp_status(status_lines, wp.feature, wp.path.relative_to(repo_root), new_path.relative_to(repo_root))
+    conflicts = detect_conflicting_wp_status(
+        status_lines,
+        feature,
+        wp.path.relative_to(repo_root),
+        new_path.relative_to(repo_root),
+    )
     if conflicts and not args.force:
         conflict_display = "\n".join(conflicts)
         raise TaskCliError(
@@ -370,21 +115,24 @@ def move_command(args: argparse.Namespace) -> None:
     new_file_path = stage_move(
         repo_root=repo_root,
         wp=wp,
-        new_lane=target_lane,
-        new_frontmatter=wp.frontmatter,
-        new_body=updated_body,
+        target_lane=args.lane,
+        agent=agent,
+        shell_pid=shell_pid,
+        note=note,
+        timestamp=timestamp,
         dry_run=args.dry_run,
     )
 
     if args.dry_run:
-        print(f"[dry-run] Would move {wp.work_package_id or wp.path.name} to lane '{target_lane}'")
+        print(f"[dry-run] Would move {wp.work_package_id or wp.path.name} to lane '{args.lane}'")
         print(f"[dry-run] New path: {new_file_path.relative_to(repo_root)}")
-        print(f"[dry-run] Activity log entry: {log_entry}")
         return
 
-    print(f"✅ Moved {wp.work_package_id or wp.path.name} → {target_lane}")
+    print(f"✅ Moved {wp.work_package_id or wp.path.name} → {args.lane}")
     print(f"   {wp.path.relative_to(repo_root)} → {new_file_path.relative_to(repo_root)}")
-    print(f"   Logged: {log_entry}")
+    print(
+        f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – lane={args.lane} – {note}"
+    )
 
 
 def history_command(args: argparse.Namespace) -> None:
@@ -466,7 +214,9 @@ def list_command(args: argparse.Namespace) -> None:
     width_id = max(len(row["id"]) for row in rows)
     width_lane = max(len(row["lane"]) for row in rows)
     width_agent = max(len(row["agent"]) for row in rows) if any(row["agent"] for row in rows) else 5
-    width_assignee = max(len(row["assignee"]) for row in rows) if any(row["assignee"] for row in rows) else 8
+    width_assignee = (
+        max(len(row["assignee"]) for row in rows) if any(row["assignee"] for row in rows) else 8
+    )
 
     header = (
         f"{'Lane'.ljust(width_lane)}  "
@@ -511,8 +261,132 @@ def rollback_command(args: argparse.Namespace) -> None:
     move_command(args_for_move)
 
 
+def _resolve_feature(repo_root: Path, requested: Optional[str]) -> str:
+    if requested:
+        return requested
+    return detect_feature_slug(repo_root)
+
+
+def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
+    lines: List[str] = []
+    lines.append(f"Feature: {summary.feature}")
+    lines.append(f"Branch: {summary.branch or 'N/A'}")
+    lines.append(f"Worktree: {summary.worktree_root}")
+    lines.append("")
+    lines.append("Work packages by lane:")
+    for lane in LANES:
+        items = summary.lanes.get(lane, [])
+        lines.append(f"  {lane} ({len(items)}): {', '.join(items) if items else '-'}")
+    lines.append("")
+    outstanding = summary.outstanding()
+    if outstanding:
+        lines.append("Outstanding items:")
+        for key, values in outstanding.items():
+            lines.append(f"  {key}:")
+            for value in values:
+                lines.append(f"    - {value}")
+    else:
+        lines.append("All acceptance checks passed.")
+    if summary.optional_missing:
+        lines.append("")
+        lines.append("Optional artifacts missing: " + ", ".join(summary.optional_missing))
+    return lines
+
+
+def status_command(args: argparse.Namespace) -> None:
+    repo_root = find_repo_root()
+    feature = _resolve_feature(repo_root, args.feature)
+    summary = collect_feature_summary(
+        repo_root,
+        feature,
+        strict_metadata=not args.lenient,
+    )
+    if args.json:
+        print(json.dumps(summary.to_dict(), indent=2))
+        return
+    for line in _summary_to_text(summary):
+        print(line)
+
+
+def verify_command(args: argparse.Namespace) -> None:
+    repo_root = find_repo_root()
+    feature = _resolve_feature(repo_root, args.feature)
+    summary = collect_feature_summary(
+        repo_root,
+        feature,
+        strict_metadata=not args.lenient,
+    )
+    if args.json:
+        print(json.dumps(summary.to_dict(), indent=2))
+        sys.exit(0 if summary.ok else 1)
+    lines = _summary_to_text(summary)
+    for line in lines:
+        print(line)
+    sys.exit(0 if summary.ok else 1)
+
+
+def accept_command(args: argparse.Namespace) -> None:
+    repo_root = find_repo_root()
+    feature = _resolve_feature(repo_root, args.feature)
+    summary = collect_feature_summary(
+        repo_root,
+        feature,
+        strict_metadata=not args.lenient,
+    )
+
+    if args.mode == "checklist":
+        if args.json:
+            print(json.dumps(summary.to_dict(), indent=2))
+        else:
+            for line in _summary_to_text(summary):
+                print(line)
+        sys.exit(0 if summary.ok else 1)
+
+    mode = choose_mode(args.mode, repo_root)
+    tests = list(args.test or [])
+
+    if not summary.ok and not args.allow_fail:
+        for line in _summary_to_text(summary):
+            print(line)
+        print("\n❌ Outstanding items detected. Fix them or re-run with --allow-fail for checklist mode.")
+        sys.exit(1)
+
+    try:
+        result = perform_acceptance(
+            summary,
+            mode=mode,
+            actor=args.actor,
+            tests=tests,
+            auto_commit=not args.no_commit,
+        )
+    except AcceptanceError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return
+
+    print(f"✅ Feature '{feature}' accepted at {result.accepted_at} by {result.accepted_by}")
+    if result.accept_commit:
+        print(f"   Acceptance commit: {result.accept_commit}")
+    if result.parent_commit:
+        print(f"   Parent commit: {result.parent_commit}")
+    if result.notes:
+        print("\nNotes:")
+        for note in result.notes:
+            print(f"  {note}")
+    print("\nNext steps:")
+    for instruction in result.instructions:
+        print(f"  - {instruction}")
+    if result.cleanup_instructions:
+        print("\nCleanup:")
+        for instruction in result.cleanup_instructions:
+            print(f"  - {instruction}")
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Spec Kitty task lane utilities")
+    parser = argparse.ArgumentParser(description="Spec Kitty task utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     move = subparsers.add_parser("move", help="Move a work package to the specified lane")
@@ -553,6 +427,26 @@ def build_parser() -> argparse.ArgumentParser:
     rollback.add_argument("--dry-run", action="store_true", help="Report planned rollback without modifying files")
     rollback.add_argument("--force", action="store_true", help="Ignore other staged work-package files")
 
+    status = subparsers.add_parser("status", help="Summarize work packages for a feature")
+    status.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    status.add_argument("--json", action="store_true", help="Emit JSON summary")
+    status.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
+
+    verify = subparsers.add_parser("verify", help="Run acceptance checks without committing")
+    verify.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    verify.add_argument("--json", action="store_true", help="Emit JSON summary")
+    verify.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
+
+    accept = subparsers.add_parser("accept", help="Perform feature acceptance workflow")
+    accept.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    accept.add_argument("--mode", choices=["auto", "pr", "local", "checklist"], default="auto")
+    accept.add_argument("--actor", help="Override acceptance author (defaults to system/user)")
+    accept.add_argument("--test", action="append", help="Record validation command executed (repeatable)")
+    accept.add_argument("--json", action="store_true", help="Emit JSON result")
+    accept.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
+    accept.add_argument("--no-commit", action="store_true", help="Skip auto-commit (report only)")
+    accept.add_argument("--allow-fail", action="store_true", help="Allow outstanding issues (for manual workflows)")
+
     return parser
 
 
@@ -568,6 +462,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             list_command(args)
         elif args.command == "rollback":
             rollback_command(args)
+        elif args.command == "status":
+            status_command(args)
+        elif args.command == "verify":
+            verify_command(args)
+        elif args.command == "accept":
+            accept_command(args)
         else:
             parser.error(f"Unknown command {args.command}")
             return 1
