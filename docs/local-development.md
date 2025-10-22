@@ -146,6 +146,7 @@ speckitty init demo --skip-tls --ai gemini --ignore-agent-tools --script ps
 | Local uvx run (abs path) | `uvx --from /mnt/c/GitHub/spec-kitty speckitty ...` |
 | Git branch uvx | `uvx --from git+URL@branch speckitty ...` |
 | Build wheel | `uv build` |
+| Acceptance check | `speckitty accept --json` |
 
 ## 11. Cleaning Up
 
@@ -169,4 +170,3 @@ rm -rf .venv dist build *.egg-info
 - Update docs and run through Quick Start using your modified CLI
 - Open a PR when satisfied
 - (Optional) Tag a release once changes land in `main`
-
