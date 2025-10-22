@@ -198,6 +198,10 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
                     kanban_stats[lane] = count
                     kanban_stats['total'] += count
 
+        worktree_root = project_dir / '.worktrees'
+        worktree_path = (worktree_root / feature_dir.name).resolve()
+        worktree_exists = worktree_path.exists()
+
         features.append({
             'id': feature_dir.name,
             'name': friendly_name,
@@ -205,7 +209,11 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
             'artifacts': artifacts,
             'workflow': workflow,
             'kanban_stats': kanban_stats,
-            'meta': meta_data or {}
+            'meta': meta_data or {},
+            'worktree': {
+                'path': str(worktree_path),
+                'exists': worktree_exists
+            }
         })
 
     # Sort by feature id (ensures newest e.g., 010-... first)
@@ -358,6 +366,28 @@ def get_dashboard_html() -> str:
             background: rgba(0,0,0,0.05);
             padding: 4px 8px;
             border-radius: 4px;
+        }
+
+        .worktree-info {
+            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .worktree-path,
+        .feature-worktree {
+            font-size: 0.75em;
+            color: var(--medium-text);
+            font-family: 'Monaco', 'Menlo', monospace;
+            background: rgba(107, 114, 128, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .worktree-path strong,
+        .feature-worktree strong {
+            color: var(--grassy-green);
         }
 
         .feature-selector {
@@ -861,6 +891,10 @@ def get_dashboard_html() -> str:
             <div>
                 <h1>Spec Kitty</h1>
                 <div class="project-path" id="project-path">Loading...</div>
+                <div class="worktree-info">
+                    <div class="worktree-path" id="active-worktree"><strong>Active worktree:</strong> detecting…</div>
+                    <div class="feature-worktree" id="feature-worktree"><strong>Feature worktree:</strong> select a feature</div>
+                </div>
             </div>
             <div class="feature-selector" id="feature-selector-container">
                 <label>Feature:</label>
@@ -1447,6 +1481,7 @@ def get_dashboard_html() -> str:
             const singleFeatureName = document.getElementById('single-feature-name');
             const sidebar = document.querySelector('.sidebar');
             const mainContent = document.querySelector('.main-content');
+            const featureWorktree = document.getElementById('feature-worktree');
 
             // Handle 0 features - show welcome page
             if (features.length === 0) {
@@ -1455,6 +1490,10 @@ def get_dashboard_html() -> str:
                 sidebar.style.display = 'block';
                 mainContent.style.display = 'block';
                 isConstitutionView = false;
+
+                if (featureWorktree) {
+                    featureWorktree.innerHTML = '<strong>Feature worktree:</strong> none yet';
+                }
 
                 // Show welcome page
                 document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1494,6 +1533,19 @@ def get_dashboard_html() -> str:
             const feature = features.find(f => f.id === currentFeature);
             if (feature && feature.workflow) {
                 updateWorkflowIcons(feature.workflow);
+                if (featureWorktree) {
+                    if (feature.worktree) {
+                        if (feature.worktree.exists) {
+                            featureWorktree.innerHTML = `<strong>Feature worktree:</strong> ${feature.worktree.path}`;
+                        } else {
+                            featureWorktree.innerHTML = `<strong>Feature worktree:</strong> ${feature.worktree.path} (missing)`;
+                        }
+                    } else {
+                        featureWorktree.innerHTML = '<strong>Feature worktree:</strong> unavailable';
+                    }
+                }
+            } else if (featureWorktree) {
+                featureWorktree.innerHTML = '<strong>Feature worktree:</strong> select a feature';
             }
 
             updateSidebarState();
@@ -1512,6 +1564,17 @@ def get_dashboard_html() -> str:
                     // Update project path display
                     if (data.project_path) {
                         document.getElementById('project-path').textContent = data.project_path;
+                    }
+
+                    const activeWorktreeEl = document.getElementById('active-worktree');
+                    if (activeWorktreeEl) {
+                        if (data.active_worktree) {
+                            activeWorktreeEl.innerHTML = `<strong>Active worktree:</strong> ${data.active_worktree}`;
+                        } else if (data.worktrees_root) {
+                            activeWorktreeEl.innerHTML = `<strong>Active worktree:</strong> none (run commands inside ${data.worktrees_root}/<feature-slug>)`;
+                        } else {
+                            activeWorktreeEl.innerHTML = '<strong>Active worktree:</strong> none (worktrees not initialized yet)';
+                        }
                     }
                 })
                 .catch(error => console.error('Error fetching data:', error));
@@ -1553,10 +1616,24 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header('Cache-Control', 'no-cache')
             self.end_headers()
 
-            features = scan_all_features(Path(self.project_dir))
+            project_path = Path(self.project_dir).resolve()
+            features = scan_all_features(project_path)
+
+            worktrees_root = (project_path / '.worktrees').resolve()
+            current_path = Path.cwd().resolve()
+            active_worktree = None
+            if worktrees_root.exists():
+                try:
+                    current_path.relative_to(worktrees_root)
+                    active_worktree = str(current_path)
+                except ValueError:
+                    active_worktree = None
+
             response_data = {
                 'features': features,
-                'project_path': str(Path(self.project_dir).resolve())
+                'project_path': str(project_path),
+                'worktrees_root': str(worktrees_root) if worktrees_root.exists() else None,
+                'active_worktree': active_worktree,
             }
             self.wfile.write(json.dumps(response_data).encode())
 

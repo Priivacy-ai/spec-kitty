@@ -137,6 +137,8 @@ Use this command after every work package is in `tasks/done/` and the checklist 
 3. **Acceptance Metadata**: Records timestamp, actor, mode, and parent commit in `specs/<feature>/meta.json`, creating an acceptance commit unless run in dry-run mode.
 4. **Guidance Output**: Produces merge instructions for either hosted PRs or local merges, plus cleanup commands to remove the feature worktree and branch once merged.
 
+`/speckitty.implement` and `/speckitty.accept` both assume you are operating from that feature’s worktree. If you drift back to the repo root, `cd .worktrees/<feature-slug>` (or recreate the worktree with `git worktree add`) before moving prompts or running acceptance.
+
 `/speckitty.accept` is also exposed as `speckitty accept`, so the same workflow is available from the terminal with optional `--json`, `--mode`, and `--no-commit` switches.
 
 ### The `/speckitty.implement` Workflow: Kanban Discipline

@@ -15,7 +15,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
+1. **Verify worktree context**:
+   - The feature worktree lives at `PROJECT_ROOT/.worktrees/FEATURE-SLUG`.
+   - Determine the expected path from the JSON returned by `create-new-feature` (or compose it using the slug).
+   - If your current working directory is not inside that worktree, `cd` into it before proceeding.
+   - If the worktree directory is missing, run `git worktree add PROJECT_ROOT/.worktrees/FEATURE-SLUG FEATURE-SLUG` to recreate it, then `cd` into it.
+
+2. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
 
 2. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
    - Scan all checklist files in the checklists/ directory
@@ -75,6 +81,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
    d. **Commit the move**:
       ```bash
+      git status --short
       git commit -m "Start TXXX: Move to doing lane"
       ```
 
@@ -134,14 +141,15 @@ You **MUST** consider the user input before proceeding (if not empty).
        - 2025-10-07T17:00:00Z – claude – shell_pid=12345 – lane=doing – Completed implementation
        ```
      - Move prompt to for_review:
-       ```bash
-       .specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX for_review \
-         --shell-pid "$SHELL_PID" \
-         --agent "claude" \
-         --note "Ready for review"
-       ```
+     ```bash
+     .specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX for_review \
+       --shell-pid "$SHELL_PID" \
+       --agent "claude" \
+       --note "Ready for review"
+     ```
      - Commit:
        ```bash
+       git status --short
        git commit -m "Complete TXXX: Move to for_review lane"
        ```
    - **VALIDATION BEFORE CONTINUING TO NEXT TASK**:
