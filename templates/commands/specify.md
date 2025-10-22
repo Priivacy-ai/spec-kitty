@@ -35,9 +35,9 @@ Given that feature description, do this:
 
    **IMPORTANT**:
 
-   - Append the short-name argument to the `{SCRIPT}` command with the 2-4 word short name you created in step 1
-   - Bash: `--short-name "your-generated-short-name"`
-   - PowerShell: `-ShortName "your-generated-short-name"`
+   - Append the short-name argument to the `{SCRIPT}` command with the 2-4 word short name you created in step 1. Keep the feature description as the final argument.
+   - Bash example: `--short-name "your-generated-short-name" "Feature description here"`
+   - PowerShell example: `-ShortName "your-generated-short-name" "Feature description here"`
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot")
    - You must only ever run this script once
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
