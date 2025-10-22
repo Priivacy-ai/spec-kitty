@@ -93,8 +93,11 @@ This command transforms a simple feature description (the user-prompt) into a co
 
 1. **Automatic Feature Numbering**: Scans existing specs to determine the next feature number (e.g., 001, 002, 003)
 2. **Branch Creation**: Generates a semantic branch name from your description and creates it automatically
-3. **Template-Based Generation**: Copies and customizes the feature specification template with your requirements
-4. **Directory Structure**: Creates the proper `specs/[branch-name]/` structure for all related documents
+3. **Dedicated Worktree**: Spawns an isolated checkout under `.worktrees/<feature-slug>` so each feature has its own sandbox without disturbing other branches
+4. **Template-Based Generation**: Copies and customizes the feature specification template with your requirements
+5. **Directory Structure**: Creates the proper `specs/[branch-name]/` structure for all related documents
+
+After the command finishes, switch your shell into the new worktree (e.g., `cd .worktrees/003-chat-system`) before running planning or implementation commands. If your environment can’t access the `.worktrees/` directory, the CLI falls back to the legacy single-worktree flow so you can keep working.
 
 ### The `/speckitty.plan` Command
 
@@ -133,7 +136,7 @@ The implementation command enforces a rigorous task workflow that ensures tracea
 
 Before any coding begins, `/speckitty.implement` requires each work package to transition through lanes with full metadata tracking:
 
-1. **Move prompt to doing lane**: `git mv specs/FEATURE/tasks/planned/WPxx-slug.md specs/FEATURE/tasks/doing/WPxx-slug.md`
+1. **Move prompt to doing lane**: `.specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx doing --note "Started implementation"` (PowerShell equivalent available)
 2. **Update frontmatter metadata**:
    ```yaml
    lane: "doing"
@@ -157,16 +160,19 @@ The agent must verify before proceeding to implementation:
 
 Spec Kitty ships with helper scripts to streamline the workflow:
 
-- `scripts/bash/move-task-to-doing.sh WPxx specs/FEATURE` – Automates the entire planned→doing transition with metadata updates
-- `scripts/bash/validate-task-workflow.sh WPxx specs/FEATURE` – Validates prompt is in correct lane with required metadata before implementation starts
-- `scripts/git-hooks/pre-commit-task-workflow.sh` – Optional git hook to enforce lane metadata in commits
+- `.specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx doing --note "Started implementation"` (and the PowerShell counterpart) – Moves prompts between lanes, updates frontmatter, and records activity in one shot.
+- `.specify/scripts/bash/tasks-add-history-entry.sh FEATURE-SLUG WPxx --note "Resumed after dependency install"` – Appends structured history without moving lanes.
+- `.specify/scripts/bash/tasks-list-lanes.sh FEATURE-SLUG` – Shows the current lane, agent, and assignee for every work package.
+- `.specify/scripts/bash/tasks-rollback-move.sh FEATURE-SLUG WPxx` – Returns a prompt to its previous lane if a move was made in error.
+- `scripts/bash/validate-task-workflow.sh WPxx specs/FEATURE` – Validates prompt is in correct lane with required metadata before implementation starts.
+- `scripts/git-hooks/pre-commit-task-workflow.sh` – Optional git hook to enforce lane metadata in commits.
 
 **Completion Flow:**
 
 After implementing the work package, the agent must:
 
 1. Add completion entry to activity log
-2. Move prompt to `for_review/` lane using `git mv`
+2. Move prompt to `for_review/` lane using `.specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx for_review --note "Ready for review"`
 3. Update frontmatter: `lane: "for_review"`
 4. Add review-ready activity log entry
 5. Commit the transition

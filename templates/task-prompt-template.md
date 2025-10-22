@@ -78,7 +78,7 @@ history:
 1. Capture your shell PID: `echo $$` (or use helper scripts when available).
 2. Update frontmatter (`lane`, `assignee`, `agent`, `shell_pid`).
 3. Add an entry to the **Activity Log** describing the transition.
-4. Use `git mv` to move the file between `/tasks/planned`, `/tasks/doing`, `/tasks/for_review`, and `/tasks/done`.
+4. Run `.specify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <WPID> <lane>` (PowerShell variant available) to move the prompt, update metadata, and append history in one step.
 5. Commit or stage the change, preserving history.
 
 ### Optional Phase Subdirectories

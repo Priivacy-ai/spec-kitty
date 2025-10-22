@@ -3,6 +3,7 @@
 [CmdletBinding()]
 param(
     [switch]$Json,
+    [string]$FeatureName,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$FeatureDescription
 )
@@ -58,7 +59,6 @@ try {
 Set-Location $repoRoot
 
 $specsDir = Join-Path $repoRoot 'specs'
-New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
 
 $highest = 0
 if (Test-Path $specsDir) {
@@ -72,19 +72,110 @@ if (Test-Path $specsDir) {
 $next = $highest + 1
 $featureNum = ('{0:000}' -f $next)
 
-$branchName = $featureDesc.ToLower() -replace '[^a-z0-9]', '-' -replace '-{2,}', '-' -replace '^-', '' -replace '-$', ''
-$words = ($branchName -split '-') | Where-Object { $_ } | Select-Object -First 3
+$friendlyName = if (![string]::IsNullOrWhiteSpace($FeatureName)) {
+    $FeatureName.Trim()
+} else {
+    $featureDesc.Trim()
+}
+
+function ConvertTo-Slug {
+    param([string]$InputText)
+    $result = $InputText.ToLower() -replace '[^a-z0-9]', '-' -replace '-{2,}', '-' -replace '^-', '' -replace '-$', ''
+    return $result
+}
+
+$slugSource = ConvertTo-Slug -InputText $friendlyName
+if ([string]::IsNullOrWhiteSpace($slugSource)) {
+    $slugSource = ConvertTo-Slug -InputText $featureDesc
+}
+
+$words = ($slugSource -split '-') | Where-Object { $_ } | Select-Object -First 3
+if (-not $words -or $words.Count -eq 0) {
+    $words = @('feature')
+}
 $branchName = "$featureNum-$([string]::Join('-', $words))"
 
+$worktreePath = $null
+$worktreeMessage = $null
+$worktreeCreated = $false
+$targetRoot = $repoRoot
+
 if ($hasGit) {
-    try {
-        git checkout -b $branchName | Out-Null
-    } catch {
-        Write-Warning "Failed to create git branch: $branchName"
+    $skipWorktree = $repoRoot -like "*\.worktrees\*"
+    if (-not $skipWorktree) {
+        $worktreeSupported = $true
+        try {
+            git worktree list | Out-Null
+        } catch {
+            $worktreeSupported = $false
+        }
+        if ($worktreeSupported) {
+            $gitCommonDir = git rev-parse --git-common-dir 2>$null
+            if ($LASTEXITCODE -eq 0 -and $gitCommonDir) {
+                $primaryRepoRoot = (Resolve-Path (Join-Path $gitCommonDir '..')).Path
+            } else {
+                $primaryRepoRoot = $repoRoot
+            }
+            $worktreeRoot = Join-Path $primaryRepoRoot '.worktrees'
+            New-Item -ItemType Directory -Path $worktreeRoot -Force | Out-Null
+            $worktreePath = Join-Path $worktreeRoot $branchName
+            if (Test-Path $worktreePath) {
+                try {
+                    $currentWorktreeBranch = git -C $worktreePath rev-parse --abbrev-ref HEAD 2>$null
+                    if ($LASTEXITCODE -eq 0 -and ($currentWorktreeBranch -eq $branchName -or $currentWorktreeBranch -eq 'HEAD')) {
+                        $targetRoot = (Resolve-Path $worktreePath).Path
+                        $worktreeCreated = $true
+                        $worktreeMessage = $targetRoot
+                        Write-Warning "[specify] Reusing existing worktree at $targetRoot for $branchName."
+                    } else {
+                        Write-Warning "[specify] Existing worktree at $worktreePath is checked out to $currentWorktreeBranch; skipping worktree creation."
+                    }
+                } catch {
+                    Write-Warning "[specify] Worktree path $worktreePath exists but is not a git worktree; skipping worktree creation."
+                }
+            } else {
+                try {
+                    git worktree add $worktreePath -b $branchName | Out-Null
+                    $targetRoot = (Resolve-Path $worktreePath).Path
+                    $worktreeCreated = $true
+                    $worktreeMessage = $targetRoot
+                } catch {
+                    Write-Warning "[specify] Unable to create git worktree for $branchName; falling back to in-place checkout."
+                }
+            }
+        } else {
+            Write-Warning "[specify] Git worktree command unavailable; falling back to in-place checkout."
+        }
+    }
+
+    if (-not $worktreeCreated) {
+        $branchExists = $false
+        try {
+            git show-ref --verify --quiet "refs/heads/$branchName"
+            if ($LASTEXITCODE -eq 0) { $branchExists = $true }
+        } catch {
+            $branchExists = $false
+        }
+        try {
+            if ($branchExists) {
+                git checkout $branchName | Out-Null
+            } else {
+                git checkout -b $branchName | Out-Null
+            }
+        } catch {
+            Write-Error "[specify] Error: Failed to check out branch $branchName"
+            exit 1
+        }
     }
 } else {
     Write-Warning "[specify] Warning: Git repository not detected; skipped branch creation for $branchName"
 }
+
+$repoRoot = $targetRoot
+Set-Location $repoRoot
+
+$specsDir = Join-Path $repoRoot 'specs'
+New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
 
 $featureDir = Join-Path $specsDir $branchName
 New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
@@ -99,13 +190,27 @@ if (Test-Path $template) {
 
 # Set the SPECIFY_FEATURE environment variable for the current session
 $env:SPECIFY_FEATURE = $branchName
+$env:SPECIFY_FEATURE_NAME = $friendlyName
+
+$metaFile = Join-Path $featureDir 'meta.json'
+$timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+$meta = [ordered]@{
+    feature_number     = $featureNum
+    slug               = $branchName
+    friendly_name      = $friendlyName
+    source_description = $featureDesc
+    created_at         = $timestamp
+}
+$meta | ConvertTo-Json | Set-Content -Path $metaFile -Encoding UTF8
 
 if ($Json) {
     $obj = [PSCustomObject]@{ 
         BRANCH_NAME = $branchName
         SPEC_FILE = $specFile
         FEATURE_NUM = $featureNum
+        FRIENDLY_NAME = $friendlyName
         HAS_GIT = $hasGit
+        WORKTREE_PATH = $worktreeMessage
     }
     $obj | ConvertTo-Json -Compress
 } else {
@@ -114,4 +219,10 @@ if ($Json) {
     Write-Output "FEATURE_NUM: $featureNum"
     Write-Output "HAS_GIT: $hasGit"
     Write-Output "SPECIFY_FEATURE environment variable set to: $branchName"
+    Write-Output "SPECIFY_FEATURE_NAME environment variable set to: $friendlyName"
+    if ($worktreeMessage) {
+        Write-Output "Git worktree created at: $worktreeMessage"
+        Write-Output "Run: Set-Location '$worktreeMessage' before continuing with planning commands."
+        Write-Output "Remove when finished: git worktree remove '$worktreeMessage'"
+    }
 }

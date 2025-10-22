@@ -22,7 +22,7 @@ fi
 
 if [[ -z "$PROMPT_PATH" ]]; then
   echo "❌ ERROR: Work package $TASK_ID not found in tasks/doing/." >&2
-  echo "   Move the prompt from tasks/planned/ to tasks/doing/ with git mv before implementing." >&2
+  echo "   Move the prompt from tasks/planned/ to tasks/doing/ using tasks-move-to-lane.sh before implementing." >&2
   exit 1
 fi
 

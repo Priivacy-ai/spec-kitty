@@ -52,15 +52,18 @@ You **MUST** consider the user input before proceeding (if not empty).
 
    a. **Move task prompt to doing lane**:
       ```bash
-      # Get your shell PID
+      # Capture your shell PID
       SHELL_PID=$(echo $$)
 
       # Move prompt (example for T001)
-      git mv specs/FEATURE/tasks/planned/phase-X-name/TXXX-slug.md \
-              specs/FEATURE/tasks/doing/phase-X-name/TXXX-slug.md
+      .specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX doing \
+        --shell-pid "$SHELL_PID" \
+        --agent "claude" \
+        --note "Started implementation"
       ```
+      > Windows users: run `.specify/scripts/powershell/tasks-move-to-lane.ps1` with the same arguments.
 
-   b. **Update frontmatter metadata** in the moved file:
+   b. **Verify frontmatter metadata** in the moved file:
       ```yaml
       lane: "doing"
       assignee: "Your Name or Agent ID"
@@ -68,14 +71,10 @@ You **MUST** consider the user input before proceeding (if not empty).
       shell_pid: "12345"  # from echo $$
       ```
 
-   c. **Add activity log entry** at the bottom of the prompt file:
-      ```markdown
-      - 2025-10-07T16:00:00Z – claude – shell_pid=12345 – lane=doing – Started implementation
-      ```
+   c. **Confirm the Activity Log** shows a new entry that records the transition to `doing` (the helper script adds it automatically—adjust the note if needed).
 
    d. **Commit the move**:
       ```bash
-      git add specs/FEATURE/tasks/doing/phase-X-name/TXXX-slug.md
       git commit -m "Start TXXX: Move to doing lane"
       ```
 
@@ -113,7 +112,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
-   - **Kanban discipline**: Use `git mv` to keep the prompt in `tasks/doing/` while working, update the Activity Log, and capture your shell PID (`echo $$`). These should already be complete from step 3—verify before coding.
+   - **Kanban discipline**: Use the lane helper scripts to keep the prompt in `tasks/doing/`, update the Activity Log, and capture your shell PID (`echo $$`). These should already be complete from step 3—verify before coding.
 
 7. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
@@ -136,20 +135,13 @@ You **MUST** consider the user input before proceeding (if not empty).
        ```
      - Move prompt to for_review:
        ```bash
-       git mv specs/FEATURE/tasks/doing/phase-X-name/TXXX-slug.md \
-               specs/FEATURE/tasks/for_review/phase-X-name/TXXX-slug.md
-       ```
-     - Update frontmatter:
-       ```yaml
-       lane: "for_review"
-       ```
-     - Add review-ready activity log entry:
-       ```markdown
-       - 2025-10-07T17:01:00Z – claude – shell_pid=12345 – lane=for_review – Ready for review
+       .specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX for_review \
+         --shell-pid "$SHELL_PID" \
+         --agent "claude" \
+         --note "Ready for review"
        ```
      - Commit:
        ```bash
-       git add specs/FEATURE/tasks/for_review/phase-X-name/TXXX-slug.md
        git commit -m "Complete TXXX: Move to for_review lane"
        ```
    - **VALIDATION BEFORE CONTINUING TO NEXT TASK**:
@@ -170,9 +162,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 **For every task**:
 
 1. **START**: `planned/` → `doing/`
-   - `git mv` to doing lane
-   - Update frontmatter: `lane: "doing"`, add `shell_pid`, `agent`
-   - Add activity log entry
+   - `.specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID doing --note "Started implementation"`
+   - Verify frontmatter: `lane: "doing"`, confirm `shell_pid`, `agent`
+   - Confirm activity log entry
    - Commit
 
 2. **WORK**: Implement the task
@@ -182,15 +174,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 3. **COMPLETE**: `doing/` → `for_review/`
    - Add completion entry to activity log
-   - `git mv` to for_review lane
-   - Update frontmatter: `lane: "for_review"`
-   - Add review-ready log entry
+   - `.specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID for_review --note "Ready for review"`
+   - Verify frontmatter: `lane: "for_review"`
+   - Confirm review-ready log entry
    - Commit
 
 4. **REVIEW**: Reviewer moves `for_review/` → `done/`
    - Reviewer validates work
    - Reviewer updates tasks.md checkbox (`- [x]`)
-   - Reviewer moves to done lane and commits
+   - Reviewer uses the lane helper script to move to `tasks/done/` and commits
 
 **Shell PID**: Capture once per session with `echo $$` and reuse it
 
