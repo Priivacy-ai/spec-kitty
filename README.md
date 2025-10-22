@@ -266,6 +266,7 @@ Once every work package lives in `tasks/done/`, finish the feature with `/specki
 - `scripts/bash/validate-task-workflow.sh WP01 specs/FEATURE` – blocks implementation if the work-package prompt is not in the `doing` lane or is missing required metadata.
 - Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`.
 - Optional git hook: `ln -s ../../scripts/git-hooks/pre-commit-task-workflow.sh .git/hooks/pre-commit` to enforce lane metadata before every commit.
+- All scripts assume you are operating from the feature worktree (`.worktrees/<feature-slug>`). Run `cd .worktrees/<feature-slug>` after `/speckitty.specify` (or recreate it with `git worktree add …` if it has been removed).
 
 ### Environment Variables
 
