@@ -662,11 +662,13 @@ def show_banner():
     # Create gradient effect with different colors
     banner_lines = BANNER.strip().split('\n')
     colors = ["bright_blue", "blue", "cyan", "bright_cyan", "white", "bright_white"]
+    max_width = max(len(line) for line in banner_lines) if banner_lines else 0
 
     styled_banner = Text()
     for i, line in enumerate(banner_lines):
         color = colors[i % len(colors)]
-        styled_banner.append(line + "\n", style=color)
+        padded_line = line.ljust(max_width)
+        styled_banner.append(padded_line + "\n", style=color)
 
     console.print(Align.center(styled_banner))
     console.print(Align.center(Text(TAGLINE, style="italic bright_yellow")))

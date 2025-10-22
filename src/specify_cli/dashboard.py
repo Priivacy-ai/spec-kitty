@@ -169,6 +169,18 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
         if not (re.match(r'^\d+', feature_dir.name) or (feature_dir / 'tasks').exists()):
             continue
 
+        friendly_name = feature_dir.name
+        meta_data: Dict[str, Any] | None = None
+        meta_path = feature_dir / 'meta.json'
+        if meta_path.exists():
+            try:
+                meta_data = json.loads(meta_path.read_text(encoding="utf-8"))
+                potential_name = meta_data.get("friendly_name")
+                if isinstance(potential_name, str) and potential_name.strip():
+                    friendly_name = potential_name.strip()
+            except json.JSONDecodeError:
+                meta_data = None
+
         # Get artifacts
         artifacts = get_feature_artifacts(feature_dir)
 
@@ -188,15 +200,16 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
 
         features.append({
             'id': feature_dir.name,
-            'name': feature_dir.name,
+            'name': friendly_name,
             'path': str(feature_dir.relative_to(project_dir)),
             'artifacts': artifacts,
             'workflow': workflow,
-            'kanban_stats': kanban_stats
+            'kanban_stats': kanban_stats,
+            'meta': meta_data or {}
         })
 
-    # Sort by name (most recent first)
-    features.sort(key=lambda f: f['name'], reverse=True)
+    # Sort by feature id (ensures newest e.g., 010-... first)
+    features.sort(key=lambda f: f['id'], reverse=True)
 
     return features
 
@@ -508,12 +521,18 @@ def get_dashboard_html() -> str:
         }
 
         .markdown-content pre {
-            background: #1f2937;
-            color: #f3f4f6;
+            background: #ffffff;
+            color: #111827;
             padding: 16px;
             border-radius: 8px;
             overflow-x: auto;
             margin: 16px 0;
+        }
+
+        .markdown-content pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
         }
 
         .markdown-content ul, .markdown-content ol {
@@ -795,7 +814,8 @@ def get_dashboard_html() -> str:
         }
 
         .modal-content .markdown-content pre {
-            background: #111827;
+            background: #ffffff;
+            color: #111827;
         }
 
         .no-features {

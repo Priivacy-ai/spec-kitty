@@ -91,6 +91,8 @@ Use the **`/speckitty.specify`** command to describe what you want to build. Foc
 /speckitty.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
+> After `/speckitty.specify` completes, move into the dedicated worktree it creates (for example, `cd .worktrees/001-photo-albums`) before running planning or implementation commands. If your environment blocks access to `.worktrees/`, the CLI automatically falls back to the single-worktree flow, so nothing breaks.
+
 The assistant asks **one focused question at a time**, blocks with `WAITING_FOR_DISCOVERY_INPUT`, and only generates the spec once an Intent Summary is confirmed. No assumptions without your explicit approval.
 
 ### 4. Create a technical implementation plan

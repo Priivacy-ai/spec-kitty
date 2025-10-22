@@ -46,6 +46,8 @@ Use the `/speckitty.specify` command to describe what you want to build. Focus o
 
 The command responds with `WAITING_FOR_DISCOVERY_INPUT` until you answer every discovery question it raises.
 
+> When the command succeeds it checks out the feature branch inside `.worktrees/<feature-slug>`. Change into that directory before running planning or implementation commands (for example, `cd .worktrees/001-photo-albums`). Agents that cannot traverse into `.worktrees/` automatically fall back to the legacy single-worktree flow.
+
 ### 3. Create a Technical Implementation Plan
 
 Use the `/speckitty.plan` command to provide your tech stack and architecture choices. The command will challenge the specification, ask you non-functional questions, and pause until you reply.

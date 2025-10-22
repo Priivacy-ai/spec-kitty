@@ -3,13 +3,34 @@
 set -e
 
 JSON_MODE=false
+FEATURE_NAME=""
 ARGS=()
-for arg in "$@"; do
-    case "$arg" in
-        --json) JSON_MODE=true ;;
-        --help|-h) echo "Usage: $0 [--json] <feature_description>"; exit 0 ;;
-        *) ARGS+=("$arg") ;;
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --json)
+            JSON_MODE=true
+            ;;
+        --feature-name=*)
+            FEATURE_NAME="${1#*=}"
+            ;;
+        --feature-name)
+            shift
+            if [ -z "${1:-}" ]; then
+                echo "Error: --feature-name requires a value" >&2
+                exit 1
+            fi
+            FEATURE_NAME="$1"
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--json] [--feature-name \"Friendly Title\"] <feature_description>"
+            exit 0
+            ;;
+        *)
+            ARGS+=("$1")
+            ;;
     esac
+    shift
 done
 
 FEATURE_DESCRIPTION="${ARGS[*]}"
@@ -52,14 +73,21 @@ else
     HAS_GIT=false
 fi
 
-cd "$REPO_ROOT"
+trim() {
+    local trimmed="$1"
+    trimmed="${trimmed#"${trimmed%%[![:space:]]*}"}"
+    trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
+    echo "$trimmed"
+}
 
-SPECS_DIR="$REPO_ROOT/specs"
-mkdir -p "$SPECS_DIR"
+slugify() {
+    echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-//' | sed 's/-$//'
+}
 
+SPECS_DIR_BASE="$REPO_ROOT/specs"
 HIGHEST=0
-if [ -d "$SPECS_DIR" ]; then
-    for dir in "$SPECS_DIR"/*; do
+if [ -d "$SPECS_DIR_BASE" ]; then
+    for dir in "$SPECS_DIR_BASE"/*; do
         [ -d "$dir" ] || continue
         dirname=$(basename "$dir")
         number=$(echo "$dirname" | grep -o '^[0-9]\+' || echo "0")
@@ -71,15 +99,94 @@ fi
 NEXT=$((HIGHEST + 1))
 FEATURE_NUM=$(printf "%03d" "$NEXT")
 
-BRANCH_NAME=$(echo "$FEATURE_DESCRIPTION" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-//' | sed 's/-$//')
-WORDS=$(echo "$BRANCH_NAME" | tr '-' '\n' | grep -v '^$' | head -3 | tr '\n' '-' | sed 's/-$//')
+FRIENDLY_NAME="$(trim "${FEATURE_NAME:-}")"
+if [ -z "$FRIENDLY_NAME" ]; then
+    FRIENDLY_NAME="$(trim "$FEATURE_DESCRIPTION")"
+fi
+
+SLUG_SOURCE=$(slugify "$FRIENDLY_NAME")
+if [ -z "$SLUG_SOURCE" ]; then
+    SLUG_SOURCE=$(slugify "$FEATURE_DESCRIPTION")
+fi
+
+WORDS=$(echo "$SLUG_SOURCE" | tr '-' '\n' | grep -v '^$' | head -3 | tr '\n' '-' | sed 's/-$//')
+if [ -z "$WORDS" ]; then
+    WORDS="feature"
+fi
+
 BRANCH_NAME="${FEATURE_NUM}-${WORDS}"
 
+WORKTREE_NOTE=""
+TARGET_ROOT="$REPO_ROOT"
+WORKTREE_CREATED=false
+
 if [ "$HAS_GIT" = true ]; then
-    git checkout -b "$BRANCH_NAME"
+    case "$REPO_ROOT" in
+        */.worktrees/*) SKIP_WORKTREE_CREATION=true ;;
+        *) SKIP_WORKTREE_CREATION=false ;;
+    esac
+
+    if [ "$SKIP_WORKTREE_CREATION" != "true" ]; then
+        if git worktree list >/dev/null 2>&1; then
+            GIT_COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || true)
+            if [ -n "$GIT_COMMON_DIR" ]; then
+                PRIMARY_REPO_ROOT="$(cd "$GIT_COMMON_DIR/.." && pwd)"
+            else
+                PRIMARY_REPO_ROOT="$REPO_ROOT"
+            fi
+            WORKTREE_ROOT="$PRIMARY_REPO_ROOT/.worktrees"
+            WORKTREE_PATH="$WORKTREE_ROOT/$BRANCH_NAME"
+            mkdir -p "$WORKTREE_ROOT"
+            if [ -d "$WORKTREE_PATH" ]; then
+                if git -C "$WORKTREE_PATH" rev-parse --show-toplevel >/dev/null 2>&1; then
+                    CURRENT_WORKTREE_BRANCH=$(git -C "$WORKTREE_PATH" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+                    if [ "$CURRENT_WORKTREE_BRANCH" = "$BRANCH_NAME" ] || [ "$CURRENT_WORKTREE_BRANCH" = "HEAD" ]; then
+                        TARGET_ROOT="$WORKTREE_PATH"
+                        WORKTREE_CREATED=true
+                        WORKTREE_NOTE="$WORKTREE_PATH"
+                        >&2 echo "[specify] Warning: Reusing existing worktree at $WORKTREE_PATH for $BRANCH_NAME."
+                    else
+                        >&2 echo "[specify] Warning: Existing worktree at $WORKTREE_PATH is checked out to $CURRENT_WORKTREE_BRANCH; skipping worktree creation."
+                    fi
+                else
+                    >&2 echo "[specify] Warning: Worktree path $WORKTREE_PATH exists but is not a git worktree; skipping worktree creation."
+                fi
+            else
+                if git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" >/dev/null 2>&1; then
+                    TARGET_ROOT="$WORKTREE_PATH"
+                    WORKTREE_CREATED=true
+                    WORKTREE_NOTE="$WORKTREE_PATH"
+                else
+                    >&2 echo "[specify] Warning: Unable to create git worktree for $BRANCH_NAME; falling back to in-place checkout."
+                fi
+            fi
+        else
+            >&2 echo "[specify] Warning: Git worktree command unavailable; falling back to in-place checkout."
+        fi
+    fi
+
+    if [ "$WORKTREE_CREATED" != "true" ]; then
+        if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+            if ! git checkout "$BRANCH_NAME"; then
+                >&2 echo "[specify] Error: Failed to check out existing branch $BRANCH_NAME"
+                exit 1
+            fi
+        else
+            if ! git checkout -b "$BRANCH_NAME"; then
+                >&2 echo "[specify] Error: Failed to create branch $BRANCH_NAME"
+                exit 1
+            fi
+        fi
+    fi
 else
     >&2 echo "[specify] Warning: Git repository not detected; skipped branch creation for $BRANCH_NAME"
 fi
+
+REPO_ROOT="$TARGET_ROOT"
+cd "$REPO_ROOT"
+
+SPECS_DIR="$REPO_ROOT/specs"
+mkdir -p "$SPECS_DIR"
 
 FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
 mkdir -p "$FEATURE_DIR"
@@ -90,12 +197,47 @@ if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"
 
 # Set the SPECIFY_FEATURE environment variable for the current session
 export SPECIFY_FEATURE="$BRANCH_NAME"
+export SPECIFY_FEATURE_NAME="$FRIENDLY_NAME"
+
+META_FILE="$FEATURE_DIR/meta.json"
+timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+json_escape() {
+    local str="$1"
+    str=${str//\\/\\\\}
+    str=${str//\"/\\\"}
+    str=${str//$'\n'/\\n}
+    str=${str//$'\r'/\\r}
+    echo "$str"
+}
+
+FRIENDLY_JSON=$(json_escape "$FRIENDLY_NAME")
+DESCRIPTION_JSON=$(json_escape "$FEATURE_DESCRIPTION")
+
+cat > "$META_FILE" <<EOF
+{
+  "feature_number": "$FEATURE_NUM",
+  "slug": "$BRANCH_NAME",
+  "friendly_name": "$FRIENDLY_JSON",
+  "source_description": "$DESCRIPTION_JSON",
+  "created_at": "$timestamp"
+}
+EOF
+
+WORKTREE_JSON=$(json_escape "$WORKTREE_NOTE")
 
 if $JSON_MODE; then
-    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s"}\n' "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM"
+    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","FRIENDLY_NAME":"%s","WORKTREE_PATH":"%s"}\n' "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$FRIENDLY_JSON" "$WORKTREE_JSON"
 else
     echo "BRANCH_NAME: $BRANCH_NAME"
     echo "SPEC_FILE: $SPEC_FILE"
     echo "FEATURE_NUM: $FEATURE_NUM"
+    echo "FRIENDLY_NAME: $FRIENDLY_NAME"
     echo "SPECIFY_FEATURE environment variable set to: $BRANCH_NAME"
+    echo "SPECIFY_FEATURE_NAME environment variable set to: $FRIENDLY_NAME"
+    if [ -n "$WORKTREE_NOTE" ]; then
+        echo "Git worktree created at: $WORKTREE_NOTE"
+        echo "Run: cd \"$WORKTREE_NOTE\" before continuing with planning commands."
+        echo "Remove when finished: git worktree remove \"$WORKTREE_NOTE\""
+    fi
 fi

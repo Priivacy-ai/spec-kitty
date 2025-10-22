@@ -42,6 +42,12 @@ Discovery requirements (scale to feature complexity):
 
 ## Outline
 
+### 0. Generate a Friendly Feature Title
+
+- Summarize the agreed intent into a short, descriptive title (aim for ≤7 words; avoid filler like "feature" or "thing").
+- Read that title back during the Intent Summary and revise it if the user requests changes.
+- You will pass this confirmed title to the feature creation script via `--feature-name "<Friendly Title>"` so downstream tooling surfaces it consistently.
+
 The text the user typed after `/speckitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
 Given that feature description, do this:
@@ -54,13 +60,19 @@ Given that feature description, do this:
    - Only proceed once every discovery question has an explicit answer and the user has acknowledged the Intent Summary.
    - Empty invocation rule: stay in interview mode until you can restate the agreed-upon feature description. Do **not** call `{SCRIPT}` while the description is missing or provisional.
 
-2. When discovery is complete and the intent summary is confirmed, run the script `{SCRIPT}` from repo root and parse its JSON output for BRANCH_NAME and SPEC_FILE. All file paths must be absolute.
+2. When discovery is complete and the intent summary **and title** are confirmed, run the script `{SCRIPT}` from repo root, inserting `--feature-name "<Friendly Title>"` (replace the quoted text with the confirmed title) immediately before the feature description argument. For example:
+
+   - **bash/zsh**: `.specify/scripts/bash/create-new-feature.sh --json --feature-name "Checkout Upsell Flow" "$ARGUMENTS"`
+   - **PowerShell**: `.specify/scripts/powershell/create-new-feature.ps1 -Json -FeatureName "Checkout Upsell Flow" "$ARGUMENTS"`
+
+   Parse its JSON output for `BRANCH_NAME`, `SPEC_FILE`, `FEATURE_NUM`, and `FRIENDLY_NAME`. All file paths must be absolute.
+
    **IMPORTANT** You must only ever run this script once. The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for.
 3. Load `templates/spec-template.md` to understand required sections.
 
 4. Follow this execution flow:
 
-    1. Use the discovery answers as your authoritative source of truth (do **not** rely on raw `$ARGUMENTS`). For empty invocations, treat the synthesized interview summary as the canonical feature description.
+    1. Use the discovery answers as your authoritative source of truth (do **not** rely on raw `$ARGUMENTS`). For empty invocations, treat the synthesized interview summary as the canonical feature description and propagate the confirmed friendly title anywhere `[FEATURE NAME]` appears.
        Identify: actors, actions, data, constraints, motivations, success metrics
     2. For any remaining ambiguity:
        - Ask the user a focused follow-up question immediately and halt work until they answer
