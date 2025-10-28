@@ -1,8 +1,8 @@
 ---
 description: Create or update the feature specification from a natural language feature description.
 scripts:
-  sh: .specify/scripts/bash/create-new-feature.sh --json "{ARGS}"
-  ps: .specify/scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
+  sh: .kittify/scripts/bash/create-new-feature.sh --json "{ARGS}"
+  ps: .kittify/scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
 ---
 
 ## User Input
@@ -48,7 +48,7 @@ Discovery requirements (scale to feature complexity):
 - Read that title back during the Intent Summary and revise it if the user requests changes.
 - You will pass this confirmed title to the feature creation script via `--feature-name "<Friendly Title>"` so downstream tooling surfaces it consistently.
 
-The text the user typed after `/speckitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
+The text the user typed after `/spec-kitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
 Given that feature description, do this:
 
@@ -62,8 +62,8 @@ Given that feature description, do this:
 
 2. When discovery is complete and the intent summary **and title** are confirmed, run the script `{SCRIPT}` from repo root, inserting `--feature-name "<Friendly Title>"` (replace the quoted text with the confirmed title) immediately before the feature description argument. For example:
 
-   - **bash/zsh**: `.specify/scripts/bash/create-new-feature.sh --json --feature-name "Checkout Upsell Flow" "$ARGUMENTS"`
-   - **PowerShell**: `.specify/scripts/powershell/create-new-feature.ps1 -Json -FeatureName "Checkout Upsell Flow" "$ARGUMENTS"`
+   - **bash/zsh**: `.kittify/scripts/bash/create-new-feature.sh --json --feature-name "Checkout Upsell Flow" "$ARGUMENTS"`
+   - **PowerShell**: `.kittify/scripts/powershell/create-new-feature.ps1 -Json -FeatureName "Checkout Upsell Flow" "$ARGUMENTS"`
 
    Parse its JSON output for `BRANCH_NAME`, `SPEC_FILE`, `FEATURE_NUM`, and `FRIENDLY_NAME`. All file paths must be absolute.
 
@@ -131,7 +131,7 @@ Given that feature description, do this:
       
       ## Notes
       
-      - Items marked incomplete require spec updates before `/speckitty.clarify` or `/speckitty.plan`
+      - Items marked incomplete require spec updates before `/spec-kitty.clarify` or `/spec-kitty.plan`
       ```
    
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -169,7 +169,7 @@ Given that feature description, do this:
    
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-6. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/speckitty.clarify` or `/speckitty.plan`).
+6. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.clarify` or `/spec-kitty.plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 

@@ -48,7 +48,7 @@ Choose your preferred installation method:
 Install once and use everywhere:
 
 ```bash
-uv tool install speckitty-cli --from .
+uv tool install spec-kitty-cli --from .
 ```
 
 > Run these commands from the Spec Kitty repository root so `.` resolves to this checkout.
@@ -56,8 +56,8 @@ uv tool install speckitty-cli --from .
 Then use the tool directly from the repository root:
 
 ```bash
-speckitty init <PROJECT_NAME>
-speckitty check
+spec-kitty init <PROJECT_NAME>
+spec-kitty check
 ```
 
 #### Option 2: One-time Usage
@@ -65,7 +65,7 @@ speckitty check
 Run directly without installing (also from the repository root):
 
 ```bash
-uvx --from . speckitty init <PROJECT_NAME>
+uvx --from . spec-kitty init <PROJECT_NAME>
 ```
 
 **Benefits of persistent installation:**
@@ -77,58 +77,58 @@ uvx --from . speckitty init <PROJECT_NAME>
 
 ### 2. Establish project principles
 
-Use the **`/speckitty.constitution`** command to create your project's governing principles and development guidelines that will guide all subsequent development.
+Use the **`/spec-kitty.constitution`** command to create your project's governing principles and development guidelines that will guide all subsequent development.
 
 ```bash
-/speckitty.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements
+/spec-kitty.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements
 ```
 
 ### 3. Create the spec
 
-Use the **`/speckitty.specify`** command to describe what you want to build. Focus on the **what** and **why**, not the tech stack. The assistant will interview you first and refuses to continue until you answer its discovery questions.
+Use the **`/spec-kitty.specify`** command to describe what you want to build. Focus on the **what** and **why**, not the tech stack. The assistant will interview you first and refuses to continue until you answer its discovery questions.
 
 ```bash
-/speckitty.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
+/spec-kitty.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
-> After `/speckitty.specify` completes, move into the dedicated worktree it creates (for example, `cd .worktrees/001-photo-albums`) before running planning or implementation commands. If your environment blocks access to `.worktrees/`, the CLI automatically falls back to the single-worktree flow, so nothing breaks.
+> After `/spec-kitty.specify` completes, move into the dedicated worktree it creates (for example, `cd .worktrees/001-photo-albums`) before running planning or implementation commands. If your environment blocks access to `.worktrees/`, the CLI automatically falls back to the single-worktree flow, so nothing breaks.
 
 The assistant asks **one focused question at a time**, blocks with `WAITING_FOR_DISCOVERY_INPUT`, and only generates the spec once an Intent Summary is confirmed. No assumptions without your explicit approval.
 
 ### 4. Create a technical implementation plan
 
-Use the **`/speckitty.plan`** command to provide your tech stack and architecture choices. Expect it to challenge the spec, ask for missing non-functional details, and pause until you respond.
+Use the **`/spec-kitty.plan`** command to provide your tech stack and architecture choices. Expect it to challenge the spec, ask for missing non-functional details, and pause until you respond.
 
 ```bash
-/speckitty.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
+/spec-kitty.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
 ```
 
-Like `/speckitty.specify`, the planner asks **one question at a time** and blocks with `WAITING_FOR_PLANNING_INPUT` until tech stack, architecture, and operational constraints are confirmed in an Engineering Alignment summary.
+Like `/spec-kitty.specify`, the planner asks **one question at a time** and blocks with `WAITING_FOR_PLANNING_INPUT` until tech stack, architecture, and operational constraints are confirmed in an Engineering Alignment summary.
 
 ### 5. Break down into tasks & prompts
 
-Use **`/speckitty.tasks`** to create an actionable task list *and* the matching prompt files for your mini-kanban board. The command writes `tasks.md`, groups subtasks into up to ten work packages, generates one prompt file per package under `/tasks/planned/`, and links each work package to its bundled brief.
+Use **`/spec-kitty.tasks`** to create an actionable task list *and* the matching prompt files for your mini-kanban board. The command writes `tasks.md`, groups subtasks into up to ten work packages, generates one prompt file per package under `/tasks/planned/`, and links each work package to its bundled brief.
 
 ```bash
-/speckitty.tasks
+/spec-kitty.tasks
 ```
 
 ### 6. Execute implementation
 
-Use **`/speckitty.implement`** to pick up a prompt from `/tasks/planned/`, move it to `/tasks/doing/`, and build the feature according to the plan.
+Use **`/spec-kitty.implement`** to pick up a prompt from `/tasks/planned/`, move it to `/tasks/doing/`, and build the feature according to the plan.
 
 ```bash
-/speckitty.implement
+/spec-kitty.implement
 ```
 
 **Mandatory workflow initialization:** Before coding begins, the command enforces the kanban workflow by moving prompts to `/tasks/doing/`, updating frontmatter metadata (`lane`, `agent`, `shell_pid`), adding activity log entries, and committing the transition. After implementation completes, prompts move to `/tasks/for_review/` with completion metadata.
 
 ### 7. Review & close tasks
 
-Finish the cycle by running **`/speckitty.review`** to process files in `/tasks/for_review/`, capture feedback, and move approved work to `/tasks/done/` while marking the task complete in `tasks.md`.
+Finish the cycle by running **`/spec-kitty.review`** to process files in `/tasks/for_review/`, capture feedback, and move approved work to `/tasks/done/` while marking the task complete in `tasks.md`.
 
 ```bash
-/speckitty.review
+/spec-kitty.review
 ```
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
@@ -158,7 +158,7 @@ Want to see Spec Kitty in action? Watch our [video overview](https://www.youtube
 
 ## 🔧 Spec Kitty CLI Reference
 
-The `speckitty` command supports the following options. Every run begins with a discovery interview, so be prepared to answer follow-up questions before files are touched.
+The `spec-kitty` command supports the following options. Every run begins with a discovery interview, so be prepared to answer follow-up questions before files are touched.
 
 ### Commands
 
@@ -167,7 +167,7 @@ The `speckitty` command supports the following options. Every run begins with a 
 | `init`      | Initialize a new Spec Kitty project from the latest template      |
 | `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`) |
 
-### `speckitty init` Arguments & Options
+### `spec-kitty init` Arguments & Options
 
 | Argument/Option        | Type     | Description                                                                  |
 |------------------------|----------|------------------------------------------------------------------------------|
@@ -186,46 +186,46 @@ The `speckitty` command supports the following options. Every run begins with a 
 
 ```bash
 # Basic project initialization
-speckitty init my-project
+spec-kitty init my-project
 
 # Initialize with specific AI assistant
-speckitty init my-project --ai claude
+spec-kitty init my-project --ai claude
 
 # Initialize with Cursor support
-speckitty init my-project --ai cursor
+spec-kitty init my-project --ai cursor
 
 # Initialize with Windsurf support
-speckitty init my-project --ai windsurf
+spec-kitty init my-project --ai windsurf
 
 # Initialize with PowerShell scripts (Windows/cross-platform)
-speckitty init my-project --ai copilot --script ps
+spec-kitty init my-project --ai copilot --script ps
 
 # Initialize in current directory
-speckitty init . --ai copilot
+spec-kitty init . --ai copilot
 # or use the --here flag
-speckitty init --here --ai copilot
+spec-kitty init --here --ai copilot
 
 # Force merge into current (non-empty) directory without confirmation
-speckitty init . --force --ai copilot
+spec-kitty init . --force --ai copilot
 # or 
-speckitty init --here --force --ai copilot
+spec-kitty init --here --force --ai copilot
 
 # Skip git initialization
-speckitty init my-project --ai gemini --no-git
+spec-kitty init my-project --ai gemini --no-git
 
 # Enable debug output for troubleshooting
-speckitty init my-project --ai claude --debug
+spec-kitty init my-project --ai claude --debug
 
 # Use GitHub token for API requests (helpful for corporate environments)
-speckitty init my-project --ai claude --github-token ghp_your_token_here
+spec-kitty init my-project --ai claude --github-token ghp_your_token_here
 
 # Check system requirements
-speckitty check
+spec-kitty check
 ```
 
 ### Available Slash Commands
 
-After running `speckitty init`, your AI coding agent will have access to these slash commands for structured development:
+After running `spec-kitty init`, your AI coding agent will have access to these slash commands for structured development:
 
 #### Core Commands
 
@@ -233,13 +233,13 @@ Essential commands for the Spec-Driven Development workflow:
 
 | Command                  | Description                                                           |
 |--------------------------|-----------------------------------------------------------------------|
-| `/speckitty.constitution`  | Create or update project governing principles and development guidelines |
-| `/speckitty.specify`       | Define what you want to build (requirements and user stories)        |
-| `/speckitty.plan`          | Create technical implementation plans with your chosen tech stack     |
-| `/speckitty.tasks`         | Generate actionable task lists and kanban-ready prompt files          |
-| `/speckitty.implement`     | Execute tasks by working from `/tasks/doing/` prompts                 |
-| `/speckitty.review`        | Review work in `/tasks/for_review/` and move finished prompts to `/tasks/done/` |
-| `/speckitty.accept`        | Run final acceptance checks, record metadata, and surface merge guidance |
+| `/spec-kitty.constitution`  | Create or update project governing principles and development guidelines |
+| `/spec-kitty.specify`       | Define what you want to build (requirements and user stories)        |
+| `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
+| `/spec-kitty.tasks`         | Generate actionable task lists and kanban-ready prompt files          |
+| `/spec-kitty.implement`     | Execute tasks by working from `/tasks/doing/` prompts                 |
+| `/spec-kitty.review`        | Review work in `/tasks/for_review/` and move finished prompts to `/tasks/done/` |
+| `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and surface merge guidance |
 
 #### Optional Commands
 
@@ -247,33 +247,33 @@ Additional commands for enhanced quality and validation:
 
 | Command              | Description                                                           |
 |----------------------|-----------------------------------------------------------------------|
-| `/speckitty.clarify`   | Clarify underspecified areas (recommended before `/speckitty.plan`; formerly `/quizme`) |
-| `/speckitty.analyze`   | Cross-artifact consistency & coverage analysis (run after `/speckitty.tasks`, before `/speckitty.implement`) |
-| `/speckitty.checklist` | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
+| `/spec-kitty.clarify`   | Clarify underspecified areas (recommended before `/spec-kitty.plan`; formerly `/quizme`) |
+| `/spec-kitty.analyze`   | Cross-artifact consistency & coverage analysis (run after `/spec-kitty.tasks`, before `/spec-kitty.implement`) |
+| `/spec-kitty.checklist` | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
 
 ## Feature Acceptance Workflow
 
-Once every work package lives in `tasks/done/`, finish the feature with `/speckitty.accept` (or run `speckitty accept` from the shell):
+Once every work package lives in `tasks/done/`, finish the feature with `/spec-kitty.accept` (or run `spec-kitty accept` from the shell):
 
 - The command verifies kanban lanes, frontmatter metadata, activity logs, `tasks.md`, and required spec artifacts. Any gaps are reported so you can fix them before merging.
 - Pick `pr` mode to prepare a hosted pull request or `local` to receive local merge instructions. `checklist` mode gives you the readiness report without committing or printing merge steps.
-- Successful runs update `specs/<feature>/meta.json` (timestamp, actor, acceptance mode), create an acceptance commit (unless you pass `--no-commit`), and print next-step and cleanup guidance (`git worktree remove …`, `git branch -d …`).
-- Every supported agent ships the new `/speckitty.accept` template, so the workflow works the same way whether you drive it from an IDE or the CLI.
+- Successful runs update `kitty-specs/<feature>/meta.json` (timestamp, actor, acceptance mode), create an acceptance commit (unless you pass `--no-commit`), and print next-step and cleanup guidance (`git worktree remove …`, `git branch -d …`).
+- Every supported agent ships the new `/spec-kitty.accept` template, so the workflow works the same way whether you drive it from an IDE or the CLI.
 
 ## Task Workflow Automation
 
-- `scripts/bash/move-task-to-doing.sh WP01 specs/FEATURE` – moves a work-package prompt from `tasks/planned/` to `tasks/doing/`, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry, and prints the canonical location.
-- `scripts/bash/validate-task-workflow.sh WP01 specs/FEATURE` – blocks implementation if the work-package prompt is not in the `doing` lane or is missing required metadata.
+- `scripts/bash/move-task-to-doing.sh WP01 kitty-specs/FEATURE` – moves a work-package prompt from `tasks/planned/` to `tasks/doing/`, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry, and prints the canonical location.
+- `scripts/bash/validate-task-workflow.sh WP01 kitty-specs/FEATURE` – blocks implementation if the work-package prompt is not in the `doing` lane or is missing required metadata.
 - Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`.
 - Optional git hook: `ln -s ../../scripts/git-hooks/pre-commit-task-workflow.sh .git/hooks/pre-commit` to enforce lane metadata before every commit.
-- All scripts assume you are operating from the feature worktree (`.worktrees/<feature-slug>`). Run `cd .worktrees/<feature-slug>` after `/speckitty.specify` (or recreate it with `git worktree add …` if it has been removed).
+- Prefer running scripts from the feature worktree (`.worktrees/<feature-slug>`). After `/spec-kitty.specify`, `cd .worktrees/<feature-slug>` when that directory exists; if worktree creation was skipped, stay in the primary checkout on the feature branch or recreate the worktree with `git worktree add …`.
 
 ### Environment Variables
 
 | Variable         | Description                                                                                    |
 |------------------|------------------------------------------------------------------------------------------------|
-| `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>**Must be set in the context of the agent you're working with prior to using `/speckitty.plan` or follow-up commands. |
-| `SPECKITTY_TEMPLATE_ROOT` | Optional. Point to a local checkout whose `templates/`, `scripts/`, and `memory/` directories should seed new projects (handy while developing Spec Kitty itself). |
+| `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>**Must be set in the context of the agent you're working with prior to using `/spec-kitty.plan` or follow-up commands. |
+| `SPEC_KITTY_TEMPLATE_ROOT` | Optional. Point to a local checkout whose `templates/`, `scripts/`, and `memory/` directories should seed new projects (handy while developing Spec Kitty itself). |
 | `SPECIFY_TEMPLATE_REPO` | Optional. Override the GitHub repository slug (`owner/name`) to fetch templates from when you explicitly want a remote source. |
 
 ## 📚 Core philosophy
@@ -344,19 +344,19 @@ If you encounter issues with an agent, please open an issue so we can refine the
 You can use the Spec Kitty CLI to bootstrap your project, which will bring in the required artifacts in your environment. Run:
 
 ```bash
-speckitty init <project_name>
+spec-kitty init <project_name>
 ```
 
 Or initialize in the current directory:
 
 ```bash
-speckitty init .
+spec-kitty init .
 # or use the --here flag
-speckitty init --here
+spec-kitty init --here
 # Skip confirmation when the directory already has files
-speckitty init . --force
+spec-kitty init . --force
 # or
-speckitty init --here --force
+spec-kitty init --here --force
 ```
 
 ![Spec Kitty CLI bootstrapping a new project in the terminal](./media/specify_cli.gif)
@@ -364,30 +364,30 @@ speckitty init --here --force
 You will be prompted to select the AI agent you are using. You can also proactively specify it directly in the terminal:
 
 ```bash
-speckitty init <project_name> --ai claude
-speckitty init <project_name> --ai gemini
-speckitty init <project_name> --ai copilot
-speckitty init <project_name> --ai claude,codex
+spec-kitty init <project_name> --ai claude
+spec-kitty init <project_name> --ai gemini
+spec-kitty init <project_name> --ai copilot
+spec-kitty init <project_name> --ai claude,codex
 
 # Or in current directory:
-speckitty init . --ai claude
-speckitty init . --ai codex
+spec-kitty init . --ai claude
+spec-kitty init . --ai codex
 
 # or use --here flag
-speckitty init --here --ai claude
-speckitty init --here --ai codex
+spec-kitty init --here --ai claude
+spec-kitty init --here --ai codex
 
 # Force merge into a non-empty current directory
-speckitty init . --force --ai claude
+spec-kitty init . --force --ai claude
 
 # or
-speckitty init --here --force --ai claude
+spec-kitty init --here --force --ai claude
 ```
 
 The CLI will check if you have Claude Code, Gemini CLI, Cursor CLI, Qwen CLI, opencode, Codex CLI, or Amazon Q Developer CLI installed. If you do not, or you prefer to get the templates without checking for the right tools, use `--ignore-agent-tools` with your command:
 
 ```bash
-speckitty init <project_name> --ai claude --ignore-agent-tools
+spec-kitty init <project_name> --ai claude --ignore-agent-tools
 ```
 
 You can pass multiple assistants at once by comma-separating the values (e.g., `--ai claude,codex`). The generator pulls in the combined commands on a single run so both agents share the same workspace.
@@ -398,19 +398,19 @@ Go to the project folder and run your AI agent. In our example, we're using `cla
 
 ![Bootstrapping Claude Code environment](./media/bootstrap-claude-code.gif)
 
-You will know that things are configured correctly if you see the `/speckitty.constitution`, `/speckitty.specify`, `/speckitty.plan`, `/speckitty.tasks`, `/speckitty.implement`, and `/speckitty.review` commands available.
+You will know that things are configured correctly if you see the `/spec-kitty.constitution`, `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks`, `/spec-kitty.implement`, and `/spec-kitty.review` commands available.
 
-The first step should be establishing your project's governing principles using the `/speckitty.constitution` command. This helps ensure consistent decision-making throughout all subsequent development phases:
+The first step should be establishing your project's governing principles using the `/spec-kitty.constitution` command. This helps ensure consistent decision-making throughout all subsequent development phases:
 
 ```text
-/speckitty.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements. Include governance for how these principles should guide technical decisions and implementation choices.
+/spec-kitty.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements. Include governance for how these principles should guide technical decisions and implementation choices.
 ```
 
-This step creates or updates the `.specify/memory/constitution.md` file with your project's foundational guidelines that the AI agent will reference during specification, planning, and implementation phases.
+This step creates or updates the `.kittify/memory/constitution.md` file with your project's foundational guidelines that the AI agent will reference during specification, planning, and implementation phases.
 
 ### **STEP 2:** Create project specifications
 
-With your project principles established, you can now create the functional specifications. Use the `/speckitty.specify` command and then provide the concrete requirements for the project you want to develop.
+With your project principles established, you can now create the functional specifications. Use the `/spec-kitty.specify` command and then provide the concrete requirements for the project you want to develop.
 
 >[!IMPORTANT]
 >Be as explicit as possible about _what_ you are trying to build and _why_. **Do not focus on the tech stack at this point**.
@@ -438,29 +438,30 @@ delete any comments that you made, but you can't delete comments anybody else ma
 
 After this prompt is entered, you should see Claude Code kick off the planning and spec drafting process. Claude Code will also trigger some of the built-in scripts to set up the repository.
 
-Once this step is completed, you should have a new branch created (e.g., `001-create-taskify`), as well as a new specification in the `specs/001-create-taskify` directory.
+Once this step is completed, you should have a new branch created (e.g., `001-create-taskify`), as well as a new specification in the `kitty-specs/001-create-taskify` directory.
 
 The produced specification should contain a set of user stories and functional requirements, as defined in the template.
 
 At this stage, your project folder contents should resemble the following:
 
 ```text
-└── .specify
-    ├── memory
-    │	 └── constitution.md
-    ├── scripts
-    │	 ├── check-prerequisites.sh
-    │	 ├── common.sh
-    │	 ├── create-new-feature.sh
-    │	 ├── setup-plan.sh
-    │	 └── update-claude-md.sh
-    ├── specs
-    │	 └── 001-create-taskify
-    │	     └── spec.md
-    └── templates
-        ├── plan-template.md
-        ├── spec-template.md
-        └── tasks-template.md
+.
+├── .kittify
+│   ├── memory
+│   │   └── constitution.md
+│   ├── scripts
+│   │   ├── check-prerequisites.sh
+│   │   ├── common.sh
+│   │   ├── create-new-feature.sh
+│   │   ├── setup-plan.sh
+│   │   └── update-claude-md.sh
+│   └── templates
+│       ├── plan-template.md
+│       ├── spec-template.md
+│       └── tasks-template.md
+└── kitty-specs
+    └── 001-create-taskify
+        └── spec.md
 ```
 
 ### **STEP 3:** Functional specification clarification (required before planning)
@@ -470,12 +471,12 @@ With the baseline specification created, you can go ahead and clarify any of the
 You should run the structured clarification workflow **before** creating a technical plan to reduce rework downstream.
 
 Preferred order:
-1. Use `/speckitty.clarify` (structured) – sequential, coverage-based questioning that records answers in a Clarifications section.
+1. Use `/spec-kitty.clarify` (structured) – sequential, coverage-based questioning that records answers in a Clarifications section.
 2. Optionally follow up with ad-hoc free-form refinement if something still feels vague.
 
 If you intentionally want to skip clarification (e.g., spike or exploratory prototype), explicitly state that so the agent doesn't block on missing clarifications.
 
-Example free-form refinement prompt (after `/speckitty.clarify` if still needed):
+Example free-form refinement prompt (after `/spec-kitty.clarify` if still needed):
 
 ```text
 For each sample project or project that you create there should be a variable number of tasks between 5 and 15
@@ -493,7 +494,7 @@ It's important to use the interaction with Claude Code as an opportunity to clar
 
 ### **STEP 4:** Generate a plan
 
-You can now be specific about the tech stack and other technical requirements. You can use the `/speckitty.plan` command that is built into the project template with a prompt like this:
+You can now be specific about the tech stack and other technical requirements. You can use the `/spec-kitty.plan` command that is built into the project template with a prompt like this:
 
 ```text
 We are going to generate this using .NET Aspire, using Postgres as the database. The frontend should use
@@ -579,13 +580,13 @@ You can also ask Claude Code (if you have the [GitHub CLI](https://docs.github.c
 
 ### STEP 6: Implementation
 
-Once ready, use the `/speckitty.implement` command to execute your implementation plan:
+Once ready, use the `/spec-kitty.implement` command to execute your implementation plan:
 
 ```text
-/speckitty.implement
+/spec-kitty.implement
 ```
 
-The `/speckitty.implement` command will:
+The `/spec-kitty.implement` command will:
 - Validate that all prerequisites are in place (constitution, spec, plan, and tasks)
 - Parse the task breakdown from `tasks.md`
 - Execute tasks in the correct order, respecting dependencies and parallel execution markers

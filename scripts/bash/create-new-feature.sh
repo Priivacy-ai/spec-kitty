@@ -36,7 +36,7 @@ done
 FEATURE_DESCRIPTION="${ARGS[*]}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
     cat >&2 <<'EOF'
-[specify] Error: Feature description missing.
+[spec-kitty] Error: Feature description missing.
 This script must only run after the discovery interview produces a confirmed intent summary.
 Return WAITING_FOR_DISCOVERY_INPUT, gather the answers, then invoke the script with the finalized description.
 EOF
@@ -47,7 +47,7 @@ fi
 find_repo_root() {
     local dir="$1"
     while [ "$dir" != "/" ]; do
-        if [ -d "$dir/.git" ] || [ -d "$dir/.specify" ]; then
+        if [ -d "$dir/.git" ] || [ -d "$dir/.kittify" ]; then
             echo "$dir"
             return 0
         fi
@@ -84,7 +84,7 @@ slugify() {
     echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-//' | sed 's/-$//'
 }
 
-SPECS_DIR_BASE="$REPO_ROOT/specs"
+SPECS_DIR_BASE="$REPO_ROOT/kitty-specs"
 HIGHEST=0
 if [ -d "$SPECS_DIR_BASE" ]; then
     for dir in "$SPECS_DIR_BASE"/*; do
@@ -144,12 +144,12 @@ if [ "$HAS_GIT" = true ]; then
                         TARGET_ROOT="$WORKTREE_PATH"
                         WORKTREE_CREATED=true
                         WORKTREE_NOTE="$WORKTREE_PATH"
-                        >&2 echo "[specify] Warning: Reusing existing worktree at $WORKTREE_PATH for $BRANCH_NAME."
+                        >&2 echo "[spec-kitty] Warning: Reusing existing worktree at $WORKTREE_PATH for $BRANCH_NAME."
                     else
-                        >&2 echo "[specify] Warning: Existing worktree at $WORKTREE_PATH is checked out to $CURRENT_WORKTREE_BRANCH; skipping worktree creation."
+                        >&2 echo "[spec-kitty] Warning: Existing worktree at $WORKTREE_PATH is checked out to $CURRENT_WORKTREE_BRANCH; skipping worktree creation."
                     fi
                 else
-                    >&2 echo "[specify] Warning: Worktree path $WORKTREE_PATH exists but is not a git worktree; skipping worktree creation."
+                    >&2 echo "[spec-kitty] Warning: Worktree path $WORKTREE_PATH exists but is not a git worktree; skipping worktree creation."
                 fi
             else
                 if git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME" >/dev/null 2>&1; then
@@ -157,41 +157,41 @@ if [ "$HAS_GIT" = true ]; then
                     WORKTREE_CREATED=true
                     WORKTREE_NOTE="$WORKTREE_PATH"
                 else
-                    >&2 echo "[specify] Warning: Unable to create git worktree for $BRANCH_NAME; falling back to in-place checkout."
+                    >&2 echo "[spec-kitty] Warning: Unable to create git worktree for $BRANCH_NAME; falling back to in-place checkout."
                 fi
             fi
         else
-            >&2 echo "[specify] Warning: Git worktree command unavailable; falling back to in-place checkout."
+            >&2 echo "[spec-kitty] Warning: Git worktree command unavailable; falling back to in-place checkout."
         fi
     fi
 
     if [ "$WORKTREE_CREATED" != "true" ]; then
         if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
             if ! git checkout "$BRANCH_NAME"; then
-                >&2 echo "[specify] Error: Failed to check out existing branch $BRANCH_NAME"
+                >&2 echo "[spec-kitty] Error: Failed to check out existing branch $BRANCH_NAME"
                 exit 1
             fi
         else
             if ! git checkout -b "$BRANCH_NAME"; then
-                >&2 echo "[specify] Error: Failed to create branch $BRANCH_NAME"
+                >&2 echo "[spec-kitty] Error: Failed to create branch $BRANCH_NAME"
                 exit 1
             fi
         fi
     fi
 else
-    >&2 echo "[specify] Warning: Git repository not detected; skipped branch creation for $BRANCH_NAME"
+    >&2 echo "[spec-kitty] Warning: Git repository not detected; skipped branch creation for $BRANCH_NAME"
 fi
 
 REPO_ROOT="$TARGET_ROOT"
 cd "$REPO_ROOT"
 
-SPECS_DIR="$REPO_ROOT/specs"
+SPECS_DIR="$REPO_ROOT/kitty-specs"
 mkdir -p "$SPECS_DIR"
 
 FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
 mkdir -p "$FEATURE_DIR"
 
-TEMPLATE="$REPO_ROOT/.specify/templates/spec-template.md"
+TEMPLATE="$REPO_ROOT/.kittify/templates/spec-template.md"
 SPEC_FILE="$FEATURE_DIR/spec.md"
 if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
 

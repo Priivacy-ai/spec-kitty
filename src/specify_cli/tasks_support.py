@@ -20,12 +20,12 @@ class TaskCliError(RuntimeError):
 
 
 def find_repo_root(start: Optional[Path] = None) -> Path:
-    """Walk upward until a Git or .specify root is found."""
+    """Walk upward until a Git or .kittify root is found."""
     current = (start or Path.cwd()).resolve()
     for candidate in [current, *current.parents]:
-        if (candidate / ".git").exists() or (candidate / ".specify").exists():
+        if (candidate / ".git").exists() or (candidate / ".kittify").exists():
             return candidate
-    raise TaskCliError("Unable to locate repository root (missing .git or .specify).")
+    raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
 
 
 def run_git(args: List[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
@@ -73,7 +73,7 @@ def detect_conflicting_wp_status(
     status_lines: List[str], feature: str, old_path: Path, new_path: Path
 ) -> List[str]:
     """Return staged work-package entries unrelated to the requested move."""
-    prefix = f"specs/{feature}/tasks/"
+    prefix = f"kitty-specs/{feature}/tasks/"
     allowed = {
         str(old_path).lstrip("./"),
         str(new_path).lstrip("./"),
@@ -244,7 +244,7 @@ class WorkPackage:
 
 
 def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
-    tasks_root = repo_root / "specs" / feature / "tasks"
+    tasks_root = repo_root / "kitty-specs" / feature / "tasks"
     if not tasks_root.exists():
         raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")
 
@@ -259,7 +259,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
                 candidates.append((lane, path, lane_path))
 
     if not candidates:
-        raise TaskCliError(f"Work package '{wp_id}' not found under specs/{feature}/tasks.")
+        raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks.")
     if len(candidates) > 1:
         joined = "\n".join(str(item[1].relative_to(repo_root)) for item in candidates)
         raise TaskCliError(

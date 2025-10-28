@@ -17,15 +17,15 @@
 The easiest way to get started is to initialize a new project:
 
 ```bash
-uvx --from . speckitty init <PROJECT_NAME>
+uvx --from . spec-kitty init <PROJECT_NAME>
 ```
 
 Or initialize in the current directory:
 
 ```bash
-uvx --from . speckitty init .
+uvx --from . spec-kitty init .
 # or use the --here flag
-uvx --from . speckitty init --here
+uvx --from . spec-kitty init --here
 ```
 
 > Run these commands from the Spec Kitty repository root so `.` resolves to this checkout.
@@ -35,9 +35,9 @@ uvx --from . speckitty init --here
 You can proactively specify your AI agent during initialization:
 
 ```bash
-uvx --from . speckitty init <project_name> --ai claude
-uvx --from . speckitty init <project_name> --ai gemini
-uvx --from . speckitty init <project_name> --ai copilot
+uvx --from . spec-kitty init <project_name> --ai claude
+uvx --from . spec-kitty init <project_name> --ai gemini
+uvx --from . spec-kitty init <project_name> --ai copilot
 ```
 
 ### Choose Script Type (Shell vs PowerShell)
@@ -51,8 +51,8 @@ Auto behavior:
 
 Force a specific script type:
 ```bash
-uvx --from . speckitty init <project_name> --script sh
-uvx --from . speckitty init <project_name> --script ps
+uvx --from . spec-kitty init <project_name> --script sh
+uvx --from . spec-kitty init <project_name> --script ps
 ```
 
 ### Ignore Agent Tools Check
@@ -60,19 +60,19 @@ uvx --from . speckitty init <project_name> --script ps
 If you prefer to get the templates without checking for the right tools:
 
 ```bash
-uvx --from . speckitty init <project_name> --ai claude --ignore-agent-tools
+uvx --from . spec-kitty init <project_name> --ai claude --ignore-agent-tools
 ```
 
 ## Verification
 
 After initialization, you should see the following commands available in your AI agent:
-- `/speckitty.specify` - Create specifications
-- `/speckitty.plan` - Generate implementation plans  
-- `/speckitty.tasks` - Break down into actionable tasks
+- `/spec-kitty.specify` - Create specifications
+- `/spec-kitty.plan` - Generate implementation plans  
+- `/spec-kitty.tasks` - Break down into actionable tasks
 
-When you run `/speckitty.specify` or `/speckitty.plan`, expect the assistant to pause with `WAITING_FOR_DISCOVERY_INPUT` or `WAITING_FOR_PLANNING_INPUT` until you answer its question tables.
+When you run `/spec-kitty.specify` or `/spec-kitty.plan`, expect the assistant to pause with `WAITING_FOR_DISCOVERY_INPUT` or `WAITING_FOR_PLANNING_INPUT` until you answer its question tables.
 
-The `.specify/scripts` directory will contain both `.sh` and `.ps1` scripts.
+The `.kittify/scripts` directory will contain both `.sh` and `.ps1` scripts.
 
 ## Troubleshooting
 

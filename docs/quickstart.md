@@ -4,7 +4,7 @@ This guide will help you get started with Spec-Driven Development using Spec Kit
 
 > Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). All commands and examples have been updated to use the spec-kitty branding while honoring the upstream license.
 
-> NEW: All automation scripts now provide both Bash (`.sh`) and PowerShell (`.ps1`) variants. The `speckitty` CLI auto-selects based on OS unless you pass `--script sh|ps`.
+> NEW: All automation scripts now provide both Bash (`.sh`) and PowerShell (`.ps1`) variants. The `spec-kitty` CLI auto-selects based on OS unless you pass `--script sh|ps`.
 
 ## The 4-Step Process
 
@@ -13,7 +13,7 @@ This guide will help you get started with Spec-Driven Development using Spec Kit
 Initialize your project depending on the coding agent you're using:
 
 ```bash
-uvx --from . speckitty init <PROJECT_NAME>
+uvx --from . spec-kitty init <PROJECT_NAME>
 ```
 
 > Run these commands from the Spec Kitty repository root so `.` resolves to this checkout.
@@ -22,13 +22,13 @@ uvx --from . speckitty init <PROJECT_NAME>
 
 Pick script type explicitly (optional):
 ```bash
-uvx --from . speckitty init <PROJECT_NAME> --script ps  # Force PowerShell
-uvx --from . speckitty init <PROJECT_NAME> --script sh  # Force POSIX shell
+uvx --from . spec-kitty init <PROJECT_NAME> --script ps  # Force PowerShell
+uvx --from . spec-kitty init <PROJECT_NAME> --script sh  # Force POSIX shell
 ```
 
 ### Optional: Automated Sandbox Setup
 
-If you frequently spin up disposable sandboxes, run the helper script from the repo root. It installs the local CLI build, points `SPECKITTY_TEMPLATE_ROOT` at this checkout, and initializes the project in one go:
+If you frequently spin up disposable sandboxes, run the helper script from the repo root. It installs the local CLI build, points `SPEC_KITTY_TEMPLATE_ROOT` at this checkout, and initializes the project in one go:
 
 ```bash
 scripts/bash/setup-sandbox.sh --agents claude ~/Code/new_specify
@@ -38,10 +38,10 @@ Add `--reset` to recreate an existing directory, `--script-type ps` for PowerShe
 
 ### 2. Create the Spec
 
-Use the `/speckitty.specify` command to describe what you want to build. Focus on the **what** and **why**, not the tech stack. Expect the CLI to interview you first and stay in discovery mode until you answer its questions.
+Use the `/spec-kitty.specify` command to describe what you want to build. Focus on the **what** and **why**, not the tech stack. Expect the CLI to interview you first and stay in discovery mode until you answer its questions.
 
 ```bash
-/speckitty.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
+/spec-kitty.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
 The command responds with `WAITING_FOR_DISCOVERY_INPUT` until you answer every discovery question it raises.
@@ -50,27 +50,27 @@ The command responds with `WAITING_FOR_DISCOVERY_INPUT` until you answer every d
 
 ### 3. Create a Technical Implementation Plan
 
-Use the `/speckitty.plan` command to provide your tech stack and architecture choices. The command will challenge the specification, ask you non-functional questions, and pause until you reply.
+Use the `/spec-kitty.plan` command to provide your tech stack and architecture choices. The command will challenge the specification, ask you non-functional questions, and pause until you reply.
 
 ```bash
-/speckitty.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
+/spec-kitty.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
 ```
 
 Expect `WAITING_FOR_PLANNING_INPUT` prompts whenever the planner needs more architectural detail.
 
 ### 4. Break Down and Implement
 
-1. Run `/speckitty.tasks` to produce the summary checklist in `tasks.md` **and** generate up to ten bundled prompt files under `/tasks/planned/`. Each bundle covers a work package with the granular subtasks nested beneath it.
-2. Use `/speckitty.implement` to move a prompt into `/tasks/doing/` and build the solution.
-3. Finish with `/speckitty.review` to process items in `/tasks/for_review/` and move approved work to `/tasks/done/`.
+1. Run `/spec-kitty.tasks` to produce the summary checklist in `tasks.md` **and** generate up to ten bundled prompt files under `/tasks/planned/`. Each bundle covers a work package with the granular subtasks nested beneath it.
+2. Use `/spec-kitty.implement` to move a prompt into `/tasks/doing/` and build the solution.
+3. Finish with `/spec-kitty.review` to process items in `/tasks/for_review/` and move approved work to `/tasks/done/`.
 
 ### 5. Accept & Merge
 
-Once `/tasks/done/` contains every work package and the checklist is complete, run `/speckitty.accept` (or `speckitty accept`) to:
+Once `/tasks/done/` contains every work package and the checklist is complete, run `/spec-kitty.accept` (or `spec-kitty accept`) to:
 
 - Validate that all prompts are in the correct lanes with required metadata and activity log entries.
 - Surface any remaining `NEEDS CLARIFICATION` markers or unchecked tasks.
-- Record acceptance metadata in `specs/<feature>/meta.json`, create a commit (optional), and print merge guidance (PR or local) plus cleanup steps (`git worktree remove`, branch deletion).
+- Record acceptance metadata in `kitty-specs/<feature>/meta.json`, create a commit (optional), and print merge guidance (PR or local) plus cleanup steps (`git worktree remove`, branch deletion).
 
 If you just need the readiness report, pass `--mode checklist` to see the findings without committing or printing merge instructions.
 
@@ -78,7 +78,7 @@ If you just need the readiness report, pass `--mode checklist` to see the findin
 
 Here's a complete example of building a team productivity platform:
 
-### Step 1: Define Requirements with `/speckitty.specify`
+### Step 1: Define Requirements with `/spec-kitty.specify`
 
 ```text
 Develop Taskify, a team productivity platform. It should allow users to create projects, add team members,
@@ -115,7 +115,7 @@ Also validate the specification checklist:
 Read the review and acceptance checklist, and check off each item in the checklist if the feature spec meets the criteria. Leave it empty if it does not.
 ```
 
-### Step 3: Generate Technical Plan with `/speckitty.plan`
+### Step 3: Generate Technical Plan with `/spec-kitty.plan`
 
 Be specific about your tech stack and technical requirements:
 
@@ -138,15 +138,15 @@ to be doing that are obvious from reading this. Because I don't know if there's 
 Then run the build commands in order:
 
 ```text
-implement specs/002-create-taskify/plan.md
+implement kitty-specs/002-create-taskify/plan.md
 ```
 
 Next:
 
 ```text
-/speckitty.tasks
-/speckitty.implement
-/speckitty.review
+/spec-kitty.tasks
+/spec-kitty.implement
+/spec-kitty.review
 ```
 
 ## Key Principles

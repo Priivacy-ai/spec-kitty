@@ -13,7 +13,7 @@ history:
     lane: "planned"
     agent: "system"
     shell_pid: ""
-    action: "Prompt generated via /speckitty.tasks"
+    action: "Prompt generated via /spec-kitty.tasks"
 ---
 
 # Work Package Prompt: {{work_package_id}} – {{title}}
@@ -26,7 +26,7 @@ history:
 ## Context & Constraints
 
 - Reference prerequisite work and related documents.
-- Link to supporting specs: `.specify/memory/constitution.md`, `specs/.../plan.md`, `specs/.../tasks.md`, data model, contracts, research, quickstart.
+- Link to supporting specs: `.kittify/memory/constitution.md`, `kitty-specs/.../plan.md`, `kitty-specs/.../tasks.md`, data model, contracts, research, quickstart.
 - Highlight architectural decisions, constraints, or trade-offs to honor.
 
 ## Subtasks & Detailed Guidance
@@ -62,7 +62,7 @@ history:
 
 ## Review Guidance
 
-- Key acceptance checkpoints for `/speckitty.review`.
+- Key acceptance checkpoints for `/spec-kitty.review`.
 - Any context reviewers should revisit before approving.
 
 ## Activity Log
@@ -78,7 +78,7 @@ history:
 1. Capture your shell PID: `echo $$` (or use helper scripts when available).
 2. Update frontmatter (`lane`, `assignee`, `agent`, `shell_pid`).
 3. Add an entry to the **Activity Log** describing the transition.
-4. Run `.specify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <WPID> <lane>` (PowerShell variant available) to move the prompt, update metadata, and append history in one step.
+4. Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <WPID> <lane>` (PowerShell variant available) to move the prompt, update metadata, and append history in one step.
 5. Commit or stage the change, preserving history.
 
 ### Optional Phase Subdirectories

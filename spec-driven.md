@@ -26,8 +26,8 @@ Spec Kitty treats specification and planning as co-creation activities. Every co
 
 **Discovery Gates Enforce Completeness:**
 
-- `/speckitty.specify` enters a discovery interview on first invocation, asking one question at a time and blocking with `WAITING_FOR_DISCOVERY_INPUT` until all answers are provided and an Intent Summary is confirmed
-- `/speckitty.plan` follows the same pattern with `WAITING_FOR_PLANNING_INPUT`, interrogating tech stack, architecture, non-functional requirements, and operational constraints before generating artifacts
+- `/spec-kitty.specify` enters a discovery interview on first invocation, asking one question at a time and blocking with `WAITING_FOR_DISCOVERY_INPUT` until all answers are provided and an Intent Summary is confirmed
+- `/spec-kitty.plan` follows the same pattern with `WAITING_FOR_PLANNING_INPUT`, interrogating tech stack, architecture, non-functional requirements, and operational constraints before generating artifacts
 - Proportional depth: lightweight features receive lightweight questioning, while complex platform builds demand exhaustive interrogation
 - No markdown tables rendered to users—agents track coverage internally and present one focused question per turn
 
@@ -87,7 +87,7 @@ The key is treating specifications as the source of truth, with code as the gene
 
 The SDD methodology is significantly enhanced through three powerful commands that automate the specification → planning → tasking workflow:
 
-### The `/speckitty.specify` Command
+### The `/spec-kitty.specify` Command
 
 This command transforms a simple feature description (the user-prompt) into a complete, structured specification with automatic repository management:
 
@@ -95,11 +95,11 @@ This command transforms a simple feature description (the user-prompt) into a co
 2. **Branch Creation**: Generates a semantic branch name from your description and creates it automatically
 3. **Dedicated Worktree**: Spawns an isolated checkout under `.worktrees/<feature-slug>` so each feature has its own sandbox without disturbing other branches
 4. **Template-Based Generation**: Copies and customizes the feature specification template with your requirements
-5. **Directory Structure**: Creates the proper `specs/[branch-name]/` structure for all related documents
+5. **Directory Structure**: Creates the proper `kitty-specs/[branch-name]/` structure for all related documents
 
 After the command finishes, switch your shell into the new worktree (e.g., `cd .worktrees/003-chat-system`) before running planning or implementation commands. If your environment can’t access the `.worktrees/` directory, the CLI falls back to the legacy single-worktree flow so you can keep working.
 
-### The `/speckitty.plan` Command
+### The `/spec-kitty.plan` Command
 
 Once a feature specification exists, this command creates a comprehensive implementation plan:
 
@@ -109,7 +109,7 @@ Once a feature specification exists, this command creates a comprehensive implem
 4. **Detailed Documentation**: Generates supporting documents for data models, API contracts, and test scenarios
 5. **Quickstart Validation**: Produces a quickstart guide capturing key validation scenarios
 
-### The `/speckitty.tasks` Command
+### The `/spec-kitty.tasks` Command
 
 After a plan is created, this command analyzes the plan and related design documents to generate both the executable task list *and* the kanban-ready prompt bundles:
 
@@ -119,7 +119,7 @@ After a plan is created, this command analyzes the plan and related design docum
 4. **Prompt Generation**: Builds the `/tasks/` mini-board directories, writes one prompt file per work package in `tasks/planned/` using the bundle template (complete with metadata and implementation detail), and links each package from `tasks.md`.
 5. **Outputs**: Produces `tasks.md` plus the populated `/tasks/planned/` directory so implementers can immediately move bundled work into `/tasks/doing/` and start building.
 
-### The `/speckitty.review` Command
+### The `/spec-kitty.review` Command
 
 Provides a structured hand-off gate for work that lands in `tasks/for_review/`:
 
@@ -128,28 +128,28 @@ Provides a structured hand-off gate for work that lands in `tasks/for_review/`:
 3. **Decision Flow**: Moves prompts back to `/planned/` with feedback or forward to `/done/` on approval, always updating frontmatter history and activity logs with agent + PID data.
 4. **Automation Hooks**: Invokes helper scripts to flip task checkboxes in `tasks.md` when review passes, keeping status in sync with the kanban board.
 
-### The `/speckitty.accept` Command
+### The `/spec-kitty.accept` Command
 
 Use this command after every work package is in `tasks/done/` and the checklist is complete:
 
 1. **Readiness Checks**: Confirms no work packages remain in `planned`, `doing`, or `for_review`; validates frontmatter metadata (`lane`, `agent`, `assignee`, `shell_pid`) and ensures Activity Log entries exist for each lane transition.
 2. **Artifact Audit**: Verifies `spec.md`, `plan.md`, `tasks.md`, and supporting documents are present and free from `NEEDS CLARIFICATION` markers; confirms all checkboxes in `tasks.md` are checked.
-3. **Acceptance Metadata**: Records timestamp, actor, mode, and parent commit in `specs/<feature>/meta.json`, creating an acceptance commit unless run in dry-run mode.
+3. **Acceptance Metadata**: Records timestamp, actor, mode, and parent commit in `kitty-specs/<feature>/meta.json`, creating an acceptance commit unless run in dry-run mode.
 4. **Guidance Output**: Produces merge instructions for either hosted PRs or local merges, plus cleanup commands to remove the feature worktree and branch once merged.
 
-`/speckitty.implement` and `/speckitty.accept` both assume you are operating from that feature’s worktree. If you drift back to the repo root, `cd .worktrees/<feature-slug>` (or recreate the worktree with `git worktree add`) before moving prompts or running acceptance.
+`/spec-kitty.implement` and `/spec-kitty.accept` both assume you are operating from that feature’s worktree. If you drift back to the repo root, `cd .worktrees/<feature-slug>` (or recreate the worktree with `git worktree add`) before moving prompts or running acceptance.
 
-`/speckitty.accept` is also exposed as `speckitty accept`, so the same workflow is available from the terminal with optional `--json`, `--mode`, and `--no-commit` switches.
+`/spec-kitty.accept` is also exposed as `spec-kitty accept`, so the same workflow is available from the terminal with optional `--json`, `--mode`, and `--no-commit` switches.
 
-### The `/speckitty.implement` Workflow: Kanban Discipline
+### The `/spec-kitty.implement` Workflow: Kanban Discipline
 
 The implementation command enforces a rigorous task workflow that ensures traceability and prevents work from stalling:
 
 **Mandatory Initialization (Blocking):**
 
-Before any coding begins, `/speckitty.implement` requires each work package to transition through lanes with full metadata tracking:
+Before any coding begins, `/spec-kitty.implement` requires each work package to transition through lanes with full metadata tracking:
 
-1. **Move prompt to doing lane**: `.specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx doing --note "Started implementation"` (PowerShell equivalent available)
+1. **Move prompt to doing lane**: `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx doing --note "Started implementation"` (PowerShell equivalent available)
 2. **Update frontmatter metadata**:
    ```yaml
    lane: "doing"
@@ -173,11 +173,11 @@ The agent must verify before proceeding to implementation:
 
 Spec Kitty ships with helper scripts to streamline the workflow:
 
-- `.specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx doing --note "Started implementation"` (and the PowerShell counterpart) – Moves prompts between lanes, updates frontmatter, and records activity in one shot.
-- `.specify/scripts/bash/tasks-add-history-entry.sh FEATURE-SLUG WPxx --note "Resumed after dependency install"` – Appends structured history without moving lanes.
-- `.specify/scripts/bash/tasks-list-lanes.sh FEATURE-SLUG` – Shows the current lane, agent, and assignee for every work package.
-- `.specify/scripts/bash/tasks-rollback-move.sh FEATURE-SLUG WPxx` – Returns a prompt to its previous lane if a move was made in error.
-- `scripts/bash/validate-task-workflow.sh WPxx specs/FEATURE` – Validates prompt is in correct lane with required metadata before implementation starts.
+- `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx doing --note "Started implementation"` (and the PowerShell counterpart) – Moves prompts between lanes, updates frontmatter, and records activity in one shot.
+- `.kittify/scripts/bash/tasks-add-history-entry.sh FEATURE-SLUG WPxx --note "Resumed after dependency install"` – Appends structured history without moving lanes.
+- `.kittify/scripts/bash/tasks-list-lanes.sh FEATURE-SLUG` – Shows the current lane, agent, and assignee for every work package.
+- `.kittify/scripts/bash/tasks-rollback-move.sh FEATURE-SLUG WPxx` – Returns a prompt to its previous lane if a move was made in error.
+- `scripts/bash/validate-task-workflow.sh WPxx kitty-specs/FEATURE` – Validates prompt is in correct lane with required metadata before implementation starts.
 - `scripts/git-hooks/pre-commit-task-workflow.sh` – Optional git hook to enforce lane metadata in commits.
 
 **Completion Flow:**
@@ -185,7 +185,7 @@ Spec Kitty ships with helper scripts to streamline the workflow:
 After implementing the work package, the agent must:
 
 1. Add completion entry to activity log
-2. Move prompt to `for_review/` lane using `.specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx for_review --note "Ready for review"`
+2. Move prompt to `for_review/` lane using `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx for_review --note "Ready for review"`
 3. Update frontmatter: `lane: "for_review"`
 4. Add review-ready activity log entry
 5. Commit the transition
@@ -215,27 +215,27 @@ Total: ~12 hours of documentation work
 
 ```bash
 # Step 1: Create the feature specification (5 minutes)
-/speckitty.specify Real-time chat system with message history and user presence
+/spec-kitty.specify Real-time chat system with message history and user presence
 
 # This automatically:
 # - Creates branch "003-chat-system"
-# - Generates specs/003-chat-system/spec.md
+# - Generates kitty-specs/003-chat-system/spec.md
 # - Populates it with structured requirements
 
 # Step 2: Generate implementation plan (5 minutes)
-/speckitty.plan WebSocket for real-time messaging, PostgreSQL for history, Redis for presence
+/spec-kitty.plan WebSocket for real-time messaging, PostgreSQL for history, Redis for presence
 
 # Step 3: Generate executable tasks (5 minutes)
-/speckitty.tasks
+/spec-kitty.tasks
 
 # This automatically creates:
-# - specs/003-chat-system/plan.md
-# - specs/003-chat-system/research.md (WebSocket library comparisons)
-# - specs/003-chat-system/data-model.md (Message and User schemas)
-# - specs/003-chat-system/contracts/ (WebSocket events, REST endpoints)
-# - specs/003-chat-system/quickstart.md (Key validation scenarios)
-# - specs/003-chat-system/tasks.md (Work packages with subtasks)
-# - specs/003-chat-system/tasks/planned/WP0x-*.md (Prompt bundles for each work package)
+# - kitty-specs/003-chat-system/plan.md
+# - kitty-specs/003-chat-system/research.md (WebSocket library comparisons)
+# - kitty-specs/003-chat-system/data-model.md (Message and User schemas)
+# - kitty-specs/003-chat-system/contracts/ (WebSocket events, REST endpoints)
+# - kitty-specs/003-chat-system/quickstart.md (Key validation scenarios)
+# - kitty-specs/003-chat-system/tasks.md (Work packages with subtasks)
+# - kitty-specs/003-chat-system/tasks/planned/WP0x-*.md (Prompt bundles for each work package)
 ```
 
 In 15 minutes, you have:

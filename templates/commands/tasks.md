@@ -17,11 +17,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 1. **Setup**: Run `{SCRIPT}` from repo root and capture `FEATURE_DIR` plus `AVAILABLE_DOCS`. All paths must be absolute.
 
-   **CRITICAL**: The script returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/specs/001-feature-name`).
+   **CRITICAL**: The script returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations. Example:
    ```
-   FEATURE_DIR = "/Users/robert/Code/new_specify/specs/001-a-simple-hello"
+   FEATURE_DIR = "/Users/robert/Code/new_specify/kitty-specs/001-a-simple-hello"
    tasks.md location: FEATURE_DIR + "/tasks.md"
    prompt location: FEATURE_DIR + "/tasks/planned/WP01-slug.md"
    ```
@@ -47,7 +47,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Name each work package with a succinct goal (e.g., “User Story 1 – Real-time chat happy path”).
    - Record per-package metadata: priority, success criteria, risks, dependencies, and list of included subtasks.
 
-5. **Write `tasks.md`** using `.specify/templates/tasks-template.md`:
+5. **Write `tasks.md`** using `.kittify/templates/tasks-template.md`:
    - **Location**: Write to `FEATURE_DIR/tasks.md` (use the absolute FEATURE_DIR path from step 1)
    - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries
    - Under each work package include:
@@ -66,7 +66,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `FEATURE_DIR/tasks/planned/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
-     - Use `.specify/templates/task-prompt-template.md` to capture:
+     - Use `.kittify/templates/task-prompt-template.md` to capture:
        - Frontmatter with `work_package_id`, `subtasks` array, `lane=planned`, history entry
        - Objective, context, detailed guidance per subtask
        - Test strategy (only if requested)
@@ -80,7 +80,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Parallelization highlights
    - MVP scope recommendation (usually Work Package 1)
   - Prompt generation stats (files written, directory structure, any skipped items with rationale)
-   - Next suggested command (e.g., `/speckitty.analyze` or `/speckitty.implement`)
+   - Next suggested command (e.g., `/spec-kitty.analyze` or `/spec-kitty.implement`)
 
 Context for work-package planning: {ARGS}
 

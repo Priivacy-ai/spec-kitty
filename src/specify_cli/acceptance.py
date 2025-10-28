@@ -161,7 +161,7 @@ class AcceptanceResult:
 
 
 def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
-    tasks_dir = repo_root / "specs" / feature / "tasks"
+    tasks_dir = repo_root / "kitty-specs" / feature / "tasks"
     if not tasks_dir.exists():
         raise AcceptanceError(f"Feature '{feature}' has no tasks directory at {tasks_dir}.")
 
@@ -269,7 +269,7 @@ def collect_feature_summary(
     *,
     strict_metadata: bool = True,
 ) -> AcceptanceSummary:
-    feature_dir = repo_root / "specs" / feature
+    feature_dir = repo_root / "kitty-specs" / feature
     tasks_dir = feature_dir / "tasks"
     if not feature_dir.exists():
         raise AcceptanceError(f"Feature directory not found: {feature_dir}")

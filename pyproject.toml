@@ -1,6 +1,6 @@
 [project]
-name = "speckitty-cli"
-version = "0.1.1"
+name = "spec-kitty-cli"
+version = "0.1.2"
 description = "Spec Kitty CLI, a community fork of GitHub's Spec Kit for bootstrapping Spec-Driven Development (SDD) projects."
 requires-python = ">=3.11"
 dependencies = [
@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-speckitty = "specify_cli:main"
+spec-kitty = "specify_cli:main"
 
 [build-system]
 requires = ["hatchling"]
