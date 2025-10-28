@@ -1551,7 +1551,7 @@ def init(
         steps_lines.append(f"{step_num}. Set [cyan]CODEX_HOME[/cyan] environment variable before running Codex: [cyan]{cmd}[/cyan]")
         step_num += 1
 
-    steps_lines.append(f"{step_num}. Start using slash commands with your AI agent:")
+    steps_lines.append(f"{step_num}. Start using slash commands with your AI agent (in workflow order):")
 
     steps_lines.append("   - [cyan]/spec-kitty.dashboard[/] - Open the real-time kanban dashboard")
     steps_lines.append("   - [cyan]/spec-kitty.constitution[/] - Establish project principles")
@@ -1560,7 +1560,8 @@ def init(
     steps_lines.append("   - [cyan]/spec-kitty.tasks[/] - Generate tasks and kanban-ready prompt files")
     steps_lines.append("   - [cyan]/spec-kitty.implement[/] - Execute implementation from /tasks/doing/")
     steps_lines.append("   - [cyan]/spec-kitty.review[/] - Review prompts and move them to /tasks/done/")
-    steps_lines.append("   - [cyan]/spec-kitty.accept[/] - Run acceptance checks and capture merge guidance")
+    steps_lines.append("   - [cyan]/spec-kitty.accept[/] - Run acceptance checks and verify feature complete")
+    steps_lines.append("   - [cyan]/spec-kitty.merge[/] - Merge feature into main and cleanup worktree")
 
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1,2))
     console.print()
@@ -1883,6 +1884,199 @@ def accept(
 
     _print_acceptance_summary(result.summary)
     _print_acceptance_result(result)
+
+
+@app.command()
+def merge(
+    strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
+    delete_branch: bool = typer.Option(True, "--delete-branch/--keep-branch", help="Delete feature branch after merge"),
+    remove_worktree: bool = typer.Option(True, "--remove-worktree/--keep-worktree", help="Remove feature worktree after merge"),
+    push: bool = typer.Option(False, "--push", help="Push to origin after merge"),
+    target_branch: str = typer.Option("main", "--target", help="Target branch to merge into"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
+):
+    """Merge a feature branch into the target branch and clean up worktree."""
+
+    show_banner()
+
+    tracker = StepTracker("Feature Merge")
+    tracker.add("detect", "Detect current feature and branch")
+    tracker.add("verify", "Verify merge readiness")
+    tracker.add("checkout", f"Switch to {target_branch}")
+    tracker.add("pull", f"Update {target_branch}")
+    tracker.add("merge", "Merge feature branch")
+    if push:
+        tracker.add("push", "Push to origin")
+    if remove_worktree:
+        tracker.add("worktree", "Remove feature worktree")
+    if delete_branch:
+        tracker.add("branch", "Delete feature branch")
+
+    console.print()
+
+    try:
+        repo_root = find_repo_root()
+    except TaskCliError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    # Detect current branch and worktree
+    tracker.start("detect")
+    try:
+        current_branch = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
+        if current_branch == target_branch:
+            tracker.error("detect", f"already on {target_branch}")
+            console.print(tracker.render())
+            console.print(f"\n[red]Error:[/red] Already on {target_branch} branch. Switch to a feature branch first.")
+            raise typer.Exit(1)
+
+        # Check if we're in a worktree
+        git_dir = run_command(["git", "rev-parse", "--git-common-dir"], capture=True)
+        in_worktree = ".worktrees" in git_dir or ".git/worktrees" in git_dir
+
+        tracker.complete("detect", f"on {current_branch}" + (" (worktree)" if in_worktree else ""))
+    except Exception as e:
+        tracker.error("detect", str(e))
+        console.print(tracker.render())
+        raise typer.Exit(1)
+
+    # Verify clean working directory
+    tracker.start("verify")
+    try:
+        status_output = run_command(["git", "status", "--porcelain"], capture=True)
+        if status_output.strip():
+            tracker.error("verify", "uncommitted changes")
+            console.print(tracker.render())
+            console.print(f"\n[red]Error:[/red] Working directory has uncommitted changes.")
+            console.print("Commit or stash your changes before merging.")
+            raise typer.Exit(1)
+        tracker.complete("verify", "clean working directory")
+    except Exception as e:
+        tracker.error("verify", str(e))
+        console.print(tracker.render())
+        raise typer.Exit(1)
+
+    if dry_run:
+        console.print(tracker.render())
+        console.print(f"\n[cyan]Dry run - would execute:[/cyan]")
+        console.print(f"  1. git checkout {target_branch}")
+        console.print(f"  2. git pull --ff-only")
+        if strategy == "squash":
+            console.print(f"  3. git merge --squash {current_branch}")
+            console.print(f"  4. git commit -m 'Merge feature {current_branch}'")
+        elif strategy == "rebase":
+            console.print(f"  3. git merge --ff-only {current_branch} (after rebase)")
+        else:
+            console.print(f"  3. git merge --no-ff {current_branch}")
+        if push:
+            console.print(f"  4. git push origin {target_branch}")
+        if in_worktree and remove_worktree:
+            console.print(f"  5. git worktree remove .")
+        if delete_branch:
+            console.print(f"  6. git branch -d {current_branch}")
+        return
+
+    # Switch to target branch
+    tracker.start("checkout")
+    try:
+        # Need to go to repo root for checkout
+        os.chdir(repo_root)
+        run_command(["git", "checkout", target_branch])
+        tracker.complete("checkout")
+    except Exception as e:
+        tracker.error("checkout", str(e))
+        console.print(tracker.render())
+        raise typer.Exit(1)
+
+    # Pull latest
+    tracker.start("pull")
+    try:
+        run_command(["git", "pull", "--ff-only"])
+        tracker.complete("pull")
+    except Exception as e:
+        tracker.error("pull", str(e))
+        console.print(tracker.render())
+        console.print(f"\n[yellow]Warning:[/yellow] Could not fast-forward {target_branch}.")
+        console.print("You may need to resolve conflicts manually.")
+        raise typer.Exit(1)
+
+    # Perform merge
+    tracker.start("merge")
+    try:
+        if strategy == "squash":
+            run_command(["git", "merge", "--squash", current_branch])
+            run_command(["git", "commit", "-m", f"Merge feature {current_branch}"])
+            tracker.complete("merge", "squashed")
+        elif strategy == "rebase":
+            console.print(f"\n[yellow]Note:[/yellow] Rebase strategy requires manual intervention.")
+            console.print(f"Please run: git checkout {current_branch} && git rebase {target_branch}")
+            tracker.skip("merge", "requires manual rebase")
+            console.print(tracker.render())
+            raise typer.Exit(0)
+        else:  # merge
+            run_command(["git", "merge", "--no-ff", current_branch, "-m", f"Merge feature {current_branch}"])
+            tracker.complete("merge", "merged with merge commit")
+    except Exception as e:
+        tracker.error("merge", str(e))
+        console.print(tracker.render())
+        console.print(f"\n[red]Merge failed.[/red] You may need to resolve conflicts.")
+        raise typer.Exit(1)
+
+    # Push if requested
+    if push:
+        tracker.start("push")
+        try:
+            run_command(["git", "push", "origin", target_branch])
+            tracker.complete("push")
+        except Exception as e:
+            tracker.error("push", str(e))
+            console.print(tracker.render())
+            console.print(f"\n[yellow]Warning:[/yellow] Merge succeeded but push failed.")
+            console.print(f"Run manually: git push origin {target_branch}")
+
+    # Remove worktree if we were in one
+    if in_worktree and remove_worktree:
+        tracker.start("worktree")
+        try:
+            # Get the worktree path before we try to remove it
+            worktree_list = run_command(["git", "worktree", "list", "--porcelain"], capture=True)
+            worktree_path = None
+            for line in worktree_list.split('\n'):
+                if line.startswith('worktree ') and current_branch in line:
+                    worktree_path = line.split('worktree ', 1)[1]
+                    break
+
+            if worktree_path:
+                run_command(["git", "worktree", "remove", worktree_path, "--force"])
+                tracker.complete("worktree", f"removed {worktree_path}")
+            else:
+                tracker.skip("worktree", "path not found")
+        except Exception as e:
+            tracker.error("worktree", str(e))
+            console.print(tracker.render())
+            console.print(f"\n[yellow]Warning:[/yellow] Could not remove worktree.")
+            console.print(f"Run manually: git worktree remove <path>")
+
+    # Delete feature branch
+    if delete_branch:
+        tracker.start("branch")
+        try:
+            run_command(["git", "branch", "-d", current_branch])
+            tracker.complete("branch", f"deleted {current_branch}")
+        except Exception as e:
+            # Try force delete if regular delete fails
+            try:
+                run_command(["git", "branch", "-D", current_branch])
+                tracker.complete("branch", f"force deleted {current_branch}")
+            except:
+                tracker.error("branch", str(e))
+                console.print(tracker.render())
+                console.print(f"\n[yellow]Warning:[/yellow] Could not delete branch {current_branch}.")
+                console.print(f"Run manually: git branch -d {current_branch}")
+
+    console.print(tracker.render())
+    console.print(f"\n[bold green]✓ Feature {current_branch} successfully merged into {target_branch}[/bold green]")
+
 
 def main():
     app()

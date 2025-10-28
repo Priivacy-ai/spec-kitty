@@ -7,6 +7,37 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-10-28
+
+### Added
+
+- **New `/spec-kitty.merge` command** - Completes the workflow by merging features into main branch and cleaning up worktrees automatically. Supports multiple merge strategies (merge, squash, rebase), optional push to origin, and configurable cleanup of worktrees and branches.
+- **Worktree Strategy documentation** - Added comprehensive guide to the opinionated worktree approach for parallel feature development.
+- **Dashboard screenshots** - Added dashboard-kanban.png and dashboard-overview.png showcasing the real-time kanban board.
+- **Real-Time Dashboard section** - Added prominent dashboard documentation "above the fold" in README with screenshots and feature highlights.
+
+### Changed
+
+- Updated command list in init output to show workflow order and include merge command.
+- Updated `/spec-kitty.accept` description to clarify it verifies (not merges) features.
+- Reordered slash commands documentation to reflect actual execution workflow.
+- Updated maintainers to reflect fork ownership (Robert Douglass).
+- Updated all repository references from `spec-kitty/spec-kitty` to `Priivacy-ai/spec-kitty`.
+- Updated installation instructions to use GitHub repository URL instead of local directory.
+
+### Fixed
+
+- Removed invalid `multiple=True` parameter from `typer.Option()` in accept command that caused TypeError on CLI startup.
+- Fixed "nine articles" claim in spec-driven.md to "core articles" (only 6 are documented).
+
+### Removed
+
+- Removed SECURITY.md (GitHub-specific security policies).
+- Removed CODE_OF_CONDUCT.md (GitHub-specific contact information).
+- Removed video overview section from README (outdated content).
+- Removed plant emoji (🌱) branding from all documentation and code.
+- Replaced logo_small.webp and logo_large.webp with actual spec-kitty cat logo.
+
 ## [0.1.3] - 2025-10-28
 
 ### Fixed
