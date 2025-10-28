@@ -61,7 +61,7 @@ else:
             is_running = False
 
         print()
-        print("🌱 Spec Kitty Dashboard")
+        print("Spec Kitty Dashboard")
         print("=" * 60)
         print()
         print(f"  URL: {dashboard_url}")
