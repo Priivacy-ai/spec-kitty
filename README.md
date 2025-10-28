@@ -46,6 +46,8 @@ The dashboard starts automatically when you run `spec-kitty init` and runs in th
 - [⚡ Get started](#-get-started)
 - [🤖 Supported AI Agents](#-supported-ai-agents)
 - [🔧 Spec Kitty CLI Reference](#-spec-kitty-cli-reference)
+- [🌳 Worktree Strategy](#-worktree-strategy)
+- [✅ Feature Acceptance & Merge Workflow](#-feature-acceptance--merge-workflow)
 - [📚 Core philosophy](#-core-philosophy)
 - [🌟 Development phases](#-development-phases)
 - [🎯 Experimental goals](#-experimental-goals)
@@ -257,7 +259,8 @@ Essential commands for the Spec-Driven Development workflow:
 | `/spec-kitty.tasks`         | Generate actionable task lists and kanban-ready prompt files          |
 | `/spec-kitty.implement`     | Execute tasks by working from `/tasks/doing/` prompts                 |
 | `/spec-kitty.review`        | Review work in `/tasks/for_review/` and move finished prompts to `/tasks/done/` |
-| `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and surface merge guidance |
+| `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and verify feature complete |
+| `/spec-kitty.merge`         | Merge feature into main branch and clean up worktree                  |
 
 #### Optional Commands
 
@@ -269,14 +272,88 @@ Additional commands for enhanced quality and validation:
 | `/spec-kitty.analyze`   | Cross-artifact consistency & coverage analysis (run after `/spec-kitty.tasks`, before `/spec-kitty.implement`) |
 | `/spec-kitty.checklist` | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
 
-## Feature Acceptance Workflow
+## Worktree Strategy
 
-Once every work package lives in `tasks/done/`, finish the feature with `/spec-kitty.accept` (or run `spec-kitty accept` from the shell):
+Spec Kitty uses an **opinionated worktree approach** for parallel feature development:
 
-- The command verifies kanban lanes, frontmatter metadata, activity logs, `tasks.md`, and required spec artifacts. Any gaps are reported so you can fix them before merging.
-- Pick `pr` mode to prepare a hosted pull request or `local` to receive local merge instructions. `checklist` mode gives you the readiness report without committing or printing merge steps.
-- Successful runs update `kitty-specs/<feature>/meta.json` (timestamp, actor, acceptance mode), create an acceptance commit (unless you pass `--no-commit`), and print next-step and cleanup guidance (`git worktree remove …`, `git branch -d …`).
-- Every supported agent ships the new `/spec-kitty.accept` template, so the workflow works the same way whether you drive it from an IDE or the CLI.
+### The Pattern
+```
+my-project/                    # Main repo (main branch)
+├── .worktrees/
+│   ├── 001-auth-system/      # Feature 1 worktree (isolated sandbox)
+│   ├── 002-dashboard/        # Feature 2 worktree (work in parallel)
+│   └── 003-notifications/    # Feature 3 worktree (no branch switching)
+├── .kittify/
+├── kitty-specs/
+└── ... (main branch files)
+```
+
+### The Rules
+1. **Main branch** stays in the primary repo root
+2. **Feature branches** live in `.worktrees/<feature-slug>/`
+3. **Work on features** happens in their worktrees (complete isolation)
+4. **No branch switching** in main repo - just `cd` between worktrees
+5. **Automatic cleanup** - worktrees removed after merge
+
+### The Complete Workflow
+```bash
+# Start in main repo
+/spec-kitty.specify          # Creates branch + worktree
+cd .worktrees/001-my-feature # Enter isolated sandbox
+/spec-kitty.constitution     # (first time only)
+/spec-kitty.plan
+/spec-kitty.tasks
+/spec-kitty.implement
+/spec-kitty.review
+/spec-kitty.accept           # Verify feature complete
+/spec-kitty.merge --push     # Merge to main + cleanup
+# Back in main repo, ready for next feature!
+```
+
+## Feature Acceptance & Merge Workflow
+
+### Step 1: Accept
+Once every work package lives in `tasks/done/`, verify the feature is ready:
+
+```bash
+/spec-kitty.accept
+```
+
+The accept command:
+- Verifies kanban lanes, frontmatter metadata, activity logs, `tasks.md`, and required spec artifacts
+- Records acceptance metadata in `kitty-specs/<feature>/meta.json`
+- Creates an acceptance commit
+- Confirms the feature is ready to merge
+
+### Step 2: Merge
+After acceptance checks pass, integrate the feature:
+
+```bash
+/spec-kitty.merge --push
+```
+
+The merge command:
+- Switches to main branch
+- Pulls latest changes
+- Merges your feature (creates merge commit by default)
+- Pushes to origin (if `--push` specified)
+- Removes the feature worktree
+- Deletes the feature branch
+
+**Merge strategies:**
+```bash
+# Default: merge commit (preserves history)
+/spec-kitty.merge --push
+
+# Squash: single commit (cleaner history)
+/spec-kitty.merge --strategy squash --push
+
+# Keep branch for reference
+/spec-kitty.merge --keep-branch --push
+
+# Dry run to see what will happen
+/spec-kitty.merge --dry-run
+```
 
 ## Task Workflow Automation
 
