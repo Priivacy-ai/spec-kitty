@@ -365,9 +365,9 @@ The templates transform the LLM from a creative writer into a disciplined specif
 
 At the heart of SDD lies a constitution—a set of immutable principles that govern how specifications become code. The constitution (`memory/constitution.md`) acts as the architectural DNA of the system, ensuring that every generated implementation maintains consistency, simplicity, and quality.
 
-### The Nine Articles of Development
+### The Core Articles of Development
 
-The constitution defines nine articles that shape every aspect of the development process:
+The constitution defines several core articles that shape every aspect of the development process:
 
 #### Article I: Library-First Principle
 
