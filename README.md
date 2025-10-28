@@ -637,8 +637,7 @@ rm gcm-linux_amd64.2.6.1.deb
 
 ## 👥 Maintainers
 
-- Den Delimarsky ([@localden](https://github.com/localden))
-- John Lam ([@jflam](https://github.com/jflam))
+- Robert Douglass ([@robertDouglass](https://github.com/robertDouglass))
 
 ## 💬 Support
 
