@@ -14,8 +14,34 @@
 
 ---
 
+## 📊 Real-Time Dashboard
+
+Spec Kitty includes a **live dashboard** that automatically tracks your feature development progress. View your kanban board, monitor work package status, and see which agents are working on what—all updating in real-time as you work.
+
+<div align="center">
+  <img src="./media/dashboard-kanban.png" alt="Spec Kitty Dashboard - Kanban Board View" width="800"/>
+  <p><em>Kanban board showing work packages across all lanes with agent assignments</em></p>
+</div>
+
+<div align="center">
+  <img src="./media/dashboard-overview.png" alt="Spec Kitty Dashboard - Feature Overview" width="800"/>
+  <p><em>Feature overview with completion metrics and available artifacts</em></p>
+</div>
+
+The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard` from your terminal.
+
+**Key Features:**
+- 📋 **Kanban Board**: Visual workflow across planned → doing → for review → done lanes
+- 📈 **Progress Tracking**: Real-time completion percentages and task counts
+- 👥 **Multi-Agent Support**: See which AI agents are working on which tasks
+- 📦 **Artifact Status**: Track specification, plan, tasks, and other deliverables
+- 🔄 **Live Updates**: Dashboard refreshes automatically as you work
+
+---
+
 ## Table of Contents
 
+- [📊 Real-Time Dashboard](#-real-time-dashboard)
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get started](#-get-started)
 - [🤖 Supported AI Agents](#-supported-ai-agents)
@@ -224,6 +250,7 @@ Essential commands for the Spec-Driven Development workflow:
 
 | Command                  | Description                                                           |
 |--------------------------|-----------------------------------------------------------------------|
+| `/spec-kitty.dashboard`     | Open the real-time kanban dashboard in your browser                   |
 | `/spec-kitty.constitution`  | Create or update project governing principles and development guidelines |
 | `/spec-kitty.specify`       | Define what you want to build (requirements and user stories)        |
 | `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
@@ -350,8 +377,6 @@ spec-kitty init . --force
 spec-kitty init --here --force
 ```
 
-![Spec Kitty CLI bootstrapping a new project in the terminal](./media/specify_cli.gif)
-
 You will be prompted to select the AI agent you are using. You can also proactively specify it directly in the terminal:
 
 ```bash
@@ -387,9 +412,7 @@ You can pass multiple assistants at once by comma-separating the values (e.g., `
 
 Go to the project folder and run your AI agent. In our example, we're using `claude`.
 
-![Bootstrapping Claude Code environment](./media/bootstrap-claude-code.gif)
-
-You will know that things are configured correctly if you see the `/spec-kitty.constitution`, `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks`, `/spec-kitty.implement`, and `/spec-kitty.review` commands available.
+You will know that things are configured correctly if you see the `/spec-kitty.dashboard`, `/spec-kitty.constitution`, `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks`, `/spec-kitty.implement`, and `/spec-kitty.review` commands available.
 
 The first step should be establishing your project's governing principles using the `/spec-kitty.constitution` command. This helps ensure consistent decision-making throughout all subsequent development phases:
 
