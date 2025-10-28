@@ -13,9 +13,9 @@
 Spec Kitty CLI - setup tooling for Spec Kitty projects.
 
 Usage:
-    speckitty init <project-name>
-    speckitty init .
-    speckitty init --here
+    spec-kitty init <project-name>
+    spec-kitty init .
+    spec-kitty init --here
 """
 
 import os
@@ -401,13 +401,13 @@ def multi_select_with_arrows(
 
 def get_local_repo_root() -> Path | None:
     """Return repository root when running from a local checkout, else None."""
-    env_root = os.environ.get("SPECKITTY_TEMPLATE_ROOT")
+    env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
     if env_root:
         root_path = Path(env_root).expanduser().resolve()
         if (root_path / "templates" / "commands").exists():
             return root_path
         console.print(
-            f"[yellow]SPECKITTY_TEMPLATE_ROOT set to {root_path}, but templates/commands not found. Ignoring.[/yellow]"
+            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but templates/commands not found. Ignoring.[/yellow]"
         )
 
     candidate = Path(__file__).resolve().parents[2]
@@ -426,9 +426,9 @@ def parse_repo_slug(slug: str) -> tuple[str, str]:
 def rewrite_paths(text: str) -> str:
     import re
     patterns = {
-        r'(?<!\.specify/)scripts/': '.specify/scripts/',
-        r'(?<!\.specify/)templates/': '.specify/templates/',
-        r'(?<!\.specify/)memory/': '.specify/memory/',
+        r'(?<!\.kittify/)scripts/': '.kittify/scripts/',
+        r'(?<!\.kittify/)templates/': '.kittify/templates/',
+        r'(?<!\.kittify/)memory/': '.kittify/memory/',
     }
     for pattern, replacement in patterns.items():
         text = re.sub(pattern, replacement, text)
@@ -436,7 +436,7 @@ def rewrite_paths(text: str) -> str:
 
 
 def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str) -> Path:
-    specify_root = project_path / ".specify"
+    specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
 
     memory_src = repo_root / "memory"
@@ -592,7 +592,7 @@ def generate_agent_assets(commands_dir: Path, project_path: Path, agent_key: str
         stem = template_path.stem
         if agent_key == "codex":
             stem = stem.replace('-', '_')
-        filename = f"speckitty.{stem}.{ext}" if ext else f"speckitty.{stem}"
+        filename = f"spec-kitty.{stem}.{ext}" if ext else f"spec-kitty.{stem}"
         (output_dir / filename).write_text(rendered, encoding="utf-8")
 
     if agent_key == "copilot":
@@ -618,7 +618,7 @@ def copy_package_tree(resource, dest: Path) -> None:
 
 def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path:
     data_root = files("specify_cli")
-    specify_root = project_path / ".specify"
+    specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
 
     memory_resource = data_root.joinpath("memory")
@@ -660,7 +660,7 @@ class BannerGroup(TyperGroup):
 
 
 app = typer.Typer(
-    name="speckitty",
+    name="spec-kitty",
     help="Setup tool for Spec Kitty spec-driven development projects",
     add_completion=False,
     invoke_without_command=True,
@@ -691,7 +691,7 @@ def callback(ctx: typer.Context):
     # (help is handled by BannerGroup)
     if ctx.invoked_subcommand is None and "--help" not in sys.argv and "-h" not in sys.argv:
         show_banner()
-        console.print(Align.center("[dim]Run 'speckitty --help' for usage information[/dim]"))
+        console.print(Align.center("[dim]Run 'spec-kitty --help' for usage information[/dim]"))
         console.print()
 
 def run_command(cmd: list[str], check_return: bool = True, capture: bool = False, shell: bool = False) -> Optional[str]:
@@ -1106,10 +1106,10 @@ def download_and_extract_template(
 
 
 def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
-    """Ensure POSIX .sh scripts under .specify/scripts (recursively) have execute bits (no-op on Windows)."""
+    """Ensure POSIX .sh scripts under .kittify/scripts (recursively) have execute bits (no-op on Windows)."""
     if os.name == "nt":
         return  # Windows: skip silently
-    scripts_root = project_path / ".specify" / "scripts"
+    scripts_root = project_path / ".kittify" / "scripts"
     if not scripts_root.is_dir():
         return
     failures: list[str] = []
@@ -1174,17 +1174,17 @@ def init(
     6. Optionally set up AI assistant commands
     
     Examples:
-        speckitty init my-project
-        speckitty init my-project --ai claude
-        speckitty init my-project --ai claude,codex
-        speckitty init my-project --ai copilot --no-git
-        speckitty init --ignore-agent-tools my-project
-        speckitty init . --ai claude         # Initialize in current directory
-        speckitty init .                     # Initialize in current directory (interactive AI selection)
-        speckitty init --here --ai claude    # Alternative syntax for current directory
-        speckitty init --here --ai codex
-        speckitty init --here
-        speckitty init --here --force  # Skip confirmation when current directory not empty
+        spec-kitty init my-project
+        spec-kitty init my-project --ai claude
+        spec-kitty init my-project --ai claude,codex
+        spec-kitty init my-project --ai copilot --no-git
+        spec-kitty init --ignore-agent-tools my-project
+        spec-kitty init . --ai claude         # Initialize in current directory
+        spec-kitty init .                     # Initialize in current directory (interactive AI selection)
+        spec-kitty init --here --ai claude    # Alternative syntax for current directory
+        spec-kitty init --here --ai codex
+        spec-kitty init --here
+        spec-kitty init --here --force  # Skip confirmation when current directory not empty
     """
 
     show_banner()
@@ -1553,14 +1553,14 @@ def init(
 
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent:")
 
-    steps_lines.append("   - [cyan]/speckitty.dashboard[/] - Open the real-time kanban dashboard")
-    steps_lines.append("   - [cyan]/speckitty.constitution[/] - Establish project principles")
-    steps_lines.append("   - [cyan]/speckitty.specify[/] - Create baseline specification")
-    steps_lines.append("   - [cyan]/speckitty.plan[/] - Create implementation plan")
-    steps_lines.append("   - [cyan]/speckitty.tasks[/] - Generate tasks and kanban-ready prompt files")
-    steps_lines.append("   - [cyan]/speckitty.implement[/] - Execute implementation from /tasks/doing/")
-    steps_lines.append("   - [cyan]/speckitty.review[/] - Review prompts and move them to /tasks/done/")
-    steps_lines.append("   - [cyan]/speckitty.accept[/] - Run acceptance checks and capture merge guidance")
+    steps_lines.append("   - [cyan]/spec-kitty.dashboard[/] - Open the real-time kanban dashboard")
+    steps_lines.append("   - [cyan]/spec-kitty.constitution[/] - Establish project principles")
+    steps_lines.append("   - [cyan]/spec-kitty.specify[/] - Create baseline specification")
+    steps_lines.append("   - [cyan]/spec-kitty.plan[/] - Create implementation plan")
+    steps_lines.append("   - [cyan]/spec-kitty.tasks[/] - Generate tasks and kanban-ready prompt files")
+    steps_lines.append("   - [cyan]/spec-kitty.implement[/] - Execute implementation from /tasks/doing/")
+    steps_lines.append("   - [cyan]/spec-kitty.review[/] - Review prompts and move them to /tasks/done/")
+    steps_lines.append("   - [cyan]/spec-kitty.accept[/] - Run acceptance checks and capture merge guidance")
 
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1,2))
     console.print()
@@ -1569,9 +1569,9 @@ def init(
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        f"○ [cyan]/speckitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/speckitty.plan[/] if used)",
-        f"○ [cyan]/speckitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/speckitty.tasks[/], before [cyan]/speckitty.implement[/])",
-        f"○ [cyan]/speckitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/speckitty.plan[/])"
+        f"○ [cyan]/spec-kitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/spec-kitty.plan[/] if used)",
+        f"○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/], before [cyan]/spec-kitty.implement[/])",
+        f"○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])"
     ]
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1,2))
     console.print()
@@ -1584,14 +1584,14 @@ def init(
         dashboard_url = f"http://127.0.0.1:{port}"
 
         # Save dashboard URL for later retrieval
-        dashboard_info_file = project_path / ".specify" / ".dashboard"
+        dashboard_info_file = project_path / ".kittify" / ".dashboard"
         dashboard_info_file.write_text(f"{dashboard_url}\n{port}\n")
 
         dashboard_panel = Panel(
             f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n\n"
             f"[dim]The dashboard is running in the background and will continue even after\n"
             f"this command exits. It will automatically update as you work.[/dim]\n\n"
-            f"[yellow]Tip:[/yellow] Run [cyan]/speckitty.dashboard[/cyan] or [cyan]speckitty dashboard[/cyan] to open it in your browser",
+            f"[yellow]Tip:[/yellow] Run [cyan]/spec-kitty.dashboard[/cyan] or [cyan]spec-kitty dashboard[/cyan] to open it in your browser",
             title="🌱 [bold green]Spec Kitty Dashboard Started[/bold green]",
             border_style="green",
             padding=(1, 2)
@@ -1653,14 +1653,14 @@ def dashboard():
     import webbrowser
     import socket
 
-    dashboard_file = Path('.specify/.dashboard')
+    dashboard_file = Path('.kittify/.dashboard')
 
     if not dashboard_file.exists():
         console.print()
         console.print("[red]❌ No dashboard information found[/red]")
         console.print()
         console.print("To start the dashboard, run:")
-        console.print("  [cyan]speckitty init .[/cyan]")
+        console.print("  [cyan]spec-kitty init .[/cyan]")
         console.print()
         raise typer.Exit(1)
 
@@ -1672,7 +1672,7 @@ def dashboard():
     if not dashboard_url or not port_str:
         console.print()
         console.print("[red]❌ Dashboard file is invalid or empty[/red]")
-        console.print("   Try running: [cyan]speckitty init .[/cyan]")
+        console.print("   Try running: [cyan]spec-kitty init .[/cyan]")
         console.print()
         raise typer.Exit(1)
 
@@ -1747,7 +1747,7 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
             console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
             console.print()
     else:
-        console.print("[yellow]💡 To start the dashboard, run:[/yellow] [cyan]speckitty init .[/cyan]")
+        console.print("[yellow]💡 To start the dashboard, run:[/yellow] [cyan]spec-kitty init .[/cyan]")
         console.print()
 
 

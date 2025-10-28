@@ -102,20 +102,20 @@ fi
 # Validate required directories and files
 if [[ ! -d "$FEATURE_DIR" ]]; then
     echo "ERROR: Feature directory not found: $FEATURE_DIR" >&2
-    echo "Run /speckitty.specify first to create the feature structure." >&2
+    echo "Run /spec-kitty.specify first to create the feature structure." >&2
     exit 1
 fi
 
 if [[ ! -f "$IMPL_PLAN" ]]; then
     echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
-    echo "Run /speckitty.plan first to create the implementation plan." >&2
+    echo "Run /spec-kitty.plan first to create the implementation plan." >&2
     exit 1
 fi
 
 # Check for tasks.md if required
 if $REQUIRE_TASKS && [[ ! -f "$TASKS" ]]; then
     echo "ERROR: tasks.md not found in $FEATURE_DIR" >&2
-    echo "Run /speckitty.tasks first to create the task list." >&2
+    echo "Run /spec-kitty.tasks first to create the task list." >&2
     exit 1
 fi
 

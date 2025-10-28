@@ -28,7 +28,7 @@ get_current_branch() {
     
     # For non-git repos, try to find the latest feature directory
     local repo_root=$(get_repo_root)
-    local specs_dir="$repo_root/specs"
+    local specs_dir="$repo_root/kitty-specs"
     
     if [[ -d "$specs_dir" ]]; then
         local latest_feature=""
@@ -68,7 +68,7 @@ check_feature_branch() {
     
     # For non-git repos, we can't enforce branch naming but still provide output
     if [[ "$has_git_repo" != "true" ]]; then
-        echo "[specify] Warning: Git repository not detected; skipped branch validation" >&2
+        echo "[spec-kitty] Warning: Git repository not detected; skipped branch validation" >&2
         return 0
     fi
     
@@ -81,7 +81,7 @@ check_feature_branch() {
     return 0
 }
 
-get_feature_dir() { echo "$1/specs/$2"; }
+get_feature_dir() { echo "$1/kitty-specs/$2"; }
 
 get_feature_paths() {
     local repo_root=$(get_repo_root)

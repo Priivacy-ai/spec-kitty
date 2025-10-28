@@ -1,6 +1,6 @@
 # Local Development Guide
 
-This guide shows how to iterate on the `speckitty` CLI locally without publishing a release or committing to `main` first.
+This guide shows how to iterate on the `spec-kitty` CLI locally without publishing a release or committing to `main` first.
 
 Remember that CLI commands will pause with `WAITING_FOR_*` tokens until you answer their discovery questions—handy when testing new prompt changes.
 
@@ -45,8 +45,8 @@ source .venv/bin/activate  # or on Windows PowerShell: .venv\Scripts\Activate.ps
 # Install project in editable mode
 uv pip install -e .
 
-# Now 'speckitty' entrypoint is available
-speckitty --help
+# Now 'spec-kitty' entrypoint is available
+spec-kitty --help
 ```
 
 Re-running after code edits requires no reinstall because of editable mode.
@@ -56,7 +56,7 @@ Re-running after code edits requires no reinstall because of editable mode.
 `uvx` can run from a local path (or a Git ref) to simulate user flows:
 
 ```bash
-uvx --from . speckitty init demo-uvx --ai copilot --ignore-agent-tools --script sh
+uvx --from . spec-kitty init demo-uvx --ai copilot --ignore-agent-tools --script sh
 ```
 
 You can also point uvx at a specific branch without merging (optional if you want to exercise the published GitHub flow):
@@ -64,7 +64,7 @@ You can also point uvx at a specific branch without merging (optional if you wan
 ```bash
 # Push your working branch first
 git push origin your-feature-branch
-uvx --from git+https://github.com/spec-kitty/spec-kitty.git@your-feature-branch speckitty init demo-branch-test --script ps
+uvx --from git+https://github.com/spec-kitty/spec-kitty.git@your-feature-branch spec-kitty init demo-branch-test --script ps
 ```
 
 ### 4a. Absolute Path uvx (Run From Anywhere)
@@ -72,21 +72,21 @@ uvx --from git+https://github.com/spec-kitty/spec-kitty.git@your-feature-branch 
 If you're in another directory, use an absolute path instead of `.`:
 
 ```bash
-uvx --from /mnt/c/GitHub/spec-kitty speckitty --help
-uvx --from /mnt/c/GitHub/spec-kitty speckitty init demo-anywhere --ai copilot --ignore-agent-tools --script sh
+uvx --from /mnt/c/GitHub/spec-kitty spec-kitty --help
+uvx --from /mnt/c/GitHub/spec-kitty spec-kitty init demo-anywhere --ai copilot --ignore-agent-tools --script sh
 ```
 
 Set an environment variable for convenience:
 ```bash
 export SPEC_KITTY_SRC=/mnt/c/GitHub/spec-kitty
-uvx --from "$SPEC_KITTY_SRC" speckitty init demo-env --ai copilot --ignore-agent-tools --script ps
+uvx --from "$SPEC_KITTY_SRC" spec-kitty init demo-env --ai copilot --ignore-agent-tools --script ps
 ```
 
 (Optional) Define a shell function:
 ```bash
-speckitty-dev() { uvx --from "$SPEC_KITTY_SRC" speckitty "$@"; }
+spec-kitty-dev() { uvx --from "$SPEC_KITTY_SRC" spec-kitty "$@"; }
 # Then
-speckitty-dev --help
+spec-kitty-dev --help
 ```
 
 ## 5. Testing Script Permission Logic
@@ -131,8 +131,8 @@ Or copy only the modified CLI portion if you want a lighter sandbox.
 If you need to bypass TLS validation while experimenting:
 
 ```bash
-speckitty check --skip-tls
-speckitty init demo --skip-tls --ai gemini --ignore-agent-tools --script ps
+spec-kitty check --skip-tls
+spec-kitty init demo --skip-tls --ai gemini --ignore-agent-tools --script ps
 ```
 (Use only for local experimentation.)
 
@@ -141,12 +141,12 @@ speckitty init demo --skip-tls --ai gemini --ignore-agent-tools --script ps
 | Action | Command |
 |--------|---------|
 | Run CLI directly | `python -m src.specify_cli --help` |
-| Editable install | `uv pip install -e .` then `speckitty ...` |
-| Local uvx run (repo root) | `uvx --from . speckitty ...` |
-| Local uvx run (abs path) | `uvx --from /mnt/c/GitHub/spec-kitty speckitty ...` |
-| Git branch uvx | `uvx --from git+URL@branch speckitty ...` |
+| Editable install | `uv pip install -e .` then `spec-kitty ...` |
+| Local uvx run (repo root) | `uvx --from . spec-kitty ...` |
+| Local uvx run (abs path) | `uvx --from /mnt/c/GitHub/spec-kitty spec-kitty ...` |
+| Git branch uvx | `uvx --from git+URL@branch spec-kitty ...` |
 | Build wheel | `uv build` |
-| Acceptance check | `speckitty accept --json` |
+| Acceptance check | `spec-kitty accept --json` |
 
 ## 11. Cleaning Up
 

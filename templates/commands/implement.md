@@ -16,10 +16,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Outline
 
 1. **Verify worktree context**:
-   - The feature worktree lives at `PROJECT_ROOT/.worktrees/FEATURE-SLUG`.
-   - Determine the expected path from the JSON returned by `create-new-feature` (or compose it using the slug).
-   - If your current working directory is not inside that worktree, `cd` into it before proceeding.
-   - If the worktree directory is missing, run `git worktree add PROJECT_ROOT/.worktrees/FEATURE-SLUG FEATURE-SLUG` to recreate it, then `cd` into it.
+   - The CLI prefers an isolated checkout at `PROJECT_ROOT/.worktrees/FEATURE-SLUG`; use the path returned by `create-new-feature` when it exists.
+   - If that directory is present and you are not already inside it, `cd` into the worktree before proceeding.
+   - If worktree creation was skipped (the CLI returned no worktree path or the directory is missing), remain in the primary checkout on the feature branch or recreate the worktree with `git worktree add PROJECT_ROOT/.worktrees/FEATURE-SLUG FEATURE-SLUG` and then `cd` into it.
 
 2. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
 
@@ -62,12 +61,12 @@ You **MUST** consider the user input before proceeding (if not empty).
       SHELL_PID=$(echo $$)
 
       # Move prompt (example for T001)
-      .specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX doing \
+      .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX doing \
         --shell-pid "$SHELL_PID" \
         --agent "claude" \
         --note "Started implementation"
       ```
-      > Windows users: run `.specify/scripts/powershell/tasks-move-to-lane.ps1` with the same arguments.
+      > Windows users: run `.kittify/scripts/powershell/tasks-move-to-lane.ps1` with the same arguments.
 
    b. **Verify frontmatter metadata** in the moved file:
       ```yaml
@@ -142,7 +141,7 @@ You **MUST** consider the user input before proceeding (if not empty).
        ```
      - Move prompt to for_review:
      ```bash
-     .specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX for_review \
+     .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX for_review \
        --shell-pid "$SHELL_PID" \
        --agent "claude" \
        --note "Ready for review"
@@ -170,7 +169,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 **For every task**:
 
 1. **START**: `planned/` → `doing/`
-   - `.specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID doing --note "Started implementation"`
+   - `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID doing --note "Started implementation"`
    - Verify frontmatter: `lane: "doing"`, confirm `shell_pid`, `agent`
    - Confirm activity log entry
    - Commit
@@ -182,7 +181,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 3. **COMPLETE**: `doing/` → `for_review/`
    - Add completion entry to activity log
-   - `.specify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID for_review --note "Ready for review"`
+   - `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID for_review --note "Ready for review"`
    - Verify frontmatter: `lane: "for_review"`
    - Confirm review-ready log entry
    - Commit

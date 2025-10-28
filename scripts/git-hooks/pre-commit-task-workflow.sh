@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TASK_PROMPTS=$(git diff --cached --name-only | grep -E '^specs/.+/tasks/' || true)
+TASK_PROMPTS=$(git diff --cached --name-only | grep -E '^kitty-specs/.+/tasks/' || true)
 
 if [[ -z "$TASK_PROMPTS" ]]; then
   exit 0

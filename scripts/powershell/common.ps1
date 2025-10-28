@@ -75,7 +75,7 @@ function Test-FeatureBranch {
     
     # For non-git repos, we can't enforce branch naming but still provide output
     if (-not $HasGit) {
-        Write-Warning "[specify] Warning: Git repository not detected; skipped branch validation"
+        Write-Warning "[spec-kitty] Warning: Git repository not detected; skipped branch validation"
         return $true
     }
     
@@ -89,7 +89,7 @@ function Test-FeatureBranch {
 
 function Get-FeatureDir {
     param([string]$RepoRoot, [string]$Branch)
-    Join-Path $RepoRoot "specs/$Branch"
+    Join-Path $RepoRoot "kitty-specs/$Branch"
 }
 
 function Get-FeaturePathsEnv {

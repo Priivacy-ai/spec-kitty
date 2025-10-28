@@ -155,7 +155,7 @@ def get_workflow_status(artifacts: Dict[str, bool]) -> Dict[str, str]:
 
 def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
     """Scan all features and return metadata."""
-    specs_dir = project_dir / 'specs'
+    specs_dir = project_dir / 'kitty-specs'
     features = []
 
     if not specs_dir.exists():
@@ -224,7 +224,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
 
 def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Dict[str, Any]]]:
     """Scan kanban board for a specific feature."""
-    feature_dir = project_dir / 'specs' / feature_id
+    feature_dir = project_dir / 'kitty-specs' / feature_id
     lanes = {'planned': [], 'doing': [], 'for_review': [], 'done': []}
 
     if not feature_dir.exists():
@@ -1021,9 +1021,9 @@ def get_dashboard_html() -> str:
                         <div style="background: var(--baby-blue); padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto;">
                             <h3 style="color: var(--grassy-green); margin-bottom: 20px;">Get Started</h3>
                             <ol style="text-align: left; line-height: 2; color: var(--dark-text);">
-                                <li>Run <code style="background: white; padding: 4px 8px; border-radius: 4px;">/speckitty.specify</code> to create your first feature</li>
-                                <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/speckitty.plan</code> to create the implementation plan</li>
-                                <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/speckitty.tasks</code> to generate the task breakdown</li>
+                                <li>Run <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.specify</code> to create your first feature</li>
+                                <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.plan</code> to create the implementation plan</li>
+                                <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.tasks</code> to generate the task breakdown</li>
                                 <li>Watch the dashboard update in real-time as you work!</li>
                             </ol>
                         </div>
@@ -1033,7 +1033,7 @@ def get_dashboard_html() -> str:
 
             <div id="no-features-message" class="no-features" style="display: none;">
                 <h2>No Features Found</h2>
-                <p>Create your first feature using <code>/speckitty.specify</code></p>
+                <p>Create your first feature using <code>/spec-kitty.specify</code></p>
             </div>
         </div>
     </div>
@@ -1457,7 +1457,7 @@ def get_dashboard_html() -> str:
                 })
                 .catch(error => {
                     document.getElementById('constitution-content').innerHTML =
-                        '<div class="empty-state">Constitution not found. Run /speckitty.constitution to create it.</div>';
+                        '<div class="empty-state">Constitution not found. Run /spec-kitty.constitution to create it.</div>';
                 });
         }
 
@@ -1653,11 +1653,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header('Cache-Control', 'no-cache')
             self.end_headers()
 
-            constitution_file = Path(self.project_dir) / '.specify' / 'memory' / 'constitution.md'
+            constitution_file = Path(self.project_dir) / '.kittify' / 'memory' / 'constitution.md'
             if constitution_file.exists():
                 self.wfile.write(constitution_file.read_text().encode())
             else:
-                self.wfile.write(b'Constitution not yet created. Run /speckitty.constitution to create it.')
+                self.wfile.write(b'Constitution not yet created. Run /spec-kitty.constitution to create it.')
 
         elif path.startswith(STATIC_URL_PREFIX):
             relative_path = path[len(STATIC_URL_PREFIX):]
@@ -1700,7 +1700,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 artifact_name = parts[4] if len(parts) > 4 else ''
 
                 project_path = Path(self.project_dir)
-                feature_dir = project_path / 'specs' / feature_id
+                feature_dir = project_path / 'kitty-specs' / feature_id
 
                 # Map artifact names to files
                 artifact_map = {

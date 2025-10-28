@@ -11,7 +11,7 @@ Bootstrap a fresh Specify sandbox using the local Spec Kitty CLI checkout.
 Options:
   -a, --agents LIST       Comma or space separated AI agent keys (default: claude)
   -t, --script-type TYPE  Script variant to generate (sh or ps). Defaults to OS-appropriate.
-  --skip-install          Skip reinstalling speckitty-cli via uv tool install
+  --skip-install          Skip reinstalling spec-kitty-cli via uv tool install
   --reset                 Remove the destination directory before bootstrapping
   -h, --help              Show this message and exit
 
@@ -142,27 +142,27 @@ fi
 mkdir -p "$(dirname "$DEST_ABS")"
 
 if [[ "$SKIP_INSTALL" != true ]]; then
-    echo "Installing speckitty-cli (version $CLI_VERSION) from $REPO_ROOT"
+    echo "Installing spec-kitty-cli (version $CLI_VERSION) from $REPO_ROOT"
     set +e
-    uv tool install --from "$REPO_ROOT" speckitty-cli --force
+    uv tool install --from "$REPO_ROOT" spec-kitty-cli --force
     install_status=$?
     set -e
     if [[ $install_status -ne 0 ]]; then
-        if command -v speckitty >/dev/null 2>&1; then
-            echo "Warning: speckitty-cli install failed (exit $install_status); existing installation will be reused." >&2
+        if command -v spec-kitty >/dev/null 2>&1; then
+            echo "Warning: spec-kitty-cli install failed (exit $install_status); existing installation will be reused." >&2
         else
-            echo "Error: speckitty-cli install failed (exit $install_status) and no existing speckitty command was found. Re-run with --skip-install after installing manually." >&2
+            echo "Error: spec-kitty-cli install failed (exit $install_status) and no existing spec-kitty command was found. Re-run with --skip-install after installing manually." >&2
             exit 1
         fi
     fi
 else
-    echo "Skipping speckitty-cli installation per request"
+    echo "Skipping spec-kitty-cli installation per request"
 fi
 
-export SPECKITTY_TEMPLATE_ROOT="$REPO_ROOT"
+export SPEC_KITTY_TEMPLATE_ROOT="$REPO_ROOT"
 
-if ! command -v speckitty >/dev/null 2>&1; then
-    echo "Error: speckitty executable not found in PATH. Install speckitty-cli or rerun without --skip-install." >&2
+if ! command -v spec-kitty >/dev/null 2>&1; then
+    echo "Error: spec-kitty executable not found in PATH. Install spec-kitty-cli or rerun without --skip-install." >&2
     exit 1
 fi
 
@@ -172,8 +172,8 @@ NORMALISED_AGENTS="$(printf "%s," "${agent_parts[@]}")"
 NORMALISED_AGENTS="${NORMALISED_AGENTS%,}"
 
 echo "Bootstrapping sandbox at $DEST_ABS (agents: $NORMALISED_AGENTS, script: $SCRIPT_TYPE)"
-speckitty init "$DEST_ABS" --ai "$NORMALISED_AGENTS" --script "$SCRIPT_TYPE"
+spec-kitty init "$DEST_ABS" --ai "$NORMALISED_AGENTS" --script "$SCRIPT_TYPE"
 
 echo
 echo "Sandbox ready at $DEST_ABS"
-echo "Template root used: $SPECKITTY_TEMPLATE_ROOT"
+echo "Template root used: $SPEC_KITTY_TEMPLATE_ROOT"

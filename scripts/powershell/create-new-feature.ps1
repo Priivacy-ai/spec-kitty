@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
-    Write-Error "[specify] Error: Feature description missing.`nThis script must only run after discovery produces a confirmed intent summary. Return WAITING_FOR_DISCOVERY_INPUT, gather answers, then rerun with the finalized description."
+    Write-Error "[spec-kitty] Error: Feature description missing.`nThis script must only run after discovery produces a confirmed intent summary. Return WAITING_FOR_DISCOVERY_INPUT, gather answers, then rerun with the finalized description."
     exit 1
 }
 $featureDesc = ($FeatureDescription -join ' ').Trim()
@@ -21,7 +21,7 @@ $featureDesc = ($FeatureDescription -join ' ').Trim()
 function Find-RepositoryRoot {
     param(
         [string]$StartDir,
-        [string[]]$Markers = @('.git', '.specify')
+        [string[]]$Markers = @('.git', '.kittify')
     )
     $current = Resolve-Path $StartDir
     while ($true) {
@@ -126,12 +126,12 @@ if ($hasGit) {
                         $targetRoot = (Resolve-Path $worktreePath).Path
                         $worktreeCreated = $true
                         $worktreeMessage = $targetRoot
-                        Write-Warning "[specify] Reusing existing worktree at $targetRoot for $branchName."
+                        Write-Warning "[spec-kitty] Reusing existing worktree at $targetRoot for $branchName."
                     } else {
-                        Write-Warning "[specify] Existing worktree at $worktreePath is checked out to $currentWorktreeBranch; skipping worktree creation."
+                        Write-Warning "[spec-kitty] Existing worktree at $worktreePath is checked out to $currentWorktreeBranch; skipping worktree creation."
                     }
                 } catch {
-                    Write-Warning "[specify] Worktree path $worktreePath exists but is not a git worktree; skipping worktree creation."
+                    Write-Warning "[spec-kitty] Worktree path $worktreePath exists but is not a git worktree; skipping worktree creation."
                 }
             } else {
                 try {
@@ -140,11 +140,11 @@ if ($hasGit) {
                     $worktreeCreated = $true
                     $worktreeMessage = $targetRoot
                 } catch {
-                    Write-Warning "[specify] Unable to create git worktree for $branchName; falling back to in-place checkout."
+                    Write-Warning "[spec-kitty] Unable to create git worktree for $branchName; falling back to in-place checkout."
                 }
             }
         } else {
-            Write-Warning "[specify] Git worktree command unavailable; falling back to in-place checkout."
+            Write-Warning "[spec-kitty] Git worktree command unavailable; falling back to in-place checkout."
         }
     }
 
@@ -163,12 +163,12 @@ if ($hasGit) {
                 git checkout -b $branchName | Out-Null
             }
         } catch {
-            Write-Error "[specify] Error: Failed to check out branch $branchName"
+            Write-Error "[spec-kitty] Error: Failed to check out branch $branchName"
             exit 1
         }
     }
 } else {
-    Write-Warning "[specify] Warning: Git repository not detected; skipped branch creation for $branchName"
+    Write-Warning "[spec-kitty] Warning: Git repository not detected; skipped branch creation for $branchName"
 }
 
 $repoRoot = $targetRoot
@@ -180,7 +180,7 @@ New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
 $featureDir = Join-Path $specsDir $branchName
 New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
 
-$template = Join-Path $repoRoot '.specify/templates/spec-template.md'
+$template = Join-Path $repoRoot '.kittify/templates/spec-template.md'
 $specFile = Join-Path $featureDir 'spec.md'
 if (Test-Path $template) { 
     Copy-Item $template $specFile -Force 
