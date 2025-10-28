@@ -10,7 +10,7 @@
 
 > **Note:** Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
-[![Release](https://github.com/spec-kitty/spec-kitty/actions/workflows/release.yml/badge.svg)](https://github.com/spec-kitty/spec-kitty/actions/workflows/release.yml)
+[![Release](https://github.com/Priivacy-ai/spec-kitty/actions/workflows/release.yml/badge.svg)](https://github.com/Priivacy-ai/spec-kitty/actions/workflows/release.yml)
 
 ---
 
@@ -18,7 +18,6 @@
 
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get started](#-get-started)
-- [📽️ Video Overview](#️-video-overview)
 - [🤖 Supported AI Agents](#-supported-ai-agents)
 - [🔧 Spec Kitty CLI Reference](#-spec-kitty-cli-reference)
 - [📚 Core philosophy](#-core-philosophy)
@@ -620,7 +619,7 @@ rm gcm-linux_amd64.2.6.1.deb
 
 ## 💬 Support
 
-For support, please open a [GitHub issue](https://github.com/spec-kitty/spec-kitty/issues/new). We welcome bug reports, feature requests, and questions about using Spec-Driven Development.
+For support, please open a [GitHub issue](https://github.com/Priivacy-ai/spec-kitty/issues/new). We welcome bug reports, feature requests, and questions about using Spec-Driven Development.
 
 ## 🙏 Acknowledgements
 
