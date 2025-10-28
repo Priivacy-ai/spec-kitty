@@ -1592,7 +1592,7 @@ def init(
             f"[dim]The dashboard is running in the background and will continue even after\n"
             f"this command exits. It will automatically update as you work.[/dim]\n\n"
             f"[yellow]Tip:[/yellow] Run [cyan]/spec-kitty.dashboard[/cyan] or [cyan]spec-kitty dashboard[/cyan] to open it in your browser",
-            title="🌱 [bold green]Spec Kitty Dashboard Started[/bold green]",
+            title="[bold green]Spec Kitty Dashboard Started[/bold green]",
             border_style="green",
             padding=(1, 2)
         )
@@ -1690,7 +1690,7 @@ def dashboard():
 
     # Display URL and status
     console.print()
-    console.print("[bold green]🌱 Spec Kitty Dashboard[/bold green]")
+    console.print("[bold green]Spec Kitty Dashboard[/bold green]")
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
     console.print(f"  [bold cyan]URL:[/bold cyan] {dashboard_url}")
