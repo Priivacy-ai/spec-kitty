@@ -133,12 +133,6 @@ Finish the cycle by running **`/spec-kitty.review`** to process files in `/tasks
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
 
-## 📽️ Video Overview
-
-Want to see Spec Kitty in action? Watch our [video overview](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)!
-
-[![Spec Kitty video header](/media/spec-kitty-video-header.jpg)](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)
-
 ## 🤖 Supported AI Agents
 
 | Agent                                                     | Support | Notes                                             |
