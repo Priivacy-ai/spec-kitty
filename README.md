@@ -48,12 +48,10 @@ Choose your preferred installation method:
 Install once and use everywhere:
 
 ```bash
-uv tool install spec-kitty-cli --from .
+uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-kitty.git
 ```
 
-> Run these commands from the Spec Kitty repository root so `.` resolves to this checkout.
-
-Then use the tool directly from the repository root:
+Then use the tool from any directory:
 
 ```bash
 spec-kitty init <PROJECT_NAME>
@@ -62,10 +60,10 @@ spec-kitty check
 
 #### Option 2: One-time Usage
 
-Run directly without installing (also from the repository root):
+Run directly without installing:
 
 ```bash
-uvx --from . spec-kitty init <PROJECT_NAME>
+uvx --from git+https://github.com/Priivacy-ai/spec-kitty.git spec-kitty init <PROJECT_NAME>
 ```
 
 **Benefits of persistent installation:**
