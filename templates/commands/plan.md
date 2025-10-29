@@ -16,6 +16,28 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Location Pre-flight Check (CRITICAL for AI Agents)
+
+Before proceeding with planning, verify you are in the correct working directory:
+
+**Check your current branch:**
+```bash
+git branch --show-current
+```
+
+**Expected output:** A feature branch like `001-feature-name`
+**If you see `main`:** You are in the wrong location!
+
+**This command MUST run from a feature worktree, not the main repository.**
+
+If you're on the `main` branch:
+1. Check for available worktrees: `ls .worktrees/`
+2. Navigate to the appropriate feature worktree: `cd .worktrees/<feature-name>`
+3. Verify you're in the right place: `git branch --show-current` should show the feature branch
+4. Then re-run this command
+
+The script will fail if you're not in a feature worktree. This is intentional - worktrees provide isolation for parallel feature development.
+
 ## Planning Interrogation (mandatory)
 
 Before executing any scripts or generating artifacts you must interrogate the specification and stakeholders.
