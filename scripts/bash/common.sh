@@ -101,6 +101,61 @@ check_feature_branch() {
 
 get_feature_dir() { echo "$1/kitty-specs/$2"; }
 
+get_mission_exports() {
+    local repo_root="$1"
+
+    # Use python3 for mission detection to keep logic in sync with CLI behavior
+    local python_bin="python3"
+    if ! command -v "$python_bin" >/dev/null 2>&1; then
+        python_bin="python"
+    fi
+    if ! command -v "$python_bin" >/dev/null 2>&1; then
+        echo "[spec-kitty] Error: python interpreter not found; mission detection unavailable" >&2
+        return 1
+    fi
+
+    "$python_bin" "$repo_root" <<'PY'
+from pathlib import Path
+import sys
+
+try:
+    from specify_cli.mission import get_active_mission, MissionNotFoundError  # type: ignore
+except Exception as exc:  # pragma: no cover - defensive: script execution path
+    print(f"[spec-kitty] Error: Unable to import mission module ({exc})", file=sys.stderr)
+    sys.exit(1)
+
+repo_root = Path(sys.argv[1])
+
+try:
+    mission = get_active_mission(repo_root)
+except MissionNotFoundError as exc:
+    print(f"[spec-kitty] Error: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+def emit(key: str, value: str) -> None:
+    import shlex
+
+    print(f"{key}={shlex.quote(str(value))}")
+
+emit("MISSION_KEY", mission.path.name)
+emit("MISSION_PATH", mission.path)
+emit("MISSION_NAME", mission.name)
+emit("MISSION_TEMPLATES_DIR", mission.templates_dir)
+emit("MISSION_COMMANDS_DIR", mission.commands_dir)
+emit("MISSION_CONSTITUTION_DIR", mission.constitution_dir)
+
+spec_template = mission.templates_dir / "spec-template.md"
+plan_template = mission.templates_dir / "plan-template.md"
+tasks_template = mission.templates_dir / "tasks-template.md"
+task_prompt_template = mission.templates_dir / "task-prompt-template.md"
+
+emit("MISSION_SPEC_TEMPLATE", spec_template)
+emit("MISSION_PLAN_TEMPLATE", plan_template)
+emit("MISSION_TASKS_TEMPLATE", tasks_template)
+emit("MISSION_TASK_PROMPT_TEMPLATE", task_prompt_template)
+PY
+}
+
 get_feature_paths() {
     local repo_root=$(get_repo_root)
     local current_branch=$(get_current_branch)
@@ -111,6 +166,8 @@ get_feature_paths() {
     fi
     
     local feature_dir=$(get_feature_dir "$repo_root" "$current_branch")
+    local mission_exports
+    mission_exports=$(get_mission_exports "$repo_root") || return 1
     
     cat <<EOF
 REPO_ROOT='$repo_root'
@@ -125,6 +182,8 @@ DATA_MODEL='$feature_dir/data-model.md'
 QUICKSTART='$feature_dir/quickstart.md'
 CONTRACTS_DIR='$feature_dir/contracts'
 EOF
+
+    printf '%s\n' "$mission_exports"
 }
 
 check_file() { [[ -f "$1" ]] && echo "  ✓ $2" || echo "  ✗ $2"; }

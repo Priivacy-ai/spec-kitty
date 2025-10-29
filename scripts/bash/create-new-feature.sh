@@ -191,9 +191,28 @@ mkdir -p "$SPECS_DIR"
 FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
 mkdir -p "$FEATURE_DIR"
 
-TEMPLATE="$REPO_ROOT/.kittify/templates/spec-template.md"
 SPEC_FILE="$FEATURE_DIR/spec.md"
-if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
+SPEC_TEMPLATE_CANDIDATES=(
+    "${MISSION_SPEC_TEMPLATE:-}"
+    "$REPO_ROOT/.kittify/templates/spec-template.md"
+    "$REPO_ROOT/templates/spec-template.md"
+)
+
+TEMPLATE=""
+for candidate in "${SPEC_TEMPLATE_CANDIDATES[@]}"; do
+    if [ -n "$candidate" ] && [ -f "$candidate" ]; then
+        TEMPLATE="$candidate"
+        break
+    fi
+done
+
+if [ -n "$TEMPLATE" ]; then
+    cp "$TEMPLATE" "$SPEC_FILE"
+    echo "[spec-kitty] Copied spec template from $TEMPLATE"
+else
+    echo "[spec-kitty] Warning: Spec template not found for active mission; creating empty spec.md"
+    touch "$SPEC_FILE"
+fi
 
 # Set the SPECIFY_FEATURE environment variable for the current session
 export SPECIFY_FEATURE="$BRANCH_NAME"

@@ -184,6 +184,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 | Command     | Description                                                    |
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Spec Kitty project from the latest template      |
+| `research`  | Scaffold Phase 0 research artifacts (`research.md`, `data-model.md`, CSV logs) |
 | `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`) |
 
 ### `spec-kitty init` Arguments & Options
@@ -193,6 +194,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 | `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
 | `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, or `q` |
 | `--script`             | Option   | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell)                 |
+| `--mission`            | Option   | Mission key to seed templates (`software-dev`, `research`, ...)             |
 | `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                             |
 | `--no-git`             | Flag     | Skip git repository initialization                                          |
 | `--here`               | Flag     | Initialize project in the current directory instead of creating a new one   |
@@ -200,6 +202,8 @@ The `spec-kitty` command supports the following options. Every run begins with a
 | `--skip-tls`           | Flag     | Skip SSL/TLS verification (not recommended)                                 |
 | `--debug`              | Flag     | Enable detailed debug output for troubleshooting                            |
 | `--github-token`       | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)  |
+
+If you omit `--mission`, the CLI will prompt you to pick one during `spec-kitty init`.
 
 ### Examples
 
@@ -209,6 +213,9 @@ spec-kitty init my-project
 
 # Initialize with specific AI assistant
 spec-kitty init my-project --ai claude
+
+# Initialize with the Deep Research mission
+spec-kitty init my-project --mission research
 
 # Initialize with Cursor support
 spec-kitty init my-project --ai cursor
@@ -256,6 +263,7 @@ Essential commands for the Spec-Driven Development workflow:
 | `/spec-kitty.constitution`  | Create or update project governing principles and development guidelines |
 | `/spec-kitty.specify`       | Define what you want to build (requirements and user stories)        |
 | `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
+| `/spec-kitty.research`      | Run Phase 0 research scaffolding to populate research.md, data-model.md, and evidence logs |
 | `/spec-kitty.tasks`         | Generate actionable task lists and kanban-ready prompt files          |
 | `/spec-kitty.implement`     | Execute tasks by working from `/tasks/doing/` prompts                 |
 | `/spec-kitty.review`        | Review work in `/tasks/for_review/` and move finished prompts to `/tasks/done/` |
@@ -302,6 +310,7 @@ my-project/                    # Main repo (main branch)
 cd .worktrees/001-my-feature # Enter isolated sandbox
 /spec-kitty.constitution     # (first time only)
 /spec-kitty.plan
+/spec-kitty.research
 /spec-kitty.tasks
 /spec-kitty.implement
 /spec-kitty.review
@@ -362,6 +371,30 @@ The merge command:
 - Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`.
 - Optional git hook: `ln -s ../../scripts/git-hooks/pre-commit-task-workflow.sh .git/hooks/pre-commit` to enforce lane metadata before every commit.
 - Prefer running scripts from the feature worktree (`.worktrees/<feature-slug>`). After `/spec-kitty.specify`, `cd .worktrees/<feature-slug>` when that directory exists; if worktree creation was skipped, stay in the primary checkout on the feature branch or recreate the worktree with `git worktree add …`.
+
+## 🧭 Mission System
+
+Spec Kitty now supports **missions**: curated bundles of templates, commands, and guardrails for different domains. Two missions ship out of the box:
+
+- **Software Dev Kitty** – the original Spec-Driven Development workflow for shipping application features (default).
+- **Deep Research Kitty** – a methodology-focused workflow for evidence gathering, analysis, and synthesis.
+
+Each mission lives under `.kittify/missions/<mission-key>/` and provides:
+
+- Mission-specific templates (`spec-template.md`, `plan-template.md`, `tasks-template.md`, etc.).
+- Command guidance tuned to the domain (`specify`, `plan`, `tasks`, `implement`, `review`, `accept`).
+- Optional constitutions or constitutions to bias the agent toward best practices.
+
+Use the new CLI group to manage missions inside a project:
+
+```bash
+spec-kitty mission list        # Show available missions and the active one
+spec-kitty mission current     # Display summary for the active mission
+spec-kitty mission switch research   # Point the project at Deep Research Kitty
+spec-kitty mission info research     # Inspect templates, phases, and artifacts
+```
+
+When you switch missions the CLI updates `.kittify/active-mission`, and subsequent commands (spec, plan, tasks, etc.) pull templates from that mission. Plan accordingly—artifact names can differ (e.g., research missions expect `findings.md`).
 
 ### Environment Variables
 

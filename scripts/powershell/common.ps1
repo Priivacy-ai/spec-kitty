@@ -92,11 +92,93 @@ function Get-FeatureDir {
     Join-Path $RepoRoot "kitty-specs/$Branch"
 }
 
+function Get-ActiveMissionInfo {
+    param([string]$RepoRoot)
+
+    $python = Get-Command python3 -ErrorAction SilentlyContinue
+    if (-not $python) {
+        $python = Get-Command python -ErrorAction SilentlyContinue
+    }
+    if (-not $python) {
+        throw "[spec-kitty] python interpreter not found; mission detection unavailable"
+    }
+
+    $script = @"
+from pathlib import Path
+import json
+import sys
+
+try:
+    from specify_cli.mission import get_active_mission, MissionNotFoundError  # type: ignore
+except Exception as exc:  # pragma: no cover - defensive
+    print(json.dumps({"error": f"Unable to import mission module: {exc}"}))
+    sys.exit(1)
+
+repo_root = Path(sys.argv[1])
+try:
+    mission = get_active_mission(repo_root)
+except MissionNotFoundError as exc:
+    print(json.dumps({"error": str(exc)}))
+    sys.exit(1)
+
+templates_dir = mission.templates_dir
+payload = {
+    "key": mission.path.name,
+    "path": str(mission.path),
+    "name": mission.name,
+    "templates_dir": str(templates_dir),
+    "commands_dir": str(mission.commands_dir),
+    "constitution_dir": str(mission.constitution_dir),
+    "spec_template": str(templates_dir / "spec-template.md"),
+    "plan_template": str(templates_dir / "plan-template.md"),
+    "tasks_template": str(templates_dir / "tasks-template.md"),
+    "task_prompt_template": str(templates_dir / "task-prompt-template.md"),
+}
+print(json.dumps(payload))
+"@
+
+    $output = & $python.Path -c $script $RepoRoot 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $message = ($output | Out-String).Trim()
+        if (-not $message) {
+            $message = "Unknown mission detection failure"
+        }
+        throw $message
+    }
+
+    $json = ($output | Out-String).Trim()
+    if (-not $json) {
+        throw "Mission detection returned empty output"
+    }
+
+    return $json | ConvertFrom-Json
+}
+
 function Get-FeaturePathsEnv {
     $repoRoot = Get-RepoRoot
     $currentBranch = Get-CurrentBranch
     $hasGit = Test-HasGit
     $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+    $missionInfo = $null
+
+    try {
+        $missionInfo = Get-ActiveMissionInfo -RepoRoot $repoRoot
+    } catch {
+        Write-Warning ("[spec-kitty] " + $_.Exception.Message)
+        $defaultMissionPath = Join-Path $repoRoot ".kittify/missions/software-dev"
+        $missionInfo = [PSCustomObject]@{
+            key                 = "software-dev"
+            path                = $defaultMissionPath
+            name                = "Software Dev Kitty"
+            templates_dir       = Join-Path $defaultMissionPath "templates"
+            commands_dir        = Join-Path $defaultMissionPath "commands"
+            constitution_dir    = Join-Path $defaultMissionPath "constitution"
+            spec_template       = Join-Path $defaultMissionPath "templates/spec-template.md"
+            plan_template       = Join-Path $defaultMissionPath "templates/plan-template.md"
+            tasks_template      = Join-Path $defaultMissionPath "templates/tasks-template.md"
+            task_prompt_template = Join-Path $defaultMissionPath "templates/task-prompt-template.md"
+        }
+    }
     
     [PSCustomObject]@{
         REPO_ROOT     = $repoRoot
@@ -110,6 +192,16 @@ function Get-FeaturePathsEnv {
         DATA_MODEL    = Join-Path $featureDir 'data-model.md'
         QUICKSTART    = Join-Path $featureDir 'quickstart.md'
         CONTRACTS_DIR = Join-Path $featureDir 'contracts'
+        MISSION_KEY   = $missionInfo.key
+        MISSION_PATH  = $missionInfo.path
+        MISSION_NAME  = $missionInfo.name
+        MISSION_TEMPLATES_DIR = $missionInfo.templates_dir
+        MISSION_COMMANDS_DIR = $missionInfo.commands_dir
+        MISSION_CONSTITUTION_DIR = $missionInfo.constitution_dir
+        MISSION_SPEC_TEMPLATE = $missionInfo.spec_template
+        MISSION_PLAN_TEMPLATE = $missionInfo.plan_template
+        MISSION_TASKS_TEMPLATE = $missionInfo.tasks_template
+        MISSION_TASK_PROMPT_TEMPLATE = $missionInfo.task_prompt_template
     }
 }
 

@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "0.2.0"
+version = "0.2.2"
 description = "Spec Kitty CLI, a community fork of GitHub's Spec Kit for bootstrapping Spec-Driven Development (SDD) projects."
 requires-python = ">=3.11"
 dependencies = [
@@ -26,3 +26,4 @@ packages = ["src/specify_cli"]
 "templates" = "specify_cli/templates"
 "scripts" = "specify_cli/scripts"
 "memory" = "specify_cli/memory"
+"src/specify_cli/.kittify" = "specify_cli/.kittify"

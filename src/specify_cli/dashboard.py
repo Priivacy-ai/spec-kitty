@@ -8,7 +8,7 @@ import socket
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import re
 import urllib.parse
 import mimetypes
@@ -153,18 +153,47 @@ def get_workflow_status(artifacts: Dict[str, bool]) -> Dict[str, str]:
     return workflow
 
 
+def gather_feature_paths(project_dir: Path) -> Dict[str, Path]:
+    """Collect candidate feature directories from root and worktrees."""
+    feature_paths: Dict[str, Path] = {}
+
+    # Root-level specs (legacy / non-worktree workflows)
+    root_specs = project_dir / 'kitty-specs'
+    if root_specs.exists():
+        for feature_dir in root_specs.iterdir():
+            if feature_dir.is_dir():
+                feature_paths[feature_dir.name] = feature_dir
+
+    # Worktree-hosted specs (preferred in worktree workflow)
+    worktrees_root = project_dir / '.worktrees'
+    if worktrees_root.exists():
+        for worktree_dir in worktrees_root.iterdir():
+            if not worktree_dir.is_dir():
+                continue
+            wt_specs = worktree_dir / 'kitty-specs'
+            if not wt_specs.exists():
+                continue
+            for feature_dir in wt_specs.iterdir():
+                if feature_dir.is_dir():
+                    # Favor worktree copy (overwrites root entry if present)
+                    feature_paths[feature_dir.name] = feature_dir
+
+    return feature_paths
+
+
+def resolve_feature_dir(project_dir: Path, feature_id: str) -> Optional[Path]:
+    """Resolve the on-disk directory for the requested feature."""
+    feature_paths = gather_feature_paths(project_dir)
+    feature_dir = feature_paths.get(feature_id)
+    return feature_dir
+
+
 def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
     """Scan all features and return metadata."""
-    specs_dir = project_dir / 'kitty-specs'
     features = []
+    feature_paths = gather_feature_paths(project_dir)
 
-    if not specs_dir.exists():
-        return []
-
-    for feature_dir in specs_dir.iterdir():
-        if not feature_dir.is_dir():
-            continue
-
+    for feature_id, feature_dir in feature_paths.items():
         # Only process numbered features or those with tasks
         if not (re.match(r'^\d+', feature_dir.name) or (feature_dir / 'tasks').exists()):
             continue
@@ -203,7 +232,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
         worktree_exists = worktree_path.exists()
 
         features.append({
-            'id': feature_dir.name,
+            'id': feature_id,
             'name': friendly_name,
             'path': str(feature_dir.relative_to(project_dir)),
             'artifacts': artifacts,
@@ -224,10 +253,10 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
 
 def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Dict[str, Any]]]:
     """Scan kanban board for a specific feature."""
-    feature_dir = project_dir / 'kitty-specs' / feature_id
+    feature_dir = resolve_feature_dir(project_dir, feature_id)
     lanes = {'planned': [], 'doing': [], 'for_review': [], 'done': []}
 
-    if not feature_dir.exists():
+    if feature_dir is None or not feature_dir.exists():
         return lanes
 
     tasks_dir = feature_dir / 'tasks'
@@ -1700,7 +1729,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 artifact_name = parts[4] if len(parts) > 4 else ''
 
                 project_path = Path(self.project_dir)
-                feature_dir = project_path / 'kitty-specs' / feature_id
+                feature_dir = resolve_feature_dir(project_path, feature_id)
 
                 # Map artifact names to files
                 artifact_map = {
@@ -1713,7 +1742,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 }
 
                 filename = artifact_map.get(artifact_name)
-                if filename:
+                if feature_dir and filename:
                     artifact_file = feature_dir / filename
                     if artifact_file.exists():
                         self.send_response(200)

@@ -68,6 +68,7 @@ uvx --from . spec-kitty init <project_name> --ai claude --ignore-agent-tools
 After initialization, you should see the following commands available in your AI agent:
 - `/spec-kitty.specify` - Create specifications
 - `/spec-kitty.plan` - Generate implementation plans  
+- `/spec-kitty.research` - Scaffold mission-specific research artifacts (Phase 0)
 - `/spec-kitty.tasks` - Break down into actionable tasks
 
 When you run `/spec-kitty.specify` or `/spec-kitty.plan`, expect the assistant to pause with `WAITING_FOR_DISCOVERY_INPUT` or `WAITING_FOR_PLANNING_INPUT` until you answer its question tables.

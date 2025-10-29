@@ -107,13 +107,14 @@ Once a feature specification exists, this command creates a comprehensive implem
 2. **Constitutional Compliance**: Ensures alignment with project constitution and architectural principles
 3. **Technical Translation**: Converts business requirements into technical architecture and implementation details
 4. **Detailed Documentation**: Generates supporting documents for data models, API contracts, and test scenarios
-5. **Quickstart Validation**: Produces a quickstart guide capturing key validation scenarios
+5. **Research Kickoff**: Prompts the team to run `spec-kitty research` (or `/spec-kitty.research`) so Phase 0 artifacts exist before task generation
+6. **Quickstart Validation**: Produces a quickstart guide capturing key validation scenarios
 
 ### The `/spec-kitty.tasks` Command
 
-After a plan is created, this command analyzes the plan and related design documents to generate both the executable task list *and* the kanban-ready prompt bundles:
+After a plan is created **and Phase 0 research is complete**, this command analyzes the plan and related design documents to generate both the executable task list *and* the kanban-ready prompt bundles:
 
-1. **Inputs**: Reads `plan.md` (required) and, if present, `data-model.md`, `contracts/`, `research.md`, and `quickstart.md`.
+1. **Inputs**: Reads `plan.md` (required) and, if present, `data-model.md`, `contracts/`, `research.md` (from `spec-kitty research`), and `quickstart.md`.
 2. **Task Derivation**: Converts contracts, entities, and scenarios into fine-grained subtasks (`Txxx`), marking safe parallelization with `[P]`.
 3. **Work Package Grouping**: Rolls the subtasks into at most ten work packages (`WPxx`), each aligned with a user story or cohesive subsystem so teams can deliver in independent slices.
 4. **Prompt Generation**: Builds the `/tasks/` mini-board directories, writes one prompt file per work package in `tasks/planned/` using the bundle template (complete with metadata and implementation detail), and links each package from `tasks.md`.

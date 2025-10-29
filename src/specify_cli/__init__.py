@@ -88,6 +88,13 @@ AI_CHOICES = {
     "q": "Amazon Q Developer CLI",
 }
 
+MISSION_CHOICES = {
+    "software-dev": "Software Dev Kitty",
+    "research": "Deep Research Kitty",
+}
+
+DEFAULT_MISSION_KEY = "software-dev"
+
 AGENT_TOOL_REQUIREMENTS: dict[str, tuple[str, str]] = {
     "claude": ("claude", "https://docs.anthropic.com/en/docs/claude-code/setup"),
     "gemini": ("gemini", "https://github.com/google-gemini/gemini-cli"),
@@ -469,6 +476,18 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             shutil.rmtree(templates_dest)
         shutil.copytree(templates_src, templates_dest)
 
+    missions_candidates = [
+        repo_root / ".kittify" / "missions",
+        repo_root / "src" / "specify_cli" / ".kittify" / "missions",
+    ]
+    for missions_src in missions_candidates:
+        if missions_src.exists():
+            missions_dest = specify_root / "missions"
+            if missions_dest.exists():
+                shutil.rmtree(missions_dest)
+            shutil.copytree(missions_src, missions_dest)
+            break
+
     return (specify_root / "templates" / "commands")
 
 
@@ -646,11 +665,93 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     if templates_resource.exists():
         copy_package_tree(templates_resource, specify_root / "templates")
 
+    missions_resource = data_root.joinpath(".kittify", "missions")
+    if missions_resource.exists():
+        copy_package_tree(missions_resource, specify_root / "missions")
+
     return specify_root / "templates" / "commands"
 
 
+def activate_mission(project_path: Path, mission_key: str, mission_display: str, console: Console) -> str:
+    """
+    Persist the active mission selection and warn if mission resources are missing.
+    """
+    kittify_root = project_path / ".kittify"
+    missions_dir = kittify_root / "missions"
+    active_file = kittify_root / "active-mission"
+
+    kittify_root.mkdir(parents=True, exist_ok=True)
+    missions_dir.mkdir(parents=True, exist_ok=True)
+
+    mission_path = missions_dir / mission_key
+    status_detail = mission_display
+
+    if not mission_path.exists():
+        console.print(
+            f"[yellow]Warning:[/yellow] Mission resources for [cyan]{mission_display}[/cyan] "
+            f"not found at [cyan]{mission_path}[/cyan]."
+        )
+        console.print(
+            "[yellow]Hint:[/yellow] Run [cyan]spec-kitty mission switch[/cyan] after templates are available "
+            "or reinstall project templates."
+        )
+        status_detail = f"{mission_display} (templates missing)"
+
+    active_file.write_text(f"{mission_key}\n", encoding="utf-8")
+    return status_detail
+
+
+def get_active_mission_key(project_path: Path) -> str:
+    """Return the mission key stored in .kittify/active-mission, falling back to default."""
+    active_file = project_path / ".kittify" / "active-mission"
+    if active_file.exists():
+        try:
+            key = active_file.read_text(encoding="utf-8").strip()
+            if key:
+                return key
+        except OSError:
+            pass
+    return DEFAULT_MISSION_KEY
+
+
+def resolve_template_path(
+    project_path: Path, mission_key: str, template_subpath: str | Path
+) -> Optional[Path]:
+    """
+    Resolve a template path, preferring mission overrides, then project-level defaults.
+    """
+    subpath = Path(template_subpath)
+    candidates = [
+        project_path / ".kittify" / "missions" / mission_key / "templates" / subpath,
+        project_path / ".kittify" / "templates" / subpath,
+        project_path / "templates" / subpath,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
 
 console = Console()
+
+
+def _locate_project_root(start: Path | None = None) -> Optional[Path]:
+    """Walk upwards to find the directory that owns .kittify."""
+    current = (start or Path.cwd()).resolve()
+    for candidate in [current, *current.parents]:
+        if (candidate / ".kittify").is_dir():
+            return candidate
+    return None
+
+
+def _get_project_root_or_exit(start: Path | None = None) -> Path:
+    """Return project root or exit with a helpful error."""
+    project_root = _locate_project_root(start)
+    if project_root is None:
+        console.print("[red]Error:[/red] Unable to locate project root (.kittify directory not found).")
+        console.print("[dim]Run this command from inside a Spec Kitty project or worktree.[/dim]")
+        raise typer.Exit(1)
+    return project_root
 
 class BannerGroup(TyperGroup):
     """Custom group that shows banner before help."""
@@ -1156,6 +1257,7 @@ def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
     ai_assistant: str = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
+    mission_key: str = typer.Option(None, "--mission", help="Mission key to activate (software-dev, research, ...)"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
     here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
@@ -1170,15 +1272,17 @@ def init(
     This command will:
     1. Check that required tools are installed (git is optional)
     2. Let you choose one or more AI assistants (Claude Code, Gemini CLI, GitHub Copilot, Cursor, Qwen Code, opencode, Codex CLI, Windsurf, Kilo Code, Auggie CLI, or Amazon Q Developer CLI)
-    3. Download the appropriate template from GitHub
-    4. Extract the template to a new project directory or current directory
-    5. Initialize a fresh git repository (if not --no-git and no existing repo)
-    6. Optionally set up AI assistant commands
+    3. Pick a mission (Software Dev Kitty, Deep Research Kitty, etc.) to seed templates and guardrails
+    4. Download the appropriate template from GitHub
+    5. Extract the template to a new project directory or current directory
+    6. Initialize a fresh git repository (if not --no-git and no existing repo)
+    7. Optionally set up AI assistant commands
     
     Examples:
         spec-kitty init my-project
         spec-kitty init my-project --ai claude
         spec-kitty init my-project --ai claude,codex
+        spec-kitty init my-project --mission research
         spec-kitty init my-project --ai copilot --no-git
         spec-kitty init --ignore-agent-tools my-project
         spec-kitty init . --ai claude         # Initialize in current directory
@@ -1336,6 +1440,22 @@ def init(
         else:
             selected_script = default_script
 
+    # Determine mission selection (explicit, interactive, or default)
+    if mission_key:
+        mission_key = mission_key.strip().lower()
+        if mission_key not in MISSION_CHOICES:
+            console.print(f"[red]Error:[/red] Invalid mission '{mission_key}'. Choose from: {', '.join(MISSION_CHOICES.keys())}")
+            raise typer.Exit(1)
+        selected_mission = mission_key
+    else:
+        default_mission = DEFAULT_MISSION_KEY if DEFAULT_MISSION_KEY in MISSION_CHOICES else next(iter(MISSION_CHOICES))
+        if sys.stdin.isatty():
+            selected_mission = select_with_arrows(MISSION_CHOICES, "Choose mission (or press Enter)", default_mission)
+        else:
+            selected_mission = default_mission
+
+    mission_display = MISSION_CHOICES[selected_mission]
+
     template_mode = "package"
     local_repo = get_local_repo_root()
     if local_repo is not None:
@@ -1360,6 +1480,7 @@ def init(
     ai_display = ", ".join(AI_CHOICES[key] for key in selected_agents)
     console.print(f"[cyan]Selected AI assistant(s):[/cyan] {ai_display}")
     console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+    console.print(f"[cyan]Selected mission:[/cyan] {mission_display}")
 
     # Download and set up project
     # New tree-based progress (no emojis); include earlier substeps
@@ -1373,6 +1494,9 @@ def init(
     tracker.complete("ai-select", ai_display)
     tracker.add("script-select", "Select script type")
     tracker.complete("script-select", selected_script)
+    tracker.add("mission-select", "Select mission")
+    tracker.complete("mission-select", mission_display)
+    tracker.add("mission-activate", "Activate mission")
     for agent_key in selected_agents:
         label = AI_CHOICES[agent_key]
         tracker.add(f"{agent_key}-fetch", f"{label}: fetch latest release")
@@ -1451,6 +1575,15 @@ def init(
                         repo_owner=repo_owner,
                         repo_name=repo_name,
                     )
+
+            tracker.start("mission-activate")
+            try:
+                mission_status = activate_mission(project_path, selected_mission, mission_display, console)
+            except Exception as exc:
+                tracker.error("mission-activate", str(exc))
+                raise
+            else:
+                tracker.complete("mission-activate", mission_status)
 
             # Ensure scripts are executable (POSIX)
             ensure_executable_scripts(project_path, tracker=tracker)
@@ -1534,31 +1667,24 @@ def init(
 
     # Boxed "Next steps" section
     steps_lines = []
+    step_num = 1
     if not here:
-        steps_lines.append(f"1. Go to the project folder: [cyan]cd {project_name}[/cyan]")
-        step_num = 2
+        steps_lines.append(f"{step_num}. Go to the project folder: [cyan]cd {project_name}[/cyan]")
     else:
-        steps_lines.append("1. You're already in the project directory!")
-        step_num = 2
+        steps_lines.append(f"{step_num}. You're already in the project directory!")
+    step_num += 1
 
-    # Add Codex-specific setup step if needed
-    if "codex" in selected_agents:
-        codex_path = project_path / ".codex"
-        quoted_path = shlex.quote(str(codex_path))
-        if os.name == "nt":  # Windows
-            cmd = f"setx CODEX_HOME {quoted_path}"
-        else:  # Unix-like systems
-            cmd = f"export CODEX_HOME={quoted_path}"
-        
-        steps_lines.append(f"{step_num}. Set [cyan]CODEX_HOME[/cyan] environment variable before running Codex: [cyan]{cmd}[/cyan]")
-        step_num += 1
+    steps_lines.append(f"{step_num}. Active mission: [cyan]{mission_display}[/cyan] (change later with [cyan]spec-kitty mission switch[/cyan])")
+    step_num += 1
 
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent (in workflow order):")
+    step_num += 1
 
     steps_lines.append("   - [cyan]/spec-kitty.dashboard[/] - Open the real-time kanban dashboard")
     steps_lines.append("   - [cyan]/spec-kitty.constitution[/] - Establish project principles")
     steps_lines.append("   - [cyan]/spec-kitty.specify[/] - Create baseline specification")
     steps_lines.append("   - [cyan]/spec-kitty.plan[/] - Create implementation plan")
+    steps_lines.append("   - [cyan]/spec-kitty.research[/] - Run mission-specific Phase 0 research scaffolding")
     steps_lines.append("   - [cyan]/spec-kitty.tasks[/] - Generate tasks and kanban-ready prompt files")
     steps_lines.append("   - [cyan]/spec-kitty.implement[/] - Execute implementation from /tasks/doing/")
     steps_lines.append("   - [cyan]/spec-kitty.review[/] - Review prompts and move them to /tasks/done/")
@@ -1604,6 +1730,160 @@ def init(
     except Exception as e:
         console.print(f"[yellow]Warning: Could not start dashboard: {e}[/yellow]")
         console.print("[dim]Continuing without dashboard...[/dim]")
+
+    if "codex" in selected_agents:
+        codex_path = project_path / ".codex"
+        codex_str = str(codex_path)
+        if os.name == "nt":
+            export_line = f"setx CODEX_HOME {codex_str}"
+        else:
+            export_line = f"export CODEX_HOME={codex_str}"
+        console.print("Now set your CODEX_HOME:")
+        console.print(export_line, highlight=False)
+
+
+@app.command()
+def research(
+    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to target (auto-detected when omitted)"),
+    force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
+):
+    """Execute the Phase 0 research workflow: scaffold research.md, data-model.md, and CSV evidence logs."""
+
+    show_banner()
+
+    try:
+        repo_root = find_repo_root()
+    except TaskCliError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    project_root = _get_project_root_or_exit(repo_root)
+    mission_key = get_active_mission_key(project_root)
+    mission_display = MISSION_CHOICES.get(mission_key, mission_key)
+
+    tracker = StepTracker("Research Phase Setup")
+    tracker.add("project", "Locate project root")
+    tracker.add("feature", "Resolve feature directory")
+    tracker.add("research-md", "Ensure research.md")
+    tracker.add("data-model", "Ensure data-model.md")
+    tracker.add("research-csv", "Ensure research CSV stubs")
+    tracker.add("summary", "Summarize outputs")
+    console.print()
+
+    tracker.start("project")
+    tracker.complete("project", f"{project_root} ({mission_display})")
+
+    tracker.start("feature")
+    try:
+        feature_slug = (feature or detect_feature_slug(repo_root, cwd=Path.cwd())).strip()
+    except AcceptanceError as exc:
+        tracker.error("feature", str(exc))
+        console.print(tracker.render())
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    if not feature_dir.exists():
+        fallback_dir = project_root / "kitty-specs" / feature_slug
+        if fallback_dir.exists():
+            feature_dir = fallback_dir
+        else:
+            feature_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        feature_dir.mkdir(parents=True, exist_ok=True)
+    tracker.complete("feature", str(feature_dir))
+
+    created_paths: list[Path] = []
+
+    def _copy_asset(step_key: str, label: str, relative_path: Path, template_name: Path) -> None:
+        tracker.start(step_key)
+        dest_path = feature_dir / relative_path
+        template_path = resolve_template_path(project_root, mission_key, template_name)
+
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            if dest_path.exists() and not force:
+                tracker.complete(step_key, f"{label} already exists")
+                created_paths.append(dest_path)
+                return
+
+            if template_path and template_path.is_file():
+                shutil.copy2(template_path, dest_path)
+                tracker.complete(step_key, f"{label} created")
+            else:
+                if dest_path.exists():
+                    dest_path.unlink()
+                dest_path.touch()
+                tracker.complete(step_key, f"{label} stub created")
+
+            created_paths.append(dest_path)
+        except Exception as exc:
+            tracker.error(step_key, f"{label} failed: {exc}")
+            raise
+
+    try:
+        _copy_asset("research-md", "research.md", Path("research.md"), Path("research-template.md"))
+    except Exception:
+        console.print(tracker.render())
+        raise typer.Exit(1)
+
+    try:
+        _copy_asset("data-model", "data-model.md", Path("data-model.md"), Path("data-model-template.md"))
+    except Exception:
+        console.print(tracker.render())
+        raise typer.Exit(1)
+
+    tracker.start("research-csv")
+    csv_targets = [
+        (Path("research") / "evidence-log.csv", Path("research") / "evidence-log.csv"),
+        (Path("research") / "source-register.csv", Path("research") / "source-register.csv"),
+    ]
+    csv_errors: list[str] = []
+    for dest_rel, template_rel in csv_targets:
+        dest_path = feature_dir / dest_rel
+        template_path = resolve_template_path(project_root, mission_key, template_rel)
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            if dest_path.exists() and not force:
+                created_paths.append(dest_path)
+                continue
+            if template_path and template_path.is_file():
+                shutil.copy2(template_path, dest_path)
+            else:
+                if dest_path.exists():
+                    dest_path.unlink()
+                dest_path.touch()
+            created_paths.append(dest_path)
+        except Exception as exc:
+            csv_errors.append(f"{dest_rel}: {exc}")
+
+    if csv_errors:
+        tracker.error("research-csv", "; ".join(csv_errors))
+        console.print(tracker.render())
+        raise typer.Exit(1)
+    else:
+        tracker.complete("research-csv", "CSV templates ready")
+
+    tracker.start("summary")
+    tracker.complete("summary", f"{len(created_paths)} artifacts ready")
+
+    console.print(tracker.render())
+
+    relative_paths = [
+        str(path.relative_to(feature_dir)) if path.is_relative_to(feature_dir) else str(path)
+        for path in created_paths
+    ]
+    summary_lines = "\n".join(f"- [cyan]{rel}[/cyan]" for rel in sorted(set(relative_paths)))
+    console.print()
+    console.print(
+        Panel(
+            summary_lines or "No artifacts were created (existing files kept).",
+            title="Research Artifacts",
+            border_style="cyan",
+            padding=(1, 2),
+        )
+    )
+    console.print()
 
 @app.command()
 def check():
@@ -1656,18 +1936,19 @@ def dashboard():
     import webbrowser
     import socket
 
-    dashboard_file = Path('.kittify/.dashboard')
+    project_root = _get_project_root_or_exit()
+    dashboard_file = project_root / '.kittify' / '.dashboard'
 
     if not dashboard_file.exists():
         console.print()
         console.print("[red]❌ No dashboard information found[/red]")
         console.print()
         console.print("To start the dashboard, run:")
+        console.print(f"  [cyan]cd {project_root}[/cyan]")
         console.print("  [cyan]spec-kitty init .[/cyan]")
         console.print()
         raise typer.Exit(1)
 
-    # Read dashboard URL and port
     content = dashboard_file.read_text().strip().split('\n')
     dashboard_url = content[0] if content else None
     port_str = content[1] if len(content) > 1 else None
@@ -1675,33 +1956,61 @@ def dashboard():
     if not dashboard_url or not port_str:
         console.print()
         console.print("[red]❌ Dashboard file is invalid or empty[/red]")
-        console.print("   Try running: [cyan]spec-kitty init .[/cyan]")
+        console.print(f"   Try running from [cyan]{project_root}[/cyan]: [cyan]spec-kitty init .[/cyan]")
         console.print()
         raise typer.Exit(1)
 
-    # Check if dashboard is actually running
-    port = int(port_str)
-    is_running = False
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-        result = sock.connect_ex(('127.0.0.1', port))
-        sock.close()
-        is_running = (result == 0)
-    except:
-        is_running = False
+        port = int(port_str)
+    except (TypeError, ValueError):
+        port = None
 
-    # Display URL and status
+    is_running = False
+    if port is not None:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex(('127.0.0.1', port))
+            sock.close()
+            is_running = (result == 0)
+        except Exception:
+            is_running = False
+
+    port_display = port if port is not None else port_str
+
     console.print()
     console.print("[bold green]Spec Kitty Dashboard[/bold green]")
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
+    console.print(f"  [bold cyan]Project Root:[/bold cyan] {project_root}")
     console.print(f"  [bold cyan]URL:[/bold cyan] {dashboard_url}")
 
-    if not is_running:
+    if is_running:
+        console.print()
+        console.print(f"  [green]✅ Status:[/green] Running on port {port_display}")
+    else:
         console.print()
         console.print(f"  [yellow]⚠️  Status:[/yellow] Dashboard appears to be stopped")
-        console.print(f"             (Port {port} is not responding)")
+        console.print(f"             (Port {port_display} is not responding)")
+
+    console.print()
+    console.print("[cyan]" + "=" * 60 + "[/cyan]")
+    console.print()
+
+    if is_running:
+        try:
+            webbrowser.open(dashboard_url)
+            console.print("[green]✅ Opening dashboard in your browser...[/green]")
+            console.print()
+        except Exception:
+            console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
+            console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
+            console.print()
+    else:
+        console.print("[yellow]💡 To (re)start the dashboard, run:[/yellow]")
+        console.print(f"  [cyan]cd {project_root}[/cyan]")
+        console.print("  [cyan]spec-kitty init .[/cyan]")
+        console.print()
 
 def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
     table = Table(title="Work Packages by Lane", header_style="cyan")
