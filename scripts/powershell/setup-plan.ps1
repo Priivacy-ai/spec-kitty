@@ -32,12 +32,23 @@ if (-not (Test-FeatureBranch -Branch $paths.CURRENT_BRANCH -HasGit $paths.HAS_GI
 New-Item -ItemType Directory -Path $paths.FEATURE_DIR -Force | Out-Null
 
 # Copy plan template if it exists, otherwise note it or create empty file
-$template = Join-Path $paths.REPO_ROOT '.kittify/templates/plan-template.md'
-if (Test-Path $template) { 
-    Copy-Item $template $paths.IMPL_PLAN -Force
-    Write-Output "Copied plan template to $($paths.IMPL_PLAN)"
-} else {
-    Write-Warning "Plan template not found at $template"
+$templateCandidates = @()
+if ($paths.MISSION_PLAN_TEMPLATE) { $templateCandidates += $paths.MISSION_PLAN_TEMPLATE }
+$templateCandidates += (Join-Path $paths.REPO_ROOT '.kittify/templates/plan-template.md')
+$templateCandidates += (Join-Path $paths.REPO_ROOT 'templates/plan-template.md')
+
+$templateCopied = $false
+foreach ($candidate in $templateCandidates) {
+    if ($candidate -and (Test-Path $candidate)) {
+        Copy-Item $candidate $paths.IMPL_PLAN -Force
+        Write-Output "Copied plan template to $($paths.IMPL_PLAN) (source: $candidate)"
+        $templateCopied = $true
+        break
+    }
+}
+
+if (-not $templateCopied) {
+    Write-Warning "Plan template not found in active mission or fallback locations"
     # Create a basic plan file if template doesn't exist
     New-Item -ItemType File -Path $paths.IMPL_PLAN -Force | Out-Null
 }

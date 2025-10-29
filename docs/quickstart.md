@@ -58,13 +58,17 @@ Use the `/spec-kitty.plan` command to provide your tech stack and architecture c
 
 Expect `WAITING_FOR_PLANNING_INPUT` prompts whenever the planner needs more architectural detail.
 
-### 4. Break Down and Implement
+### 4. Run Phase 0 Research
+
+Use `/spec-kitty.research` after planning wraps up. The command scaffolds `research.md`, `data-model.md`, and the CSV evidence logs that Deep Research Kitty and other missions expect. Populate those files with the clarifications and references you gathered during planning before moving on.
+
+### 5. Break Down and Implement
 
 1. Run `/spec-kitty.tasks` to produce the summary checklist in `tasks.md` **and** generate up to ten bundled prompt files under `/tasks/planned/`. Each bundle covers a work package with the granular subtasks nested beneath it.
 2. Use `/spec-kitty.implement` to move a prompt into `/tasks/doing/` and build the solution.
 3. Finish with `/spec-kitty.review` to process items in `/tasks/for_review/` and move approved work to `/tasks/done/`.
 
-### 5. Accept & Merge
+### 6. Accept & Merge
 
 Once `/tasks/done/` contains every work package and the checklist is complete, run `/spec-kitty.accept` (or `spec-kitty accept`) to:
 

@@ -56,7 +56,20 @@ $AUGGIE_FILE   = Join-Path $REPO_ROOT '.augment/rules/specify-rules.md'
 $ROO_FILE      = Join-Path $REPO_ROOT '.roo/rules/specify-rules.md'
 $Q_FILE        = Join-Path $REPO_ROOT 'AGENTS.md'
 
-$TEMPLATE_FILE = Join-Path $REPO_ROOT '.kittify/templates/agent-file-template.md'
+$templateCandidates = @()
+if ($envData.MISSION_TEMPLATES_DIR) {
+    $templateCandidates += (Join-Path $envData.MISSION_TEMPLATES_DIR 'agent-file-template.md')
+}
+$templateCandidates += (Join-Path $REPO_ROOT '.kittify/templates/agent-file-template.md')
+$templateCandidates += (Join-Path $REPO_ROOT 'templates/agent-file-template.md')
+
+$TEMPLATE_FILE = $null
+foreach ($candidate in $templateCandidates) {
+    if ($candidate -and (Test-Path $candidate)) {
+        $TEMPLATE_FILE = $candidate
+        break
+    }
+}
 
 # Parsed plan data placeholders
 $script:NEW_LANG = ''
@@ -108,10 +121,12 @@ function Validate-Environment {
         if (-not $HAS_GIT) { Write-Info 'Use: $env:SPECIFY_FEATURE=your-feature-name or create a new feature first' }
         exit 1
     }
-    if (-not (Test-Path $TEMPLATE_FILE)) {
-        Write-Err "Template file not found at $TEMPLATE_FILE"
-        Write-Info 'Run spec-kitty init to scaffold .kittify/templates, or add agent-file-template.md there.'
-        exit 1
+    if (-not $TEMPLATE_FILE) {
+        Write-WarningMsg 'Template file not found for active mission or fallback locations'
+        Write-WarningMsg 'Creating new agent files will fail'
+    } elseif (-not (Test-Path $TEMPLATE_FILE)) {
+        Write-WarningMsg "Template file not found at $TEMPLATE_FILE"
+        Write-WarningMsg 'Creating new agent files will fail'
     }
 }
 
@@ -204,6 +219,10 @@ function New-AgentFile {
         [Parameter(Mandatory=$true)]
         [datetime]$Date
     )
+    if (-not $TEMPLATE_FILE) {
+        Write-Err 'No agent template available for the active mission'
+        return $false
+    }
     if (-not (Test-Path $TEMPLATE_FILE)) { Write-Err "Template not found at $TEMPLATE_FILE"; return $false }
     $temp = New-TemporaryFile
     Copy-Item -LiteralPath $TEMPLATE_FILE -Destination $temp -Force

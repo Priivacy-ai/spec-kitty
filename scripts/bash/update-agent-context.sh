@@ -71,8 +71,20 @@ AUGGIE_FILE="$REPO_ROOT/.augment/rules/specify-rules.md"
 ROO_FILE="$REPO_ROOT/.roo/rules/specify-rules.md"
 Q_FILE="$REPO_ROOT/AGENTS.md"
 
-# Template file
-TEMPLATE_FILE="$REPO_ROOT/.kittify/templates/agent-file-template.md"
+# Template file (mission-aware with fallbacks)
+TEMPLATE_CANDIDATES=(
+    "${MISSION_TEMPLATES_DIR:-}/agent-file-template.md"
+    "$REPO_ROOT/.kittify/templates/agent-file-template.md"
+    "$REPO_ROOT/templates/agent-file-template.md"
+)
+
+TEMPLATE_FILE=""
+for candidate in "${TEMPLATE_CANDIDATES[@]}"; do
+    if [[ -n "$candidate" && -f "$candidate" ]]; then
+        TEMPLATE_FILE="$candidate"
+        break
+    fi
+done
 
 # Global variables for parsed plan data
 NEW_LANG=""
@@ -138,7 +150,10 @@ validate_environment() {
     fi
     
     # Check if template exists (needed for new files)
-    if [[ ! -f "$TEMPLATE_FILE" ]]; then
+    if [[ -z "$TEMPLATE_FILE" ]]; then
+        log_warning "Template file not found for active mission or fallback locations"
+        log_warning "Creating new agent files will fail"
+    elif [[ ! -f "$TEMPLATE_FILE" ]]; then
         log_warning "Template file not found at $TEMPLATE_FILE"
         log_warning "Creating new agent files will fail"
     fi
@@ -267,6 +282,11 @@ create_new_agent_file() {
     local temp_file="$2"
     local project_name="$3"
     local current_date="$4"
+    
+    if [[ -z "$TEMPLATE_FILE" ]]; then
+        log_error "No agent template available for the active mission"
+        return 1
+    fi
     
     if [[ ! -f "$TEMPLATE_FILE" ]]; then
         log_error "Template not found at $TEMPLATE_FILE"

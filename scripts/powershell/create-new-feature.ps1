@@ -9,6 +9,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+. "$PSScriptRoot/common.ps1"
+
 if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
     Write-Error "[spec-kitty] Error: Feature description missing.`nThis script must only run after discovery produces a confirmed intent summary. Return WAITING_FOR_DISCOVERY_INPUT, gather answers, then rerun with the finalized description."
     exit 1
@@ -58,7 +60,7 @@ try {
 
 Set-Location $repoRoot
 
-$specsDir = Join-Path $repoRoot 'specs'
+$specsDir = Join-Path $repoRoot 'kitty-specs'
 
 $highest = 0
 if (Test-Path $specsDir) {
@@ -174,18 +176,43 @@ if ($hasGit) {
 $repoRoot = $targetRoot
 Set-Location $repoRoot
 
-$specsDir = Join-Path $repoRoot 'specs'
+$missionInfo = $null
+try {
+    $missionInfo = Get-ActiveMissionInfo -RepoRoot $repoRoot
+} catch {
+    Write-Warning ("[spec-kitty] " + $_.Exception.Message)
+    $defaultMissionPath = Join-Path $repoRoot '.kittify/missions/software-dev'
+    $missionInfo = [PSCustomObject]@{
+        templates_dir  = Join-Path $defaultMissionPath 'templates'
+        spec_template  = Join-Path $defaultMissionPath 'templates/spec-template.md'
+    }
+}
+
+$specsDir = Join-Path $repoRoot 'kitty-specs'
 New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
 
 $featureDir = Join-Path $specsDir $branchName
 New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
 
-$template = Join-Path $repoRoot '.kittify/templates/spec-template.md'
 $specFile = Join-Path $featureDir 'spec.md'
-if (Test-Path $template) { 
-    Copy-Item $template $specFile -Force 
-} else { 
-    New-Item -ItemType File -Path $specFile | Out-Null 
+$specTemplateCandidates = @()
+if ($missionInfo.spec_template) { $specTemplateCandidates += $missionInfo.spec_template }
+$specTemplateCandidates += (Join-Path $repoRoot '.kittify/templates/spec-template.md')
+$specTemplateCandidates += (Join-Path $repoRoot 'templates/spec-template.md')
+
+$specTemplateCopied = $false
+foreach ($candidate in $specTemplateCandidates) {
+    if ($candidate -and (Test-Path $candidate)) {
+        Copy-Item $candidate $specFile -Force
+        Write-Output "[spec-kitty] Copied spec template from $candidate"
+        $specTemplateCopied = $true
+        break
+    }
+}
+
+if (-not $specTemplateCopied) {
+    Write-Warning "[spec-kitty] Spec template not found for active mission; creating empty spec.md"
+    New-Item -ItemType File -Path $specFile -Force | Out-Null
 }
 
 # Set the SPECIFY_FEATURE environment variable for the current session

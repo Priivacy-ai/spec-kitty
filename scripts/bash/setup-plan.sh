@@ -37,12 +37,25 @@ check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
 mkdir -p "$FEATURE_DIR"
 
 # Copy plan template if it exists
-TEMPLATE="$REPO_ROOT/.kittify/templates/plan-template.md"
-if [[ -f "$TEMPLATE" ]]; then
+TEMPLATE_CANDIDATES=(
+    "${MISSION_PLAN_TEMPLATE:-}"
+    "$REPO_ROOT/.kittify/templates/plan-template.md"
+    "$REPO_ROOT/templates/plan-template.md"
+)
+
+TEMPLATE=""
+for candidate in "${TEMPLATE_CANDIDATES[@]}"; do
+    if [[ -n "$candidate" && -f "$candidate" ]]; then
+        TEMPLATE="$candidate"
+        break
+    fi
+done
+
+if [[ -n "$TEMPLATE" ]]; then
     cp "$TEMPLATE" "$IMPL_PLAN"
-    echo "Copied plan template to $IMPL_PLAN"
+    echo "Copied plan template to $IMPL_PLAN (source: $TEMPLATE)"
 else
-    echo "Warning: Plan template not found at $TEMPLATE"
+    echo "Warning: Plan template not found in active mission or fallback locations"
     # Create a basic plan file if template doesn't exist
     touch "$IMPL_PLAN"
 fi
