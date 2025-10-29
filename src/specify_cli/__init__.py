@@ -120,7 +120,8 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
 }
 
 BANNER = """
-                                                       
+`````````````````````````````````````````````````````````
+
            ▄█▄_                            ╓▄█_
           ▐█ └▀█▄_                      ▄█▀▀ ╙█
           █"    `▀█▄                  ▄█▀     █▌
@@ -141,6 +142,8 @@ BANNER = """
              └▀█▄_                      ,▓█▀
                 └▀▀██▄,__        __╓▄██▀▀
                      `"▀▀▀▀▀▀▀▀▀▀▀╙"`
+
+`````````````````````````````````````````````````````````
 """
 
 TAGLINE = "Spec Kitty - Spec-Driven Development Toolkit (forked from GitHub Spec Kit)"
