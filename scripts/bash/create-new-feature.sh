@@ -236,8 +236,18 @@ else
     echo "SPECIFY_FEATURE environment variable set to: $BRANCH_NAME"
     echo "SPECIFY_FEATURE_NAME environment variable set to: $FRIENDLY_NAME"
     if [ -n "$WORKTREE_NOTE" ]; then
-        echo "Git worktree created at: $WORKTREE_NOTE"
-        echo "Run: cd \"$WORKTREE_NOTE\" before continuing with planning commands."
-        echo "Remove when finished: git worktree remove \"$WORKTREE_NOTE\""
+        echo ""
+        echo "✓ Git worktree created at: $WORKTREE_NOTE"
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "NEXT STEP (REQUIRED):"
+        echo "  cd \"$WORKTREE_NOTE\""
+        echo ""
+        echo "Then continue with:"
+        echo "  /spec-kitty.plan"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "When finished, remove the worktree with:"
+        echo "  git worktree remove \"$WORKTREE_NOTE\""
     fi
 fi
