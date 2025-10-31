@@ -45,8 +45,8 @@ spec-kitty dashboard
 ### Pin the Dashboard During Sprints
 Keep the dashboard open in its own monitor window so the team can react to lane changes instantly.
 
-### Subscribe to Lane Events
-The dashboard exposes a lightweight SSE feed. Connect a notifier (Slack, email, pager) to announce blocked items or requests for review.
+### Monitor Lane Events
+Wrap the lane helper scripts (`.kittify/scripts/bash/tasks-move-to-lane.sh` and PowerShell variant) to emit notifications—each transition prints the feature slug, work package, target lane, and note, which you can forward to Slack, email, or paging tools.
 
 ### Integrate With Command Scripts
 - `tasks-move-to-lane.sh` and PowerShell equivalents push structured events to the dashboard pipeline.
