@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="./media/logo_small.webp"/>
+    <img src="media/logo_small.webp"/>
     <h1>Spec Kitty</h1>
     <h3><em>Build high-quality software faster.</em></h3>
 </div>
@@ -29,12 +29,12 @@ Perfect for teams using Claude Code, Cursor, Windsurf, Gemini CLI, or GitHub Cop
 Spec Kitty includes a **live dashboard** that automatically tracks your feature development progress. View your kanban board, monitor work package status, and see which agents are working on what—all updating in real-time as you work.
 
 <div align="center">
-  <img src="./media/dashboard-kanban.png" alt="Spec Kitty Dashboard - Kanban Board View" width="800"/>
+  <img src="media/dashboard-kanban.png" alt="Spec Kitty Dashboard - Kanban Board View" width="800"/>
   <p><em>Kanban board showing work packages across all lanes with agent assignments</em></p>
 </div>
 
 <div align="center">
-  <img src="./media/dashboard-overview.png" alt="Spec Kitty Dashboard - Feature Overview" width="800"/>
+  <img src="media/dashboard-overview.png" alt="Spec Kitty Dashboard - Feature Overview" width="800"/>
   <p><em>Feature overview with completion metrics and available artifacts</em></p>
 </div>
 
