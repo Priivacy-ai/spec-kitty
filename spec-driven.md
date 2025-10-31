@@ -18,6 +18,10 @@ Debugging means fixing specifications and their implementation plans that genera
 
 The development team focuses in on their creativity, experimentation, their critical thinking.
 
+## Real-Time Progress Tracking with Integrated Kanban
+
+Spec Kitty pairs specification rigor with a **visual workflow** that keeps the entire team aligned. The built-in task dashboard streams lane transitions from every feature worktree, giving product owners, reviewers, and AI assistants a single source of truth for progress. Agents coordinate through structured lane scripts, so the dashboard highlights blockers, review requests, and idle work packages in real time. This **task dashboard** becomes the heartbeat of the project—drive agent coordination from one screen, rebalance workloads instantly, and archive the full timeline for compliance.
+
 ## The SDD Workflow in Practice
 
 ### Interactive Discovery Comes First
