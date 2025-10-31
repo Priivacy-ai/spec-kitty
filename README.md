@@ -51,6 +51,7 @@ The dashboard starts automatically when you run `spec-kitty init` and runs in th
 
 ## Table of Contents
 
+- [🎯 Why Spec-Kitty?](#-why-spec-kitty)
 - [📊 Real-Time Dashboard](#-real-time-dashboard)
 - [🔍 Spec-Kitty vs. Other Spec-Driven Tools](#-spec-kitty-vs-other-spec-driven-tools)
 - [📦 Examples](#-examples)
