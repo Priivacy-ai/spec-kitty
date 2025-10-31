@@ -17,6 +17,10 @@ Spec Kitty commands act as co-specification partners. Each run begins with disco
 - [Installation Guide](installation.md)
 - [Quick Start Guide](quickstart.md)
 - [Local Development](local-development.md)
+- [Kanban Dashboard Guide](kanban-dashboard-guide.md)
+- [Multi-Agent Orchestration](multi-agent-orchestration.md)
+- [Claude Code Workflow](claude-code-workflow.md)
+- [Spec Workflow Automation](spec-workflow-automation.md)
 
 ## Core Philosophy
 
