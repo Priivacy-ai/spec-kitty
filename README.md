@@ -25,6 +25,8 @@ Unlike traditional spec-driven tools, Spec-Kitty includes a **live kanban dashbo
 
 Perfect for teams using Claude Code, Cursor, Windsurf, Gemini CLI, or GitHub Copilot.
 
+> Spec Kitty combines specification-first rigor with a live kanban dashboard, agent-aware prompts, and automated lane scripts—features you will not find bundled together in other SDD toolkits.
+
 ## 📊 Real-Time Dashboard
 
 Spec Kitty includes a **live dashboard** that automatically tracks your feature development progress. View your kanban board, monitor work package status, and see which agents are working on what—all updating in real-time as you work.
@@ -53,6 +55,7 @@ The dashboard starts automatically when you run `spec-kitty init` and runs in th
 ## Table of Contents
 
 - [📊 Real-Time Dashboard](#-real-time-dashboard)
+- [🔍 Spec-Kitty vs. Other Spec-Driven Tools](#-spec-kitty-vs-other-spec-driven-tools)
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get started](#-get-started)
 - [🤖 Supported AI Agents](#-supported-ai-agents)
@@ -168,6 +171,17 @@ Finish the cycle by running **`/spec-kitty.review`** to process files in `/tasks
 ```
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
+
+## 🔍 Spec-Kitty vs. Other Spec-Driven Tools
+
+| Capability | Spec Kitty | Other SDD Toolkits |
+|------------|-----------|---------------------|
+| Real-time kanban dashboard with agent telemetry | ✅ Built-in dashboard with lane automation | ⚠️ Often requires third-party integrations |
+| AI discovery interview gates (`WAITING_FOR_*_INPUT`) | ✅ Mandatory across spec, plan, tasks | ⚠️ Frequently optional or absent |
+| Worktree-aware prompt generation | ✅ Prompts align with git worktrees and task lanes | ❌ Typically manual setup |
+| Multi-agent orchestration playbooks | ✅ Bundled docs + scripts for coordination | ⚠️ Sparse or ad-hoc guidance |
+| Agent-specific command scaffolding (Claude, Gemini, Cursor, etc.) | ✅ Generated during `spec-kitty init` | ⚠️ Usually limited to one assistant |
+| Specification, plan, tasks, and merge automation | ✅ End-to-end command suite | ⚠️ Partial coverage |
 
 ## 🤖 Supported AI Agents
 
