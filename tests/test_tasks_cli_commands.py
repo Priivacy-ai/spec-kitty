@@ -146,3 +146,30 @@ def test_packaged_copy_behaves_like_primary(temp_repo: Path) -> None:
     )
     assert result.returncode == 0
     assert "WP01" in result.stdout
+
+
+def test_refresh_script_upgrades_legacy_copy(temp_repo: Path) -> None:
+    scripts_root = temp_repo / ".kittify" / "scripts"
+    legacy_tasks_dir = scripts_root / "tasks"
+    legacy_tasks_dir.mkdir(parents=True, exist_ok=True)
+
+    old_cli = legacy_tasks_dir / "tasks_cli.py"
+    old_cli.write_text(
+        'from specify_cli.acceptance import perform_acceptance\nprint("legacy")\n',
+        encoding="utf-8",
+    )
+
+    refresh_script = REPO_ROOT / "scripts" / "bash" / "refresh-kittify-tasks.sh"
+    result = subprocess.run(
+        [str(refresh_script), str(temp_repo)],
+        cwd=temp_repo,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+    new_cli = legacy_tasks_dir / "tasks_cli.py"
+    assert new_cli.exists()
+    new_content = new_cli.read_text(encoding="utf-8")
+    assert "specify_cli" not in new_content
+    assert (legacy_tasks_dir / "task_helpers.py").exists()

@@ -115,6 +115,14 @@ Run one of the helpers (inside a generated feature worktree) to ensure Python fa
 .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WP01 planned --note "Smoke test"
 ```
 
+Have an older project that still ships the legacy `tasks_cli.py` importing `specify_cli`? Refresh it in-place with the new standalone helpers:
+
+```bash
+/path/to/spec-kit/scripts/bash/refresh-kittify-tasks.sh /path/to/your/project
+```
+
+The script walks upward from the provided path (or the current directory if no argument is given), replaces `.kittify/scripts/tasks/` with the current repo copy, and leaves a `tasks_cli.py.legacy` backup alongside the updated files.
+
 ## 7. Run Lint / Basic Checks (Add Your Own)
 
 Currently no enforced lint config is bundled, but you can quickly sanity check importability:
