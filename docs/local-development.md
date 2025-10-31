@@ -11,7 +11,7 @@ Remember that CLI commands will pause with `WAITING_FOR_*` tokens until you answ
 ## 1. Clone and Switch Branches
 
 ```bash
-git clone https://github.com/spec-kitty/spec-kitty.git
+git clone https://github.com/Priivacy-ai/spec-kitty.git
 cd spec-kitty
 # Work on a feature branch
 git checkout -b your-feature-branch
@@ -64,7 +64,7 @@ You can also point uvx at a specific branch without merging (optional if you wan
 ```bash
 # Push your working branch first
 git push origin your-feature-branch
-uvx --from git+https://github.com/spec-kitty/spec-kitty.git@your-feature-branch spec-kitty init demo-branch-test --script ps
+uvx --from git+https://github.com/Priivacy-ai/spec-kitty.git@your-feature-branch spec-kitty init demo-branch-test --script ps
 ```
 
 ### 4a. Absolute Path uvx (Run From Anywhere)
@@ -99,14 +99,30 @@ ls -l scripts | grep .sh
 ```
 On Windows you will instead use the `.ps1` scripts (no chmod needed).
 
-## 6. Run Lint / Basic Checks (Add Your Own)
+## 6. Verify Bundled Workflow Helpers
+
+After running `spec-kitty init`, confirm that the generated project contains the task workflow helpers introduced after the fork:
+
+```bash
+ls .kittify/scripts/tasks/
+# expect tasks_cli.py plus helper modules
+ls .kittify/scripts/bash/ | grep tasks-move-to-lane
+```
+
+Run one of the helpers (inside a generated feature worktree) to ensure Python fallbacks resolve correctly even without an installed package:
+
+```bash
+.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WP01 planned --note "Smoke test"
+```
+
+## 7. Run Lint / Basic Checks (Add Your Own)
 
 Currently no enforced lint config is bundled, but you can quickly sanity check importability:
 ```bash
 python -c "import specify_cli; print('Import OK')"
 ```
 
-## 7. Build a Wheel Locally (Optional)
+## 8. Build a Wheel Locally (Optional)
 
 Validate packaging before publishing:
 
@@ -116,7 +132,7 @@ ls dist/
 ```
 Install the built artifact into a fresh throwaway environment if needed.
 
-## 8. Using a Temporary Workspace
+## 9. Using a Temporary Workspace
 
 When testing `init --here` in a dirty directory, create a temp workspace:
 
@@ -126,7 +142,7 @@ python -m src.specify_cli init --here --ai claude --ignore-agent-tools --script 
 ```
 Or copy only the modified CLI portion if you want a lighter sandbox.
 
-## 9. Debug Network / TLS Skips
+## 10. Debug Network / TLS Skips
 
 If you need to bypass TLS validation while experimenting:
 
@@ -136,7 +152,7 @@ spec-kitty init demo --skip-tls --ai gemini --ignore-agent-tools --script ps
 ```
 (Use only for local experimentation.)
 
-## 10. Rapid Edit Loop Summary
+## 11. Rapid Edit Loop Summary
 
 | Action | Command |
 |--------|---------|
@@ -147,15 +163,16 @@ spec-kitty init demo --skip-tls --ai gemini --ignore-agent-tools --script ps
 | Git branch uvx | `uvx --from git+URL@branch spec-kitty ...` |
 | Build wheel | `uv build` |
 | Acceptance check | `spec-kitty accept --json` |
+| Dashboard smoke test | `spec-kitty dashboard` |
 
-## 11. Cleaning Up
+## 12. Cleaning Up
 
 Remove build artifacts / virtual env quickly:
 ```bash
 rm -rf .venv dist build *.egg-info
 ```
 
-## 12. Common Issues
+## 13. Common Issues
 
 | Symptom | Fix |
 |---------|-----|
@@ -165,7 +182,7 @@ rm -rf .venv dist build *.egg-info
 | Wrong script type downloaded | Pass `--script sh` or `--script ps` explicitly |
 | TLS errors on corporate network | Try `--skip-tls` (not for production) |
 
-## 13. Next Steps
+## 14. Next Steps
 
 - Update docs and run through Quick Start using your modified CLI
 - Open a PR when satisfied
