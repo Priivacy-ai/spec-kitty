@@ -114,15 +114,86 @@ get_mission_exports() {
         return 1
     fi
 
-    "$python_bin" - "$repo_root" <<'PY'
+"$python_bin" - "$repo_root" <<'PY'
 from pathlib import Path
 import sys
 
 try:
     from specify_cli.mission import get_active_mission, MissionNotFoundError  # type: ignore
-except Exception as exc:  # pragma: no cover - defensive: script execution path
-    print(f"[spec-kitty] Error: Unable to import mission module ({exc})", file=sys.stderr)
-    sys.exit(1)
+except Exception:
+    class MissionNotFoundError(Exception):
+        """Local fallback when specify_cli isn't importable."""
+
+    class _FallbackMission:
+        def __init__(self, mission_path: Path):
+            self.path = mission_path.resolve()
+            self._config: dict | None = None
+
+        def _load_config(self) -> dict:
+            if self._config is not None:
+                return self._config
+            config_path = self.path / "mission.yaml"
+            if not config_path.exists():
+                self._config = {}
+                return self._config
+            try:
+                import yaml  # type: ignore
+
+                with config_path.open("r", encoding="utf-8") as fh:
+                    data = yaml.safe_load(fh) or {}
+            except Exception:
+                data = {}
+            self._config = data if isinstance(data, dict) else {}
+            return self._config
+
+        @property
+        def name(self) -> str:
+            config = self._load_config()
+            return str(config.get("name") or self.path.name)
+
+        @property
+        def templates_dir(self) -> Path:
+            return self.path / "templates"
+
+        @property
+        def commands_dir(self) -> Path:
+            return self.path / "commands"
+
+        @property
+        def constitution_dir(self) -> Path:
+            return self.path / "constitution"
+
+    def _resolve_mission_path(project_root: Path) -> Path:
+        kittify_dir = project_root / ".kittify"
+        if not kittify_dir.exists():
+            raise MissionNotFoundError(
+                f"No .kittify directory found in {project_root}. "
+                "Is this a Spec Kitty project?"
+            )
+
+        active_link = kittify_dir / "active-mission"
+        if active_link.exists():
+            mission_path = active_link.resolve()
+        else:
+            mission_path = kittify_dir / "missions" / "software-dev"
+
+        if mission_path.exists():
+            return mission_path
+
+        missions_dir = kittify_dir / "missions"
+        available = []
+        if missions_dir.exists():
+            available = sorted(
+                p.name for p in missions_dir.iterdir()
+                if p.is_dir() and (p / "mission.yaml").exists()
+            )
+        raise MissionNotFoundError(
+            f"Active mission directory not found: {mission_path}\n"
+            f"Available missions: {', '.join(available) if available else 'none'}"
+        )
+
+    def get_active_mission(project_root: Path) -> _FallbackMission:
+        return _FallbackMission(_resolve_mission_path(project_root))
 
 repo_root = Path(sys.argv[1])
 
