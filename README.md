@@ -13,6 +13,17 @@
 [![Release](https://github.com/Priivacy-ai/spec-kitty/actions/workflows/release.yml/badge.svg)](https://github.com/Priivacy-ai/spec-kitty/actions/workflows/release.yml)
 
 ---
+## 🎯 Why Spec-Kitty?
+
+Unlike traditional spec-driven tools, Spec-Kitty includes a **live kanban dashboard** that gives you real-time visibility into your AI coding workflows:
+
+- 📊 **Visual Task Tracking**: See exactly what your AI agents are working on
+- 🔄 **Real-Time Progress**: Live updates as work moves through planned → doing → review → done
+- 👥 **Multi-Agent Orchestration**: Coordinate multiple AI coding agents simultaneously  
+- 📦 **Artifact Management**: Track specifications, plans, tasks, and deliverables in one place
+- ⚡ **Zero Configuration Dashboard**: Automatically starts with `spec-kitty init`
+
+Perfect for teams using Claude Code, Cursor, Windsurf, Gemini CLI, or GitHub Copilot.
 
 ## 📊 Real-Time Dashboard
 
