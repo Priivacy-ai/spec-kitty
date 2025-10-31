@@ -21,14 +21,8 @@
     "resource": [
       {
         "files": [
-          "images/**"
+          "assets/**"
         ]
-      },
-      {
-        "files": [
-          "../media/**"
-        ],
-        "dest": "media"
       }
     ],
     "overwrite": [
@@ -65,8 +59,8 @@
         "repo": "https://github.com/Priivacy-ai/spec-kitty",
         "branch": "main"
       },
-      "_appLogoPath": "media/logo_small.webp",
-      "_appFaviconPath": "media/logo_small.webp"
+      "_appLogoPath": "assets/images/logo_small.webp",
+      "_appFaviconPath": "assets/images/logo_small.webp"
       }
     }
   }
