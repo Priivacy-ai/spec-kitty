@@ -387,36 +387,21 @@ def get_dashboard_html() -> str:
             text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
 
-        .project-path {
-            font-size: 0.75em;
-            color: var(--medium-text);
-            margin-top: 4px;
-            font-family: 'Monaco', 'Menlo', monospace;
-            background: rgba(0,0,0,0.05);
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-
-        .worktree-info {
-            margin-top: 6px;
+        .header-info {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
         }
 
-        .worktree-path,
-        .feature-worktree {
+        .tree-view {
             font-size: 0.75em;
             color: var(--medium-text);
             font-family: 'Monaco', 'Menlo', monospace;
-            background: rgba(107, 114, 128, 0.1);
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-
-        .worktree-path strong,
-        .feature-worktree strong {
-            color: var(--grassy-green);
+            background: rgba(0,0,0,0.05);
+            padding: 6px 10px;
+            border-radius: 6px;
+            white-space: pre;
+            line-height: 1.4;
         }
 
         .feature-selector {
@@ -917,13 +902,9 @@ def get_dashboard_html() -> str:
             <div class="header-logo-wrapper">
                 <img src="/static/spec-kitty.png" alt="Spec Kitty logo" class="header-logo">
             </div>
-            <div>
+            <div class="header-info">
                 <h1>Spec Kitty</h1>
-                <div class="project-path" id="project-path">Loading...</div>
-                <div class="worktree-info">
-                    <div class="worktree-path" id="active-worktree"><strong>Active worktree:</strong> detecting…</div>
-                    <div class="feature-worktree" id="feature-worktree"><strong>Feature worktree:</strong> select a feature</div>
-                </div>
+                <pre class="tree-view" id="tree-info">Loading…</pre>
             </div>
             <div class="feature-selector" id="feature-selector-container">
                 <label>Feature:</label>
@@ -1090,6 +1071,33 @@ def get_dashboard_html() -> str:
         let allFeatures = [];
         let isConstitutionView = false;
         let lastNonConstitutionPage = 'overview';
+        let projectPathDisplay = 'Loading…';
+        let activeWorktreeDisplay = 'detecting…';
+        let featureWorktreeDisplay = 'select a feature';
+
+        function updateTreeInfo() {
+            const treeElement = document.getElementById('tree-info');
+            if (!treeElement) {
+                return;
+            }
+            const rootLine = `└─ ${projectPathDisplay}`;
+            const activeLine = `   ├─ Active worktree: ${activeWorktreeDisplay}`;
+            const featureLine = `   └─ Feature worktree: ${featureWorktreeDisplay}`;
+            treeElement.textContent = [rootLine, activeLine, featureLine].join('\n');
+        }
+
+        function computeFeatureWorktreeStatus(feature) {
+            if (!feature) {
+                featureWorktreeDisplay = allFeatures.length === 0 ? 'none yet' : 'select a feature';
+                return;
+            }
+            const worktree = feature.worktree;
+            if (worktree && worktree.path) {
+                featureWorktreeDisplay = worktree.exists ? worktree.path : `${worktree.path} (missing)`;
+            } else {
+                featureWorktreeDisplay = 'unavailable';
+            }
+        }
 
         function switchFeature(featureId) {
             const isSameFeature = featureId === currentFeature;
@@ -1116,6 +1124,9 @@ def get_dashboard_html() -> str:
             currentFeature = featureId;
             loadCurrentPage();
             updateSidebarState();
+            const feature = allFeatures.find(f => f.id === currentFeature);
+            computeFeatureWorktreeStatus(feature);
+            updateTreeInfo();
         }
 
         function switchPage(pageName) {
@@ -1514,7 +1525,6 @@ def get_dashboard_html() -> str:
             const singleFeatureName = document.getElementById('single-feature-name');
             const sidebar = document.querySelector('.sidebar');
             const mainContent = document.querySelector('.main-content');
-            const featureWorktree = document.getElementById('feature-worktree');
 
             // Handle 0 features - show welcome page
             if (features.length === 0) {
@@ -1523,10 +1533,8 @@ def get_dashboard_html() -> str:
                 sidebar.style.display = 'block';
                 mainContent.style.display = 'block';
                 isConstitutionView = false;
-
-                if (featureWorktree) {
-                    featureWorktree.innerHTML = '<strong>Feature worktree:</strong> none yet';
-                }
+                currentFeature = null;
+                computeFeatureWorktreeStatus(null);
 
                 // Show welcome page
                 document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1566,19 +1574,9 @@ def get_dashboard_html() -> str:
             const feature = features.find(f => f.id === currentFeature);
             if (feature && feature.workflow) {
                 updateWorkflowIcons(feature.workflow);
-                if (featureWorktree) {
-                    if (feature.worktree) {
-                        if (feature.worktree.exists) {
-                            featureWorktree.innerHTML = `<strong>Feature worktree:</strong> ${feature.worktree.path}`;
-                        } else {
-                            featureWorktree.innerHTML = `<strong>Feature worktree:</strong> ${feature.worktree.path} (missing)`;
-                        }
-                    } else {
-                        featureWorktree.innerHTML = '<strong>Feature worktree:</strong> unavailable';
-                    }
-                }
-            } else if (featureWorktree) {
-                featureWorktree.innerHTML = '<strong>Feature worktree:</strong> select a feature';
+                computeFeatureWorktreeStatus(feature);
+            } else {
+                computeFeatureWorktreeStatus(null);
             }
 
             updateSidebarState();
@@ -1594,26 +1592,27 @@ def get_dashboard_html() -> str:
                     updateFeatureList(data.features);
                     document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
 
-                    // Update project path display
                     if (data.project_path) {
-                        document.getElementById('project-path').textContent = data.project_path;
+                        projectPathDisplay = data.project_path;
                     }
 
-                    const activeWorktreeEl = document.getElementById('active-worktree');
-                    if (activeWorktreeEl) {
-                        if (data.active_worktree) {
-                            activeWorktreeEl.innerHTML = `<strong>Active worktree:</strong> ${data.active_worktree}`;
-                        } else if (data.worktrees_root) {
-                            activeWorktreeEl.innerHTML = `<strong>Active worktree:</strong> none (run commands inside ${data.worktrees_root}/<feature-slug>)`;
-                        } else {
-                            activeWorktreeEl.innerHTML = '<strong>Active worktree:</strong> none (worktrees not initialized yet)';
-                        }
+                    if (data.active_worktree) {
+                        activeWorktreeDisplay = data.active_worktree;
+                    } else if (data.worktrees_root) {
+                        activeWorktreeDisplay = `none (run commands inside ${data.worktrees_root}/<feature-slug>)`;
+                    } else {
+                        activeWorktreeDisplay = 'none (worktrees not initialized yet)';
                     }
+
+                    const currentFeatureObj = allFeatures.find(f => f.id === currentFeature);
+                    computeFeatureWorktreeStatus(currentFeatureObj || null);
+                    updateTreeInfo();
                 })
                 .catch(error => console.error('Error fetching data:', error));
         }
 
         // Initial fetch
+        updateTreeInfo();
         fetchData();
 
         // Poll every second
