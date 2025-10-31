@@ -64,6 +64,9 @@
       "_gitContribute": {
         "repo": "https://github.com/Priivacy-ai/spec-kitty",
         "branch": "main"
+      },
+      "_appLogoPath": "media/logo_small.webp",
+      "_appFaviconPath": "media/logo_small.webp"
       }
     }
   }
