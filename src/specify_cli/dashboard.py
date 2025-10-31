@@ -1084,7 +1084,7 @@ def get_dashboard_html() -> str:
             const rootLine = `└─ ${projectPathDisplay}`;
             const activeLine = `   ├─ Active worktree: ${activeWorktreeDisplay}`;
             const featureLine = `   └─ Feature worktree: ${featureWorktreeDisplay}`;
-            treeElement.textContent = [rootLine, activeLine, featureLine].join('\n');
+            treeElement.textContent = [rootLine, activeLine, featureLine].join('\\n');
         }
 
         function computeFeatureWorktreeStatus(feature) {
