@@ -465,6 +465,9 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
         variant_src = scripts_src / variant
         if variant_src.exists():
             shutil.copytree(variant_src, scripts_dest / variant)
+        tasks_src = scripts_src / "tasks"
+        if tasks_src.exists():
+            shutil.copytree(tasks_src, scripts_dest / "tasks")
         for item in scripts_src.iterdir():
             if item.is_file():
                 shutil.copy2(item, scripts_dest / item.name)
@@ -656,6 +659,9 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
         variant_resource = scripts_resource.joinpath(variant_name)
         if variant_resource.exists():
             copy_package_tree(variant_resource, scripts_dest / variant_name)
+        tasks_resource = scripts_resource.joinpath("tasks")
+        if tasks_resource.exists():
+            copy_package_tree(tasks_resource, scripts_dest / "tasks")
         for child in scripts_resource.iterdir():
             if child.is_file():
                 with child.open('rb') as src, open(scripts_dest / child.name, 'wb') as dst:
