@@ -95,6 +95,18 @@ spec-kitty init <PROJECT_NAME>
 spec-kitty check
 ```
 
+To update to a newer version of Spec Kitty:
+
+```bash
+uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-kitty.git --force
+```
+
+And then re-initialize your project:
+
+```bash
+spec-kitty init --here --force
+```
+
 #### Option 2: One-time Usage
 
 Run directly without installing:
