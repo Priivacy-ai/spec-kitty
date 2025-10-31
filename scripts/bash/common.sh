@@ -114,7 +114,7 @@ get_mission_exports() {
         return 1
     fi
 
-    "$python_bin" "$repo_root" <<'PY'
+    "$python_bin" - "$repo_root" <<'PY'
 from pathlib import Path
 import sys
 
