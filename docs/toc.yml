@@ -15,3 +15,11 @@
   items:
     - name: Local Development
       href: local-development.md
+    - name: Kanban Dashboard Guide
+      href: kanban-dashboard-guide.md
+    - name: Multi-Agent Orchestration
+      href: multi-agent-orchestration.md
+    - name: Claude Code Workflow
+      href: claude-code-workflow.md
+    - name: Spec Workflow Automation
+      href: spec-workflow-automation.md

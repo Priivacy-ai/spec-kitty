@@ -56,6 +56,7 @@ The dashboard starts automatically when you run `spec-kitty init` and runs in th
 
 - [📊 Real-Time Dashboard](#-real-time-dashboard)
 - [🔍 Spec-Kitty vs. Other Spec-Driven Tools](#-spec-kitty-vs-other-spec-driven-tools)
+- [📦 Examples](#-examples)
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get started](#-get-started)
 - [🤖 Supported AI Agents](#-supported-ai-agents)
@@ -182,6 +183,15 @@ For detailed step-by-step instructions, see our [comprehensive guide](./spec-dri
 | Multi-agent orchestration playbooks | ✅ Bundled docs + scripts for coordination | ⚠️ Sparse or ad-hoc guidance |
 | Agent-specific command scaffolding (Claude, Gemini, Cursor, etc.) | ✅ Generated during `spec-kitty init` | ⚠️ Usually limited to one assistant |
 | Specification, plan, tasks, and merge automation | ✅ End-to-end command suite | ⚠️ Partial coverage |
+
+## 📦 Examples
+
+We maintain real-world playbooks under [`examples/`](examples):
+
+- [`multi-agent-feature-development.md`](examples/multi-agent-feature-development.md) – orchestrate large agent squads on a single feature.
+- [`parallel-implementation-tracking.md`](examples/parallel-implementation-tracking.md) – monitor parallel delivery with dashboard metrics.
+- [`dashboard-driven-development.md`](examples/dashboard-driven-development.md) – run a product trio from the kanban dashboard.
+- [`claude-cursor-collaboration.md`](examples/claude-cursor-collaboration.md) – blend Claude and Cursor within the Spec Kitty workflow.
 
 ## 🤖 Supported AI Agents
 
