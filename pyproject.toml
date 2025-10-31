@@ -12,6 +12,11 @@ dependencies = [
     "truststore>=0.10.4",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4",
+]
+
 [project.scripts]
 spec-kitty = "specify_cli:main"
 

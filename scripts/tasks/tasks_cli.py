@@ -9,16 +9,11 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from specify_cli.acceptance import (
-    AcceptanceError,
-    AcceptanceResult,
-    AcceptanceSummary,
-    choose_mode,
-    collect_feature_summary,
-    detect_feature_slug,
-    perform_acceptance,
-)
-from specify_cli.tasks_support import (
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from task_helpers import (  # noqa: E402
     LANES,
     TaskCliError,
     WorkPackage,
@@ -36,6 +31,15 @@ from specify_cli.tasks_support import (
     split_frontmatter,
     locate_work_package,
 )
+from acceptance_support import (  # noqa: E402
+    AcceptanceError,
+    AcceptanceResult,
+    AcceptanceSummary,
+    choose_mode,
+    collect_feature_summary,
+    detect_feature_slug,
+    perform_acceptance,
+)
 
 
 def stage_move(
@@ -48,7 +52,7 @@ def stage_move(
     timestamp: str,
     dry_run: bool = False,
 ) -> Path:
-    target_dir = repo_root / "specs" / wp.feature / "tasks" / target_lane
+    target_dir = repo_root / "kitty-specs" / wp.feature / "tasks" / target_lane
     new_path = (target_dir / wp.relative_subpath).resolve()
 
     if dry_run:
@@ -93,7 +97,7 @@ def move_command(args: argparse.Namespace) -> None:
     status_lines = git_status_lines(repo_root)
     new_path = (
         repo_root
-        / "specs"
+        / "kitty-specs"
         / feature
         / "tasks"
         / args.lane
@@ -171,7 +175,7 @@ def history_command(args: argparse.Namespace) -> None:
 
 def list_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    feature_dir = repo_root / "specs" / args.feature / "tasks"
+    feature_dir = repo_root / "kitty-specs" / args.feature / "tasks"
     if not feature_dir.exists():
         raise TaskCliError(f"Feature '{args.feature}' has no tasks directory at {feature_dir}.")
 
