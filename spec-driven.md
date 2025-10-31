@@ -112,7 +112,8 @@ Once a feature specification exists, this command creates a comprehensive implem
 3. **Technical Translation**: Converts business requirements into technical architecture and implementation details
 4. **Detailed Documentation**: Generates supporting documents for data models, API contracts, and test scenarios
 5. **Research Kickoff**: Prompts the team to run `spec-kitty research` (or `/spec-kitty.research`) so Phase 0 artifacts exist before task generation
-6. **Quickstart Validation**: Produces a quickstart guide capturing key validation scenarios
+6. **Agent Context Refresh**: Reminds you to run `.kittify/scripts/bash/update-agent-context.sh __AGENT__` so Claude, Cursor, Gemini, and other assistants receive the latest architectural decisions
+7. **Quickstart Validation**: Produces a quickstart guide capturing key validation scenarios
 
 ### The `/spec-kitty.tasks` Command
 
@@ -178,7 +179,7 @@ The agent must verify before proceeding to implementation:
 
 Spec Kitty ships with helper scripts to streamline the workflow:
 
-- `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx doing --note "Started implementation"` (and the PowerShell counterpart) – Moves prompts between lanes, updates frontmatter, and records activity in one shot.
+- `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx doing --note "Started implementation"` (and the PowerShell counterpart) – Moves prompts between lanes, updates frontmatter, and records activity in one shot using the bundled `.kittify/scripts/tasks/tasks_cli.py` helper.
 - `.kittify/scripts/bash/tasks-add-history-entry.sh FEATURE-SLUG WPxx --note "Resumed after dependency install"` – Appends structured history without moving lanes.
 - `.kittify/scripts/bash/tasks-list-lanes.sh FEATURE-SLUG` – Shows the current lane, agent, and assignee for every work package.
 - `.kittify/scripts/bash/tasks-rollback-move.sh FEATURE-SLUG WPxx` – Returns a prompt to its previous lane if a move was made in error.
