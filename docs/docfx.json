@@ -60,8 +60,12 @@
         "branch": "main"
       },
       "_appLogoPath": "assets/images/logo_small.webp",
-      "_appFaviconPath": "assets/images/logo_small.webp"
-      }
+      "_appFaviconPath": "assets/images/logo_small.webp",
+      "_appHeader": "<div class=\"sk-header\"><a href=\"https://priivacy.ai\" target=\"_blank\" rel=\"noopener\">Priivacy.ai</a><span class=\"sk-separator\">∙</span><a href=\"https://github.com/Priivacy-ai/spec-kitty\" target=\"_blank\" rel=\"noopener\">GitHub Repository</a></div>",
+      "_additionalCss": [
+        "assets/css/custom.css"
+      ]
     }
   }
+}
 }
