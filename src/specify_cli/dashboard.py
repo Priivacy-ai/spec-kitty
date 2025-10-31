@@ -316,6 +316,7 @@ def get_dashboard_html() -> str:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spec Kitty Dashboard</title>
+    <link rel="icon" type="image/png" href="/static/spec-kitty.png">
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
     <style>
         :root {
@@ -1112,7 +1113,10 @@ def get_dashboard_html() -> str:
                     currentPage = 'overview';
                 }
                 document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-                document.getElementById(`page-${currentPage}`)?.classList.add('active');
+                const currentPageEl = document.getElementById(`page-${currentPage}`);
+                if (currentPageEl) {
+                    currentPageEl.classList.add('active');
+                }
                 document.querySelectorAll('.sidebar-item').forEach(item => {
                     if (item.dataset.page === currentPage) {
                         item.classList.add('active');
@@ -1151,7 +1155,10 @@ def get_dashboard_html() -> str:
             document.querySelectorAll('.page').forEach(page => {
                 page.classList.remove('active');
             });
-            document.getElementById(`page-${pageName}`)?.classList.add('active');
+            const activePageEl = document.getElementById(`page-${pageName}`);
+            if (activePageEl) {
+                activePageEl.classList.add('active');
+            }
 
             loadCurrentPage();
         }
