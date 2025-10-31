@@ -9,9 +9,6 @@
 </p>
 
 > **Note:** Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
-
-[![Release](https://github.com/Priivacy-ai/spec-kitty/actions/workflows/release.yml/badge.svg)](https://github.com/Priivacy-ai/spec-kitty/actions/workflows/release.yml)
-
 ---
 ## 🎯 Why Spec-Kitty?
 
