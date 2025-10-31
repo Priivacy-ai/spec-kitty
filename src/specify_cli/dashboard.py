@@ -1092,7 +1092,11 @@ def get_dashboard_html() -> str:
         let lastNonConstitutionPage = 'overview';
 
         function switchFeature(featureId) {
+            const isSameFeature = featureId === currentFeature;
             if (isConstitutionView) {
+                if (isSameFeature) {
+                    return;
+                }
                 isConstitutionView = false;
                 if (lastNonConstitutionPage && lastNonConstitutionPage !== 'constitution') {
                     currentPage = lastNonConstitutionPage;
