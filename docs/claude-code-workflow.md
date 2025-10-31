@@ -18,10 +18,26 @@ Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. Th
 | Phase | Claude Code Usage | Spec Kitty Command |
 |-------|-------------------|--------------------|
 | Discovery | Prompt Claude to interview stakeholders | `/spec-kitty.specify` |
+| Research | Summarize evidence and data model findings | `/spec-kitty.research` |
 | Planning | Generate architecture briefs via Claude | `/spec-kitty.plan` |
 | Tasks | Produce work packages and prompts that Claude can execute | `/spec-kitty.tasks` |
 | Implementation | Run Claude on specific prompt files | `/spec-kitty.implement` |
-| Review | Summarize results and follow-up tasks | `/spec-kitty.merge` or manual review |
+| Review & Merge | Summarize results and follow-up tasks, then land the branch | `/spec-kitty.review`, `/spec-kitty.merge` |
+
+## Setup Checklist
+
+1. **Select Claude during project creation**
+   ```bash
+   spec-kitty init my-project --ai claude
+   ```
+   This copies Claude-specific commands into `.claude/commands/` and activates the automation scripts under `.kittify/scripts/`.
+
+2. **Refresh Claude’s long-term context after planning**
+   ```bash
+   cd <feature worktree>
+   .kittify/scripts/bash/update-agent-context.sh claude
+   ```
+   The script injects new architecture decisions, tech stacks, and vocabulary into Claude’s context files. Re-run it whenever `plan.md` or `tasks.md` changes.
 
 ## Running Claude Against Prompts
 
@@ -43,13 +59,18 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 ## Dashboard Integration
 
 - Lane transitions triggered by `.kittify/scripts/bash/tasks-move-to-lane.sh` surface instantly on the kanban dashboard.
-- Claude’s output should include structured summaries; paste these into the prompt’s “Activity Log” before pushing back to `for_review`.
+- Each lane move records `agent`, `assignee`, and `shell_pid` in prompt frontmatter—Claude should add an ISO 8601 entry to the **Activity Log** summarizing what changed.
+- When Claude finishes a work package, use the helper script to move it to `for_review` so the dashboard and reviewers stay in sync:
+  ```bash
+  .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WP02 for_review --note "Ready for review"
+  ```
 
 ## Recommended Automation
 
 1. **Claude session bootstrapper:** Script that reads `meta.json` for the friendly feature name and injects it into Claude’s context.
 2. **Claude completion validator:** Automatically checks that Claude’s output modifies only the allowed files referenced in the prompt.
 3. **Claude dashboard notifier:** Sends Claude’s status updates to a team Slack channel whenever a work package changes lanes.
+4. **Checklist watcher:** Parse `kitty-specs/<feature>/checklists/` and block Claude from moving prompts to `done` when acceptance criteria are unchecked.
 
 ## Troubleshooting Claude Sessions
 
@@ -57,7 +78,19 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 |---------|-------|-----|
 | Claude asks for missing context | Prompt not in `doing` lane yet | Move prompt to `doing` so scripts inject metadata |
 | Claude edits unexpected files | Prompt instructions unclear | Refine `tasks.md` and regenerate prompt |
+| Dashboard shows stale lane | Prompt moved manually | Always use `.kittify/scripts/.../tasks-move-to-lane.sh` |
 | Claude session interrupted | CLI lost connection | Resume using the prompt transcript stored under `.claude/history/` |
+
+## Merge and Cleanup
+
+Once Claude (and any partner agents) finish the feature:
+
+1. Ensure `tasks/for_review/` is empty and all checklists are complete.
+2. Run the guided merge:
+   ```bash
+   spec-kitty merge --remove-worktree
+   ```
+   The command documents merge steps, updates activity logs, and optionally removes the feature worktree to keep the repository tidy.
 
 ## Beyond Claude
 
