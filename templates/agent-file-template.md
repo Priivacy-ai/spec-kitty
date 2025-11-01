@@ -1,4 +1,6 @@
 # [PROJECT NAME] Development Guidelines
+*Path: [templates/agent-file-template.md](templates/agent-file-template.md)*
+
 
 Auto-generated from all feature plans. Last updated: [DATE]
 

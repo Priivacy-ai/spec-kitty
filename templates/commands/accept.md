@@ -4,6 +4,8 @@ scripts:
   sh: .kittify/scripts/bash/accept-feature.sh --json {ARGS}
   ps: .kittify/scripts/powershell/accept-feature.ps1 --json {ARGS}
 ---
+*Path: [templates/commands/accept.md](templates/commands/accept.md)*
+
 
 ## User Input
 

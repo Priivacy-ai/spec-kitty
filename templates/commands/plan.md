@@ -7,6 +7,8 @@ agent_scripts:
   sh: scripts/bash/update-agent-context.sh __AGENT__
   ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
+*Path: [templates/commands/plan.md](templates/commands/plan.md)*
+
 
 ## User Input
 

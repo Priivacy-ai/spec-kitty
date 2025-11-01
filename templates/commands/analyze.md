@@ -4,6 +4,8 @@ scripts:
   sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
 ---
+*Path: [templates/commands/analyze.md](templates/commands/analyze.md)*
+
 
 ## User Input
 

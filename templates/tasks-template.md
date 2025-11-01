@@ -1,6 +1,8 @@
 ---
 description: "Work package task list template for feature implementation"
 ---
+*Path: [templates/tasks-template.md](templates/tasks-template.md)*
+
 
 # Work Packages: [FEATURE NAME]
 

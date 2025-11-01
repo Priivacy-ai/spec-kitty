@@ -119,6 +119,7 @@ The script will fail if you're not in a feature worktree. This is intentional - 
 4. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read the task prompt file from `tasks/doing/phase-X-name/TXXX-slug.md` (moved in step 3)
+   - **MANDATORY**: Scan the prompt body for reviewer notes or follow-up requests—many tasks return to `planned/` after review with embedded feedback that must drive your next steps.
    - **VERIFY**: Frontmatter shows `lane: "doing"`, `agent`, and `shell_pid`
    - **IF METADATA MISSING**: You skipped step 3. Pause and complete the workflow initialization before continuing.
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
@@ -134,6 +135,7 @@ The script will fail if you're not in a feature worktree. This is intentional - 
    - **Execution flow**: Order and dependency requirements
 
 6. Execute implementation following the task plan:
+   - **Pull from planned intentionally**: Select the next task from `tasks/planned/`. If it recently came back from `for_review/`, treat any embedded notes as your starting TODO list and confirm you address each one before closing.
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks

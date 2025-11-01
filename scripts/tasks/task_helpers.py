@@ -63,6 +63,24 @@ def git_status_lines(repo_root: Path) -> List[str]:
     return [line for line in result.stdout.splitlines() if line.strip()]
 
 
+def _normalize_status_path(raw: str) -> str:
+    candidate = raw.split(" -> ", 1)[0].strip()
+    candidate = candidate.lstrip("./")
+    return candidate.replace("\\", "/")
+
+
+def path_has_changes(status_lines: List[str], path: Path) -> bool:
+    """Return True if git status indicates modifications for the given path."""
+    normalized = _normalize_status_path(str(path))
+    for line in status_lines:
+        if len(line) < 4:
+            continue
+        candidate = _normalize_status_path(line[3:])
+        if candidate == normalized:
+            return True
+    return False
+
+
 def normalize_note(note: Optional[str], target_lane: str) -> str:
     default = f"Moved to {target_lane}"
     cleaned = (note or default).strip()

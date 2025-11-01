@@ -4,6 +4,8 @@ scripts:
   sh: scripts/bash/check-prerequisites.sh --json
   ps: scripts/powershell/check-prerequisites.ps1 -Json
 ---
+*Path: [templates/commands/checklist.md](templates/commands/checklist.md)*
+
 
 ## Checklist Purpose: "Unit Tests for English"
 
