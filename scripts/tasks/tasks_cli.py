@@ -26,6 +26,7 @@ from task_helpers import (  # noqa: E402
     git_status_lines,
     normalize_note,
     now_utc,
+    path_has_changes,
     run_git,
     set_scalar,
     split_frontmatter,
@@ -73,7 +74,7 @@ def stage_move(
     run_git(["add", str(new_path.relative_to(repo_root))], cwd=repo_root, check=True)
     if wp.path.resolve() != new_path.resolve():
         run_git(
-            ["rm", "--quiet", str(wp.path.relative_to(repo_root))],
+            ["rm", "--quiet", "--force", str(wp.path.relative_to(repo_root))],
             cwd=repo_root,
             check=True,
         )
@@ -84,7 +85,68 @@ def stage_move(
 def move_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     feature = args.feature
-    wp = locate_work_package(repo_root, feature, args.work_package)
+
+    def cleanup_stale_target(message: str) -> bool:
+        """Remove a stale target-lane copy created by an aborted move."""
+        if args.dry_run:
+            return False
+
+        candidate_lines = [
+            line.strip()
+            for line in message.splitlines()
+            if line.strip().startswith("kitty-specs/")
+        ]
+        if len(candidate_lines) != 2:
+            return False
+
+        target_lines = [
+            line for line in candidate_lines if f"/tasks/{args.lane}/" in line
+        ]
+        if len(target_lines) != 1:
+            return False
+
+        stale_path = (repo_root / Path(target_lines[0])).resolve()
+        if not stale_path.exists():
+            return False
+
+        status_snapshot = git_status_lines(repo_root)
+        stale_rel = stale_path.relative_to(repo_root)
+        if path_has_changes(status_snapshot, stale_rel):
+            run_git(["add", str(stale_rel)], cwd=repo_root, check=True)
+
+        result = run_git(
+            ["rm", "--quiet", "--cached", str(stale_rel)],
+            cwd=repo_root,
+            check=False,
+        )
+        if getattr(result, "returncode", 0) not in (0,):
+            # Ignore failures when the file was never staged.
+            pass
+
+        if stale_path.exists():
+            try:
+                stale_path.unlink()
+            except FileNotFoundError:
+                pass
+
+        try:
+            stale_path.parent.rmdir()
+        except OSError:
+            pass
+
+        print(f"[cleanup] Removed stale copy at {stale_rel}", file=sys.stderr)
+        return True
+
+    while True:
+        try:
+            wp = locate_work_package(repo_root, feature, args.work_package)
+            break
+        except TaskCliError as err:
+            message = str(err)
+            if "Multiple files matched" not in message or not cleanup_stale_target(message):
+                raise
+            # Stale copy removed; retry lookup.
+            continue
 
     if wp.current_lane == args.lane:
         raise TaskCliError(f"Work package already in lane '{args.lane}'.")
@@ -95,6 +157,11 @@ def move_command(args: argparse.Namespace) -> None:
     note = normalize_note(args.note, args.lane)
 
     status_lines = git_status_lines(repo_root)
+    if not args.dry_run:
+        source_rel = wp.path.relative_to(repo_root)
+        if path_has_changes(status_lines, source_rel):
+            run_git(["add", str(source_rel)], cwd=repo_root, check=True)
+            status_lines = git_status_lines(repo_root)
     new_path = (
         repo_root
         / "kitty-specs"

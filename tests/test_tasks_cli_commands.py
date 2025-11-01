@@ -31,6 +31,67 @@ def test_move_and_rollback(feature_repo: Path, feature_slug: str) -> None:
     assert rolled_wp.current_lane == "planned"
 
 
+def test_move_stages_dirty_source(feature_repo: Path, feature_slug: str) -> None:
+    wp_path = feature_repo / "kitty-specs" / feature_slug / "tasks" / "planned" / "WP01.md"
+    original_text = wp_path.read_text(encoding="utf-8")
+    wp_path.write_text(original_text + "\n<!-- reviewer note -->\n", encoding="utf-8")
+
+    result = run_tasks_cli(["move", feature_slug, "WP01", "doing"], cwd=feature_repo)
+    assert_success(result)
+
+    planned_copy = feature_repo / "kitty-specs" / feature_slug / "tasks" / "planned" / "WP01.md"
+    doing_copy = feature_repo / "kitty-specs" / feature_slug / "tasks" / "doing" / "WP01.md"
+    assert not planned_copy.exists()
+    assert doing_copy.exists()
+    moved_content = doing_copy.read_text(encoding="utf-8")
+    assert "<!-- reviewer note -->" in moved_content
+
+
+def test_move_cleans_stale_target_copy(feature_repo: Path, feature_slug: str) -> None:
+    # Move into for_review so the work package lives there.
+    assert_success(run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo))
+    assert_success(run_tasks_cli(["move", feature_slug, "WP01", "for_review", "--force"], cwd=feature_repo))
+
+    wp_for_review = locate_work_package(feature_repo, feature_slug, "WP01")
+    assert wp_for_review.current_lane == "for_review"
+
+    planned_path = (
+        feature_repo
+        / "kitty-specs"
+        / feature_slug
+        / "tasks"
+        / "planned"
+        / wp_for_review.relative_subpath
+    )
+    doing_path = (
+        feature_repo
+        / "kitty-specs"
+        / feature_slug
+        / "tasks"
+        / "doing"
+        / wp_for_review.relative_subpath
+    )
+    for_review_path = wp_for_review.path
+
+    # Simulate an aborted move that left a duplicate in planned/.
+    planned_path.parent.mkdir(parents=True, exist_ok=True)
+    planned_path.write_text(for_review_path.read_text(encoding="utf-8"), encoding="utf-8")
+    run(["git", "add", str(planned_path.relative_to(feature_repo))], cwd=feature_repo)
+
+    # Update the current file so it has modifications that need staging.
+    for_review_path.write_text(
+        for_review_path.read_text(encoding="utf-8") + "\n<!-- adjustments -->\n",
+        encoding="utf-8",
+    )
+
+    result = run_tasks_cli(["move", feature_slug, "WP01", "planned"], cwd=feature_repo)
+    assert_success(result)
+
+    assert planned_path.exists()
+    assert "<!-- adjustments -->" in planned_path.read_text(encoding="utf-8")
+    assert not doing_path.exists()
+    assert not for_review_path.exists()
+
 def test_list_command_output(feature_repo: Path, feature_slug: str) -> None:
     result = run_tasks_cli(["list", feature_slug], cwd=feature_repo)
     assert_success(result)
