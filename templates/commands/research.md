@@ -4,6 +4,8 @@ scripts:
   sh: spec-kitty research
   ps: spec-kitty research
 ---
+*Path: [templates/commands/research.md](templates/commands/research.md)*
+
 
 ## Goal
 

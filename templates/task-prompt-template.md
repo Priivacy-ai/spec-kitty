@@ -15,6 +15,8 @@ history:
     shell_pid: ""
     action: "Prompt generated via /spec-kitty.tasks"
 ---
+*Path: [templates/task-prompt-template.md](templates/task-prompt-template.md)*
+
 
 # Work Package Prompt: {{work_package_id}} – {{title}}
 

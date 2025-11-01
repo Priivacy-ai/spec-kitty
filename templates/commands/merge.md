@@ -4,6 +4,8 @@ scripts:
   sh: ".kittify/scripts/bash/merge-feature.sh"
   ps: ".kittify/scripts/powershell/Merge-Feature.ps1"
 ---
+*Path: [templates/commands/merge.md](templates/commands/merge.md)*
+
 
 # Merge Feature Branch
 

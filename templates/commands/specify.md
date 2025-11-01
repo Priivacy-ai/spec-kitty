@@ -4,6 +4,8 @@ scripts:
   sh: .kittify/scripts/bash/create-new-feature.sh --json "{ARGS}"
   ps: .kittify/scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
 ---
+*Path: [templates/commands/specify.md](templates/commands/specify.md)*
+
 
 ## User Input
 

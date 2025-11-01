@@ -4,6 +4,8 @@ scripts:
   sh: scripts/bash/check-prerequisites.sh --json --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
 ---
+*Path: [templates/commands/review.md](templates/commands/review.md)*
+
 
 ## User Input
 

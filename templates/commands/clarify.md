@@ -4,6 +4,8 @@ scripts:
    sh: scripts/bash/check-prerequisites.sh --json --paths-only
    ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
+*Path: [templates/commands/clarify.md](templates/commands/clarify.md)*
+
 
 ## User Input
 
