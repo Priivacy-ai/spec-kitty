@@ -134,7 +134,6 @@ The script will fail if you're not in a feature worktree. This is intentional - 
    - **Execution flow**: Order and dependency requirements
 
 6. Execute implementation following the task plan:
-   - Before you pull a new work package from `tasks/planned/`, list `tasks/for_review/phase-*` to see if anything is waiting on feedback. Handle at least one ready-for-review bundle (move it to doing, run the review flow, and hand it back to `tasks/done/`) before starting fresh work so the kanban never stalls.
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
