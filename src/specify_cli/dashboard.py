@@ -478,6 +478,11 @@ def get_dashboard_html() -> str:
             color: var(--medium-text);
         }
 
+        .sidebar-last-update {
+            margin: 6px 30px 20px;
+            display: block;
+        }
+
         .container {
             display: flex;
             flex: 1;
@@ -929,9 +934,6 @@ def get_dashboard_html() -> str:
             </div>
             <div id="single-feature-name" style="display: none; font-size: 1.2em; color: var(--grassy-green); font-weight: 600;"></div>
         </div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div class="last-update">Last updated: <span id="last-update">Loading...</span></div>
-        </div>
     </div>
 
     <div class="container">
@@ -939,6 +941,7 @@ def get_dashboard_html() -> str:
             <div class="sidebar-item" data-page="constitution" onclick="switchPage('constitution')">
                 📜 Constitution
             </div>
+            <div class="last-update sidebar-last-update">Last updated: <span id="last-update">Loading...</span></div>
             <div style="padding: 15px 30px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                 Workflow
             </div>
