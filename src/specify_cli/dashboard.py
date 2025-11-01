@@ -1092,16 +1092,41 @@ def get_dashboard_html() -> str:
         let projectPathDisplay = 'Loading…';
         let activeWorktreeDisplay = 'detecting…';
         let featureWorktreeDisplay = 'select a feature';
+        let featureSelectActive = false;
+        let featureSelectIdleTimer = null;
+
+        function setFeatureSelectActive(isActive) {
+            if (isActive) {
+                featureSelectActive = true;
+                if (featureSelectIdleTimer) {
+                    clearTimeout(featureSelectIdleTimer);
+                }
+                featureSelectIdleTimer = setTimeout(() => {
+                    featureSelectActive = false;
+                    featureSelectIdleTimer = null;
+                }, 5000);
+            } else {
+                featureSelectActive = false;
+                if (featureSelectIdleTimer) {
+                    clearTimeout(featureSelectIdleTimer);
+                    featureSelectIdleTimer = null;
+                }
+            }
+        }
 
         function updateTreeInfo() {
             const treeElement = document.getElementById('tree-info');
             if (!treeElement) {
                 return;
             }
-            const rootLine = `└─ ${projectPathDisplay}`;
-            const activeLine = `   ├─ Active worktree: ${activeWorktreeDisplay}`;
-            const featureLine = `   └─ Feature worktree: ${featureWorktreeDisplay}`;
-            treeElement.textContent = [rootLine, activeLine, featureLine].join('\\n');
+            const lines = [`└─ ${projectPathDisplay}`];
+            if (activeWorktreeDisplay) {
+                lines.push(`   ├─ Active worktree: ${activeWorktreeDisplay}`);
+                lines.push(`   └─ Feature worktree: ${featureWorktreeDisplay}`);
+            } else {
+                lines.push(`   └─ Feature worktree: ${featureWorktreeDisplay}`);
+            }
+            treeElement.textContent = lines.join('\n');
         }
 
         function computeFeatureWorktreeStatus(feature) {
@@ -1560,6 +1585,18 @@ def get_dashboard_html() -> str:
             const sidebar = document.querySelector('.sidebar');
             const mainContent = document.querySelector('.main-content');
 
+            if (select && !select.dataset.pauseHandlersAttached) {
+                const activate = () => setFeatureSelectActive(true);
+                const deactivate = () => setFeatureSelectActive(false);
+                ['focus', 'mousedown', 'keydown', 'click', 'input'].forEach(evt => {
+                    select.addEventListener(evt, activate);
+                });
+                ['change', 'blur'].forEach(evt => {
+                    select.addEventListener(evt, deactivate);
+                });
+                select.dataset.pauseHandlersAttached = 'true';
+            }
+
             // Handle 0 features - show welcome page
             if (features.length === 0) {
                 selectContainer.style.display = 'none';
@@ -1569,6 +1606,7 @@ def get_dashboard_html() -> str:
                 isConstitutionView = false;
                 currentFeature = null;
                 computeFeatureWorktreeStatus(null);
+                setFeatureSelectActive(false);
 
                 // Show welcome page
                 document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1592,6 +1630,7 @@ def get_dashboard_html() -> str:
                 singleFeatureName.style.display = 'block';
                 singleFeatureName.textContent = `Feature: ${features[0].name}`;
                 currentFeature = features[0].id;
+                setFeatureSelectActive(false);
             } else {
                 // Handle multiple features - show dropdown
                 selectContainer.style.display = 'block';
@@ -1626,6 +1665,9 @@ def get_dashboard_html() -> str:
         }
 
         function fetchData() {
+            if (featureSelectActive) {
+                return;
+            }
             fetch('/api/features')
                 .then(response => response.json())
                 .then(data => {
@@ -1639,7 +1681,7 @@ def get_dashboard_html() -> str:
                     if (data.active_worktree) {
                         activeWorktreeDisplay = data.active_worktree;
                     } else {
-                        activeWorktreeDisplay = 'main checkout (worktree not detected)';
+                        activeWorktreeDisplay = '';
                     }
 
                     const currentFeatureObj = allFeatures.find(f => f.id === currentFeature);
@@ -1715,19 +1757,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 except ValueError:
                     active_worktree_display = None
 
-            if not active_worktree_display:
-                if current_path == project_path:
-                    if worktrees_root_exists:
-                        hint_base = worktrees_root_display or format_path_for_display(
-                            str(worktrees_root_resolved)
-                        )
-                        active_worktree_display = (
-                            f"main checkout (open a shell in {hint_base}/<feature-slug> to mark it here)"
-                        )
-                    else:
-                        active_worktree_display = "main checkout (feature worktrees not initialized yet)"
-                else:
-                    active_worktree_display = format_path_for_display(str(current_path))
+            if not active_worktree_display and current_path != project_path:
+                active_worktree_display = format_path_for_display(str(current_path))
 
             response_data = {
                 'features': features,
