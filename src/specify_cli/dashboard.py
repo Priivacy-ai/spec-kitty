@@ -4,6 +4,7 @@ Zero-footprint dashboard v2 with sidebar navigation and feature dropdown.
 """
 
 import json
+import os
 import socket
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -15,6 +16,38 @@ import mimetypes
 
 STATIC_URL_PREFIX = '/static/'
 STATIC_DIR = (Path(__file__).parent / 'static').resolve()
+
+
+def format_path_for_display(path_str: Optional[str]) -> Optional[str]:
+    """Return a human-readable path that shortens the user's home directory."""
+    if not path_str:
+        return path_str
+
+    try:
+        path = Path(path_str).expanduser()
+    except (TypeError, ValueError):
+        return path_str
+
+    try:
+        resolved = path.resolve()
+    except Exception:
+        resolved = path
+
+    try:
+        home = Path.home().resolve()
+    except Exception:
+        home = Path.home()
+
+    try:
+        relative = resolved.relative_to(home)
+    except ValueError:
+        return str(resolved)
+
+    relative_str = str(relative)
+    if relative_str in ('', '.'):
+        return '~'
+
+    return f"~{os.sep}{relative_str}"
 
 
 def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
@@ -228,7 +261,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
                     kanban_stats['total'] += count
 
         worktree_root = project_dir / '.worktrees'
-        worktree_path = (worktree_root / feature_dir.name).resolve()
+        worktree_path = worktree_root / feature_dir.name
         worktree_exists = worktree_path.exists()
 
         features.append({
@@ -240,7 +273,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
             'kanban_stats': kanban_stats,
             'meta': meta_data or {},
             'worktree': {
-                'path': str(worktree_path),
+                'path': format_path_for_display(str(worktree_path)),
                 'exists': worktree_exists
             }
         })
@@ -443,25 +476,6 @@ def get_dashboard_html() -> str:
         .last-update {
             font-size: 0.85em;
             color: var(--medium-text);
-        }
-
-        .constitution-link {
-            margin-left: 20px;
-            padding: 8px 16px;
-            background: var(--lavender);
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 0.9em;
-            font-weight: 500;
-            transition: all 0.2s;
-            display: inline-block;
-        }
-
-        .constitution-link:hover {
-            background: var(--grassy-green);
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .container {
@@ -916,15 +930,15 @@ def get_dashboard_html() -> str:
             <div id="single-feature-name" style="display: none; font-size: 1.2em; color: var(--grassy-green); font-weight: 600;"></div>
         </div>
         <div style="display: flex; align-items: center; gap: 15px;">
-            <a href="#" onclick="showConstitution(); return false;" class="constitution-link">
-                📜 Constitution
-            </a>
             <div class="last-update">Last updated: <span id="last-update">Loading...</span></div>
         </div>
     </div>
 
     <div class="container">
         <div class="sidebar">
+            <div class="sidebar-item" data-page="constitution" onclick="switchPage('constitution')">
+                📜 Constitution
+            </div>
             <div style="padding: 15px 30px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                 Workflow
             </div>
@@ -1171,6 +1185,11 @@ def get_dashboard_html() -> str:
 
             document.querySelectorAll('.sidebar-item').forEach(item => {
                 const page = item.dataset.page;
+                if (!page || page === 'constitution') {
+                    item.classList.remove('disabled');
+                    return;
+                }
+
                 const hasArtifact = page === 'overview' || artifacts[page.replace('-', '_')];
 
                 if (hasArtifact) {
@@ -1496,6 +1515,11 @@ def get_dashboard_html() -> str:
             currentPage = 'constitution';
             isConstitutionView = true;
             document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            const constitutionItem = document.querySelector('.sidebar-item[data-page="constitution"]');
+            if (constitutionItem) {
+                constitutionItem.classList.remove('disabled');
+                constitutionItem.classList.add('active');
+            }
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.getElementById('page-constitution').classList.add('active');
 
@@ -1548,8 +1572,14 @@ def get_dashboard_html() -> str:
                 document.getElementById('page-welcome').classList.add('active');
                 currentPage = 'welcome';
 
-                // Disable all sidebar items except overview
-                document.querySelectorAll('.sidebar-item').forEach(item => item.classList.add('disabled'));
+                // Disable all sidebar items except constitution link
+                document.querySelectorAll('.sidebar-item').forEach(item => {
+                    if (item.dataset.page === 'constitution') {
+                        item.classList.remove('disabled');
+                    } else {
+                        item.classList.add('disabled');
+                    }
+                });
                 return;
             }
 
@@ -1605,10 +1635,8 @@ def get_dashboard_html() -> str:
 
                     if (data.active_worktree) {
                         activeWorktreeDisplay = data.active_worktree;
-                    } else if (data.worktrees_root) {
-                        activeWorktreeDisplay = `none (run commands inside ${data.worktrees_root}/<feature-slug>)`;
                     } else {
-                        activeWorktreeDisplay = 'none (worktrees not initialized yet)';
+                        activeWorktreeDisplay = 'main checkout (worktree not detected)';
                     }
 
                     const currentFeatureObj = allFeatures.find(f => f.id === currentFeature);
@@ -1658,21 +1686,51 @@ class DashboardHandler(BaseHTTPRequestHandler):
             project_path = Path(self.project_dir).resolve()
             features = scan_all_features(project_path)
 
-            worktrees_root = (project_path / '.worktrees').resolve()
-            current_path = Path.cwd().resolve()
-            active_worktree = None
-            if worktrees_root.exists():
+            worktrees_root_path = project_path / '.worktrees'
+            try:
+                worktrees_root_resolved = worktrees_root_path.resolve()
+            except Exception:
+                worktrees_root_resolved = worktrees_root_path
+
+            try:
+                current_path = Path.cwd().resolve()
+            except Exception:
+                current_path = Path.cwd()
+
+            worktrees_root_exists = worktrees_root_path.exists()
+            worktrees_root_display = (
+                format_path_for_display(str(worktrees_root_resolved))
+                if worktrees_root_exists
+                else None
+            )
+
+            active_worktree_display: Optional[str] = None
+            if worktrees_root_exists:
                 try:
-                    current_path.relative_to(worktrees_root)
-                    active_worktree = str(current_path)
+                    current_path.relative_to(worktrees_root_resolved)
+                    active_worktree_display = format_path_for_display(str(current_path))
                 except ValueError:
-                    active_worktree = None
+                    active_worktree_display = None
+
+            if not active_worktree_display:
+                if current_path == project_path:
+                    if worktrees_root_exists:
+                        hint_base = worktrees_root_display or format_path_for_display(
+                            str(worktrees_root_resolved)
+                        )
+                        active_worktree_display = (
+                            f"main checkout (open a shell in {hint_base}/<feature-slug> to mark it here)"
+                        )
+                    else:
+                        active_worktree_display = "main checkout (feature worktrees not initialized yet)"
+                else:
+                    active_worktree_display = format_path_for_display(str(current_path))
 
             response_data = {
                 'features': features,
-                'project_path': str(project_path),
-                'worktrees_root': str(worktrees_root) if worktrees_root.exists() else None,
-                'active_worktree': active_worktree,
+                'project_path': format_path_for_display(str(project_path)),
+                'worktrees_root': worktrees_root_display,
+                'active_worktree': active_worktree_display,
             }
             self.wfile.write(json.dumps(response_data).encode())
 
