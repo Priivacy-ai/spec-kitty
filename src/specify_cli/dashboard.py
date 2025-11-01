@@ -1126,7 +1126,7 @@ def get_dashboard_html() -> str:
             } else {
                 lines.push(`   └─ Feature worktree: ${featureWorktreeDisplay}`);
             }
-            treeElement.textContent = lines.join('\n');
+            treeElement.textContent = lines.join('\\n');
         }
 
         function computeFeatureWorktreeStatus(feature) {
