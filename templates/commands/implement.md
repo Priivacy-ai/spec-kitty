@@ -45,6 +45,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
 1. **Verify worktree context**:
    - The CLI prefers an isolated checkout at `PROJECT_ROOT/.worktrees/FEATURE-SLUG`; use the path returned by `create-new-feature` when it exists.
    - If that directory is present and you are not already inside it, `cd` into the worktree before proceeding.
+    - When inspecting git status or listing files, always reference the worktree paths (for example, `kitty-specs/<feature>/...` inside `.worktrees/<feature>/`).
    - If worktree creation was skipped (the CLI returned no worktree path or the directory is missing), remain in the primary checkout on the feature branch or recreate the worktree with `git worktree add PROJECT_ROOT/.worktrees/FEATURE-SLUG FEATURE-SLUG` and then `cd` into it.
 
 2. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
