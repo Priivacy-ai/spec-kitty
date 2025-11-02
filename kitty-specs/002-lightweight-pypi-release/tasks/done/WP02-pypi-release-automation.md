@@ -5,10 +5,10 @@ subtasks:
   - "T004"
 title: "PyPI Release Automation"
 phase: "Phase 1 - Automation"
-lane: "for_review"
+lane: "done"
 assignee: ""
 agent: "claude-sonnet-4.5"
-shell_pid: "10832"
+shell_pid: "16185"
 history:
   - timestamp: "2025-11-02T16:58:36Z"
     lane: "planned"
@@ -121,3 +121,4 @@ history:
 5. Commit or stage prompt updates to maintain workflow auditability.
 - 2025-11-02T17:54:32Z – claude-sonnet-4.5 – shell_pid=10832 – lane=doing – Started implementation
 - 2025-11-02T18:02:57Z – claude-sonnet-4.5 – shell_pid=10832 – lane=for_review – Ready for review
+- 2025-11-02T22:51:06Z – claude-sonnet-4.5 – shell_pid=16185 – lane=done – Approved - Release pipeline working
