@@ -99,6 +99,36 @@ check_feature_branch() {
     return 0
 }
 
+find_latest_feature_worktree() {
+    local repo_root="$1"
+    local worktrees_root="$repo_root/.worktrees"
+    local latest_path=""
+    local highest=-1
+
+    if [[ ! -d "$worktrees_root" ]]; then
+        return 1
+    fi
+
+    while IFS= read -r dir; do
+        [[ -d "$dir" ]] || continue
+        local base="$(basename "$dir")"
+        if [[ "$base" =~ ^([0-9]{3})- ]]; then
+            local number=$((10#${BASH_REMATCH[1]}))
+            if (( number > highest )); then
+                highest=$number
+                latest_path="$dir"
+            fi
+        fi
+    done < <(find "$worktrees_root" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null)
+
+    if [[ -n "$latest_path" ]]; then
+        printf '%s\n' "$latest_path"
+        return 0
+    fi
+
+    return 1
+}
+
 get_feature_dir() { echo "$1/kitty-specs/$2"; }
 
 get_mission_exports() {
