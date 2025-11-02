@@ -68,4 +68,3 @@ packages = ["src/specify_cli"]
 "templates" = "specify_cli/templates"
 "scripts" = "specify_cli/scripts"
 "memory" = "specify_cli/memory"
-"src/specify_cli/.kittify" = "specify_cli/.kittify"
