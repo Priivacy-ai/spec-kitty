@@ -23,3 +23,9 @@
       href: claude-code-workflow.md
     - name: Spec Workflow Automation
       href: spec-workflow-automation.md
+
+# Release management
+- name: Releases
+  items:
+    - name: Release Readiness Checklist
+      href: releases/readiness-checklist.md
