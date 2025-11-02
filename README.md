@@ -80,12 +80,18 @@ Spec-Driven Development **flips the script** on traditional software development
 
 Choose your preferred installation method:
 
-#### Option 1: Persistent Installation (Recommended)
+#### Option 1: From PyPI (Recommended - Stable Releases)
 
-Install once and use everywhere:
+Install the latest stable release from PyPI:
 
+**Using pip:**
 ```bash
-uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-kitty.git
+pip install spec-kitty-cli
+```
+
+**Using uv:**
+```bash
+uv tool install spec-kitty-cli
 ```
 
 Then use the tool from any directory:
@@ -95,24 +101,50 @@ spec-kitty init <PROJECT_NAME>
 spec-kitty check
 ```
 
-To update to a newer version of Spec Kitty:
+To update to a newer version:
 
+**Using pip:**
 ```bash
-uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-kitty.git --force
+pip install --upgrade spec-kitty-cli
 ```
 
-And then re-initialize your project:
+**Using uv:**
+```bash
+uv tool install spec-kitty-cli --force
+```
+
+Then re-initialize your project to get latest templates:
 
 ```bash
 spec-kitty init --here --force
 ```
 
-#### Option 2: One-time Usage
+#### Option 2: From GitHub (Latest Development)
+
+Install the latest development version from source:
+
+**Using pip:**
+```bash
+pip install git+https://github.com/Priivacy-ai/spec-kitty.git
+```
+
+**Using uv:**
+```bash
+uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-kitty.git
+```
+
+#### Option 3: One-time Usage
 
 Run directly without installing:
 
+**Using pipx:**
 ```bash
-uvx --from git+https://github.com/Priivacy-ai/spec-kitty.git spec-kitty init <PROJECT_NAME>
+pipx run spec-kitty-cli init <PROJECT_NAME>
+```
+
+**Using uvx:**
+```bash
+uvx spec-kitty-cli init <PROJECT_NAME>
 ```
 
 **Benefits of persistent installation:**
