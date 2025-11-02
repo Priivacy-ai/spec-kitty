@@ -5,7 +5,7 @@ subtasks:
   - "T008"
 title: "Documentation and Secret Hygiene"
 phase: "Phase 2 - Enablement"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude-sonnet-4.5"
 shell_pid: "16185"
@@ -106,3 +106,4 @@ history:
 4. Use `.kittify/scripts/bash/tasks-move-to-lane.sh 002-lightweight-pypi-release WP04 <lane>` for consistent metadata updates.
 5. Commit or stage edits to maintain change history.
 - 2025-11-02T18:19:01Z – claude-sonnet-4.5 – shell_pid=16185 – lane=doing – Started implementation
+- 2025-11-02T21:56:56Z – claude-sonnet-4.5 – shell_pid=16185 – lane=for_review – Ready for review
