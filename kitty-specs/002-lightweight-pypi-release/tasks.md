@@ -18,8 +18,8 @@
 **Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP01-release-validation-tooling.md`
 
 ### Included Subtasks
-- [ ] T001 Implement `scripts/release/validate_release.py` with branch/tag modes, changelog parsing, semantic version comparisons, and actionable errors.
-- [ ] T002 Add pytest coverage for validator success, mismatch, missing changelog, and regression scenarios in `tests/release/test_validate_release.py`.
+- [X] T001 Implement `scripts/release/validate_release.py` with branch/tag modes, changelog parsing, semantic version comparisons, and actionable errors. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP01-release-validation-tooling.md`)
+- [X] T002 Add pytest coverage for validator success, mismatch, missing changelog, and regression scenarios in `tests/release/test_validate_release.py`. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP01-release-validation-tooling.md`)
 
 ### Implementation Notes
 - Use `tomllib`/`tomli` for `pyproject.toml` parsing and support manual tag overrides plus auto-detection from environment variables (`GITHUB_REF`, etc.).
