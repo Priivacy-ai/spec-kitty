@@ -91,11 +91,26 @@ def detect_conflicting_wp_status(
     status_lines: List[str], feature: str, old_path: Path, new_path: Path
 ) -> List[str]:
     """Return staged work-package entries unrelated to the requested move."""
-    prefix = f"kitty-specs/{feature}/tasks/"
+    base_path = Path("kitty-specs") / feature / "tasks"
+    prefix = f"{base_path.as_posix()}/"
     allowed = {
         str(old_path).lstrip("./"),
         str(new_path).lstrip("./"),
     }
+
+    def _wp_suffix(path: Path) -> Optional[str]:
+        try:
+            relative = path.relative_to(base_path)
+        except ValueError:
+            return None
+        parts = relative.parts
+        if not parts:
+            return None
+        if len(parts) == 1:
+            return parts[0]
+        return Path(*parts[1:]).as_posix()
+
+    suffixes = {suffix for suffix in (_wp_suffix(old_path), _wp_suffix(new_path)) if suffix}
     conflicts = []
     for line in status_lines:
         path = line[3:] if len(line) > 3 else ""
@@ -103,6 +118,14 @@ def detect_conflicting_wp_status(
             continue
         clean = path.strip()
         if clean not in allowed:
+            if suffixes and line and line[0] == "D":
+                for suffix in suffixes:
+                    if clean.endswith(suffix):
+                        break
+                else:
+                    conflicts.append(line)
+                    continue
+                continue
             conflicts.append(line)
     return conflicts
 

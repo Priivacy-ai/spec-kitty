@@ -84,11 +84,41 @@ def test_move_cleans_stale_target_copy(feature_repo: Path, feature_slug: str) ->
         encoding="utf-8",
     )
 
+    # Leave a staged duplicate in doing/ as well.
+    doing_path.parent.mkdir(parents=True, exist_ok=True)
+    doing_path.write_text(for_review_path.read_text(encoding="utf-8"), encoding="utf-8")
+    run(["git", "add", str(doing_path.relative_to(feature_repo))], cwd=feature_repo)
+
     result = run_tasks_cli(["move", feature_slug, "WP01", "planned"], cwd=feature_repo)
     assert_success(result)
 
     assert planned_path.exists()
     assert "<!-- adjustments -->" in planned_path.read_text(encoding="utf-8")
+    assert not doing_path.exists()
+    assert not for_review_path.exists()
+
+
+def test_move_handles_staged_duplicates(feature_repo: Path, feature_slug: str) -> None:
+    # Bring work package into for_review.
+    assert_success(run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo))
+    assert_success(run_tasks_cli(["move", feature_slug, "WP01", "for_review", "--force"], cwd=feature_repo))
+
+    repo_root = feature_repo
+    base = repo_root / "kitty-specs" / feature_slug / "tasks"
+    for_review_path = base / "for_review" / "WP01.md"
+    doing_path = base / "doing" / "WP01.md"
+
+    # Create staged duplicates in doing/ to mimic a half-completed move.
+    doing_path.parent.mkdir(parents=True, exist_ok=True)
+    doing_path.write_text(for_review_path.read_text(encoding="utf-8"), encoding="utf-8")
+    run(["git", "add", str(doing_path.relative_to(repo_root))], cwd=repo_root)
+    run(["git", "add", str(for_review_path.relative_to(repo_root))], cwd=repo_root)
+
+    result = run_tasks_cli(["move", feature_slug, "WP01", "done"], cwd=repo_root)
+    assert_success(result)
+
+    done_path = base / "done" / "WP01.md"
+    assert done_path.exists()
     assert not doing_path.exists()
     assert not for_review_path.exists()
 

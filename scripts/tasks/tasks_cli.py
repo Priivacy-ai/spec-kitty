@@ -96,46 +96,80 @@ def move_command(args: argparse.Namespace) -> None:
             for line in message.splitlines()
             if line.strip().startswith("kitty-specs/")
         ]
-        if len(candidate_lines) != 2:
+        if len(candidate_lines) < 2:
             return False
 
-        target_lines = [
-            line for line in candidate_lines if f"/tasks/{args.lane}/" in line
-        ]
-        if len(target_lines) != 1:
-            return False
+        # Prefer keeping the copy in for_review/, then doing/, planned/, done/.
+        preference = ["for_review", "doing", "planned", "done"]
+        keep_line = None
+        for pref in preference:
+            for line in candidate_lines:
+                if f"/tasks/{pref}/" in line:
+                    keep_line = line
+                    break
+            if keep_line:
+                break
+        if keep_line is None:
+            keep_line = candidate_lines[0]
 
-        stale_path = (repo_root / Path(target_lines[0])).resolve()
-        if not stale_path.exists():
-            return False
+        cleaned = False
+        for line in candidate_lines:
+            full_path = (repo_root / Path(line)).resolve()
+            rel = full_path.relative_to(repo_root)
+            if line == keep_line:
+                continue
 
-        status_snapshot = git_status_lines(repo_root)
-        stale_rel = stale_path.relative_to(repo_root)
-        if path_has_changes(status_snapshot, stale_rel):
-            run_git(["add", str(stale_rel)], cwd=repo_root, check=True)
+            status_snapshot = git_status_lines(repo_root)
+            if path_has_changes(status_snapshot, rel):
+                run_git(["add", str(rel)], cwd=repo_root, check=True)
 
-        result = run_git(
-            ["rm", "--quiet", "--cached", str(stale_rel)],
-            cwd=repo_root,
-            check=False,
-        )
-        if getattr(result, "returncode", 0) not in (0,):
-            # Ignore failures when the file was never staged.
-            pass
+            result = run_git(
+                ["rm", "--quiet", "--force", str(rel)],
+                cwd=repo_root,
+                check=False,
+            )
+            if getattr(result, "returncode", 0) not in (0,):
+                try:
+                    full_path.unlink()
+                except FileNotFoundError:
+                    pass
 
-        if stale_path.exists():
-            try:
-                stale_path.unlink()
-            except FileNotFoundError:
-                pass
+            print(f"[cleanup] Removed extra copy at {rel}", file=sys.stderr)
+            cleaned = True
 
-        try:
-            stale_path.parent.rmdir()
-        except OSError:
-            pass
+        return cleaned
 
-        print(f"[cleanup] Removed stale copy at {stale_rel}", file=sys.stderr)
-        return True
+    def cleanup_other_lane_copies() -> None:
+        """Remove any lingering copies of the work package in other lanes."""
+        base_dir = Path("kitty-specs") / feature / "tasks"
+        for lane in LANES:
+            candidate = (repo_root / base_dir / lane / wp.relative_subpath).resolve()
+            if candidate == wp.path.resolve():
+                continue
+            if not candidate.exists():
+                continue
+
+            rel = candidate.relative_to(repo_root)
+
+            # Attempt to remove via git; fall back to unlinking directly if needed.
+            result = run_git(
+                ["rm", "--quiet", "--force", str(rel)],
+                cwd=repo_root,
+                check=False,
+            )
+            if getattr(result, "returncode", 0) not in (0,):
+                try:
+                    candidate.unlink()
+                except IsADirectoryError:
+                    # Should not happen (we only target files), but guard anyway.
+                    for subpath in candidate.rglob("*"):
+                        if subpath.is_file():
+                            subpath.unlink()
+                    candidate.rmdir()
+                except FileNotFoundError:
+                    pass
+
+            print(f"[cleanup] Removed stray copy at {rel}", file=sys.stderr)
 
     while True:
         try:
@@ -155,6 +189,8 @@ def move_command(args: argparse.Namespace) -> None:
     agent = args.agent or wp.agent or "system"
     shell_pid = args.shell_pid or wp.shell_pid or ""
     note = normalize_note(args.note, args.lane)
+
+    cleanup_other_lane_copies()
 
     status_lines = git_status_lines(repo_root)
     if not args.dry_run:
@@ -178,9 +214,18 @@ def move_command(args: argparse.Namespace) -> None:
     )
     if conflicts and not args.force:
         conflict_display = "\n".join(conflicts)
+        guidance_lines = []
+        for line in conflicts:
+            indicator = line[:2].strip() or line[:2]
+            path = line[3:].strip()
+            guidance_lines.append(
+                f"    - {indicator} {path} (resolve with `git add {path}` or `git restore --staged {path}`)"
+            )
         raise TaskCliError(
             "Other work-package files are staged or modified:\n"
-            f"{conflict_display}\n\nClear or commit these changes, or re-run with --force."
+            f"{conflict_display}\n\nClear or commit these changes, or re-run with --force.\n"
+            "Cleanup tips:\n"
+            + "\n".join(guidance_lines)
         )
 
     new_file_path = stage_move(
