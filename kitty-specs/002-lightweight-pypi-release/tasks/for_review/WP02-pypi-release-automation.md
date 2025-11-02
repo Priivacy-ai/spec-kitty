@@ -5,7 +5,7 @@ subtasks:
   - "T004"
 title: "PyPI Release Automation"
 phase: "Phase 1 - Automation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude-sonnet-4.5"
 shell_pid: "10832"
@@ -120,3 +120,4 @@ history:
 4. Use `.kittify/scripts/bash/tasks-move-to-lane.sh 002-lightweight-pypi-release WP02 <lane>` to propagate metadata changes.
 5. Commit or stage prompt updates to maintain workflow auditability.
 - 2025-11-02T17:54:32Z – claude-sonnet-4.5 – shell_pid=10832 – lane=doing – Started implementation
+- 2025-11-02T18:02:57Z – claude-sonnet-4.5 – shell_pid=10832 – lane=for_review – Ready for review
