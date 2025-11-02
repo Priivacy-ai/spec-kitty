@@ -5,10 +5,10 @@ subtasks:
   - "T008"
 title: "Documentation and Secret Hygiene"
 phase: "Phase 2 - Enablement"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-sonnet-4.5"
+shell_pid: "16185"
 history:
   - timestamp: "2025-11-02T16:58:36Z"
     lane: "planned"
@@ -105,3 +105,4 @@ history:
 3. Append an entry to the **Activity Log** documenting the transition.
 4. Use `.kittify/scripts/bash/tasks-move-to-lane.sh 002-lightweight-pypi-release WP04 <lane>` for consistent metadata updates.
 5. Commit or stage edits to maintain change history.
+- 2025-11-02T18:19:01Z – claude-sonnet-4.5 – shell_pid=16185 – lane=doing – Started implementation
