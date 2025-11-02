@@ -4,6 +4,8 @@ scripts:
   sh: ".kittify/scripts/bash/merge-feature.sh"
   ps: ".kittify/scripts/powershell/Merge-Feature.ps1"
 ---
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+
 *Path: [templates/commands/merge.md](templates/commands/merge.md)*
 
 

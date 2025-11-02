@@ -4,6 +4,9 @@ scripts:
   sh: .kittify/scripts/bash/create-new-feature.sh --json "{ARGS}"
   ps: .kittify/scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
 ---
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+
+
 *Path: [templates/commands/specify.md](templates/commands/specify.md)*
 
 
