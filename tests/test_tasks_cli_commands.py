@@ -263,6 +263,38 @@ def test_scenario_replay(feature_repo: Path, feature_slug: str) -> None:
     assert data["lanes"]["done"] == ["WP01"]
 
 
+def test_merge_command_basic(merge_repo: tuple[Path, Path, str]) -> None:
+    repo_root, worktree_dir, feature = merge_repo
+    result = run_tasks_cli(["merge", "--target", "main"], cwd=worktree_dir)
+    assert_success(result)
+
+    assert not worktree_dir.exists()
+    branches = run(["git", "branch"], cwd=repo_root)
+    assert feature not in branches.stdout
+    main_log = run(["git", "log", "--oneline"], cwd=repo_root)
+    assert "feature work" in main_log.stdout
+
+
+def test_merge_command_requires_clean_tree(merge_repo: tuple[Path, Path, str]) -> None:
+    repo_root, worktree_dir, feature = merge_repo
+    (worktree_dir / "dirty.txt").write_text("dirty", encoding="utf-8")
+    result = run_tasks_cli(["merge", "--target", "main"], cwd=worktree_dir)
+    assert result.returncode != 0
+    assert "uncommitted changes" in result.stderr
+    assert worktree_dir.exists()
+    branches = run(["git", "branch"], cwd=repo_root)
+    assert feature in branches.stdout
+
+
+def test_merge_command_dry_run(merge_repo: tuple[Path, Path, str]) -> None:
+    repo_root, worktree_dir, feature = merge_repo
+    result = run_tasks_cli(["merge", "--target", "main", "--dry-run"], cwd=worktree_dir)
+    assert_success(result)
+    assert worktree_dir.exists()
+    branches = run(["git", "branch"], cwd=repo_root)
+    assert feature in branches.stdout
+
+
 def test_packaged_copy_behaves_like_primary(temp_repo: Path) -> None:
     import types
 

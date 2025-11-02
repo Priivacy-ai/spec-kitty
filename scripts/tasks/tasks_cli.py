@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -570,6 +571,116 @@ def accept_command(args: argparse.Namespace) -> None:
             print(f"  - {instruction}")
 
 
+def merge_command(args: argparse.Namespace) -> None:
+    repo_root = find_repo_root()
+    feature = _resolve_feature(repo_root, args.feature)
+
+    current_branch = run_git([
+        "rev-parse",
+        "--abbrev-ref",
+        "HEAD",
+    ], cwd=repo_root, check=True).stdout.strip()
+
+    if current_branch == args.target:
+        raise TaskCliError(
+            f"Already on target branch '{args.target}'. Switch to the feature branch before merging."
+        )
+
+    if current_branch != feature:
+        raise TaskCliError(
+            f"Current branch '{current_branch}' does not match detected feature '{feature}'."
+            " Run this command from the feature worktree or specify --feature explicitly."
+        )
+
+    try:
+        git_common = run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True).stdout.strip()
+        primary_repo_root = Path(git_common).resolve().parent
+    except TaskCliError:
+        primary_repo_root = Path(repo_root).resolve()
+
+    repo_root = Path(repo_root).resolve()
+    primary_repo_root = primary_repo_root.resolve()
+    in_worktree = repo_root != primary_repo_root
+
+    def ensure_clean(cwd: Path) -> None:
+        status = run_git(["status", "--porcelain"], cwd=cwd, check=True).stdout.strip()
+        if status:
+            raise TaskCliError(
+                f"Working directory at {cwd} has uncommitted changes. Commit or stash before merging."
+            )
+
+    ensure_clean(repo_root)
+    if in_worktree:
+        ensure_clean(primary_repo_root)
+
+    if args.dry_run:
+        steps = ["Planned actions:"]
+        steps.append(f"  - Checkout {args.target} in {primary_repo_root}")
+        steps.append("  - Fetch remote (if configured)")
+        if args.strategy == "squash":
+            steps.append(f"  - Merge {feature} with --squash and commit")
+        elif args.strategy == "rebase":
+            steps.append(
+                f"  - Rebase {feature} onto {args.target} manually (command exits before merge)"
+            )
+        else:
+            steps.append(f"  - Merge {feature} with --no-ff")
+        if args.push:
+            steps.append(f"  - Push {args.target} to origin (if upstream configured)")
+        if in_worktree and args.remove_worktree:
+            steps.append(f"  - Remove worktree at {repo_root}")
+        if args.delete_branch:
+            steps.append(f"  - Delete branch {feature}")
+        print("\n".join(steps))
+        return
+
+    def git(cmd: List[str], *, cwd: Path = primary_repo_root, check: bool = True) -> subprocess.CompletedProcess:
+        return run_git(cmd, cwd=cwd, check=check)
+
+    git(["checkout", args.target])
+
+    remotes = run_git(["remote"], cwd=primary_repo_root, check=False)
+    has_remote = remotes.returncode == 0 and bool(remotes.stdout.strip())
+    if has_remote:
+        git(["fetch"], check=False)
+        pull = git(["pull", "--ff-only"], check=False)
+        if pull.returncode != 0:
+            raise TaskCliError(
+                "Failed to fast-forward target branch. Resolve upstream changes and retry."
+            )
+
+    if args.strategy == "rebase":
+        raise TaskCliError(
+            "Rebase strategy requires manual steps. Run `git checkout {feature}` followed by `git rebase {args.target}`."
+        )
+
+    if args.strategy == "squash":
+        git(["merge", "--squash", feature])
+        git(["commit", "-m", f"Merge feature {feature}"])
+    else:
+        merge = git(["merge", "--no-ff", feature, "-m", f"Merge feature {feature}"], check=False)
+        if merge.returncode != 0:
+            raise TaskCliError(
+                "Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch."
+            )
+
+    if args.push and has_remote:
+        push_result = git(["push", "origin", args.target], check=False)
+        if push_result.returncode != 0:
+            raise TaskCliError(f"Merge succeeded but push failed. Run `git push origin {args.target}` manually.")
+    elif args.push and not has_remote:
+        print("[spec-kitty] Skipping push: no remote configured.", file=sys.stderr)
+
+    if in_worktree and args.remove_worktree:
+        if repo_root.exists():
+            git(["worktree", "remove", str(repo_root), "--force"])
+
+    if args.delete_branch:
+        delete = git(["branch", "-d", feature], check=False)
+        if delete.returncode != 0:
+            git(["branch", "-D", feature])
+
+    print(f"Merge complete: {feature} -> {args.target}")
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Spec Kitty task utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -647,6 +758,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Automatically repair non-UTF-8 artifact files before acceptance",
     )
 
+    merge = subparsers.add_parser("merge", help="Merge a feature branch into the target branch")
+    merge.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    merge.add_argument("--strategy", choices=["merge", "squash", "rebase"], default="merge")
+    merge.add_argument("--target", default="main", help="Target branch to merge into")
+    merge.add_argument("--push", action="store_true", help="Push to origin after merging")
+    merge.add_argument("--delete-branch", dest="delete_branch", action="store_true", default=True)
+    merge.add_argument("--keep-branch", dest="delete_branch", action="store_false")
+    merge.add_argument("--remove-worktree", dest="remove_worktree", action="store_true", default=True)
+    merge.add_argument("--keep-worktree", dest="remove_worktree", action="store_false")
+    merge.add_argument("--dry-run", action="store_true", help="Show actions without executing")
+
     return parser
 
 
@@ -666,6 +788,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             status_command(args)
         elif args.command == "verify":
             verify_command(args)
+        elif args.command == "merge":
+            merge_command(args)
         elif args.command == "accept":
             accept_command(args)
         else:

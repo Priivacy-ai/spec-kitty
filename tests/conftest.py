@@ -47,3 +47,28 @@ def ensure_imports():
     # Import helper modules so tests can reference them directly.
     import task_helpers  # noqa: F401
     import acceptance_support  # noqa: F401
+
+
+@pytest.fixture()
+def merge_repo(temp_repo: Path) -> tuple[Path, Path, str]:
+    repo = temp_repo
+    (repo / "README.md").write_text("main", encoding="utf-8")
+    (repo / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+    run(["git", "add", "README.md", ".gitignore"], cwd=repo)
+    run(["git", "commit", "-m", "initial"], cwd=repo)
+    run(["git", "branch", "-M", "main"], cwd=repo)
+
+    feature_slug = "002-feature"
+    run(["git", "checkout", "-b", feature_slug], cwd=repo)
+    feature_file = repo / "FEATURE.txt"
+    feature_file.write_text("feature work", encoding="utf-8")
+    run(["git", "add", "FEATURE.txt"], cwd=repo)
+    run(["git", "commit", "-m", "feature work"], cwd=repo)
+
+    run(["git", "checkout", "main"], cwd=repo)
+
+    worktree_dir = repo / ".worktrees" / feature_slug
+    worktree_dir.parent.mkdir(exist_ok=True)
+    run(["git", "worktree", "add", str(worktree_dir), feature_slug], cwd=repo)
+
+    return repo, worktree_dir, feature_slug
