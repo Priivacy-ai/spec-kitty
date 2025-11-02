@@ -9,7 +9,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
 
 from task_helpers import (
     LANES,
@@ -28,6 +28,21 @@ AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
 class AcceptanceError(TaskCliError):
     """Raised when acceptance cannot complete due to outstanding issues."""
+
+
+class ArtifactEncodingError(AcceptanceError):
+    """Raised when a project artifact cannot be decoded as UTF-8."""
+
+    def __init__(self, path: Path, error: UnicodeDecodeError):
+        byte = error.object[error.start : error.start + 1]
+        byte_display = f"0x{byte[0]:02x}" if byte else "unknown"
+        message = (
+            f"Invalid UTF-8 encoding in {path}: byte {byte_display} at offset {error.start}. "
+            "Run with --normalize-encoding to fix automatically."
+        )
+        super().__init__(message)
+        self.path = path
+        self.error = error
 
 
 @dataclass
@@ -172,7 +187,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
         if lane not in LANES:
             continue
         for path in sorted(lane_dir.rglob("*.md")):
-            text = path.read_text(encoding="utf-8")
+            text = _read_text_strict(path)
             front, body, padding = split_frontmatter(text)
             relative = path.relative_to(lane_dir)
             yield WorkPackage(
@@ -226,7 +241,14 @@ def detect_feature_slug(
 
 
 def _read_file(path: Path) -> str:
-    return path.read_text(encoding="utf-8") if path.exists() else ""
+    return _read_text_strict(path) if path.exists() else ""
+
+
+def _read_text_strict(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise ArtifactEncodingError(path, exc) from exc
 
 
 def _find_unchecked_tasks(tasks_file: Path) -> List[str]:
@@ -234,7 +256,7 @@ def _find_unchecked_tasks(tasks_file: Path) -> List[str]:
         return ["tasks.md missing"]
 
     unchecked: List[str] = []
-    for line in tasks_file.read_text(encoding="utf-8").splitlines():
+    for line in _read_text_strict(tasks_file).splitlines():
         if re.match(r"^\s*-\s*\[ \]", line):
             unchecked.append(line.strip())
     return unchecked
@@ -244,7 +266,7 @@ def _check_needs_clarification(files: Sequence[Path]) -> List[str]:
     results: List[str] = []
     for file_path in files:
         if file_path.exists():
-            text = file_path.read_text(encoding="utf-8")
+            text = _read_text_strict(file_path)
             if "[NEEDS CLARIFICATION" in text:
                 results.append(str(file_path))
     return results
@@ -261,6 +283,55 @@ def _missing_artifacts(feature_dir: Path) -> Tuple[List[str], List[str]]:
     missing_required = [str(p.relative_to(feature_dir)) for p in required if not p.exists()]
     missing_optional = [str(p.relative_to(feature_dir)) for p in optional if not p.exists()]
     return missing_required, missing_optional
+
+
+def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
+    feature_dir = repo_root / "kitty-specs" / feature
+    if not feature_dir.exists():
+        return []
+
+    candidates: List[Path] = []
+    primary_files = [
+        feature_dir / "spec.md",
+        feature_dir / "plan.md",
+        feature_dir / "quickstart.md",
+        feature_dir / "tasks.md",
+        feature_dir / "research.md",
+        feature_dir / "data-model.md",
+    ]
+    candidates.extend(p for p in primary_files if p.exists())
+
+    for subdir in [feature_dir / "tasks", feature_dir / "research", feature_dir / "checklists"]:
+        if subdir.exists():
+            candidates.extend(path for path in subdir.rglob("*.md"))
+
+    rewritten: List[Path] = []
+    seen: Set[Path] = set()
+    for path in candidates:
+        if path in seen or not path.exists():
+            continue
+        seen.add(path)
+        data = path.read_bytes()
+        try:
+            data.decode("utf-8")
+            continue
+        except UnicodeDecodeError:
+            pass
+
+        text: Optional[str] = None
+        for encoding in ("cp1252", "latin-1"):
+            try:
+                text = data.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        if text is None:
+            text = data.decode("utf-8", errors="replace")
+
+        path.write_text(text, encoding="utf-8")
+        rewritten.append(path)
+
+    return rewritten
 
 
 def collect_feature_summary(
@@ -450,7 +521,7 @@ def perform_acceptance(
 
         meta_path = summary.feature_dir / "meta.json"
         if meta_path.exists():
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta = json.loads(_read_text_strict(meta_path))
         else:
             meta = {}
 
@@ -558,6 +629,7 @@ def perform_acceptance(
 
 __all__ = [
     "AcceptanceError",
+    "ArtifactEncodingError",
     "AcceptanceResult",
     "AcceptanceSummary",
     "AcceptanceMode",
@@ -565,4 +637,5 @@ __all__ = [
     "detect_feature_slug",
     "choose_mode",
     "perform_acceptance",
+    "normalize_feature_encoding",
 ]

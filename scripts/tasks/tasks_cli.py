@@ -36,9 +36,11 @@ from acceptance_support import (  # noqa: E402
     AcceptanceError,
     AcceptanceResult,
     AcceptanceSummary,
+    ArtifactEncodingError,
     choose_mode,
     collect_feature_summary,
     detect_feature_slug,
+    normalize_feature_encoding,
     perform_acceptance,
 )
 
@@ -80,6 +82,58 @@ def stage_move(
         )
 
     return new_path
+
+
+def _collect_summary_with_encoding(
+    repo_root: Path,
+    feature: str,
+    *,
+    strict_metadata: bool,
+    normalize_encoding: bool,
+) -> AcceptanceSummary:
+    try:
+        return collect_feature_summary(
+            repo_root,
+            feature,
+            strict_metadata=strict_metadata,
+        )
+    except ArtifactEncodingError as exc:
+        if not normalize_encoding:
+            raise
+        cleaned = normalize_feature_encoding(repo_root, feature)
+        if cleaned:
+            print("[spec-kitty] Normalized artifact encoding for:", file=sys.stderr)
+            for path in cleaned:
+                try:
+                    rel = path.relative_to(repo_root)
+                except ValueError:
+                    rel = path
+                print(f"  - {rel}", file=sys.stderr)
+        else:
+            print(
+                "[spec-kitty] normalize-encoding enabled but no files required updates.",
+                file=sys.stderr,
+            )
+        return collect_feature_summary(
+            repo_root,
+            feature,
+            strict_metadata=strict_metadata,
+        )
+
+
+def _handle_encoding_failure(exc: ArtifactEncodingError, attempted_fix: bool) -> None:
+    print(f"Error: {exc}", file=sys.stderr)
+    if attempted_fix:
+        print(
+            "Encoding issues persist after normalization attempt. Please correct the file manually.",
+            file=sys.stderr,
+        )
+    else:
+        print(
+            "Re-run with --normalize-encoding to attempt automatic repair.",
+            file=sys.stderr,
+        )
+    sys.exit(1)
 
 
 def move_command(args: argparse.Namespace) -> None:
@@ -412,11 +466,16 @@ def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
 def status_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     feature = _resolve_feature(repo_root, args.feature)
-    summary = collect_feature_summary(
-        repo_root,
-        feature,
-        strict_metadata=not args.lenient,
-    )
+    try:
+        summary = _collect_summary_with_encoding(
+            repo_root,
+            feature,
+            strict_metadata=not args.lenient,
+            normalize_encoding=args.normalize_encoding,
+        )
+    except ArtifactEncodingError as exc:
+        _handle_encoding_failure(exc, args.normalize_encoding)
+        return
     if args.json:
         print(json.dumps(summary.to_dict(), indent=2))
         return
@@ -427,11 +486,16 @@ def status_command(args: argparse.Namespace) -> None:
 def verify_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     feature = _resolve_feature(repo_root, args.feature)
-    summary = collect_feature_summary(
-        repo_root,
-        feature,
-        strict_metadata=not args.lenient,
-    )
+    try:
+        summary = _collect_summary_with_encoding(
+            repo_root,
+            feature,
+            strict_metadata=not args.lenient,
+            normalize_encoding=args.normalize_encoding,
+        )
+    except ArtifactEncodingError as exc:
+        _handle_encoding_failure(exc, args.normalize_encoding)
+        return
     if args.json:
         print(json.dumps(summary.to_dict(), indent=2))
         sys.exit(0 if summary.ok else 1)
@@ -444,11 +508,16 @@ def verify_command(args: argparse.Namespace) -> None:
 def accept_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     feature = _resolve_feature(repo_root, args.feature)
-    summary = collect_feature_summary(
-        repo_root,
-        feature,
-        strict_metadata=not args.lenient,
-    )
+    try:
+        summary = _collect_summary_with_encoding(
+            repo_root,
+            feature,
+            strict_metadata=not args.lenient,
+            normalize_encoding=args.normalize_encoding,
+        )
+    except ArtifactEncodingError as exc:
+        _handle_encoding_failure(exc, args.normalize_encoding)
+        return
 
     if args.mode == "checklist":
         if args.json:
@@ -547,11 +616,21 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
     status.add_argument("--json", action="store_true", help="Emit JSON summary")
     status.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
+    status.add_argument(
+        "--normalize-encoding",
+        action="store_true",
+        help="Automatically repair non-UTF-8 artifact files",
+    )
 
     verify = subparsers.add_parser("verify", help="Run acceptance checks without committing")
     verify.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
     verify.add_argument("--json", action="store_true", help="Emit JSON summary")
     verify.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
+    verify.add_argument(
+        "--normalize-encoding",
+        action="store_true",
+        help="Automatically repair non-UTF-8 artifact files",
+    )
 
     accept = subparsers.add_parser("accept", help="Perform feature acceptance workflow")
     accept.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
@@ -562,6 +641,11 @@ def build_parser() -> argparse.ArgumentParser:
     accept.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
     accept.add_argument("--no-commit", action="store_true", help="Skip auto-commit (report only)")
     accept.add_argument("--allow-fail", action="store_true", help="Allow outstanding issues (for manual workflows)")
+    accept.add_argument(
+        "--normalize-encoding",
+        action="store_true",
+        help="Automatically repair non-UTF-8 artifact files before acceptance",
+    )
 
     return parser
 
