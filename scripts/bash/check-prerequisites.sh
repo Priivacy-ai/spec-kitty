@@ -78,6 +78,26 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
+# Auto-switch to the most recent feature worktree when invoked from main or an
+# ambiguous location. This keeps downstream commands from thrashing while they
+# try to discover the right context.
+if [[ -z "${SPEC_KITTY_AUTORETRY:-}" ]]; then
+    repo_root=$(get_repo_root)
+    current_branch=$(get_current_branch)
+    if [[ ! "$current_branch" =~ ^[0-9]{3}- ]]; then
+        if latest_worktree=$(find_latest_feature_worktree "$repo_root" 2>/dev/null); then
+            if [[ -d "$latest_worktree" ]]; then
+                >&2 echo "[spec-kitty] Auto-running prerequisites inside $latest_worktree (current branch: $current_branch)"
+                (
+                    cd "$latest_worktree" && \
+                    SPEC_KITTY_AUTORETRY=1 "$SCRIPT_DIR/check-prerequisites.sh" "$@"
+                )
+                exit $?
+            fi
+        fi
+    fi
+fi
+
 # Get feature paths and validate branch
 eval $(get_feature_paths)
 check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
