@@ -5,10 +5,10 @@ subtasks:
   - "T002"
 title: "Release Validation Tooling"
 phase: "Phase 1 - Foundations"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "codex"
-shell_pid: "99987"
+shell_pid: "4677"
 history:
   - timestamp: "2025-11-02T16:58:36Z"
     lane: "planned"
@@ -99,6 +99,8 @@ history:
 ## Activity Log
 
 - 2025-11-02T16:58:36Z – system – lane=planned – Prompt created.
+- 2025-11-02T17:28:49Z – codex – shell_pid=99987 – lane=doing – Completed implementation (awaiting review).
+- 2025-11-02T17:29:08Z – codex – shell_pid=4677 – lane=for_review – Ready for review
 
 ---
 
@@ -109,4 +111,3 @@ history:
 3. Append an entry to the **Activity Log** with timestamp, agent, lane, PID, and note.
 4. Use `.kittify/scripts/bash/tasks-move-to-lane.sh 002-lightweight-pypi-release WP01 <lane>` to automate metadata updates.
 5. Commit or stage changes to preserve audit history.
-- 2025-11-02T17:12:46Z – codex – shell_pid=99987 – lane=doing – Started implementation
