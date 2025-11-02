@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -571,6 +573,80 @@ def accept_command(args: argparse.Namespace) -> None:
             print(f"  - {instruction}")
 
 
+def _merge_actor(repo_root: Path) -> str:
+    configured = run_git(["config", "user.name"], cwd=repo_root, check=False)
+    if configured.returncode == 0:
+        name = configured.stdout.strip()
+        if name:
+            return name
+    return os.getenv("GIT_AUTHOR_NAME") or os.getenv("USER") or os.getenv("USERNAME") or "system"
+
+
+def _prepare_merge_metadata(
+    repo_root: Path,
+    feature: str,
+    target: str,
+    strategy: str,
+    pushed: bool,
+) -> Optional[Path]:
+    feature_dir = repo_root / "kitty-specs" / feature
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    meta_path = feature_dir / "meta.json"
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    merged_by = _merge_actor(repo_root)
+
+    entry: Dict[str, Any] = {
+        "merged_at": timestamp,
+        "merged_by": merged_by,
+        "target": target,
+        "strategy": strategy,
+        "pushed": pushed,
+        "merge_commit": None,
+    }
+
+    meta: Dict[str, Any] = {}
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            meta = {}
+
+    history = meta.get("merge_history", [])
+    if not isinstance(history, list):
+        history = []
+    history.append(entry)
+    if len(history) > 20:
+        history = history[-20:]
+    meta["merge_history"] = history
+
+    meta["merged_at"] = timestamp
+    meta["merged_by"] = merged_by
+    meta["merged_into"] = target
+    meta["merged_strategy"] = strategy
+    meta["merged_push"] = pushed
+
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return meta_path
+
+
+def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> None:
+    if not meta_path or not meta_path.exists():
+        return
+
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        meta = {}
+
+    history = meta.get("merge_history")
+    if isinstance(history, list) and history:
+        if isinstance(history[-1], dict):
+            history[-1]["merge_commit"] = merge_commit
+    meta["merged_commit"] = merge_commit
+
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
 def merge_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     feature = _resolve_feature(repo_root, args.feature)
@@ -654,15 +730,38 @@ def merge_command(args: argparse.Namespace) -> None:
             "Rebase strategy requires manual steps. Run `git checkout {feature}` followed by `git rebase {args.target}`."
         )
 
+    meta_path: Optional[Path] = None
+    meta_rel: Optional[str] = None
+
     if args.strategy == "squash":
-        git(["merge", "--squash", feature])
-        git(["commit", "-m", f"Merge feature {feature}"])
-    else:
-        merge = git(["merge", "--no-ff", feature, "-m", f"Merge feature {feature}"], check=False)
-        if merge.returncode != 0:
+        merge_proc = git(["merge", "--squash", feature], check=False)
+        if merge_proc.returncode != 0:
             raise TaskCliError(
                 "Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch."
             )
+        meta_path = _prepare_merge_metadata(primary_repo_root, feature, args.target, args.strategy, args.push)
+        if meta_path:
+            meta_rel = str(meta_path.relative_to(primary_repo_root))
+            git(["add", meta_rel])
+        git(["commit", "-m", f"Merge feature {feature}"])
+    else:
+        merge_proc = git(["merge", "--no-ff", "--no-commit", feature], check=False)
+        if merge_proc.returncode != 0:
+            raise TaskCliError(
+                "Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch."
+            )
+        meta_path = _prepare_merge_metadata(primary_repo_root, feature, args.target, args.strategy, args.push)
+        if meta_path:
+            meta_rel = str(meta_path.relative_to(primary_repo_root))
+            git(["add", meta_rel])
+        git(["commit", "-m", f"Merge feature {feature}"])
+
+    if meta_path:
+        merge_commit = git(["rev-parse", "HEAD"]).stdout.strip()
+        _finalize_merge_metadata(meta_path, merge_commit)
+        meta_rel = meta_rel or str(meta_path.relative_to(primary_repo_root))
+        git(["add", meta_rel])
+        git(["commit", "--amend", "--no-edit"])
 
     if args.push and has_remote:
         push_result = git(["push", "origin", args.target], check=False)

@@ -62,7 +62,10 @@ def merge_repo(temp_repo: Path) -> tuple[Path, Path, str]:
     run(["git", "checkout", "-b", feature_slug], cwd=repo)
     feature_file = repo / "FEATURE.txt"
     feature_file.write_text("feature work", encoding="utf-8")
-    run(["git", "add", "FEATURE.txt"], cwd=repo)
+    feature_dir = repo / "kitty-specs" / feature_slug
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text("{}\n", encoding="utf-8")
+    run(["git", "add", "FEATURE.txt", "kitty-specs"], cwd=repo)
     run(["git", "commit", "-m", "feature work"], cwd=repo)
 
     run(["git", "checkout", "main"], cwd=repo)
