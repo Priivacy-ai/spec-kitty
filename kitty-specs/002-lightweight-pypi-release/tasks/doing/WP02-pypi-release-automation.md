@@ -5,10 +5,10 @@ subtasks:
   - "T004"
 title: "PyPI Release Automation"
 phase: "Phase 1 - Automation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-sonnet-4.5"
+shell_pid: "10832"
 history:
   - timestamp: "2025-11-02T16:58:36Z"
     lane: "planned"
@@ -119,3 +119,4 @@ history:
 3. Append a new entry in **Activity Log** describing the transition.
 4. Use `.kittify/scripts/bash/tasks-move-to-lane.sh 002-lightweight-pypi-release WP02 <lane>` to propagate metadata changes.
 5. Commit or stage prompt updates to maintain workflow auditability.
+- 2025-11-02T17:54:32Z – claude-sonnet-4.5 – shell_pid=10832 – lane=doing – Started implementation
