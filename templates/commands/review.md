@@ -83,6 +83,6 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - Follow-up actions (if any) for other team members.
    - Reminder to push changes or notify teammates as per project conventions.
 
-Context for review: {ARGS}
+Context for review: {ARGS} (resolve this to the prompt's relative path, e.g., `kitty-specs/<feature>/tasks/for_review/WPXX.md`)
 
 All review feedback must live inside the prompt file, ensuring future implementers understand historical decisions before revisiting the task.
