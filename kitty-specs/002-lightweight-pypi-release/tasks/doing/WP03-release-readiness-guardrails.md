@@ -5,10 +5,10 @@ subtasks:
   - "T006"
 title: "Release Readiness Guardrails"
 phase: "Phase 2 - Quality Gates"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-sonnet-4.5"
+shell_pid: "13425"
 history:
   - timestamp: "2025-11-02T16:58:36Z"
     lane: "planned"
@@ -111,3 +111,4 @@ history:
 3. Append to the **Activity Log** with timestamp, lane, PID, and action.
 4. Use `.kittify/scripts/bash/tasks-move-to-lane.sh 002-lightweight-pypi-release WP03 <lane>` to keep history consistent.
 5. Commit or stage updates to preserve workflow audit trail.
+- 2025-11-02T18:04:30Z – claude-sonnet-4.5 – shell_pid=13425 – lane=doing – Started implementation
