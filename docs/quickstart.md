@@ -10,20 +10,42 @@ This guide will help you get started with Spec-Driven Development using Spec Kit
 
 ### 1. Install Spec Kitty CLI
 
-Initialize your project depending on the coding agent you're using:
+**From PyPI (Recommended):**
 
+**Using pip:**
 ```bash
-uvx --from . spec-kitty init <PROJECT_NAME>
+pip install spec-kitty-cli
 ```
 
-> Run these commands from the Spec Kitty repository root so `.` resolves to this checkout.
+**Using uv:**
+```bash
+uv tool install spec-kitty-cli
+```
+
+**From GitHub (Development):**
+
+**Using pip:**
+```bash
+pip install git+https://github.com/Priivacy-ai/spec-kitty.git
+```
+
+**Using uv:**
+```bash
+uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-kitty.git
+```
+
+Then initialize your project:
+
+```bash
+spec-kitty init <PROJECT_NAME>
+```
 
 > Need more than one assistant? Pass a comma-separated list, e.g. `--ai claude,codex`, and the initializer will bring in the command files for both.
 
 Pick script type explicitly (optional):
 ```bash
-uvx --from . spec-kitty init <PROJECT_NAME> --script ps  # Force PowerShell
-uvx --from . spec-kitty init <PROJECT_NAME> --script sh  # Force POSIX shell
+spec-kitty init <PROJECT_NAME> --script ps  # Force PowerShell
+spec-kitty init <PROJECT_NAME> --script sh  # Force POSIX shell
 ```
 
 ### Optional: Automated Sandbox Setup

@@ -12,32 +12,69 @@
 
 ## Installation
 
+### Install Spec Kitty CLI
+
+#### From PyPI (Recommended - Stable Releases)
+
+**Using pip:**
+```bash
+pip install spec-kitty-cli
+```
+
+**Using uv:**
+```bash
+uv tool install spec-kitty-cli
+```
+
+#### From GitHub (Latest Development)
+
+**Using pip:**
+```bash
+pip install git+https://github.com/Priivacy-ai/spec-kitty.git
+```
+
+**Using uv:**
+```bash
+uv tool install spec-kitty-cli --from git+https://github.com/Priivacy-ai/spec-kitty.git
+```
+
 ### Initialize a New Project
 
-The easiest way to get started is to initialize a new project:
+After installation, initialize a new project:
 
+**If installed globally:**
 ```bash
-uvx --from . spec-kitty init <PROJECT_NAME>
+spec-kitty init <PROJECT_NAME>
+```
+
+**One-time usage (without installing):**
+
+**Using pipx:**
+```bash
+pipx run spec-kitty-cli init <PROJECT_NAME>
+```
+
+**Using uvx:**
+```bash
+uvx spec-kitty-cli init <PROJECT_NAME>
 ```
 
 Or initialize in the current directory:
 
 ```bash
-uvx --from . spec-kitty init .
+spec-kitty init .
 # or use the --here flag
-uvx --from . spec-kitty init --here
+spec-kitty init --here
 ```
-
-> Run these commands from the Spec Kitty repository root so `.` resolves to this checkout.
 
 ### Choose AI Agent
 
 You can proactively specify your AI agent during initialization:
 
 ```bash
-uvx --from . spec-kitty init <project_name> --ai claude
-uvx --from . spec-kitty init <project_name> --ai gemini
-uvx --from . spec-kitty init <project_name> --ai copilot
+spec-kitty init <project_name> --ai claude
+spec-kitty init <project_name> --ai gemini
+spec-kitty init <project_name> --ai copilot
 ```
 
 ### Choose Script Type (Shell vs PowerShell)
@@ -51,8 +88,8 @@ Auto behavior:
 
 Force a specific script type:
 ```bash
-uvx --from . spec-kitty init <project_name> --script sh
-uvx --from . spec-kitty init <project_name> --script ps
+spec-kitty init <project_name> --script sh
+spec-kitty init <project_name> --script ps
 ```
 
 ### Ignore Agent Tools Check
@@ -60,7 +97,7 @@ uvx --from . spec-kitty init <project_name> --script ps
 If you prefer to get the templates without checking for the right tools:
 
 ```bash
-uvx --from . spec-kitty init <project_name> --ai claude --ignore-agent-tools
+spec-kitty init <project_name> --ai claude --ignore-agent-tools
 ```
 
 ## Verification
