@@ -5,7 +5,7 @@ subtasks:
   - "T006"
 title: "Release Readiness Guardrails"
 phase: "Phase 2 - Quality Gates"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude-sonnet-4.5"
 shell_pid: "13425"
@@ -112,3 +112,4 @@ history:
 4. Use `.kittify/scripts/bash/tasks-move-to-lane.sh 002-lightweight-pypi-release WP03 <lane>` to keep history consistent.
 5. Commit or stage updates to preserve workflow audit trail.
 - 2025-11-02T18:04:30Z – claude-sonnet-4.5 – shell_pid=13425 – lane=doing – Started implementation
+- 2025-11-02T18:12:12Z – claude-sonnet-4.5 – shell_pid=13425 – lane=for_review – Ready for review
