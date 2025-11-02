@@ -445,6 +445,32 @@ When you switch missions the CLI updates `.kittify/active-mission`, and subseque
 
 If you encounter issues with an agent, please open an issue so we can refine the integration.
 
+## 🚀 Automated PyPI Releases
+
+Spec Kitty CLI is automatically published to PyPI whenever a new version is tagged. The release pipeline ensures quality through automated validation, testing, and checks before publishing.
+
+**For Users**: Install the latest version from PyPI:
+```bash
+pip install --upgrade spec-kitty-cli
+```
+
+**For Maintainers**: Follow the [Release Readiness Checklist](releases/readiness-checklist.md) to publish a new version:
+
+1. **Prepare Release**: Bump version in `pyproject.toml`, add changelog entry
+2. **Validate**: Run `python scripts/release/validate_release.py --mode branch`
+3. **Merge PR**: Open PR, ensure all checks pass, merge to `main`
+4. **Tag & Publish**: Create tag `git tag vX.Y.Z`, push tag `git push origin vX.Y.Z`
+5. **Automated Pipeline**: GitHub Actions builds, validates, and publishes to PyPI automatically
+
+The release workflow enforces:
+- ✅ Version bump validation (must be > latest tag)
+- ✅ Changelog completeness check
+- ✅ Full test suite execution
+- ✅ Package metadata validation
+- ✅ Secure secret handling (PYPI_API_TOKEN)
+
+See [Release Readiness Checklist](releases/readiness-checklist.md) and [Release Scripts Documentation](../scripts/release/README.md) for details.
+
 ## 📖 Learn more
 
 - **[Complete Spec-Driven Development Methodology](./spec-driven.md)** - Deep dive into the full process
