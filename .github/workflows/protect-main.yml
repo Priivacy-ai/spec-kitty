@@ -1,0 +1,114 @@
+name: Protect Main Branch
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  check-merge-compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Verify commit came from PR
+        run: |
+          # Skip check for repository initialization (first commit)
+          if [[ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
+            echo "✅ Initial commit detected, skipping merge compliance check"
+            exit 0
+          fi
+
+          # Get commit message and metadata
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          COMMITTER="${{ github.event.head_commit.committer.name }}"
+
+          echo "Commit message: $COMMIT_MSG"
+          echo "Committer: $COMMITTER"
+
+          # Check if this is a merge commit from a PR
+          # Valid patterns:
+          # 1. "Merge pull request #..." (GitHub merge commits)
+          # 2. Commits from "GitHub" or "github-actions[bot]" (automated merges)
+          # 3. Tag pushes (handled by release workflow, not direct commits)
+
+          if [[ "$COMMIT_MSG" =~ ^Merge\ pull\ request\ #[0-9]+ ]] || \
+             [[ "$COMMITTER" == "GitHub" ]] || \
+             [[ "$COMMITTER" == "github-actions[bot]" ]]; then
+            echo "✅ Commit is from an approved PR merge or automated process"
+            exit 0
+          fi
+
+          # Check if this is a squash/rebase merge
+          # GitHub squash merges include the PR number in the commit message
+          if [[ "$COMMIT_MSG" =~ \(#[0-9]+\) ]]; then
+            echo "✅ Commit is from a squash/rebase merge (contains PR reference)"
+            exit 0
+          fi
+
+          # If we get here, this appears to be a direct push
+          echo "::error::❌ Direct push to main branch detected!"
+          echo "::error::"
+          echo "::error::All changes to main must go through a pull request."
+          echo "::error::"
+          echo "::error::To fix this:"
+          echo "::error::1. Create a feature branch from the commit before this one"
+          echo "::error::2. Cherry-pick or reapply your changes to that branch"
+          echo "::error::3. Open a pull request for review"
+          echo "::error::"
+          echo "::error::To prevent this in the future:"
+          echo "::error::1. Enable branch protection rules for main:"
+          echo "::error::   - Go to Settings > Branches > Add rule"
+          echo "::error::   - Enable 'Require pull request reviews before merging'"
+          echo "::error::   - Enable 'Require status checks to pass before merging'"
+          echo "::error::"
+          echo "::error::📖 See: docs/releases/readiness-checklist.md for the complete workflow"
+
+          # Add to job summary
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # ❌ Direct Push Detected
+
+          This commit was pushed directly to \`main\` without going through a pull request.
+
+          ## Required Action
+
+          All changes to \`main\` must be reviewed via pull requests.
+
+          ### How to Fix
+
+          1. **Revert this commit** (if it hasn't been deployed):
+             \`\`\`bash
+             git revert HEAD
+             git push origin main
+             \`\`\`
+
+          2. **Create a feature branch**:
+             \`\`\`bash
+             git checkout -b fix/proper-pr-workflow
+             git cherry-pick <this-commit-sha>
+             git push origin fix/proper-pr-workflow
+             \`\`\`
+
+          3. **Open a pull request** for review
+
+          ### Prevent Future Issues
+
+          Enable branch protection rules:
+          - Go to **Settings > Branches > Add rule**
+          - Branch name pattern: \`main\`
+          - Enable **"Require pull request reviews before merging"**
+          - Enable **"Require status checks to pass before merging"**
+          - Select **release-readiness** as a required check
+
+          ## Reference
+
+          📖 [Release Readiness Checklist](https://github.com/${{ github.repository }}/blob/main/docs/releases/readiness-checklist.md)
+          EOF
+
+          exit 1

@@ -1,8 +1,39 @@
 [project]
 name = "spec-kitty-cli"
-version = "0.2.3"
+version = "0.2.20"
 description = "Spec Kitty CLI, a community fork of GitHub's Spec Kit for bootstrapping Spec-Driven Development (SDD) projects."
+readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
+authors = [
+    { name = "Spec Kitty Contributors" },
+]
+maintainers = [
+    { name = "Spec Kitty Contributors" },
+]
+keywords = [
+    "specification",
+    "spec-driven-development",
+    "sdd",
+    "feature-specs",
+    "requirements",
+    "planning",
+    "cli",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
 dependencies = [
     "typer",
     "rich",
@@ -11,6 +42,12 @@ dependencies = [
     "readchar",
     "truststore>=0.10.4",
 ]
+
+[project.urls]
+Repository = "https://github.com/spec-kitty/spec-kit"
+Issues = "https://github.com/spec-kitty/spec-kit/issues"
+Documentation = "https://spec-kitty.github.io/spec-kit"
+Changelog = "https://github.com/spec-kitty/spec-kit/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 test = [
