@@ -7,6 +7,23 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-11-02
+
+### Added
+
+- **pip Installation Instructions** – All documentation now includes pip installation commands alongside uv, making Spec Kitty accessible to users who prefer traditional Python package management.
+- **Multiple Installation Methods** – Documented three installation paths: PyPI (stable), GitHub (development), and one-time usage (pipx/uvx).
+
+### Changed
+
+- **Documentation Consistency** – Updated README.md, docs/index.md, docs/installation.md, and docs/quickstart.md to provide both pip and uv commands throughout.
+- **Installation Recommendations** – PyPI installation now marked as recommended for stable releases, with GitHub source for development versions.
+
+### Fixed
+
+- **Packaging Issues** – Removed duplicate `.kittify` force-include that caused "Duplicate filename in local headers" errors on PyPI.
+- **Test Dependencies** – Added `pip install -e .[test]` to workflows to ensure all project dependencies available for tests.
+
 ## [0.2.20] - 2025-11-02
 
 ### Added
