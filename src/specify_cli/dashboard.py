@@ -625,6 +625,25 @@ def get_dashboard_html() -> str:
         .status-card.completed { border-left-color: var(--grassy-green); }
         .status-card.agents { border-left-color: var(--soft-peach); }
 
+        .merge-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #065f46;
+            background: #d1fae5;
+            border: 1px solid #34d399;
+            margin-left: 12px;
+            white-space: nowrap;
+        }
+
+        .merge-badge .icon {
+            font-size: 1em;
+        }
+
         .status-label {
             font-size: 0.85em;
             color: #6b7280;
@@ -1243,14 +1262,31 @@ def get_dashboard_html() -> str:
             }
         }
 
-        function loadOverview() {
-            const feature = allFeatures.find(f => f.id === currentFeature);
-            if (!feature) return;
+function loadOverview() {
+    const feature = allFeatures.find(f => f.id === currentFeature);
+    if (!feature) return;
 
-            const stats = feature.kanban_stats;
-            const total = stats.total;
-            const completed = stats.done;
-            const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const mergeBadge = (() => {
+        const meta = feature.meta || {};
+        const mergedAt = meta.merged_at || meta.merge_at;
+        const mergedInto = meta.merged_into || meta.merge_into || meta.merged_target;
+        if (!mergedAt || !mergedInto) {
+            return '';
+        }
+        const date = new Date(mergedAt);
+        const dateStr = isNaN(date.valueOf()) ? mergedAt : date.toLocaleDateString();
+        return `
+            <span class="merge-badge" title="Merged into ${escapeHtml(mergedInto)} on ${escapeHtml(dateStr)}">
+                <span class="icon">✅</span>
+                <span>merged → ${escapeHtml(mergedInto)}</span>
+            </span>
+        `;
+    })();
+
+    const stats = feature.kanban_stats;
+    const total = stats.total;
+    const completed = stats.done;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
             const artifacts = feature.artifacts;
             const artifactList = [
@@ -1270,14 +1306,14 @@ def get_dashboard_html() -> str:
                 </div>
             `).join('');
 
-            document.getElementById('overview-content').innerHTML = `
-                <div style="margin-bottom: 30px;">
-                    <h3>Feature: ${feature.name}</h3>
-                    <p style="color: #6b7280;">View and track all artifacts for this feature</p>
-                </div>
+    document.getElementById('overview-content').innerHTML = `
+        <div style="margin-bottom: 30px;">
+            <h3>Feature: ${feature.name} ${mergeBadge}</h3>
+            <p style="color: #6b7280;">View and track all artifacts for this feature</p>
+        </div>
 
-                <div class="status-summary">
-                    <div class="status-card total">
+        <div class="status-summary">
+            <div class="status-card total">
                         <div class="status-label">Total Tasks</div>
                         <div class="status-value">${total}</div>
                         <div class="status-detail">${stats.planned} planned</div>
