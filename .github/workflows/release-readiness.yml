@@ -1,0 +1,105 @@
+name: Release Readiness Check
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Optional tag to validate (for dry runs)'
+        required: false
+        type: string
+  schedule:
+    # Run nightly to monitor drift
+    - cron: '0 2 * * *'
+
+concurrency:
+  group: release-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build tomli packaging pytest
+          pip install -e .[test]
+
+      - name: Run tests
+        run: |
+          echo "::group::Running test suite"
+          python -m pytest -v
+          echo "::endgroup::"
+
+      - name: Validate release metadata
+        id: validate
+        continue-on-error: true
+        run: |
+          if [[ -n "${{ inputs.tag }}" ]]; then
+            echo "Running validation in tag mode for dry run: ${{ inputs.tag }}"
+            python scripts/release/validate_release.py --mode tag --tag "${{ inputs.tag }}"
+          else
+            echo "Running validation in branch mode"
+            python scripts/release/validate_release.py --mode branch
+          fi
+
+      - name: Test packaging
+        run: |
+          echo "::group::Building wheel to catch packaging issues"
+          python -m build --wheel
+          echo "::endgroup::"
+
+      - name: Generate readiness summary
+        if: always()
+        run: |
+          echo "# Release Readiness Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ steps.validate.outcome }}" == "success" ]]; then
+            echo "✅ **All readiness checks passed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This branch is ready for release:" >> $GITHUB_STEP_SUMMARY
+            echo "- Version is properly bumped" >> $GITHUB_STEP_SUMMARY
+            echo "- Changelog entry exists and is populated" >> $GITHUB_STEP_SUMMARY
+            echo "- Version progression is monotonic" >> $GITHUB_STEP_SUMMARY
+            echo "- Tests pass" >> $GITHUB_STEP_SUMMARY
+            echo "- Package builds successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Readiness checks failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please complete the following before merging:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Required Actions" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. **Version Bump** - Update version in \`pyproject.toml\`" >> $GITHUB_STEP_SUMMARY
+            echo "2. **Changelog Entry** - Add release notes under \`## [X.Y.Z]\` in \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
+            echo "3. **Version Progression** - Ensure new version > latest tag" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "See the validation output above for specific errors." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📖 **Reference**: [Release Readiness Checklist](https://github.com/${{ github.repository }}/blob/main/docs/releases/readiness-checklist.md)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail if validation failed
+        if: steps.validate.outcome != 'success'
+        run: |
+          echo "::error::Release readiness checks failed. Review the validation output and job summary for details."
+          exit 1
