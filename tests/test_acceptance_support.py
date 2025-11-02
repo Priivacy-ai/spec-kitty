@@ -59,3 +59,27 @@ def test_perform_acceptance_without_commit(feature_repo: Path, feature_slug: str
     payload = result.to_dict()
     assert payload["accepted_by"] == "Tester"
     assert payload["mode"] == "checklist"
+
+
+def test_collect_feature_summary_encoding_error(feature_repo: Path, feature_slug: str) -> None:
+    plan_path = feature_repo / "kitty-specs" / feature_slug / "plan.md"
+    data = plan_path.read_bytes() + b"\x92"
+    plan_path.write_bytes(data)
+
+    with pytest.raises(acc.ArtifactEncodingError) as excinfo:
+        acc.collect_feature_summary(feature_repo, feature_slug)
+
+    assert str(plan_path) in str(excinfo.value)
+
+
+def test_normalize_feature_encoding(feature_repo: Path, feature_slug: str) -> None:
+    plan_path = feature_repo / "kitty-specs" / feature_slug / "plan.md"
+    data = plan_path.read_bytes() + b"\x92"
+    plan_path.write_bytes(data)
+
+    cleaned = acc.normalize_feature_encoding(feature_repo, feature_slug)
+    assert plan_path in cleaned
+    # Should now be readable as UTF-8 without errors.
+    plan_path.read_text(encoding="utf-8")
+    summary = acc.collect_feature_summary(feature_repo, feature_slug)
+    assert summary.feature == feature_slug

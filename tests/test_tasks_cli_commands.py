@@ -182,6 +182,60 @@ def test_acceptance_commands(feature_repo: Path, feature_slug: str) -> None:
     assert accept_payload.get("feature") == feature_slug
 
 
+def _prepare_done_work_package(feature_repo: Path, feature_slug: str) -> None:
+    run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
+    run(["git", "commit", "-am", "Move to doing"], cwd=feature_repo)
+    run_tasks_cli(["move", feature_slug, "WP01", "done", "--force"], cwd=feature_repo)
+    run(["git", "commit", "-am", "Move to done"], cwd=feature_repo)
+
+
+def test_accept_command_encoding_error_without_normalize(feature_repo: Path, feature_slug: str) -> None:
+    _prepare_done_work_package(feature_repo, feature_slug)
+
+    plan_path = feature_repo / "kitty-specs" / feature_slug / "plan.md"
+    plan_path.write_bytes(plan_path.read_bytes() + b"\x92")
+
+    result = run_tasks_cli(
+        [
+            "accept",
+            "--feature",
+            feature_slug,
+            "--mode",
+            "checklist",
+            "--json",
+            "--no-commit",
+        ],
+        cwd=feature_repo,
+    )
+    assert result.returncode != 0
+    assert "Invalid UTF-8 encoding" in result.stderr
+
+
+def test_accept_command_with_normalize_flag(feature_repo: Path, feature_slug: str) -> None:
+    _prepare_done_work_package(feature_repo, feature_slug)
+
+    plan_path = feature_repo / "kitty-specs" / feature_slug / "plan.md"
+    plan_path.write_bytes(plan_path.read_bytes() + b"\x92")
+
+    result = run_tasks_cli(
+        [
+            "accept",
+            "--feature",
+            feature_slug,
+            "--mode",
+            "checklist",
+            "--json",
+            "--no-commit",
+            "--allow-fail",
+            "--normalize-encoding",
+        ],
+        cwd=feature_repo,
+    )
+    assert result.returncode != 0
+    assert "Normalized artifact encoding" in result.stderr
+    plan_path.read_text(encoding="utf-8")
+
+
 def test_scenario_replay(feature_repo: Path, feature_slug: str) -> None:
     # Simulate an agent resolving an unknown, moving through lanes, and finishing back in done.
     run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
