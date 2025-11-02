@@ -41,19 +41,7 @@ jobs:
         run: python -m build
 
       - name: Check distributions
-        run: twine check dist/*
-
-      - name: Record artifact checksums
-        run: |
-          sha256sum dist/* > dist/SHA256SUMS.txt
-          cat dist/SHA256SUMS.txt
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-distributions
-          path: dist/
-          retention-days: 30
+        run: twine check dist/*.whl dist/*.tar.gz
 
       - name: Extract changelog for release
         id: changelog
@@ -61,6 +49,19 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           python scripts/release/extract_changelog.py "${VERSION}" > release-notes.md
           cat release-notes.md
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
+          verbose: true
+
+      - name: Record artifact checksums
+        if: success()
+        run: |
+          sha256sum dist/*.whl dist/*.tar.gz > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -70,16 +71,19 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
-            dist/SHA256SUMS.txt
+            SHA256SUMS.txt
           draft: false
           prerelease: false
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          skip-existing: true
-          verbose: true
+          name: release-distributions
+          path: |
+            dist/
+            SHA256SUMS.txt
+          retention-days: 30
 
       - name: Report failure if secret missing
         if: failure()
