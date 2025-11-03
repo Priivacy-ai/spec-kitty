@@ -2238,6 +2238,8 @@ def merge(
         raise typer.Exit(1)
 
     # Detect current branch and worktree
+    feature_worktree_path = repo_root
+    merge_root = repo_root
     tracker.start("detect")
     try:
         current_branch = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
@@ -2248,10 +2250,20 @@ def merge(
             raise typer.Exit(1)
 
         # Check if we're in a worktree
-        git_dir = run_command(["git", "rev-parse", "--git-common-dir"], capture=True)
-        in_worktree = ".worktrees" in git_dir or ".git/worktrees" in git_dir
-
-        tracker.complete("detect", f"on {current_branch}" + (" (worktree)" if in_worktree else ""))
+        git_dir_output = run_command(["git", "rev-parse", "--git-dir"], capture=True)
+        git_dir_path = Path(git_dir_output).resolve()
+        in_worktree = "worktrees" in git_dir_path.parts
+        if in_worktree:
+            try:
+                merge_root = git_dir_path.parents[2]
+            except IndexError:
+                raise RuntimeError("Unable to determine primary repository for merge operations.")
+            if not merge_root.exists():
+                raise RuntimeError(f"Primary repository path not found: {merge_root}")
+        tracker.complete(
+            "detect",
+            f"on {current_branch}" + (f" (worktree → operating from {merge_root})" if in_worktree else ""),
+        )
     except Exception as e:
         tracker.error("detect", str(e))
         console.print(tracker.render())
@@ -2273,33 +2285,50 @@ def merge(
         console.print(tracker.render())
         raise typer.Exit(1)
 
+    merge_root = merge_root.resolve()
+    feature_worktree_path = feature_worktree_path.resolve()
+
     if dry_run:
         console.print(tracker.render())
         console.print(f"\n[cyan]Dry run - would execute:[/cyan]")
-        console.print(f"  1. git checkout {target_branch}")
-        console.print(f"  2. git pull --ff-only")
-        if strategy == "squash":
-            console.print(f"  3. git merge --squash {current_branch}")
-            console.print(f"  4. git commit -m 'Merge feature {current_branch}'")
-        elif strategy == "rebase":
-            console.print(f"  3. git merge --ff-only {current_branch} (after rebase)")
+        step_num = 1
+        if in_worktree:
+            console.print(f"  {step_num}. (from {merge_root}) git checkout {target_branch}")
         else:
-            console.print(f"  3. git merge --no-ff {current_branch}")
+            console.print(f"  {step_num}. git checkout {target_branch}")
+        step_num += 1
+        console.print(f"  {step_num}. git pull --ff-only")
+        step_num += 1
+        if strategy == "squash":
+            console.print(f"  {step_num}. git merge --squash {current_branch}")
+            step_num += 1
+            console.print(f"  {step_num}. git commit -m 'Merge feature {current_branch}'")
+        elif strategy == "rebase":
+            console.print(f"  {step_num}. git merge --ff-only {current_branch} (after rebase)")
+        else:
+            console.print(f"  {step_num}. git merge --no-ff {current_branch}")
+        step_num += 1
         if push:
-            console.print(f"  4. git push origin {target_branch}")
+            console.print(f"  {step_num}. git push origin {target_branch}")
+            step_num += 1
         if in_worktree and remove_worktree:
-            console.print(f"  5. git worktree remove .")
+            console.print(f"  {step_num}. git worktree remove {feature_worktree_path}")
+            step_num += 1
         if delete_branch:
-            console.print(f"  6. git branch -d {current_branch}")
+            console.print(f"  {step_num}. git branch -d {current_branch}")
         return
 
     # Switch to target branch
     tracker.start("checkout")
     try:
-        # Need to go to repo root for checkout
-        os.chdir(repo_root)
+        if in_worktree:
+            console.print(f"[cyan]Detected worktree. Merge operations will run from {merge_root}[/cyan]")
+        os.chdir(merge_root)
+        target_status = run_command(["git", "status", "--porcelain"], capture=True)
+        if target_status.strip():
+            raise RuntimeError(f"Target repository at {merge_root} has uncommitted changes.")
         run_command(["git", "checkout", target_branch])
-        tracker.complete("checkout")
+        tracker.complete("checkout", f"using {merge_root}")
     except Exception as e:
         tracker.error("checkout", str(e))
         console.print(tracker.render())
@@ -2355,24 +2384,13 @@ def merge(
     if in_worktree and remove_worktree:
         tracker.start("worktree")
         try:
-            # Get the worktree path before we try to remove it
-            worktree_list = run_command(["git", "worktree", "list", "--porcelain"], capture=True)
-            worktree_path = None
-            for line in worktree_list.split('\n'):
-                if line.startswith('worktree ') and current_branch in line:
-                    worktree_path = line.split('worktree ', 1)[1]
-                    break
-
-            if worktree_path:
-                run_command(["git", "worktree", "remove", worktree_path, "--force"])
-                tracker.complete("worktree", f"removed {worktree_path}")
-            else:
-                tracker.skip("worktree", "path not found")
+            run_command(["git", "worktree", "remove", str(feature_worktree_path), "--force"])
+            tracker.complete("worktree", f"removed {feature_worktree_path}")
         except Exception as e:
             tracker.error("worktree", str(e))
             console.print(tracker.render())
             console.print(f"\n[yellow]Warning:[/yellow] Could not remove worktree.")
-            console.print(f"Run manually: git worktree remove <path>")
+            console.print(f"Run manually: git worktree remove {feature_worktree_path}")
 
     # Delete feature branch
     if delete_branch:
