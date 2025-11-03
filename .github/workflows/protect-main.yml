@@ -71,44 +71,44 @@ jobs:
           echo "::error::📖 See: docs/releases/readiness-checklist.md for the complete workflow"
 
           # Add to job summary
-          cat >> $GITHUB_STEP_SUMMARY <<EOF
-          # ❌ Direct Push Detected
-
-          This commit was pushed directly to \`main\` without going through a pull request.
-
-          ## Required Action
-
-          All changes to \`main\` must be reviewed via pull requests.
-
-          ### How to Fix
-
-          1. **Revert this commit** (if it hasn't been deployed):
-             \`\`\`bash
-             git revert HEAD
-             git push origin main
-             \`\`\`
-
-          2. **Create a feature branch**:
-             \`\`\`bash
-             git checkout -b fix/proper-pr-workflow
-             git cherry-pick <this-commit-sha>
-             git push origin fix/proper-pr-workflow
-             \`\`\`
-
-          3. **Open a pull request** for review
-
-          ### Prevent Future Issues
-
-          Enable branch protection rules:
-          - Go to **Settings > Branches > Add rule**
-          - Branch name pattern: \`main\`
-          - Enable **"Require pull request reviews before merging"**
-          - Enable **"Require status checks to pass before merging"**
-          - Select **release-readiness** as a required check
-
-          ## Reference
-
-          📖 [Release Readiness Checklist](https://github.com/${{ github.repository }}/blob/main/docs/releases/readiness-checklist.md)
-          EOF
+          {
+            echo "# ❌ Direct Push Detected"
+            echo ""
+            echo "This commit was pushed directly to \`main\` without going through a pull request."
+            echo ""
+            echo "## Required Action"
+            echo ""
+            echo "All changes to \`main\` must be reviewed via pull requests."
+            echo ""
+            echo "### How to Fix"
+            echo ""
+            echo "1. **Revert this commit** (if it hasn't been deployed):"
+            echo "   \`\`\`bash"
+            echo "   git revert HEAD"
+            echo "   git push origin main"
+            echo "   \`\`\`"
+            echo ""
+            echo "2. **Create a feature branch**:"
+            echo "   \`\`\`bash"
+            echo "   git checkout -b fix/proper-pr-workflow"
+            echo "   git cherry-pick <this-commit-sha>"
+            echo "   git push origin fix/proper-pr-workflow"
+            echo "   \`\`\`"
+            echo ""
+            echo "3. **Open a pull request** for review"
+            echo ""
+            echo "### Prevent Future Issues"
+            echo ""
+            echo "Enable branch protection rules:"
+            echo "- Go to **Settings > Branches > Add rule**"
+            echo "- Branch name pattern: \`main\`"
+            echo "- Enable **\"Require pull request reviews before merging\"**"
+            echo "- Enable **\"Require status checks to pass before merging\"**"
+            echo "- Select **release-readiness** as a required check"
+            echo ""
+            echo "## Reference"
+            echo ""
+            echo "📖 [Release Readiness Checklist](https://github.com/${{ github.repository }}/blob/main/docs/releases/readiness-checklist.md)"
+          } >> $GITHUB_STEP_SUMMARY
 
           exit 1
