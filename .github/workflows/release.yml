@@ -45,8 +45,8 @@ jobs:
 
       - name: Record artifact checksums
         run: |
-          sha256sum dist/* > dist/SHA256SUMS.txt
-          cat dist/SHA256SUMS.txt
+          sha256sum dist/* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Extract changelog for release
         id: changelog
@@ -70,7 +70,7 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
-            dist/SHA256SUMS.txt
+            SHA256SUMS.txt
           draft: false
           prerelease: false
 
@@ -79,7 +79,9 @@ jobs:
         if: always()
         with:
           name: release-distributions
-          path: dist/
+          path: |
+            dist/
+            SHA256SUMS.txt
           retention-days: 30
 
       - name: Report failure if secret missing
