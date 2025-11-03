@@ -28,7 +28,7 @@ jobs:
       - name: Install tooling
         run: |
           python -m pip install --upgrade pip
-          pip install build twine tomli packaging pytest
+          pip install build==1.* twine==5.* tomli==2.* packaging pytest
           pip install -e .[test]
 
       - name: Run tests
@@ -41,7 +41,12 @@ jobs:
         run: python -m build
 
       - name: Check distributions
-        run: twine check dist/*.whl dist/*.tar.gz
+        run: twine check dist/*
+
+      - name: Record artifact checksums
+        run: |
+          sha256sum dist/* > dist/SHA256SUMS.txt
+          cat dist/SHA256SUMS.txt
 
       - name: Extract changelog for release
         id: changelog
@@ -57,12 +62,6 @@ jobs:
           skip-existing: true
           verbose: true
 
-      - name: Record artifact checksums
-        if: success()
-        run: |
-          sha256sum dist/*.whl dist/*.tar.gz > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -71,7 +70,7 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
-            SHA256SUMS.txt
+            dist/SHA256SUMS.txt
           draft: false
           prerelease: false
 
@@ -80,9 +79,7 @@ jobs:
         if: always()
         with:
           name: release-distributions
-          path: |
-            dist/
-            SHA256SUMS.txt
+          path: dist/
           retention-days: 30
 
       - name: Report failure if secret missing
