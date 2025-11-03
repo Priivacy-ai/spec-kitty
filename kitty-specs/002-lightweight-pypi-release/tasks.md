@@ -46,8 +46,8 @@
 **Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP02-pypi-release-automation.md`
 
 ### Included Subtasks
-- [ ] T003 Update packaging metadata in `pyproject.toml` (readme, project URLs, classifiers) and ensure `CHANGELOG.md` links release notes for PyPI presentation.
-- [ ] T004 Author `.github/workflows/release.yml` to run tests, invoke the validator in tag mode, build (`python -m build`), run `twine check`, upload artifacts, create a GitHub Release with changelog excerpt, and publish via `pypa/gh-action-pypi-publish@release/v1`.
+- [X] T003 Update packaging metadata in `pyproject.toml` (readme, project URLs, classifiers) and ensure `CHANGELOG.md` links release notes for PyPI presentation. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP02-pypi-release-automation.md`)
+- [X] T004 Author `.github/workflows/release.yml` to run tests, invoke the validator in tag mode, build (`python -m build`), run `twine check`, upload artifacts, create a GitHub Release with changelog excerpt, and publish via `pypa/gh-action-pypi-publish@release/v1`. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP02-pypi-release-automation.md`)
 
 ### Implementation Notes
 - Guard the publish step with `if: secrets.PYPI_API_TOKEN != ''` and emit an informative failure if the secret is absent.
@@ -75,8 +75,8 @@
 **Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP03-release-readiness-guardrails.md`
 
 ### Included Subtasks
-- [ ] T005 [P] Add `.github/workflows/release-readiness.yml` (pull_request + workflow_dispatch) to execute tests, run the validator in branch mode, and surface checklist reminders in the job summary.
-- [ ] T006 [P] Create `.github/workflows/protect-main.yml` that runs on `push` to `main`, failing when commits bypass PR merges (e.g., lack `Merge pull request` prefix) and pointing maintainers to branch protection settings.
+- [X] T005 [P] Add `.github/workflows/release-readiness.yml` (pull_request + workflow_dispatch) to execute tests, run the validator in branch mode, and surface checklist reminders in the job summary. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP03-release-readiness-guardrails.md`)
+- [X] T006 [P] Create `.github/workflows/protect-main.yml` that runs on `push` to `main`, failing when commits bypass PR merges (e.g., lack `Merge pull request` prefix) and pointing maintainers to branch protection settings. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP03-release-readiness-guardrails.md`)
 
 ### Implementation Notes
 - Expose validator results via `$GITHUB_STEP_SUMMARY` so maintainers see unmet criteria without digging through logs.
@@ -103,8 +103,8 @@
 **Prompt**: `/kitty-specs/002-lightweight-pypi-release/tasks/planned/WP04-documentation-and-secret-hygiene.md`
 
 ### Included Subtasks
-- [ ] T007 [P] Expand documentation (`docs/index.md`, `docs/toc.yml`, `docs/releases/readiness-checklist.md`, `scripts/release/README.md`) to reference the validator, workflows, and rotation cadence.
-- [ ] T008 [P] Update `README.md` (release section) with end-to-end instructions: preparing changelog/version, configuring secrets, triggering tags, and linking to the readiness checklist & quickstart.
+- [X] T007 [P] Expand documentation (`docs/index.md`, `docs/toc.yml`, `docs/releases/readiness-checklist.md`, `scripts/release/README.md`) to reference the validator, workflows, and rotation cadence. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP04-documentation-and-secret-hygiene.md`)
+- [X] T008 [P] Update `README.md` (release section) with end-to-end instructions: preparing changelog/version, configuring secrets, triggering tags, and linking to the readiness checklist & quickstart. ✅ (See: `kitty-specs/002-lightweight-pypi-release/tasks/done/WP04-documentation-and-secret-hygiene.md`)
 
 ### Implementation Notes
 - Keep instructions actionable: include GitHub UI paths for secrets, branch protection toggles, and command snippets for tagging releases.
