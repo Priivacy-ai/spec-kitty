@@ -20,13 +20,13 @@ Before running this command:
 1. ✅ Feature must pass `/spec-kitty.accept` checks
 2. ✅ All work packages must be in `tasks/done/`
 3. ✅ Working directory must be clean (no uncommitted changes)
-4. ✅ You must be on the feature branch (or in its worktree)
+4. ✅ Run the command from the feature worktree (Spec Kitty will move the merge to the primary repo automatically)
 
 ## What This Command Does
 
 1. **Detects** your current feature branch and worktree status
 2. **Verifies** working directory is clean
-3. **Switches** to the target branch (default: `main`)
+3. **Switches** to the target branch (default: `main`) in the primary repository
 4. **Updates** the target branch (`git pull --ff-only`)
 5. **Merges** the feature using your chosen strategy
 6. **Optionally pushes** to origin
@@ -142,7 +142,7 @@ my-project/                    # Main repo (main branch)
 1. **Main branch** stays in the primary repo root
 2. **Feature branches** live in `.worktrees/<feature-slug>/`
 3. **Work on features** happens in their worktrees (isolation)
-4. **Merge from worktrees** using this command
+4. **Merge from worktrees** using this command – the CLI will hop to the primary repo for the Git merge
 5. **Cleanup is automatic** - worktrees removed after merge
 
 ### Why Worktrees?
@@ -207,10 +207,11 @@ git branch -d <feature-branch>
 ## Safety Features
 
 1. **Clean working directory check** - Won't merge with uncommitted changes
-2. **Fast-forward only pull** - Won't proceed if main has diverged
-3. **Graceful failure** - If merge fails, you can fix manually
-4. **Optional operations** - Push, branch delete, and worktree removal are configurable
-5. **Dry run mode** - Preview exactly what will happen
+2. **Primary repo hand-off** - Automatically runs Git operations from the main checkout when invoked in a worktree
+3. **Fast-forward only pull** - Won't proceed if main has diverged
+4. **Graceful failure** - If merge fails, you can fix manually
+5. **Optional operations** - Push, branch delete, and worktree removal are configurable
+6. **Dry run mode** - Preview exactly what will happen
 
 ## Examples
 
