@@ -87,10 +87,9 @@ Once Claude (and any partner agents) finish the feature:
 
 1. Ensure `tasks/for_review/` is empty and all checklists are complete.
 2. Run the guided merge:
- ```bash
-  spec-kitty merge --remove-worktree
-  ```
-   Run it from the feature worktree; the CLI automatically performs the Git steps from the main checkout so worktrees stay in sync.
+   ```bash
+   spec-kitty merge --remove-worktree
+   ```
    The command documents merge steps, updates activity logs, and optionally removes the feature worktree to keep the repository tidy.
 
 ## Beyond Claude
