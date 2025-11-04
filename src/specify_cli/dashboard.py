@@ -985,6 +985,9 @@ def get_dashboard_html() -> str:
             <div class="sidebar-item" data-page="research" onclick="switchPage('research')">
                 🔬 Research
             </div>
+            <div class="sidebar-item" data-page="contracts" onclick="switchPage('contracts')">
+                📜 Contracts
+            </div>
             <div class="sidebar-item" data-page="quickstart" onclick="switchPage('quickstart')">
                 🚀 Quickstart
             </div>
@@ -1034,6 +1037,13 @@ def get_dashboard_html() -> str:
                 <div class="content-card">
                     <h2>Research</h2>
                     <div id="research-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-contracts" class="page">
+                <div class="content-card">
+                    <h2>Contracts</h2>
+                    <div id="contracts-content" class="markdown-content"></div>
                 </div>
             </div>
 
@@ -1257,6 +1267,10 @@ def get_dashboard_html() -> str:
                 loadOverview();
             } else if (currentPage === 'kanban') {
                 loadKanban();
+            } else if (currentPage === 'contracts') {
+                loadContracts();
+            } else if (currentPage === 'research') {
+                loadResearch();
             } else {
                 loadArtifact(currentPage);
             }
@@ -1565,6 +1579,181 @@ function loadOverview() {
                 });
         }
 
+        function loadContracts() {
+            fetch(`/api/contracts/${currentFeature}`)
+                .then(response => response.ok ? response.json() : Promise.reject('Not found'))
+                .then(data => {
+                    if (data.files && data.files.length > 0) {
+                        renderContractsList(data.files);
+                    } else {
+                        document.getElementById('contracts-content').innerHTML =
+                            '<div class="empty-state">No contracts available. Run /spec-kitty.plan to generate contracts.</div>';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('contracts-content').innerHTML =
+                        '<div class="empty-state">Contracts directory not found</div>';
+                });
+        }
+
+        function renderContractsList(files) {
+            const contractsHtml = files.map(file => `
+                <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid var(--lavender); cursor: pointer;"
+                     onclick="loadContractFile('${file.name}')">
+                    <div style="font-weight: 600; color: var(--dark-text); margin-bottom: 5px;">
+                        ${file.icon} ${escapeHtml(file.name)}
+                    </div>
+                    <div style="font-size: 0.85em; color: var(--medium-text);">
+                        Click to view contract
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('contracts-content').innerHTML = `
+                <p style="margin-bottom: 20px; color: var(--medium-text);">
+                    API specifications and interface definitions for this feature.
+                </p>
+                ${contractsHtml}
+            `;
+        }
+
+        function loadContractFile(fileName) {
+            fetch(`/api/contracts/${currentFeature}/${fileName}`)
+                .then(response => response.ok ? response.text() : Promise.reject('Not found'))
+                .then(content => {
+                    const htmlContent = marked.parse(content);
+                    document.getElementById('contracts-content').innerHTML = `
+                        <div style="margin-bottom: 20px;">
+                            <button onclick="loadContracts()"
+                                    style="padding: 8px 16px; background: var(--baby-blue); border: none; border-radius: 6px; cursor: pointer; color: var(--dark-text); font-weight: 500;">
+                                ← Back to Contracts List
+                            </button>
+                        </div>
+                        <h3 style="color: var(--grassy-green); margin-bottom: 15px;">${escapeHtml(fileName)}</h3>
+                        ${htmlContent}
+                    `;
+                })
+                .catch(error => {
+                    document.getElementById('contracts-content').innerHTML =
+                        '<div class="empty-state">Error loading contract file</div>';
+                });
+        }
+
+        function loadResearch() {
+            fetch(`/api/research/${currentFeature}`)
+                .then(response => response.ok ? response.json() : Promise.reject('Not found'))
+                .then(data => {
+                    if (data.main_file || (data.artifacts && data.artifacts.length > 0)) {
+                        renderResearchContent(data);
+                    } else {
+                        document.getElementById('research-content').innerHTML =
+                            '<div class="empty-state">No research artifacts available. Run /spec-kitty.research to create them.</div>';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('research-content').innerHTML =
+                        '<div class="empty-state">Research artifacts not found</div>';
+                });
+        }
+
+        function renderResearchContent(data) {
+            let artifactsHtml = '';
+            if (data.artifacts && data.artifacts.length > 0) {
+                artifactsHtml = `
+                    <h3 style="color: var(--grassy-green); margin-top: 30px; margin-bottom: 15px;">
+                        Research Artifacts
+                    </h3>
+                    <div style="display: grid; gap: 10px;">
+                        ${data.artifacts.map(file => `
+                            <div style="padding: 12px; background: white; border-radius: 8px; border-left: 4px solid var(--soft-peach); cursor: pointer;"
+                                 onclick="loadResearchFile('${file.path}', '${escapeHtml(file.name)}')">
+                                <div style="font-weight: 600; color: var(--dark-text); margin-bottom: 3px;">
+                                    ${file.icon} ${escapeHtml(file.name)}
+                                </div>
+                                <div style="font-size: 0.75em; color: var(--medium-text); font-family: monospace;">
+                                    ${escapeHtml(file.path)}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            let mainContent = '';
+            if (data.main_file) {
+                mainContent = `
+                    <h3 style="color: var(--grassy-green); margin-bottom: 15px;">research.md</h3>
+                    ${marked.parse(data.main_file)}
+                `;
+            }
+
+            document.getElementById('research-content').innerHTML = mainContent + artifactsHtml;
+        }
+
+        function loadResearchFile(filePath, fileName) {
+            fetch(`/api/research/${currentFeature}/${encodeURIComponent(filePath)}`)
+                .then(response => response.ok ? response.text() : Promise.reject('Not found'))
+                .then(content => {
+                    // Try to render as markdown, fallback to plain text
+                    let htmlContent;
+                    if (filePath.endsWith('.md')) {
+                        htmlContent = marked.parse(content);
+                    } else if (filePath.endsWith('.csv')) {
+                        // Render CSV as a table
+                        htmlContent = renderCSV(content);
+                    } else {
+                        htmlContent = `<pre style="background: white; padding: 20px; border-radius: 8px; overflow-x: auto;">${escapeHtml(content)}</pre>`;
+                    }
+
+                    document.getElementById('research-content').innerHTML = `
+                        <div style="margin-bottom: 20px;">
+                            <button onclick="loadResearch()"
+                                    style="padding: 8px 16px; background: var(--baby-blue); border: none; border-radius: 6px; cursor: pointer; color: var(--dark-text); font-weight: 500;">
+                                ← Back to Research
+                            </button>
+                        </div>
+                        <h3 style="color: var(--grassy-green); margin-bottom: 15px;">${escapeHtml(fileName)}</h3>
+                        ${htmlContent}
+                    `;
+                })
+                .catch(error => {
+                    document.getElementById('research-content').innerHTML =
+                        '<div class="empty-state">Error loading research file</div>';
+                });
+        }
+
+        function renderCSV(csvContent) {
+            const lines = csvContent.trim().split('\n');
+            if (lines.length === 0) return '<div class="empty-state">Empty CSV file</div>';
+
+            const rows = lines.map(line => {
+                // Simple CSV parsing (doesn't handle quoted commas)
+                return line.split(',').map(cell => cell.trim());
+            });
+
+            const headerRow = rows[0];
+            const dataRows = rows.slice(1);
+
+            return `
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+                        <thead>
+                            <tr style="background: var(--baby-blue);">
+                                ${headerRow.map(header => `<th style="padding: 12px; text-align: left; font-weight: 600; color: var(--dark-text);">${escapeHtml(header)}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${dataRows.map((row, idx) => `
+                                <tr style="border-top: 1px solid var(--light-gray); ${idx % 2 === 0 ? 'background: #fafaf8;' : ''}">
+                                    ${row.map(cell => `<td style="padding: 10px;">${escapeHtml(cell)}</td>`).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -1825,6 +2014,145 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.wfile.write(constitution_file.read_text().encode())
             else:
                 self.wfile.write(b'Constitution not yet created. Run /spec-kitty.constitution to create it.')
+
+        elif path.startswith('/api/contracts/'):
+            parts = path.split('/')
+            if len(parts) >= 4:
+                feature_id = parts[3]
+                project_path = Path(self.project_dir)
+                feature_dir = resolve_feature_dir(project_path, feature_id)
+
+                if len(parts) == 4:
+                    # List all contract files
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Cache-Control', 'no-cache')
+                    self.end_headers()
+
+                    if feature_dir:
+                        contracts_dir = feature_dir / 'contracts'
+                        if contracts_dir.exists() and contracts_dir.is_dir():
+                            files = []
+                            for file_path in sorted(contracts_dir.iterdir()):
+                                if file_path.is_file():
+                                    icon = '📄'
+                                    if file_path.suffix in ['.yml', '.yaml']:
+                                        icon = '⚙️'
+                                    elif file_path.suffix == '.json':
+                                        icon = '📋'
+                                    elif file_path.suffix == '.md':
+                                        icon = '📝'
+                                    files.append({
+                                        'name': file_path.name,
+                                        'icon': icon
+                                    })
+                            self.wfile.write(json.dumps({'files': files}).encode())
+                        else:
+                            self.wfile.write(json.dumps({'files': []}).encode())
+                    else:
+                        self.wfile.write(json.dumps({'files': []}).encode())
+
+                elif len(parts) >= 5:
+                    # Get specific contract file
+                    file_name = parts[4]
+                    if feature_dir:
+                        contracts_dir = feature_dir / 'contracts'
+                        contract_file = contracts_dir / file_name
+
+                        # Security check: ensure file is within contracts directory
+                        try:
+                            contract_file = contract_file.resolve()
+                            contract_file.relative_to(contracts_dir.resolve())
+
+                            if contract_file.exists() and contract_file.is_file():
+                                self.send_response(200)
+                                self.send_header('Content-type', 'text/plain')
+                                self.send_header('Cache-Control', 'no-cache')
+                                self.end_headers()
+                                self.wfile.write(contract_file.read_text(encoding='utf-8').encode())
+                                return
+                        except (ValueError, Exception):
+                            pass
+
+                    self.send_response(404)
+                    self.end_headers()
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        elif path.startswith('/api/research/'):
+            parts = path.split('/')
+            if len(parts) >= 4:
+                feature_id = parts[3]
+                project_path = Path(self.project_dir)
+                feature_dir = resolve_feature_dir(project_path, feature_id)
+
+                if len(parts) == 4:
+                    # Get research.md and list all artifacts
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Cache-Control', 'no-cache')
+                    self.end_headers()
+
+                    response = {'main_file': None, 'artifacts': []}
+
+                    if feature_dir:
+                        # Get research.md content
+                        research_md = feature_dir / 'research.md'
+                        if research_md.exists():
+                            response['main_file'] = research_md.read_text(encoding='utf-8')
+
+                        # List research artifacts
+                        research_dir = feature_dir / 'research'
+                        if research_dir.exists() and research_dir.is_dir():
+                            for file_path in sorted(research_dir.rglob('*')):
+                                if file_path.is_file():
+                                    relative_path = str(file_path.relative_to(feature_dir))
+                                    icon = '📄'
+                                    if file_path.suffix == '.csv':
+                                        icon = '📊'
+                                    elif file_path.suffix == '.md':
+                                        icon = '📝'
+                                    elif file_path.suffix in ['.xlsx', '.xls']:
+                                        icon = '📈'
+                                    elif file_path.suffix == '.json':
+                                        icon = '📋'
+                                    response['artifacts'].append({
+                                        'name': file_path.name,
+                                        'path': relative_path,
+                                        'icon': icon
+                                    })
+
+                    self.wfile.write(json.dumps(response).encode())
+
+                elif len(parts) >= 5:
+                    # Get specific research artifact
+                    file_path_encoded = parts[4]
+                    file_path_str = urllib.parse.unquote(file_path_encoded)
+
+                    if feature_dir:
+                        artifact_file = feature_dir / file_path_str
+
+                        # Security check: ensure file is within feature directory
+                        try:
+                            artifact_file = artifact_file.resolve()
+                            artifact_file.relative_to(feature_dir.resolve())
+
+                            if artifact_file.exists() and artifact_file.is_file():
+                                self.send_response(200)
+                                self.send_header('Content-type', 'text/plain')
+                                self.send_header('Cache-Control', 'no-cache')
+                                self.end_headers()
+                                self.wfile.write(artifact_file.read_text(encoding='utf-8').encode())
+                                return
+                        except (ValueError, Exception):
+                            pass
+
+                    self.send_response(404)
+                    self.end_headers()
+            else:
+                self.send_response(404)
+                self.end_headers()
 
         elif path.startswith(STATIC_URL_PREFIX):
             relative_path = path[len(STATIC_URL_PREFIX):]
