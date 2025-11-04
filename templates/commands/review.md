@@ -4,9 +4,7 @@ scripts:
   sh: scripts/bash/check-prerequisites.sh --json --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
 ---
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
-
-**UTF-8 Encoding Rule:** When updating task prompts or creating review documentation, use only UTF-8 compatible characters. Avoid Windows-1252 smart quotes (" " ' '), em dashes, or copy-pasted content from Microsoft Office. Use standard ASCII quotes (" ') and simple symbols. See [templates/common/utf8-file-writing-guidelines.md](templates/common/utf8-file-writing-guidelines.md) for details.
+**⚠️ CRITICAL: Read [.kittify/AGENTS.md](.kittify/AGENTS.md) for universal rules (paths, UTF-8 encoding, context management, quality expectations).**
 
 *Path: [templates/commands/review.md](templates/commands/review.md)*
 
