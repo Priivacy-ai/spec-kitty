@@ -42,6 +42,7 @@ from rich.align import Align
 from rich.table import Table
 from rich.tree import Tree
 from typer.core import TyperGroup
+from importlib.metadata import version, PackageNotFoundError
 
 # For cross-platform keyboard input
 import readchar
@@ -789,8 +790,16 @@ def show_banner():
         padded_line = line.ljust(max_width)
         styled_banner.append(padded_line + "\n", style=color)
 
+    # Get package version
+    try:
+        pkg_version = version("spec-kitty-cli")
+        version_text = f"v{pkg_version}"
+    except PackageNotFoundError:
+        version_text = "dev"
+
     console.print(Align.center(styled_banner))
     console.print(Align.center(Text(TAGLINE, style="italic bright_yellow")))
+    console.print(Align.center(Text(version_text, style="dim cyan")))
     console.print()
 
 @app.callback()
