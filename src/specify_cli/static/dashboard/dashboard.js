@@ -812,14 +812,20 @@ function updateFeatureListSilent(features) {
     // Note: We intentionally don't call loadCurrentPage() here
 }
 
-function fetchData() {
-    if (featureSelectActive) {
+function fetchData(isInitialLoad = false) {
+    if (featureSelectActive && !isInitialLoad) {
         return;
     }
     fetch('/api/features')
         .then(response => response.json())
         .then(data => {
-            updateFeatureListSilent(data.features);
+            // Use full update on initial load, silent update on polls
+            if (isInitialLoad) {
+                updateFeatureList(data.features);
+            } else {
+                updateFeatureListSilent(data.features);
+            }
+
             document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
 
             if (data.project_path) {
@@ -841,7 +847,7 @@ function fetchData() {
 
 // Initial fetch
 updateTreeInfo();
-fetchData();
+fetchData(true);  // Pass true for initial load
 
 // Poll every second
 setInterval(fetchData, 1000);
