@@ -2243,12 +2243,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if feature_dir and filename:
                     artifact_file = feature_dir / filename
                     if artifact_file.exists():
-                        self.send_response(200)
-                        self.send_header('Content-type', 'text/plain')
-                        self.send_header('Cache-Control', 'no-cache')
-                        self.end_headers()
-                        self.wfile.write(artifact_file.read_text().encode())
-                        return
+                        try:
+                            self.send_response(200)
+                            self.send_header('Content-type', 'text/plain')
+                            self.send_header('Cache-Control', 'no-cache')
+                            self.end_headers()
+                            self.wfile.write(artifact_file.read_text(encoding='utf-8').encode('utf-8'))
+                            return
+                        except Exception as e:
+                            print(f"Error reading artifact {artifact_name}: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            return
 
             self.send_response(404)
             self.end_headers()
