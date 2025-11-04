@@ -672,6 +672,13 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     if templates_resource.exists():
         copy_package_tree(templates_resource, specify_root / "templates")
 
+    # Copy AGENTS.md to .kittify for all agents to read
+    agents_md_src = data_root.joinpath("templates", "AGENTS.md")
+    if agents_md_src.exists():
+        kittify_dir = specify_root / ".kittify"
+        kittify_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(agents_md_src, kittify_dir / "AGENTS.md")
+
     missions_resource = data_root.joinpath(".kittify", "missions")
     if missions_resource.exists():
         copy_package_tree(missions_resource, specify_root / "missions")

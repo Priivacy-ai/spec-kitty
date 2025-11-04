@@ -38,12 +38,9 @@ If you're on the `main` branch:
 3. Verify you're in the right place: `git branch --show-current` should show the feature branch
 4. Then re-run this command
 
-The script will fail if you're not in a feature worktree.
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+The script will fail if you're not in a feature worktree. This is intentional - worktrees provide isolation for parallel feature development.
 
-**UTF-8 Encoding Rule:** When writing markdown files (plan.md, data-model.md, quickstart.md, contracts/*), use only UTF-8 compatible characters. Avoid Windows-1252 smart quotes (" " ' '), em dashes, or copy-pasted content from Microsoft Office. Use standard ASCII quotes (" ') and simple symbols (-> not →). If you copy-paste research citations or external content, replace smart quotes with standard quotes first. See [templates/common/utf8-file-writing-guidelines.md](templates/common/utf8-file-writing-guidelines.md) for details.
-
-This is intentional - worktrees provide isolation for parallel feature development.
+**⚠️ CRITICAL: Read [.kittify/AGENTS.md](.kittify/AGENTS.md) for universal rules (paths, UTF-8 encoding, context management, quality expectations).**
 
 ## Planning Interrogation (mandatory)
 

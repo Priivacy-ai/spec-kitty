@@ -4,9 +4,7 @@ scripts:
   sh: .kittify/scripts/bash/create-new-feature.sh --json "{ARGS}"
   ps: .kittify/scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
 ---
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
-
-**UTF-8 Encoding Rule:** When writing markdown files, use only UTF-8 compatible characters. Avoid Windows-1252 smart quotes (" " ' '), em dashes, or copy-pasted content from Microsoft Office. Use standard ASCII quotes (" ') and simple symbols (-> not →). If you copy-paste research citations or external content, replace smart quotes with standard quotes first. See [templates/common/utf8-file-writing-guidelines.md](templates/common/utf8-file-writing-guidelines.md) for details.
+**⚠️ CRITICAL: Read [.kittify/AGENTS.md](.kittify/AGENTS.md) for universal rules (paths, UTF-8 encoding, context management, quality expectations).**
 
 *Path: [templates/commands/specify.md](templates/commands/specify.md)*
 
