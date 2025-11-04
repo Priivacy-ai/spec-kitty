@@ -797,6 +797,21 @@ function loadOverview() {
             }
         }
 
+        function updateFeatureListSilent(features) {
+            // Same as updateFeatureList but doesn't reload the current page
+            // Used during polling to avoid resetting user's view
+            allFeatures = features;
+            const feature = features.find(f => f.id === currentFeature);
+            if (feature && feature.workflow) {
+                updateWorkflowIcons(feature.workflow);
+                computeFeatureWorktreeStatus(feature);
+            } else {
+                computeFeatureWorktreeStatus(null);
+            }
+            updateSidebarState();
+            // Note: We intentionally don't call loadCurrentPage() here
+        }
+
         function fetchData() {
             if (featureSelectActive) {
                 return;
@@ -804,7 +819,7 @@ function loadOverview() {
             fetch('/api/features')
                 .then(response => response.json())
                 .then(data => {
-                    updateFeatureList(data.features);
+                    updateFeatureListSilent(data.features);
                     document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
 
                     if (data.project_path) {
