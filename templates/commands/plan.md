@@ -41,6 +41,8 @@ If you're on the `main` branch:
 The script will fail if you're not in a feature worktree.
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
+**UTF-8 Encoding Rule:** When writing markdown files (plan.md, data-model.md, quickstart.md, contracts/*), use only UTF-8 compatible characters. Avoid Windows-1252 smart quotes (" " ' '), em dashes, or copy-pasted content from Microsoft Office. Use standard ASCII quotes (" ') and simple symbols (-> not →). If you copy-paste research citations or external content, replace smart quotes with standard quotes first. See [templates/common/utf8-file-writing-guidelines.md](templates/common/utf8-file-writing-guidelines.md) for details.
+
 This is intentional - worktrees provide isolation for parallel feature development.
 
 ## Planning Interrogation (mandatory)
@@ -144,3 +146,19 @@ Planning requirements (scale to complexity):
 
 - Use absolute paths
 - ERROR on gate failures or unresolved clarifications
+
+## Post-Generation Validation
+
+After writing plan.md, data-model.md, quickstart.md, and contract files, validate encoding:
+
+```bash
+python scripts/validate_encoding.py kitty-specs/$FEATURE_NUM-*/
+```
+
+If encoding errors are found, the validator will report them with specific byte positions. Run with `--fix` to automatically convert to UTF-8:
+
+```bash
+python scripts/validate_encoding.py --fix kitty-specs/$FEATURE_NUM-*/
+```
+
+This is especially important if you copied content from external sources (academic papers, API docs, etc.) which often contain Windows-1252 encoded characters.
