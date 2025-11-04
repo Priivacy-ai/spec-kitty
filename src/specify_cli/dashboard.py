@@ -2038,7 +2038,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
             constitution_file = Path(self.project_dir) / '.kittify' / 'memory' / 'constitution.md'
             if constitution_file.exists():
-                self.wfile.write(constitution_file.read_text().encode())
+                try:
+                    content = constitution_file.read_text(encoding='utf-8')
+                    self.wfile.write(content.encode('utf-8'))
+                except UnicodeDecodeError as e:
+                    error_msg = f'⚠️ Encoding Error: File contains non-UTF-8 characters at position {e.start}. Please convert to UTF-8.\n\nAttempting to read with error recovery...\n\n'
+                    try:
+                        content = constitution_file.read_text(encoding='utf-8', errors='replace')
+                        self.wfile.write(error_msg.encode('utf-8') + content.encode('utf-8'))
+                    except Exception as fallback_err:
+                        self.wfile.write(f'Error reading file: {fallback_err}'.encode('utf-8'))
+                except Exception as e:
+                    print(f"Error reading constitution: {e}")
+                    self.wfile.write(f'Error reading constitution: {e}'.encode('utf-8'))
             else:
                 self.wfile.write(b'Constitution not yet created. Run /spec-kitty.constitution to create it.')
 
@@ -2096,10 +2108,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
                                 self.send_header('Content-type', 'text/plain')
                                 self.send_header('Cache-Control', 'no-cache')
                                 self.end_headers()
-                                self.wfile.write(contract_file.read_text(encoding='utf-8').encode())
+
+                                try:
+                                    content = contract_file.read_text(encoding='utf-8')
+                                    self.wfile.write(content.encode('utf-8'))
+                                except UnicodeDecodeError as e:
+                                    error_msg = f'⚠️ Encoding Error in {file_name}\n\nThis file contains non-UTF-8 characters at position {e.start}.\nPlease convert the file to UTF-8 encoding.\n\nAttempting to read with error recovery...\n\n'
+                                    print(f"Encoding error in {contract_file}: {e}")
+                                    try:
+                                        content = contract_file.read_text(encoding='utf-8', errors='replace')
+                                        self.wfile.write(error_msg.encode('utf-8') + content.encode('utf-8'))
+                                    except Exception as fallback_err:
+                                        self.wfile.write(f'Error reading file: {fallback_err}'.encode('utf-8'))
+                                except Exception as e:
+                                    print(f"Error reading contract {file_name}: {e}")
+                                    self.wfile.write(f'Error reading file: {e}'.encode('utf-8'))
                                 return
-                        except (ValueError, Exception):
+                        except ValueError:
+                            # Path traversal attempt
                             pass
+                        except Exception as e:
+                            print(f"Error accessing contract file: {e}")
 
                     self.send_response(404)
                     self.end_headers()
@@ -2123,7 +2152,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
                             # Get research.md content
                             research_md = feature_dir / 'research.md'
                             if research_md.exists():
-                                response['main_file'] = research_md.read_text(encoding='utf-8')
+                                try:
+                                    response['main_file'] = research_md.read_text(encoding='utf-8')
+                                except UnicodeDecodeError as e:
+                                    error_msg = f'⚠️ **Encoding Error in research.md**\n\nThis file contains non-UTF-8 characters at position {e.start}.\nPlease convert the file to UTF-8 encoding.\n\nAttempting to read with error recovery...\n\n---\n\n'
+                                    print(f"Encoding error in {research_md}: {e}")
+                                    try:
+                                        content = research_md.read_text(encoding='utf-8', errors='replace')
+                                        response['main_file'] = error_msg + content
+                                    except Exception as fallback_err:
+                                        response['main_file'] = f'Error reading research.md: {fallback_err}'
 
                             # List research artifacts
                             research_dir = feature_dir / 'research'
@@ -2175,10 +2213,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
                                 self.send_header('Content-type', 'text/plain')
                                 self.send_header('Cache-Control', 'no-cache')
                                 self.end_headers()
-                                self.wfile.write(artifact_file.read_text(encoding='utf-8').encode())
+
+                                try:
+                                    content = artifact_file.read_text(encoding='utf-8')
+                                    self.wfile.write(content.encode('utf-8'))
+                                except UnicodeDecodeError as e:
+                                    error_msg = f'⚠️ Encoding Error in {artifact_file.name}\n\nThis file contains non-UTF-8 characters at position {e.start}.\nPlease convert the file to UTF-8 encoding.\n\nAttempting to read with error recovery...\n\n'
+                                    print(f"Encoding error in {artifact_file}: {e}")
+                                    try:
+                                        content = artifact_file.read_text(encoding='utf-8', errors='replace')
+                                        self.wfile.write(error_msg.encode('utf-8') + content.encode('utf-8'))
+                                    except Exception as fallback_err:
+                                        self.wfile.write(f'Error reading file: {fallback_err}'.encode('utf-8'))
+                                except Exception as e:
+                                    print(f"Error reading research artifact {file_path_str}: {e}")
+                                    self.wfile.write(f'Error reading file: {e}'.encode('utf-8'))
                                 return
-                        except (ValueError, Exception):
+                        except ValueError:
+                            # Path traversal attempt
                             pass
+                        except Exception as e:
+                            print(f"Error accessing research artifact: {e}")
 
                     self.send_response(404)
                     self.end_headers()
@@ -2243,18 +2298,30 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if feature_dir and filename:
                     artifact_file = feature_dir / filename
                     if artifact_file.exists():
+                        self.send_response(200)
+                        self.send_header('Content-type', 'text/plain')
+                        self.send_header('Cache-Control', 'no-cache')
+                        self.end_headers()
+
                         try:
-                            self.send_response(200)
-                            self.send_header('Content-type', 'text/plain')
-                            self.send_header('Cache-Control', 'no-cache')
-                            self.end_headers()
-                            self.wfile.write(artifact_file.read_text(encoding='utf-8').encode('utf-8'))
-                            return
+                            content = artifact_file.read_text(encoding='utf-8')
+                            self.wfile.write(content.encode('utf-8'))
+                        except UnicodeDecodeError as e:
+                            error_msg = f'⚠️ **Encoding Error in {filename}**\n\nThis file contains non-UTF-8 characters at position {e.start}.\nPlease convert the file to UTF-8 encoding.\n\nAttempting to read with error recovery...\n\n---\n\n'
+                            print(f"Encoding error in {artifact_file}: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            try:
+                                content = artifact_file.read_text(encoding='utf-8', errors='replace')
+                                self.wfile.write(error_msg.encode('utf-8') + content.encode('utf-8'))
+                            except Exception as fallback_err:
+                                self.wfile.write(f'Error reading file: {fallback_err}'.encode('utf-8'))
                         except Exception as e:
                             print(f"Error reading artifact {artifact_name}: {e}")
                             import traceback
                             traceback.print_exc()
-                            return
+                            self.wfile.write(f'Error reading {filename}: {e}'.encode('utf-8'))
+                        return
 
             self.send_response(404)
             self.end_headers()
