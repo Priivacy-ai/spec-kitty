@@ -352,7 +352,8 @@ def get_dashboard_html() -> str:
     <link rel="icon" type="image/png" href="/static/spec-kitty.png">
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
     <link rel="stylesheet" href="/static/dashboard/dashboard.css">
-    <style d-none>
+    <!-- OLD INLINE CSS BELOW - KEPT FOR REFERENCE, NOT LOADED -->
+    <style type="text/template" id="old-inline-css" style="display: none;">
         :root {
             --baby-blue: #A7C7E7;
             --grassy-green: #7BB661;
@@ -1114,7 +1115,8 @@ def get_dashboard_html() -> str:
     </div>
 
     <script src="/static/dashboard/dashboard.js"></script>
-    <script d-none>
+    <!-- OLD INLINE CODE BELOW - KEPT FOR REFERENCE, NOT EXECUTED -->
+    <script type="text/template" id="old-inline-js"  style="display: none;">
         let currentFeature = null;
         let currentPage = 'overview';
         let allFeatures = [];
