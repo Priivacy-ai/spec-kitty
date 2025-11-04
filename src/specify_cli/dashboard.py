@@ -2116,40 +2116,45 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
                 if len(parts) == 4:
                     # Get research.md and list all artifacts
+                    response = {'main_file': None, 'artifacts': []}
+
+                    try:
+                        if feature_dir:
+                            # Get research.md content
+                            research_md = feature_dir / 'research.md'
+                            if research_md.exists():
+                                response['main_file'] = research_md.read_text(encoding='utf-8')
+
+                            # List research artifacts
+                            research_dir = feature_dir / 'research'
+                            if research_dir.exists() and research_dir.is_dir():
+                                for file_path in sorted(research_dir.rglob('*')):
+                                    if file_path.is_file():
+                                        relative_path = str(file_path.relative_to(feature_dir))
+                                        icon = '📄'
+                                        if file_path.suffix == '.csv':
+                                            icon = '📊'
+                                        elif file_path.suffix == '.md':
+                                            icon = '📝'
+                                        elif file_path.suffix in ['.xlsx', '.xls']:
+                                            icon = '📈'
+                                        elif file_path.suffix == '.json':
+                                            icon = '📋'
+                                        response['artifacts'].append({
+                                            'name': file_path.name,
+                                            'path': relative_path,
+                                            'icon': icon
+                                        })
+                    except Exception as e:
+                        # Log error but still return valid JSON
+                        print(f"Error loading research artifacts: {e}")
+                        import traceback
+                        traceback.print_exc()
+
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
                     self.send_header('Cache-Control', 'no-cache')
                     self.end_headers()
-
-                    response = {'main_file': None, 'artifacts': []}
-
-                    if feature_dir:
-                        # Get research.md content
-                        research_md = feature_dir / 'research.md'
-                        if research_md.exists():
-                            response['main_file'] = research_md.read_text(encoding='utf-8')
-
-                        # List research artifacts
-                        research_dir = feature_dir / 'research'
-                        if research_dir.exists() and research_dir.is_dir():
-                            for file_path in sorted(research_dir.rglob('*')):
-                                if file_path.is_file():
-                                    relative_path = str(file_path.relative_to(feature_dir))
-                                    icon = '📄'
-                                    if file_path.suffix == '.csv':
-                                        icon = '📊'
-                                    elif file_path.suffix == '.md':
-                                        icon = '📝'
-                                    elif file_path.suffix in ['.xlsx', '.xls']:
-                                        icon = '📈'
-                                    elif file_path.suffix == '.json':
-                                        icon = '📋'
-                                    response['artifacts'].append({
-                                        'name': file_path.name,
-                                        'path': relative_path,
-                                        'icon': icon
-                                    })
-
                     self.wfile.write(json.dumps(response).encode())
 
                 elif len(parts) >= 5:
