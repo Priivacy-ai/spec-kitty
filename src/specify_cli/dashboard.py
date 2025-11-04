@@ -351,7 +351,8 @@ def get_dashboard_html() -> str:
     <title>Spec Kitty Dashboard</title>
     <link rel="icon" type="image/png" href="/static/spec-kitty.png">
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
-    <style>
+    <link rel="stylesheet" href="/static/dashboard/dashboard.css">
+    <style d-none>
         :root {
             --baby-blue: #A7C7E7;
             --grassy-green: #7BB661;
@@ -1112,7 +1113,8 @@ def get_dashboard_html() -> str:
         </div>
     </div>
 
-    <script>
+    <script src="/static/dashboard/dashboard.js"></script>
+    <script d-none>
         let currentFeature = null;
         let currentPage = 'overview';
         let allFeatures = [];
