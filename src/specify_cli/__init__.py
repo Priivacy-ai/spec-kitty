@@ -802,8 +802,28 @@ def show_banner():
     console.print(Align.center(Text(version_text, style="dim cyan")))
     console.print()
 
+def version_callback(value: bool):
+    """Print version and exit."""
+    if value:
+        try:
+            pkg_version = version("spec-kitty-cli")
+            console.print(f"spec-kitty version {pkg_version}")
+        except PackageNotFoundError:
+            console.print("spec-kitty version dev")
+        raise typer.Exit()
+
 @app.callback()
-def callback(ctx: typer.Context):
+def callback(
+    ctx: typer.Context,
+    version_flag: bool = typer.Option(
+        None,
+        "--version",
+        "-v",
+        callback=version_callback,
+        is_eager=True,
+        help="Show version and exit"
+    )
+):
     """Show banner when no subcommand is provided."""
     # Show banner only when no subcommand and no help flag
     # (help is handled by BannerGroup)
