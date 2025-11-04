@@ -677,7 +677,71 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     if agents_md_src.exists():
         kittify_dir = specify_root / ".kittify"
         kittify_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(agents_md_src, kittify_dir / "AGENTS.md")
+        agents_md_dest = kittify_dir / "AGENTS.md"
+        shutil.copy2(agents_md_src, agents_md_dest)
+
+        # Create agent-specific context files (symlinks on Unix, copies on Windows)
+        # This provides auto-loading for agents that support context files
+        agent_context_files = {
+            "CLAUDE.md": specify_root / "CLAUDE.md",                           # Claude Code
+            ".cursorrules": specify_root / ".cursorrules",                     # Cursor (legacy)
+            ".windsurfrules": specify_root / ".windsurfrules",                 # Windsurf (legacy)
+            ".roorules": specify_root / ".roorules",                           # Roo Code (legacy)
+            "GEMINI.md": specify_root / "GEMINI.md",                           # Gemini CLI
+            ".kilocoderules": specify_root / ".kilocoderules",                 # KiloCode
+            ".augmentrules": specify_root / ".augmentrules",                   # Auggie (assumed)
+        }
+
+        # Also create modern directory-based rules
+        modern_rules_dirs = {
+            ".cursor/rules": "AGENTS.md",
+            ".windsurf/rules": "AGENTS.md",
+            ".roo/rules": "AGENTS.md",
+        }
+
+        # Create root-level context files
+        for filename, target_path in agent_context_files.items():
+            try:
+                if os.name != 'nt' and hasattr(os, 'symlink'):
+                    # Use relative symlink on Unix
+                    rel_path = os.path.relpath(agents_md_dest, target_path.parent)
+                    if not target_path.exists():
+                        target_path.symlink_to(rel_path)
+                else:
+                    # Copy on Windows or if symlinks not available
+                    shutil.copy2(agents_md_dest, target_path)
+            except (OSError, NotImplementedError):
+                # Fallback to copy if symlink fails
+                shutil.copy2(agents_md_dest, target_path)
+
+        # Create modern directory-based rules
+        for rules_dir, filename in modern_rules_dirs.items():
+            rules_path = specify_root / rules_dir
+            rules_path.mkdir(parents=True, exist_ok=True)
+            target_file = rules_path / filename
+            try:
+                if os.name != 'nt' and hasattr(os, 'symlink'):
+                    rel_path = os.path.relpath(agents_md_dest, target_file.parent)
+                    if not target_file.exists():
+                        target_file.symlink_to(rel_path)
+                else:
+                    shutil.copy2(agents_md_dest, target_file)
+            except (OSError, NotImplementedError):
+                shutil.copy2(agents_md_dest, target_file)
+
+        # Create .github directory for Copilot
+        github_dir = specify_root / ".github"
+        github_dir.mkdir(parents=True, exist_ok=True)
+        copilot_instructions = github_dir / "copilot-instructions.md"
+        try:
+            if os.name != 'nt' and hasattr(os, 'symlink'):
+                rel_path = os.path.relpath(agents_md_dest, copilot_instructions.parent)
+                if not copilot_instructions.exists():
+                    copilot_instructions.symlink_to(rel_path)
+            else:
+                shutil.copy2(agents_md_dest, copilot_instructions)
+        except (OSError, NotImplementedError):
+            shutil.copy2(agents_md_dest, copilot_instructions)
 
     missions_resource = data_root.joinpath(".kittify", "missions")
     if missions_resource.exists():
