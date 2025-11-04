@@ -6,6 +6,8 @@ scripts:
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
+**UTF-8 Encoding Rule:** When updating meta.json or any markdown files during merge operations (commit messages, documentation updates), use only UTF-8 compatible characters. Avoid Windows-1252 smart quotes (" " ' '), em dashes, or copy-pasted content from Microsoft Office. Use standard ASCII quotes (" ') and simple symbols. See [templates/common/utf8-file-writing-guidelines.md](templates/common/utf8-file-writing-guidelines.md) for details.
+
 *Path: [templates/commands/merge.md](templates/commands/merge.md)*
 
 
