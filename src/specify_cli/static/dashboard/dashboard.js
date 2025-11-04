@@ -516,7 +516,29 @@ function loadContractFile(fileName) {
     fetch(`/api/contracts/${currentFeature}/${fileName}`)
         .then(response => response.ok ? response.text() : Promise.reject('Not found'))
         .then(content => {
-            const htmlContent = marked.parse(content);
+            let htmlContent;
+
+            // Format JSON files nicely
+            if (fileName.endsWith('.json')) {
+                try {
+                    const jsonData = JSON.parse(content);
+                    const prettyJson = JSON.stringify(jsonData, null, 2);
+                    htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto; border: 1px solid #dee2e6;"><code style="font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; line-height: 1.5; color: #212529;">${escapeHtml(prettyJson)}</code></pre>`;
+                } catch (e) {
+                    // If JSON parsing fails, show as plain text
+                    htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto;"><code>${escapeHtml(content)}</code></pre>`;
+                }
+            } else if (fileName.endsWith('.md')) {
+                // Render markdown files
+                htmlContent = marked.parse(content);
+            } else if (fileName.endsWith('.yml') || fileName.endsWith('.yaml')) {
+                // Show YAML files as code blocks
+                htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto; border: 1px solid #dee2e6;"><code style="font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; line-height: 1.5;">${escapeHtml(content)}</code></pre>`;
+            } else {
+                // Default: show as code block
+                htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto;"><code>${escapeHtml(content)}</code></pre>`;
+            }
+
             document.getElementById('contracts-content').innerHTML = `
                 <div style="margin-bottom: 20px;">
                     <button onclick="loadContracts()"
@@ -602,14 +624,26 @@ function loadResearchFile(filePath, fileName) {
     fetch(`/api/research/${currentFeature}/${encodeURIComponent(filePath)}`)
         .then(response => response.ok ? response.text() : Promise.reject('Not found'))
         .then(content => {
-            // Try to render as markdown, fallback to plain text
             let htmlContent;
+
             if (filePath.endsWith('.md')) {
+                // Render markdown files
                 htmlContent = marked.parse(content);
             } else if (filePath.endsWith('.csv')) {
                 // Render CSV as a table
                 htmlContent = renderCSV(content);
+            } else if (filePath.endsWith('.json')) {
+                // Format JSON files nicely
+                try {
+                    const jsonData = JSON.parse(content);
+                    const prettyJson = JSON.stringify(jsonData, null, 2);
+                    htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto; border: 1px solid #dee2e6;"><code style="font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; line-height: 1.5; color: #212529;">${escapeHtml(prettyJson)}</code></pre>`;
+                } catch (e) {
+                    // If JSON parsing fails, show as plain text
+                    htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto;"><code>${escapeHtml(content)}</code></pre>`;
+                }
             } else {
+                // Default: show as code block
                 htmlContent = `<pre style="background: white; padding: 20px; border-radius: 8px; overflow-x: auto;">${escapeHtml(content)}</pre>`;
             }
 
