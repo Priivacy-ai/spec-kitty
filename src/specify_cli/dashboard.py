@@ -1597,24 +1597,29 @@ function loadOverview() {
         }
 
         function renderContractsList(files) {
-            const contractsHtml = files.map(file => `
-                <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid var(--lavender); cursor: pointer;"
-                     onclick="loadContractFile('${file.name}')">
+            const contractsContainer = document.getElementById('contracts-content');
+            contractsContainer.innerHTML = `
+                <p style="margin-bottom: 20px; color: var(--medium-text);">
+                    API specifications and interface definitions for this feature.
+                </p>
+                <div id="contracts-list"></div>
+            `;
+
+            const listContainer = document.getElementById('contracts-list');
+            files.forEach(file => {
+                const div = document.createElement('div');
+                div.style.cssText = 'margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid var(--lavender); cursor: pointer;';
+                div.onclick = () => loadContractFile(file.name);
+                div.innerHTML = `
                     <div style="font-weight: 600; color: var(--dark-text); margin-bottom: 5px;">
                         ${file.icon} ${escapeHtml(file.name)}
                     </div>
                     <div style="font-size: 0.85em; color: var(--medium-text);">
                         Click to view contract
                     </div>
-                </div>
-            `).join('');
-
-            document.getElementById('contracts-content').innerHTML = `
-                <p style="margin-bottom: 20px; color: var(--medium-text);">
-                    API specifications and interface definitions for this feature.
-                </p>
-                ${contractsHtml}
-            `;
+                `;
+                listContainer.appendChild(div);
+            });
         }
 
         function loadContractFile(fileName) {
@@ -1657,27 +1662,7 @@ function loadOverview() {
         }
 
         function renderResearchContent(data) {
-            let artifactsHtml = '';
-            if (data.artifacts && data.artifacts.length > 0) {
-                artifactsHtml = `
-                    <h3 style="color: var(--grassy-green); margin-top: 30px; margin-bottom: 15px;">
-                        Research Artifacts
-                    </h3>
-                    <div style="display: grid; gap: 10px;">
-                        ${data.artifacts.map(file => `
-                            <div style="padding: 12px; background: white; border-radius: 8px; border-left: 4px solid var(--soft-peach); cursor: pointer;"
-                                 onclick="loadResearchFile('${file.path}', '${escapeHtml(file.name)}')">
-                                <div style="font-weight: 600; color: var(--dark-text); margin-bottom: 3px;">
-                                    ${file.icon} ${escapeHtml(file.name)}
-                                </div>
-                                <div style="font-size: 0.75em; color: var(--medium-text); font-family: monospace;">
-                                    ${escapeHtml(file.path)}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            }
+            const researchContainer = document.getElementById('research-content');
 
             let mainContent = '';
             if (data.main_file) {
@@ -1687,7 +1672,36 @@ function loadOverview() {
                 `;
             }
 
-            document.getElementById('research-content').innerHTML = mainContent + artifactsHtml;
+            let artifactsSection = '';
+            if (data.artifacts && data.artifacts.length > 0) {
+                artifactsSection = `
+                    <h3 style="color: var(--grassy-green); margin-top: 30px; margin-bottom: 15px;">
+                        Research Artifacts
+                    </h3>
+                    <div id="research-artifacts-list" style="display: grid; gap: 10px;"></div>
+                `;
+            }
+
+            researchContainer.innerHTML = mainContent + artifactsSection;
+
+            // Add artifacts with proper event handlers
+            if (data.artifacts && data.artifacts.length > 0) {
+                const listContainer = document.getElementById('research-artifacts-list');
+                data.artifacts.forEach(file => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'padding: 12px; background: white; border-radius: 8px; border-left: 4px solid var(--soft-peach); cursor: pointer;';
+                    div.onclick = () => loadResearchFile(file.path, file.name);
+                    div.innerHTML = `
+                        <div style="font-weight: 600; color: var(--dark-text); margin-bottom: 3px;">
+                            ${file.icon} ${escapeHtml(file.name)}
+                        </div>
+                        <div style="font-size: 0.75em; color: var(--medium-text); font-family: monospace;">
+                            ${escapeHtml(file.path)}
+                        </div>
+                    `;
+                    listContainer.appendChild(div);
+                });
+            }
         }
 
         function loadResearchFile(filePath, fileName) {
