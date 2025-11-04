@@ -6,6 +6,7 @@ scripts:
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
+**UTF-8 Encoding Rule:** When writing markdown files, use only UTF-8 compatible characters. Avoid Windows-1252 smart quotes (" " ' '), em dashes, or copy-pasted content from Microsoft Office. Use standard ASCII quotes (" ') and simple symbols (-> not →). If you copy-paste research citations or external content, replace smart quotes with standard quotes first. See [templates/common/utf8-file-writing-guidelines.md](templates/common/utf8-file-writing-guidelines.md) for details.
 
 *Path: [templates/commands/specify.md](templates/commands/specify.md)*
 
@@ -240,3 +241,19 @@ Success criteria must be:
 - "Database can handle 1000 TPS" (implementation detail, use user-facing metric)
 - "React components render efficiently" (framework-specific)
 - "Redis cache hit rate above 80%" (technology-specific)
+
+## Post-Generation Validation
+
+After writing spec.md, validate the file encoding:
+
+```bash
+python3 -c "open('kitty-specs/$FEATURE_NUM-*/spec.md', 'r', encoding='utf-8').read()"
+```
+
+If this command shows a `UnicodeDecodeError`, the file contains non-UTF-8 characters. Run the encoding validator to fix:
+
+```bash
+python scripts/validate_encoding.py --fix kitty-specs/$FEATURE_NUM-*/
+```
+
+This prevents encoding issues that would cause the dashboard to show empty pages.
