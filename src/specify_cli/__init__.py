@@ -1373,30 +1373,46 @@ def init(
     github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
 ):
     """
-    Initialize a new Specify project from the latest template.
-    
-    This command will:
-    1. Check that required tools are installed (git is optional)
-    2. Let you choose one or more AI assistants (Claude Code, Gemini CLI, GitHub Copilot, Cursor, Qwen Code, opencode, Codex CLI, Windsurf, Kilo Code, Auggie CLI, or Amazon Q Developer CLI)
-    3. Pick a mission (Software Dev Kitty, Deep Research Kitty, etc.) to seed templates and guardrails
-    4. Download the appropriate template from GitHub
-    5. Extract the template to a new project directory or current directory
-    6. Initialize a fresh git repository (if not --no-git and no existing repo)
-    7. Optionally set up AI assistant commands
-    
+    Initialize a new Spec Kitty project from templates.
+
+    Interactive Mode (default):
+    - Prompts you to select AI assistants
+    - Choose script type (sh/ps)
+    - Select mission (software-dev/research)
+
+    Non-Interactive Mode (with --ai flag):
+    - Skips all prompts
+    - Uses provided options or defaults
+    - Perfect for CI/CD and automation
+
+    What Gets Created:
+    - .kittify/ - Scripts, templates, memory
+    - Agent commands (.claude/commands/, .codex/prompts/, etc.)
+    - Context files (CLAUDE.md, .cursorrules, AGENTS.md, etc.)
+    - Git repository (unless --no-git)
+    - Background dashboard (http://127.0.0.1:PORT)
+
+    Specifying AI Assistants (--ai flag):
+    Use comma-separated agent keys (no spaces):
+
+    Valid keys: codex, claude, gemini, cursor, qwen, opencode,
+                windsurf, kilocode, auggie, roo, copilot, q
+
     Examples:
-        spec-kitty init my-project
-        spec-kitty init my-project --ai claude
-        spec-kitty init my-project --ai claude,codex
-        spec-kitty init my-project --mission research
-        spec-kitty init my-project --ai copilot --no-git
-        spec-kitty init --ignore-agent-tools my-project
-        spec-kitty init . --ai claude         # Initialize in current directory
-        spec-kitty init .                     # Initialize in current directory (interactive AI selection)
-        spec-kitty init --here --ai claude    # Alternative syntax for current directory
-        spec-kitty init --here --ai codex
-        spec-kitty init --here
-        spec-kitty init --here --force  # Skip confirmation when current directory not empty
+      spec-kitty init my-project                    # Interactive mode
+      spec-kitty init my-project --ai codex         # Non-interactive with Codex
+      spec-kitty init my-project --ai codex,claude  # Multiple agents
+      spec-kitty init . --ai codex --force          # Current directory
+      spec-kitty init --here --ai claude            # Alternative syntax
+
+    Full non-interactive example:
+      spec-kitty init my-project --ai codex,claude --script sh --mission software-dev
+
+    Missions:
+    - software-dev: Standard software development workflows
+    - research: Deep research with evidence tracking
+
+    See docs/non-interactive-init.md for complete automation guide.
     """
 
     show_banner()
@@ -1853,7 +1869,31 @@ def research(
     feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to target (auto-detected when omitted)"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ):
-    """Execute the Phase 0 research workflow: scaffold research.md, data-model.md, and CSV evidence logs."""
+    """
+    Execute Phase 0 research workflow - create research artifacts before planning.
+
+    Creates:
+    - research.md - Document technical decisions, rationale, alternatives
+    - data-model.md - Define entities, attributes, relationships
+    - research/evidence-log.csv - Log all sources and findings
+    - research/source-register.csv - Register information sources
+
+    Use this BEFORE /spec-kitty.plan when you need to:
+    - Document technical research and decisions
+    - Compare algorithms or approaches
+    - Gather evidence for design choices
+    - Define data models before implementation
+
+    Auto-detects feature from current branch (001-feature-name).
+    Use --feature to override.
+
+    Use --force to overwrite existing research artifacts.
+
+    Example:
+      spec-kitty research
+      spec-kitty research --force
+      spec-kitty research --feature 001-my-feature
+    """
 
     show_banner()
 
@@ -1993,7 +2033,24 @@ def research(
 
 @app.command()
 def check():
-    """Check that all required tools are installed."""
+    """
+    Check that all required tools are installed.
+
+    Verifies installation status of:
+    - Git version control
+    - AI coding assistants (Claude, Codex, Gemini, Cursor, etc.)
+    - IDEs (VS Code, Cursor, Windsurf, KiloCode)
+
+    Shows:
+    - ✅ Installed tools with version/location
+    - ❌ Missing tools with installation links
+
+    Use this to diagnose missing dependencies or verify your setup
+    after installing new AI assistants.
+
+    Example:
+      spec-kitty check
+    """
     show_banner()
     console.print("[bold]Checking for installed tools...[/bold]\n")
 
@@ -2038,7 +2095,29 @@ def check():
 
 @app.command()
 def dashboard():
-    """Open the Spec Kitty dashboard in your browser."""
+    """
+    Open the Spec Kitty dashboard in your browser.
+
+    The dashboard provides a real-time web interface showing:
+    - 📊 All features with their workflow status
+    - 🎯 Kanban board with work packages (planned/doing/for_review/done)
+    - 📄 View spec.md, plan.md, tasks.md, research.md, data-model.md
+    - 📜 Browse contracts and research artifacts
+    - ✅ Track progress and completion rates
+
+    The dashboard is project-wide and runs from the main repository.
+    It updates automatically as you work (polls every second).
+
+    Works from anywhere:
+    - Run from main branch: Opens dashboard directly
+    - Run from worktree: Finds and opens dashboard in main repo
+
+    The dashboard starts automatically during 'spec-kitty init' and runs
+    in the background on http://127.0.0.1:PORT (port auto-selected).
+
+    If the dashboard isn't running, you'll see instructions on how to
+    start it with 'spec-kitty init .'
+    """
     import webbrowser
     import socket
 
@@ -2210,7 +2289,33 @@ def accept(
     no_commit: bool = typer.Option(False, "--no-commit", help="Skip auto-commit; report only"),
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
 ):
-    """Run the feature acceptance workflow from the CLI."""
+    """
+    Validate feature readiness before merging to main.
+
+    Checks:
+    - ✅ All work packages in tasks/done/
+    - ✅ All checklists complete
+    - ✅ No uncommitted changes
+    - ✅ All tests pass (if --test provided)
+
+    Creates meta.json with acceptance metadata (timestamp, actor, commits).
+
+    Modes:
+    - auto: Detect context (PR vs local) automatically
+    - pr: Preparing for pull request
+    - local: Local acceptance only
+    - checklist: Report checklist status only
+
+    Auto-detects feature from current branch.
+    Use --feature to override.
+
+    Examples:
+      spec-kitty accept                    # Auto mode
+      spec-kitty accept --mode local       # Local acceptance
+      spec-kitty accept --test "npm test"  # Run tests first
+      spec-kitty accept --actor "John Doe" # Record who accepted
+      spec-kitty accept --no-commit        # Dry-run only
+    """
 
     show_banner()
 
@@ -2312,7 +2417,39 @@ def merge(
     target_branch: str = typer.Option("main", "--target", help="Target branch to merge into"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
 ):
-    """Merge a feature branch into the target branch and clean up worktree."""
+    """
+    Merge a completed feature branch into main and clean up worktree.
+
+    Workflow:
+    1. Detects your current feature branch and worktree
+    2. Verifies working directory is clean (no uncommitted changes)
+    3. Switches to target branch (default: main) in primary repo
+    4. Updates target branch (git pull --ff-only)
+    5. Merges feature using your chosen strategy
+    6. Optionally pushes to origin
+    7. Removes feature worktree (if exists)
+    8. Deletes feature branch
+
+    Merge Strategies:
+    - merge (default): Creates merge commit, preserves history
+    - squash: Squashes all commits into one, clean history
+    - rebase: Linear history (requires manual rebase first)
+
+    Prerequisites:
+    - Feature must pass /spec-kitty.accept checks
+    - All work packages in tasks/done/
+    - Working directory must be clean
+
+    Run from the feature worktree - the command handles switching to
+    main repo automatically.
+
+    Examples:
+      spec-kitty merge                           # Basic merge
+      spec-kitty merge --strategy squash --push  # Squash and push
+      spec-kitty merge --keep-branch             # Don't delete branch
+      spec-kitty merge --target develop          # Merge to develop
+      spec-kitty merge --dry-run                 # Preview only
+    """
 
     show_banner()
 
