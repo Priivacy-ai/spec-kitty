@@ -1,39 +1,67 @@
 ---
 description: Open the Spec Kitty dashboard in your browser.
 ---
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**⚠️ CRITICAL: Read [.kittify/AGENTS.md](.kittify/AGENTS.md) for universal rules (paths, UTF-8 encoding, context management, quality expectations).**
 
 *Path: [templates/commands/dashboard.md](templates/commands/dashboard.md)*
 
 
 ## Dashboard Access
 
-This command helps you access the Spec Kitty dashboard that was started when you ran `spec-kitty init`.
+The dashboard shows ALL features across the project and runs from the **main repository**, not from individual feature worktrees.
 
-## What to do
+## Important: Worktree Handling
 
-1. **Check if dashboard is running**: Look for the `.kittify/.dashboard` file which contains the dashboard URL and port.
+**If you're in a feature worktree**, the dashboard file is in the main repo, not in your worktree.
 
-2. **If dashboard file exists**:
-   - Read the URL from the first line of `.kittify/.dashboard`
-   - Display the URL to the user in a prominent, easy-to-copy format
-   - Attempt to open the URL in the user's default web browser using Python's `webbrowser` module
-   - If browser opening fails, show instructions on how to manually open it
-
-3. **If dashboard file does not exist**:
-   - Inform the user that no dashboard is currently running
-   - Explain that they need to run `spec-kitty init` to start the dashboard
-   - Provide clear instructions
+The dashboard is project-wide (shows all features), so it must be accessed from the main repository location.
 
 ## Implementation
 
 ```python
 import webbrowser
 import socket
+import subprocess
 from pathlib import Path
 
-# Check for dashboard info file
-dashboard_file = Path('.kittify/.dashboard')
+# CRITICAL: Find the main repository root, not worktree
+current_dir = Path.cwd()
+
+# Check if we're in a worktree
+try:
+    # Get git worktree list to find main worktree
+    result = subprocess.run(
+        ['git', 'worktree', 'list', '--porcelain'],
+        capture_output=True,
+        text=True,
+        check=False
+    )
+
+    if result.returncode == 0:
+        # Parse worktree list to find the main worktree
+        main_repo = None
+        for line in result.stdout.split('\n'):
+            if line.startswith('worktree '):
+                path = line.split('worktree ')[1]
+                # First worktree in list is usually main
+                if main_repo is None:
+                    main_repo = Path(path)
+                    break
+
+        if main_repo and main_repo != current_dir:
+            print(f"📍 Note: You're in a worktree. Dashboard is in main repo at {main_repo}")
+            project_root = main_repo
+        else:
+            project_root = current_dir
+    else:
+        # Not a git repo or git not available
+        project_root = current_dir
+except Exception:
+    # Fallback to current directory
+    project_root = current_dir
+
+# Look for dashboard file in main repo
+dashboard_file = project_root / '.kittify' / '.dashboard'
 
 if not dashboard_file.exists():
     print("❌ No dashboard information found")
