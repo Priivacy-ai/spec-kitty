@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Codex Guardrails** – Automatically append `.codex/` to `.gitignore`, warn if `auth.json` is tracked, and reiterate the `CODEX_HOME` workflow to keep API credentials out of source control.
 
+## [0.4.6] - 2025-11-06
+
+### Fixed
+
+- **PyYAML Dependency** – Added `pyyaml` to the core dependency list so mission loading works in clean environments (CI no longer fails installing the package).
+- **PyPI README Links** – Restored absolute documentation links to keep images and references working on PyPI.
+
 ## [0.4.4] - 2025-11-06
 
 ### Security
