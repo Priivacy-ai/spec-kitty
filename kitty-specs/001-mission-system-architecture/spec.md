@@ -33,7 +33,7 @@ As a current Spec Kitty user doing software development, I want the existing fun
 
 **Why this priority**: Backwards compatibility is critical. Existing users must not be disrupted. This validates that the mission system architecture doesn't break what already works.
 
-**Independent Test**: Can be tested by initializing a project with `--mission software-dev` (or default) and running through the complete workflow (specify ’ plan ’ tasks ’ implement ’ review ’ accept ’ merge) to verify all existing features work identically. Delivers value by protecting existing user base.
+**Independent Test**: Can be tested by initializing a project with `--mission software-dev` (or default) and running through the complete workflow (specify â€™ plan â€™ tasks â€™ implement â€™ review â€™ accept â€™ merge) to verify all existing features work identically. Delivers value by protecting existing user base.
 
 **Acceptance Scenarios**:
 
@@ -53,7 +53,7 @@ As a researcher, I want to use Spec Kitty's structured workflow to manage a lite
 
 **Why this priority**: Proves the mission system works for a radically different domain. Research has different artifacts, workflow phases, validation rules, and success criteria than software. If this works, other missions become straightforward.
 
-**Independent Test**: Can be tested by initializing with `--mission research`, running through the research workflow (question ’ methodology ’ gather ’ analyze ’ synthesize), and validating research-specific artifacts are created and checked. Delivers value by enabling an entirely new user segment.
+**Independent Test**: Can be tested by initializing with `--mission research`, running through the research workflow (question â€™ methodology â€™ gather â€™ analyze â€™ synthesize), and validating research-specific artifacts are created and checked. Delivers value by enabling an entirely new user segment.
 
 **Acceptance Scenarios**:
 
@@ -221,7 +221,7 @@ mcp_tools:
 agent_context: |
   You are a software development agent following TDD practices.
   Your constitution enforces Library-First, CLI Interface, and Test-First principles.
-  You work in structured phases: research ’ design ’ implement ’ test ’ review.
+  You work in structured phases: research â€™ design â€™ implement â€™ test â€™ review.
 
   Key practices:
   - Tests before code (non-negotiable)
@@ -433,7 +433,7 @@ The system MUST include a complete "Deep Research Kitty" mission as proof of con
 - `missions/research/validators.py` - Custom validation (sources cited, etc.)
 
 **Key differences from software-dev**:
-- Phases: question ’ methodology ’ gather ’ analyze ’ synthesize (not research ’ design ’ implement)
+- Phases: question â€™ methodology â€™ gather â€™ analyze â€™ synthesize (not research â€™ design â€™ implement)
 - Artifacts: research-question.md, methodology.md, sources/, findings.md (not data-model.md, contracts/)
 - Validation: sources cited, methodology documented (not tests pass, git clean)
 - Agent context: "You are a research agent" (not "You are a software development agent")
@@ -526,7 +526,7 @@ This feature is successful when:
 
 1.  A user can run `spec-kitty init research-project --mission research` and get a fully functional research project
 2.  All existing software-dev functionality works identically through the mission system
-3.  Research mission can complete a full workflow (specify ’ plan ’ tasks ’ implement ’ review ’ accept)
+3.  Research mission can complete a full workflow (specify â€™ plan â€™ tasks â€™ implement â€™ review â€™ accept)
 4.  Switching missions updates templates and validation rules correctly
 5.  Documentation clearly explains when to use each mission and how to create custom missions
 6.  No performance regression for existing users

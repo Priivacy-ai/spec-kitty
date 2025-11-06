@@ -146,6 +146,7 @@ get_mission_exports() {
 
 "$python_bin" - "$repo_root" <<'PY'
 from pathlib import Path
+import os
 import sys
 
 try:
@@ -203,7 +204,24 @@ except Exception:
 
         active_link = kittify_dir / "active-mission"
         if active_link.exists():
-            mission_path = active_link.resolve()
+            mission_path = None
+            if active_link.is_symlink():
+                mission_path = active_link.resolve()
+            elif active_link.is_file():
+                try:
+                    mission_name = active_link.read_text(encoding="utf-8").strip()
+                except OSError:
+                    mission_name = ""
+                if mission_name:
+                    mission_path = kittify_dir / "missions" / mission_name
+            if mission_path is None:
+                try:
+                    target = Path(os.readlink(active_link))
+                    mission_path = (active_link.parent / target).resolve()
+                except (OSError, RuntimeError):
+                    mission_path = None
+            if mission_path is None:
+                mission_path = kittify_dir / "missions" / "software-dev"
         else:
             mission_path = kittify_dir / "missions" / "software-dev"
 

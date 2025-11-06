@@ -38,7 +38,7 @@ Spec Kitty includes a **live dashboard** that automatically tracks your feature 
   <p><em>Feature overview with completion metrics and available artifacts</em></p>
 </div>
 
-The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard` from your terminal.
+The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn’t already running, and supports `--port` (preferred port) and `--kill` (clean shutdown).
 
 **Key Features:**
 - 📋 **Kanban Board**: Visual workflow across planned → doing → for review → done lanes
@@ -461,6 +461,44 @@ When you switch missions the CLI updates `.kittify/active-mission`, and subseque
 | `SPEC_KITTY_TEMPLATE_ROOT` | Optional. Point to a local checkout whose `templates/`, `scripts/`, and `memory/` directories should seed new projects (handy while developing Spec Kitty itself). |
 | `SPECIFY_TEMPLATE_REPO` | Optional. Override the GitHub repository slug (`owner/name`) to fetch templates from when you explicitly want a remote source. |
 
+### Codex CLI: Automatically Load Project Prompts (Linux, macOS, WSL)
+
+The Codex CLI only discovers Spec Kitty command prompts when the `CODEX_HOME` environment variable points to your project’s `.codex/` directory. Without this, Codex falls back to its global prompt store and ignores your Spec Kitty workflow files.
+
+**One-off export**
+
+```bash
+export CODEX_HOME="$(pwd)/.codex"
+```
+
+Run this in each terminal session before launching Codex if you do not plan to automate the setup.
+
+**Recommended: automate with `direnv`**
+
+`direnv` keeps `CODEX_HOME` in sync automatically whenever you enter the project directory. These steps apply to Linux, macOS, and Windows Subsystem for Linux (WSL):
+
+1. Install `direnv`
+   - macOS (Homebrew): `brew install direnv`
+   - Debian/Ubuntu/WSL: `sudo apt install direnv`
+2. Hook `direnv` into your shell:
+   - Bash: add `eval "$(direnv hook bash)"` to `~/.bashrc`
+   - Zsh: add `eval "$(direnv hook zsh)"` to `~/.zshrc`
+3. In the root of your Spec Kitty project, create `.envrc` containing:
+
+   ```bash
+   export CODEX_HOME="$PWD/.codex"
+   ```
+
+4. Allow the new configuration once:
+
+   ```bash
+   direnv allow
+   ```
+
+Each time you `cd` into the project, you should see `direnv: export +CODEX_HOME`, and Codex will pick up the Spec Kitty prompts automatically. Verify with `echo $CODEX_HOME`.
+
+> **Tip:** For shells without `direnv` support (e.g., PowerShell outside WSL), export `CODEX_HOME` through your profile script or set it globally via the operating system’s environment-variable settings.
+
 
 ## 🔧 Prerequisites
 
@@ -507,8 +545,7 @@ See [Release Readiness Checklist](releases/readiness-checklist.md) and [Release 
 
 ## 📋 Detailed process
 
-<details>
-<summary>Click to expand the detailed step-by-step walkthrough</summary>
+:::details Click to expand the detailed step-by-step walkthrough
 
 You can use the Spec Kitty CLI to bootstrap your project, which will bring in the required artifacts in your environment. Run:
 
@@ -763,7 +800,7 @@ The `/spec-kitty.implement` command will:
 
 Once the implementation is complete, test the application and resolve any runtime errors that may not be visible in CLI logs (e.g., browser console errors). You can copy and paste such errors back to your AI agent for resolution.
 
-</details>
+:::
 
 ---
 

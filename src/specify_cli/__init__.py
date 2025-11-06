@@ -50,7 +50,8 @@ import ssl
 import truststore
 
 # Dashboard server
-from specify_cli.dashboard import start_dashboard
+from specify_cli.dashboard import ensure_dashboard_running, stop_dashboard
+from specify_cli.mission import MissionNotFoundError, set_active_mission
 from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceResult,
@@ -479,6 +480,9 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
         if templates_dest.exists():
             shutil.rmtree(templates_dest)
         shutil.copytree(templates_src, templates_dest)
+        agents_template = templates_src / "AGENTS.md"
+        if agents_template.exists():
+            shutil.copy2(agents_template, specify_root / "AGENTS.md")
 
     missions_candidates = [
         repo_root / ".kittify" / "missions",
@@ -671,6 +675,9 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     templates_resource = data_root.joinpath("templates")
     if templates_resource.exists():
         copy_package_tree(templates_resource, specify_root / "templates")
+        agents_template = templates_resource / "AGENTS.md"
+        if agents_template.exists():
+            shutil.copy2(agents_template, specify_root / "AGENTS.md")
 
     missions_resource = data_root.joinpath(".kittify", "missions")
     if missions_resource.exists():
@@ -679,13 +686,52 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     return specify_root / "templates" / "commands"
 
 
+def ensure_gitignore_entries(project_path: Path, entries: list[str]) -> bool:
+    """
+    Ensure the project .gitignore contains the provided entries.
+
+    Returns True when .gitignore was modified.
+    """
+    if not entries:
+        return False
+
+    gitignore_path = project_path / ".gitignore"
+    if gitignore_path.exists():
+        lines = gitignore_path.read_text(encoding="utf-8").splitlines()
+    else:
+        lines = []
+
+    existing = set(lines)
+    marker = "# Added by Spec Kitty CLI (auto-managed)"
+    changed = False
+
+    if any(entry not in existing for entry in entries):
+        if marker not in existing:
+            if lines and lines[-1].strip():
+                lines.append("")
+            lines.append(marker)
+            existing.add(marker)
+            changed = True
+        for entry in entries:
+            if entry not in existing:
+                lines.append(entry)
+                existing.add(entry)
+                changed = True
+
+    if changed:
+        if lines and lines[-1] != "":
+            lines.append("")
+        gitignore_path.write_text("\n".join(lines), encoding="utf-8")
+
+    return changed
+
+
 def activate_mission(project_path: Path, mission_key: str, mission_display: str, console: Console) -> str:
     """
     Persist the active mission selection and warn if mission resources are missing.
     """
     kittify_root = project_path / ".kittify"
     missions_dir = kittify_root / "missions"
-    active_file = kittify_root / "active-mission"
 
     kittify_root.mkdir(parents=True, exist_ok=True)
     missions_dir.mkdir(parents=True, exist_ok=True)
@@ -704,20 +750,49 @@ def activate_mission(project_path: Path, mission_key: str, mission_display: str,
         )
         status_detail = f"{mission_display} (templates missing)"
 
-    active_file.write_text(f"{mission_key}\n", encoding="utf-8")
+    try:
+        if mission_path.exists():
+            set_active_mission(mission_key, kittify_root)
+        else:
+            raise MissionNotFoundError(mission_key)
+    except (MissionNotFoundError, OSError, NotImplementedError):
+        # Fall back to plain marker file when mission templates are missing or
+        # symlinks are unavailable (e.g. Windows without developer mode)
+        active_marker = kittify_root / "active-mission"
+        active_marker.write_text(f"{mission_key}\n", encoding="utf-8")
+
     return status_detail
 
 
 def get_active_mission_key(project_path: Path) -> str:
     """Return the mission key stored in .kittify/active-mission, falling back to default."""
-    active_file = project_path / ".kittify" / "active-mission"
-    if active_file.exists():
+    active_path = project_path / ".kittify" / "active-mission"
+    if not active_path.exists():
+        return DEFAULT_MISSION_KEY
+
+    # Handle symlink-based marker first
+    if active_path.is_symlink():
         try:
-            key = active_file.read_text(encoding="utf-8").strip()
+            target = Path(os.readlink(active_path))
+            key = target.name
             if key:
                 return key
         except OSError:
             pass
+        # Fallback to resolved path
+        resolved = active_path.resolve()
+        if resolved.parent.name == "missions":
+            return resolved.name
+
+    # Fall back to plain text marker
+    if active_path.is_file():
+        try:
+            key = active_path.read_text(encoding="utf-8").strip()
+            if key:
+                return key
+        except OSError:
+            pass
+
     return DEFAULT_MISSION_KEY
 
 
@@ -1282,30 +1357,46 @@ def init(
     github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
 ):
     """
-    Initialize a new Specify project from the latest template.
-    
-    This command will:
-    1. Check that required tools are installed (git is optional)
-    2. Let you choose one or more AI assistants (Claude Code, Gemini CLI, GitHub Copilot, Cursor, Qwen Code, opencode, Codex CLI, Windsurf, Kilo Code, Auggie CLI, or Amazon Q Developer CLI)
-    3. Pick a mission (Software Dev Kitty, Deep Research Kitty, etc.) to seed templates and guardrails
-    4. Download the appropriate template from GitHub
-    5. Extract the template to a new project directory or current directory
-    6. Initialize a fresh git repository (if not --no-git and no existing repo)
-    7. Optionally set up AI assistant commands
-    
+    Initialize a new Spec Kitty project from templates.
+
+    Interactive Mode (default):
+    - Prompts you to select AI assistants
+    - Choose script type (sh/ps)
+    - Select mission (software-dev/research)
+
+    Non-Interactive Mode (with --ai flag):
+    - Skips all prompts
+    - Uses provided options or defaults
+    - Perfect for CI/CD and automation
+
+    What Gets Created:
+    - .kittify/ - Scripts, templates, memory
+    - Agent commands (.claude/commands/, .codex/prompts/, etc.)
+    - Context files (CLAUDE.md, .cursorrules, AGENTS.md, etc.)
+    - Git repository (unless --no-git)
+    - Background dashboard (http://127.0.0.1:PORT)
+
+    Specifying AI Assistants (--ai flag):
+    Use comma-separated agent keys (no spaces). Valid keys include:
+    codex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,
+    auggie, roo, copilot, q.
+
     Examples:
-        spec-kitty init my-project
-        spec-kitty init my-project --ai claude
-        spec-kitty init my-project --ai claude,codex
-        spec-kitty init my-project --mission research
-        spec-kitty init my-project --ai copilot --no-git
-        spec-kitty init --ignore-agent-tools my-project
-        spec-kitty init . --ai claude         # Initialize in current directory
-        spec-kitty init .                     # Initialize in current directory (interactive AI selection)
-        spec-kitty init --here --ai claude    # Alternative syntax for current directory
-        spec-kitty init --here --ai codex
-        spec-kitty init --here
-        spec-kitty init --here --force  # Skip confirmation when current directory not empty
+      spec-kitty init my-project                    # Interactive mode
+      spec-kitty init my-project --ai codex         # Non-interactive with Codex
+      spec-kitty init my-project --ai codex,claude  # Multiple agents
+      spec-kitty init my-project --ai codex,claude --script sh --mission software-dev
+      spec-kitty init . --ai codex --force          # Current directory (skip prompts)
+      spec-kitty init --here --ai claude            # Alternative syntax for current dir
+
+    Non-interactive automation example:
+      spec-kitty init my-project --ai codex,claude --script sh --mission software-dev --no-git
+
+    Missions:
+    - software-dev: Standard software development workflows
+    - research: Deep research with evidence tracking
+
+    See docs/non-interactive-init.md for automation patterns and CI examples.
     """
 
     show_banner()
@@ -1721,22 +1812,25 @@ def init(
     console.print()
     console.print(enhancements_panel)
 
-    # Start the dashboard server as detached background process
+    # Start or reconnect to the dashboard server as a detached background process
     console.print()
     try:
-        port, _ = start_dashboard(project_path, background_process=True)
-        dashboard_url = f"http://127.0.0.1:{port}"
+        dashboard_url, port, started = ensure_dashboard_running(project_path)
 
-        # Save dashboard URL for later retrieval
-        dashboard_info_file = project_path / ".kittify" / ".dashboard"
-        dashboard_info_file.write_text(f"{dashboard_url}\n{port}\n")
+        title = "[bold green]Spec Kitty Dashboard Started[/bold green]" if started else "[bold green]Spec Kitty Dashboard Ready[/bold green]"
+        status_line = (
+            "[dim]The dashboard is running in the background and will continue even after\n"
+            "this command exits. It will automatically update as you work.[/dim]"
+            if started
+            else "[dim]An existing dashboard instance is running and ready.[/dim]"
+        )
 
         dashboard_panel = Panel(
-            f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n\n"
-            f"[dim]The dashboard is running in the background and will continue even after\n"
-            f"this command exits. It will automatically update as you work.[/dim]\n\n"
+            f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n"
+            f"[bold cyan]Port:[/bold cyan] {port}\n\n"
+            f"{status_line}\n\n"
             f"[yellow]Tip:[/yellow] Run [cyan]/spec-kitty.dashboard[/cyan] or [cyan]spec-kitty dashboard[/cyan] to open it in your browser",
-            title="[bold green]Spec Kitty Dashboard Started[/bold green]",
+            title=title,
             border_style="green",
             padding=(1, 2)
         )
@@ -1756,13 +1850,68 @@ def init(
         console.print("Now set your CODEX_HOME:")
         console.print(export_line, highlight=False)
 
+    agents_target = project_path / ".kittify" / "AGENTS.md"
+    agents_template = project_path / ".kittify" / "templates" / "AGENTS.md"
+    if not agents_target.exists() and agents_template.exists():
+        shutil.copy2(agents_template, agents_target)
+
+    gitignore_entries: list[str] = []
+    if "codex" in selected_agents or (project_path / ".codex").exists():
+        gitignore_entries.append(".codex/")
+
+    if gitignore_entries and ensure_gitignore_entries(project_path, gitignore_entries):
+        console.print("[cyan]Updated .gitignore to exclude .codex/ (protects Codex credentials).[/cyan]")
+
+    codex_auth_path = project_path / ".codex" / "auth.json"
+    if codex_auth_path.exists():
+        console.print("[yellow]⚠️  Detected .codex/auth.json. Do not commit this file—remove it from git history if necessary.[/yellow]")
+        git_dir = project_path / ".git"
+        if git_dir.exists():
+            try:
+                rel_auth = codex_auth_path.relative_to(project_path)
+                result = subprocess.run(
+                    ["git", "ls-files", "--error-unmatch", str(rel_auth)],
+                    cwd=project_path,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                )
+                if result.returncode == 0:
+                    console.print("[red]❌ .codex/auth.json is currently tracked by git. Run 'git rm --cached .codex/auth.json' and commit the removal.[/red]")
+            except Exception:
+                pass
+
 
 @app.command()
 def research(
     feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to target (auto-detected when omitted)"),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ):
-    """Execute the Phase 0 research workflow: scaffold research.md, data-model.md, and CSV evidence logs."""
+    """
+Execute Phase 0 research workflow - create research artifacts before planning.
+
+Creates:
+- research.md - Document technical decisions, rationale, alternatives
+- data-model.md - Define entities, attributes, relationships
+- research/evidence-log.csv - Log all sources and findings
+- research/source-register.csv - Register information sources
+
+Use this BEFORE /spec-kitty.plan when you need to:
+- Document technical research and decisions
+- Compare algorithms or approaches
+- Gather evidence for design choices
+- Define data models before implementation
+
+Auto-detects feature from current branch (001-feature-name).
+Use --feature to override.
+
+Use --force to overwrite existing research artifacts.
+
+Example:
+  spec-kitty research
+  spec-kitty research --force
+  spec-kitty research --feature 001-my-feature
+"""
 
     show_banner()
 
@@ -1902,7 +2051,24 @@ def research(
 
 @app.command()
 def check():
-    """Check that all required tools are installed."""
+    """
+Check that all required tools are installed.
+
+Verifies installation status of:
+- Git version control
+- AI coding assistants (Claude, Codex, Gemini, Cursor, etc.)
+- IDEs (VS Code, Cursor, Windsurf, KiloCode)
+
+Shows:
+- ✅ Installed tools with version/location
+- ❌ Missing tools with installation links
+
+Use this to diagnose missing dependencies or verify your setup
+after installing new AI assistants.
+
+Example:
+  spec-kitty check
+"""
     show_banner()
     console.print("[bold]Checking for installed tools...[/bold]\n")
 
@@ -1946,85 +2112,98 @@ def check():
         console.print("[dim]Tip: Install an AI assistant for the best experience[/dim]")
 
 @app.command()
-def dashboard():
-    """Open the Spec Kitty dashboard in your browser."""
+def dashboard(
+    port: Optional[int] = typer.Option(
+        None,
+        "--port",
+        help="Preferred port for the dashboard (falls back to the first available port).",
+    ),
+    kill: bool = typer.Option(
+        False,
+        "--kill",
+        help="Stop the running dashboard for this project and clear its metadata.",
+    ),
+):
+    """
+    Open the Spec Kitty dashboard in your browser.
+
+    The dashboard provides a real-time web interface showing:
+    - 📊 All features with their workflow status
+    - 🎯 Kanban board with work packages (planned/doing/for_review/done)
+    - 📄 View spec.md, plan.md, tasks.md, research.md, data-model.md
+    - 📜 Browse contracts and research artifacts
+    - ✅ Track progress and completion rates
+
+    The dashboard is project-wide and runs from the main repository.
+    It updates automatically as you work (polls every second).
+
+    Works from anywhere:
+    - Run from main branch: Opens dashboard directly
+    - Run from worktree: Finds and opens dashboard in main repo
+
+    The dashboard starts automatically during 'spec-kitty init' and runs
+    in the background on http://127.0.0.1:PORT (port auto-selected).
+    This command will ensure it is running (starting it if needed).
+    """
     import webbrowser
-    import socket
 
     project_root = _get_project_root_or_exit()
-    dashboard_file = project_root / '.kittify' / '.dashboard'
 
-    if not dashboard_file.exists():
+    console.print()
+
+    if kill:
+        stopped, message = stop_dashboard(project_root)
+        if stopped:
+            console.print(f"[green]✅ {message}[/green]")
+        else:
+            console.print(f"[yellow]⚠️  {message}[/yellow]")
         console.print()
-        console.print("[red]❌ No dashboard information found[/red]")
+        return
+
+    if port is not None and (port <= 0 or port > 65535):
+        console.print("[red]❌ Invalid port specified. Use a value between 1 and 65535.[/red]")
         console.print()
-        console.print("To start the dashboard, run:")
+        raise typer.Exit(1)
+
+    try:
+        dashboard_url, active_port, started = ensure_dashboard_running(project_root, preferred_port=port)
+    except Exception as exc:
+        console.print("[red]❌ Unable to start or locate the dashboard[/red]")
+        console.print(f"   {exc}")
+        console.print()
+        console.print("[yellow]💡 Try running:[/yellow]")
         console.print(f"  [cyan]cd {project_root}[/cyan]")
         console.print("  [cyan]spec-kitty init .[/cyan]")
         console.print()
         raise typer.Exit(1)
 
-    content = dashboard_file.read_text().strip().split('\n')
-    dashboard_url = content[0] if content else None
-    port_str = content[1] if len(content) > 1 else None
-
-    if not dashboard_url or not port_str:
-        console.print()
-        console.print("[red]❌ Dashboard file is invalid or empty[/red]")
-        console.print(f"   Try running from [cyan]{project_root}[/cyan]: [cyan]spec-kitty init .[/cyan]")
-        console.print()
-        raise typer.Exit(1)
-
-    try:
-        port = int(port_str)
-    except (TypeError, ValueError):
-        port = None
-
-    is_running = False
-    if port is not None:
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1)
-            result = sock.connect_ex(('127.0.0.1', port))
-            sock.close()
-            is_running = (result == 0)
-        except Exception:
-            is_running = False
-
-    port_display = port if port is not None else port_str
-
-    console.print()
     console.print("[bold green]Spec Kitty Dashboard[/bold green]")
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
     console.print(f"  [bold cyan]Project Root:[/bold cyan] {project_root}")
     console.print(f"  [bold cyan]URL:[/bold cyan] {dashboard_url}")
+    console.print(f"  [bold cyan]Port:[/bold cyan] {active_port}")
+    if port is not None and port != active_port:
+        console.print(f"  [yellow]⚠️ Requested port {port} was unavailable; using {active_port} instead.[/yellow]")
+    console.print()
 
-    if is_running:
-        console.print()
-        console.print(f"  [green]✅ Status:[/green] Running on port {port_display}")
-    else:
-        console.print()
-        console.print(f"  [yellow]⚠️  Status:[/yellow] Dashboard appears to be stopped")
-        console.print(f"             (Port {port_display} is not responding)")
-
+    status_msg = (
+        f"  [green]✅ Status:[/green] Started new dashboard instance on port {active_port}"
+        if started
+        else f"  [green]✅ Status:[/green] Dashboard already running on port {active_port}"
+    )
+    console.print(status_msg)
     console.print()
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
 
-    if is_running:
-        try:
-            webbrowser.open(dashboard_url)
-            console.print("[green]✅ Opening dashboard in your browser...[/green]")
-            console.print()
-        except Exception:
-            console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
-            console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
-            console.print()
-    else:
-        console.print("[yellow]💡 To (re)start the dashboard, run:[/yellow]")
-        console.print(f"  [cyan]cd {project_root}[/cyan]")
-        console.print("  [cyan]spec-kitty init .[/cyan]")
+    try:
+        webbrowser.open(dashboard_url)
+        console.print("[green]✅ Opening dashboard in your browser...[/green]")
+        console.print()
+    except Exception:
+        console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
+        console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
         console.print()
 
 def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
@@ -2053,28 +2232,6 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
             "\n[yellow]Optional artifacts missing:[/yellow] "
             + ", ".join(summary.optional_missing)
         )
-
-
-    else:
-        console.print()
-        console.print(f"  [green]✅ Status:[/green] Running on port {port}")
-
-    console.print()
-    console.print("[cyan]" + "=" * 60 + "[/cyan]")
-    console.print()
-
-    if is_running:
-        # Try to open in browser
-        try:
-            webbrowser.open(dashboard_url)
-            console.print("[green]✅ Opening dashboard in your browser...[/green]")
-            console.print()
-        except Exception as e:
-            console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
-            console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
-            console.print()
-    else:
-        console.print("[yellow]💡 To start the dashboard, run:[/yellow] [cyan]spec-kitty init .[/cyan]")
         console.print()
 
 
@@ -2119,7 +2276,33 @@ def accept(
     no_commit: bool = typer.Option(False, "--no-commit", help="Skip auto-commit; report only"),
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
 ):
-    """Run the feature acceptance workflow from the CLI."""
+    """
+Validate feature readiness before merging to main.
+
+Checks:
+- ✅ All work packages in tasks/done/
+- ✅ All checklists complete
+- ✅ No uncommitted changes
+- ✅ All tests pass (if --test provided)
+
+Creates meta.json with acceptance metadata (timestamp, actor, commits).
+
+Modes:
+- auto: Detect context (PR vs local) automatically
+- pr: Preparing for pull request
+- local: Local acceptance only
+- checklist: Report checklist status only
+
+Auto-detects feature from current branch.
+Use --feature to override.
+
+Examples:
+  spec-kitty accept                    # Auto mode
+  spec-kitty accept --mode local       # Local acceptance
+  spec-kitty accept --test "npm test"  # Run tests first
+  spec-kitty accept --actor "John Doe" # Record who accepted
+  spec-kitty accept --no-commit        # Dry-run only
+"""
 
     show_banner()
 
@@ -2221,7 +2404,39 @@ def merge(
     target_branch: str = typer.Option("main", "--target", help="Target branch to merge into"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
 ):
-    """Merge a feature branch into the target branch and clean up worktree."""
+    """
+Merge a completed feature branch into main and clean up worktree.
+
+Workflow:
+1. Detects your current feature branch and worktree
+2. Verifies working directory is clean (no uncommitted changes)
+3. Switches to target branch (default: main) in primary repo
+4. Updates target branch (git pull --ff-only)
+5. Merges feature using your chosen strategy
+6. Optionally pushes to origin
+7. Removes feature worktree (if exists)
+8. Deletes feature branch
+
+Merge Strategies:
+- merge (default): Creates merge commit, preserves history
+- squash: Squashes all commits into one, clean history
+- rebase: Linear history (requires manual rebase first)
+
+Prerequisites:
+- Feature must pass /spec-kitty.accept checks
+- All work packages in tasks/done/
+- Working directory must be clean
+
+Run from the feature worktree - the command handles switching to
+main repo automatically.
+
+Examples:
+  spec-kitty merge                           # Basic merge
+  spec-kitty merge --strategy squash --push  # Squash and push
+  spec-kitty merge --keep-branch             # Don't delete branch
+  spec-kitty merge --target develop          # Merge to develop
+  spec-kitty merge --dry-run                 # Preview only
+"""
 
     show_banner()
 

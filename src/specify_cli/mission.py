@@ -5,6 +5,7 @@ which allow Spec Kitty to support multiple domains (software dev, research,
 writing, etc.) with domain-specific templates, workflows, and validation.
 """
 
+import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import yaml
@@ -248,8 +249,27 @@ def get_active_mission(project_root: Optional[Path] = None) -> Mission:
     active_mission_link = kittify_dir / "active-mission"
 
     if active_mission_link.exists():
-        # Resolve symlink to actual mission directory
-        mission_path = active_mission_link.resolve()
+        mission_path: Optional[Path] = None
+        if active_mission_link.is_symlink():
+            # Resolve symlink to actual mission directory (supports relative targets)
+            mission_path = active_mission_link.resolve()
+        elif active_mission_link.is_file():
+            try:
+                mission_name = active_mission_link.read_text(encoding="utf-8").strip()
+            except OSError:
+                mission_name = ""
+            if mission_name:
+                mission_path = kittify_dir / "missions" / mission_name
+        if mission_path is None:
+            # Fallback to interpreting the target path directly
+            try:
+                target = Path(os.readlink(active_mission_link))
+                mission_path = (active_mission_link.parent / target).resolve()
+            except (OSError, RuntimeError):
+                mission_path = None
+
+        if mission_path is None:
+            mission_path = kittify_dir / "missions" / "software-dev"
     else:
         # Default to software-dev if no active mission set
         mission_path = kittify_dir / "missions" / "software-dev"
@@ -339,5 +359,9 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
     if active_mission_link.exists() or active_mission_link.is_symlink():
         active_mission_link.unlink()
 
-    # Create new symlink
-    active_mission_link.symlink_to(f"missions/{mission_name}")
+    # Create new symlink (relative path keeps worktrees portable)
+    try:
+        active_mission_link.symlink_to(Path("missions") / mission_name)
+    except (OSError, NotImplementedError):
+        # Fall back to plain file marker when symlinks are unavailable
+        active_mission_link.write_text(f"{mission_name}\n", encoding="utf-8")
