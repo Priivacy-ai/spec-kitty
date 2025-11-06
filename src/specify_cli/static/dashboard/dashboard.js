@@ -9,6 +9,34 @@ let featureWorktreeDisplay = 'select a feature';
 let featureSelectActive = false;
 let featureSelectIdleTimer = null;
 
+// Cookie-based state persistence
+function restoreState() {
+    const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+        const parts = cookie.trim().split('=');
+        if (parts.length === 2) {
+            acc[parts[0]] = decodeURIComponent(parts[1]);
+        }
+        return acc;
+    }, {});
+
+    return {
+        feature: cookies.lastFeature || null,
+        page: cookies.lastPage || 'overview'
+    };
+}
+
+function saveState(feature, page) {
+    const expires = new Date();
+    expires.setFullYear(expires.getFullYear() + 1); // 1 year
+
+    if (feature) {
+        document.cookie = `lastFeature=${encodeURIComponent(feature)}; expires=${expires.toUTCString()}; path=/; SameSite=Strict`;
+    }
+    if (page) {
+        document.cookie = `lastPage=${encodeURIComponent(page)}; expires=${expires.toUTCString()}; path=/; SameSite=Strict`;
+    }
+}
+
 function setFeatureSelectActive(isActive) {
     if (isActive) {
         featureSelectActive = true;
@@ -40,7 +68,7 @@ function updateTreeInfo() {
     } else {
         lines.push(`   └─ Feature worktree: ${featureWorktreeDisplay}`);
     }
-    treeElement.textContent = lines.join('\\n');
+    treeElement.textContent = lines.join('\n');
 }
 
 function computeFeatureWorktreeStatus(feature) {
@@ -82,6 +110,7 @@ function switchFeature(featureId) {
         });
     }
     currentFeature = featureId;
+    saveState(currentFeature, currentPage);
     loadCurrentPage();
     updateSidebarState();
     const feature = allFeatures.find(f => f.id === currentFeature);
@@ -97,6 +126,7 @@ function switchPage(pageName) {
     isConstitutionView = false;
     currentPage = pageName;
     lastNonConstitutionPage = pageName;
+    saveState(currentFeature, currentPage);
 
     // Update sidebar
     document.querySelectorAll('.sidebar-item').forEach(item => {
@@ -709,6 +739,7 @@ function showConstitution() {
     // Switch to constitution page
     currentPage = 'constitution';
     isConstitutionView = true;
+    saveState(currentFeature, 'constitution');
     document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
     const constitutionItem = document.querySelector('.sidebar-item[data-page="constitution"]');
     if (constitutionItem) {
@@ -751,6 +782,9 @@ function updateFeatureList(features) {
     const singleFeatureName = document.getElementById('single-feature-name');
     const sidebar = document.querySelector('.sidebar');
     const mainContent = document.querySelector('.main-content');
+
+    // Restore saved state from cookies on initial load
+    const savedState = restoreState();
 
     if (select && !select.dataset.pauseHandlersAttached) {
         const activate = () => setFeatureSelectActive(true);
@@ -803,13 +837,31 @@ function updateFeatureList(features) {
         selectContainer.style.display = 'block';
         singleFeatureName.style.display = 'none';
 
+        // Try to restore saved feature, fall back to first feature
+        const savedFeatureExists = savedState.feature && features.find(f => f.id === savedState.feature);
+        if (!currentFeature || !features.find(f => f.id === currentFeature)) {
+            currentFeature = savedFeatureExists ? savedState.feature : features[0].id;
+        }
+
         select.innerHTML = features.map(f =>
             `<option value="${f.id}" ${f.id === currentFeature ? 'selected' : ''}>${f.name}</option>`
         ).join('');
+        select.value = currentFeature;
+    }
 
-        if (!currentFeature || !features.find(f => f.id === currentFeature)) {
-            currentFeature = features[0].id;
-            select.value = currentFeature;
+    // Restore saved page if it's valid for the current feature
+    const feature = features.find(f => f.id === currentFeature);
+    if (savedState.page && savedState.page !== 'overview') {
+        if (savedState.page === 'constitution') {
+            // Will be handled by showConstitution() call below
+            currentPage = savedState.page;
+        } else if (savedState.page === 'kanban' && feature && feature.artifacts && feature.artifacts.kanban) {
+            currentPage = savedState.page;
+        } else if (feature && feature.artifacts) {
+            const artifactKey = savedState.page.replace('-', '_');
+            if (feature.artifacts[artifactKey] || savedState.page === 'overview') {
+                currentPage = savedState.page;
+            }
         }
     }
 
@@ -817,7 +869,6 @@ function updateFeatureList(features) {
     mainContent.style.display = 'block';
 
     // Update workflow icons based on current feature
-    const feature = features.find(f => f.id === currentFeature);
     if (feature && feature.workflow) {
         updateWorkflowIcons(feature.workflow);
         computeFeatureWorktreeStatus(feature);
@@ -826,7 +877,26 @@ function updateFeatureList(features) {
     }
 
     updateSidebarState();
-    if (!isConstitutionView) {
+
+    // Restore the page view
+    if (currentPage === 'constitution') {
+        showConstitution();
+    } else {
+        isConstitutionView = false;
+        // Update sidebar highlighting
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            if (item.dataset.page === currentPage) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+        // Update page visibility
+        document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+        const activePageEl = document.getElementById(`page-${currentPage}`);
+        if (activePageEl) {
+            activePageEl.classList.add('active');
+        }
         loadCurrentPage();
     }
 }
@@ -858,6 +928,11 @@ function fetchData(isInitialLoad = false) {
                 updateFeatureList(data.features);
             } else {
                 updateFeatureListSilent(data.features);
+
+                // Refresh kanban board if currently viewing it
+                if (currentPage === 'kanban' && !isConstitutionView && currentFeature) {
+                    loadKanban();
+                }
             }
 
             document.getElementById('last-update').textContent = new Date().toLocaleTimeString();

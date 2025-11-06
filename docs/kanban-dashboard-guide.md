@@ -20,8 +20,8 @@ spec-kitty init .
 spec-kitty dashboard
 ```
 
-1. Run `spec-kitty init` (or re-run in an existing project) to start the dashboard service.
-2. Launch the viewer with `spec-kitty dashboard`; you can also open the URL recorded in `.kittify/.dashboard`.
+1. Run `spec-kitty init` (or re-run in an existing project) to bootstrap the dashboard service.
+2. Launch the viewer with `spec-kitty dashboard`; the command auto-starts the correct dashboard for the current project, records the URL in `.kittify/.dashboard`, and supports `--port` (preferred port) or `--kill` (stop the service) when needed.
 3. Keep the process running while agents work—the UI updates live as prompts move across lanes.
 
 ## Core Dashboard Areas
@@ -56,7 +56,9 @@ Wrap the lane helper scripts (`.kittify/scripts/bash/tasks-move-to-lane.sh` and 
 
 | Symptom | Likely Cause | Fix |
 |---------|--------------|-----|
-| Dashboard shows “stopped” | Background process exited | Re-run `spec-kitty init .` to restart the service |
+| Dashboard shows “stopped” | Background process exited | Run `spec-kitty dashboard` to auto-restart (or `spec-kitty init .` to rebuild) |
+| Need to move the server to a new port | Port conflict emerged | Run `spec-kitty dashboard --port <new-port>` |
+| Need to stop the dashboard | Cleaning up or switching workspaces | Run `spec-kitty dashboard --kill` |
 | Feature missing from overview | Worktree not initialized | Run `/spec-kitty.specify` for the feature and refresh |
 | Lane counts stale | Lane scripts bypassed | Move prompts via `.kittify/scripts/tasks-move-to-lane.sh` |
 

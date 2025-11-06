@@ -7,6 +7,40 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2025-11-06
+
+### Fixed
+
+- **Agent context placement** – `spec-kitty init` now writes `.kittify/AGENTS.md` to the correct location and links project-level context files (e.g., `CLAUDE.md`, `.cursorrules`, `.cursor/rules/AGENTS.md`) from the project root so CLI agents pick up prompts reliably.
+- **OpenCode compatibility** – Corrected the dashboard template loader to look in `.kittify/templates/AGENTS.md`, unblocking `/spec-kitty.dashboard` when Codex/OpenCode agents are selected.
+
+### Changed
+
+- Simplified context generation to avoid nested `.kittify/.kittify` directories and ensure `.github/copilot-instructions.md` is created at the project root.
+
+## [0.4.2] - 2025-11-06
+
+### Added
+
+- **Dashboard shutdown flow** – New `/api/shutdown` endpoint plus `stop_dashboard()` helper enable the CLI to terminate the correct project dashboard safely.
+- **CLI convenience options** – `spec-kitty dashboard` now accepts `--kill` to stop the server and `--port` to request a preferred port when (re)starting.
+
+### Documentation
+
+- Updated dashboard command template, README, and guides with the new CLI options and troubleshooting guidance.
+
+## [0.4.1] - 2025-11-06
+
+### Changed
+
+- **Dashboard lifecycle management** – Added `ensure_dashboard_running` with per-project health checks and tokens so background dashboards can be restarted safely after reboots without colliding with other Spec Kitty projects.
+- **`spec-kitty init` experience** – Reuses running dashboards when available and surfaces the active port/URL while still starting a background server when needed.
+- **`spec-kitty dashboard` command** – Automatically starts the correct project dashboard, reports whether a new instance was launched, and opens the browser once the health check succeeds.
+
+### Documentation
+
+- Updated dashboard command template, README, and guides to explain the new auto-restart behavior and troubleshooting flow.
+
 ## [0.3.2] - 2025-11-03
 
 ### Added
