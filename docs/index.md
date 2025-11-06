@@ -545,8 +545,7 @@ See [Release Readiness Checklist](releases/readiness-checklist.md) and [Release 
 
 ## 📋 Detailed process
 
-<details>
-<summary>Click to expand the detailed step-by-step walkthrough</summary>
+:::details Click to expand the detailed step-by-step walkthrough
 
 You can use the Spec Kitty CLI to bootstrap your project, which will bring in the required artifacts in your environment. Run:
 
@@ -801,7 +800,7 @@ The `/spec-kitty.implement` command will:
 
 Once the implementation is complete, test the application and resolve any runtime errors that may not be visible in CLI logs (e.g., browser console errors). You can copy and paste such errors back to your AI agent for resolution.
 
-</details>
+:::
 
 ---
 
