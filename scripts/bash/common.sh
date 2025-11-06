@@ -4,7 +4,17 @@
 # Get repository root, with fallback for non-git repositories
 get_repo_root() {
     if git rev-parse --show-toplevel >/dev/null 2>&1; then
-        git rev-parse --show-toplevel
+        # Get the common git directory (works for both main repo and worktrees)
+        local git_common_dir
+        git_common_dir="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+
+        if [[ -n "$git_common_dir" ]]; then
+            # The parent of .git (or .git/worktrees/xxx in worktree) is the main repo root
+            dirname "$git_common_dir"
+        else
+            # Fallback to show-toplevel for older git versions
+            git rev-parse --show-toplevel
+        fi
     else
         # Fall back to script location for non-git repos
         local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

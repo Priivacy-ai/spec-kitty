@@ -50,7 +50,7 @@ import ssl
 import truststore
 
 # Dashboard server
-from specify_cli.dashboard import start_dashboard
+from specify_cli.dashboard import ensure_dashboard_running, stop_dashboard
 from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceResult,
@@ -675,21 +675,19 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     # Copy AGENTS.md to .kittify for all agents to read
     agents_md_src = data_root.joinpath("templates", "AGENTS.md")
     if agents_md_src.exists():
-        kittify_dir = specify_root / ".kittify"
-        kittify_dir.mkdir(parents=True, exist_ok=True)
-        agents_md_dest = kittify_dir / "AGENTS.md"
+        agents_md_dest = specify_root / "AGENTS.md"
         shutil.copy2(agents_md_src, agents_md_dest)
 
         # Create agent-specific context files (symlinks on Unix, copies on Windows)
         # This provides auto-loading for agents that support context files
         agent_context_files = {
-            "CLAUDE.md": specify_root / "CLAUDE.md",                           # Claude Code
-            ".cursorrules": specify_root / ".cursorrules",                     # Cursor (legacy)
-            ".windsurfrules": specify_root / ".windsurfrules",                 # Windsurf (legacy)
-            ".roorules": specify_root / ".roorules",                           # Roo Code (legacy)
-            "GEMINI.md": specify_root / "GEMINI.md",                           # Gemini CLI
-            ".kilocoderules": specify_root / ".kilocoderules",                 # KiloCode
-            ".augmentrules": specify_root / ".augmentrules",                   # Auggie (assumed)
+            "CLAUDE.md": project_path / "CLAUDE.md",                           # Claude Code
+            ".cursorrules": project_path / ".cursorrules",                     # Cursor (legacy)
+            ".windsurfrules": project_path / ".windsurfrules",                 # Windsurf (legacy)
+            ".roorules": project_path / ".roorules",                           # Roo Code (legacy)
+            "GEMINI.md": project_path / "GEMINI.md",                           # Gemini CLI
+            ".kilocoderules": project_path / ".kilocoderules",                 # KiloCode
+            ".augmentrules": project_path / ".augmentrules",                   # Auggie (assumed)
         }
 
         # Also create modern directory-based rules
@@ -701,6 +699,7 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
 
         # Create root-level context files
         for filename, target_path in agent_context_files.items():
+            target_path.parent.mkdir(parents=True, exist_ok=True)
             try:
                 if os.name != 'nt' and hasattr(os, 'symlink'):
                     # Use relative symlink on Unix
@@ -716,7 +715,7 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
 
         # Create modern directory-based rules
         for rules_dir, filename in modern_rules_dirs.items():
-            rules_path = specify_root / rules_dir
+            rules_path = project_path / rules_dir
             rules_path.mkdir(parents=True, exist_ok=True)
             target_file = rules_path / filename
             try:
@@ -730,7 +729,7 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
                 shutil.copy2(agents_md_dest, target_file)
 
         # Create .github directory for Copilot
-        github_dir = specify_root / ".github"
+        github_dir = project_path / ".github"
         github_dir.mkdir(parents=True, exist_ok=True)
         copilot_instructions = github_dir / "copilot-instructions.md"
         try:
@@ -1828,22 +1827,25 @@ def init(
     console.print()
     console.print(enhancements_panel)
 
-    # Start the dashboard server as detached background process
+    # Start or reconnect to the dashboard server as a detached background process
     console.print()
     try:
-        port, _ = start_dashboard(project_path, background_process=True)
-        dashboard_url = f"http://127.0.0.1:{port}"
+        dashboard_url, port, started = ensure_dashboard_running(project_path)
 
-        # Save dashboard URL for later retrieval
-        dashboard_info_file = project_path / ".kittify" / ".dashboard"
-        dashboard_info_file.write_text(f"{dashboard_url}\n{port}\n")
+        title = "[bold green]Spec Kitty Dashboard Started[/bold green]" if started else "[bold green]Spec Kitty Dashboard Ready[/bold green]"
+        status_line = (
+            "[dim]The dashboard is running in the background and will continue even after\n"
+            "this command exits. It will automatically update as you work.[/dim]"
+            if started
+            else "[dim]An existing dashboard instance is running and ready.[/dim]"
+        )
 
         dashboard_panel = Panel(
-            f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n\n"
-            f"[dim]The dashboard is running in the background and will continue even after\n"
-            f"this command exits. It will automatically update as you work.[/dim]\n\n"
+            f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n"
+            f"[bold cyan]Port:[/bold cyan] {port}\n\n"
+            f"{status_line}\n\n"
             f"[yellow]Tip:[/yellow] Run [cyan]/spec-kitty.dashboard[/cyan] or [cyan]spec-kitty dashboard[/cyan] to open it in your browser",
-            title="[bold green]Spec Kitty Dashboard Started[/bold green]",
+            title=title,
             border_style="green",
             padding=(1, 2)
         )
@@ -2094,7 +2096,18 @@ def check():
         console.print("[dim]Tip: Install an AI assistant for the best experience[/dim]")
 
 @app.command()
-def dashboard():
+def dashboard(
+    port: Optional[int] = typer.Option(
+        None,
+        "--port",
+        help="Preferred port for the dashboard (falls back to the first available port).",
+    ),
+    kill: bool = typer.Option(
+        False,
+        "--kill",
+        help="Stop the running dashboard for this project and clear its metadata.",
+    ),
+):
     """
     Open the Spec Kitty dashboard in your browser.
 
@@ -2114,87 +2127,67 @@ def dashboard():
 
     The dashboard starts automatically during 'spec-kitty init' and runs
     in the background on http://127.0.0.1:PORT (port auto-selected).
-
-    If the dashboard isn't running, you'll see instructions on how to
-    start it with 'spec-kitty init .'
+    This command will ensure it is running (starting it if needed).
     """
     import webbrowser
-    import socket
 
     project_root = _get_project_root_or_exit()
-    dashboard_file = project_root / '.kittify' / '.dashboard'
 
-    if not dashboard_file.exists():
+    console.print()
+
+    if kill:
+        stopped, message = stop_dashboard(project_root)
+        if stopped:
+            console.print(f"[green]✅ {message}[/green]")
+        else:
+            console.print(f"[yellow]⚠️  {message}[/yellow]")
         console.print()
-        console.print("[red]❌ No dashboard information found[/red]")
+        return
+
+    if port is not None and (port <= 0 or port > 65535):
+        console.print("[red]❌ Invalid port specified. Use a value between 1 and 65535.[/red]")
         console.print()
-        console.print("To start the dashboard, run:")
+        raise typer.Exit(1)
+
+    try:
+        dashboard_url, active_port, started = ensure_dashboard_running(project_root, preferred_port=port)
+    except Exception as exc:
+        console.print("[red]❌ Unable to start or locate the dashboard[/red]")
+        console.print(f"   {exc}")
+        console.print()
+        console.print("[yellow]💡 Try running:[/yellow]")
         console.print(f"  [cyan]cd {project_root}[/cyan]")
         console.print("  [cyan]spec-kitty init .[/cyan]")
         console.print()
         raise typer.Exit(1)
 
-    content = dashboard_file.read_text().strip().split('\n')
-    dashboard_url = content[0] if content else None
-    port_str = content[1] if len(content) > 1 else None
-
-    if not dashboard_url or not port_str:
-        console.print()
-        console.print("[red]❌ Dashboard file is invalid or empty[/red]")
-        console.print(f"   Try running from [cyan]{project_root}[/cyan]: [cyan]spec-kitty init .[/cyan]")
-        console.print()
-        raise typer.Exit(1)
-
-    try:
-        port = int(port_str)
-    except (TypeError, ValueError):
-        port = None
-
-    is_running = False
-    if port is not None:
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1)
-            result = sock.connect_ex(('127.0.0.1', port))
-            sock.close()
-            is_running = (result == 0)
-        except Exception:
-            is_running = False
-
-    port_display = port if port is not None else port_str
-
-    console.print()
     console.print("[bold green]Spec Kitty Dashboard[/bold green]")
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
     console.print(f"  [bold cyan]Project Root:[/bold cyan] {project_root}")
     console.print(f"  [bold cyan]URL:[/bold cyan] {dashboard_url}")
+    console.print(f"  [bold cyan]Port:[/bold cyan] {active_port}")
+    if port is not None and port != active_port:
+        console.print(f"  [yellow]⚠️ Requested port {port} was unavailable; using {active_port} instead.[/yellow]")
+    console.print()
 
-    if is_running:
-        console.print()
-        console.print(f"  [green]✅ Status:[/green] Running on port {port_display}")
-    else:
-        console.print()
-        console.print(f"  [yellow]⚠️  Status:[/yellow] Dashboard appears to be stopped")
-        console.print(f"             (Port {port_display} is not responding)")
-
+    status_msg = (
+        f"  [green]✅ Status:[/green] Started new dashboard instance on port {active_port}"
+        if started
+        else f"  [green]✅ Status:[/green] Dashboard already running on port {active_port}"
+    )
+    console.print(status_msg)
     console.print()
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
 
-    if is_running:
-        try:
-            webbrowser.open(dashboard_url)
-            console.print("[green]✅ Opening dashboard in your browser...[/green]")
-            console.print()
-        except Exception:
-            console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
-            console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
-            console.print()
-    else:
-        console.print("[yellow]💡 To (re)start the dashboard, run:[/yellow]")
-        console.print(f"  [cyan]cd {project_root}[/cyan]")
-        console.print("  [cyan]spec-kitty init .[/cyan]")
+    try:
+        webbrowser.open(dashboard_url)
+        console.print("[green]✅ Opening dashboard in your browser...[/green]")
+        console.print()
+    except Exception:
+        console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
+        console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
         console.print()
 
 def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
@@ -2223,29 +2216,6 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
             "\n[yellow]Optional artifacts missing:[/yellow] "
             + ", ".join(summary.optional_missing)
         )
-
-
-    else:
-        console.print()
-        console.print(f"  [green]✅ Status:[/green] Running on port {port}")
-
-    console.print()
-    console.print("[cyan]" + "=" * 60 + "[/cyan]")
-    console.print()
-
-    if is_running:
-        # Try to open in browser
-        try:
-            webbrowser.open(dashboard_url)
-            console.print("[green]✅ Opening dashboard in your browser...[/green]")
-            console.print()
-        except Exception as e:
-            console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
-            console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
-            console.print()
-    else:
-        console.print("[yellow]💡 To start the dashboard, run:[/yellow] [cyan]spec-kitty init .[/cyan]")
-        console.print()
 
 
 def _print_acceptance_result(result: AcceptanceResult) -> None:
