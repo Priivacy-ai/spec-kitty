@@ -51,6 +51,7 @@ import truststore
 
 # Dashboard server
 from specify_cli.dashboard import ensure_dashboard_running, stop_dashboard
+from specify_cli.mission import MissionNotFoundError, set_active_mission
 from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceResult,
@@ -755,7 +756,6 @@ def activate_mission(project_path: Path, mission_key: str, mission_display: str,
     """
     kittify_root = project_path / ".kittify"
     missions_dir = kittify_root / "missions"
-    active_file = kittify_root / "active-mission"
 
     kittify_root.mkdir(parents=True, exist_ok=True)
     missions_dir.mkdir(parents=True, exist_ok=True)
@@ -774,20 +774,49 @@ def activate_mission(project_path: Path, mission_key: str, mission_display: str,
         )
         status_detail = f"{mission_display} (templates missing)"
 
-    active_file.write_text(f"{mission_key}\n", encoding="utf-8")
+    try:
+        if mission_path.exists():
+            set_active_mission(mission_key, kittify_root)
+        else:
+            raise MissionNotFoundError(mission_key)
+    except (MissionNotFoundError, OSError, NotImplementedError):
+        # Fall back to plain marker file when mission templates are missing or
+        # symlinks are unavailable (e.g. Windows without developer mode)
+        active_marker = kittify_root / "active-mission"
+        active_marker.write_text(f"{mission_key}\n", encoding="utf-8")
+
     return status_detail
 
 
 def get_active_mission_key(project_path: Path) -> str:
     """Return the mission key stored in .kittify/active-mission, falling back to default."""
-    active_file = project_path / ".kittify" / "active-mission"
-    if active_file.exists():
+    active_path = project_path / ".kittify" / "active-mission"
+    if not active_path.exists():
+        return DEFAULT_MISSION_KEY
+
+    # Handle symlink-based marker first
+    if active_path.is_symlink():
         try:
-            key = active_file.read_text(encoding="utf-8").strip()
+            target = Path(os.readlink(active_path))
+            key = target.name
             if key:
                 return key
         except OSError:
             pass
+        # Fallback to resolved path
+        resolved = active_path.resolve()
+        if resolved.parent.name == "missions":
+            return resolved.name
+
+    # Fall back to plain text marker
+    if active_path.is_file():
+        try:
+            key = active_path.read_text(encoding="utf-8").strip()
+            if key:
+                return key
+        except OSError:
+            pass
+
     return DEFAULT_MISSION_KEY
 
 
