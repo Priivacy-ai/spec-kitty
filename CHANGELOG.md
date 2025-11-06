@@ -7,6 +7,17 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2025-11-06
+
+### Security
+
+- **Credential Cleanup** – Removed the committed `.codex` directory (OpenAI credentials) from the entire Git history and regenerated sanitized release assets.
+- **Token Rotation** – Documented that all compromised keys were revoked and environments refreshed before reissuing packages.
+
+### Changed
+
+- **Release Artifacts** – Rebuilt GitHub release bundles and PyPI distributions from the cleaned history to ensure no secrets are present in published archives.
+
 ## [0.3.2] - 2025-11-03
 
 ### Added

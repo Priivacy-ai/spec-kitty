@@ -38,6 +38,7 @@ env/
 *.log
 .env
 .env.local
+.codex/
 *.lock
 .worktrees/
 

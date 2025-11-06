@@ -129,7 +129,13 @@ build_variant() {
     esac
   fi
   
-  [[ -d templates ]] && { mkdir -p "$SPEC_DIR/templates"; find templates -type f -not -path "templates/commands/*" -not -name "vscode-settings.json" -exec cp --parents {} "$SPEC_DIR"/ \; ; echo "Copied templates -> .kittify/templates"; }
+  if [[ -d templates ]]; then
+    mkdir -p "$SPEC_DIR/templates"
+    while IFS= read -r template_file; do
+      rsync -R "$template_file" "$SPEC_DIR"/
+    done < <(find templates -type f -not -path "templates/commands/*" -not -name "vscode-settings.json")
+    echo "Copied templates -> .kittify/templates"
+  fi
   
   # NOTE: We substitute {ARGS} internally. Outward tokens differ intentionally:
   #   * Markdown/prompt (claude, copilot, cursor, opencode): $ARGUMENTS
