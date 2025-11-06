@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="media/logo_small.webp"/>
+    <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/logo_small.webp"/>
     <h1>Spec Kitty</h1>
     <h3><em>Build high-quality software faster.</em></h3>
 </div>
@@ -29,16 +29,16 @@ Perfect for teams using Claude Code, Cursor, Windsurf, Gemini CLI, or GitHub Cop
 Spec Kitty includes a **live dashboard** that automatically tracks your feature development progress. View your kanban board, monitor work package status, and see which agents are working on what—all updating in real-time as you work.
 
 <div align="center">
-  <img src="media/dashboard-kanban.png" alt="Spec Kitty Dashboard - Kanban Board View" width="800"/>
+  <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/dashboard-kanban.png" alt="Spec Kitty Dashboard - Kanban Board View" width="800"/>
   <p><em>Kanban board showing work packages across all lanes with agent assignments</em></p>
 </div>
 
 <div align="center">
-  <img src="media/dashboard-overview.png" alt="Spec Kitty Dashboard - Feature Overview" width="800"/>
+  <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/dashboard-overview.png" alt="Spec Kitty Dashboard - Feature Overview" width="800"/>
   <p><em>Feature overview with completion metrics and available artifacts</em></p>
 </div>
 
-The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard` from your terminal.
+The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn’t already running, let you request a specific port with `--port`, or stop it cleanly with `--kill`.
 
 **Key Features:**
 - 📋 **Kanban Board**: Visual workflow across planned → doing → for review → done lanes
@@ -210,7 +210,7 @@ Finish the cycle by running **`/spec-kitty.review`** to process files in `/tasks
 /spec-kitty.review
 ```
 
-For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
+For detailed step-by-step instructions, see our [comprehensive guide](https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md).
 
 ## 🔍 Spec-Kitty vs. Other Spec-Driven Tools
 
@@ -225,12 +225,12 @@ For detailed step-by-step instructions, see our [comprehensive guide](./spec-dri
 
 ## 📦 Examples
 
-We maintain real-world playbooks under [`examples/`](examples):
+We maintain real-world playbooks under [`examples/`](https://github.com/Priivacy-ai/spec-kitty/tree/main/examples):
 
-- [`multi-agent-feature-development.md`](examples/multi-agent-feature-development.md) – orchestrate large agent squads on a single feature.
-- [`parallel-implementation-tracking.md`](examples/parallel-implementation-tracking.md) – monitor parallel delivery with dashboard metrics.
-- [`dashboard-driven-development.md`](examples/dashboard-driven-development.md) – run a product trio from the kanban dashboard.
-- [`claude-cursor-collaboration.md`](examples/claude-cursor-collaboration.md) – blend Claude and Cursor within the Spec Kitty workflow.
+- [`multi-agent-feature-development.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/examples/multi-agent-feature-development.md) – orchestrate large agent squads on a single feature.
+- [`parallel-implementation-tracking.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/examples/parallel-implementation-tracking.md) – monitor parallel delivery with dashboard metrics.
+- [`dashboard-driven-development.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/examples/dashboard-driven-development.md) – run a product trio from the kanban dashboard.
+- [`claude-cursor-collaboration.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/examples/claude-cursor-collaboration.md) – blend Claude and Cursor within the Spec Kitty workflow.
 
 ## 🤖 Supported AI Agents
 
@@ -477,6 +477,7 @@ When you switch missions the CLI updates `.kittify/active-mission`, and subseque
 | `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>**Must be set in the context of the agent you're working with prior to using `/spec-kitty.plan` or follow-up commands. |
 | `SPEC_KITTY_TEMPLATE_ROOT` | Optional. Point to a local checkout whose `templates/`, `scripts/`, and `memory/` directories should seed new projects (handy while developing Spec Kitty itself). |
 | `SPECIFY_TEMPLATE_REPO` | Optional. Override the GitHub repository slug (`owner/name`) to fetch templates from when you explicitly want a remote source. |
+| `CODEX_HOME` | Required when using the Codex CLI so it loads project-specific prompts. Point it to your project’s `.codex/` directory—set it manually with `export CODEX_HOME=\"$(pwd)/.codex\"` or automate it via [`direnv`](docs/index.md#codex-cli-automatically-load-project-prompts-linux-macos-wsl) on Linux/macOS/WSL. |
 
 
 ## 🔧 Prerequisites
@@ -519,7 +520,7 @@ git checkout -b release/v0.2.4
 vim pyproject.toml  # Update version = "0.2.4"
 
 # Add changelog entry
-vim CHANGELOG.md    # Add ## [0.2.4] - YYYY-MM-DD section with release notes
+# Update CHANGELOG.md with ## [0.2.4] - YYYY-MM-DD section with release notes
 ```
 
 #### 2. Validate Locally
@@ -613,7 +614,7 @@ The release workflow requires `PYPI_API_TOKEN` to be configured as a GitHub repo
 
 **Rotation schedule**: Every 6 months or after any security incident
 
-Update the rotation date in [docs/releases/readiness-checklist.md](docs/releases/readiness-checklist.md) when rotating.
+Update the rotation date in [docs/releases/readiness-checklist.md](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/releases/readiness-checklist.md) when rotating.
 
 ### Branch Protection
 
@@ -669,14 +670,14 @@ git push origin v0.2.4
 
 ### Documentation
 
-- 📋 [Release Readiness Checklist](docs/releases/readiness-checklist.md) - Complete step-by-step guide
-- 🔧 [Release Scripts Documentation](scripts/release/README.md) - Validator and helper scripts
-- 📦 [Feature Specification](kitty-specs/002-lightweight-pypi-release/spec.md) - Design decisions
-- 🔄 [GitHub Workflows](.github/workflows/) - Automation implementation
+- 📋 [Release Readiness Checklist](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/releases/readiness-checklist.md) - Complete step-by-step guide
+- 🔧 [Release Scripts Documentation](https://github.com/Priivacy-ai/spec-kitty/blob/main/scripts/release/README.md) - Validator and helper scripts
+- 📦 [Feature Specification](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/002-lightweight-pypi-release/spec.md) - Design decisions
+- 🔄 [GitHub Workflows](https://github.com/Priivacy-ai/spec-kitty/tree/main/.github/workflows) - Automation implementation
 
 ## 📖 Learn more
 
-- **[Complete Spec-Driven Development Methodology](./spec-driven.md)** - Deep dive into the full process
+- **[Complete Spec-Driven Development Methodology](https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md)** - Deep dive into the full process
 - **[Detailed Walkthrough](#-detailed-process)** - Step-by-step implementation guide
 
 ---
@@ -976,4 +977,4 @@ This project is heavily influenced by and based on the work and research of [Joh
 
 ## 📄 License
 
-This project is licensed under the terms of the MIT open source license. Please refer to the [LICENSE](./LICENSE) file for the full terms.
+This project is licensed under the terms of the MIT open source license. Please refer to the [LICENSE](https://github.com/Priivacy-ai/spec-kitty/blob/main/LICENSE) file for the full terms.
