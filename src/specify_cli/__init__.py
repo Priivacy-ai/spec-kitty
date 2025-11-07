@@ -852,6 +852,50 @@ app = typer.Typer(
     cls=BannerGroup,
 )
 
+def resolve_worktree_aware_feature_dir(repo_root: Path, feature_slug: str, cwd: Path = None, console: Console = None) -> Path:
+    """
+    Resolve the correct feature directory, preferring worktree locations.
+
+    This function ensures artifacts are created in the correct location
+    that the dashboard expects (worktree if available, root otherwise).
+    """
+    if cwd is None:
+        cwd = Path.cwd()
+
+    if console is None:
+        from rich.console import Console
+        console = Console()
+
+    # First check if we're already inside a worktree for this feature
+    cwd_str = str(cwd)
+    if '.worktrees' in cwd_str and feature_slug in cwd_str:
+        # We're in the worktree, use its kitty-specs directory
+        worktree_root = cwd
+        # Navigate up to the worktree root if we're deeper inside
+        while worktree_root.parent.name != '.worktrees' and worktree_root.parent != worktree_root:
+            worktree_root = worktree_root.parent
+            if worktree_root.name == feature_slug:
+                break
+
+        feature_dir = worktree_root / 'kitty-specs' / feature_slug
+        console.print(f"[green]✓[/green] Using worktree location: {feature_dir}")
+        return feature_dir
+
+    # Check if a worktree exists for this feature
+    worktree_path = repo_root / '.worktrees' / feature_slug
+    if worktree_path.exists():
+        feature_dir = worktree_path / 'kitty-specs' / feature_slug
+        console.print(f"[green]✓[/green] Found worktree, using: {feature_dir}")
+        console.print(f"[yellow]Tip:[/yellow] Run commands from {worktree_path} for better isolation")
+        return feature_dir
+
+    # Fallback to root location with a warning
+    feature_dir = repo_root / 'kitty-specs' / feature_slug
+    console.print(f"[yellow]⚠[/yellow] No worktree found, using root location: {feature_dir}")
+    console.print(f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{feature_slug} {feature_slug}")
+
+    return feature_dir
+
 def show_banner():
     """Display the ASCII art banner."""
     # Create gradient effect with different colors
@@ -1946,15 +1990,9 @@ Example:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    if not feature_dir.exists():
-        fallback_dir = project_root / "kitty-specs" / feature_slug
-        if fallback_dir.exists():
-            feature_dir = fallback_dir
-        else:
-            feature_dir.mkdir(parents=True, exist_ok=True)
-    else:
-        feature_dir.mkdir(parents=True, exist_ok=True)
+    # Use worktree-aware resolution
+    feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
+    feature_dir.mkdir(parents=True, exist_ok=True)
     tracker.complete("feature", str(feature_dir))
 
     created_paths: list[Path] = []
@@ -2635,6 +2673,159 @@ Examples:
 
     console.print(tracker.render())
     console.print(f"\n[bold green]✓ Feature {current_branch} successfully merged into {target_branch}[/bold green]")
+
+
+@app.command()
+def verify_setup(
+    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to verify (auto-detected when omitted)"),
+):
+    """
+Verify that your environment is correctly set up for spec-kitty workflows.
+
+Checks:
+- Current working directory and branch
+- Worktree existence and location
+- Artifact locations (where they will be created)
+- Dashboard expectations (where it will look for artifacts)
+- Common issues and solutions
+
+Use this command to debug artifact location mismatches and ensure
+you're running commands from the correct location.
+
+Example:
+  spec-kitty verify-setup
+  spec-kitty verify-setup --feature 001-my-feature
+"""
+    show_banner()
+
+    # Get repo and project roots
+    try:
+        repo_root = find_repo_root()
+    except TaskCliError as exc:
+        console.print(f"[red]✗[/red] Repository detection failed: {exc}")
+        console.print("\n[yellow]Solution:[/yellow] Ensure you're in a git repository or spec-kitty project")
+        raise typer.Exit(1)
+
+    project_root = _get_project_root_or_exit(repo_root)
+    cwd = Path.cwd()
+
+    # Create verification tracker
+    console.print("\n[bold]Environment Verification[/bold]\n")
+
+    # Check current location
+    console.print("[cyan]1. Current Location[/cyan]")
+    console.print(f"   Working directory: {cwd}")
+
+    # Check if in worktree
+    in_worktree = '.worktrees' in str(cwd)
+    if in_worktree:
+        console.print(f"   [green]✓[/green] You are in a worktree")
+    else:
+        console.print(f"   [yellow]⚠[/yellow] You are NOT in a worktree")
+        console.print(f"   [dim]Tip: Navigate to .worktrees/<feature> for better isolation[/dim]")
+
+    # Check git branch
+    try:
+        current_branch = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=True
+        ).stdout.strip()
+
+        console.print(f"   Current branch: {current_branch}")
+
+        if current_branch == "main":
+            console.print(f"   [red]✗[/red] On main branch - commands will fail!")
+            console.print(f"   [yellow]Fix:[/yellow] cd .worktrees/<feature-name>")
+        elif re.match(r'^\d{3}-', current_branch):
+            console.print(f"   [green]✓[/green] On feature branch")
+        else:
+            console.print(f"   [yellow]⚠[/yellow] Branch doesn't follow feature naming (###-name)")
+    except subprocess.CalledProcessError:
+        console.print(f"   [yellow]⚠[/yellow] Could not detect git branch")
+
+    # Detect or use provided feature
+    console.print("\n[cyan]2. Feature Detection[/cyan]")
+    try:
+        feature_slug = (feature or detect_feature_slug(repo_root, cwd=cwd)).strip()
+        console.print(f"   Feature: {feature_slug}")
+    except AcceptanceError as exc:
+        console.print(f"   [red]✗[/red] Could not detect feature: {exc}")
+        console.print(f"   [yellow]Solution:[/yellow] Specify with --feature or navigate to a feature branch")
+        raise typer.Exit(1)
+
+    # Check worktree existence
+    console.print("\n[cyan]3. Worktree Status[/cyan]")
+    worktree_path = repo_root / '.worktrees' / feature_slug
+    if worktree_path.exists():
+        console.print(f"   [green]✓[/green] Worktree exists: {worktree_path}")
+    else:
+        console.print(f"   [yellow]⚠[/yellow] No worktree at: {worktree_path}")
+        console.print(f"   [dim]Create with: git worktree add .worktrees/{feature_slug} {feature_slug}[/dim]")
+
+    # Check artifact locations
+    console.print("\n[cyan]4. Artifact Locations[/cyan]")
+
+    # Where CLI will create artifacts
+    cli_feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, cwd, None)
+    console.print(f"   CLI will create artifacts in:")
+    console.print(f"   {cli_feature_dir}")
+
+    # Where dashboard expects artifacts
+    if worktree_path.exists():
+        dashboard_dir = worktree_path / 'kitty-specs' / feature_slug
+    else:
+        dashboard_dir = repo_root / 'kitty-specs' / feature_slug
+
+    console.print(f"\n   Dashboard will look for artifacts in:")
+    console.print(f"   {dashboard_dir}")
+
+    if cli_feature_dir != dashboard_dir:
+        console.print(f"\n   [red]✗[/red] Location mismatch detected!")
+        console.print(f"   [yellow]Solution:[/yellow] Run commands from {worktree_path}")
+    else:
+        console.print(f"\n   [green]✓[/green] Locations match - artifacts will appear in dashboard")
+
+    # Check existing artifacts
+    console.print("\n[cyan]5. Existing Artifacts[/cyan]")
+    if dashboard_dir.exists():
+        artifacts = []
+        for file in ['spec.md', 'plan.md', 'tasks.md', 'research.md', 'data-model.md']:
+            if (dashboard_dir / file).exists():
+                artifacts.append(file)
+
+        if artifacts:
+            console.print(f"   Found {len(artifacts)} artifacts:")
+            for artifact in artifacts:
+                console.print(f"   [green]✓[/green] {artifact}")
+        else:
+            console.print(f"   [dim]No artifacts created yet[/dim]")
+    else:
+        console.print(f"   [dim]Feature directory doesn't exist yet[/dim]")
+
+    # Recommendations
+    console.print("\n[cyan]6. Recommendations[/cyan]")
+
+    if not in_worktree and worktree_path.exists():
+        console.print(f"   [yellow]→[/yellow] Navigate to worktree:")
+        console.print(f"      cd {worktree_path}")
+    elif not in_worktree and not worktree_path.exists():
+        console.print(f"   [yellow]→[/yellow] Create and navigate to worktree:")
+        console.print(f"      git worktree add .worktrees/{feature_slug} {feature_slug}")
+        console.print(f"      cd .worktrees/{feature_slug}")
+
+    if in_worktree:
+        console.print(f"   [green]✓[/green] Good to go! Run spec-kitty commands from here.")
+
+    # Dashboard URL
+    console.print("\n[cyan]7. Dashboard Access[/cyan]")
+    console.print(f"   URL: http://127.0.0.1:9243/")
+    console.print(f"   Feature: {feature_slug}")
+    console.print(f"   [dim]Run 'spec-kitty dashboard' if not already running[/dim]")
+
+    console.print("\n[bold green]✓ Verification complete[/bold green]\n")
 
 
 def main():

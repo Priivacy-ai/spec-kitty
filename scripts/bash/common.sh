@@ -73,25 +73,47 @@ check_feature_branch() {
     fi
 
     if [[ ! "$branch" =~ ^[0-9]{3}- ]]; then
-        echo "ERROR: Not on a feature branch. Current branch: $branch" >&2
-        echo "Feature branches should be named like: 001-feature-name" >&2
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+        echo "❌ ERROR: Command run from wrong location!" >&2
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+        echo "" >&2
+        echo "Current location: $(pwd)" >&2
+        echo "Current branch: $branch" >&2
+        echo "Required: Feature branch (e.g., 001-feature-name)" >&2
         echo "" >&2
 
         # Help agents find the worktree by checking if any exist
         local repo_root=$(get_repo_root)
         if [[ -d "$repo_root/.worktrees" ]] && [[ -n "$(ls -A "$repo_root/.worktrees" 2>/dev/null)" ]]; then
+            echo "🔧 TO FIX THIS ISSUE:" >&2
+            echo "" >&2
+            echo "1. List available worktrees:" >&2
+            echo "   ls .worktrees/" >&2
+            echo "" >&2
+            echo "2. Navigate to a worktree:" >&2
+            local first_worktree=$(ls -1 "$repo_root/.worktrees" 2>/dev/null | head -1)
+            if [[ -n "$first_worktree" ]]; then
+                echo "   cd .worktrees/$first_worktree" >&2
+            else
+                echo "   cd .worktrees/<feature-name>" >&2
+            fi
+            echo "" >&2
+            echo "3. Retry the command" >&2
+            echo "" >&2
             echo "Available worktrees:" >&2
-            ls -1 "$repo_root/.worktrees" 2>/dev/null | sed 's/^/  • .worktrees\//' >&2
-            echo "" >&2
-            echo "To work on a feature, navigate to its worktree:" >&2
-            echo "  cd .worktrees/<feature-name>" >&2
-            echo "" >&2
-            echo "Or set the feature manually:" >&2
-            echo "  export SPECIFY_FEATURE=<feature-name>" >&2
+            ls -1 "$repo_root/.worktrees" 2>/dev/null | sed 's/^/  ✓ /' >&2
         else
+            echo "🔧 TO FIX THIS ISSUE:" >&2
+            echo "" >&2
             echo "No worktrees found. Create a new feature with:" >&2
-            echo "  /spec-kitty.specify" >&2
+            echo "  spec-kitty specify" >&2
+            echo "" >&2
+            echo "Or if you have a feature branch, create its worktree:" >&2
+            echo "  git worktree add .worktrees/001-your-feature 001-your-feature" >&2
         fi
+        echo "" >&2
+        echo "💡 TIP: Run 'spec-kitty verify-setup' to diagnose issues" >&2
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
 
         return 1
     fi
