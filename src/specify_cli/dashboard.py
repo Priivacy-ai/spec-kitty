@@ -218,6 +218,137 @@ def gather_feature_paths(project_dir: Path) -> Dict[str, Path]:
     return feature_paths
 
 
+def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
+    """Run comprehensive diagnostics on the project setup."""
+    import subprocess
+
+    diagnostics = {
+        'project_path': str(project_dir),
+        'current_working_directory': str(Path.cwd()),
+        'git_branch': None,
+        'in_worktree': False,
+        'worktrees_exist': False,
+        'features': [],
+        'recommendations': [],
+        'issues': []
+    }
+
+    # Check git branch
+    try:
+        result = subprocess.run(
+            ['git', 'branch', '--show-current'],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        diagnostics['git_branch'] = result.stdout.strip()
+    except subprocess.CalledProcessError:
+        diagnostics['issues'].append('Could not detect git branch')
+
+    # Check if current directory is in a worktree
+    cwd_str = str(Path.cwd())
+    diagnostics['in_worktree'] = '.worktrees' in cwd_str
+
+    # Check if worktrees directory exists
+    worktrees_dir = project_dir / '.worktrees'
+    diagnostics['worktrees_exist'] = worktrees_dir.exists()
+
+    # Analyze each feature
+    all_features = set()
+
+    # Collect features from root
+    root_specs = project_dir / 'kitty-specs'
+    if root_specs.exists():
+        for feature_dir in root_specs.iterdir():
+            if feature_dir.is_dir() and re.match(r'^\d{3}-', feature_dir.name):
+                all_features.add(feature_dir.name)
+
+    # Collect features from worktrees
+    if worktrees_dir.exists():
+        for worktree_dir in worktrees_dir.iterdir():
+            if worktree_dir.is_dir():
+                all_features.add(worktree_dir.name)
+
+    # Analyze each feature
+    for feature_name in sorted(all_features):
+        feature_info = {
+            'name': feature_name,
+            'worktree_exists': False,
+            'worktree_path': str(worktrees_dir / feature_name),
+            'root_artifacts': [],
+            'worktree_artifacts': [],
+            'dashboard_expects': None,
+            'cli_will_create': None,
+            'location_mismatch': False,
+            'recommendations': []
+        }
+
+        # Check worktree existence
+        worktree_path = worktrees_dir / feature_name
+        feature_info['worktree_exists'] = worktree_path.exists()
+
+        # Check root artifacts
+        root_feature_dir = root_specs / feature_name
+        if root_feature_dir.exists():
+            for artifact_file in ['spec.md', 'plan.md', 'tasks.md', 'research.md', 'data-model.md']:
+                if (root_feature_dir / artifact_file).exists():
+                    feature_info['root_artifacts'].append(artifact_file)
+
+        # Check worktree artifacts
+        worktree_feature_dir = worktree_path / 'kitty-specs' / feature_name
+        if worktree_feature_dir.exists():
+            for artifact_file in ['spec.md', 'plan.md', 'tasks.md', 'research.md', 'data-model.md']:
+                if (worktree_feature_dir / artifact_file).exists():
+                    feature_info['worktree_artifacts'].append(artifact_file)
+
+        # Determine where dashboard expects artifacts
+        if feature_info['worktree_exists']:
+            feature_info['dashboard_expects'] = str(worktree_feature_dir)
+        else:
+            feature_info['dashboard_expects'] = str(root_feature_dir)
+
+        # Determine where CLI will create artifacts (simplified logic)
+        if diagnostics['in_worktree'] and feature_name in cwd_str:
+            feature_info['cli_will_create'] = str(worktree_feature_dir)
+        elif feature_info['worktree_exists']:
+            feature_info['cli_will_create'] = str(worktree_feature_dir)
+        else:
+            feature_info['cli_will_create'] = str(root_feature_dir)
+
+        # Check for location mismatch
+        feature_info['location_mismatch'] = feature_info['cli_will_create'] != feature_info['dashboard_expects']
+
+        # Generate recommendations
+        if feature_info['location_mismatch']:
+            feature_info['recommendations'].append(f"Location mismatch! Run commands from {worktree_path}")
+
+        if feature_info['worktree_exists'] and not diagnostics['in_worktree']:
+            feature_info['recommendations'].append(f"Navigate to worktree: cd {worktree_path}")
+
+        if not feature_info['worktree_exists']:
+            feature_info['recommendations'].append(f"Create worktree: git worktree add .worktrees/{feature_name} {feature_name}")
+
+        # Check for orphaned artifacts
+        if feature_info['root_artifacts'] and feature_info['worktree_artifacts']:
+            feature_info['recommendations'].append("Artifacts exist in both locations - consider consolidating")
+
+        diagnostics['features'].append(feature_info)
+
+    # Generate overall recommendations
+    if diagnostics['git_branch'] == 'main':
+        diagnostics['issues'].append('On main branch - commands will fail!')
+        diagnostics['recommendations'].append('Navigate to a feature worktree')
+
+    if not diagnostics['worktrees_exist']:
+        diagnostics['recommendations'].append('No worktrees found - create with: spec-kitty specify')
+
+    if not diagnostics['in_worktree'] and diagnostics['worktrees_exist']:
+        diagnostics['recommendations'].append('You are not in a worktree - navigate to .worktrees/<feature>')
+
+    return diagnostics
+
+
 def resolve_feature_dir(project_dir: Path, feature_id: str) -> Optional[Path]:
     """Resolve the on-disk directory for the requested feature."""
     feature_paths = gather_feature_paths(project_dir)
@@ -1000,6 +1131,12 @@ def get_dashboard_html() -> str:
             <div class="sidebar-item" data-page="data-model" onclick="switchPage('data-model')">
                 💾 Data Model
             </div>
+            <div style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                System
+            </div>
+            <div class="sidebar-item" data-page="diagnostics" onclick="switchPage('diagnostics')">
+                🔍 Diagnostics
+            </div>
         </div>
 
         <div class="main-content">
@@ -1071,6 +1208,49 @@ def get_dashboard_html() -> str:
                 <div class="content-card">
                     <h2>📜 Project Constitution</h2>
                     <div id="constitution-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-diagnostics" class="page">
+                <div class="content-card">
+                    <h2>🔍 Environment Diagnostics</h2>
+                    <div id="diagnostics-loading" style="padding: 20px; text-align: center;">
+                        <div style="font-size: 1.2em; color: var(--medium-text);">Loading diagnostics...</div>
+                    </div>
+                    <div id="diagnostics-content" style="display: none;">
+                        <!-- Current Status -->
+                        <div style="margin-bottom: 30px;">
+                            <h3 style="color: var(--grassy-green); margin-bottom: 15px;">Current Status</h3>
+                            <div id="diagnostics-status" style="background: var(--light-gray); padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9em;"></div>
+                        </div>
+
+                        <!-- Issues & Recommendations -->
+                        <div id="diagnostics-issues" style="margin-bottom: 30px; display: none;">
+                            <h3 style="color: #ef4444; margin-bottom: 15px;">⚠️ Issues Detected</h3>
+                            <div id="diagnostics-issues-content" style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 4px;"></div>
+                        </div>
+
+                        <div id="diagnostics-recommendations" style="margin-bottom: 30px; display: none;">
+                            <h3 style="color: #f59e0b; margin-bottom: 15px;">💡 Recommendations</h3>
+                            <div id="diagnostics-recommendations-content" style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;"></div>
+                        </div>
+
+                        <!-- Feature Analysis -->
+                        <div style="margin-bottom: 30px;">
+                            <h3 style="color: var(--grassy-green); margin-bottom: 15px;">Feature Analysis</h3>
+                            <div id="diagnostics-features" style="display: flex; flex-direction: column; gap: 15px;"></div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--light-gray);">
+                            <button onclick="refreshDiagnostics()" style="background: var(--grassy-green); color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 1em;">
+                                🔄 Refresh Diagnostics
+                            </button>
+                        </div>
+                    </div>
+                    <div id="diagnostics-error" style="display: none; padding: 20px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 4px;">
+                        <strong>Error loading diagnostics:</strong> <span id="diagnostics-error-message"></span>
+                    </div>
                 </div>
             </div>
 
@@ -1215,6 +1395,10 @@ def get_dashboard_html() -> str:
         function switchPage(pageName) {
             if (pageName === 'constitution') {
                 showConstitution();
+                return;
+            }
+            if (pageName === 'diagnostics') {
+                showDiagnostics();
                 return;
             }
             isConstitutionView = false;
@@ -1820,6 +2004,123 @@ function loadOverview() {
                 });
         }
 
+        function showDiagnostics() {
+            // Switch to diagnostics page
+            currentPage = 'diagnostics';
+            isConstitutionView = false;
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            const diagnosticsItem = document.querySelector('.sidebar-item[data-page="diagnostics"]');
+            if (diagnosticsItem) {
+                diagnosticsItem.classList.remove('disabled');
+                diagnosticsItem.classList.add('active');
+            }
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById('page-diagnostics').classList.add('active');
+
+            loadDiagnostics();
+        }
+
+        function loadDiagnostics() {
+            // Show loading state
+            document.getElementById('diagnostics-loading').style.display = 'block';
+            document.getElementById('diagnostics-content').style.display = 'none';
+            document.getElementById('diagnostics-error').style.display = 'none';
+
+            fetch('/api/diagnostics')
+                .then(response => response.json())
+                .then(data => {
+                    displayDiagnostics(data);
+                })
+                .catch(error => {
+                    document.getElementById('diagnostics-loading').style.display = 'none';
+                    document.getElementById('diagnostics-error').style.display = 'block';
+                    document.getElementById('diagnostics-error-message').textContent = error.toString();
+                });
+        }
+
+        function displayDiagnostics(data) {
+            document.getElementById('diagnostics-loading').style.display = 'none';
+            document.getElementById('diagnostics-content').style.display = 'block';
+
+            // Display current status
+            const statusHtml = `
+                <div><strong>Project Path:</strong> ${data.project_path}</div>
+                <div><strong>Current Directory:</strong> ${data.current_working_directory}</div>
+                <div><strong>Git Branch:</strong> ${data.git_branch || 'Not detected'}</div>
+                <div><strong>In Worktree:</strong> ${data.in_worktree ? '✅ Yes' : '❌ No'}</div>
+                <div><strong>Worktrees Exist:</strong> ${data.worktrees_exist ? '✅ Yes' : '❌ No'}</div>
+            `;
+            document.getElementById('diagnostics-status').innerHTML = statusHtml;
+
+            // Display issues
+            if (data.issues && data.issues.length > 0) {
+                document.getElementById('diagnostics-issues').style.display = 'block';
+                const issuesHtml = data.issues.map(issue => `<div>• ${issue}</div>`).join('');
+                document.getElementById('diagnostics-issues-content').innerHTML = issuesHtml;
+            } else {
+                document.getElementById('diagnostics-issues').style.display = 'none';
+            }
+
+            // Display recommendations
+            if (data.recommendations && data.recommendations.length > 0) {
+                document.getElementById('diagnostics-recommendations').style.display = 'block';
+                const recsHtml = data.recommendations.map(rec => `<div>• ${rec}</div>`).join('');
+                document.getElementById('diagnostics-recommendations-content').innerHTML = recsHtml;
+            } else {
+                document.getElementById('diagnostics-recommendations').style.display = 'none';
+            }
+
+            // Display feature analysis
+            const featuresContainer = document.getElementById('diagnostics-features');
+            if (data.features && data.features.length > 0) {
+                const featuresHtml = data.features.map(feature => {
+                    const statusColor = feature.location_mismatch ? '#ef4444' : '#10b981';
+                    const statusText = feature.location_mismatch ? '❌ Location Mismatch' : '✅ Locations Match';
+
+                    let artifactsInfo = '';
+                    if (feature.root_artifacts.length > 0) {
+                        artifactsInfo += `<div><strong>Root artifacts:</strong> ${feature.root_artifacts.join(', ')}</div>`;
+                    }
+                    if (feature.worktree_artifacts.length > 0) {
+                        artifactsInfo += `<div><strong>Worktree artifacts:</strong> ${feature.worktree_artifacts.join(', ')}</div>`;
+                    }
+
+                    let recommendations = '';
+                    if (feature.recommendations.length > 0) {
+                        recommendations = '<div style="margin-top: 10px; padding: 10px; background: #fffbeb; border-radius: 4px;">' +
+                            '<strong>Recommendations:</strong><br>' +
+                            feature.recommendations.map(r => `• ${r}`).join('<br>') +
+                            '</div>';
+                    }
+
+                    return `
+                        <div style="background: white; border: 1px solid var(--light-gray); border-radius: 8px; padding: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h4 style="margin: 0; color: var(--grassy-green);">${feature.name}</h4>
+                                <span style="color: ${statusColor}; font-weight: bold;">${statusText}</span>
+                            </div>
+                            <div style="font-size: 0.9em; color: var(--medium-text);">
+                                <div><strong>Worktree exists:</strong> ${feature.worktree_exists ? '✅ Yes' : '❌ No'}</div>
+                                ${artifactsInfo}
+                                <div style="margin-top: 8px; padding: 8px; background: var(--light-gray); border-radius: 4px; font-family: monospace; font-size: 0.85em;">
+                                    <div><strong>Dashboard expects:</strong><br>${feature.dashboard_expects}</div>
+                                    <div style="margin-top: 5px;"><strong>CLI will create:</strong><br>${feature.cli_will_create}</div>
+                                </div>
+                                ${recommendations}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                featuresContainer.innerHTML = featuresHtml;
+            } else {
+                featuresContainer.innerHTML = '<div style="text-align: center; color: var(--medium-text);">No features found</div>';
+            }
+        }
+
+        function refreshDiagnostics() {
+            loadDiagnostics();
+        }
+
         function updateWorkflowIcons(workflow) {
             const iconMap = {
                 'complete': '✅',
@@ -2409,6 +2710,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
             self.send_response(404)
             self.end_headers()
+
+        elif path == '/api/diagnostics':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Cache-Control', 'no-cache')
+            self.end_headers()
+
+            diagnostics = run_diagnostics(Path(self.project_dir))
+            self.wfile.write(json.dumps(diagnostics).encode())
 
         else:
             self.send_response(404)

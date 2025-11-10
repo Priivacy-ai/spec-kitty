@@ -16,9 +16,21 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Location Pre-flight Check (CRITICAL for AI Agents)
+## CRITICAL: Location Requirement (MUST READ for AI Agents)
 
-Before proceeding with planning, verify you are in the correct working directory:
+This command MUST be run from inside the feature worktree directory.
+
+**BEFORE RUNNING ANY COMMANDS - Verify your location:**
+```bash
+# Check if you're in a worktree
+if [[ $(pwd) == *"/.worktrees/"* ]]; then
+    echo "✅ CORRECT: You are in a worktree"
+else
+    echo "❌ WRONG: You are NOT in a worktree"
+    echo "Fix by running: cd .worktrees/$(ls .worktrees | head -1)"
+    exit 1
+fi
+```
 
 **Check your current branch:**
 ```bash
@@ -35,6 +47,8 @@ If you're on the `main` branch:
 2. Navigate to the appropriate feature worktree: `cd .worktrees/<feature-name>`
 3. Verify you're in the right place: `git branch --show-current` should show the feature branch
 4. Then re-run this command
+
+**DO NOT PROCEED if you're in the main repository directory!**
 
 The script will fail if you're not in a feature worktree. This is intentional - worktrees provide isolation for parallel feature development.
 
