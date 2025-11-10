@@ -559,8 +559,12 @@ function loadContractFile(fileName) {
                     htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto;"><code>${escapeHtml(content)}</code></pre>`;
                 }
             } else if (fileName.endsWith('.md')) {
-                // Render markdown files
-                htmlContent = marked.parse(content);
+                // Render markdown files with proper styling
+                const renderedMarkdown = marked.parse(content);
+                htmlContent = `<div class="markdown-content" style="line-height: 1.6; font-size: 0.95em;">${renderedMarkdown}</div>`;
+            } else if (fileName.endsWith('.csv')) {
+                // Render CSV as a table
+                htmlContent = renderCSV(content);
             } else if (fileName.endsWith('.yml') || fileName.endsWith('.yaml')) {
                 // Show YAML files as code blocks
                 htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto; border: 1px solid #dee2e6;"><code style="font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; line-height: 1.5;">${escapeHtml(content)}</code></pre>`;
@@ -657,8 +661,9 @@ function loadResearchFile(filePath, fileName) {
             let htmlContent;
 
             if (filePath.endsWith('.md')) {
-                // Render markdown files
-                htmlContent = marked.parse(content);
+                // Render markdown files with proper styling
+                const renderedMarkdown = marked.parse(content);
+                htmlContent = `<div class="markdown-content" style="line-height: 1.6; font-size: 0.95em;">${renderedMarkdown}</div>`;
             } else if (filePath.endsWith('.csv')) {
                 // Render CSV as a table
                 htmlContent = renderCSV(content);
@@ -699,29 +704,60 @@ function renderCSV(csvContent) {
     if (lines.length === 0) return '<div class="empty-state">Empty CSV file</div>';
 
     const rows = lines.map(line => {
-        // Simple CSV parsing (doesn't handle quoted commas)
-        return line.split(',').map(cell => cell.trim());
+        // Improved CSV parsing that handles quoted fields
+        const cells = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            const nextChar = line[i + 1];
+
+            if (char === '"') {
+                if (inQuotes && nextChar === '"') {
+                    // Escaped quote
+                    current += '"';
+                    i++; // Skip next quote
+                } else {
+                    // Toggle quote mode
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === ',' && !inQuotes) {
+                // End of field
+                cells.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        // Don't forget the last field
+        cells.push(current.trim());
+
+        return cells;
     });
 
     const headerRow = rows[0];
     const dataRows = rows.slice(1);
 
     return `
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+        <div style="overflow-x: auto; margin: 20px 0;">
+            <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                 <thead>
                     <tr style="background: var(--baby-blue);">
-                        ${headerRow.map(header => `<th style="padding: 12px; text-align: left; font-weight: 600; color: var(--dark-text);">${escapeHtml(header)}</th>`).join('')}
+                        ${headerRow.map(header => `<th style="padding: 12px; text-align: left; font-weight: 600; color: var(--dark-text); border-bottom: 2px solid var(--lavender);">${escapeHtml(header)}</th>`).join('')}
                     </tr>
                 </thead>
                 <tbody>
                     ${dataRows.map((row, idx) => `
-                        <tr style="border-top: 1px solid var(--light-gray); ${idx % 2 === 0 ? 'background: #fafaf8;' : ''}">
-                            ${row.map(cell => `<td style="padding: 10px;">${escapeHtml(cell)}</td>`).join('')}
+                        <tr style="border-top: 1px solid #e5e7eb; ${idx % 2 === 0 ? 'background: #fafbfc;' : 'background: white;'} transition: background 0.2s;"
+                            onmouseover="this.style.background='#f0f4f8'"
+                            onmouseout="this.style.background='${idx % 2 === 0 ? '#fafbfc' : 'white'}'">
+                            ${row.map(cell => `<td style="padding: 10px; color: var(--medium-text);">${escapeHtml(cell)}</td>`).join('')}
                         </tr>
                     `).join('')}
                 </tbody>
             </table>
+            ${dataRows.length === 0 ? '<div style="text-align: center; padding: 20px; color: var(--medium-text);">No data rows in CSV</div>' : ''}
         </div>
     `;
 }
