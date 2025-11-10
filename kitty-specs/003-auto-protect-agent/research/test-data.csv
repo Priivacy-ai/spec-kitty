@@ -1,0 +1,6 @@
+Feature,Priority,Status,Description,Notes
+"User Authentication","High","In Progress","Implement OAuth 2.0 with JWT tokens","Includes MFA support"
+"Dashboard Analytics","Medium","Planning","Real-time analytics dashboard","Uses Chart.js, WebSockets"
+"API Rate Limiting","High","Completed","Prevent API abuse with rate limits","Redis-based, 100 req/min"
+"Search Functionality","Low","Backlog","Full-text search across documents","Consider Elasticsearch"
+"Export to PDF","Medium","In Review","Export reports as PDF documents","Using Puppeteer, A4 format"
