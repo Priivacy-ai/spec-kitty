@@ -726,6 +726,60 @@ def ensure_gitignore_entries(project_path: Path, entries: list[str]) -> bool:
     return changed
 
 
+def handle_codex_security(project_path: Path, selected_agents: list[str], console: Console) -> None:
+    """
+    Apply Codex credential guardrails regardless of init context.
+
+    This function:
+    - Shows CODEX_HOME setup instructions if Codex is selected
+    - Ensures .codex/ is in .gitignore if directory exists or Codex is selected
+    - Warns about tracked auth.json files
+
+    Args:
+        project_path: Path to the project root
+        selected_agents: List of selected agent names
+        console: Rich console for output
+    """
+    codex_dir = project_path / ".codex"
+    codex_selected = "codex" in selected_agents
+    needs_guard = codex_selected or codex_dir.exists()
+
+    # Display CODEX_HOME setup instructions if Codex is selected
+    if codex_selected:
+        codex_str = str(codex_dir)
+        if os.name == "nt":
+            export_line = f"setx CODEX_HOME {codex_str}"
+        else:
+            export_line = f"export CODEX_HOME={codex_str}"
+        console.print("Now set your CODEX_HOME:")
+        console.print(export_line, highlight=False)
+
+    # Ensure .codex/ is in .gitignore
+    if needs_guard:
+        if ensure_gitignore_entries(project_path, [".codex/"]):
+            console.print("[cyan]Updated .gitignore to exclude .codex/ (protects Codex credentials).[/cyan]")
+
+    # Check for and warn about tracked auth.json
+    codex_auth_path = codex_dir / "auth.json"
+    if codex_auth_path.exists():
+        console.print("[yellow]⚠️  Detected .codex/auth.json. Do not commit this file—remove it from git history if necessary.[/yellow]")
+        git_dir = project_path / ".git"
+        if git_dir.exists():
+            try:
+                rel_auth = codex_auth_path.relative_to(project_path)
+                result = subprocess.run(
+                    ["git", "ls-files", "--error-unmatch", str(rel_auth)],
+                    cwd=project_path,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                )
+                if result.returncode == 0:
+                    console.print("[red]❌ .codex/auth.json is currently tracked by git. Run 'git rm --cached .codex/auth.json' and commit the removal.[/red]")
+            except Exception:
+                pass
+
+
 def activate_mission(project_path: Path, mission_key: str, mission_display: str, console: Console) -> str:
     """
     Persist the active mission selection and warn if mission resources are missing.
@@ -1884,46 +1938,13 @@ def init(
         console.print(f"[yellow]Warning: Could not start dashboard: {e}[/yellow]")
         console.print("[dim]Continuing without dashboard...[/dim]")
 
-    if "codex" in selected_agents:
-        codex_path = project_path / ".codex"
-        codex_str = str(codex_path)
-        if os.name == "nt":
-            export_line = f"setx CODEX_HOME {codex_str}"
-        else:
-            export_line = f"export CODEX_HOME={codex_str}"
-        console.print("Now set your CODEX_HOME:")
-        console.print(export_line, highlight=False)
+    # Handle Codex-specific security setup
+    handle_codex_security(project_path, selected_agents, console)
 
     agents_target = project_path / ".kittify" / "AGENTS.md"
     agents_template = project_path / ".kittify" / "templates" / "AGENTS.md"
     if not agents_target.exists() and agents_template.exists():
         shutil.copy2(agents_template, agents_target)
-
-    gitignore_entries: list[str] = []
-    if "codex" in selected_agents or (project_path / ".codex").exists():
-        gitignore_entries.append(".codex/")
-
-    if gitignore_entries and ensure_gitignore_entries(project_path, gitignore_entries):
-        console.print("[cyan]Updated .gitignore to exclude .codex/ (protects Codex credentials).[/cyan]")
-
-    codex_auth_path = project_path / ".codex" / "auth.json"
-    if codex_auth_path.exists():
-        console.print("[yellow]⚠️  Detected .codex/auth.json. Do not commit this file—remove it from git history if necessary.[/yellow]")
-        git_dir = project_path / ".git"
-        if git_dir.exists():
-            try:
-                rel_auth = codex_auth_path.relative_to(project_path)
-                result = subprocess.run(
-                    ["git", "ls-files", "--error-unmatch", str(rel_auth)],
-                    cwd=project_path,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=False,
-                )
-                if result.returncode == 0:
-                    console.print("[red]❌ .codex/auth.json is currently tracked by git. Run 'git rm --cached .codex/auth.json' and commit the removal.[/red]")
-            except Exception:
-                pass
 
 
 @app.command()
