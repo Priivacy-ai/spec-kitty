@@ -1,0 +1,124 @@
+openapi: 3.0.0
+info:
+  title: GitignoreManager API
+  version: 1.0.0
+  description: API contract for the GitignoreManager class that protects AI agent directories
+
+components:
+  schemas:
+    AgentDirectory:
+      type: object
+      required:
+        - name
+        - directory
+        - is_special
+        - description
+      properties:
+        name:
+          type: string
+          description: Agent name identifier
+          example: "claude"
+        directory:
+          type: string
+          description: Directory path with trailing slash
+          pattern: "^\\..*/$"
+          example: ".claude/"
+        is_special:
+          type: boolean
+          description: Indicates if special handling is needed
+          example: false
+        description:
+          type: string
+          description: Human-readable description
+          example: "Claude Code CLI"
+
+    ProtectionResult:
+      type: object
+      required:
+        - success
+        - modified
+        - entries_added
+        - entries_skipped
+        - errors
+        - warnings
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation succeeded
+        modified:
+          type: boolean
+          description: Whether .gitignore was modified
+        entries_added:
+          type: array
+          items:
+            type: string
+          description: New entries added to .gitignore
+        entries_skipped:
+          type: array
+          items:
+            type: string
+          description: Entries already present
+        errors:
+          type: array
+          items:
+            type: string
+          description: Error messages if any
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Warning messages if any
+
+paths:
+  /protect-all:
+    post:
+      summary: Protect all known agent directories
+      operationId: protectAllAgents
+      responses:
+        '200':
+          description: Protection result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtectionResult'
+
+  /protect-selected:
+    post:
+      summary: Protect selected agent directories
+      operationId: protectSelectedAgents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - agents
+              properties:
+                agents:
+                  type: array
+                  items:
+                    type: string
+                  description: List of agent names to protect
+                  example: ["claude", "codex", "opencode"]
+      responses:
+        '200':
+          description: Protection result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtectionResult'
+
+  /agent-directories:
+    get:
+      summary: Get all known agent directories
+      operationId: getAgentDirectories
+      responses:
+        '200':
+          description: List of agent directories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentDirectory'
