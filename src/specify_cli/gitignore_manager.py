@@ -180,3 +180,127 @@ class GitignoreManager:
         """
         # Return a copy to prevent external modification
         return AGENT_DIRECTORIES.copy()
+
+    def protect_all_agents(self) -> ProtectionResult:
+        """
+        Add all known agent directories to .gitignore.
+
+        This is the primary method used during spec-kitty init to ensure
+        comprehensive protection of all AI agent directories.
+
+        Returns:
+            ProtectionResult containing details of the operation
+        """
+        result = ProtectionResult(success=True, modified=False)
+
+        try:
+            # Get all agent directories
+            all_directories = [agent.directory for agent in AGENT_DIRECTORIES]
+
+            # Track existing entries before modification
+            existing_before = set()
+            if self.gitignore_path.exists():
+                content = self.gitignore_path.read_text(encoding="utf-8")
+                existing_before = set(content.splitlines())
+
+            # Check for special handling of .github/
+            for agent in AGENT_DIRECTORIES:
+                if agent.is_special and agent.directory == ".github/":
+                    result.warnings.append(
+                        f"Note: {agent.directory} is also used by GitHub Actions - review before committing"
+                    )
+
+            # Attempt to add all directories
+            modified = self.ensure_entries(all_directories)
+            result.modified = modified
+
+            # Track what was added vs skipped
+            if self.gitignore_path.exists():
+                content = self.gitignore_path.read_text(encoding="utf-8")
+                existing_after = set(content.splitlines())
+
+                for directory in all_directories:
+                    if directory in existing_after:
+                        if directory not in existing_before:
+                            result.entries_added.append(directory)
+                        else:
+                            result.entries_skipped.append(directory)
+
+        except PermissionError as e:
+            result.success = False
+            result.errors.append(
+                f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"
+            )
+        except Exception as e:
+            result.success = False
+            result.errors.append(f"Error protecting agent directories: {str(e)}")
+
+        return result
+
+    def protect_selected_agents(self, agents: List[str]) -> ProtectionResult:
+        """
+        Add specific agent directories to .gitignore based on selection.
+
+        Args:
+            agents: List of agent names (e.g., ['claude', 'codex', 'opencode'])
+
+        Returns:
+            ProtectionResult containing details of the operation
+        """
+        result = ProtectionResult(success=True, modified=False)
+
+        try:
+            # Build mapping of agent names to directories
+            agent_map = {agent.name: agent for agent in AGENT_DIRECTORIES}
+
+            # Collect directories for selected agents
+            directories_to_add = []
+            for agent_name in agents:
+                if agent_name in agent_map:
+                    agent = agent_map[agent_name]
+                    directories_to_add.append(agent.directory)
+
+                    # Check for special handling
+                    if agent.is_special and agent.directory == ".github/":
+                        result.warnings.append(
+                            f"Note: {agent.directory} is also used by GitHub Actions - review before committing"
+                        )
+                else:
+                    result.warnings.append(f"Unknown agent name: {agent_name}")
+
+            if not directories_to_add:
+                result.warnings.append("No valid agent directories to add")
+                return result
+
+            # Track existing entries before modification
+            existing_before = set()
+            if self.gitignore_path.exists():
+                content = self.gitignore_path.read_text(encoding="utf-8")
+                existing_before = set(content.splitlines())
+
+            # Attempt to add selected directories
+            modified = self.ensure_entries(directories_to_add)
+            result.modified = modified
+
+            # Track what was added vs skipped
+            if self.gitignore_path.exists():
+                content = self.gitignore_path.read_text(encoding="utf-8")
+                existing_after = set(content.splitlines())
+
+                for directory in directories_to_add:
+                    if directory in existing_after:
+                        if directory not in existing_before:
+                            result.entries_added.append(directory)
+                        else:
+                            result.entries_skipped.append(directory)
+
+        except PermissionError as e:
+            result.success = False
+            result.errors.append(
+                f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"
+            )
+        except Exception as e:
+            result.success = False
+            result.errors.append(f"Error protecting selected agents: {str(e)}")
+
+        return result
