@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""
+Simple tests for GitignoreManager that can run without pytest.
+"""
+
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+# Add the src directory to the path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "specify_cli"))
+
+import gitignore_manager
+GitignoreManager = gitignore_manager.GitignoreManager
+ProtectionResult = gitignore_manager.ProtectionResult
+
+
+def run_tests():
+    """Run all tests and report results."""
+    passed = 0
+    failed = 0
+
+    tests = [
+        test_basic_functionality,
+        test_all_agents_protected,
+        test_duplicate_detection,
+        test_selected_agents,
+        test_error_handling,
+    ]
+
+    for test in tests:
+        try:
+            test()
+            print(f"✓ {test.__name__}")
+            passed += 1
+        except AssertionError as e:
+            print(f"✗ {test.__name__}: {e}")
+            failed += 1
+        except Exception as e:
+            print(f"✗ {test.__name__}: Unexpected error: {e}")
+            failed += 1
+
+    print(f"\nResults: {passed} passed, {failed} failed")
+    return failed == 0
+
+
+def test_basic_functionality():
+    """Test basic GitignoreManager functionality."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+
+        # Test initialization
+        manager = GitignoreManager(tmppath)
+        assert manager.project_path == tmppath, "Project path not set correctly"
+        assert manager.gitignore_path == tmppath / ".gitignore", ".gitignore path not set"
+
+        # Test protect_all_agents
+        result = manager.protect_all_agents()
+        assert result.success, "protect_all_agents failed"
+        assert result.modified, "File should be modified on first run"
+        assert len(result.entries_added) == 12, f"Expected 12 entries, got {len(result.entries_added)}"
+
+        # Verify file created
+        assert manager.gitignore_path.exists(), ".gitignore not created"
+
+
+def test_all_agents_protected():
+    """Test that all 12 agent directories are protected."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        manager = GitignoreManager(tmppath)
+
+        result = manager.protect_all_agents()
+
+        expected_dirs = [
+            ".claude/", ".codex/", ".opencode/", ".windsurf/",
+            ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
+            ".augment/", ".github/", ".roo/", ".amazonq/"
+        ]
+
+        content = manager.gitignore_path.read_text()
+        for dir_name in expected_dirs:
+            assert dir_name in content, f"{dir_name} not found in .gitignore"
+
+        # Check for marker
+        assert "# Added by Spec Kitty CLI" in content, "Marker comment not found"
+
+
+def test_duplicate_detection():
+    """Test that duplicates are not created."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        manager = GitignoreManager(tmppath)
+
+        # First run
+        result1 = manager.protect_all_agents()
+        assert result1.modified, "First run should modify file"
+        assert len(result1.entries_added) == 12, "Should add 12 entries"
+
+        # Second run
+        result2 = manager.protect_all_agents()
+        assert not result2.modified, "Second run should not modify file"
+        assert len(result2.entries_skipped) == 12, "Should skip 12 entries"
+        assert len(result2.entries_added) == 0, "Should add 0 new entries"
+
+
+def test_selected_agents():
+    """Test protecting selected agents."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        manager = GitignoreManager(tmppath)
+
+        # Test with specific agents
+        result = manager.protect_selected_agents(["claude", "codex"])
+        assert result.success, "protect_selected_agents failed"
+        assert len(result.entries_added) == 2, f"Expected 2 entries, got {len(result.entries_added)}"
+
+        content = manager.gitignore_path.read_text()
+        assert ".claude/" in content, ".claude/ not found"
+        assert ".codex/" in content, ".codex/ not found"
+        assert ".gemini/" not in content, ".gemini/ should not be present"
+
+
+def test_error_handling():
+    """Test error handling for invalid inputs."""
+    # Test with non-existent directory
+    try:
+        manager = GitignoreManager(Path("/nonexistent/path"))
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "does not exist" in str(e), "Wrong error message"
+
+    # Test with file instead of directory
+    with tempfile.NamedTemporaryFile() as tmpfile:
+        try:
+            manager = GitignoreManager(Path(tmpfile.name))
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "not a directory" in str(e), "Wrong error message"
+
+    # Test with unknown agent
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        manager = GitignoreManager(tmppath)
+
+        result = manager.protect_selected_agents(["unknown_agent"])
+        assert result.success, "Should succeed even with unknown agent"
+        assert not result.modified, "Should not modify with only unknown agents"
+        assert any("Unknown agent" in w for w in result.warnings), "Should warn about unknown agent"
+
+
+if __name__ == "__main__":
+    success = run_tests()
+    sys.exit(0 if success else 1)
