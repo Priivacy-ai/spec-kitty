@@ -31,6 +31,8 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 from importlib.resources import files
 
+from .gitignore_manager import GitignoreManager, ProtectionResult
+
 import typer
 import httpx
 from rich.console import Console
@@ -686,98 +688,6 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     return specify_root / "templates" / "commands"
 
 
-def ensure_gitignore_entries(project_path: Path, entries: list[str]) -> bool:
-    """
-    Ensure the project .gitignore contains the provided entries.
-
-    Returns True when .gitignore was modified.
-    """
-    if not entries:
-        return False
-
-    gitignore_path = project_path / ".gitignore"
-    if gitignore_path.exists():
-        lines = gitignore_path.read_text(encoding="utf-8").splitlines()
-    else:
-        lines = []
-
-    existing = set(lines)
-    marker = "# Added by Spec Kitty CLI (auto-managed)"
-    changed = False
-
-    if any(entry not in existing for entry in entries):
-        if marker not in existing:
-            if lines and lines[-1].strip():
-                lines.append("")
-            lines.append(marker)
-            existing.add(marker)
-            changed = True
-        for entry in entries:
-            if entry not in existing:
-                lines.append(entry)
-                existing.add(entry)
-                changed = True
-
-    if changed:
-        if lines and lines[-1] != "":
-            lines.append("")
-        gitignore_path.write_text("\n".join(lines), encoding="utf-8")
-
-    return changed
-
-
-def handle_codex_security(project_path: Path, selected_agents: list[str], console: Console) -> None:
-    """
-    Apply Codex credential guardrails regardless of init context.
-
-    This function:
-    - Shows CODEX_HOME setup instructions if Codex is selected
-    - Ensures .codex/ is in .gitignore if directory exists or Codex is selected
-    - Warns about tracked auth.json files
-
-    Args:
-        project_path: Path to the project root
-        selected_agents: List of selected agent names
-        console: Rich console for output
-    """
-    codex_dir = project_path / ".codex"
-    codex_selected = "codex" in selected_agents
-    needs_guard = codex_selected or codex_dir.exists()
-
-    # Display CODEX_HOME setup instructions if Codex is selected
-    if codex_selected:
-        codex_str = str(codex_dir)
-        if os.name == "nt":
-            export_line = f"setx CODEX_HOME {codex_str}"
-        else:
-            export_line = f"export CODEX_HOME={codex_str}"
-        console.print("Now set your CODEX_HOME:")
-        console.print(export_line, highlight=False)
-
-    # Ensure .codex/ is in .gitignore
-    if needs_guard:
-        if ensure_gitignore_entries(project_path, [".codex/"]):
-            console.print("[cyan]Updated .gitignore to exclude .codex/ (protects Codex credentials).[/cyan]")
-
-    # Check for and warn about tracked auth.json
-    codex_auth_path = codex_dir / "auth.json"
-    if codex_auth_path.exists():
-        console.print("[yellow]⚠️  Detected .codex/auth.json. Do not commit this file—remove it from git history if necessary.[/yellow]")
-        git_dir = project_path / ".git"
-        if git_dir.exists():
-            try:
-                rel_auth = codex_auth_path.relative_to(project_path)
-                result = subprocess.run(
-                    ["git", "ls-files", "--error-unmatch", str(rel_auth)],
-                    cwd=project_path,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=False,
-                )
-                if result.returncode == 0:
-                    console.print("[red]❌ .codex/auth.json is currently tracked by git. Run 'git rm --cached .codex/auth.json' and commit the removal.[/red]")
-            except Exception:
-                pass
 
 
 def activate_mission(project_path: Path, mission_key: str, mission_display: str, console: Console) -> str:
@@ -1938,8 +1848,27 @@ def init(
         console.print(f"[yellow]Warning: Could not start dashboard: {e}[/yellow]")
         console.print("[dim]Continuing without dashboard...[/dim]")
 
-    # Handle Codex-specific security setup
-    handle_codex_security(project_path, selected_agents, console)
+    # Protect ALL agent directories in .gitignore
+    manager = GitignoreManager(project_path)
+    result = manager.protect_all_agents()  # Note: ALL agents, not just selected
+
+    # Display results to user
+    if result.modified:
+        console.print("[cyan]Updated .gitignore to exclude AI agent directories:[/cyan]")
+        for entry in result.entries_added:
+            console.print(f"  • {entry}")
+        if result.entries_skipped:
+            console.print(f"  ({len(result.entries_skipped)} already protected)")
+    elif result.entries_skipped:
+        console.print(f"[dim]All {len(result.entries_skipped)} agent directories already in .gitignore[/dim]")
+
+    # Show warnings (especially for .github/)
+    for warning in result.warnings:
+        console.print(f"[yellow]⚠️  {warning}[/yellow]")
+
+    # Show errors if any
+    for error in result.errors:
+        console.print(f"[red]❌ {error}[/red]")
 
     agents_target = project_path / ".kittify" / "AGENTS.md"
     agents_template = project_path / ".kittify" / "templates" / "AGENTS.md"
