@@ -1,28 +1,30 @@
 #!/usr/bin/env python3
 """
-Test cases for the gitignore management and Codex security functionality.
+Test cases for the gitignore management functionality using GitignoreManager.
+
+Updated to use the new GitignoreManager class instead of the old functions.
 """
 
 import tempfile
 from pathlib import Path
 import sys
-from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 # Add the src directory to the path so we can import the module
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "specify_cli"))
 
-from specify_cli import ensure_gitignore_entries, handle_codex_security  # noqa: E402
+import gitignore_manager
+GitignoreManager = gitignore_manager.GitignoreManager
+ProtectionResult = gitignore_manager.ProtectionResult
 
 
-def test_ensure_gitignore_entries_new_file():
-    """Test that ensure_gitignore_entries creates a new .gitignore file with entries."""
+def test_gitignore_manager_creates_new_file():
+    """Test that GitignoreManager creates a new .gitignore file with entries."""
     with tempfile.TemporaryDirectory() as temp_dir:
         project_path = Path(temp_dir)
-        entries = [".codex/"]
 
-        # Call the function
-        result = ensure_gitignore_entries(project_path, entries)
+        # Use GitignoreManager
+        manager = GitignoreManager(project_path)
+        result = manager.ensure_entries([".codex/"])
 
         # Check that it returned True (file was modified)
         assert result
@@ -37,8 +39,8 @@ def test_ensure_gitignore_entries_new_file():
         assert ".codex/" in content
 
 
-def test_ensure_gitignore_entries_existing_file():
-    """Test that ensure_gitignore_entries adds entries to existing .gitignore file."""
+def test_gitignore_manager_adds_to_existing_file():
+    """Test that GitignoreManager adds entries to existing .gitignore file."""
     with tempfile.TemporaryDirectory() as temp_dir:
         project_path = Path(temp_dir)
         gitignore_path = project_path / ".gitignore"
@@ -47,23 +49,22 @@ def test_ensure_gitignore_entries_existing_file():
         existing_content = "node_modules/\n*.log\n"
         gitignore_path.write_text(existing_content)
 
-        entries = [".codex/"]
-
-        # Call the function
-        result = ensure_gitignore_entries(project_path, entries)
+        # Use GitignoreManager
+        manager = GitignoreManager(project_path)
+        result = manager.ensure_entries([".codex/"])
 
         # Check that it returned True (file was modified)
         assert result
 
         # Check the content
         content = gitignore_path.read_text()
-        assert existing_content in content
+        assert existing_content.strip() in content
         assert "# Added by Spec Kitty CLI (auto-managed)" in content
         assert ".codex/" in content
 
 
-def test_ensure_gitignore_entries_existing_entry():
-    """Test that ensure_gitignore_entries doesn't duplicate existing entries."""
+def test_gitignore_manager_skips_existing_entries():
+    """Test that GitignoreManager doesn't duplicate existing entries."""
     with tempfile.TemporaryDirectory() as temp_dir:
         project_path = Path(temp_dir)
         gitignore_path = project_path / ".gitignore"
@@ -72,10 +73,9 @@ def test_ensure_gitignore_entries_existing_entry():
         existing_content = "node_modules/\n*.log\n.codex/\n"
         gitignore_path.write_text(existing_content)
 
-        entries = [".codex/"]
-
-        # Call the function
-        result = ensure_gitignore_entries(project_path, entries)
+        # Use GitignoreManager
+        manager = GitignoreManager(project_path)
+        result = manager.ensure_entries([".codex/"])
 
         # Check that it returned False (file was not modified)
         assert not result
@@ -85,8 +85,8 @@ def test_ensure_gitignore_entries_existing_entry():
         assert content == existing_content
 
 
-def test_ensure_gitignore_entries_multiple_entries():
-    """Test that ensure_gitignore_entries handles multiple entries correctly."""
+def test_gitignore_manager_handles_multiple_entries():
+    """Test that GitignoreManager handles multiple entries correctly."""
     with tempfile.TemporaryDirectory() as temp_dir:
         project_path = Path(temp_dir)
         gitignore_path = project_path / ".gitignore"
@@ -97,115 +97,166 @@ def test_ensure_gitignore_entries_multiple_entries():
 
         entries = [".codex/", ".env", "secrets.txt"]
 
-        # Call the function
-        result = ensure_gitignore_entries(project_path, entries)
+        # Use GitignoreManager
+        manager = GitignoreManager(project_path)
+        result = manager.ensure_entries(entries)
 
         # Check that it returned True (file was modified)
         assert result
 
         # Check the content
         content = gitignore_path.read_text()
-        assert existing_content in content
+        assert existing_content.strip() in content
         assert "# Added by Spec Kitty CLI (auto-managed)" in content
         assert ".codex/" in content
         assert ".env" in content
         assert "secrets.txt" in content
 
 
-def test_handle_codex_security_adds_gitignore_when_codex_selected(tmp_path, monkeypatch):
-    """Test that handle_codex_security adds .codex/ to .gitignore when Codex is selected."""
-    captured: list[str] = []
-    mock_console = MagicMock()
-    mock_console.print = lambda msg, *_, **__: captured.append(str(msg))
+def test_protect_all_agents_adds_all_directories():
+    """Test that protect_all_agents adds all 12 agent directories."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project_path = Path(temp_dir)
 
-    handle_codex_security(tmp_path, ["codex"], mock_console)
+        # Use GitignoreManager
+        manager = GitignoreManager(project_path)
+        result = manager.protect_all_agents()
 
-    # Check that .gitignore was updated
-    gitignore_path = tmp_path / ".gitignore"
-    assert gitignore_path.exists()
-    content = gitignore_path.read_text()
-    assert ".codex/" in content
+        # Check success
+        assert result.success
+        assert result.modified
 
-    # Check that CODEX_HOME instructions were displayed
-    assert any("CODEX_HOME" in msg for msg in captured)
-    assert any("Updated .gitignore" in msg for msg in captured)
+        # Check that all 12 directories were added
+        assert len(result.entries_added) == 12
 
+        # Check that .gitignore was updated
+        gitignore_path = project_path / ".gitignore"
+        assert gitignore_path.exists()
+        content = gitignore_path.read_text()
 
-def test_handle_codex_security_adds_gitignore_when_codex_dir_exists(tmp_path, monkeypatch):
-    """Test that handle_codex_security adds .codex/ to .gitignore when .codex directory exists."""
-    codex_dir = tmp_path / ".codex"
-    codex_dir.mkdir()
-
-    captured: list[str] = []
-    mock_console = MagicMock()
-    mock_console.print = lambda msg, *_, **__: captured.append(str(msg))
-
-    handle_codex_security(tmp_path, [], mock_console)
-
-    gitignore_path = tmp_path / ".gitignore"
-    assert gitignore_path.exists()
-    content = gitignore_path.read_text()
-    assert ".codex/" in content
-    assert any("Updated .gitignore" in msg for msg in captured)
+        # Verify all expected directories are present
+        expected_dirs = [
+            ".claude/", ".codex/", ".opencode/", ".windsurf/",
+            ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
+            ".augment/", ".github/", ".roo/", ".amazonq/"
+        ]
+        for dir_name in expected_dirs:
+            assert dir_name in content
 
 
-def test_handle_codex_security_warns_when_auth_tracked(tmp_path, monkeypatch):
-    """Test that handle_codex_security warns when auth.json is tracked in git."""
-    codex_dir = tmp_path / ".codex"
-    codex_dir.mkdir()
-    auth_file = codex_dir / "auth.json"
-    auth_file.write_text("{}", encoding="utf-8")
-    (tmp_path / ".git").mkdir()
+def test_protect_all_agents_with_existing_directory():
+    """Test that protect_all_agents skips existing entries."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project_path = Path(temp_dir)
+        gitignore_path = project_path / ".gitignore"
 
-    messages: list[str] = []
-    mock_console = MagicMock()
-    mock_console.print = lambda msg, *_, **__: messages.append(str(msg))
+        # Create .gitignore with some agent directories already present
+        existing_content = ".codex/\n.claude/\n"
+        gitignore_path.write_text(existing_content)
 
-    def fake_run(*_, **__):
-        return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
+        # Use GitignoreManager
+        manager = GitignoreManager(project_path)
+        result = manager.protect_all_agents()
 
-    monkeypatch.setattr("specify_cli.subprocess.run", fake_run)
+        # Check success
+        assert result.success
+        assert result.modified  # Should still be modified (adding other 10)
 
-    handle_codex_security(tmp_path, ["codex"], mock_console)
+        # Check that existing entries were skipped
+        assert ".codex/" in result.entries_skipped
+        assert ".claude/" in result.entries_skipped
 
-    # Check for tracked file warning
-    tracked_warning = "git rm --cached .codex/auth.json"
-    assert any(tracked_warning in msg for msg in messages)
-    assert any("auth.json" in msg and "tracked" in msg for msg in messages)
-
-
-def test_handle_codex_security_no_action_when_not_needed(tmp_path):
-    """Test that handle_codex_security does nothing when Codex is not selected and no .codex dir exists."""
-    mock_console = MagicMock()
-    captured: list[str] = []
-    mock_console.print = lambda msg, *_, **__: captured.append(str(msg))
-
-    handle_codex_security(tmp_path, ["claude", "gemini"], mock_console)
-
-    # Check that no .gitignore was created
-    gitignore_path = tmp_path / ".gitignore"
-    assert not gitignore_path.exists()
-
-    # Check that no messages were printed
-    assert len(captured) == 0
+        # Check that new entries were added
+        assert len(result.entries_added) == 10
 
 
-def test_handle_codex_security_shows_codex_home_only_when_selected(tmp_path):
-    """Test that CODEX_HOME instructions are only shown when Codex is selected, not just when dir exists."""
-    codex_dir = tmp_path / ".codex"
-    codex_dir.mkdir()
+def test_protect_all_agents_warns_about_github():
+    """Test that protect_all_agents warns about .github/ directory."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project_path = Path(temp_dir)
 
-    mock_console = MagicMock()
-    captured: list[str] = []
-    mock_console.print = lambda msg, *_, **__: captured.append(str(msg))
+        # Use GitignoreManager
+        manager = GitignoreManager(project_path)
+        result = manager.protect_all_agents()
 
-    # Test with .codex directory existing but Codex not selected
-    handle_codex_security(tmp_path, [], mock_console)
-    assert not any("CODEX_HOME" in msg for msg in captured)
+        # Check for warning about .github/
+        assert any(".github/" in w for w in result.warnings)
+        assert any("GitHub Actions" in w for w in result.warnings)
 
-    # Clear captured messages
-    captured.clear()
 
-    # Test with Codex selected
-    handle_codex_security(tmp_path, ["codex"], mock_console)
-    assert any("CODEX_HOME" in msg for msg in captured)
+def test_protect_selected_agents():
+    """Test that protect_selected_agents only adds specified agents."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project_path = Path(temp_dir)
+
+        # Use GitignoreManager
+        manager = GitignoreManager(project_path)
+        result = manager.protect_selected_agents(["codex", "claude", "gemini"])
+
+        # Check success
+        assert result.success
+        assert result.modified
+
+        # Check that only selected agents were added
+        assert len(result.entries_added) == 3
+        assert ".codex/" in result.entries_added
+        assert ".claude/" in result.entries_added
+        assert ".gemini/" in result.entries_added
+
+        # Verify in file
+        content = manager.gitignore_path.read_text()
+        assert ".codex/" in content
+        assert ".claude/" in content
+        assert ".gemini/" in content
+        assert ".cursor/" not in content  # Not selected
+
+
+def test_protect_selected_agents_with_unknown():
+    """Test that protect_selected_agents handles unknown agent names."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project_path = Path(temp_dir)
+
+        # Use GitignoreManager
+        manager = GitignoreManager(project_path)
+        result = manager.protect_selected_agents(["codex", "unknown_agent"])
+
+        # Check success
+        assert result.success
+        assert result.modified
+
+        # Check that valid agent was added
+        assert ".codex/" in result.entries_added
+
+        # Check for warning about unknown agent
+        assert any("unknown_agent" in w for w in result.warnings)
+
+
+# Run tests if executed directly
+if __name__ == "__main__":
+    tests = [
+        test_gitignore_manager_creates_new_file,
+        test_gitignore_manager_adds_to_existing_file,
+        test_gitignore_manager_skips_existing_entries,
+        test_gitignore_manager_handles_multiple_entries,
+        test_protect_all_agents_adds_all_directories,
+        test_protect_all_agents_with_existing_directory,
+        test_protect_all_agents_warns_about_github,
+        test_protect_selected_agents,
+        test_protect_selected_agents_with_unknown,
+    ]
+
+    passed = 0
+    failed = 0
+
+    for test in tests:
+        try:
+            test()
+            print(f"✓ {test.__name__}")
+            passed += 1
+        except Exception as e:
+            print(f"✗ {test.__name__}: {e}")
+            failed += 1
+
+    print(f"\nResults: {passed} passed, {failed} failed")
+    if failed > 0:
+        sys.exit(1)

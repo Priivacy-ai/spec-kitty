@@ -1,0 +1,7 @@
+{
+  "feature_number": "003",
+  "slug": "003-auto-protect-agent",
+  "friendly_name": "Auto-protect Agent Directories",
+  "source_description": "Running spec-kitty init should not affect the user's git repo. To that end, all of the agent specific directories (eg .codex, .opencode, .claude and all of the others which will demand research), should ALL be added to .gitignore",
+  "created_at": "2025-11-10T08:16:31Z"
+}

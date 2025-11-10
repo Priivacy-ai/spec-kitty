@@ -1,0 +1,7 @@
+Source,Type,Date Accessed,Purpose,Reliability
+"src/specify_cli/__init__.py","Source Code",2025-11-10,"Analyze existing gitignore implementation","Primary - Direct code"
+"tests/test_gitignore_management.py","Test Code",2025-11-10,"Understand test patterns","Primary - Direct code"
+"CHANGELOG.md","Documentation",2025-11-10,"Review Codex security implementation history","Primary - Project docs"
+"AGENTS.md","Documentation",2025-11-10,"Complete list of supported agents","Primary - Project docs"
+"Python pathlib documentation","External Doc",2025-11-10,"Path handling best practices","Authoritative - Official docs"
+"Git documentation - gitignore","External Doc",2025-11-10,"Gitignore syntax and patterns","Authoritative - Official docs"
