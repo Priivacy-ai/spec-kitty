@@ -1,19 +1,25 @@
-"""CLI command modules for spec-kitty.
+"""Command registration helpers for Spec Kitty CLI."""
 
-This package contains individual command implementations.
-Commands will be added here as they are extracted from the main __init__.py file.
-"""
+from __future__ import annotations
 
-# Commands will be imported here as they are implemented in subsequent work packages
-# For example:
-# from .check import check
-# from .research import research
-# from .accept import accept
-# from .merge import merge
-# from .verify import verify_setup
-# from .dashboard import dashboard
-# from .init import init
+import typer
 
-__all__ = [
-    # Commands will be added to this list as they are implemented
-]
+from . import accept as accept_module
+from . import check as check_module
+from . import dashboard as dashboard_module
+from . import merge as merge_module
+from . import research as research_module
+from . import verify as verify_module
+
+
+def register_commands(app: typer.Typer) -> None:
+    """Attach all extracted commands to the root Typer application."""
+    app.command()(accept_module.accept)
+    app.command()(check_module.check)
+    app.command()(dashboard_module.dashboard)
+    app.command()(merge_module.merge)
+    app.command()(research_module.research)
+    app.command()(verify_module.verify_setup)
+
+
+__all__ = ["register_commands"]
