@@ -221,8 +221,26 @@ def gather_feature_paths(project_dir: Path) -> Dict[str, Path]:
 def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
     """Run comprehensive diagnostics on the project setup using enhanced verification."""
     import subprocess
-    from .manifest import FileManifest, WorktreeStatus
-    from . import detect_feature_slug, AcceptanceError
+
+    # Lazy import to avoid circular dependencies and handle different execution contexts
+    try:
+        # Try relative import first (normal package usage)
+        from .manifest import FileManifest, WorktreeStatus
+        from . import detect_feature_slug, AcceptanceError
+    except (ImportError, ValueError):
+        # Fall back to absolute import (subprocess/script execution)
+        try:
+            from specify_cli.manifest import FileManifest, WorktreeStatus
+            from specify_cli import detect_feature_slug, AcceptanceError
+        except ImportError:
+            # Last resort: add parent to path for development mode
+            import sys
+            import os
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
+            from specify_cli.manifest import FileManifest, WorktreeStatus
+            from specify_cli import detect_feature_slug, AcceptanceError
 
     # Get repo root (parent of .kittify)
     kittify_dir = project_dir / ".kittify"
@@ -2716,13 +2734,23 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
         elif path == '/api/diagnostics':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Cache-Control', 'no-cache')
-            self.end_headers()
-
-            diagnostics = run_diagnostics(Path(self.project_dir))
-            self.wfile.write(json.dumps(diagnostics).encode())
+            try:
+                diagnostics = run_diagnostics(Path(self.project_dir))
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.send_header('Cache-Control', 'no-cache')
+                self.end_headers()
+                self.wfile.write(json.dumps(diagnostics).encode())
+            except Exception as e:
+                import traceback
+                error_msg = {
+                    "error": str(e),
+                    "traceback": traceback.format_exc()
+                }
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(error_msg).encode())
 
         else:
             self.send_response(404)
