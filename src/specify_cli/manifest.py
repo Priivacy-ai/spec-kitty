@@ -106,10 +106,15 @@ class FileManifest:
                         # Extract script path
                         parts = line.split(':', 1)
                         if len(parts) == 2:
-                            script_path = parts[1].strip().strip('"').strip("'")
-                            if script_path.startswith('.kittify/'):
-                                script_path = script_path.replace('.kittify/', '')
-                            scripts.add(script_path)
+                            script_line = parts[1].strip().strip('"').strip("'")
+                            # Extract just the script path, not the arguments
+                            # Script path is the first part before any spaces or arguments
+                            script_parts = script_line.split()
+                            if script_parts:
+                                script_path = script_parts[0]
+                                if script_path.startswith('.kittify/'):
+                                    script_path = script_path.replace('.kittify/', '')
+                                scripts.add(script_path)
 
         return sorted(list(scripts))
 
