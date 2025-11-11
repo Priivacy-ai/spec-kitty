@@ -20,6 +20,7 @@ tags:
   - blocking
   - sequential
 agent: "codex"
+assignee: "codex"
 shell_pid: "18347"
 reviewer_agent: "claude"
 reviewer_shell_pid: "claude"

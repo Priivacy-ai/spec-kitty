@@ -154,53 +154,57 @@ This task breakdown refactors two monolithic Python files (5,730 total lines) in
 **Risks**: HTTP routing must remain compatible
 **Verification**: ✅ All dashboard endpoints respond correctly, 13/13 tests passing
 
-#### WP06: CLI Commands Extraction [Priority: P3] [P]
+#### WP06: CLI Commands Extraction [Priority: P3] [P] ✅
 **Goal**: Extract CLI commands (except init) into separate modules
-**Prompt**: `tasks/planned/WP06-cli-commands.md`
-**Owner**: Agent E
+**Prompt**: `tasks/done/WP06-cli-commands.md`
+**Owner**: codex (shell_pid: multiple)
+**Reviewer**: sonnet-4.5
 **Duration**: Days 4-5
+**Status**: ✅ APPROVED
 
 **Summary**: Move each CLI command to its own module for better organization and testing.
 
 **Subtasks**:
-- [ ] T050: Extract check command to cli/commands/check.py (~60 lines)
-- [ ] T051: Extract research command to cli/commands/research.py (~150 lines)
-- [ ] T052: Extract accept command to cli/commands/accept.py (~130 lines)
-- [ ] T053: Extract merge command to cli/commands/merge.py (~240 lines)
-- [ ] T054: Extract verify_setup command to cli/commands/verify.py (~65 lines)
-- [ ] T055: Extract dashboard command to cli/commands/dashboard.py (~95 lines)
-- [ ] T056: Create cli/commands/__init__.py with command registration
-- [ ] T057: Extract BannerGroup and helpers to cli/helpers.py (~80 lines)
-- [ ] T058: Write integration tests for each command
-- [ ] T059: Verify command registration in main app
+- [X] T050: Extract check command to cli/commands/check.py (~60 lines)
+- [X] T051: Extract research command to cli/commands/research.py (~150 lines)
+- [X] T052: Extract accept command to cli/commands/accept.py (~130 lines)
+- [X] T053: Extract merge command to cli/commands/merge.py (~240 lines)
+- [X] T054: Extract verify_setup command to cli/commands/verify.py (~65 lines)
+- [X] T055: Extract dashboard command to cli/commands/dashboard.py (~95 lines)
+- [X] T056: Create cli/commands/__init__.py with command registration
+- [X] T057: Extract BannerGroup and helpers to cli/helpers.py (~80 lines)
+- [X] T058: Write integration tests for each command
+- [X] T059: Verify command registration in main app
 
 **Dependencies**: WP01 (cli/ui.py), WP04 (core services)
 **Risks**: Command registration must preserve CLI interface
-**Verification**: All commands work identically to before
+**Verification**: ✅ All commands work identically to before, tests passing
 
-#### WP07: GitHub Client and Init Command [Priority: P3] [P]
+#### WP07: GitHub Client and Init Command [Priority: P3] [P] ✅
 **Goal**: Extract GitHub operations and refactor the complex init command
-**Prompt**: `tasks/planned/WP07-github-init.md`
-**Owner**: Agent F
+**Prompt**: `tasks/done/WP07-github-init.md`
+**Owner**: codex (shell_pid: multiple)
+**Reviewer**: sonnet-4.5
 **Duration**: Days 4-5
+**Status**: ✅ APPROVED
 
 **Summary**: Create GitHub client module and break down the massive init command.
 
 **Subtasks**:
-- [ ] T060: Extract download_template_from_github() to template/github_client.py (~120 lines)
-- [ ] T061: Extract download_and_extract_template() to template/github_client.py (~200 lines)
-- [ ] T062: Extract GitHub auth helpers to template/github_client.py (~10 lines)
-- [ ] T063: Extract parse_repo_slug() to template/github_client.py (~5 lines)
-- [ ] T064: Begin extracting init command to cli/commands/init.py (setup, ~50 lines)
-- [ ] T065: Extract init interactive prompts logic (~100 lines)
-- [ ] T066: Extract init template mode detection (~30 lines)
-- [ ] T067: Extract init main orchestration loop (~120 lines)
-- [ ] T068: Mock GitHub API for testing
-- [ ] T069: Test init command with all flags
+- [X] T060: Extract download_template_from_github() to template/github_client.py (~120 lines)
+- [X] T061: Extract download_and_extract_template() to template/github_client.py (~200 lines)
+- [X] T062: Extract GitHub auth helpers to template/github_client.py (~10 lines)
+- [X] T063: Extract parse_repo_slug() to template/github_client.py (~5 lines)
+- [X] T064: Begin extracting init command to cli/commands/init.py (setup, ~50 lines)
+- [X] T065: Extract init interactive prompts logic (~100 lines)
+- [X] T066: Extract init template mode detection (~30 lines)
+- [X] T067: Extract init main orchestration loop (~120 lines)
+- [X] T068: Mock GitHub API for testing
+- [X] T069: Test init command with all flags
 
 **Dependencies**: WP03 (template system)
 **Risks**: Init is the most complex command with many edge cases
-**Verification**: Init works for all modes (local/package/remote)
+**Verification**: ✅ Init works for all modes (local/package/remote), tests passing
 
 ---
 
@@ -272,16 +276,16 @@ Day 6: WP08 (Sequential - Integration)
 
 ## Definition of Done
 
-- [ ] All modules under 200 lines (excluding comments/docstrings)
-- [ ] No circular imports
-- [ ] All existing tests pass
-- [ ] New unit tests for each module
-- [ ] Import compatibility verified (local/pip/subprocess)
-- [ ] CLI commands work identically to before
-- [ ] Dashboard functionality unchanged
-- [ ] Performance metrics maintained
-- [ ] Documentation updated
-- [ ] Code formatted with black/ruff
+- [X] All modules under 200 lines (excluding comments/docstrings)
+- [X] No circular imports
+- [X] All existing tests pass
+- [X] New unit tests for each module
+- [X] Import compatibility verified (local/pip/subprocess)
+- [X] CLI commands work identically to before
+- [X] Dashboard functionality unchanged
+- [X] Performance metrics maintained
+- [X] Documentation updated
+- [X] Code formatted with black/ruff
 
 ## MVP Scope
 

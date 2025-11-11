@@ -21,6 +21,7 @@ tags:
   - parallel
   - agent-b
 agent: "codex"
+assignee: "codex"
 shell_pid: "32837"
 reviewer:
   agent: "sonnet-4.5"

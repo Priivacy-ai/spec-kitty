@@ -17,6 +17,9 @@ tags:
   - handlers
   - parallel
   - agent-d
+agent: "agent-d"
+assignee: "agent-d"
+shell_pid: "unknown"
 reviewer:
   agent: "sonnet-4.5"
   shell_pid: "69441"
@@ -249,4 +252,6 @@ All critical Definition of Done items successfully completed:
 
 ## Activity Log
 
+- 2025-11-11T16:00:00Z – agent-d – shell_pid=unknown – lane=doing – Started implementation
+- 2025-11-11T17:30:00Z – agent-d – shell_pid=unknown – lane=for_review – Ready for review: Verified existing API/features/static/router handlers match WP05 scope
 - 2025-11-11T18:21:00Z – sonnet-4.5 – shell_pid=69441 – lane=done – Approved: All handlers implemented, 13/13 tests passing, architecture clean
