@@ -26,10 +26,8 @@ import tempfile
 import shutil
 import shlex
 import json
-import re
 from pathlib import Path
 from typing import List, Optional, Tuple
-from importlib.resources import files
 
 from .gitignore_manager import GitignoreManager, ProtectionResult
 
@@ -63,7 +61,7 @@ from specify_cli.acceptance import (
 )
 from specify_cli.tasks_support import LANES, find_repo_root, TaskCliError
 
-from specify_cli.core.config import (
+from specify_cli.core import (
     AGENT_COMMAND_CONFIG,
     AGENT_TOOL_REQUIREMENTS,
     AI_CHOICES,
@@ -72,9 +70,28 @@ from specify_cli.core.config import (
     DEFAULT_TEMPLATE_REPO,
     MISSION_CHOICES,
     SCRIPT_TYPE_CHOICES,
+    ensure_directory,
+    safe_remove,
+    get_platform,
+    run_command,
+    is_git_repo,
+    init_git_repo,
+    get_current_branch,
+    locate_project_root,
+    resolve_template_path,
+    resolve_worktree_aware_feature_dir,
+    get_active_mission_key,
+    check_tool,
+    check_tool_for_tracker,
 )
-from specify_cli.core.utils import ensure_directory, safe_remove, get_platform
 from specify_cli.cli import StepTracker, select_with_arrows, multi_select_with_arrows
+from specify_cli.template import (
+    copy_specify_base_from_local,
+    copy_specify_base_from_package,
+    generate_agent_assets,
+    get_local_repo_root,
+    render_command_template,
+)
 
 ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 client = httpx.Client(verify=ssl_context)
@@ -88,288 +105,13 @@ def _github_auth_headers(cli_token: str | None = None) -> dict:
     token = _github_token(cli_token)
     return {"Authorization": f"Bearer {token}"} if token else {}
 
-CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
-
 TAGLINE = "Spec Kitty - Spec-Driven Development Toolkit (forked from GitHub Spec Kit)"
-
-def get_local_repo_root() -> Path | None:
-    """Return repository root when running from a local checkout, else None."""
-    env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
-    if env_root:
-        root_path = Path(env_root).expanduser().resolve()
-        if (root_path / "templates" / "commands").exists():
-            return root_path
-        console.print(
-            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but templates/commands not found. Ignoring.[/yellow]"
-        )
-
-    candidate = Path(__file__).resolve().parents[2]
-    if (candidate / "templates" / "commands").exists():
-        return candidate
-    return None
-
 
 def parse_repo_slug(slug: str) -> tuple[str, str]:
     parts = slug.strip().split("/")
     if len(parts) != 2 or not all(parts):
         raise ValueError(f"Invalid GitHub repo slug '{slug}'. Expected format owner/name")
     return parts[0], parts[1]
-
-
-def rewrite_paths(text: str) -> str:
-    import re
-    patterns = {
-        r'(?<!\.kittify/)scripts/': '.kittify/scripts/',
-        r'(?<!\.kittify/)templates/': '.kittify/templates/',
-        r'(?<!\.kittify/)memory/': '.kittify/memory/',
-    }
-    for pattern, replacement in patterns.items():
-        text = re.sub(pattern, replacement, text)
-    return text
-
-
-def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str) -> Path:
-    specify_root = project_path / ".kittify"
-    specify_root.mkdir(parents=True, exist_ok=True)
-
-    memory_src = repo_root / "memory"
-    if memory_src.exists():
-        memory_dest = specify_root / "memory"
-        if memory_dest.exists():
-            shutil.rmtree(memory_dest)
-        shutil.copytree(memory_src, memory_dest)
-
-    scripts_src = repo_root / "scripts"
-    if scripts_src.exists():
-        scripts_dest = specify_root / "scripts"
-        if scripts_dest.exists():
-            shutil.rmtree(scripts_dest)
-        scripts_dest.mkdir(parents=True, exist_ok=True)
-        variant = "bash" if script_type == "sh" else "powershell"
-        variant_src = scripts_src / variant
-        if variant_src.exists():
-            shutil.copytree(variant_src, scripts_dest / variant)
-        tasks_src = scripts_src / "tasks"
-        if tasks_src.exists():
-            shutil.copytree(tasks_src, scripts_dest / "tasks")
-        for item in scripts_src.iterdir():
-            if item.is_file():
-                shutil.copy2(item, scripts_dest / item.name)
-
-    templates_src = repo_root / "templates"
-    if templates_src.exists():
-        templates_dest = specify_root / "templates"
-        if templates_dest.exists():
-            shutil.rmtree(templates_dest)
-        shutil.copytree(templates_src, templates_dest)
-        agents_template = templates_src / "AGENTS.md"
-        if agents_template.exists():
-            shutil.copy2(agents_template, specify_root / "AGENTS.md")
-
-    missions_candidates = [
-        repo_root / ".kittify" / "missions",
-        repo_root / "src" / "specify_cli" / ".kittify" / "missions",
-    ]
-    for missions_src in missions_candidates:
-        if missions_src.exists():
-            missions_dest = specify_root / "missions"
-            if missions_dest.exists():
-                shutil.rmtree(missions_dest)
-            shutil.copytree(missions_src, missions_dest)
-            break
-
-    return (specify_root / "templates" / "commands")
-
-
-def render_command_template(
-    template_path: Path,
-    script_type: str,
-    agent_key: str,
-    arg_format: str,
-    extension: str,
-) -> str:
-    text = template_path.read_text(encoding="utf-8").replace("\r", "")
-
-    frontmatter_text = ""
-    body_text = text
-    if text.startswith("---\n"):
-        closing = text.find("\n---\n", 4)
-        if closing != -1:
-            frontmatter_text = text[4:closing]
-            body_text = text[closing + 5 :]
-
-    description = ""
-    scripts: dict[str, str] = {}
-    agent_scripts: dict[str, str] = {}
-    if frontmatter_text:
-        current_section = None
-        for line in frontmatter_text.splitlines():
-            stripped = line.strip()
-            if not stripped:
-                continue
-            if not line.startswith(" "):
-                current_section = None
-            if stripped == "scripts:":
-                current_section = "scripts"
-                continue
-            if stripped == "agent_scripts:":
-                current_section = "agent_scripts"
-                continue
-            if stripped.startswith("description:"):
-                description = stripped[len("description:") :].strip()
-                continue
-            if line.startswith("  ") and current_section:
-                key_value = stripped.split(":", 1)
-                if len(key_value) == 2:
-                    key = key_value[0].strip()
-                    value = key_value[1].strip()
-                    if value.startswith('"') and value.endswith('"'):
-                        value = value[1:-1]
-                    if current_section == "scripts":
-                        scripts[key] = value
-                    elif current_section == "agent_scripts":
-                        agent_scripts[key] = value
-
-    script_command = scripts.get(script_type, f"(Missing script command for {script_type})")
-    agent_script_command = agent_scripts.get(script_type)
-
-    if frontmatter_text:
-        filtered_lines = []
-        skipping = False
-        for line in frontmatter_text.splitlines():
-            stripped = line.strip()
-            if skipping:
-                if line.startswith(" ") or line.startswith("\t"):
-                    continue
-                skipping = False
-            if stripped in {"scripts:", "agent_scripts:"}:
-                skipping = True
-                continue
-            filtered_lines.append(line)
-        if filtered_lines:
-            frontmatter_clean = "---\n" + "\n".join(filtered_lines) + "\n---\n\n"
-        else:
-            frontmatter_clean = ""
-    else:
-        frontmatter_clean = ""
-
-    body_text = body_text.replace('{SCRIPT}', script_command)
-    if agent_script_command:
-        body_text = body_text.replace('{AGENT_SCRIPT}', agent_script_command)
-    else:
-        body_text = body_text.replace('{AGENT_SCRIPT}', "")
-    body_text = body_text.replace('{ARGS}', arg_format)
-    body_text = body_text.replace('__AGENT__', agent_key)
-    body_text = rewrite_paths(body_text)
-    if frontmatter_clean:
-        frontmatter_clean = rewrite_paths(frontmatter_clean)
-
-    if extension == "toml":
-        description_value = description.strip()
-        if description_value.startswith('"') and description_value.endswith('"'):
-            description_value = description_value[1:-1]
-        description_value = description_value.replace('"', '\\"')
-        if not body_text.endswith("\n"):
-            body_text += "\n"
-        return f'description = "{description_value}"\n\nprompt = """\n{body_text}"""\n'
-
-    if frontmatter_clean:
-        result = frontmatter_clean + body_text
-    else:
-        result = body_text
-    if not result.endswith("\n"):
-        result += "\n"
-    return result
-
-
-def generate_agent_assets(commands_dir: Path, project_path: Path, agent_key: str, script_type: str) -> None:
-    config = AGENT_COMMAND_CONFIG[agent_key]
-    output_dir = project_path / config["dir"]
-    if output_dir.exists():
-        shutil.rmtree(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    if not commands_dir.exists():
-        raise FileNotFoundError(f"Command templates directory not found at {commands_dir}")
-    for template_path in sorted(commands_dir.glob("*.md")):
-        rendered = render_command_template(
-            template_path,
-            script_type,
-            agent_key,
-            config["arg_format"],
-            config["ext"],
-        )
-        ext = config["ext"]
-        stem = template_path.stem
-        if agent_key == "codex":
-            stem = stem.replace('-', '_')
-        filename = f"spec-kitty.{stem}.{ext}" if ext else f"spec-kitty.{stem}"
-        (output_dir / filename).write_text(rendered, encoding="utf-8")
-
-    if agent_key == "copilot":
-        vscode_settings = commands_dir.parent / "vscode-settings.json"
-        if vscode_settings.exists():
-            vscode_dest = project_path / ".vscode"
-            vscode_dest.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(vscode_settings, vscode_dest / "settings.json")
-
-
-def copy_package_tree(resource, dest: Path) -> None:
-    if dest.exists():
-        shutil.rmtree(dest)
-    dest.mkdir(parents=True, exist_ok=True)
-    for child in resource.iterdir():
-        target = dest / child.name
-        if child.is_dir():
-            copy_package_tree(child, target)
-        else:
-            with child.open('rb') as src, open(target, 'wb') as dst:
-                shutil.copyfileobj(src, dst)
-
-
-def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path:
-    data_root = files("specify_cli")
-    specify_root = project_path / ".kittify"
-    specify_root.mkdir(parents=True, exist_ok=True)
-
-    memory_resource = data_root.joinpath("memory")
-    if memory_resource.exists():
-        copy_package_tree(memory_resource, specify_root / "memory")
-
-    scripts_resource = data_root.joinpath("scripts")
-    if scripts_resource.exists():
-        scripts_dest = specify_root / "scripts"
-        if scripts_dest.exists():
-            shutil.rmtree(scripts_dest)
-        scripts_dest.mkdir(parents=True, exist_ok=True)
-        variant_name = "bash" if script_type == "sh" else "powershell"
-        variant_resource = scripts_resource.joinpath(variant_name)
-        if variant_resource.exists():
-            copy_package_tree(variant_resource, scripts_dest / variant_name)
-        tasks_resource = scripts_resource.joinpath("tasks")
-        if tasks_resource.exists():
-            copy_package_tree(tasks_resource, scripts_dest / "tasks")
-        for child in scripts_resource.iterdir():
-            if child.is_file():
-                with child.open('rb') as src, open(scripts_dest / child.name, 'wb') as dst:
-                    shutil.copyfileobj(src, dst)
-
-    templates_resource = data_root.joinpath("templates")
-    if templates_resource.exists():
-        copy_package_tree(templates_resource, specify_root / "templates")
-        agents_template = templates_resource / "AGENTS.md"
-        if agents_template.exists():
-            shutil.copy2(agents_template, specify_root / "AGENTS.md")
-
-    missions_resource = data_root.joinpath(".kittify", "missions")
-    if missions_resource.exists():
-        copy_package_tree(missions_resource, specify_root / "missions")
-
-    return specify_root / "templates" / "commands"
-
-
-
-
 def activate_mission(project_path: Path, mission_key: str, mission_display: str, console: Console) -> str:
     """
     Persist the active mission selection and warn if mission resources are missing.
@@ -408,71 +150,12 @@ def activate_mission(project_path: Path, mission_key: str, mission_display: str,
     return status_detail
 
 
-def get_active_mission_key(project_path: Path) -> str:
-    """Return the mission key stored in .kittify/active-mission, falling back to default."""
-    active_path = project_path / ".kittify" / "active-mission"
-    if not active_path.exists():
-        return DEFAULT_MISSION_KEY
-
-    # Handle symlink-based marker first
-    if active_path.is_symlink():
-        try:
-            target = Path(os.readlink(active_path))
-            key = target.name
-            if key:
-                return key
-        except OSError:
-            pass
-        # Fallback to resolved path
-        resolved = active_path.resolve()
-        if resolved.parent.name == "missions":
-            return resolved.name
-
-    # Fall back to plain text marker
-    if active_path.is_file():
-        try:
-            key = active_path.read_text(encoding="utf-8").strip()
-            if key:
-                return key
-        except OSError:
-            pass
-
-    return DEFAULT_MISSION_KEY
-
-
-def resolve_template_path(
-    project_path: Path, mission_key: str, template_subpath: str | Path
-) -> Optional[Path]:
-    """
-    Resolve a template path, preferring mission overrides, then project-level defaults.
-    """
-    subpath = Path(template_subpath)
-    candidates = [
-        project_path / ".kittify" / "missions" / mission_key / "templates" / subpath,
-        project_path / ".kittify" / "templates" / subpath,
-        project_path / "templates" / subpath,
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return None
-
-
 console = Console()
-
-
-def _locate_project_root(start: Path | None = None) -> Optional[Path]:
-    """Walk upwards to find the directory that owns .kittify."""
-    current = (start or Path.cwd()).resolve()
-    for candidate in [current, *current.parents]:
-        if (candidate / ".kittify").is_dir():
-            return candidate
-    return None
 
 
 def _get_project_root_or_exit(start: Path | None = None) -> Path:
     """Return project root or exit with a helpful error."""
-    project_root = _locate_project_root(start)
+    project_root = locate_project_root(start)
     if project_root is None:
         console.print("[red]Error:[/red] Unable to locate project root (.kittify directory not found).")
         console.print("[dim]Run this command from inside a Spec Kitty project or worktree.[/dim]")
@@ -495,50 +178,6 @@ app = typer.Typer(
     invoke_without_command=True,
     cls=BannerGroup,
 )
-
-def resolve_worktree_aware_feature_dir(repo_root: Path, feature_slug: str, cwd: Path = None, console: Console = None) -> Path:
-    """
-    Resolve the correct feature directory, preferring worktree locations.
-
-    This function ensures artifacts are created in the correct location
-    that the dashboard expects (worktree if available, root otherwise).
-    """
-    if cwd is None:
-        cwd = Path.cwd()
-
-    if console is None:
-        from rich.console import Console
-        console = Console()
-
-    # First check if we're already inside a worktree for this feature
-    cwd_str = str(cwd)
-    if '.worktrees' in cwd_str and feature_slug in cwd_str:
-        # We're in the worktree, use its kitty-specs directory
-        worktree_root = cwd
-        # Navigate up to the worktree root if we're deeper inside
-        while worktree_root.parent.name != '.worktrees' and worktree_root.parent != worktree_root:
-            worktree_root = worktree_root.parent
-            if worktree_root.name == feature_slug:
-                break
-
-        feature_dir = worktree_root / 'kitty-specs' / feature_slug
-        console.print(f"[green]✓[/green] Using worktree location: {feature_dir}")
-        return feature_dir
-
-    # Check if a worktree exists for this feature
-    worktree_path = repo_root / '.worktrees' / feature_slug
-    if worktree_path.exists():
-        feature_dir = worktree_path / 'kitty-specs' / feature_slug
-        console.print(f"[green]✓[/green] Found worktree, using: {feature_dir}")
-        console.print(f"[yellow]Tip:[/yellow] Run commands from {worktree_path} for better isolation")
-        return feature_dir
-
-    # Fallback to root location with a warning
-    feature_dir = repo_root / 'kitty-specs' / feature_slug
-    console.print(f"[yellow]⚠[/yellow] No worktree found, using root location: {feature_dir}")
-    console.print(f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{feature_slug} {feature_slug}")
-
-    return feature_dir
 
 def show_banner():
     """Display the ASCII art banner."""
@@ -574,93 +213,6 @@ def callback(ctx: typer.Context):
         show_banner()
         console.print(Align.center("[dim]Run 'spec-kitty --help' for usage information[/dim]"))
         console.print()
-
-def run_command(cmd: list[str], check_return: bool = True, capture: bool = False, shell: bool = False) -> Optional[str]:
-    """Run a shell command and optionally capture output."""
-    try:
-        if capture:
-            result = subprocess.run(cmd, check=check_return, capture_output=True, text=True, shell=shell)
-            return result.stdout.strip()
-        else:
-            subprocess.run(cmd, check=check_return, shell=shell)
-            return None
-    except subprocess.CalledProcessError as e:
-        if check_return:
-            console.print(f"[red]Error running command:[/red] {' '.join(cmd)}")
-            console.print(f"[red]Exit code:[/red] {e.returncode}")
-            if hasattr(e, 'stderr') and e.stderr:
-                console.print(f"[red]Error output:[/red] {e.stderr}")
-            raise
-        return None
-
-def check_tool_for_tracker(tool: str, tracker: StepTracker) -> bool:
-    """Check if a tool is installed and update tracker."""
-    if shutil.which(tool):
-        tracker.complete(tool, "available")
-        return True
-    else:
-        tracker.error(tool, "not found")
-        return False
-
-def check_tool(tool: str, install_hint: str) -> bool:
-    """Check if a tool is installed."""
-    
-    # Special handling for Claude CLI after `claude migrate-installer`
-    # See: https://github.com/github/spec-kit/issues/123
-    # The migrate-installer command REMOVES the original executable from PATH
-    # and creates an alias at ~/.claude/local/claude instead
-    # This path should be prioritized over other claude executables in PATH
-    if tool == "claude":
-        if CLAUDE_LOCAL_PATH.exists() and CLAUDE_LOCAL_PATH.is_file():
-            return True
-    
-    if shutil.which(tool):
-        return True
-    else:
-        return False
-
-def is_git_repo(path: Path = None) -> bool:
-    """Check if the specified path is inside a git repository."""
-    if path is None:
-        path = Path.cwd()
-    
-    if not path.is_dir():
-        return False
-
-    try:
-        # Use git command to check if inside a work tree
-        subprocess.run(
-            ["git", "rev-parse", "--is-inside-work-tree"],
-            check=True,
-            capture_output=True,
-            cwd=path,
-        )
-        return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
-
-def init_git_repo(project_path: Path, quiet: bool = False) -> bool:
-    """Initialize a git repository in the specified path.
-    quiet: if True suppress console output (tracker handles status)
-    """
-    try:
-        original_cwd = Path.cwd()
-        os.chdir(project_path)
-        if not quiet:
-            console.print("[cyan]Initializing git repository...[/cyan]")
-        subprocess.run(["git", "init"], check=True, capture_output=True)
-        subprocess.run(["git", "add", "."], check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "Initial commit from Specify template"], check=True, capture_output=True)
-        if not quiet:
-            console.print("[green]✓[/green] Git repository initialized")
-        return True
-
-    except subprocess.CalledProcessError as e:
-        if not quiet:
-            console.print(f"[red]Error initializing git repository:[/red] {e}")
-        return False
-    finally:
-        os.chdir(original_cwd)
 
 def download_template_from_github(
     repo_owner: str,
@@ -2134,7 +1686,7 @@ Examples:
     merge_root = repo_root
     tracker.start("detect")
     try:
-        current_branch = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
+        _, current_branch, _ = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
         if current_branch == target_branch:
             tracker.error("detect", f"already on {target_branch}")
             console.print(tracker.render())
@@ -2142,7 +1694,7 @@ Examples:
             raise typer.Exit(1)
 
         # Check if we're in a worktree
-        git_dir_output = run_command(["git", "rev-parse", "--git-dir"], capture=True)
+        _, git_dir_output, _ = run_command(["git", "rev-parse", "--git-dir"], capture=True)
         git_dir_path = Path(git_dir_output).resolve()
         in_worktree = "worktrees" in git_dir_path.parts
         if in_worktree:
@@ -2164,7 +1716,7 @@ Examples:
     # Verify clean working directory
     tracker.start("verify")
     try:
-        status_output = run_command(["git", "status", "--porcelain"], capture=True)
+        _, status_output, _ = run_command(["git", "status", "--porcelain"], capture=True)
         if status_output.strip():
             tracker.error("verify", "uncommitted changes")
             console.print(tracker.render())
@@ -2216,7 +1768,7 @@ Examples:
         if in_worktree:
             console.print(f"[cyan]Detected worktree. Merge operations will run from {merge_root}[/cyan]")
         os.chdir(merge_root)
-        target_status = run_command(["git", "status", "--porcelain"], capture=True)
+        _, target_status, _ = run_command(["git", "status", "--porcelain"], capture=True)
         if target_status.strip():
             raise RuntimeError(f"Target repository at {merge_root} has uncommitted changes.")
         run_command(["git", "checkout", target_branch])
