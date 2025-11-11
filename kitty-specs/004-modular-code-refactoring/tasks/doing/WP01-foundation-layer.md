@@ -1,0 +1,258 @@
+---
+work_package_id: WP01
+work_package_title: Foundation Layer
+subtitle: Core infrastructure modules
+subtasks:
+  - T001
+  - T002
+  - T003
+  - T004
+  - T005
+  - T006
+  - T007
+  - T008
+  - T009
+phases: setup
+priority: P1
+lane: "doing"
+tags:
+  - foundation
+  - blocking
+  - sequential
+agent: "codex"
+shell_pid: "3551"
+history:
+  - date: 2025-11-11
+    status: created
+    by: spec-kitty.tasks
+---
+
+# WP01: Foundation Layer
+
+## Objective
+
+Create the core infrastructure modules that all other work packages depend on. This includes configuration constants, shared utilities, and UI components that form the foundation of the refactored architecture.
+
+## Context
+
+Currently, configuration and utilities are scattered throughout the 2,700-line `__init__.py` file. This work package extracts these into organized, focused modules that follow the single responsibility principle. This is the critical path blocker - no other work can proceed until this foundation is in place.
+
+## Requirements from Specification
+
+From the spec:
+- Each module must be under 200 lines (excluding comments/docstrings)
+- Modules must have clear, single responsibilities
+- Imports must work in local dev, pip install, and subprocess contexts
+- No behavioral changes to the application
+
+## Implementation Guidance
+
+### T001: Create package directory structure
+
+Create the following directory structure under `src/specify_cli/`:
+```
+src/specify_cli/
+├── core/
+│   └── __init__.py
+├── cli/
+│   ├── __init__.py
+│   └── commands/
+│       └── __init__.py
+├── template/
+│   └── __init__.py
+└── dashboard/
+    ├── __init__.py
+    ├── handlers/
+    │   └── __init__.py
+    ├── static/
+    └── templates/
+```
+
+Each `__init__.py` should start empty but will be populated as modules are created.
+
+### T002: Extract all constants and configuration to core/config.py
+
+From `__init__.py`, extract lines containing:
+- `AI_CHOICES` dict (lines 80-93)
+- `MISSION_CHOICES` dict (lines 95-98)
+- `DEFAULT_MISSION_KEY` (line 100)
+- `AGENT_TOOL_REQUIREMENTS` dict (lines 102-110)
+- `SCRIPT_TYPE_CHOICES` list (line 112)
+- `DEFAULT_TEMPLATE_REPO` (line 114)
+- `AGENT_COMMAND_CONFIG` dict (lines 118-131)
+- `BANNER` string (lines 133-158)
+
+Create `src/specify_cli/core/config.py`:
+```python
+"""Configuration constants for spec-kitty."""
+
+AI_CHOICES = {
+    # ... extracted dict ...
+}
+
+# ... other constants ...
+
+__all__ = [
+    'AI_CHOICES',
+    'MISSION_CHOICES',
+    'DEFAULT_MISSION_KEY',
+    'AGENT_TOOL_REQUIREMENTS',
+    'SCRIPT_TYPE_CHOICES',
+    'DEFAULT_TEMPLATE_REPO',
+    'AGENT_COMMAND_CONFIG',
+    'BANNER',
+]
+```
+
+### T003: Extract shared utility functions to core/utils.py
+
+Extract general utility functions that don't belong to specific domains:
+- Any path formatting utilities
+- Directory creation helpers
+- Safe file operations
+- Platform detection
+
+Target ~100 lines. Focus on truly shared utilities, not domain-specific helpers.
+
+### T004: Extract StepTracker class to cli/ui.py
+
+From `__init__.py`, extract the `StepTracker` class (lines 161-245) and its helper `StepInfo` if present.
+
+Create `src/specify_cli/cli/ui.py`:
+```python
+"""UI components for spec-kitty CLI."""
+
+from dataclasses import dataclass, field
+from typing import Literal, Optional, Dict
+from rich.tree import Tree
+from rich.text import Text
+
+@dataclass
+class StepInfo:
+    label: str
+    status: Literal["pending", "running", "complete", "error", "skipped"]
+    detail: Optional[str] = None
+    substeps: Dict[str, 'StepInfo'] = field(default_factory=dict)
+
+class StepTracker:
+    """Hierarchical step progress tracker with live updates."""
+
+    def __init__(self, title: str):
+        # ... implementation ...
+
+    # ... rest of class ...
+```
+
+### T005: Extract menu selection functions to cli/ui.py
+
+Add to `cli/ui.py`:
+- `get_key()` function (lines 247-265)
+- `select_with_arrows()` function (lines 267-341)
+- `multi_select_with_arrows()` function (lines 344-412)
+
+These provide the interactive menu functionality used throughout the CLI.
+
+### T006: Create __init__.py files with proper exports
+
+Update each package's `__init__.py` with appropriate exports:
+
+`src/specify_cli/core/__init__.py`:
+```python
+"""Core utilities and configuration."""
+
+from .config import (
+    AI_CHOICES,
+    MISSION_CHOICES,
+    DEFAULT_MISSION_KEY,
+    AGENT_TOOL_REQUIREMENTS,
+    SCRIPT_TYPE_CHOICES,
+    DEFAULT_TEMPLATE_REPO,
+    AGENT_COMMAND_CONFIG,
+    BANNER,
+)
+from .utils import (
+    # ... exported utilities ...
+)
+
+__all__ = [
+    # ... all exports ...
+]
+```
+
+### T007-T009: Write unit tests
+
+Create test files under `tests/specify_cli/`:
+- `tests/specify_cli/test_core/test_config.py` - Verify constants are defined
+- `tests/specify_cli/test_core/test_utils.py` - Test utility functions
+- `tests/specify_cli/test_cli/test_ui.py` - Test StepTracker and menu functions
+
+Example test:
+```python
+import pytest
+from specify_cli.core.config import AI_CHOICES, BANNER
+
+def test_ai_choices_defined():
+    assert isinstance(AI_CHOICES, dict)
+    assert len(AI_CHOICES) > 0
+    assert "claude" in AI_CHOICES
+
+def test_banner_is_string():
+    assert isinstance(BANNER, str)
+    assert len(BANNER) > 0
+```
+
+## Testing Strategy
+
+1. **Unit tests**: Each module gets its own test file
+2. **Import tests**: Verify imports work in different contexts:
+   ```python
+   # Test package import
+   from specify_cli.core import config
+
+   # Test direct import
+   from specify_cli.core.config import AI_CHOICES
+   ```
+3. **Integration test**: After extraction, run a simple CLI command to ensure nothing broke
+
+## Definition of Done
+
+- [ ] All 9 subtasks completed
+- [ ] Each module is under 200 lines
+- [ ] All modules have docstrings
+- [ ] __all__ exports defined for each module
+- [ ] Unit tests written and passing
+- [ ] Imports work from main __init__.py
+- [ ] No circular imports
+- [ ] Code formatted with black/ruff
+
+## Risks and Mitigations
+
+**Risk**: Other developers start work before foundation is ready
+**Mitigation**: This is day 1 priority, must complete before others begin
+
+**Risk**: Imports break in unexpected ways
+**Mitigation**: Test imports in all three contexts immediately
+
+**Risk**: Constants are used in unexpected places
+**Mitigation**: Keep original file as reference, grep for usage
+
+## Review Guidance
+
+When reviewing this work package:
+1. Check that each module has a clear, single purpose
+2. Verify no behavioral changes (constants have same values)
+3. Ensure imports work in a fresh virtualenv
+4. Confirm test coverage for new modules
+5. Check that __all__ exports are complete
+
+## Dependencies
+
+None - this is the foundation layer.
+
+## Dependents
+
+All other work packages (WP02-WP08) depend on this foundation being complete.
+
+## Activity Log
+
+- 2025-11-11T11:30:32Z – codex – shell_pid=3551 – lane=doing – Started implementation
