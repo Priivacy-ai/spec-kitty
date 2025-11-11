@@ -504,10 +504,12 @@ def get_dashboard_html() -> str:
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spec Kitty Dashboard</title>
     <link rel="icon" type="image/png" href="/static/spec-kitty.png">
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <link rel="stylesheet" href="/static/dashboard/dashboard.css">
     <!-- OLD INLINE CSS BELOW - KEPT FOR REFERENCE, NOT LOADED -->
     <style type="text/template" id="old-inline-css" style="display: none;">
@@ -1320,6 +1322,36 @@ def get_dashboard_html() -> str:
         </div>
     </div>
 
+    <script>
+        // Configure marked globally for safety and proper encoding
+        marked.setOptions({
+            breaks: true,     // GitHub-style line breaks
+            gfm: true,        // GitHub Flavored Markdown
+            sanitize: false   // We'll use DOMPurify instead
+        });
+
+        // Safe markdown rendering function to prevent XSS and handle encoding
+        function renderMarkdownSafely(markdown) {
+            if (!markdown) return '';
+
+            // Parse markdown to HTML
+            const rawHTML = marked.parse(markdown);
+
+            // Sanitize HTML to prevent XSS attacks
+            const cleanHTML = DOMPurify.sanitize(rawHTML, {
+                ALLOWED_TAGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li',
+                              'blockquote', 'code', 'pre', 'em', 'strong', 'del', 'table',
+                              'thead', 'tbody', 'tr', 'th', 'td', 'br', 'hr', 'div', 'span',
+                              'img', 'abbr', 'details', 'summary', 'kbd', 'sup', 'sub'],
+                ALLOWED_ATTR: ['href', 'title', 'class', 'id', 'style', 'src', 'alt', 'width', 'height'],
+                KEEP_CONTENT: true,  // Preserve text content even if tags are removed
+                ALLOW_DATA_ATTR: false,
+                SAFE_FOR_TEMPLATES: true
+            });
+
+            return cleanHTML;
+        }
+    </script>
     <script src="/static/dashboard/dashboard.js"></script>
     <!-- OLD INLINE CODE BELOW - KEPT FOR REFERENCE, NOT EXECUTED -->
     <script type="text/template" id="old-inline-js"  style="display: none;">
@@ -1735,7 +1767,7 @@ function loadOverview() {
 
             if (contentEl) {
                 if (task.prompt_markdown) {
-                    contentEl.innerHTML = marked.parse(task.prompt_markdown);
+                    contentEl.innerHTML = renderMarkdownSafely(task.prompt_markdown);
                 } else {
                     contentEl.innerHTML = '<div class="empty-state">Prompt content unavailable.</div>';
                 }
@@ -1783,8 +1815,8 @@ function loadOverview() {
             fetch(`/api/artifact/${currentFeature}/${artifactName}`)
                 .then(response => response.ok ? response.text() : Promise.reject('Not found'))
                 .then(content => {
-                    // Render markdown to HTML
-                    const htmlContent = marked.parse(content);
+                    // Render markdown to HTML safely
+                    const htmlContent = renderMarkdownSafely(content);
                     document.getElementById(`${artifactName}-content`).innerHTML = htmlContent;
                 })
                 .catch(error => {
@@ -1845,7 +1877,7 @@ function loadOverview() {
             fetch(`/api/contracts/${currentFeature}/${fileName}`)
                 .then(response => response.ok ? response.text() : Promise.reject('Not found'))
                 .then(content => {
-                    const htmlContent = marked.parse(content);
+                    const htmlContent = renderMarkdownSafely(content);
                     document.getElementById('contracts-content').innerHTML = `
                         <div style="margin-bottom: 20px;">
                             <button onclick="loadContracts()"
@@ -1885,7 +1917,7 @@ function loadOverview() {
             if (data.main_file) {
                 mainContent = `
                     <h3 style="color: var(--grassy-green); margin-bottom: 15px;">research.md</h3>
-                    ${marked.parse(data.main_file)}
+                    ${renderMarkdownSafely(data.main_file)}
                 `;
             }
 
@@ -1934,7 +1966,7 @@ function loadOverview() {
                     // Try to render as markdown, fallback to plain text
                     let htmlContent;
                     if (filePath.endsWith('.md')) {
-                        htmlContent = marked.parse(content);
+                        htmlContent = renderMarkdownSafely(content);
                     } else if (filePath.endsWith('.csv')) {
                         // Render CSV as a table
                         htmlContent = renderCSV(content);
@@ -2017,7 +2049,7 @@ function loadOverview() {
             fetch('/api/constitution')
                 .then(response => response.ok ? response.text() : Promise.reject('Not found'))
                 .then(content => {
-                    const htmlContent = marked.parse(content);
+                    const htmlContent = renderMarkdownSafely(content);
                     document.getElementById('constitution-content').innerHTML = htmlContent;
                 })
                 .catch(error => {

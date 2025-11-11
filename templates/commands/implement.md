@@ -17,14 +17,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check (CRITICAL for AI Agents)
 
-Before proceeding with implementation, verify you are in the correct working directory:
+Before proceeding with implementation, verify you are in the correct working directory in .worktrees/:
 
-**Check your current branch:**
+**Check your current location and branch:**
 ```bash
+git pwd
 git branch --show-current
 ```
 
-**Expected output:** A feature branch like `001-feature-name`
+**Expected output:** A feature branch like `001-feature-name` in a git worktree
 **If you see `main`:** You are in the wrong location!
 
 **This command MUST run from a feature worktree, not the main repository.**
