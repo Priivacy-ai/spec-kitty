@@ -243,11 +243,3 @@ Leverage your agent’s native orchestration so one work package advances while 
 
 If an agent lacks built-in subagents, mimic the pattern manually: open a second terminal, move a review prompt to `tasks/doing/`, and run the reviewer commands there while your primary session keeps coding.
 
-[^claude_subagents]: Anthropic, “Subagents,” showing how to create and invoke Claude Code subagents and explicitly request them for parallel work.
-[^codex_cloud]: OpenAI Developers, “Codex Concepts,” describing how cloud tasks let Codex work on multiple jobs in parallel.
-[^cursor_parallel]: Cursor, “Cursor Agent CLI,” announcing you can “have multiple agents run in parallel in the terminal or remotely.”
-[^copilot_agent]: GitHub, “Kick off and track Copilot coding agent sessions from the GitHub CLI,” documenting the `gh agent-task` commands.
-[^gemini_parallel]: Dagger, “Make Gemini CLI work in parallel and isolated dev environments,” demonstrating two Gemini CLI agents operating simultaneously via Container Use.
-[^qwen_task]: Moncef Abboud, “How Coding Agents Actually Work: Inside OpenCode,” detailing the task tool instructions (“launch multiple agents concurrently whenever possible”) that Qwen Code inherits.
-[^opencode_parallel]: Moncef Abboud, “How Coding Agents Actually Work: Inside OpenCode,” same section describing the concurrent subagent guidance.
-[^amazonq_parallel]: Dagger, “Parallel AI Experiments Using Dagger + Amazon Q Developer CLI,” showing multiple Amazon Q CLI sessions running in parallel.

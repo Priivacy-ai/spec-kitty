@@ -493,9 +493,11 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
     for missions_src in missions_candidates:
         if missions_src.exists():
             missions_dest = specify_root / "missions"
-            if missions_dest.exists():
-                shutil.rmtree(missions_dest)
-            shutil.copytree(missions_src, missions_dest)
+            # Don't delete and recopy if source and destination are the same
+            if missions_src.resolve() != missions_dest.resolve():
+                if missions_dest.exists():
+                    shutil.rmtree(missions_dest)
+                shutil.copytree(missions_src, missions_dest)
             break
 
     return (specify_root / "templates" / "commands")
