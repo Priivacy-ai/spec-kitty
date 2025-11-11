@@ -15,11 +15,13 @@ subtasks:
   - T029
 phases: foundational
 priority: P2
-lane: planned
+lane: "doing"
 tags:
   - template
   - parallel
   - agent-b
+agent: "codex"
+shell_pid: "32837"
 history:
   - date: 2025-11-11
     status: created
@@ -171,3 +173,7 @@ Create `tests/test_template/`:
 ## Dependents
 
 - WP07: GitHub & Init command depends on template system
+
+## Activity Log
+
+- 2025-11-11T14:35:50Z – codex – shell_pid=32837 – lane=doing – Started implementation
