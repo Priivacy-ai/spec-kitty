@@ -21,14 +21,19 @@ subtasks:
   - T025
 phases: foundational
 priority: P2
-assignee: "Codex Agent"
-lane: "for_review"
+assignee: ""
+lane: "doing"
+review_status: acknowledged
 tags:
   - dashboard
   - parallel
   - agent-a
 agent: "codex"
-shell_pid: "31110"
+shell_pid: "57706"
+reviewer:
+  agent: "sonnet-4.5"
+  shell_pid: "55309"
+  date: "2025-11-11T17:32:45Z"
 history:
   - date: 2025-11-11
     status: created
@@ -37,6 +42,10 @@ history:
     status: updated
     by: claude
     notes: Added missing infrastructure components (server, lifecycle, base handler)
+  - date: 2025-11-11
+    status: returned_for_changes
+    by: sonnet-4.5
+    notes: Missing test_diagnostics.py and handlers/base.py scope creep
 ---
 
 # WP02: Dashboard Infrastructure
@@ -279,8 +288,44 @@ __all__ = [
 
 - WP05: Dashboard handlers will use these modules
 
+## Review Feedback
+
+### Critical Issues (Must Fix)
+
+**1. Missing test_diagnostics.py** (T024 requirement)
+- The DoD explicitly requires `tests/test_dashboard/test_diagnostics.py` with "Test diagnostics with mock git repo"
+- Currently only 5 test files exist; diagnostics testing is missing
+- **Action Required**: Create `tests/test_dashboard/test_diagnostics.py` with tests for `run_diagnostics()` function
+
+**2. handlers/base.py exceeds size guidelines** (T018 scope creep)
+- Current file is 423 lines (17 code lines, heavily documented but still oversized)
+- T018 specified extracting only the base DashboardHandler class with `_send_json()` and `log_message()` helpers
+- The current base.py includes full API endpoint implementations that belong in WP05
+- **Action Required**: Move API endpoint handlers (do_GET, do_POST route handling) out of base.py
+  - Keep only: DashboardHandler base class, _send_json(), log_message(), _handle_shutdown()
+  - Move route handlers to separate files per WP05 design (api.py, features.py, etc.)
+  - Target: base.py should be <100 lines total
+
+### What Was Done Well ✓
+
+1. HTML/CSS/JS successfully extracted to separate files (T010-T012)
+2. Scanner functions properly modularized in scanner.py (T013-T015)
+3. Diagnostics extracted to diagnostics.py (T016)
+4. Server and lifecycle functions properly separated (T019-T020)
+5. Handlers directory structure created (T017)
+6. Static assets extracted (T021)
+7. Dashboard __init__.py with proper exports (T022)
+8. Import resolution tests pass (T025)
+9. Static file tests pass (T023)
+10. Infrastructure tests pass for server, lifecycle, scanner (partial T024)
+11. All 11 existing tests passing
+12. Old monolithic dashboard.py successfully removed
+
 ## Activity Log
 
 - 2025-11-11T14:29:06Z – codex – shell_pid=31110 – lane=doing – Started implementation
 - 2025-11-11T15:04:49Z – codex – shell_pid=31110 – lane=doing – Completed implementation
 - 2025-11-11T15:05:12Z – codex – shell_pid=31110 – lane=for_review – Ready for review
+- 2025-11-11T17:32:45Z – sonnet-4.5 – shell_pid=55309 – lane=for_review – Review completed: Returned for changes (missing test_diagnostics.py, handlers/base.py scope creep)
+- 2025-11-11T15:09:40Z – sonnet-4.5 – shell_pid=55309 – lane=planned – Returned for changes: missing test_diagnostics.py, handlers/base.py scope creep
+- 2025-11-11T15:30:27Z – codex – shell_pid=57706 – lane=doing – Started implementation
