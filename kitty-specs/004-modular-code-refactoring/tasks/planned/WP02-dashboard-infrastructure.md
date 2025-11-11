@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 work_package_title: Dashboard Infrastructure
-subtitle: Extract dashboard static assets and core functions
+subtitle: Complete dashboard foundation - static assets, server, lifecycle, and core functions
 subtasks:
   - T010
   - T011
@@ -13,6 +13,12 @@ subtasks:
   - T017
   - T018
   - T019
+  - T020
+  - T021
+  - T022
+  - T023
+  - T024
+  - T025
 phases: foundational
 priority: P2
 lane: planned
@@ -24,6 +30,10 @@ history:
   - date: 2025-11-11
     status: created
     by: spec-kitty.tasks
+  - date: 2025-11-11
+    status: updated
+    by: claude
+    notes: Added missing infrastructure components (server, lifecycle, base handler)
 ---
 
 # WP02: Dashboard Infrastructure
@@ -89,22 +99,136 @@ These can be done in parallel as they're independent files.
 - Complex function with git operations
 - Needs imports from manifest, acceptance modules
 
-### T017: Create dashboard package __init__.py
+### T017: Create handlers directory structure
+
+Create the handlers subdirectory structure:
+```
+dashboard/handlers/
+├── __init__.py
+└── (handler files will be added by WP05)
+```
+
+This establishes the structure that WP05 will populate with handler implementations.
+
+### T018: Extract base DashboardHandler class to `dashboard/handlers/base.py`
+
+From dashboard.py line 2284, extract the base `DashboardHandler` class:
+```python
+"""Base handler class for dashboard HTTP endpoints."""
+
+from http.server import BaseHTTPRequestHandler
+import json
+
+class DashboardHandler(BaseHTTPRequestHandler):
+    """Base handler with common utilities."""
+
+    def _send_json(self, data: dict, status: int = 200):
+        """Helper to send JSON responses."""
+        # Line 2294 from dashboard.py
+
+    def log_message(self, format, *args):
+        """Override to control logging."""
+        # Line 2290 from dashboard.py
+```
+
+This provides the foundation that WP05 handlers will inherit from.
+
+### T019: Extract server initialization to `dashboard/server.py`
+
+Extract server management functions:
+
+**`find_free_port()`** (lines 57-91):
+```python
+def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
+    """Find an available port using dual verification."""
+    # Socket binding test
+    # HTTP server verification
+    # Return available port
+```
+
+**`start_dashboard()`** (lines 2760-2829):
+```python
+def start_dashboard(project_dir: Path, port: int = None,
+                   background_process: bool = False,
+                   project_token: Optional[str] = None) -> tuple[int, Optional[threading.Thread]]:
+    """Start the dashboard HTTP server."""
+    # Port discovery
+    # Server initialization
+    # Thread/process management
+```
+
+### T020: Extract lifecycle management to `dashboard/lifecycle.py`
+
+Extract all dashboard lifecycle functions:
+
+- `_parse_dashboard_file()` (lines 2832-2856) - Parse .dashboard file
+- `_write_dashboard_file()` (lines 2859-2865) - Write dashboard state
+- `_check_dashboard_health()` (lines 2868-2907) - Health check via HTTP
+- `ensure_dashboard_running()` (lines 2910-2948) - Ensure dashboard is up
+- `stop_dashboard()` (lines 2951-3030) - Stop dashboard process
+
+These functions manage the dashboard process lifecycle and state persistence.
+
+### T021: Extract static assets
+
+Extract any embedded logo or image assets:
+- Check for embedded base64 images in HTML
+- Extract to `dashboard/static/spec-kitty.png`
+- Update HTML references to use static file path
+
+### T022: Update dashboard package __init__.py with proper exports
 
 ```python
 """Dashboard package public API."""
 
-# Note: Main API functions will be added by WP05
-# For now, just document the package
+from .lifecycle import (
+    ensure_dashboard_running,
+    stop_dashboard,
+    get_dashboard_status,
+)
+from .server import (
+    start_dashboard,
+    find_free_port,
+)
+from .scanner import (
+    scan_all_features,
+    scan_feature_kanban,
+    get_feature_artifacts,
+    get_workflow_status,
+)
+from .diagnostics import run_diagnostics
 
-__all__ = []  # Will be populated in WP05
+__all__ = [
+    'ensure_dashboard_running',
+    'stop_dashboard',
+    'get_dashboard_status',
+    'start_dashboard',
+    'find_free_port',
+    'scan_all_features',
+    'scan_feature_kanban',
+    'get_feature_artifacts',
+    'get_workflow_status',
+    'run_diagnostics',
+]
 ```
 
-### T018-T019: Write integration tests
+### T023-T025: Write comprehensive tests
 
-Create `tests/test_dashboard/`:
-- `test_scanner.py` - Test feature scanning with mock project
-- `test_diagnostics.py` - Test diagnostics with mock git repo
+**T023**: Test static file extraction
+- `tests/test_dashboard/test_static.py`
+- Verify HTML/CSS/JS files render correctly
+- Check that all embedded content was extracted
+
+**T024**: Test infrastructure modules
+- `tests/test_dashboard/test_server.py` - Test server initialization
+- `tests/test_dashboard/test_lifecycle.py` - Test lifecycle management
+- `tests/test_dashboard/test_scanner.py` - Test feature scanning with mock project
+- `tests/test_dashboard/test_diagnostics.py` - Test diagnostics with mock git repo
+
+**T025**: Test import resolution
+- Verify all modules import correctly
+- Test subprocess import contexts
+- Ensure no circular dependencies
 
 ## Testing Strategy
 
@@ -118,9 +242,16 @@ Create `tests/test_dashboard/`:
 - [ ] HTML/CSS/JS extracted to separate files
 - [ ] Scanner functions in dashboard/scanner.py (<200 lines)
 - [ ] Diagnostics in dashboard/diagnostics.py (<200 lines)
-- [ ] Tests written and passing
+- [ ] Handlers directory structure created
+- [ ] Base DashboardHandler class extracted to handlers/base.py
+- [ ] Server functions in dashboard/server.py (<200 lines)
+- [ ] Lifecycle functions in dashboard/lifecycle.py (<200 lines)
+- [ ] Static assets (logo) extracted
+- [ ] Dashboard __init__.py with proper exports
+- [ ] All tests written and passing
 - [ ] Dashboard still loads and displays correctly
 - [ ] No embedded HTML/CSS/JS strings remain
+- [ ] All modules can be imported in subprocess context
 
 ## Risks and Mitigations
 
