@@ -17,27 +17,30 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check (CRITICAL for AI Agents)
 
-Before proceeding with implementation, verify you are in the correct working directory in .worktrees/:
+**BEFORE PROCEEDING:** Verify you are working from inside the feature worktree.
 
-**Check your current location and branch:**
+**Check current working directory and branch:**
 ```bash
-git pwd
+pwd
 git branch --show-current
 ```
 
-**Expected output:** A feature branch like `001-feature-name` in a git worktree
-**If you see `main`:** You are in the wrong location!
+**Expected output:**
+- `pwd`: `/path/to/project/.worktrees/004-feature-name` (or similar)
+- Branch: `004-feature-name` (NOT `main` or `release/x.x.x`)
 
-**This command MUST run from a feature worktree, not the main repository.**
+**If you see `main` or `release/*` branch, OR if pwd shows the main repo:**
 
-If you're on the `main` branch:
-1. Check for available worktrees: `ls .worktrees/`
-2. Navigate to the appropriate feature worktree: `cd .worktrees/<feature-name>`
-3. Verify you're in the right place: `git branch --show-current` should show the feature branch
-4. Then re-run this command
+⛔ **STOP - You are in the wrong location!**
 
-The script will fail if you're not in a feature worktree.
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**DO NOT use `cd` to navigate to the worktree.** File creation tools (Write, Edit) will still use your original working directory.
+
+**Instead:**
+1. Tell the user: "This command must be run from inside the worktree at `.worktrees/<feature>/`"
+2. Stop execution
+3. Wait for the user to restart the session from the correct location
+
+**Path reference rule:** Always use paths relative to the worktree root (e.g., `src/specify_cli/`, `kitty-specs/004-feature/`). When communicating with the user, mention absolute paths for clarity.
 
 This is intentional - worktrees provide isolation for parallel feature development.
 
@@ -62,11 +65,10 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 ## Outline
 
-1. **Verify worktree context**:
-   - The CLI prefers an isolated checkout at `PROJECT_ROOT/.worktrees/FEATURE-SLUG`; use the path returned by `create-new-feature` when it exists.
-   - If that directory is present and you are not already inside it, `cd` into the worktree before proceeding.
-    - When inspecting git status or listing files, always reference the worktree paths (for example, `kitty-specs/<feature>/...` inside `.worktrees/<feature>/`).
-   - If worktree creation was skipped (the CLI returned no worktree path or the directory is missing), remain in the primary checkout on the feature branch or recreate the worktree with `git worktree add PROJECT_ROOT/.worktrees/FEATURE-SLUG FEATURE-SLUG` and then `cd` into it.
+1. **Verify worktree context** (already validated in pre-flight):
+   - Working directory MUST be inside `PROJECT_ROOT/.worktrees/FEATURE-SLUG`
+   - If not, the pre-flight check should have stopped you
+   - All file paths are relative to this worktree root
 
 2. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
 

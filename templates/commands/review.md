@@ -17,26 +17,30 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check (CRITICAL for AI Agents)
 
-Before proceeding with review, verify you are in the correct working directory:
+**BEFORE PROCEEDING:** Verify you are working from inside the feature worktree.
 
-**Check your current branch:**
+**Check current working directory and branch:**
 ```bash
+pwd
 git branch --show-current
 ```
 
-**Expected output:** A feature branch like `001-feature-name`
-**If you see `main`:** You are in the wrong location!
+**Expected output:**
+- `pwd`: `/path/to/project/.worktrees/004-feature-name` (or similar)
+- Branch: `004-feature-name` (NOT `main` or `release/x.x.x`)
 
-**This command MUST run from a feature worktree, not the main repository.**
+**If you see `main` or `release/*` branch, OR if pwd shows the main repo:**
 
-If you're on the `main` branch:
-1. Check for available worktrees: `ls .worktrees/`
-2. Navigate to the appropriate feature worktree: `cd .worktrees/<feature-name>`
-3. Verify you're in the right place: `git branch --show-current` should show the feature branch
-4. Then re-run this command
+⛔ **STOP - You are in the wrong location!**
 
-The script will fail if you're not in a feature worktree.
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**DO NOT use `cd` to navigate to the worktree.** File editing tools (Edit, Write) will still use your original working directory.
+
+**Instead:**
+1. Tell the user: "This command must be run from inside the worktree at `.worktrees/<feature>/`"
+2. Stop execution
+3. Wait for the user to restart the session from the correct location
+
+**Path reference rule:** Always use paths relative to the worktree root (e.g., `kitty-specs/004-feature/tasks/`). When communicating with the user, mention absolute paths for clarity.
 
 This is intentional - worktrees provide isolation for parallel feature development.
 
