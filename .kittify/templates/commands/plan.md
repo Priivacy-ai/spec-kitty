@@ -7,6 +7,8 @@ agent_scripts:
   sh: scripts/bash/update-agent-context.sh __AGENT__
   ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
+*Path: [templates/commands/plan.md](templates/commands/plan.md)*
+
 
 ## User Input
 
@@ -36,7 +38,10 @@ If you're on the `main` branch:
 3. Verify you're in the right place: `git branch --show-current` should show the feature branch
 4. Then re-run this command
 
-The script will fail if you're not in a feature worktree. This is intentional - worktrees provide isolation for parallel feature development.
+The script will fail if you're not in a feature worktree.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+
+This is intentional - worktrees provide isolation for parallel feature development.
 
 ## Planning Interrogation (mandatory)
 
@@ -79,8 +84,8 @@ Planning requirements (scale to complexity):
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
    - Fill Constitution Check section from constitution and challenge any conflicts directly with the user
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
-   - Phase 0: Generate research.md (commission research to resolve every outstanding clarification)
-   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent
+   - Phase 0: Run `spec-kitty research` (or `/spec-kitty.research`) to scaffold research.md, data-model.md, and research CSV logs, then populate findings using the validated planning answers
+   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent (building on the Phase 0 outputs)
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design, asking the user to resolve new gaps before proceeding
 
@@ -89,6 +94,8 @@ Planning requirements (scale to complexity):
 ## Phases
 
 ### Phase 0: Outline & Research
+
+> Kick off this phase by running `spec-kitty research` to scaffold the mission-specific files listed below. Then use the checklist to enrich each artifact with the clarifications uncovered during planning.
 
 1. **Extract unknowns from Technical Context** above:
    - For each NEEDS CLARIFICATION → research task

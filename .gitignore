@@ -46,3 +46,16 @@ env/
 .genreleases/
 *.zip
 sdd-*/
+
+# Added by Spec Kitty CLI (auto-managed)
+.claude/
+.opencode/
+.windsurf/
+.gemini/
+.cursor/
+.qwen/
+.kilocode/
+.augment/
+.github/
+.roo/
+.amazonq/

@@ -4,6 +4,8 @@ scripts:
   sh: scripts/bash/check-prerequisites.sh --json --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
 ---
+*Path: [templates/commands/tasks.md](templates/commands/tasks.md)*
+
 
 ## User Input
 
@@ -33,7 +35,10 @@ If you're on the `main` branch:
 3. Verify you're in the right place: `git branch --show-current` should show the feature branch
 4. Then re-run this command
 
-The script will fail if you're not in a feature worktree. This is intentional - worktrees provide isolation for parallel feature development.
+The script will fail if you're not in a feature worktree.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+
+This is intentional - worktrees provide isolation for parallel feature development.
 
 ## Outline
 

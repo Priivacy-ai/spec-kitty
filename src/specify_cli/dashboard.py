@@ -219,8 +219,14 @@ def gather_feature_paths(project_dir: Path) -> Dict[str, Path]:
 
 
 def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
-    """Run comprehensive diagnostics on the project setup."""
+    """Run comprehensive diagnostics on the project setup using enhanced verification."""
     import subprocess
+    from .manifest import FileManifest, WorktreeStatus
+    from . import detect_feature_slug, AcceptanceError
+
+    # Get repo root (parent of .kittify)
+    kittify_dir = project_dir / ".kittify"
+    repo_root = project_dir
 
     diagnostics = {
         'project_path': str(project_dir),
@@ -228,10 +234,18 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
         'git_branch': None,
         'in_worktree': False,
         'worktrees_exist': False,
-        'features': [],
-        'recommendations': [],
+        'active_mission': None,
+        'file_integrity': {},
+        'worktree_overview': {},
+        'current_feature': {},
+        'all_features': [],
+        'observations': [],
         'issues': []
     }
+
+    # Initialize helpers
+    manifest = FileManifest(kittify_dir)
+    worktree_status = WorktreeStatus(repo_root)
 
     # Check git branch
     try:
@@ -254,97 +268,87 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
     worktrees_dir = project_dir / '.worktrees'
     diagnostics['worktrees_exist'] = worktrees_dir.exists()
 
-    # Analyze each feature
-    all_features = set()
+    # Add active mission
+    diagnostics['active_mission'] = manifest.active_mission
 
-    # Collect features from root
-    root_specs = project_dir / 'kitty-specs'
-    if root_specs.exists():
-        for feature_dir in root_specs.iterdir():
-            if feature_dir.is_dir() and re.match(r'^\d{3}-', feature_dir.name):
-                all_features.add(feature_dir.name)
+    # File Integrity Check
+    file_check = manifest.check_files()
+    expected_files = manifest.get_expected_files()
 
-    # Collect features from worktrees
-    if worktrees_dir.exists():
-        for worktree_dir in worktrees_dir.iterdir():
-            if worktree_dir.is_dir():
-                all_features.add(worktree_dir.name)
+    total_expected = sum(len(files) for files in expected_files.values())
+    total_present = len(file_check["present"])
+    total_missing = len(file_check["missing"])
 
-    # Analyze each feature
-    for feature_name in sorted(all_features):
-        feature_info = {
-            'name': feature_name,
-            'worktree_exists': False,
-            'worktree_path': str(worktrees_dir / feature_name),
-            'root_artifacts': [],
-            'worktree_artifacts': [],
-            'dashboard_expects': None,
-            'cli_will_create': None,
-            'location_mismatch': False,
-            'recommendations': []
+    diagnostics['file_integrity'] = {
+        "total_expected": total_expected,
+        "total_present": total_present,
+        "total_missing": total_missing,
+        "missing_files": list(file_check["missing"].keys()) if file_check["missing"] else []
+    }
+
+    # Worktree Overview
+    worktree_summary = worktree_status.get_worktree_summary()
+    diagnostics['worktree_overview'] = worktree_summary
+
+    # Get all features with enhanced status
+    all_features = worktree_status.get_all_features()
+    diagnostics['all_features'] = []
+
+    for feature_slug in all_features:
+        feature_status = worktree_status.get_feature_status(feature_slug)
+        diagnostics['all_features'].append({
+            'name': feature_slug,
+            'state': feature_status['state'],
+            'branch_exists': feature_status['branch_exists'],
+            'branch_merged': feature_status['branch_merged'],
+            'worktree_exists': feature_status['worktree_exists'],
+            'worktree_path': feature_status['worktree_path'],
+            'artifacts_in_main': feature_status['artifacts_in_main'],
+            'artifacts_in_worktree': feature_status['artifacts_in_worktree']
+        })
+
+    # Try to detect current feature
+    try:
+        feature_slug = detect_feature_slug(repo_root, cwd=Path.cwd())
+        if feature_slug:
+            feature_status = worktree_status.get_feature_status(feature_slug.strip())
+            diagnostics['current_feature'] = {
+                'detected': True,
+                'name': feature_slug.strip(),
+                'state': feature_status['state'],
+                'branch_exists': feature_status['branch_exists'],
+                'branch_merged': feature_status['branch_merged'],
+                'worktree_exists': feature_status['worktree_exists'],
+                'worktree_path': feature_status['worktree_path'],
+                'artifacts_in_main': feature_status['artifacts_in_main'],
+                'artifacts_in_worktree': feature_status['artifacts_in_worktree']
+            }
+    except (AcceptanceError, Exception) as exc:
+        diagnostics['current_feature'] = {
+            'detected': False,
+            'error': str(exc)
         }
 
-        # Check worktree existence
-        worktree_path = worktrees_dir / feature_name
-        feature_info['worktree_exists'] = worktree_path.exists()
+    # Observations (not prescriptive recommendations)
+    observations = []
 
-        # Check root artifacts
-        root_feature_dir = root_specs / feature_name
-        if root_feature_dir.exists():
-            for artifact_file in ['spec.md', 'plan.md', 'tasks.md', 'research.md', 'data-model.md']:
-                if (root_feature_dir / artifact_file).exists():
-                    feature_info['root_artifacts'].append(artifact_file)
+    if diagnostics['git_branch'] == 'main' and diagnostics['in_worktree']:
+        observations.append("Unusual: In worktree but on main branch")
 
-        # Check worktree artifacts
-        worktree_feature_dir = worktree_path / 'kitty-specs' / feature_name
-        if worktree_feature_dir.exists():
-            for artifact_file in ['spec.md', 'plan.md', 'tasks.md', 'research.md', 'data-model.md']:
-                if (worktree_feature_dir / artifact_file).exists():
-                    feature_info['worktree_artifacts'].append(artifact_file)
+    if diagnostics['current_feature'].get('detected') and diagnostics['current_feature'].get('state') == 'in_development':
+        if not diagnostics['current_feature'].get('worktree_exists'):
+            observations.append(f"Feature {diagnostics['current_feature']['name']} has no worktree but has development artifacts")
 
-        # Determine where dashboard expects artifacts
-        if feature_info['worktree_exists']:
-            feature_info['dashboard_expects'] = str(worktree_feature_dir)
-        else:
-            feature_info['dashboard_expects'] = str(root_feature_dir)
+    if total_missing > 0:
+        observations.append(f"Mission integrity: {total_missing} expected files not found")
 
-        # Determine where CLI will create artifacts (simplified logic)
-        if diagnostics['in_worktree'] and feature_name in cwd_str:
-            feature_info['cli_will_create'] = str(worktree_feature_dir)
-        elif feature_info['worktree_exists']:
-            feature_info['cli_will_create'] = str(worktree_feature_dir)
-        else:
-            feature_info['cli_will_create'] = str(root_feature_dir)
+    if worktree_summary.get('active_worktrees', 0) > 5:
+        observations.append(f"Multiple worktrees active: {worktree_summary['active_worktrees']}")
 
-        # Check for location mismatch
-        feature_info['location_mismatch'] = feature_info['cli_will_create'] != feature_info['dashboard_expects']
+    diagnostics['observations'] = observations
 
-        # Generate recommendations
-        if feature_info['location_mismatch']:
-            feature_info['recommendations'].append(f"Location mismatch! Run commands from {worktree_path}")
-
-        if feature_info['worktree_exists'] and not diagnostics['in_worktree']:
-            feature_info['recommendations'].append(f"Navigate to worktree: cd {worktree_path}")
-
-        if not feature_info['worktree_exists']:
-            feature_info['recommendations'].append(f"Create worktree: git worktree add .worktrees/{feature_name} {feature_name}")
-
-        # Check for orphaned artifacts
-        if feature_info['root_artifacts'] and feature_info['worktree_artifacts']:
-            feature_info['recommendations'].append("Artifacts exist in both locations - consider consolidating")
-
-        diagnostics['features'].append(feature_info)
-
-    # Generate overall recommendations
-    if diagnostics['git_branch'] == 'main':
-        diagnostics['issues'].append('On main branch - commands will fail!')
-        diagnostics['recommendations'].append('Navigate to a feature worktree')
-
-    if not diagnostics['worktrees_exist']:
-        diagnostics['recommendations'].append('No worktrees found - create with: spec-kitty specify')
-
-    if not diagnostics['in_worktree'] and diagnostics['worktrees_exist']:
-        diagnostics['recommendations'].append('You are not in a worktree - navigate to .worktrees/<feature>')
+    # Remove the 'recommendations' field that we said we wouldn't use
+    # We use 'observations' instead, which are informative, not prescriptive
 
     return diagnostics
 

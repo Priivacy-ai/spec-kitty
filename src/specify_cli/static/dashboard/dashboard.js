@@ -1047,78 +1047,139 @@ function displayDiagnostics(data) {
     document.getElementById('diagnostics-loading').style.display = 'none';
     document.getElementById('diagnostics-content').style.display = 'block';
 
-    // Display current status
+    // Display environment status
     const statusHtml = `
-        <div><strong>Project Path:</strong> ${data.project_path}</div>
-        <div><strong>Current Directory:</strong> ${data.current_working_directory}</div>
+        <h3>Environment</h3>
+        <div><strong>Working Directory:</strong> ${data.current_working_directory}</div>
+        <div><strong>Repository Root:</strong> ${data.project_path}</div>
         <div><strong>Git Branch:</strong> ${data.git_branch || 'Not detected'}</div>
         <div><strong>In Worktree:</strong> ${data.in_worktree ? '✅ Yes' : '❌ No'}</div>
-        <div><strong>Worktrees Exist:</strong> ${data.worktrees_exist ? '✅ Yes' : '❌ No'}</div>
+        <div><strong>Active Mission:</strong> ${data.active_mission || 'software-dev'}</div>
     `;
     document.getElementById('diagnostics-status').innerHTML = statusHtml;
 
-    // Display issues
-    if (data.issues && data.issues.length > 0) {
+    // Display file integrity
+    if (data.file_integrity) {
+        const integrityHtml = `
+            <h3>Mission File Integrity</h3>
+            <div><strong>Expected Files:</strong> ${data.file_integrity.total_expected}</div>
+            <div><strong>Present Files:</strong> ${data.file_integrity.total_present}</div>
+            <div><strong>Missing Files:</strong> ${data.file_integrity.total_missing}</div>
+            ${data.file_integrity.missing_files && data.file_integrity.missing_files.length > 0 ?
+                `<div style="margin-top: 10px;"><strong>Missing:</strong><br>${data.file_integrity.missing_files.slice(0, 5).map(f => `• ${f}`).join('<br>')}</div>` : ''}
+        `;
+        const integrityDiv = document.createElement('div');
+        integrityDiv.innerHTML = integrityHtml;
+        integrityDiv.style.marginTop = '20px';
+        document.getElementById('diagnostics-status').appendChild(integrityDiv);
+    }
+
+    // Display worktree overview
+    if (data.worktree_overview) {
+        const overviewHtml = `
+            <h3>Worktree Overview</h3>
+            <div><strong>Total Features:</strong> ${data.worktree_overview.total_features}</div>
+            <div><strong>Active Worktrees:</strong> ${data.worktree_overview.active_worktrees}</div>
+            <div><strong>Merged Features:</strong> ${data.worktree_overview.merged_features}</div>
+            <div><strong>In Development:</strong> ${data.worktree_overview.in_development}</div>
+            <div><strong>Not Started:</strong> ${data.worktree_overview.not_started}</div>
+        `;
+        const overviewDiv = document.createElement('div');
+        overviewDiv.innerHTML = overviewHtml;
+        overviewDiv.style.marginTop = '20px';
+        document.getElementById('diagnostics-status').appendChild(overviewDiv);
+    }
+
+    // Display current feature
+    if (data.current_feature && data.current_feature.detected) {
+        const stateMap = {
+            'merged': '✅ MERGED',
+            'in_development': '🔄 IN DEVELOPMENT',
+            'ready_to_merge': '🔵 READY TO MERGE',
+            'not_started': '⏳ NOT STARTED',
+            'unknown': '❓ UNKNOWN'
+        };
+        const currentHtml = `
+            <h3>Current Feature</h3>
+            <div><strong>Feature:</strong> ${data.current_feature.name}</div>
+            <div><strong>State:</strong> ${stateMap[data.current_feature.state] || data.current_feature.state}</div>
+            <div><strong>Branch Exists:</strong> ${data.current_feature.branch_exists ? '✅' : '❌'}</div>
+            <div><strong>Worktree Exists:</strong> ${data.current_feature.worktree_exists ? '✅' : '❌'}</div>
+            ${data.current_feature.worktree_path ? `<div><strong>Worktree Path:</strong> ${data.current_feature.worktree_path}</div>` : ''}
+            ${data.current_feature.artifacts_in_main && data.current_feature.artifacts_in_main.length > 0 ?
+                `<div><strong>Artifacts in Main:</strong> ${data.current_feature.artifacts_in_main.join(', ')}</div>` : ''}
+            ${data.current_feature.artifacts_in_worktree && data.current_feature.artifacts_in_worktree.length > 0 ?
+                `<div><strong>Artifacts in Worktree:</strong> ${data.current_feature.artifacts_in_worktree.join(', ')}</div>` : ''}
+        `;
+        const currentDiv = document.createElement('div');
+        currentDiv.innerHTML = currentHtml;
+        currentDiv.style.marginTop = '20px';
+        document.getElementById('diagnostics-status').appendChild(currentDiv);
+    }
+
+    // Display all features table
+    if (data.all_features && data.all_features.length > 0) {
+        const tableHtml = `
+            <h3>All Features Status</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                    <tr style="background: #f0f0f0;">
+                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Feature</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">State</th>
+                        <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Branch</th>
+                        <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Worktree</th>
+                        <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Artifacts</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.all_features.slice(0, 10).map(feature => {
+                        const stateDisplay = {
+                            'merged': '<span style="color: green;">MERGED</span>',
+                            'in_development': '<span style="color: orange;">ACTIVE</span>',
+                            'ready_to_merge': '<span style="color: blue;">READY</span>',
+                            'not_started': '<span style="color: gray;">NOT STARTED</span>',
+                            'unknown': '<span style="color: gray;">?</span>'
+                        }[feature.state] || feature.state;
+
+                        const branchDisplay = feature.branch_merged ? 'merged' : (feature.branch_exists ? '✓' : '-');
+                        const worktreeDisplay = feature.worktree_exists ? '✓' : '-';
+                        const artifactCount = (feature.artifacts_in_main || []).length + (feature.artifacts_in_worktree || []).length;
+                        const artifactsDisplay = artifactCount > 0 ? artifactCount : '-';
+
+                        return `
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${feature.name}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${stateDisplay}</td>
+                                <td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${branchDisplay}</td>
+                                <td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${worktreeDisplay}</td>
+                                <td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${artifactsDisplay}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+            ${data.all_features.length > 10 ? `<div style="margin-top: 10px; color: #666;">... and ${data.all_features.length - 10} more features</div>` : ''}
+        `;
+        const tableDiv = document.createElement('div');
+        tableDiv.innerHTML = tableHtml;
+        tableDiv.style.marginTop = '20px';
+        document.getElementById('diagnostics-status').appendChild(tableDiv);
+    }
+
+    // Display observations (not prescriptive recommendations)
+    if (data.observations && data.observations.length > 0) {
         document.getElementById('diagnostics-issues').style.display = 'block';
-        const issuesHtml = data.issues.map(issue => `<div>• ${issue}</div>`).join('');
-        document.getElementById('diagnostics-issues-content').innerHTML = issuesHtml;
+        document.querySelector('#diagnostics-issues h3').textContent = 'Observations';
+        const obsHtml = data.observations.map(obs => `<div>• ${obs}</div>`).join('');
+        document.getElementById('diagnostics-issues-content').innerHTML = obsHtml;
     } else {
         document.getElementById('diagnostics-issues').style.display = 'none';
     }
 
-    // Display recommendations
-    if (data.recommendations && data.recommendations.length > 0) {
-        document.getElementById('diagnostics-recommendations').style.display = 'block';
-        const recsHtml = data.recommendations.map(rec => `<div>• ${rec}</div>`).join('');
-        document.getElementById('diagnostics-recommendations-content').innerHTML = recsHtml;
-    } else {
-        document.getElementById('diagnostics-recommendations').style.display = 'none';
-    }
-
-    // Display feature analysis
-    const featuresContainer = document.getElementById('diagnostics-features');
-    if (data.features && data.features.length > 0) {
-        const featuresHtml = data.features.map(feature => {
-            const statusColor = feature.location_mismatch ? '#ef4444' : '#10b981';
-            const statusText = feature.location_mismatch ? '❌ Location Mismatch' : '✅ Locations Match';
-
-            let artifactsInfo = '';
-            if (feature.root_artifacts.length > 0) {
-                artifactsInfo += `<div><strong>Root artifacts:</strong> ${feature.root_artifacts.join(', ')}</div>`;
-            }
-            if (feature.worktree_artifacts.length > 0) {
-                artifactsInfo += `<div><strong>Worktree artifacts:</strong> ${feature.worktree_artifacts.join(', ')}</div>`;
-            }
-
-            let recommendations = '';
-            if (feature.recommendations.length > 0) {
-                recommendations = '<div style="margin-top: 10px; padding: 10px; background: #fffbeb; border-radius: 4px;">' +
-                    '<strong>Recommendations:</strong><br>' +
-                    feature.recommendations.map(r => `• ${r}`).join('<br>') +
-                    '</div>';
-            }
-
-            return `
-                <div style="background: white; border: 1px solid var(--light-gray); border-radius: 8px; padding: 15px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h4 style="margin: 0; color: var(--grassy-green);">${feature.name}</h4>
-                        <span style="color: ${statusColor}; font-weight: bold;">${statusText}</span>
-                    </div>
-                    <div style="font-size: 0.9em; color: var(--medium-text);">
-                        <div><strong>Worktree exists:</strong> ${feature.worktree_exists ? '✅ Yes' : '❌ No'}</div>
-                        ${artifactsInfo}
-                        <div style="margin-top: 8px; padding: 8px; background: var(--light-gray); border-radius: 4px; font-family: monospace; font-size: 0.85em;">
-                            <div><strong>Dashboard expects:</strong><br>${feature.dashboard_expects}</div>
-                            <div style="margin-top: 5px;"><strong>CLI will create:</strong><br>${feature.cli_will_create}</div>
-                        </div>
-                        ${recommendations}
-                    </div>
-                </div>
-            `;
-        }).join('');
-        featuresContainer.innerHTML = featuresHtml;
-    } else {
-        featuresContainer.innerHTML = '<div style="text-align: center; color: var(--medium-text);">No features found</div>';
+    // Hide recommendations section since we're being observational
+    const recsSection = document.getElementById('diagnostics-recommendations');
+    if (recsSection) {
+        recsSection.style.display = 'none';
     }
 }
 
