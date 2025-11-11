@@ -62,15 +62,42 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 5. Decide outcome:
   - **Needs changes**:
-     * Append a new entry in the prompt’s **Activity Log** detailing feedback (include timestamp, reviewer agent, shell PID).
-     * Update frontmatter `lane` back to `planned`, clear `assignee` if necessary, keep history entry.
-     * Add/revise a `## Review Feedback` section (create if missing) summarizing action items.
-     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> planned --note "Returned for changes"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
+     * **CRITICAL**: Insert detailed feedback in the `## Review Feedback` section (located immediately after the frontmatter, before Objectives). This is the FIRST thing implementers will see when they re-read the prompt.
+     * Use a clear structure:
+       ```markdown
+       ## Review Feedback
+
+       **Status**: ❌ **Needs Changes**
+
+       **Key Issues**:
+       1. [Issue 1] - Why it's a problem and what to do about it
+       2. [Issue 2] - Why it's a problem and what to do about it
+
+       **What Was Done Well**:
+       - [Positive note 1]
+       - [Positive note 2]
+
+       **Action Items** (must complete before re-review):
+       - [ ] Fix [specific thing 1]
+       - [ ] Add [missing thing 2]
+       - [ ] Verify [validation point 3]
+       ```
+     * Update frontmatter:
+       - Set `lane: "planned"`
+       - Set `review_status: "has_feedback"`
+       - Set `reviewed_by: <YOUR_AGENT_ID>`
+       - Clear `assignee` if needed
+     * Append a new entry in the prompt's **Activity Log** with timestamp, reviewer agent, shell PID, and summary of feedback.
+     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> planned --note "Code review complete: [brief summary of issues]"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
   - **Approved**:
-     * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script).
-     * Update frontmatter: set `lane=done`, set reviewer metadata (`agent`, `shell_pid`), optional `assignee` for approver.
+     * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script, e.g., `2025-11-11T13:45:00Z – claude – shell_pid=1234 – lane=done – Approved without changes`).
+     * Update frontmatter:
+       - Set `lane: "done"`
+       - Set `review_status: ""` (clear it - no feedback needed)
+       - Set `reviewed_by: <YOUR_AGENT_ID>`
+       - Set `agent` and `shell_pid` to your session metadata
      * Use helper script to mark the task complete in `tasks.md` (see Step 6).
-     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> done --note "Approved for release"` (PowerShell variant available) to transition the prompt into `tasks/done/`.
+     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> done --note "Approved without changes"` (PowerShell variant available) to transition the prompt into `tasks/done/`.
 
 6. Update `tasks.md` automatically:
    - Run `scripts/bash/mark-task-status.sh --task-id <TASK_ID> --status done` (POSIX) or `scripts/powershell/Set-TaskStatus.ps1 -TaskId <TASK_ID> -Status done` (PowerShell) from repo root.
