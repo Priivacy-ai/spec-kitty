@@ -123,6 +123,10 @@ function switchPage(pageName) {
         showConstitution();
         return;
     }
+    if (pageName === 'diagnostics') {
+        showDiagnostics();
+        return;
+    }
     isConstitutionView = false;
     currentPage = pageName;
     lastNonConstitutionPage = pageName;
@@ -157,7 +161,8 @@ function updateSidebarState() {
 
     document.querySelectorAll('.sidebar-item').forEach(item => {
         const page = item.dataset.page;
-        if (!page || page === 'constitution') {
+        // System pages (constitution, diagnostics) should never be disabled
+        if (!page || page === 'constitution' || page === 'diagnostics') {
             item.classList.remove('disabled');
             return;
         }
@@ -991,6 +996,136 @@ function fetchData(isInitialLoad = false) {
 }
 
 // Initial fetch
+// Diagnostics functions
+function showDiagnostics() {
+    if (!isConstitutionView && currentPage !== 'diagnostics') {
+        lastNonConstitutionPage = currentPage;
+    }
+    // Switch to diagnostics page
+    currentPage = 'diagnostics';
+    isConstitutionView = false;
+    saveState(currentFeature, 'diagnostics');
+
+    // Update sidebar - consistent with other pages
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+        if (item.dataset.page === 'diagnostics') {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+
+    // Update pages
+    document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+    const diagnosticsPage = document.getElementById('page-diagnostics');
+    if (diagnosticsPage) {
+        diagnosticsPage.classList.add('active');
+    }
+
+    loadDiagnostics();
+}
+
+function loadDiagnostics() {
+    // Show loading state
+    document.getElementById('diagnostics-loading').style.display = 'block';
+    document.getElementById('diagnostics-content').style.display = 'none';
+    document.getElementById('diagnostics-error').style.display = 'none';
+
+    fetch('/api/diagnostics')
+        .then(response => response.json())
+        .then(data => {
+            displayDiagnostics(data);
+        })
+        .catch(error => {
+            document.getElementById('diagnostics-loading').style.display = 'none';
+            document.getElementById('diagnostics-error').style.display = 'block';
+            document.getElementById('diagnostics-error-message').textContent = error.toString();
+        });
+}
+
+function displayDiagnostics(data) {
+    document.getElementById('diagnostics-loading').style.display = 'none';
+    document.getElementById('diagnostics-content').style.display = 'block';
+
+    // Display current status
+    const statusHtml = `
+        <div><strong>Project Path:</strong> ${data.project_path}</div>
+        <div><strong>Current Directory:</strong> ${data.current_working_directory}</div>
+        <div><strong>Git Branch:</strong> ${data.git_branch || 'Not detected'}</div>
+        <div><strong>In Worktree:</strong> ${data.in_worktree ? '✅ Yes' : '❌ No'}</div>
+        <div><strong>Worktrees Exist:</strong> ${data.worktrees_exist ? '✅ Yes' : '❌ No'}</div>
+    `;
+    document.getElementById('diagnostics-status').innerHTML = statusHtml;
+
+    // Display issues
+    if (data.issues && data.issues.length > 0) {
+        document.getElementById('diagnostics-issues').style.display = 'block';
+        const issuesHtml = data.issues.map(issue => `<div>• ${issue}</div>`).join('');
+        document.getElementById('diagnostics-issues-content').innerHTML = issuesHtml;
+    } else {
+        document.getElementById('diagnostics-issues').style.display = 'none';
+    }
+
+    // Display recommendations
+    if (data.recommendations && data.recommendations.length > 0) {
+        document.getElementById('diagnostics-recommendations').style.display = 'block';
+        const recsHtml = data.recommendations.map(rec => `<div>• ${rec}</div>`).join('');
+        document.getElementById('diagnostics-recommendations-content').innerHTML = recsHtml;
+    } else {
+        document.getElementById('diagnostics-recommendations').style.display = 'none';
+    }
+
+    // Display feature analysis
+    const featuresContainer = document.getElementById('diagnostics-features');
+    if (data.features && data.features.length > 0) {
+        const featuresHtml = data.features.map(feature => {
+            const statusColor = feature.location_mismatch ? '#ef4444' : '#10b981';
+            const statusText = feature.location_mismatch ? '❌ Location Mismatch' : '✅ Locations Match';
+
+            let artifactsInfo = '';
+            if (feature.root_artifacts.length > 0) {
+                artifactsInfo += `<div><strong>Root artifacts:</strong> ${feature.root_artifacts.join(', ')}</div>`;
+            }
+            if (feature.worktree_artifacts.length > 0) {
+                artifactsInfo += `<div><strong>Worktree artifacts:</strong> ${feature.worktree_artifacts.join(', ')}</div>`;
+            }
+
+            let recommendations = '';
+            if (feature.recommendations.length > 0) {
+                recommendations = '<div style="margin-top: 10px; padding: 10px; background: #fffbeb; border-radius: 4px;">' +
+                    '<strong>Recommendations:</strong><br>' +
+                    feature.recommendations.map(r => `• ${r}`).join('<br>') +
+                    '</div>';
+            }
+
+            return `
+                <div style="background: white; border: 1px solid var(--light-gray); border-radius: 8px; padding: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: var(--grassy-green);">${feature.name}</h4>
+                        <span style="color: ${statusColor}; font-weight: bold;">${statusText}</span>
+                    </div>
+                    <div style="font-size: 0.9em; color: var(--medium-text);">
+                        <div><strong>Worktree exists:</strong> ${feature.worktree_exists ? '✅ Yes' : '❌ No'}</div>
+                        ${artifactsInfo}
+                        <div style="margin-top: 8px; padding: 8px; background: var(--light-gray); border-radius: 4px; font-family: monospace; font-size: 0.85em;">
+                            <div><strong>Dashboard expects:</strong><br>${feature.dashboard_expects}</div>
+                            <div style="margin-top: 5px;"><strong>CLI will create:</strong><br>${feature.cli_will_create}</div>
+                        </div>
+                        ${recommendations}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        featuresContainer.innerHTML = featuresHtml;
+    } else {
+        featuresContainer.innerHTML = '<div style="text-align: center; color: var(--medium-text);">No features found</div>';
+    }
+}
+
+function refreshDiagnostics() {
+    loadDiagnostics();
+}
+
 updateTreeInfo();
 fetchData(true);  // Pass true for initial load
 
