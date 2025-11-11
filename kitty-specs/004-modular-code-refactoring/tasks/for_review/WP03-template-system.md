@@ -15,7 +15,7 @@ subtasks:
   - T029
 phases: foundational
 priority: P2
-lane: "doing"
+lane: "for_review"
 tags:
   - template
   - parallel
@@ -177,3 +177,5 @@ Create `tests/test_template/`:
 ## Activity Log
 
 - 2025-11-11T14:35:50Z – codex – shell_pid=32837 – lane=doing – Started implementation
+- 2025-11-11T15:01:40Z – codex – shell_pid=32837 – lane=doing – Completed template extraction
+- 2025-11-11T15:02:13Z – codex – shell_pid=32837 – lane=for_review – Ready for review
