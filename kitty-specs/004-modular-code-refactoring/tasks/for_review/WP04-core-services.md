@@ -15,7 +15,7 @@ subtasks:
   - T039
 phases: foundational
 priority: P2
-lane: "doing"
+lane: "for_review"
 tags:
   - core
   - services
@@ -27,6 +27,10 @@ history:
   - date: 2025-11-11
     status: created
     by: spec-kitty.tasks
+  - date: 2025-11-11T16:45:00Z
+    status: lane=doing
+    by: codex
+    notes: Completed implementation
 ---
 
 # WP04: Core Services
@@ -151,3 +155,5 @@ Create `tests/test_core/`:
 ## Activity Log
 
 - 2025-11-11T14:39:03Z – codex – shell_pid=33775 – lane=doing – Started implementation
+- 2025-11-11T16:45:00Z – codex – shell_pid=33775 – lane=doing – Completed implementation
+- 2025-11-11T15:37:15Z – codex – shell_pid=33775 – lane=for_review – Ready for review
