@@ -16,11 +16,11 @@ This document defines the module interfaces and data structures for the refactor
 #### config.py
 ```python
 # Constants (no functions, just data)
-AI_CHOICES: dict[str, str]  # Agent key ’ Display name
-MISSION_CHOICES: dict[str, str]  # Mission key ’ Display name
-AGENT_TOOL_REQUIREMENTS: dict[str, str]  # Agent ’ Required tool
+AI_CHOICES: dict[str, str]  # Agent key â€™ Display name
+MISSION_CHOICES: dict[str, str]  # Mission key â€™ Display name
+AGENT_TOOL_REQUIREMENTS: dict[str, str]  # Agent â€™ Required tool
 SCRIPT_TYPE_CHOICES: list[str]  # ['sh', 'ps']
-AGENT_COMMAND_CONFIG: dict[str, dict]  # Agent ’ Command patterns
+AGENT_COMMAND_CONFIG: dict[str, dict]  # Agent â€™ Command patterns
 DEFAULT_TEMPLATE_REPO: str
 DEFAULT_MISSION_KEY: str
 BANNER: str  # ASCII art
