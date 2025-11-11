@@ -82,8 +82,10 @@ Planning requirements (scale to complexity):
 
 4. **Execute plan workflow**: Follow the structure in IMPL_PLAN template, using the validated planning answers as ground truth:
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
+   - If multiple developers/agents will work on this, add "Parallel Work Organization" section after Technical Context
    - Fill Constitution Check section from constitution and challenge any conflicts directly with the user
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
+   - Fill "Parallel Work Analysis" section if feature will be implemented by multiple developers
    - Phase 0: Run `spec-kitty research` (or `/spec-kitty.research`) to scaffold research.md, data-model.md, and research CSV logs, then populate findings using the validated planning answers
    - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent (building on the Phase 0 outputs)
    - Phase 1: Update agent context by running the agent script
