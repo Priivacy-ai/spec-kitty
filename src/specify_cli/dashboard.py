@@ -1735,7 +1735,7 @@ function loadOverview() {
 
             if (contentEl) {
                 if (task.prompt_markdown) {
-                    contentEl.innerHTML = marked.parse(task.prompt_markdown);
+                    contentEl.innerHTML = renderMarkdownSafely(task.prompt_markdown);
                 } else {
                     contentEl.innerHTML = '<div class="empty-state">Prompt content unavailable.</div>';
                 }
