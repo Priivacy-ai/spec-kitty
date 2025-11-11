@@ -11,7 +11,7 @@ from http.server import HTTPServer
 from pathlib import Path
 from typing import Optional, Tuple
 
-from .handlers.base import DashboardHandler
+from .handlers.router import DashboardRouter
 
 __all__ = ["find_free_port", "start_dashboard", "run_dashboard_server"]
 
@@ -44,10 +44,10 @@ def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
     raise RuntimeError(f"Could not find free port in range {start_port}-{start_port + max_attempts}")
 
 
-def _build_handler_class(project_dir: Path, project_token: Optional[str]) -> type[DashboardHandler]:
+def _build_handler_class(project_dir: Path, project_token: Optional[str]) -> type[DashboardRouter]:
     return type(
         'DashboardHandler',
-        (DashboardHandler,),
+        (DashboardRouter,),
         {
             'project_dir': str(project_dir),
             'project_token': project_token,

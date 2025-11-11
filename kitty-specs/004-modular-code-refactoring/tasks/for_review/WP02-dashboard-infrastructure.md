@@ -22,7 +22,7 @@ subtasks:
 phases: foundational
 priority: P2
 assignee: ""
-lane: "doing"
+lane: "for_review"
 review_status: acknowledged
 tags:
   - dashboard
@@ -328,4 +328,8 @@ __all__ = [
 - 2025-11-11T15:05:12Z – codex – shell_pid=31110 – lane=for_review – Ready for review
 - 2025-11-11T17:32:45Z – sonnet-4.5 – shell_pid=55309 – lane=for_review – Review completed: Returned for changes (missing test_diagnostics.py, handlers/base.py scope creep)
 - 2025-11-11T15:09:40Z – sonnet-4.5 – shell_pid=55309 – lane=planned – Returned for changes: missing test_diagnostics.py, handlers/base.py scope creep
+- 2025-11-11T15:37:56Z – codex – shell_pid=57706 – lane=doing – Addressed feedback: Added missing diagnostics tests
+- 2025-11-11T15:37:56Z – codex – shell_pid=57706 – lane=doing – Addressed feedback: Trimmed base handler and moved routes to dedicated modules
+- 2025-11-11T15:37:56Z – codex – shell_pid=57706 – lane=doing – Completed implementation
 - 2025-11-11T15:30:27Z – codex – shell_pid=57706 – lane=doing – Started implementation
+- 2025-11-11T15:38:40Z – codex – shell_pid=57706 – lane=for_review – Ready for review
