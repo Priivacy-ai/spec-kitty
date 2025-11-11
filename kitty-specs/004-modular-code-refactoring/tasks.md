@@ -68,29 +68,31 @@ This task breakdown refactors two monolithic Python files (5,730 total lines) in
 **Risks**: Large HTML/CSS/JS extraction may have formatting issues
 **Verification**: Dashboard loads correctly, scanner finds features, diagnostics run
 
-#### WP03: Template System [Priority: P2] [P]
+#### WP03: Template System [Priority: P2] ✅
 **Goal**: Create template management and rendering infrastructure
-**Prompt**: `tasks/planned/WP03-template-system.md`
-**Owner**: Agent B
+**Prompt**: `tasks/done/WP03-template-system.md`
+**Owner**: codex (shell_pid: 32837)
+**Reviewer**: sonnet-4.5
 **Duration**: Days 2-3
+**Status**: ✅ APPROVED
 
 **Summary**: Extract template discovery, copying, rendering, and asset generation functions.
 
 **Subtasks**:
-- [ ] T020: Extract get_local_repo_root() to template/manager.py (~15 lines)
-- [ ] T021: Extract copy_specify_base_from_local() to template/manager.py (~55 lines)
-- [ ] T022: Extract copy_specify_base_from_package() to template/manager.py (~50 lines)
-- [ ] T023: Extract copy_package_tree() to template/manager.py (~15 lines)
-- [ ] T024: Extract parse_frontmatter() to template/renderer.py (~25 lines)
-- [ ] T025: Extract render_template() and rewrite_paths() to template/renderer.py (~110 lines)
-- [ ] T026: Extract generate_agent_assets() to template/asset_generator.py (~30 lines)
-- [ ] T027: Extract render_command_template() to template/asset_generator.py (~100 lines)
-- [ ] T028: Create template package __init__.py with exports
-- [ ] T029: Write unit tests for template operations
+- [X] T020: Extract get_local_repo_root() to template/manager.py (~15 lines)
+- [X] T021: Extract copy_specify_base_from_local() to template/manager.py (~55 lines)
+- [X] T022: Extract copy_specify_base_from_package() to template/manager.py (~50 lines)
+- [X] T023: Extract copy_package_tree() to template/manager.py (~15 lines)
+- [X] T024: Extract parse_frontmatter() to template/renderer.py (~25 lines)
+- [X] T025: Extract render_template() and rewrite_paths() to template/renderer.py (~110 lines)
+- [X] T026: Extract generate_agent_assets() to template/asset_generator.py (~30 lines)
+- [X] T027: Extract render_command_template() to template/asset_generator.py (~100 lines)
+- [X] T028: Create template package __init__.py with exports
+- [X] T029: Write unit tests for template operations
 
 **Dependencies**: WP01 (core/config.py)
 **Risks**: Template path resolution complexity
-**Verification**: Templates render correctly, assets generate properly
+**Verification**: ✅ Templates render correctly, assets generate properly, all 9 tests passing
 
 #### WP04: Core Services [Priority: P2] [P]
 **Goal**: Extract git operations, project resolution, and tool checking
