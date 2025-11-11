@@ -15,12 +15,14 @@ subtasks:
   - T039
 phases: foundational
 priority: P2
-lane: planned
+lane: "doing"
 tags:
   - core
   - services
   - parallel
   - agent-c
+agent: "codex"
+shell_pid: "33775"
 history:
   - date: 2025-11-11
     status: created
@@ -145,3 +147,7 @@ Create `tests/test_core/`:
 
 - WP06: CLI commands use these services
 - WP07: Init command uses git operations
+
+## Activity Log
+
+- 2025-11-11T14:39:03Z – codex – shell_pid=33775 – lane=doing – Started implementation
