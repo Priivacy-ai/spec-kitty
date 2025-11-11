@@ -79,7 +79,8 @@ class FileManifest:
         return manifest
 
     def _get_referenced_scripts(self) -> List[str]:
-        """Extract script references from command files."""
+        """Extract script references from command files, filtered by platform."""
+        import platform
         scripts = set()
 
         if not self.mission_dir:
@@ -88,6 +89,10 @@ class FileManifest:
         commands_dir = self.mission_dir / "commands"
         if not commands_dir.exists():
             return []
+
+        # Determine which script type to look for based on platform
+        is_windows = platform.system() == 'Windows'
+        script_key = 'ps:' if is_windows else 'sh:'
 
         # Parse command files for script references
         for cmd_file in commands_dir.glob("*.md"):
@@ -102,7 +107,8 @@ class FileManifest:
                     if not in_frontmatter and in_frontmatter == False:
                         break  # End of frontmatter
                 elif in_frontmatter:
-                    if 'sh:' in line or 'ps:' in line:
+                    # Only check for scripts relevant to this platform
+                    if script_key in line:
                         # Extract script path
                         parts = line.split(':', 1)
                         if len(parts) == 2:
