@@ -21,11 +21,14 @@ subtasks:
   - T025
 phases: foundational
 priority: P2
-lane: planned
+assignee: "Codex Agent"
+lane: "doing"
 tags:
   - dashboard
   - parallel
   - agent-a
+agent: "codex"
+shell_pid: "31110"
 history:
   - date: 2025-11-11
     status: created
@@ -275,3 +278,7 @@ __all__ = [
 ## Dependents
 
 - WP05: Dashboard handlers will use these modules
+
+## Activity Log
+
+- 2025-11-11T14:29:06Z – codex – shell_pid=31110 – lane=doing – Started implementation
