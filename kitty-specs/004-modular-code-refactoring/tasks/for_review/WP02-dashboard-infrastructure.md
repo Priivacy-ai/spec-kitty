@@ -22,7 +22,7 @@ subtasks:
 phases: foundational
 priority: P2
 assignee: "Codex Agent"
-lane: "doing"
+lane: "for_review"
 tags:
   - dashboard
   - parallel
@@ -282,3 +282,5 @@ __all__ = [
 ## Activity Log
 
 - 2025-11-11T14:29:06Z – codex – shell_pid=31110 – lane=doing – Started implementation
+- 2025-11-11T15:04:49Z – codex – shell_pid=31110 – lane=doing – Completed implementation
+- 2025-11-11T15:05:12Z – codex – shell_pid=31110 – lane=for_review – Ready for review

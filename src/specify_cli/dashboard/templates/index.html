@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spec Kitty Dashboard</title>
+    <link rel="icon" type="image/png" href="/static/spec-kitty.png">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <link rel="stylesheet" href="/static/dashboard/dashboard.css">
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="header-logo-wrapper">
+                <img src="/static/spec-kitty.png" alt="Spec Kitty logo" class="header-logo">
+            </div>
+            <div class="header-info">
+                <h1>Spec Kitty</h1>
+                <pre class="tree-view" id="tree-info">Loading…</pre>
+            </div>
+            <div class="feature-selector" id="feature-selector-container">
+                <label>Feature:</label>
+                <select id="feature-select" onchange="switchFeature(this.value)">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div id="single-feature-name" style="display: none; font-size: 1.2em; color: var(--grassy-green); font-weight: 600;"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-item" data-page="constitution" onclick="switchPage('constitution')">
+                📜 Constitution
+            </div>
+            <div class="last-update sidebar-last-update">Last updated: <span id="last-update">Loading...</span></div>
+            <div style="padding: 15px 30px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                Workflow
+            </div>
+            <div class="sidebar-item active" data-page="overview" data-step="overview" onclick="switchPage('overview')">
+                <span id="icon-overview">📊</span> Overview
+            </div>
+            <div class="sidebar-item" data-page="spec" data-step="specify" onclick="switchPage('spec')">
+                <span id="icon-specify">⏳</span> Specify
+            </div>
+            <div class="sidebar-item" data-page="plan" data-step="plan" onclick="switchPage('plan')">
+                <span id="icon-plan">⏳</span> Plan
+            </div>
+            <div class="sidebar-item" data-page="tasks" data-step="tasks" onclick="switchPage('tasks')">
+                <span id="icon-tasks">⏳</span> Tasks
+            </div>
+            <div class="sidebar-item" data-page="kanban" data-step="implement" onclick="switchPage('kanban')">
+                <span id="icon-implement">⏳</span> Implement
+            </div>
+            <div style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                Artifacts
+            </div>
+            <div class="sidebar-item" data-page="research" onclick="switchPage('research')">
+                🔬 Research
+            </div>
+            <div class="sidebar-item" data-page="contracts" onclick="switchPage('contracts')">
+                📜 Contracts
+            </div>
+            <div class="sidebar-item" data-page="quickstart" onclick="switchPage('quickstart')">
+                🚀 Quickstart
+            </div>
+            <div class="sidebar-item" data-page="data-model" onclick="switchPage('data-model')">
+                💾 Data Model
+            </div>
+            <div style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                System
+            </div>
+            <div class="sidebar-item" data-page="diagnostics" onclick="switchPage('diagnostics')">
+                🔍 Diagnostics
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div id="page-overview" class="page active">
+                <div class="content-card">
+                    <h2>Feature Overview</h2>
+                    <div id="overview-content"></div>
+                </div>
+            </div>
+
+            <div id="page-spec" class="page">
+                <div class="content-card">
+                    <h2>Specification</h2>
+                    <div id="spec-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-plan" class="page">
+                <div class="content-card">
+                    <h2>Implementation Plan</h2>
+                    <div id="plan-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-tasks" class="page">
+                <div class="content-card">
+                    <h2>Task List</h2>
+                    <div id="tasks-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-kanban" class="page">
+                <div class="content-card">
+                    <h2>Kanban Board</h2>
+                    <div id="kanban-status" class="status-summary"></div>
+                    <div id="kanban-board" class="kanban-board"></div>
+                </div>
+            </div>
+
+            <div id="page-research" class="page">
+                <div class="content-card">
+                    <h2>Research</h2>
+                    <div id="research-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-contracts" class="page">
+                <div class="content-card">
+                    <h2>Contracts</h2>
+                    <div id="contracts-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-quickstart" class="page">
+                <div class="content-card">
+                    <h2>Quickstart Guide</h2>
+                    <div id="quickstart-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-data-model" class="page">
+                <div class="content-card">
+                    <h2>Data Model</h2>
+                    <div id="data-model-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-constitution" class="page">
+                <div class="content-card">
+                    <h2>📜 Project Constitution</h2>
+                    <div id="constitution-content" class="markdown-content"></div>
+                </div>
+            </div>
+
+            <div id="page-diagnostics" class="page">
+                <div class="content-card">
+                    <h2>🔍 Environment Diagnostics</h2>
+                    <div id="diagnostics-loading" style="padding: 20px; text-align: center;">
+                        <div style="font-size: 1.2em; color: var(--medium-text);">Loading diagnostics...</div>
+                    </div>
+                    <div id="diagnostics-content" style="display: none;">
+                        <!-- Current Status -->
+                        <div style="margin-bottom: 30px;">
+                            <h3 style="color: var(--grassy-green); margin-bottom: 15px;">Current Status</h3>
+                            <div id="diagnostics-status" style="background: var(--light-gray); padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9em;"></div>
+                        </div>
+
+                        <!-- Issues & Recommendations -->
+                        <div id="diagnostics-issues" style="margin-bottom: 30px; display: none;">
+                            <h3 style="color: #ef4444; margin-bottom: 15px;">⚠️ Issues Detected</h3>
+                            <div id="diagnostics-issues-content" style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 4px;"></div>
+                        </div>
+
+                        <div id="diagnostics-recommendations" style="margin-bottom: 30px; display: none;">
+                            <h3 style="color: #f59e0b; margin-bottom: 15px;">💡 Recommendations</h3>
+                            <div id="diagnostics-recommendations-content" style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;"></div>
+                        </div>
+
+                        <!-- Feature Analysis -->
+                        <div style="margin-bottom: 30px;">
+                            <h3 style="color: var(--grassy-green); margin-bottom: 15px;">Feature Analysis</h3>
+                            <div id="diagnostics-features" style="display: flex; flex-direction: column; gap: 15px;"></div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--light-gray);">
+                            <button onclick="refreshDiagnostics()" style="background: var(--grassy-green); color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 1em;">
+                                🔄 Refresh Diagnostics
+                            </button>
+                        </div>
+                    </div>
+                    <div id="diagnostics-error" style="display: none; padding: 20px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 4px;">
+                        <strong>Error loading diagnostics:</strong> <span id="diagnostics-error-message"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-welcome" class="page">
+                <div class="content-card">
+                    <h2>Welcome to Spec Kitty!</h2>
+                    <div style="padding: 40px 20px; text-align: center;">
+                        <p style="font-size: 1.2em; margin-bottom: 30px; color: var(--medium-text);">
+                            Your project is initialized and the dashboard is ready.
+                        </p>
+                        <div style="background: var(--baby-blue); padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto;">
+                            <h3 style="color: var(--grassy-green); margin-bottom: 20px;">Get Started</h3>
+                            <ol style="text-align: left; line-height: 2; color: var(--dark-text);">
+                                <li>Run <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.specify</code> to create your first feature</li>
+                                <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.plan</code> to create the implementation plan</li>
+                                <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.tasks</code> to generate the task breakdown</li>
+                                <li>Watch the dashboard update in real-time as you work!</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="no-features-message" class="no-features" style="display: none;">
+                <h2>No Features Found</h2>
+                <p>Create your first feature using <code>/spec-kitty.specify</code></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="prompt-modal" class="modal hidden" aria-hidden="true">
+        <div class="modal-overlay"></div>
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modal-title">Work Package Prompt</div>
+                    <div class="modal-subtitle" id="modal-subtitle"></div>
+                </div>
+                <button type="button" class="modal-close" id="modal-close-btn" aria-label="Close prompt viewer">✕</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <div class="modal-meta" id="modal-prompt-meta"></div>
+                <div id="modal-prompt-content" class="markdown-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/dashboard/dashboard.js"></script>
+</body>
+</html>

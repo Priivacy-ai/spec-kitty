@@ -1,0 +1,145 @@
+"""Project diagnostics helpers for the dashboard."""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any, Dict
+
+__all__ = ["run_diagnostics"]
+
+
+def _ensure_specify_cli_on_path() -> None:
+    """Ensure the repository root (src directory) is on sys.path for fallback imports."""
+    candidate = Path(__file__).resolve().parents[2]  # .../src
+    if str(candidate) not in sys.path:
+        sys.path.insert(0, str(candidate))
+
+
+def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
+    """Run comprehensive diagnostics on the project setup using enhanced verification."""
+    try:
+        from ..manifest import FileManifest, WorktreeStatus  # type: ignore
+        from .. import detect_feature_slug, AcceptanceError  # type: ignore
+    except (ImportError, ValueError):
+        try:
+            from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
+            from specify_cli import detect_feature_slug, AcceptanceError  # type: ignore
+        except ImportError:
+            _ensure_specify_cli_on_path()
+            from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
+            from specify_cli import detect_feature_slug, AcceptanceError  # type: ignore
+
+    kittify_dir = project_dir / ".kittify"
+    repo_root = project_dir
+
+    diagnostics: Dict[str, Any] = {
+        'project_path': str(project_dir),
+        'current_working_directory': str(Path.cwd()),
+        'git_branch': None,
+        'in_worktree': False,
+        'worktrees_exist': False,
+        'active_mission': None,
+        'file_integrity': {},
+        'worktree_overview': {},
+        'current_feature': {},
+        'all_features': [],
+        'observations': [],
+        'issues': [],
+    }
+
+    manifest = FileManifest(kittify_dir)
+    worktree_status = WorktreeStatus(repo_root)
+
+    try:
+        result = subprocess.run(
+            ['git', 'branch', '--show-current'],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        diagnostics['git_branch'] = result.stdout.strip()
+    except subprocess.CalledProcessError:
+        diagnostics['issues'].append('Could not detect git branch')
+
+    diagnostics['in_worktree'] = '.worktrees' in str(Path.cwd())
+    worktrees_dir = project_dir / '.worktrees'
+    diagnostics['worktrees_exist'] = worktrees_dir.exists()
+    diagnostics['active_mission'] = manifest.active_mission
+
+    file_check = manifest.check_files()
+    expected_files = manifest.get_expected_files()
+
+    total_expected = sum(len(files) for files in expected_files.values())
+    total_present = len(file_check["present"])
+    total_missing = len(file_check["missing"])
+
+    diagnostics['file_integrity'] = {
+        "total_expected": total_expected,
+        "total_present": total_present,
+        "total_missing": total_missing,
+        "missing_files": list(file_check["missing"].keys()) if file_check["missing"] else [],
+    }
+
+    worktree_summary = worktree_status.get_worktree_summary()
+    diagnostics['worktree_overview'] = worktree_summary
+
+    diagnostics['all_features'] = []
+    for feature_slug in worktree_status.get_all_features():
+        feature_status = worktree_status.get_feature_status(feature_slug)
+        diagnostics['all_features'].append({
+            'name': feature_slug,
+            'state': feature_status['state'],
+            'branch_exists': feature_status['branch_exists'],
+            'branch_merged': feature_status['branch_merged'],
+            'worktree_exists': feature_status['worktree_exists'],
+            'worktree_path': feature_status['worktree_path'],
+            'artifacts_in_main': feature_status['artifacts_in_main'],
+            'artifacts_in_worktree': feature_status['artifacts_in_worktree'],
+        })
+
+    try:
+        feature_slug = detect_feature_slug(repo_root, cwd=Path.cwd())
+        if feature_slug:
+            feature_status = worktree_status.get_feature_status(feature_slug.strip())
+            diagnostics['current_feature'] = {
+                'detected': True,
+                'name': feature_slug.strip(),
+                'state': feature_status['state'],
+                'branch_exists': feature_status['branch_exists'],
+                'branch_merged': feature_status['branch_merged'],
+                'worktree_exists': feature_status['worktree_exists'],
+                'worktree_path': feature_status['worktree_path'],
+                'artifacts_in_main': feature_status['artifacts_in_main'],
+                'artifacts_in_worktree': feature_status['artifacts_in_worktree'],
+            }
+    except (AcceptanceError, Exception) as exc:  # type: ignore[misc]
+        diagnostics['current_feature'] = {
+            'detected': False,
+            'error': str(exc),
+        }
+
+    observations = []
+
+    if diagnostics['git_branch'] == 'main' and diagnostics['in_worktree']:
+        observations.append("Unusual: In worktree but on main branch")
+
+    current_feature = diagnostics.get('current_feature') or {}
+    if current_feature.get('detected') and current_feature.get('state') == 'in_development':
+        if not current_feature.get('worktree_exists'):
+            observations.append(
+                f"Feature {current_feature.get('name')} has no worktree but has development artifacts"
+            )
+
+    if total_missing > 0:
+        observations.append(f"Mission integrity: {total_missing} expected files not found")
+
+    if worktree_summary.get('active_worktrees', 0) > 5:
+        observations.append(f"Multiple worktrees active: {worktree_summary['active_worktrees']}")
+
+    diagnostics['observations'] = observations
+
+    return diagnostics
