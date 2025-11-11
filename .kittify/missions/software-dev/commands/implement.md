@@ -4,6 +4,8 @@ scripts:
   sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
 ---
+*Path: [templates/commands/implement.md](templates/commands/implement.md)*
+
 
 ## User Input
 
@@ -33,13 +35,36 @@ If you're on the `main` branch:
 3. Verify you're in the right place: `git branch --show-current` should show the feature branch
 4. Then re-run this command
 
-The script will fail if you're not in a feature worktree. This is intentional - worktrees provide isolation for parallel feature development.
+The script will fail if you're not in a feature worktree.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+
+This is intentional - worktrees provide isolation for parallel feature development.
+
+## ⚠️ CRITICAL: Review Feedback Check
+
+**Before you start implementing**, check for prior review feedback:
+
+1. Open the task prompt file for the work you're about to implement
+2. Look for the `review_status` field in the frontmatter:
+   - **`review_status: has_feedback`** → The task was reviewed and returned with feedback
+   - **`review_status: acknowledged`** → You (or another agent) already saw the feedback and started addressing it
+   - **`review_status: ""` (empty)** → No feedback; proceed normally
+3. **If feedback exists**:
+   - Scroll to the `## Review Feedback` section (located right after the frontmatter)
+   - Read the **Key Issues** and **Action Items** carefully
+   - Treat all action items as your implementation TODO list
+   - Update `review_status: acknowledged` when you begin work
+   - As you fix each item, update the Activity Log: `Addressed feedback: [specific fix description]`
+4. **If you miss or ignore feedback**, your work will be returned again for the same issues
+
+---
 
 ## Outline
 
 1. **Verify worktree context**:
    - The CLI prefers an isolated checkout at `PROJECT_ROOT/.worktrees/FEATURE-SLUG`; use the path returned by `create-new-feature` when it exists.
    - If that directory is present and you are not already inside it, `cd` into the worktree before proceeding.
+    - When inspecting git status or listing files, always reference the worktree paths (for example, `kitty-specs/<feature>/...` inside `.worktrees/<feature>/`).
    - If worktree creation was skipped (the CLI returned no worktree path or the directory is missing), remain in the primary checkout on the feature branch or recreate the worktree with `git worktree add PROJECT_ROOT/.worktrees/FEATURE-SLUG FEATURE-SLUG` and then `cd` into it.
 
 2. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
@@ -119,7 +144,11 @@ The script will fail if you're not in a feature worktree. This is intentional - 
 4. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read the task prompt file from `tasks/doing/phase-X-name/TXXX-slug.md` (moved in step 3)
-   - **MANDATORY**: Scan the prompt body for reviewer notes or follow-up requests—many tasks return to `planned/` after review with embedded feedback that must drive your next steps.
+   - **MANDATORY** 🚨 **REVIEW FEEDBACK CHECK**: Look at the `review_status` field in the frontmatter:
+     - If `review_status: has_feedback` or `review_status: acknowledged`, **STOP** and read the `## Review Feedback` section immediately (it's right after the frontmatter)
+     - **Do not proceed** until you have read and understood all feedback items
+     - Make each action item a TODO in your implementation plan
+     - Update `review_status: acknowledged` to signal you've read and will address it
    - **VERIFY**: Frontmatter shows `lane: "doing"`, `agent`, and `shell_pid`
    - **IF METADATA MISSING**: You skipped step 3. Pause and complete the workflow initialization before continuing.
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
@@ -135,9 +164,14 @@ The script will fail if you're not in a feature worktree. This is intentional - 
    - **Execution flow**: Order and dependency requirements
 
 6. Execute implementation following the task plan:
-   - **Pull from planned intentionally**: Select the next task from `tasks/planned/`. If it recently came back from `for_review/`, treat any embedded notes as your starting TODO list and confirm you address each one before closing.
+   - **Pull from planned intentionally**: Select the next task from `tasks/planned/`.
+     - **If it recently came back from `for_review/`** (check `reviewed_by` field and `review_status: has_feedback`):
+       - Treat the `## Review Feedback` section as your primary TODO list
+       - Complete all action items in the "Action Items" checklist
+       - Update the Activity Log for each item you fix: `Addressed feedback: [item description]`
+       - Do NOT move to `for_review/` again until all feedback items are checked off
    - **Phase-by-phase execution**: Complete each phase before moving to the next
-   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
+   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
@@ -236,3 +270,4 @@ Leverage your agent’s native orchestration so one work package advances while 
 - **Amazon Q Developer CLI** – Use Container Use recipes to create multiple isolated Q sessions so one agent handles reviews while another implements new changes.[^amazonq_parallel]
 
 If an agent lacks built-in subagents, mimic the pattern manually: open a second terminal, move a review prompt to `tasks/doing/`, and run the reviewer commands there while your primary session keeps coding.
+

@@ -226,12 +226,14 @@ def append_activity_log(body: str, entry: str) -> str:
 
 
 def activity_entries(body: str) -> List[Dict[str, str]]:
+    # Match both en-dash (–) and hyphen (-) as separators
+    # The separator is always surrounded by whitespace, so we match non-whitespace for fields
     pattern = re.compile(
         r"^\s*-\s*"
-        r"(?P<timestamp>[0-9T:-]+Z)\s*[–-]\s*"
-        r"(?P<agent>[^–-]+?)\s*[–-]\s*"
-        r"(?:shell_pid=(?P<shell>[^–-]*?)\s*[–-]\s*)?"
-        r"lane=(?P<lane>[a-z_]+)\s*[–-]\s*"
+        r"(?P<timestamp>[0-9T:-]+Z)\s+[–-]\s+"
+        r"(?P<agent>\S+(?:\s+\S+)*?)\s+[–-]\s+"
+        r"(?:shell_pid=(?P<shell>\S*)\s+[–-]\s+)?"
+        r"lane=(?P<lane>[a-z_]+)\s+[–-]\s+"
         r"(?P<note>.*)$",
         flags=re.MULTILINE,
     )

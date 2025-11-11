@@ -304,7 +304,7 @@ def test_packaged_copy_behaves_like_primary(temp_repo: Path) -> None:
     sys.modules.setdefault("truststore", truststore_stub)
     if str(REPO_ROOT / "src") not in sys.path:
         sys.path.insert(0, str(REPO_ROOT / "src"))
-    from src.specify_cli.__init__ import copy_specify_base_from_local
+    from src.specify_cli.template.manager import copy_specify_base_from_local
 
     project_path = temp_repo
     copy_specify_base_from_local(REPO_ROOT, project_path, "sh")

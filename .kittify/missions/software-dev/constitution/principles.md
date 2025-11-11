@@ -28,6 +28,13 @@
 [PRINCIPLE_5_DESCRIPTION]
 <!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
 
+## Documentation Standards
+
+### Markdown Formatting
+- Wrap HTML/XML tags in backticks: `` `<style>` ``, `` `<div>` ``
+- Use code blocks with language identifiers: ````python`, ````bash`
+- Escape special characters that could be interpreted as markup
+
 ## [SECTION_2_NAME]
 <!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
 

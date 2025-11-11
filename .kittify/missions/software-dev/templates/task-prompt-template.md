@@ -39,6 +39,12 @@ history:
 
 ---
 
+## Markdown Formatting
+Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
+Use language identifiers in code blocks: ````python`, ````bash`
+
+---
+
 ## Objectives & Success Criteria
 
 - Summarize the exact outcomes that mark this work package complete.
