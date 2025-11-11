@@ -63,17 +63,17 @@ These can be done in parallel as they're independent files.
 
 **T010**: Extract HTML from `get_dashboard_html()` function (around line 501-2200+)
 - Create `dashboard/templates/index.html`
-- Remove <!DOCTYPE html> through </html> from Python string
+- Remove `<!DOCTYPE html>` through `</html>` from Python string
 - Save as proper HTML file with correct indentation
 
 **T011**: Extract CSS to `dashboard/static/dashboard.css`
-- Find the <style> section in the HTML
+- Find the `<style>` section in the HTML
 - Extract all CSS rules (approximately 1000 lines)
 - Create separate CSS file
 - Update HTML to link to external stylesheet
 
 **T012**: Extract JavaScript to `dashboard/static/dashboard.js`
-- Find <script> sections in HTML
+- Find `<script>` sections in HTML
 - Extract all JavaScript code
 - Create separate JS file
 - Update HTML to link to external script
