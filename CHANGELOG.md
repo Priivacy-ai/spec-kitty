@@ -7,6 +7,20 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.10] - 2025-11-11
+
+### Added
+
+- **Core Modules** – Introduced `specify_cli.core.config` and `specify_cli.core.utils` to centralize constants, shared helpers, and exports for downstream packages.
+- **CLI UI Package** – Moved `StepTracker`, arrow-key selection, and related utilities into `specify_cli.cli.ui`, enabling reuse across commands.
+- **Test Coverage** – Added dedicated unit suites for the new core modules and CLI UI interactions (12 new tests).
+
+### Changed
+
+- **Package Structure** – Created foundational package directories for `core/`, `cli/`, `template/`, and `dashboard/`, including structured `__init__.py` exports.
+- **Init Command Dependencies** – Updated `src/specify_cli/__init__.py` to consume the extracted modules, reducing monolith size and improving readability.
+- **File Utilities** – Replaced ad-hoc directory creation/removal with safe helper functions to prevent duplication across commands.
+
 ## [0.4.8] - 2025-11-10
 
 ### Added
