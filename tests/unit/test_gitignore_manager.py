@@ -73,7 +73,7 @@ class TestGitignoreManager:
 
         assert result.success
         assert result.modified
-        assert len(result.entries_added) == 12  # All 12 agent directories
+        assert len(result.entries_added) == 11  # All 12 agent directories
         assert len(result.entries_skipped) == 0
         assert manager.gitignore_path.exists()
 
@@ -85,13 +85,12 @@ class TestGitignoreManager:
 
         assert result.success
         assert result.modified
-        assert len(result.entries_added) == 12
+        assert len(result.entries_added) == 11
 
         content = manager.gitignore_path.read_text()
         assert manager.marker in content
         assert ".claude/" in content
         assert ".codex/" in content
-        assert ".github/" in content
 
     def test_protect_all_agents_with_existing_entries(self, manager, temp_dir):
         """Test protect_all_agents preserves existing entries."""
@@ -115,18 +114,12 @@ class TestGitignoreManager:
         expected_dirs = [
             ".claude/", ".codex/", ".opencode/", ".windsurf/",
             ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".github/", ".roo/", ".amazonq/"
+            ".augment/", ".roo/", ".amazonq/"
         ]
 
         content = manager.gitignore_path.read_text()
         for dir_name in expected_dirs:
             assert dir_name in content
-
-    def test_protect_all_agents_adds_github_warning(self, manager):
-        """Test special warning for .github/ directory."""
-        result = manager.protect_all_agents()
-
-        assert any(".github/" in w for w in result.warnings)
 
     # T026 - Test protect_selected_agents method
     def test_protect_selected_single_agent(self, manager):
@@ -180,12 +173,12 @@ class TestGitignoreManager:
         # First run
         result1 = manager.protect_all_agents()
         assert result1.modified
-        assert len(result1.entries_added) == 12
+        assert len(result1.entries_added) == 11
 
         # Second run
         result2 = manager.protect_all_agents()
         assert not result2.modified
-        assert len(result2.entries_skipped) == 12
+        assert len(result2.entries_skipped) == 11
         assert len(result2.entries_added) == 0
 
     def test_duplicate_detection_with_manual_entries(self, manager):
@@ -291,12 +284,12 @@ class TestGitignoreManager:
 
     # T032 - Edge case tests
     def test_edge_case_github_special_handling(self, manager):
-        """Test special handling for .github/ directory."""
+        """Test that unknown agent 'github' is handled properly."""
         result = manager.protect_selected_agents(["github"])
 
         assert result.success
-        assert ".github/" in result.entries_added
-        assert any("GitHub Actions" in w for w in result.warnings)
+        assert len(result.entries_added) == 0  # Unknown agent, nothing added
+        assert any("Unknown agent" in w for w in result.warnings)
 
     def test_edge_case_large_gitignore(self, manager):
         """Test performance with large .gitignore file."""
@@ -349,7 +342,7 @@ class TestGitignoreManager:
         # Modifying one shouldn't affect the other
         dirs1.append(AgentDirectory("test", ".test/", False, "Test"))
         assert len(dirs1) == 13
-        assert len(dirs2) == 12
+        assert len(dirs2) == 11
 
     def test_all_agent_directories_have_trailing_slash(self):
         """Test that all agent directories end with trailing slash."""

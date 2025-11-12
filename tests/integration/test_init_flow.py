@@ -29,7 +29,7 @@ def test_init_flow_fresh_project():
         # Verify success
         assert result.success, "Init flow should succeed"
         assert result.modified, "Should create new .gitignore"
-        assert len(result.entries_added) == 12, "Should add all 12 agents"
+        assert len(result.entries_added) == 11, "Should add all 11 agents"
 
         # Verify file exists and has correct content
         gitignore_path = project_path / ".gitignore"
@@ -67,7 +67,7 @@ dist/
         # Verify success
         assert result.success, "Init flow should succeed"
         assert result.modified, "Should modify existing .gitignore"
-        assert len(result.entries_added) == 12, "Should add all 12 agents"
+        assert len(result.entries_added) == 11, "Should add all 11 agents"
 
         # Verify existing content is preserved
         content = gitignore_path.read_text()
@@ -93,14 +93,14 @@ def test_init_flow_idempotency():
         result1 = manager1.protect_all_agents()
         assert result1.success
         assert result1.modified
-        assert len(result1.entries_added) == 12
+        assert len(result1.entries_added) == 11
 
         # Second init (should do nothing)
         manager2 = GitignoreManager(project_path)
         result2 = manager2.protect_all_agents()
         assert result2.success
         assert not result2.modified, "Should not modify on second run"
-        assert len(result2.entries_skipped) == 12
+        assert len(result2.entries_skipped) == 11
         assert len(result2.entries_added) == 0
 
         # Third init (still should do nothing)
@@ -146,9 +146,8 @@ node_modules/
         assert ".gemini/" in result.entries_skipped
 
         # Check that new ones were added (should be 9)
-        assert len(result.entries_added) == 9
+        assert len(result.entries_added) == 8
         assert ".cursor/" in result.entries_added
-        assert ".github/" in result.entries_added
 
         # Verify no duplicates in file
         content = gitignore_path.read_text()
@@ -212,7 +211,7 @@ npm-debug.log*
         all_agents = [
             ".claude/", ".codex/", ".opencode/", ".windsurf/",
             ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".github/", ".roo/", ".amazonq/"
+            ".augment/", ".roo/", ".amazonq/"
         ]
         for agent in all_agents:
             assert agent in content
@@ -273,7 +272,6 @@ def test_init_flow_console_simulation():
             print(f"[yellow]⚠️  {warning}[/yellow]")
 
         # Verify warning about .github/ is shown
-        assert any(".github/" in w for w in result.warnings)
 
         print("\n✓ test_init_flow_console_simulation")
 

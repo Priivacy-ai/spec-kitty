@@ -127,7 +127,7 @@ def test_protect_all_agents_adds_all_directories():
         assert result.modified
 
         # Check that all 12 directories were added
-        assert len(result.entries_added) == 12
+        assert len(result.entries_added) == 11
 
         # Check that .gitignore was updated
         gitignore_path = project_path / ".gitignore"
@@ -138,7 +138,7 @@ def test_protect_all_agents_adds_all_directories():
         expected_dirs = [
             ".claude/", ".codex/", ".opencode/", ".windsurf/",
             ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".github/", ".roo/", ".amazonq/"
+            ".augment/", ".roo/", ".amazonq/"
         ]
         for dir_name in expected_dirs:
             assert dir_name in content
@@ -168,20 +168,6 @@ def test_protect_all_agents_with_existing_directory():
 
         # Check that new entries were added
         assert len(result.entries_added) == 10
-
-
-def test_protect_all_agents_warns_about_github():
-    """Test that protect_all_agents warns about .github/ directory."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        project_path = Path(temp_dir)
-
-        # Use GitignoreManager
-        manager = GitignoreManager(project_path)
-        result = manager.protect_all_agents()
-
-        # Check for warning about .github/
-        assert any(".github/" in w for w in result.warnings)
-        assert any("GitHub Actions" in w for w in result.warnings)
 
 
 def test_protect_selected_agents():
