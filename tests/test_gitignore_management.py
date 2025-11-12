@@ -167,7 +167,7 @@ def test_protect_all_agents_with_existing_directory():
         assert ".claude/" in result.entries_skipped
 
         # Check that new entries were added
-        assert len(result.entries_added) == 10
+        assert len(result.entries_added) == 9
 
 
 def test_protect_selected_agents():

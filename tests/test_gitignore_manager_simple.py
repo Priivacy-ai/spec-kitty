@@ -76,7 +76,7 @@ def test_all_agents_protected():
         expected_dirs = [
             ".claude/", ".codex/", ".opencode/", ".windsurf/",
             ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".github/", ".roo/", ".amazonq/"
+            ".augment/", ".roo/", ".amazonq/"
         ]
 
         content = manager.gitignore_path.read_text()

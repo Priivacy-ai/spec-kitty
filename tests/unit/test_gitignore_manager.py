@@ -192,7 +192,7 @@ class TestGitignoreManager:
         assert result.modified  # Still modified because we add the other 10
         assert ".claude/" in result.entries_skipped
         assert ".codex/" in result.entries_skipped
-        assert len(result.entries_added) == 10
+        assert len(result.entries_added) == 9
 
     def test_duplicate_detection_marker_comment(self, manager):
         """Test that marker comment is not duplicated."""
@@ -341,8 +341,8 @@ class TestGitignoreManager:
 
         # Modifying one shouldn't affect the other
         dirs1.append(AgentDirectory("test", ".test/", False, "Test"))
-        assert len(dirs1) == 13
-        assert len(dirs2) == 11
+        assert len(dirs1) == 12  # 11 original + 1 test agent
+        assert len(dirs2) == 11  # Original unchanged
 
     def test_all_agent_directories_have_trailing_slash(self):
         """Test that all agent directories end with trailing slash."""
