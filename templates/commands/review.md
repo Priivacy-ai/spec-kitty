@@ -17,26 +17,30 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check (CRITICAL for AI Agents)
 
-Before proceeding with review, verify you are in the correct working directory:
+**BEFORE PROCEEDING:** Verify you are working from inside the feature worktree.
 
-**Check your current branch:**
+**Check current working directory and branch:**
 ```bash
+pwd
 git branch --show-current
 ```
 
-**Expected output:** A feature branch like `001-feature-name`
-**If you see `main`:** You are in the wrong location!
+**Expected output:**
+- `pwd`: `/path/to/project/.worktrees/004-feature-name` (or similar)
+- Branch: `004-feature-name` (NOT `main` or `release/x.x.x`)
 
-**This command MUST run from a feature worktree, not the main repository.**
+**If you see `main` or `release/*` branch, OR if pwd shows the main repo:**
 
-If you're on the `main` branch:
-1. Check for available worktrees: `ls .worktrees/`
-2. Navigate to the appropriate feature worktree: `cd .worktrees/<feature-name>`
-3. Verify you're in the right place: `git branch --show-current` should show the feature branch
-4. Then re-run this command
+⛔ **STOP - You are in the wrong location!**
 
-The script will fail if you're not in a feature worktree.
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**DO NOT use `cd` to navigate to the worktree.** File editing tools (Edit, Write) will still use your original working directory.
+
+**Instead:**
+1. Tell the user: "This command must be run from inside the worktree at `.worktrees/<feature>/`"
+2. Stop execution
+3. Wait for the user to restart the session from the correct location
+
+**Path reference rule:** Always use paths relative to the worktree root (e.g., `kitty-specs/004-feature/tasks/`). When communicating with the user, mention absolute paths for clarity.
 
 This is intentional - worktrees provide isolation for parallel feature development.
 
@@ -62,15 +66,42 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 5. Decide outcome:
   - **Needs changes**:
-     * Append a new entry in the prompt’s **Activity Log** detailing feedback (include timestamp, reviewer agent, shell PID).
-     * Update frontmatter `lane` back to `planned`, clear `assignee` if necessary, keep history entry.
-     * Add/revise a `## Review Feedback` section (create if missing) summarizing action items.
-     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> planned --note "Returned for changes"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
+     * **CRITICAL**: Insert detailed feedback in the `## Review Feedback` section (located immediately after the frontmatter, before Objectives). This is the FIRST thing implementers will see when they re-read the prompt.
+     * Use a clear structure:
+       ```markdown
+       ## Review Feedback
+
+       **Status**: ❌ **Needs Changes**
+
+       **Key Issues**:
+       1. [Issue 1] - Why it's a problem and what to do about it
+       2. [Issue 2] - Why it's a problem and what to do about it
+
+       **What Was Done Well**:
+       - [Positive note 1]
+       - [Positive note 2]
+
+       **Action Items** (must complete before re-review):
+       - [ ] Fix [specific thing 1]
+       - [ ] Add [missing thing 2]
+       - [ ] Verify [validation point 3]
+       ```
+     * Update frontmatter:
+       - Set `lane: "planned"`
+       - Set `review_status: "has_feedback"`
+       - Set `reviewed_by: <YOUR_AGENT_ID>`
+       - Clear `assignee` if needed
+     * Append a new entry in the prompt's **Activity Log** with timestamp, reviewer agent, shell PID, and summary of feedback.
+     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> planned --note "Code review complete: [brief summary of issues]"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
   - **Approved**:
-     * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script).
-     * Update frontmatter: set `lane=done`, set reviewer metadata (`agent`, `shell_pid`), optional `assignee` for approver.
+     * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script, e.g., `2025-11-11T13:45:00Z – claude – shell_pid=1234 – lane=done – Approved without changes`).
+     * Update frontmatter:
+       - Set `lane: "done"`
+       - Set `review_status: ""` (clear it - no feedback needed)
+       - Set `reviewed_by: <YOUR_AGENT_ID>`
+       - Set `agent` and `shell_pid` to your session metadata
      * Use helper script to mark the task complete in `tasks.md` (see Step 6).
-     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> done --note "Approved for release"` (PowerShell variant available) to transition the prompt into `tasks/done/`.
+     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> done --note "Approved without changes"` (PowerShell variant available) to transition the prompt into `tasks/done/`.
 
 6. Update `tasks.md` automatically:
    - Run `scripts/bash/mark-task-status.sh --task-id <TASK_ID> --status done` (POSIX) or `scripts/powershell/Set-TaskStatus.ps1 -TaskId <TASK_ID> -Status done` (PowerShell) from repo root.

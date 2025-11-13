@@ -8,6 +8,8 @@ lane: "planned"  # planned | doing | for_review | done
 assignee: ""      # Optional friendly name when in doing/for_review
 agent: ""         # CLI agent identifier (claude, codex, etc.)
 shell_pid: ""     # PID captured when the task moved to the current lane
+review_status: "" # empty | has_feedback | acknowledged (populated by reviewers/implementers)
+reviewed_by: ""   # Agent ID of the reviewer (if reviewed)
 history:
   - timestamp: "{{TIMESTAMP}}"
     lane: "planned"
@@ -17,6 +19,31 @@ history:
 ---
 
 # Work Package Prompt: {{work_package_id}} – {{title}}
+
+## ⚠️ IMPORTANT: Review Feedback Status
+
+**Read this first if you are implementing this task!**
+
+- **Has review feedback?**: Check the `review_status` field above. If it says `has_feedback`, scroll to the **Review Feedback** section immediately (right below this notice).
+- **You must address all feedback** before your work is complete. Feedback items are your implementation TODO list.
+- **Mark as acknowledged**: When you understand the feedback and begin addressing it, update `review_status: acknowledged` in the frontmatter.
+- **Report progress**: As you address each feedback item, update the Activity Log explaining what you changed.
+
+---
+
+## Review Feedback
+
+> **Populated by `/spec-kitty.review`** – Reviewers add detailed feedback here when work needs changes. Implementation must address every item listed below before returning for re-review.
+
+*[This section is empty initially. Reviewers will populate it if the work is returned from review. If you see feedback here, treat each item as a must-do before completion.]*
+
+---
+
+## Markdown Formatting
+Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
+Use language identifiers in code blocks: ````python`, ````bash`
+
+---
 
 ## Objectives & Success Criteria
 

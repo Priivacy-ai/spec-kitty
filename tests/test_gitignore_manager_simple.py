@@ -59,7 +59,7 @@ def test_basic_functionality():
         result = manager.protect_all_agents()
         assert result.success, "protect_all_agents failed"
         assert result.modified, "File should be modified on first run"
-        assert len(result.entries_added) == 12, f"Expected 12 entries, got {len(result.entries_added)}"
+        assert len(result.entries_added) == 11, f"Expected 12 entries, got {len(result.entries_added)}"
 
         # Verify file created
         assert manager.gitignore_path.exists(), ".gitignore not created"
@@ -76,7 +76,7 @@ def test_all_agents_protected():
         expected_dirs = [
             ".claude/", ".codex/", ".opencode/", ".windsurf/",
             ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".github/", ".roo/", ".amazonq/"
+            ".augment/", ".roo/", ".amazonq/"
         ]
 
         content = manager.gitignore_path.read_text()
@@ -96,12 +96,12 @@ def test_duplicate_detection():
         # First run
         result1 = manager.protect_all_agents()
         assert result1.modified, "First run should modify file"
-        assert len(result1.entries_added) == 12, "Should add 12 entries"
+        assert len(result1.entries_added) == 11, "Should add 12 entries"
 
         # Second run
         result2 = manager.protect_all_agents()
         assert not result2.modified, "Second run should not modify file"
-        assert len(result2.entries_skipped) == 12, "Should skip 12 entries"
+        assert len(result2.entries_skipped) == 11, "Should skip 12 entries"
         assert len(result2.entries_added) == 0, "Should add 0 new entries"
 
 

@@ -63,7 +63,6 @@ AGENT_DIRECTORIES = [
     AgentDirectory("qwen", ".qwen/", False, "Qwen"),
     AgentDirectory("kilocode", ".kilocode/", False, "Kilocode"),
     AgentDirectory("auggie", ".augment/", False, "Auggie"),
-    AgentDirectory("github", ".github/", True, "GitHub Copilot (shared with Actions)"),  # Special: dual use
     AgentDirectory("roo", ".roo/", False, "Roo Coder"),
     AgentDirectory("amazonq", ".amazonq/", False, "Amazon Q"),
 ]
@@ -203,12 +202,6 @@ class GitignoreManager:
                 content = self.gitignore_path.read_text(encoding="utf-8")
                 existing_before = set(content.splitlines())
 
-            # Check for special handling of .github/
-            for agent in AGENT_DIRECTORIES:
-                if agent.is_special and agent.directory == ".github/":
-                    result.warnings.append(
-                        f"Note: {agent.directory} is also used by GitHub Actions - review before committing"
-                    )
 
             # Attempt to add all directories
             modified = self.ensure_entries(all_directories)
@@ -260,11 +253,6 @@ class GitignoreManager:
                     agent = agent_map[agent_name]
                     directories_to_add.append(agent.directory)
 
-                    # Check for special handling
-                    if agent.is_special and agent.directory == ".github/":
-                        result.warnings.append(
-                            f"Note: {agent.directory} is also used by GitHub Actions - review before committing"
-                        )
                 else:
                     result.warnings.append(f"Unknown agent name: {agent_name}")
 

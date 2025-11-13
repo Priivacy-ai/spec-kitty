@@ -7,6 +7,112 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.9] - 2025-11-13
+
+### Added
+
+- **Diagnostics CLI Command** – New `spec-kitty diagnostics` command with human-readable and JSON output for comprehensive project health checks.
+- **Dashboard Process Tracking** – Dashboard now stores process PID in `.dashboard` metadata file for reliable cleanup and monitoring.
+- **Feature Collision Detection** – Added explicit warnings when creating features with duplicate names that would overwrite existing work.
+- **LLM Context Documentation** – Enhanced all 13 command templates with location pre-flight checks, file discovery sections, and workflow context to prevent agents from getting lost.
+
+### Changed
+
+- **Dashboard Lifecycle** – Enhanced `ensure_dashboard_running()` to automatically clean up orphaned dashboard processes on initialization, preventing port exhaustion.
+- **Feature Creation Warnings** – `create-new-feature.sh` now warns when git is disabled or features already exist, with clear JSON indicators for LLM agents.
+- **Import Safety** – Fixed `detect_feature_slug` import path in diagnostics module to use correct module location.
+- **Worktree Documentation** – Updated WORKTREE_MODEL.md to accurately describe `.kittify/` as a complete copy (not symlink) with disk space implications documented.
+
+### Fixed
+
+- **CRITICAL: Dashboard Process Orphan Leak** – Fixed critical bug where background dashboard processes were orphaned and accumulated until all ports were exhausted. Complete fix includes:
+  - PIDs are captured and stored in `.dashboard` file (commit b8c7394)
+  - Orphaned processes with .dashboard files are automatically cleaned up on next init
+  - HTTP shutdown failures fall back to SIGTERM/SIGKILL with PID tracking
+  - Port range cleanup scans for orphaned dashboards without .dashboard files (commit 11340a4)
+  - Safe fingerprinting via health check API prevents killing unrelated services
+  - Automatic retry with cleanup when port exhaustion detected
+  - Failed startup processes are cleaned up (no orphans from Ctrl+C during health check)
+  - Multi-project scenarios remain fully isolated (per-project PIDs, safe port sweeps)
+  - Handles all orphan types: with metadata, without metadata, deleted temp projects
+  - Prevents "Could not find free port" errors after repeated uses
+
+- **Import Path Bug** – Fixed `detect_feature_slug` import in `src/specify_cli/dashboard/diagnostics.py` to import from `specify_cli.acceptance` instead of package root.
+
+- **Worktree Documentation Accuracy** – Corrected WORKTREE_MODEL.md which incorrectly stated `.kittify/` was symlinked; it's actually a complete copy due to git worktree behavior.
+
+### LLM Context Improvements
+
+All command templates enhanced with consistent context patterns:
+- **Location Pre-flight Checks**: pwd/git branch verification with expected outputs and correction steps
+- **File Discovery**: Lists what files {SCRIPT} provides, output locations, and available context
+- **Workflow Context**: Documents before/after commands and feature lifecycle integration
+
+Templates updated:
+- merge.md: CRITICAL safety check preventing merges from wrong location
+- clarify.md, research.md, analyze.md: HIGH priority core workflow commands
+- specify.md, checklist.md: Entry point and utility commands
+- constitution.md, dashboard.md: Project-level and monitoring commands
+
+### Testing
+
+- ✅ Dashboard comprehensive test suite (34 tests, 100% coverage)
+- ✅ All CLI commands validated
+- ✅ Import paths verified
+- ✅ Worktree behavior confirmed across test scenarios
+- ✅ LLM context patterns applied consistently
+
+### Security
+
+- Dashboard process cleanup prevents resource exhaustion attacks
+- Explicit warnings when creating duplicate features prevent silent data overwrite
+- Git disabled warnings ensure users know when version control is unavailable
+
+### Backward Compatibility
+
+All changes are fully backward compatible:
+- PID storage is optional (old `.dashboard` files still work)
+- Feature collision detection is advisory (doesn't block creation)
+- LLM context additions don't change command behavior
+- Dashboard cleanup is automatic (users don't need to do anything)
+
+## [0.4.12] - 2025-11-11
+
+### Added
+
+- **Core Service Modules** – Introduced `specify_cli.core.git_ops`, `project_resolver`, and `tool_checker` packages to host git utilities, project discovery, and tool validation logic with clean public APIs.
+- **Test Coverage** – Added dedicated suites (`tests/specify_cli/test_core/test_git_ops.py`, `test_project_resolver.py`, `test_tool_checker.py`) covering subprocess helpers, path resolution, and tool validation flows.
+
+### Changed
+
+- **CLI Import Surface** – `src/specify_cli/__init__.py` now imports git, resolver, and tool helpers from the new core modules, slimming the monolith and sharing the implementations across commands.
+- **Versioning Compliance** – `pyproject.toml` bumped to v0.4.12 to capture the core-service extraction and accompanying behavior changes.
+
+## [0.4.11] - 2025-11-11
+
+### Added
+
+- **Template Test Suite** – New `tests/test_template/` coverage exercises template manager, renderer, and agent asset generator flows to guard the init experience.
+
+### Changed
+
+- **Template System Extraction** – Moved template discovery, rendering, and asset generation logic out of `src/specify_cli/__init__.py` into dedicated `specify_cli.template` modules with shared frontmatter parsing.
+- **Dashboard Reuse** – Updated the dashboard scanner to consume the shared frontmatter parser so Kanban metadata stays in sync with CLI-generated commands.
+
+## [0.4.10] - 2025-11-11
+
+### Added
+
+- **Core Modules** – Introduced `specify_cli.core.config` and `specify_cli.core.utils` to centralize constants, shared helpers, and exports for downstream packages.
+- **CLI UI Package** – Moved `StepTracker`, arrow-key selection, and related utilities into `specify_cli.cli.ui`, enabling reuse across commands.
+- **Test Coverage** – Added dedicated unit suites for the new core modules and CLI UI interactions (12 new tests).
+
+### Changed
+
+- **Package Structure** – Created foundational package directories for `core/`, `cli/`, `template/`, and `dashboard/`, including structured `__init__.py` exports.
+- **Init Command Dependencies** – Updated `src/specify_cli/__init__.py` to consume the extracted modules, reducing monolith size and improving readability.
+- **File Utilities** – Replaced ad-hoc directory creation/removal with safe helper functions to prevent duplication across commands.
+
 ## [0.4.8] - 2025-11-10
 
 ### Added
