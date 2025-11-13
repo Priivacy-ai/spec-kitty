@@ -7,6 +7,70 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.9] - 2025-11-13
+
+### Added
+
+- **Diagnostics CLI Command** – New `spec-kitty diagnostics` command with human-readable and JSON output for comprehensive project health checks.
+- **Dashboard Process Tracking** – Dashboard now stores process PID in `.dashboard` metadata file for reliable cleanup and monitoring.
+- **Feature Collision Detection** – Added explicit warnings when creating features with duplicate names that would overwrite existing work.
+- **LLM Context Documentation** – Enhanced all 13 command templates with location pre-flight checks, file discovery sections, and workflow context to prevent agents from getting lost.
+
+### Changed
+
+- **Dashboard Lifecycle** – Enhanced `ensure_dashboard_running()` to automatically clean up orphaned dashboard processes on initialization, preventing port exhaustion.
+- **Feature Creation Warnings** – `create-new-feature.sh` now warns when git is disabled or features already exist, with clear JSON indicators for LLM agents.
+- **Import Safety** – Fixed `detect_feature_slug` import path in diagnostics module to use correct module location.
+- **Worktree Documentation** – Updated WORKTREE_MODEL.md to accurately describe `.kittify/` as a complete copy (not symlink) with disk space implications documented.
+
+### Fixed
+
+- **CRITICAL: Dashboard Process Orphan Leak** – Fixed critical bug where background dashboard processes were orphaned due to lack of PID tracking. Now:
+  - PIDs are captured and stored in `.dashboard` file
+  - Orphaned processes are automatically cleaned up on next init
+  - HTTP shutdown failures fall back to SIGTERM/SIGKILL
+  - Multi-project scenarios remain fully isolated
+  - Prevents "Could not find free port" errors after ~100 uses
+
+- **Import Path Bug** – Fixed `detect_feature_slug` import in `src/specify_cli/dashboard/diagnostics.py` to import from `specify_cli.acceptance` instead of package root.
+
+- **Worktree Documentation Accuracy** – Corrected WORKTREE_MODEL.md which incorrectly stated `.kittify/` was symlinked; it's actually a complete copy due to git worktree behavior.
+
+### LLM Context Improvements
+
+All command templates enhanced with consistent context patterns:
+- **Location Pre-flight Checks**: pwd/git branch verification with expected outputs and correction steps
+- **File Discovery**: Lists what files {SCRIPT} provides, output locations, and available context
+- **Workflow Context**: Documents before/after commands and feature lifecycle integration
+
+Templates updated:
+- merge.md: CRITICAL safety check preventing merges from wrong location
+- clarify.md, research.md, analyze.md: HIGH priority core workflow commands
+- specify.md, checklist.md: Entry point and utility commands
+- constitution.md, dashboard.md: Project-level and monitoring commands
+
+### Testing
+
+- ✅ Dashboard comprehensive test suite (34 tests, 100% coverage)
+- ✅ All CLI commands validated
+- ✅ Import paths verified
+- ✅ Worktree behavior confirmed across test scenarios
+- ✅ LLM context patterns applied consistently
+
+### Security
+
+- Dashboard process cleanup prevents resource exhaustion attacks
+- Explicit warnings when creating duplicate features prevent silent data overwrite
+- Git disabled warnings ensure users know when version control is unavailable
+
+### Backward Compatibility
+
+All changes are fully backward compatible:
+- PID storage is optional (old `.dashboard` files still work)
+- Feature collision detection is advisory (doesn't block creation)
+- LLM context additions don't change command behavior
+- Dashboard cleanup is automatic (users don't need to do anything)
+
 ## [0.4.12] - 2025-11-11
 
 ### Added
