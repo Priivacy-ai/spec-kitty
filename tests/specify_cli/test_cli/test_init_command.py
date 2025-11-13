@@ -52,8 +52,8 @@ def test_init_local_mode_uses_local_repo(cli_app, monkeypatch: pytest.MonkeyPatc
     app, console, outputs = cli_app
     monkeypatch.chdir(tmp_path)
 
-    def fake_local_repo():  # noqa: D401
-        return tmp_path / "templates"
+    def fake_local_repo(override_path=None):  # noqa: D401
+        return override_path or tmp_path / "templates"
 
     def fake_copy(local_repo: Path, project_path: Path, script: str):  # noqa: D401
         commands_dir = project_path / ".templates"
@@ -98,7 +98,7 @@ def test_init_package_mode_falls_back_when_no_local(cli_app, monkeypatch: pytest
     app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
 
-    monkeypatch.setattr(init_module, "get_local_repo_root", lambda: None)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
 
     def fake_copy(project_path: Path, script: str):  # noqa: D401
         pkg_dir = project_path / ".pkg"
@@ -135,7 +135,7 @@ def test_init_remote_mode_downloads_for_each_agent(cli_app, monkeypatch: pytest.
     app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
 
-    monkeypatch.setattr(init_module, "get_local_repo_root", lambda: None)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
 
     calls: list[tuple[str, str, bool]] = []
 
