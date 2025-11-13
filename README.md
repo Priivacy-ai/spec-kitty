@@ -435,9 +435,14 @@ The `spec-kitty` command supports the following options. Every run begins with a
 
 | Command     | Description                                                    |
 |-------------|----------------------------------------------------------------|
-| `init`      | Initialize a new Spec Kitty project from the latest template      |
-| `research`  | Scaffold Phase 0 research artifacts (`research.md`, `data-model.md`, CSV logs) |
-| `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`) |
+| `init`      | Initialize a new Spec Kitty project from templates |
+| `accept`    | Validate feature readiness before merging to main |
+| `check`     | Check that required tooling is available |
+| `dashboard` | Open or stop the Spec Kitty dashboard |
+| `diagnostics` | Show project health and diagnostics information |
+| `merge`     | Merge a completed feature branch into main and clean up resources |
+| `research`  | Execute Phase 0 research workflow to scaffold artifacts |
+| `verify-setup` | Verify that the current environment matches Spec Kitty expectations |
 
 ### `spec-kitty init` Arguments & Options
 
@@ -503,6 +508,113 @@ spec-kitty init my-project --ai claude --template-root=/path/to/local/spec-kitty
 
 # Check system requirements
 spec-kitty check
+```
+
+### `spec-kitty dashboard` Options
+
+| Option | Description |
+|--------|-------------|
+| `--port <number>` | Preferred port for the dashboard (falls back to first available port) |
+| `--kill` | Stop the running dashboard for this project and clear its metadata |
+
+**Examples:**
+```bash
+# Open dashboard (auto-detects port)
+spec-kitty dashboard
+
+# Open on specific port
+spec-kitty dashboard --port 4000
+
+# Stop dashboard
+spec-kitty dashboard --kill
+```
+
+### `spec-kitty accept` Options
+
+| Option | Description |
+|--------|-------------|
+| `--feature <slug>` | Feature slug to accept (auto-detected by default) |
+| `--mode <mode>` | Acceptance mode: `auto`, `pr`, `local`, or `checklist` (default: `auto`) |
+| `--actor <name>` | Name to record as the acceptance actor |
+| `--test <command>` | Validation command to execute (repeatable) |
+| `--json` | Emit JSON instead of formatted text |
+| `--lenient` | Skip strict metadata validation |
+| `--no-commit` | Skip auto-commit; report only |
+| `--allow-fail` | Return checklist even when issues remain |
+
+**Examples:**
+```bash
+# Validate feature (auto-detect)
+spec-kitty accept
+
+# Validate specific feature
+spec-kitty accept --feature 001-auth-system
+
+# Get checklist only (no commit)
+spec-kitty accept --mode checklist
+
+# Accept with custom test validation
+spec-kitty accept --test "pytest tests/" --test "npm run lint"
+
+# JSON output for CI integration
+spec-kitty accept --json
+```
+
+### `spec-kitty merge` Options
+
+| Option | Description |
+|--------|-------------|
+| `--strategy <type>` | Merge strategy: `merge`, `squash`, or `rebase` (default: `merge`) |
+| `--delete-branch` / `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
+| `--remove-worktree` / `--keep-worktree` | Remove or keep feature worktree after merge (default: remove) |
+| `--push` | Push to origin after merge |
+| `--target <branch>` | Target branch to merge into (default: `main`) |
+| `--dry-run` | Show what would be done without executing |
+
+**Examples:**
+```bash
+# Standard merge and push
+spec-kitty merge --push
+
+# Squash commits into one
+spec-kitty merge --strategy squash --push
+
+# Keep branch for reference
+spec-kitty merge --keep-branch --push
+
+# Preview merge without executing
+spec-kitty merge --dry-run
+
+# Merge to different target
+spec-kitty merge --target develop --push
+```
+
+### `spec-kitty verify-setup`
+
+Verifies that the current environment matches Spec Kitty expectations:
+- Checks for `.kittify/` directory structure
+- Validates agent command files exist
+- Confirms dashboard can start
+- Reports any configuration issues
+
+**Example:**
+```bash
+cd my-project
+spec-kitty verify-setup
+```
+
+### `spec-kitty diagnostics`
+
+Shows project health and diagnostics information:
+- Active mission
+- Available features
+- Dashboard status
+- Git configuration
+- Agent command availability
+
+**Example:**
+```bash
+spec-kitty diagnostics
 ```
 
 ### Available Slash Commands
@@ -645,27 +757,44 @@ The merge command:
 
 ## 🧭 Mission System
 
-Spec Kitty now supports **missions**: curated bundles of templates, commands, and guardrails for different domains. Two missions ship out of the box:
+Spec Kitty supports **missions**: curated bundles of templates, commands, and guardrails for different domains. Two missions ship out of the box:
 
 - **Software Dev Kitty** – the original Spec-Driven Development workflow for shipping application features (default).
 - **Deep Research Kitty** – a methodology-focused workflow for evidence gathering, analysis, and synthesis.
 
 Each mission lives under `.kittify/missions/<mission-key>/` and provides:
 
-- Mission-specific templates (`spec-template.md`, `plan-template.md`, `tasks-template.md`, etc.).
-- Command guidance tuned to the domain (`specify`, `plan`, `tasks`, `implement`, `review`, `accept`).
-- Optional constitutions or constitutions to bias the agent toward best practices.
+- Mission-specific templates (`spec-template.md`, `plan-template.md`, `tasks-template.md`, etc.)
+- Command guidance tuned to the domain (`specify`, `plan`, `tasks`, `implement`, `review`, `accept`)
+- Optional constitutions to bias the agent toward best practices
 
-Use the new CLI group to manage missions inside a project:
+### Selecting a Mission
+
+Choose your mission during initialization:
 
 ```bash
-spec-kitty mission list        # Show available missions and the active one
-spec-kitty mission current     # Display summary for the active mission
-spec-kitty mission switch research   # Point the project at Deep Research Kitty
-spec-kitty mission info research     # Inspect templates, phases, and artifacts
+# Select mission interactively
+spec-kitty init my-project --ai claude
+
+# Or specify mission directly
+spec-kitty init my-project --ai claude --mission software-dev
+spec-kitty init research-project --ai claude --mission research
 ```
 
-When you switch missions the CLI updates `.kittify/active-mission`, and subsequent commands (spec, plan, tasks, etc.) pull templates from that mission. Plan accordingly—artifact names can differ (e.g., research missions expect `findings.md`).
+### Mission Configuration
+
+After initialization, the active mission is configured via symlink:
+
+```bash
+# View active mission
+ls -l .kittify/active-mission
+# → .kittify/active-mission -> missions/software-dev/
+
+# Mission configuration
+cat .kittify/active-mission/mission.yaml
+```
+
+**Note:** Mission switching commands (`spec-kitty mission switch`, etc.) are planned for a future release. Currently, missions are selected during `spec-kitty init` and remain active for the project lifecycle.
 
 ### Environment Variables
 

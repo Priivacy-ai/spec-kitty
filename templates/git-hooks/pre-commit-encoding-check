@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook to validate UTF-8 encoding in markdown files
+#
+# This hook prevents commits containing Windows-1252 smart quotes and other
+# problematic characters that cause UTF-8 encoding errors in the dashboard.
+#
+# Installation:
+#   cp templates/git-hooks/pre-commit-encoding-check .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# Or to install during spec-kitty init, this template will be copied automatically.
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+# Check if spec-kitty CLI is available
+if ! command -v spec-kitty &> /dev/null; then
+    echo -e "${YELLOW}Warning: spec-kitty command not found. Skipping encoding validation.${NC}"
+    echo "Install spec-kitty CLI to enable automatic encoding validation."
+    exit 0
+fi
+
+# Get list of staged markdown files
+STAGED_MD_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' || true)
+
+if [ -z "$STAGED_MD_FILES" ]; then
+    # No markdown files staged, skip check
+    exit 0
+fi
+
+echo "Checking encoding for staged markdown files..."
+
+# Temporary flag to track if any files have issues
+HAS_ISSUES=false
+
+# Check each staged file for encoding issues
+for file in $STAGED_MD_FILES; do
+    if [ ! -f "$file" ]; then
+        continue
+    fi
+
+    # Use Python to check for problematic characters
+    if ! python3 -c "
+import sys
+try:
+    with open('$file', 'rb') as f:
+        data = f.read()
+    # Try strict UTF-8 decode
+    data.decode('utf-8')
+    sys.exit(0)
+except UnicodeDecodeError as e:
+    print(f'${RED}✗ Encoding error in $file at byte {e.start}${NC}', file=sys.stderr)
+    sys.exit(1)
+except Exception as e:
+    print(f'${YELLOW}Warning: Could not check $file: {e}${NC}', file=sys.stderr)
+    sys.exit(0)
+" 2>&1; then
+        HAS_ISSUES=true
+
+        # Show example problematic characters
+        echo -e "${YELLOW}  Found problematic characters (likely Windows-1252 smart quotes)${NC}"
+
+        # Try to show the problematic bytes using Python
+        python3 - "$file" <<'PYTHON' || true
+import sys
+import re
+
+# Problematic characters map
+PROBLEMATIC = {
+    '\u2018': "'",  # LEFT SINGLE QUOTATION MARK
+    '\u2019': "'",  # RIGHT SINGLE QUOTATION MARK
+    '\u201c': '"',  # LEFT DOUBLE QUOTATION MARK
+    '\u201d': '"',  # RIGHT DOUBLE QUOTATION MARK
+    '\u2013': "--", # EN DASH
+    '\u2014': "---", # EM DASH
+    '\u00b1': "+/-", # PLUS-MINUS SIGN
+    '\u00d7': "x",  # MULTIPLICATION SIGN
+    '\u00b0': " degrees", # DEGREE SIGN
+}
+
+file_path = sys.argv[1]
+
+try:
+    # Try reading with fallback encodings
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except UnicodeDecodeError:
+        with open(file_path, 'rb') as f:
+            data = f.read()
+        for encoding in ('cp1252', 'latin-1'):
+            try:
+                content = data.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            content = data.decode('utf-8', errors='replace')
+
+    # Find problematic characters
+    lines = content.splitlines()
+    found = 0
+    for line_num, line in enumerate(lines, 1):
+        for char, replacement in PROBLEMATIC.items():
+            if char in line:
+                col = line.index(char)
+                print(f"  Line {line_num}, col {col}: '{char}' (U+{ord(char):04X}) → '{replacement}'")
+                found += 1
+                if found >= 5:  # Limit output
+                    if sum(1 for l in lines for c in PROBLEMATIC if c in l) > 5:
+                        print(f"  ... and more")
+                    sys.exit(0)
+except Exception as e:
+    print(f"  Could not analyze file: {e}", file=sys.stderr)
+PYTHON
+    fi
+done
+
+if [ "$HAS_ISSUES" = true ]; then
+    echo ""
+    echo -e "${RED}❌ Commit blocked: Encoding errors detected in markdown files${NC}"
+    echo ""
+    echo -e "${YELLOW}To fix these issues:${NC}"
+    echo "  1. Run: spec-kitty validate-encoding --all --fix"
+    echo "  2. Review the changes"
+    echo "  3. Re-stage the fixed files: git add <files>"
+    echo "  4. Commit again"
+    echo ""
+    echo -e "${YELLOW}Or to bypass this check (not recommended):${NC}"
+    echo "  git commit --no-verify"
+    echo ""
+    exit 1
+fi
+
+echo -e "${GREEN}✓ All staged markdown files are properly UTF-8 encoded${NC}"
+exit 0
