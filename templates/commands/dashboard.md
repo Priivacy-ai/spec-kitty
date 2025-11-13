@@ -6,6 +6,49 @@ description: Open the Spec Kitty dashboard in your browser.
 *Path: [templates/commands/dashboard.md](templates/commands/dashboard.md)*
 
 
+## Context: Dashboard Overview
+
+**What is the dashboard?**
+A real-time, read-only web interface showing the health and status of all features in your project.
+
+**Key characteristics**:
+- ✅ Read-only (for viewing/monitoring only)
+- ✅ Project-wide view (shows ALL features)
+- ✅ Live updates (refreshes as you work)
+- ✅ No configuration needed (just run the command)
+
+**Run from**: Main repository root (dashboard automatically detects if you're in a worktree)
+
+---
+
+## When to Use Dashboard
+
+- **Project overview**: See all features, their statuses, and progress
+- **Debugging workflow**: Check if features are properly detected
+- **Monitoring**: Track which features are in progress, review, or complete
+- **Status reports**: Show stakeholders real-time feature status
+
+---
+
+## Workflow Context
+
+**Where it fits**: This is a utility command, not part of the sequential workflow
+
+**You can run this**:
+- From main repository root
+- From inside a feature worktree (dashboard still shows all projects)
+- At any point during feature development
+- Multiple times (each run can start/reuse the dashboard)
+
+**What it shows**:
+- All features and their branches
+- Current status (in development, reviewed, accepted, merged)
+- File integrity checks
+- Worktree status
+- Missing or problematic artifacts
+
+---
+
 ## Dashboard Access
 
 The dashboard shows ALL features across the project and runs from the **main repository**, not from individual feature worktrees.

@@ -37,6 +37,64 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+---
+
+## Location Pre-flight Check
+
+**BEFORE PROCEEDING:** Verify you are working in the feature worktree.
+
+```bash
+pwd
+git branch --show-current
+```
+
+**Expected output:**
+- `pwd`: Should end with `.worktrees/001-feature-name` (or similar feature worktree)
+- Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
+
+**If you see the main branch or main repository path:**
+
+⛔ **STOP - You are in the wrong location!**
+
+This command creates checklists in your feature directory. You must be in the feature worktree.
+
+**Correct the issue:**
+1. Navigate to your feature worktree: `cd .worktrees/001-feature-name`
+2. Verify you're on the correct feature branch: `git branch --show-current`
+3. Then run this checklist command again
+
+---
+
+## What You Have Available
+
+After running `{SCRIPT}`, you will have paths to:
+- **FEATURE_DIR**: Absolute path to your feature directory (kitty-specs/001-feature-name/)
+- **AVAILABLE_DOCS**: List of available documents (spec.md, plan.md, tasks.md, etc.)
+
+Your checklist will be created at:
+- **FEATURE_DIR/checklists/[domain].md** (e.g., `ux.md`, `api.md`, `security.md`)
+
+---
+
+## Workflow Context
+
+**This command**: Creates custom quality checklists for your feature's requirements
+
+**When to use**:
+- Before or after `/spec-kitty.plan` to validate requirement quality
+- Anytime during the workflow to validate specific quality dimensions
+- Multiple runs create different checklists (ux.md, api.md, security.md, etc.)
+
+**What it does**:
+- Analyzes your spec/plan/tasks documents
+- Creates "unit tests for requirements" (tests the spec quality, not implementation)
+- Validates completeness, clarity, consistency, and coverage of requirements
+- Identifies gaps, ambiguities, and conflicts
+
+**This is NOT testing implementation** - it's validating that your requirements are well-written and complete.
+
+---
+
 ## Execution Steps
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS list.
