@@ -34,9 +34,9 @@
 #    - Can update single agents or all existing agent files
 #    - Creates default Claude file if no agent files exist
 #
-# Usage: ./update-agent-context.sh [agent_type]
-# Agent types: claude|gemini|copilot|cursor|qwen|opencode|codex|windsurf|kilocode|auggie|q
-# Leave empty to update all existing agent files
+# Script: update-agent-context.sh
+# Purpose: Update agent context files with project information
+# Issues Fixed: #1 (separate streams), #4 (standardized --help), #5 (validation)
 
 set -e
 
@@ -51,6 +51,17 @@ set -o pipefail
 # Get script directory and load common functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
+
+# Handle common flags early (before processing agent_type)
+handle_common_flags "$@"
+set -- "${REMAINING_ARGS[@]}"
+
+if [[ "$SHOW_HELP" == true ]]; then
+    show_script_help "$(basename "$0")" \
+        "Update agent context files with project information" \
+        "[agent_type]" "Agent type (claude|gemini|copilot|cursor|qwen|opencode|codex|windsurf|kilocode|auggie|q) - leave empty to update all"
+    exit $EXIT_SUCCESS
+fi
 
 # Get all paths and variables from common functions
 eval $(get_feature_paths)
@@ -93,23 +104,29 @@ NEW_DB=""
 NEW_PROJECT_TYPE=""
 
 #==============================================================================
-# Utility Functions
+# Utility Functions (using common.sh logging)
 #==============================================================================
 
 log_info() {
-    echo "INFO: $1"
+    if ! is_quiet; then
+        show_log "ℹ️  $1"
+    fi
 }
 
 log_success() {
-    echo "✓ $1"
+    if ! is_quiet; then
+        show_log "✓ $1"
+    fi
 }
 
 log_error() {
-    echo "ERROR: $1" >&2
+    show_log "❌ $1"
 }
 
 log_warning() {
-    echo "WARNING: $1" >&2
+    if ! is_quiet; then
+        show_log "⚠️  $1"
+    fi
 }
 
 # Cleanup function for temporary files
