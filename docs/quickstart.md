@@ -6,7 +6,18 @@ This guide will help you get started with Spec-Driven Development using Spec Kit
 
 > NEW: All automation scripts now provide both Bash (`.sh`) and PowerShell (`.ps1`) variants. The `spec-kitty` CLI auto-selects based on OS unless you pass `--script sh|ps`.
 
-## The 4-Step Process
+## 📖 New User? Start Here
+
+**For the complete workflow from installation to merging features**, see the comprehensive guide in the [README: Getting Started section](https://github.com/Priivacy-ai/spec-kitty#-getting-started-complete-workflow).
+
+The guide covers:
+1. **CLI Installation & Project Initialization** (Terminal commands)
+2. **Starting Your AI Agent** (Claude, Gemini, Cursor, etc.)
+3. **Critical Context Switch** - When to `cd .worktrees/XXX-feature`
+4. **Complete Command Flow** - Constitution → Specify → Plan → Tasks → Implement → Review → Accept → Merge
+5. **Common Gotchas** - Where users typically get confused
+
+## The Essential Process (Summary)
 
 ### 1. Install Spec Kitty CLI
 
