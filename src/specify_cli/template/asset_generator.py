@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 from typing import Dict, Mapping
@@ -19,7 +20,7 @@ def generate_agent_assets(commands_dir: Path, project_path: Path, agent_key: str
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if not commands_dir.exists():
-        raise FileNotFoundError(f"Command templates directory not found at {commands_dir}")
+        _raise_template_discovery_error(commands_dir)
 
     for template_path in sorted(commands_dir.glob("*.md")):
         rendered = render_command_template(
@@ -81,6 +82,11 @@ def render_command_template(
         frontmatter_clean = rewrite_paths(frontmatter_clean)
 
     if extension == "toml":
+        # Convert Markdown variable syntax to TOML/Gemini variable syntax
+        # Gemini CLI uses {{args}} instead of $ARGUMENTS
+        # See: https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/custom-commands.md
+        rendered_body = _convert_markdown_syntax_to_format(rendered_body, "toml")
+
         description_value = description
         if description_value.startswith('"') and description_value.endswith('"'):
             description_value = description_value[1:-1]
@@ -95,6 +101,30 @@ def render_command_template(
     else:
         result = rendered_body
     return result if result.endswith("\n") else result + "\n"
+
+
+def _convert_markdown_syntax_to_format(content: str, target_format: str) -> str:
+    """Convert Markdown variable syntax to target format syntax.
+
+    Args:
+        content: Rendered template content in Markdown syntax
+        target_format: Target format (e.g., "toml" for Gemini)
+
+    Returns:
+        Content with variable syntax converted to target format
+
+    Conversion rules:
+    - Markdown (Claude/Codex): $ARGUMENTS, $AGENT_SCRIPT
+    - TOML (Gemini): {{args}} (per https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/custom-commands.md)
+    """
+    if target_format == "toml":
+        # Convert Claude/Codex Markdown variable syntax to Gemini TOML syntax
+        # $ARGUMENTS → {{args}}
+        content = content.replace("$ARGUMENTS", "{{args}}")
+        return content
+
+    # For other formats, return unchanged
+    return content
 
 
 def _filter_frontmatter(frontmatter_text: str) -> str:
@@ -113,7 +143,40 @@ def _filter_frontmatter(frontmatter_text: str) -> str:
     return "\n".join(filtered_lines)
 
 
+def _raise_template_discovery_error(commands_dir: Path) -> None:
+    """Raise an informative error about template discovery failure."""
+    env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
+    remote_repo = os.environ.get("SPECIFY_TEMPLATE_REPO")
+
+    error_msg = (
+        "Templates could not be found in any of the expected locations:\n\n"
+        "Checked paths (in order):\n"
+        f"  ✗ Packaged resources (bundled with CLI)\n"
+        f"  ✗ Environment variable SPEC_KITTY_TEMPLATE_ROOT" +
+        (f" = {env_root}" if env_root else " (not set)") + "\n" +
+        f"  ✗ Remote repository SPECIFY_TEMPLATE_REPO" +
+        (f" = {remote_repo}" if remote_repo else " (not configured)") + "\n\n"
+        "To fix this, try one of these approaches:\n\n"
+        "1. Reinstall from PyPI (recommended for end users):\n"
+        "   pip install --upgrade spec-kitty-cli\n\n"
+        "2. Use --template-root flag (for development):\n"
+        "   spec-kitty init . --template-root=/path/to/spec-kitty\n\n"
+        "3. Set environment variable (for development):\n"
+        "   export SPEC_KITTY_TEMPLATE_ROOT=/path/to/spec-kitty\n"
+        "   spec-kitty init .\n\n"
+        "4. Configure remote repository:\n"
+        "   export SPECIFY_TEMPLATE_REPO=owner/repo\n"
+        "   spec-kitty init .\n\n"
+        "For development installs from source, use:\n"
+        "   export SPEC_KITTY_TEMPLATE_ROOT=$(git rev-parse --show-toplevel)\n"
+        "   spec-kitty init . --ai=claude"
+    )
+
+    raise FileNotFoundError(error_msg)
+
+
 __all__ = [
     "generate_agent_assets",
     "render_command_template",
+    "_convert_markdown_syntax_to_format",
 ]
