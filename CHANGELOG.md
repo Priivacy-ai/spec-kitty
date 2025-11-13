@@ -7,6 +7,17 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.12] - 2025-11-13
+
+### Added
+
+- **Version Flag** – Added `--version` and `-v` flags to display installed spec-kitty-cli version.
+- **Dashboard Health Diagnostics** – Enhanced `spec-kitty diagnostics` to detect dashboard startup failures, test if dashboard can start, and report specific errors. Now catches issues like corrupted files, health check timeouts, and background process failures.
+
+### Changed
+
+- **Diagnostics Output** – Added Dashboard Health panel showing startup test results, PID tracking status, and specific failure reasons.
+
 ## [0.4.11] - 2025-11-13
 
 ### Fixed

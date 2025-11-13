@@ -18,6 +18,8 @@ Usage:
     spec-kitty init --here
 """
 
+__version__ = "0.4.12"
+
 import os
 from pathlib import Path
 
@@ -73,6 +75,13 @@ def activate_mission(project_path: Path, mission_key: str, mission_display: str,
     return status_detail
 
 
+def version_callback(value: bool) -> None:
+    """Display version and exit."""
+    if value:
+        console.print(f"spec-kitty-cli version {__version__}")
+        raise typer.Exit()
+
+
 app = typer.Typer(
     name="spec-kitty",
     help="Setup tool for Spec Kitty spec-driven development projects",
@@ -82,6 +91,14 @@ app = typer.Typer(
 )
 
 app.callback()(root_callback)
+
+
+@app.callback()
+def main_callback(
+    version: bool = typer.Option(None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit")
+) -> None:
+    """Main callback for version flag."""
+    pass
 
 
 def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
