@@ -18,6 +18,65 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+---
+
+## Location Pre-flight Check
+
+**BEFORE PROCEEDING:** Verify you are working in the feature worktree.
+
+```bash
+pwd
+git branch --show-current
+```
+
+**Expected output:**
+- `pwd`: Should end with `.worktrees/001-feature-name` (or similar feature worktree)
+- Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
+
+**If you see the main branch or main repository path:**
+
+⛔ **STOP - You are in the wrong location!**
+
+This command updates your feature's spec.md file. You must be in the feature worktree to ensure changes go to the correct location.
+
+**Correct the issue:**
+1. Navigate to your feature worktree: `cd .worktrees/001-feature-name`
+2. Verify you're on the correct feature branch: `git branch --show-current`
+3. Then run this clarify command again
+
+---
+
+## What You Have Available
+
+After running `{SCRIPT}`, you will have paths to:
+- **FEATURE_DIR**: Absolute path to your feature directory (kitty-specs/001-feature-name/)
+- **FEATURE_SPEC**: Absolute path to spec.md (the file you'll be clarifying)
+
+You may also have:
+- **plan.md**: If planning has started (optional)
+- **tasks.md**: If task breakdown exists (optional)
+
+---
+
+## Workflow Context
+
+**Before this**: `/spec-kitty.specify` created spec.md (your starting requirements)
+
+**This command**:
+- Identifies ambiguities and gaps in your spec
+- Asks clarification questions (max 5)
+- Updates spec.md with clarifications directly
+- Reduces downstream rework risk
+
+**After this**:
+- Review clarified spec
+- Run `/spec-kitty.plan` to create implementation plan
+- Or run `/spec-kitty.clarify` again if more questions arise post-planning
+
+This command is optional but recommended before planning to reduce rework.
+
+---
+
 ## Outline
 
 Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.
