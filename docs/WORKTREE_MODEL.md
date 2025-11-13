@@ -340,8 +340,8 @@ Each worktree at `.worktrees/NNN-feature/` contains:
 │       ├── tasks.md
 │       ├── tasks/    (task prompts organized by lane)
 │       └── ...
-├── .kittify/         (symlink to main .kittify)
-├── .git              (symlink to main .git)
+├── .kittify/         (complete copy of scripts and templates)
+├── .git              (pointer to main .git)
 └── (all other project files)
 ```
 
@@ -363,6 +363,26 @@ This means:
 - ✅ Small disk footprint (no duplication)
 - ✅ Git operations affect all worktrees
 - ✅ Automatic cleanup possible
+
+### .kittify/ in Worktrees
+
+The `.kittify/` directory in each worktree is a **complete copy**, not a symlink. This is standard Git worktree behavior:
+
+**Why is .kittify/ copied?**
+- Git's `worktree add` command creates a complete checkout of all tracked files
+- Since `.kittify/` is tracked in git, each worktree receives a full copy
+- This ensures each worktree is self-contained and portable
+
+**Implications:**
+- Each worktree is isolated and can be used independently
+- Disk usage: ~5MB per worktree for the .kittify/ copy
+- Script modifications in a worktree **only affect that worktree**
+- Updates to the main `.kittify/` require `git pull` in active worktrees
+
+**⚠️ Important Note:** Do not modify scripts in worktrees expecting changes to propagate to the main repository. To share script improvements:
+1. Commit and merge your feature branch to main
+2. Pull changes in other worktrees: `git pull origin main`
+3. If needed, recreate other worktrees to get updated scripts
 
 ## Troubleshooting Worktrees
 
@@ -426,6 +446,8 @@ $ git worktree prune
 - ✅ Use auto-switching if you forget which worktree you're in
 - ✅ Remove worktrees after merging with `git worktree remove`
 - ✅ Keep worktrees for active development only
+- ✅ If you modify `.kittify/` scripts in a worktree, commit them as part of your feature
+- ✅ Pull the main branch in other worktrees to get script updates after merging
 
 ### ❌ DON'T
 
@@ -595,6 +617,29 @@ $ git merge main  # Bring in main's changes
 ### Q: Can I use worktrees with different Git hosts?
 
 **A:** Yes. Worktrees follow Git's standard behavior. Works with GitHub, GitLab, etc.
+
+### Q: If I modify `.kittify/` scripts in a worktree, do changes appear in the main repo?
+
+**A:** No. Scripts in a worktree are a complete copy, isolated from the main repository.
+
+**If you improve a script:**
+1. Edit it in your worktree's `.kittify/scripts/`
+2. Commit the improvement as part of your feature branch
+3. When you merge your feature to main, the improved script goes with it
+4. Other worktrees won't get the update until they pull from main
+5. Consider recreating worktrees to get the latest scripts after pulling updates
+
+**Why it works this way**: Each worktree is self-contained, so changes don't automatically propagate. This prevents unexpected side effects when multiple developers work on features simultaneously.
+
+### Q: I'm in a worktree and modified a script. How do I make it available to other worktrees?
+
+**A:**
+1. Make sure your changes are committed: `git add .kittify/scripts/... && git commit -m "improve: ..."`
+2. Merge your feature branch to main: `/spec-kitty.merge`
+3. Go to other worktrees and pull: `git pull origin main`
+4. If other worktrees are still active, you may need to recreate them to get updated `.kittify/` files
+
+This ensures all worktrees stay in sync with the latest scripts.
 
 ## Summary
 
