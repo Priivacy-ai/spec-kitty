@@ -110,6 +110,92 @@ def _is_process_alive(pid: int) -> bool:
         return True
 
 
+def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
+    """Check if the process on the given port is a spec-kitty dashboard.
+
+    Uses health check endpoint fingerprinting to safely identify spec-kitty dashboards.
+    Only returns True if we can confirm it's a spec-kitty dashboard.
+
+    Args:
+        port: Port number to check
+        timeout: Health check timeout in seconds
+
+    Returns:
+        True if confirmed to be a spec-kitty dashboard, False otherwise
+    """
+    health_url = f"http://127.0.0.1:{port}/api/health"
+    try:
+        with urllib.request.urlopen(health_url, timeout=timeout) as response:
+            if response.status != 200:
+                return False
+            payload = response.read()
+    except Exception:
+        # Can't reach or parse - not a spec-kitty dashboard (or dead)
+        return False
+
+    try:
+        data = json.loads(payload.decode('utf-8'))
+        # Verify this is actually a spec-kitty dashboard by checking for expected fields
+        return 'project_path' in data and 'status' in data
+    except Exception:
+        return False
+
+
+def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: int = 100) -> int:
+    """Clean up orphaned spec-kitty dashboard processes in the port range.
+
+    This function safely identifies spec-kitty dashboard processes via health check
+    fingerprinting and kills only confirmed spec-kitty processes. This handles orphans
+    that have no .dashboard file (e.g., from failed startups or deleted temp projects).
+
+    Args:
+        start_port: Starting port number (default: 9237)
+        port_count: Number of ports to check (default: 100)
+
+    Returns:
+        Number of orphaned processes killed
+    """
+    import subprocess
+
+    killed_count = 0
+
+    for port in range(start_port, start_port + port_count):
+        # Check if port is occupied
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(0.1)
+                if sock.connect_ex(('127.0.0.1', port)) != 0:
+                    # Port is free, skip
+                    continue
+        except Exception:
+            continue
+
+        # Port is occupied - check if it's a spec-kitty dashboard
+        if _is_spec_kitty_dashboard(port):
+            # It's a spec-kitty dashboard - try to find and kill the process
+            try:
+                # Use lsof to find PID listening on this port
+                result = subprocess.run(
+                    ['lsof', '-ti', f':{port}', '-sTCP:LISTEN'],
+                    capture_output=True,
+                    text=True,
+                    timeout=2,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    pids = [int(pid) for pid in result.stdout.strip().split('\n') if pid.strip()]
+                    for pid in pids:
+                        try:
+                            os.kill(pid, signal.SIGKILL)
+                            killed_count += 1
+                        except (ProcessLookupError, PermissionError):
+                            pass
+            except Exception:
+                # Can't use lsof or failed to kill - skip this port
+                pass
+
+    return killed_count
+
+
 def _check_dashboard_health(
     port: int,
     project_dir: Path,
@@ -167,9 +253,11 @@ def ensure_dashboard_running(
 
     This function:
     1. Checks if a dashboard is already running (health check)
-    2. Cleans up orphaned processes if the stored PID is dead
-    3. Starts a new dashboard if needed
-    4. Stores the PID for future cleanup
+    2. Cleans up this project's orphaned process if stored PID is dead
+    3. If starting new dashboard fails due to port exhaustion, cleans up orphaned
+       spec-kitty dashboards across the entire port range and retries
+    4. Starts a new dashboard if needed
+    5. Stores the PID for future cleanup
 
     Returns:
         Tuple of (url, port, started) where started is True when a new server was launched.
@@ -182,7 +270,7 @@ def ensure_dashboard_running(
     existing_token = None
     existing_pid = None
 
-    # CLEANUP: Check if we have a stale .dashboard file from a dead process
+    # STEP 1: Check if we have a stale .dashboard file from a dead process
     if dashboard_file.exists():
         existing_url, existing_port, existing_token, existing_pid = _parse_dashboard_file(dashboard_file)
 
@@ -207,6 +295,7 @@ def ensure_dashboard_running(
             # No PID recorded - just clean up metadata file
             dashboard_file.unlink(missing_ok=True)
 
+    # STEP 2: Try to start a new dashboard
     if preferred_port is not None:
         try:
             port_to_use = find_free_port(preferred_port, max_attempts=1)
@@ -216,19 +305,49 @@ def ensure_dashboard_running(
         port_to_use = None
 
     token = secrets.token_hex(16)
-    port, pid = start_dashboard(
-        project_dir_resolved,
-        port=port_to_use,
-        background_process=background_process,
-        project_token=token,
-    )
+
+    # Try starting dashboard - if it fails due to port exhaustion, cleanup and retry
+    try:
+        port, pid = start_dashboard(
+            project_dir_resolved,
+            port=port_to_use,
+            background_process=background_process,
+            project_token=token,
+        )
+    except RuntimeError as e:
+        # If port exhaustion, try cleaning up orphaned dashboards and retry once
+        if "Could not find free port" in str(e):
+            killed = _cleanup_orphaned_dashboards_in_range()
+            if killed > 0:
+                # Cleanup succeeded, retry starting dashboard
+                port, pid = start_dashboard(
+                    project_dir_resolved,
+                    port=port_to_use,
+                    background_process=background_process,
+                    project_token=token,
+                )
+            else:
+                # No orphans found or couldn't clean up - re-raise original error
+                raise
+        else:
+            # Different error - re-raise
+            raise
+
     url = f"http://127.0.0.1:{port}"
 
+    # Wait for dashboard to become healthy
     for _ in range(40):
         if _check_dashboard_health(port, project_dir_resolved, token):
             _write_dashboard_file(dashboard_file, url, port, token, pid)
             return url, port, True
         time.sleep(0.25)
+
+    # Dashboard started but never became healthy - clean up the failed process
+    if pid is not None:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
 
     raise RuntimeError(f"Dashboard failed to start on port {port} for project {project_dir_resolved}")
 
