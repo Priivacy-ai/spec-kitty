@@ -44,6 +44,8 @@ git branch --show-current
 
 This is intentional - worktrees provide isolation for parallel feature development.
 
+---
+
 ## ⚠️ CRITICAL: Review Feedback Check
 
 **Before you start implementing**, check for prior review feedback:

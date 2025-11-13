@@ -111,28 +111,28 @@ import sys
 try:
     from specify_cli.mission import get_active_mission, MissionNotFoundError  # type: ignore
 except Exception as exc:  # pragma: no cover - defensive
-    print(json.dumps({"error": f"Unable to import mission module: {exc}"}))
+    print(json.dumps({'error': f'Unable to import mission module: {exc}'}))
     sys.exit(1)
 
 repo_root = Path(sys.argv[1])
 try:
     mission = get_active_mission(repo_root)
 except MissionNotFoundError as exc:
-    print(json.dumps({"error": str(exc)}))
+    print(json.dumps({'error': str(exc)}))
     sys.exit(1)
 
 templates_dir = mission.templates_dir
 payload = {
-    "key": mission.path.name,
-    "path": str(mission.path),
-    "name": mission.name,
-    "templates_dir": str(templates_dir),
-    "commands_dir": str(mission.commands_dir),
-    "constitution_dir": str(mission.constitution_dir),
-    "spec_template": str(templates_dir / "spec-template.md"),
-    "plan_template": str(templates_dir / "plan-template.md"),
-    "tasks_template": str(templates_dir / "tasks-template.md"),
-    "task_prompt_template": str(templates_dir / "task-prompt-template.md"),
+    'key': mission.path.name,
+    'path': str(mission.path),
+    'name': mission.name,
+    'templates_dir': str(templates_dir),
+    'commands_dir': str(mission.commands_dir),
+    'constitution_dir': str(mission.constitution_dir),
+    'spec_template': str(templates_dir / 'spec-template.md'),
+    'plan_template': str(templates_dir / 'plan-template.md'),
+    'tasks_template': str(templates_dir / 'tasks-template.md'),
+    'task_prompt_template': str(templates_dir / 'task-prompt-template.md'),
 }
 print(json.dumps(payload))
 "@
