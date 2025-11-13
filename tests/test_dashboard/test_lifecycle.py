@@ -6,11 +6,12 @@ from specify_cli.dashboard import lifecycle
 
 def test_parse_and_write_dashboard_file_roundtrip(tmp_path):
     dashboard_file = tmp_path / ".kittify" / ".dashboard"
-    lifecycle._write_dashboard_file(dashboard_file, "http://127.0.0.1:9999", 9999, "token123")
-    url, port, token = lifecycle._parse_dashboard_file(dashboard_file)
+    lifecycle._write_dashboard_file(dashboard_file, "http://127.0.0.1:9999", 9999, "token123", pid=12345)
+    url, port, token, pid = lifecycle._parse_dashboard_file(dashboard_file)
     assert url == "http://127.0.0.1:9999"
     assert port == 9999
     assert token == "token123"
+    assert pid == 12345
 
 
 def test_ensure_dashboard_running_writes_state(monkeypatch, tmp_path):
@@ -52,7 +53,7 @@ def test_stop_dashboard_sends_shutdown(monkeypatch, tmp_path):
     project_dir = tmp_path
     dashboard_file = project_dir / ".kittify" / ".dashboard"
     dashboard_file.parent.mkdir(parents=True)
-    lifecycle._write_dashboard_file(dashboard_file, "http://127.0.0.1:12345", 12345, "secret")
+    lifecycle._write_dashboard_file(dashboard_file, "http://127.0.0.1:12345", 12345, "secret", pid=99999)
 
     calls = {"health": 0, "shutdown": 0}
 

@@ -15,14 +15,16 @@ def test_start_dashboard_background_invokes_subprocess(monkeypatch, tmp_path):
     calls = {}
 
     class FakeProcess:
+        pid = 12345  # Add PID attribute
+
         def __init__(self, args, **kwargs):
             calls["args"] = args
             calls["kwargs"] = kwargs
 
     monkeypatch.setattr(server, "subprocess", type("S", (), {"Popen": FakeProcess, "DEVNULL": None}))
-    port, thread = server.start_dashboard(tmp_path, port=12345, background_process=True, project_token="abc")
+    port, pid = server.start_dashboard(tmp_path, port=12345, background_process=True, project_token="abc")
     assert port == 12345
-    assert thread is None
+    assert pid == 12345  # Changed from thread to pid
     assert calls["args"][0] == server.sys.executable
     assert calls["args"][1] == "-c"
 
@@ -50,8 +52,7 @@ def test_start_dashboard_foreground_starts_thread(monkeypatch, tmp_path):
     monkeypatch.setattr(server, "HTTPServer", FakeServer)
     monkeypatch.setattr(server.threading, "Thread", FakeThread)
 
-    port, thread = server.start_dashboard(tmp_path, port=12346, background_process=False)
+    port, pid = server.start_dashboard(tmp_path, port=12346, background_process=False)
     assert port == 12346
-    assert isinstance(thread, FakeThread)
-    assert getattr(thread, "started")
+    assert pid is None  # Changed from thread to pid (None for threaded mode)
     assert served.get("called")
