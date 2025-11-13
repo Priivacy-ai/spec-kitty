@@ -82,12 +82,21 @@ def start_dashboard(
     port: Optional[int] = None,
     background_process: bool = False,
     project_token: Optional[str] = None,
-) -> Tuple[int, Optional[threading.Thread]]:
+) -> Tuple[int, Optional[int]]:
     """
     Start the dashboard server.
 
-    Returns tuple(port, thread). When background_process=True, the thread is None
-    because the server runs in a detached child process.
+    Returns tuple(port, pid). When background_process=True, pid is the process ID
+    of the detached child process. When background_process=False, pid is None.
+
+    Args:
+        project_dir: Path to the project directory
+        port: Port number (auto-selected if None)
+        background_process: If True, run as detached subprocess; if False, run in thread
+        project_token: Security token for the dashboard
+
+    Returns:
+        Tuple[port, pid]: Port number and process ID (None if threaded mode)
     """
     if port is None:
         port = find_free_port()
@@ -96,18 +105,18 @@ def start_dashboard(
 
     if background_process:
         script = _background_script(project_dir_abs, port, project_token)
-        subprocess.Popen(
+        proc = subprocess.Popen(
             [sys.executable, '-c', script],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL,
             start_new_session=True,
         )
-        return port, None
+        return port, proc.pid
 
     handler_class = _build_handler_class(project_dir_abs, project_token)
     server = HTTPServer(('127.0.0.1', port), handler_class)
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    return port, thread
+    return port, None
