@@ -128,6 +128,41 @@ if [[ ! -f "$IMPL_PLAN" ]]; then
     exit $EXIT_VALIDATION_ERROR
 fi
 
+# Validate that plan.md has been filled out (not just template)
+# Check for common template markers that should be replaced
+template_markers=(
+    '\[FEATURE\]'
+    '\[###-feature-name\]'
+    '\[DATE\]'
+    'ACTION REQUIRED: Replace the content'
+    '\[e.g., Python 3.11'
+    'or NEEDS CLARIFICATION'
+    '# \[REMOVE IF UNUSED\]'
+    '\[Gates determined based on constitution file\]'
+)
+
+marker_count=0
+for marker in "${template_markers[@]}"; do
+    if grep -qE "$marker" "$IMPL_PLAN" 2>/dev/null; then
+        ((marker_count++)) || true
+    fi
+done
+
+# If 5 or more template markers are still present, plan is unfilled
+if [[ $marker_count -ge 5 ]]; then
+    show_log "❌ ERROR: plan.md appears to be unfilled (still in template form)"
+    show_log "Found $marker_count template markers that need to be replaced."
+    show_log ""
+    show_log "Please complete the /spec-kitty.plan workflow:"
+    show_log "  1. Fill in [FEATURE], [DATE], and technical context placeholders"
+    show_log "  2. Replace 'NEEDS CLARIFICATION' with actual values"
+    show_log "  3. Remove [REMOVE IF UNUSED] sections and choose your project structure"
+    show_log "  4. Replace [Gates determined...] with actual constitution checks"
+    show_log ""
+    show_log "Then run this command again."
+    exit $EXIT_VALIDATION_ERROR
+fi
+
 # Check for tasks.md if required
 if $REQUIRE_TASKS && [[ ! -f "$TASKS" ]]; then
     show_log "❌ ERROR: tasks.md not found in $FEATURE_DIR"

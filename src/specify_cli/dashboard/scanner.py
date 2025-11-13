@@ -3,22 +3,102 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from specify_cli.template import parse_frontmatter
+from specify_cli.text_sanitization import sanitize_file
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "format_path_for_display",
     "gather_feature_paths",
     "get_feature_artifacts",
     "get_workflow_status",
+    "read_file_resilient",
     "resolve_feature_dir",
     "scan_all_features",
     "scan_feature_kanban",
 ]
+
+
+def read_file_resilient(
+    file_path: Path, *, auto_fix: bool = True
+) -> tuple[Optional[str], Optional[str]]:
+    """Read a file with resilience to encoding errors.
+
+    This function attempts to read a file as UTF-8, and if that fails:
+    1. Tries alternative encodings (cp1252, latin-1)
+    2. Optionally auto-fixes the file by sanitizing and re-saving as UTF-8
+    3. Returns clear error messages for the dashboard to display
+
+    Args:
+        file_path: Path to the file to read
+        auto_fix: If True, automatically sanitize and fix encoding errors
+
+    Returns:
+        Tuple of (content, error_message)
+        - content: File content if successful, None if failed
+        - error_message: None if successful, error description if failed
+
+    Examples:
+        >>> from pathlib import Path
+        >>> content, error = read_file_resilient(Path("good-file.md"))
+        >>> content is not None
+        True
+        >>> error is None
+        True
+    """
+    if not file_path.exists():
+        return None, f"File not found: {file_path.name}"
+
+    try:
+        # Try strict UTF-8 first
+        content = file_path.read_text(encoding="utf-8")
+        return content, None
+    except UnicodeDecodeError as exc:
+        # Log the encoding error
+        logger.warning(
+            f"UTF-8 decoding failed for {file_path.name} at byte {exc.start}: {exc.reason}"
+        )
+
+        if not auto_fix:
+            return None, (
+                f"Encoding error in {file_path.name} at byte {exc.start}. "
+                f"File contains non-UTF-8 characters (possibly Windows-1252 smart quotes). "
+                f"Run 'spec-kitty validate-encoding --fix' to repair."
+            )
+
+        # Attempt auto-fix
+        try:
+            logger.info(f"Attempting to auto-fix encoding for {file_path.name}")
+            was_modified, error = sanitize_file(file_path, backup=True, dry_run=False)
+
+            if error:
+                return None, error
+
+            if was_modified:
+                # Read the fixed file
+                content = file_path.read_text(encoding="utf-8")
+                logger.info(f"Successfully fixed encoding for {file_path.name}")
+                return content, None
+            else:
+                # Shouldn't happen, but handle it
+                return None, f"Auto-fix failed for {file_path.name}: no changes made"
+
+        except Exception as fix_exc:
+            logger.error(f"Auto-fix failed for {file_path.name}: {fix_exc}")
+            return None, (
+                f"Encoding error in {file_path.name} and auto-fix failed: {fix_exc}. "
+                f"Manually repair the file or run 'spec-kitty validate-encoding --fix'."
+            )
+    except Exception as exc:
+        logger.error(f"Unexpected error reading {file_path.name}: {exc}")
+        return None, f"Error reading {file_path.name}: {exc}"
 
 
 def format_path_for_display(path_str: Optional[str]) -> Optional[str]:
@@ -220,7 +300,30 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
 
         for prompt_file in lane_dir.rglob("WP*.md"):
             try:
-                content = prompt_file.read_text(encoding="utf-8")
+                # Use resilient reader with auto-fix
+                content, error = read_file_resilient(prompt_file, auto_fix=True)
+
+                if content is None:
+                    # Log the error and create an error task card
+                    logger.error(f"Failed to read {prompt_file.name}: {error}")
+                    lanes[lane].append(
+                        {
+                            "id": prompt_file.stem,
+                            "title": f"⚠️ Encoding Error: {prompt_file.name}",
+                            "lane": lane,
+                            "subtasks": [],
+                            "agent": "",
+                            "assignee": "",
+                            "phase": "",
+                            "prompt_markdown": f"**Encoding Error**\n\n{error}",
+                            "prompt_path": str(prompt_file.relative_to(project_dir))
+                            if prompt_file.is_relative_to(project_dir)
+                            else str(prompt_file),
+                            "encoding_error": True,
+                        }
+                    )
+                    continue
+
                 frontmatter, prompt_body, _ = parse_frontmatter(content)
 
                 if "work_package_id" not in frontmatter:
@@ -244,7 +347,8 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
                 }
 
                 lanes[lane].append(task_data)
-            except Exception:
+            except Exception as exc:
+                logger.error(f"Unexpected error processing {prompt_file.name}: {exc}")
                 continue
 
         lanes[lane].sort(key=work_package_sort_key)

@@ -14,6 +14,7 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import console, get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES, get_active_mission_key
 from specify_cli.core.project_resolver import resolve_template_path, resolve_worktree_aware_feature_dir
+from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
@@ -59,6 +60,22 @@ def research(
     feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
     feature_dir.mkdir(parents=True, exist_ok=True)
     tracker.complete("feature", str(feature_dir))
+
+    # Validate that plan.md has been filled out before proceeding
+    plan_path = feature_dir / "plan.md"
+    try:
+        validate_plan_filled(plan_path, feature_slug=feature_slug, strict=True)
+    except PlanValidationError as exc:
+        console.print(tracker.render())
+        console.print()
+        console.print(f"[red]Error:[/red] {exc}")
+        console.print()
+        console.print("[yellow]Next steps:[/yellow]")
+        console.print("  1. Run [cyan]/spec-kitty.plan[/cyan] to fill in the technical architecture")
+        console.print("  2. Complete all [FEATURE], [DATE], and technical context placeholders")
+        console.print("  3. Remove [REMOVE IF UNUSED] sections and choose your project structure")
+        console.print("  4. Then run [cyan]/spec-kitty.research[/cyan] again")
+        raise typer.Exit(1)
 
     created_paths: list[Path] = []
 
