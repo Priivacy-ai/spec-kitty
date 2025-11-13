@@ -1,30 +1,44 @@
 #!/usr/bin/env bash
 
+# Script: create-new-feature.sh
+# Purpose: Create new feature branch and specification
+# Issues Fixed: #1 (separate streams), #4 (standardized --help), #5 (input validation)
+
 set -e
 
-JSON_MODE=false
+# Source common functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./common.sh
+source "$SCRIPT_DIR/common.sh"
+
 FEATURE_NAME=""
 ARGS=()
 
+# Handle common flags (Issue #4: standardized --help, Issue #1: separate logs)
+handle_common_flags "$@"
+set -- "${REMAINING_ARGS[@]}"
+
+if [[ "$SHOW_HELP" == true ]]; then
+    show_script_help "$(basename "$0")" \
+        "Create a new feature branch and specification file" \
+        "feature_description" "Description of the feature to create" \
+        "--feature-name" "Friendly name for the feature (optional)"
+    exit $EXIT_SUCCESS
+fi
+
+# Parse remaining arguments
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --json)
-            JSON_MODE=true
-            ;;
         --feature-name=*)
             FEATURE_NAME="${1#*=}"
             ;;
         --feature-name)
             shift
             if [ -z "${1:-}" ]; then
-                echo "Error: --feature-name requires a value" >&2
-                exit 1
+                show_log "❌ ERROR: --feature-name requires a value"
+                exit $EXIT_USAGE_ERROR
             fi
             FEATURE_NAME="$1"
-            ;;
-        --help|-h)
-            echo "Usage: $0 [--json] [--feature-name \"Friendly Title\"] <feature_description>"
-            exit 0
             ;;
         *)
             ARGS+=("$1")
@@ -35,12 +49,14 @@ done
 
 FEATURE_DESCRIPTION="${ARGS[*]}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
-    cat >&2 <<'EOF'
-[spec-kitty] Error: Feature description missing.
-This script must only run after the discovery interview produces a confirmed intent summary.
-Return WAITING_FOR_DISCOVERY_INPUT, gather the answers, then invoke the script with the finalized description.
-EOF
-    exit 1
+    show_log "❌ ERROR: Feature description required"
+    show_log ""
+    show_log "This script must only run after the discovery interview"
+    show_log "produces a confirmed intent summary."
+    show_log ""
+    show_log "Return WAITING_FOR_DISCOVERY_INPUT, gather the answers,"
+    show_log "then invoke the script with the finalized description."
+    exit $EXIT_USAGE_ERROR
 fi
 
 # Function to find the repository root by searching for existing project markers
@@ -208,9 +224,11 @@ done
 
 if [ -n "$TEMPLATE" ]; then
     cp "$TEMPLATE" "$SPEC_FILE"
-    echo "[spec-kitty] Copied spec template from $TEMPLATE"
+    if ! is_quiet; then
+        show_log "✓ Copied spec template from $TEMPLATE"
+    fi
 else
-    echo "[spec-kitty] Warning: Spec template not found for active mission; creating empty spec.md"
+    show_log "⚠️  Warning: Spec template not found for active mission; creating empty spec.md"
     touch "$SPEC_FILE"
 fi
 
@@ -243,30 +261,41 @@ cat > "$META_FILE" <<EOF
 }
 EOF
 
-WORKTREE_JSON=$(json_escape "$WORKTREE_NOTE")
-
-if $JSON_MODE; then
-    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","FRIENDLY_NAME":"%s","WORKTREE_PATH":"%s"}\n' "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$FRIENDLY_JSON" "$WORKTREE_JSON"
+# Output results (Issue #1: JSON to stdout, logs to stderr)
+if [[ "$JSON_OUTPUT" == true ]]; then
+    output_json \
+        "BRANCH_NAME" "$BRANCH_NAME" \
+        "SPEC_FILE" "$SPEC_FILE" \
+        "FEATURE_NUM" "$FEATURE_NUM" \
+        "FRIENDLY_NAME" "$FRIENDLY_NAME" \
+        "WORKTREE_PATH" "$WORKTREE_NOTE"
 else
-    echo "BRANCH_NAME: $BRANCH_NAME"
-    echo "SPEC_FILE: $SPEC_FILE"
-    echo "FEATURE_NUM: $FEATURE_NUM"
-    echo "FRIENDLY_NAME: $FRIENDLY_NAME"
-    echo "SPECIFY_FEATURE environment variable set to: $BRANCH_NAME"
-    echo "SPECIFY_FEATURE_NAME environment variable set to: $FRIENDLY_NAME"
-    if [ -n "$WORKTREE_NOTE" ]; then
-        echo ""
-        echo "✓ Git worktree created at: $WORKTREE_NOTE"
-        echo ""
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "NEXT STEP (REQUIRED):"
-        echo "  cd \"$WORKTREE_NOTE\""
-        echo ""
-        echo "Then continue with:"
-        echo "  /spec-kitty.plan"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo ""
-        echo "When finished, remove the worktree with:"
-        echo "  git worktree remove \"$WORKTREE_NOTE\""
+    # Human-readable output
+    if ! is_quiet; then
+        show_log "✓ Feature created successfully"
+        show_log ""
+        show_log "Details:"
+        show_log "  BRANCH_NAME: $BRANCH_NAME"
+        show_log "  SPEC_FILE: $SPEC_FILE"
+        show_log "  FEATURE_NUM: $FEATURE_NUM"
+        show_log "  FRIENDLY_NAME: $FRIENDLY_NAME"
+        show_log ""
+
+        if [ -n "$WORKTREE_NOTE" ]; then
+            show_log "✓ Git worktree created at: $WORKTREE_NOTE"
+            show_log ""
+            show_log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            show_log "NEXT STEP (REQUIRED):"
+            show_log "  cd \"$WORKTREE_NOTE\""
+            show_log ""
+            show_log "Then continue with:"
+            show_log "  /spec-kitty.plan"
+            show_log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            show_log ""
+            show_log "When finished, remove the worktree with:"
+            show_log "  git worktree remove \"$WORKTREE_NOTE\""
+        fi
     fi
 fi
+
+exit $EXIT_SUCCESS

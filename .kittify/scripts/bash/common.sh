@@ -329,3 +329,271 @@ EOF
 
 check_file() { [[ -f "$1" ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
 check_dir() { [[ -d "$1" && -n $(ls -A "$1" 2>/dev/null) ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
+
+# ============================================================================
+# ENHANCED SCRIPT UTILITIES (Added 2025-11-13)
+# ============================================================================
+# These functions implement improvements for:
+# - Issue #1: Separate log streams (use show_log for stderr)
+# - Issue #4: Standardized --help support
+# - Issue #5: Input validation and consistent exit codes
+# ============================================================================
+
+# Exit codes (Issue #5: Consistent error codes)
+readonly EXIT_SUCCESS=0
+readonly EXIT_USAGE_ERROR=1
+readonly EXIT_VALIDATION_ERROR=2
+readonly EXIT_EXECUTION_ERROR=3
+readonly EXIT_PRECONDITION_ERROR=4
+
+# Log to stderr (Issue #1: Separate streams)
+# Usage: show_log "Message"
+show_log() {
+    local message="$1"
+    echo "[spec-kitty] $message" >&2
+}
+
+# Log with timestamp to stderr
+show_log_timestamped() {
+    local message="$1"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] [spec-kitty] $message" >&2
+}
+
+# Output JSON to stdout (Issue #1: Separate streams)
+# Usage: output_json "key1" "value1" "key2" "value2"
+output_json() {
+    local -A json_data
+    local key value
+
+    while [[ $# -gt 0 ]]; do
+        key="$1"
+        value="$2"
+        json_data["$key"]="$value"
+        shift 2
+    done
+
+    local first=true
+    printf '{'
+    for key in "${!json_data[@]}"; do
+        if [[ "$first" == false ]]; then
+            printf ','
+        fi
+        # Escape quotes and backslashes in values
+        local escaped_value="${json_data[$key]//\\/\\\\}"
+        escaped_value="${escaped_value//\"/\\\"}"
+        printf '"%s":"%s"' "$key" "$escaped_value"
+        first=false
+    done
+    printf '}\n'
+}
+
+# Validate feature exists (Issue #5: Input validation)
+# Usage: validate_feature_exists "001-my-feature"
+validate_feature_exists() {
+    local feature_slug="$1"
+    local repo_root="${2:-$(get_repo_root)}"
+
+    if [[ -z "$feature_slug" ]]; then
+        show_log "❌ ERROR: Feature slug is required"
+        return $EXIT_VALIDATION_ERROR
+    fi
+
+    local feature_dir="$repo_root/kitty-specs/$feature_slug"
+    local worktree_dir="$repo_root/.worktrees/$feature_slug"
+
+    if [[ ! -d "$feature_dir" ]] && [[ ! -d "$worktree_dir" ]]; then
+        show_log "❌ ERROR: Feature '$feature_slug' not found"
+        show_log ""
+        show_log "Checked locations:"
+        show_log "  - $feature_dir"
+        show_log "  - $worktree_dir"
+        show_log ""
+        show_log "💡 TIP: Run 'spec-kitty dashboard' to see all features"
+        return $EXIT_VALIDATION_ERROR
+    fi
+
+    return $EXIT_SUCCESS
+}
+
+# Validate feature directory exists (Issue #5: Input validation)
+# Usage: validate_feature_dir_exists "/path/to/kitty-specs/001-feature"
+validate_feature_dir_exists() {
+    local feature_dir="$1"
+    local feature_slug="${2:-$(basename "$feature_dir")}"
+
+    if [[ -z "$feature_dir" ]]; then
+        show_log "❌ ERROR: Feature directory path is required"
+        return $EXIT_VALIDATION_ERROR
+    fi
+
+    if [[ ! -d "$feature_dir" ]]; then
+        show_log "❌ ERROR: Feature directory not found: $feature_dir"
+        return $EXIT_VALIDATION_ERROR
+    fi
+
+    if [[ ! -f "$feature_dir/spec.md" ]]; then
+        show_log "❌ ERROR: spec.md not found in feature directory"
+        show_log "Expected: $feature_dir/spec.md"
+        return $EXIT_VALIDATION_ERROR
+    fi
+
+    return $EXIT_SUCCESS
+}
+
+# Validate tasks.md exists (Issue #5: Input validation)
+# Usage: validate_tasks_file_exists "/path/to/kitty-specs/001-feature"
+validate_tasks_file_exists() {
+    local feature_dir="$1"
+
+    if [[ ! -f "$feature_dir/tasks.md" ]]; then
+        show_log "❌ ERROR: tasks.md not found in feature directory"
+        show_log "Expected: $feature_dir/tasks.md"
+        show_log ""
+        show_log "Have you run '/spec-kitty.tasks' yet?"
+        return $EXIT_VALIDATION_ERROR
+    fi
+
+    return $EXIT_SUCCESS
+}
+
+# Validate file argument provided (Issue #5: Input validation)
+# Usage: validate_arg_provided "$1" "feature_slug"
+validate_arg_provided() {
+    local value="$1"
+    local arg_name="$2"
+
+    if [[ -z "$value" ]]; then
+        show_log "❌ ERROR: Required argument '$arg_name' not provided"
+        return $EXIT_USAGE_ERROR
+    fi
+
+    return $EXIT_SUCCESS
+}
+
+# Validate in git repository (Issue #5: Input validation)
+# Usage: validate_in_git_repo
+validate_in_git_repo() {
+    if ! git rev-parse --show-toplevel >/dev/null 2>&1; then
+        show_log "❌ ERROR: Not in a git repository"
+        show_log "Expected: Run this command from within a git repository"
+        return $EXIT_PRECONDITION_ERROR
+    fi
+
+    return $EXIT_SUCCESS
+}
+
+# Show generic help format (Issue #4: Standardized --help)
+# Usage: show_script_help "my-script.sh" "Do something useful" "arg1" "description" "arg2" "description"
+show_script_help() {
+    local script_name="$1"
+    local description="$2"
+    shift 2
+
+    cat >&2 <<EOF
+Usage: $script_name [OPTIONS] <arguments>
+
+$description
+
+Options:
+  --help, -h     Show this help message
+  --dry-run      Show what would be done without making changes
+  --json         Output results as JSON (if supported)
+  --quiet, -q    Suppress log messages
+
+Arguments:
+EOF
+
+    while [[ $# -gt 0 ]]; do
+        local arg_name="$1"
+        local arg_desc="$2"
+        printf "  %-20s %s\n" "$arg_name" "$arg_desc" >&2
+        shift 2
+    done
+
+    cat >&2 <<EOF
+
+Examples:
+  $script_name --help
+  $script_name --dry-run
+  $script_name [arguments]
+
+For more information, run:
+  spec-kitty --help
+
+EOF
+}
+
+# Handle common flags (Issue #4: Standardized --help)
+# Sets DRY_RUN, JSON_OUTPUT, QUIET_MODE, SHOW_HELP
+# Usage: handle_common_flags "$@"; set -- "${REMAINING_ARGS[@]}"
+declare -g DRY_RUN=false
+declare -g JSON_OUTPUT=false
+declare -g QUIET_MODE=false
+declare -g SHOW_HELP=false
+declare -ga REMAINING_ARGS=()
+
+handle_common_flags() {
+    local arg
+    REMAINING_ARGS=()
+
+    while [[ $# -gt 0 ]]; do
+        arg="$1"
+        case "$arg" in
+            --help|-h)
+                SHOW_HELP=true
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                show_log "🔍 DRY RUN MODE: No changes will be made"
+                shift
+                ;;
+            --json)
+                JSON_OUTPUT=true
+                shift
+                ;;
+            --quiet|-q)
+                QUIET_MODE=true
+                shift
+                ;;
+            --)
+                shift
+                REMAINING_ARGS+=("$@")
+                break
+                ;;
+            -*)
+                show_log "❌ ERROR: Unknown option: $arg"
+                return $EXIT_USAGE_ERROR
+                ;;
+            *)
+                REMAINING_ARGS+=("$arg")
+                shift
+                ;;
+        esac
+    done
+
+    return $EXIT_SUCCESS
+}
+
+# Conditional logging (respects --quiet flag)
+# Usage: if ! is_quiet; then show_log "message"; fi
+is_quiet() {
+    [[ "$QUIET_MODE" == true ]]
+}
+
+# Execute with dry-run support (Issue #5)
+# Usage: exec_cmd "rm" "file.txt"
+exec_cmd() {
+    if [[ "$DRY_RUN" == true ]]; then
+        show_log "[DRY RUN] Would execute: $@"
+        return $EXIT_SUCCESS
+    fi
+
+    if ! is_quiet; then
+        show_log "Executing: $@"
+    fi
+
+    "$@" || return $EXIT_EXECUTION_ERROR
+    return $EXIT_SUCCESS
+}
