@@ -23,11 +23,18 @@ This scenario demonstrates how a lead architect can orchestrate a multi-agent te
    - Cursor implements the chat service changes.  
    - Human reviewer tracks `tasks/for_review/`.
 
-5. **Run the kanban workflow**  
+5. **Run the kanban workflow**
    Each agent moves prompts using `.kittify/scripts/bash/tasks-move-to-lane.sh` and logs progress. The dashboard shows lane health in real time.
 
-6. **Review & merge**  
-   Human reviewer processes `for_review` prompts, uses `/spec-kitty.merge` once all packages land in `done`.
+6. **Review completed work**
+   Human reviewer processes `for_review` prompts via `/spec-kitty.review`, providing feedback or approving work to move to `done`.
+
+7. **Acceptance & merge**
+   Once all work packages are in `done/`:
+   ```text
+   /spec-kitty.accept  # Validates feature readiness, records metadata
+   /spec-kitty.merge --push  # Merges to main, cleans up worktree
+   ```
 
 ## Outcome
 - Web and mobile chat surfaces upgraded with consistent reliability guarantees

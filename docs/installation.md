@@ -2,6 +2,8 @@
 
 > Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). Installation commands below target the spec-kitty distribution while crediting the original project.
 
+> **📖 Looking for the complete workflow?** See the [README: Getting Started guide](https://github.com/Priivacy-ai/spec-kitty#-getting-started-complete-workflow) for the full lifecycle from CLI installation through feature development and merging.
+
 ## Prerequisites
 
 - **Linux/macOS** (or Windows; PowerShell scripts now supported without WSL)
