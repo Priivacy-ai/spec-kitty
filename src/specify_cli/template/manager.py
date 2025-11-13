@@ -12,17 +12,35 @@ from rich.console import Console
 console = Console()
 
 
-def get_local_repo_root() -> Path | None:
-    """Return repository root when running from a local checkout, else None."""
+def get_local_repo_root(override_path: str | None = None) -> Path | None:
+    """Return repository root when running from a local checkout, else None.
+
+    Args:
+        override_path: Optional override path (e.g., from --template-root flag)
+
+    Returns:
+        Path to repository root containing templates/commands, or None
+    """
+    # Check override path first (from --template-root flag)
+    if override_path:
+        override = Path(override_path).expanduser().resolve()
+        if (override / "templates" / "commands").exists():
+            return override
+        console.print(
+            f"[yellow]--template-root set to {override}, but templates/commands not found there. Ignoring.[/yellow]"
+        )
+
+    # Check environment variable
     env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
     if env_root:
         root_path = Path(env_root).expanduser().resolve()
         if (root_path / "templates" / "commands").exists():
             return root_path
         console.print(
-            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but templates/commands not found. Ignoring.[/yellow]"
+            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but templates/commands not found there. Ignoring.[/yellow]"
         )
 
+    # Check package location
     candidate = Path(__file__).resolve().parents[2]
     if (candidate / "templates" / "commands").exists():
         return candidate

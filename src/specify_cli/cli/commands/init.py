@@ -60,6 +60,7 @@ def init(
     skip_tls: bool = typer.Option(False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"),
     debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
     github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
+    template_root: str = typer.Option(None, "--template-root", help="Override default template location (useful for development mode)"),
 ):
     """Initialize a new Spec Kitty project."""
     # Use the injected dependencies
@@ -232,7 +233,7 @@ def init(
     mission_display = MISSION_CHOICES[selected_mission]
 
     template_mode = "package"
-    local_repo = get_local_repo_root()
+    local_repo = get_local_repo_root(override_path=template_root)
     if local_repo is not None:
         template_mode = "local"
         if debug:
