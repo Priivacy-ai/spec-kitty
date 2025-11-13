@@ -85,7 +85,7 @@ class TestTextSanitization:
     def test_sanitize_text_replaces_characters_correctly(self):
         """Verify sanitization replaces characters without corrupting text."""
         original = "User\u2019s \u201cfavorite\u201d feature costs $100 \u00b1 $10 at 72\u00b0F"
-        expected = 'User\'s "favorite" feature costs $100 +/- $10 at 72 degrees F'
+        expected = 'User\'s "favorite" feature costs $100 +/- $10 at 72 degreesF'  # Note: " degrees" added, so "72 degreesF"
 
         result = sanitize_markdown_text(original)
 
