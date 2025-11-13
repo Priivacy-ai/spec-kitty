@@ -22,15 +22,15 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
     """Run comprehensive diagnostics on the project setup using enhanced verification."""
     try:
         from ..manifest import FileManifest, WorktreeStatus  # type: ignore
-        from .. import detect_feature_slug, AcceptanceError  # type: ignore
+        from ..acceptance import detect_feature_slug, AcceptanceError
     except (ImportError, ValueError):
         try:
             from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
-            from specify_cli import detect_feature_slug, AcceptanceError  # type: ignore
+            from specify_cli.acceptance import detect_feature_slug, AcceptanceError
         except ImportError:
             _ensure_specify_cli_on_path()
             from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
-            from specify_cli import detect_feature_slug, AcceptanceError  # type: ignore
+            from specify_cli.acceptance import detect_feature_slug, AcceptanceError
 
     kittify_dir = project_dir / ".kittify"
     repo_root = project_dir
