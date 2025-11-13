@@ -7,6 +7,75 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-11-13
+
+### Added
+
+- **Encoding Validation Guardrail** – Comprehensive 5-layer defense system to prevent Windows-1252 characters from crashing the dashboard:
+  - **Layer 1**: Dashboard auto-fixes encoding errors on read (server-side resilience)
+  - **Layer 2**: Character sanitization module with 15+ problematic character mappings
+  - **Layer 3**: CLI command `spec-kitty validate-encoding` with `--fix` flag
+  - **Layer 4**: Pre-commit hook that blocks commits with encoding errors
+  - **Layer 5**: Enhanced AGENTS.md with real crash examples and character blacklist
+- **Plan Validation Guardrail** – Prevents agents from skipping the planning phase:
+  - Detects 11 template markers in plan.md (threshold: 5+ markers = unfilled)
+  - Blocks `/spec-kitty.research` command when plan is unfilled
+  - Blocks `/spec-kitty.tasks` via check-prerequisites.sh
+  - Clear error messages with remediation steps
+- **Character Sanitization Module** (`src/specify_cli/text_sanitization.py`) – Core module for encoding fixes:
+  - Maps smart quotes (`' ' " "`) → ASCII (`' "`)
+  - Maps plus-minus (`±`) → `+/-`, multiplication (`×`) → `x`, degree (`°`) → `degrees`
+  - Supports dry-run mode and automatic backup creation
+  - Directory-wide sanitization with glob patterns
+- **Plan Validation Module** (`src/specify_cli/plan_validation.py`) – Template detection:
+  - Configurable threshold (default: 5 markers)
+  - Line-precise error reporting
+  - Strict and lenient validation modes
+
+### Changed
+
+- **Dashboard Scanner** – Now resilient to encoding errors:
+  - Auto-fixes files on read with backup creation
+  - Creates error cards instead of crashing on bad files
+  - Logs encoding issues with clear error messages
+- **Research Command** – Added plan validation gate before allowing research artifact creation
+- **Prerequisites Check Script** – Added bash-based plan validation (35 lines)
+- **AGENTS.md Template** – Enhanced with encoding warnings:
+  - Real crash examples from production
+  - Explicit character blacklist with Unicode codepoints
+  - Auto-fix workflow documentation
+
+### Fixed
+
+- **Dashboard Blank Page Issue** – Dashboard no longer crashes when markdown files contain Windows-1252 smart quotes, ±, ×, ° symbols. Auto-fix sanitizes files on first read.
+- **Agents Skipping Planning** – Research and tasks commands now blocked until plan.md is properly filled out (not just template).
+
+### Documentation
+
+- **encoding-validation.md** (554 lines) – Complete guide covering:
+  - Problem description with real examples
+  - 5-layer architecture explanation
+  - Testing procedures and troubleshooting
+  - Migration guide for existing projects
+  - API reference and performance considerations
+- **plan-validation-guardrail.md** (202 lines) – Implementation details:
+  - Problem and solution overview
+  - Configuration instructions
+  - Testing procedures
+  - Benefits and future enhancements
+- **TESTING_REQUIREMENTS_ENCODING_AND_PLAN_VALIDATION.md** (1056 lines) – Functional test specifications:
+  - 35+ test cases across 6 test suites
+  - Coverage targets (85-95%)
+  - Performance requirements
+  - Edge case testing requirements
+
+### Testing
+
+- Added 7 unit tests for plan validation (all passing)
+- Verified on real project (battleship): fixed 9 files with encoding issues
+- Dashboard now loads successfully after encoding fixes
+- Character mapping tests: smart quotes, ±, ×, ° all converted correctly
+
 ## [0.4.13] - 2025-11-13
 
 ### Fixed
