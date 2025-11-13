@@ -78,13 +78,12 @@ class _DummyAcceptanceError(Exception):
 def _configure_common_patches(monkeypatch, worktree_path: Path) -> None:
     """Set up shared dependency stubs."""
     _install_manifest_stubs(monkeypatch, worktree_path)
-    monkeypatch.setattr(
-        specify_cli,
-        "detect_feature_slug",
-        lambda repo_root, cwd: "004-modular-code-refactoring",
-        raising=False,
-    )
-    monkeypatch.setattr(specify_cli, "AcceptanceError", _DummyAcceptanceError, raising=False)
+
+    # Create fake acceptance module for the corrected import path
+    fake_acceptance = types.ModuleType("specify_cli.acceptance")
+    fake_acceptance.detect_feature_slug = lambda repo_root, cwd: "004-modular-code-refactoring"  # type: ignore[attr-defined]
+    fake_acceptance.AcceptanceError = _DummyAcceptanceError  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "specify_cli.acceptance", fake_acceptance)
 
 
 def test_run_diagnostics_reports_manifest_and_worktree_state(monkeypatch, tmp_path: Path) -> None:
