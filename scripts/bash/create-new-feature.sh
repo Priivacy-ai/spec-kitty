@@ -119,6 +119,8 @@ BRANCH_NAME="${FEATURE_NUM}-${WORDS}"
 WORKTREE_NOTE=""
 TARGET_ROOT="$REPO_ROOT"
 WORKTREE_CREATED=false
+GIT_ENABLED=true
+FEATURE_EXISTS=false
 
 if [ "$HAS_GIT" = true ]; then
     case "$REPO_ROOT" in
@@ -167,6 +169,12 @@ if [ "$HAS_GIT" = true ]; then
 
     if [ "$WORKTREE_CREATED" != "true" ]; then
         if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+            # Feature branch already exists
+            FEATURE_EXISTS=true
+            >&2 echo "[spec-kitty] ⚠️  Warning: Branch '$BRANCH_NAME' already exists"
+            >&2 echo "[spec-kitty]    This may indicate you're recreating an existing feature."
+            >&2 echo "[spec-kitty]    Existing feature specs may be overwritten."
+
             if ! git checkout "$BRANCH_NAME"; then
                 >&2 echo "[spec-kitty] Error: Failed to check out existing branch $BRANCH_NAME"
                 exit 1
@@ -179,7 +187,10 @@ if [ "$HAS_GIT" = true ]; then
         fi
     fi
 else
-    >&2 echo "[spec-kitty] Warning: Git repository not detected; skipped branch creation for $BRANCH_NAME"
+    >&2 echo "[spec-kitty] ⚠️  Warning: Git repository not detected"
+    >&2 echo "[spec-kitty]    Feature branch '$BRANCH_NAME' will NOT be created"
+    >&2 echo "[spec-kitty]    Version control disabled for this feature"
+    GIT_ENABLED=false
 fi
 
 REPO_ROOT="$TARGET_ROOT"
@@ -189,6 +200,16 @@ SPECS_DIR="$REPO_ROOT/kitty-specs"
 mkdir -p "$SPECS_DIR"
 
 FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
+
+# Check if feature already exists (specs directory already present)
+if [ -d "$FEATURE_DIR" ]; then
+    if [ ! "$FEATURE_EXISTS" = "true" ]; then
+        FEATURE_EXISTS=true
+        >&2 echo "[spec-kitty] ⚠️  Warning: Feature directory already exists at $FEATURE_DIR"
+        >&2 echo "[spec-kitty]    Existing feature specs may be overwritten."
+    fi
+fi
+
 mkdir -p "$FEATURE_DIR"
 
 SPEC_FILE="$FEATURE_DIR/spec.md"
@@ -246,7 +267,28 @@ EOF
 WORKTREE_JSON=$(json_escape "$WORKTREE_NOTE")
 
 if $JSON_MODE; then
-    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","FRIENDLY_NAME":"%s","WORKTREE_PATH":"%s"}\n' "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$FRIENDLY_JSON" "$WORKTREE_JSON"
+    # Build JSON with warning fields for both issues
+    if [ "$FEATURE_EXISTS" = "true" ] || [ "$GIT_ENABLED" = "false" ]; then
+        # Include warnings in JSON output
+        WARNINGS=()
+        [ "$FEATURE_EXISTS" = "true" ] && WARNINGS+=("FEATURE_ALREADY_EXISTS")
+        [ "$GIT_ENABLED" = "false" ] && WARNINGS+=("GIT_DISABLED")
+
+        printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","FRIENDLY_NAME":"%s","WORKTREE_PATH":"%s","GIT_ENABLED":%s,"FEATURE_EXISTS":%s,"WARNINGS":[' \
+            "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$FRIENDLY_JSON" "$WORKTREE_JSON" \
+            "$([ "$GIT_ENABLED" = "true" ] && echo "true" || echo "false")" \
+            "$([ "$FEATURE_EXISTS" = "true" ] && echo "true" || echo "false")"
+
+        for i in "${!WARNINGS[@]}"; do
+            [ "$i" -gt 0 ] && printf ","
+            printf '"%s"' "${WARNINGS[$i]}"
+        done
+        printf ']}\n'
+    else
+        # Clean output when no issues
+        printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","FRIENDLY_NAME":"%s","WORKTREE_PATH":"%s","GIT_ENABLED":true,"FEATURE_EXISTS":false,"WARNINGS":[]}\n' \
+            "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$FRIENDLY_JSON" "$WORKTREE_JSON"
+    fi
 else
     echo "BRANCH_NAME: $BRANCH_NAME"
     echo "SPEC_FILE: $SPEC_FILE"
@@ -254,6 +296,16 @@ else
     echo "FRIENDLY_NAME: $FRIENDLY_NAME"
     echo "SPECIFY_FEATURE environment variable set to: $BRANCH_NAME"
     echo "SPECIFY_FEATURE_NAME environment variable set to: $FRIENDLY_NAME"
+
+    # Show warnings prominently in human-readable output
+    if [ "$FEATURE_EXISTS" = "true" ] || [ "$GIT_ENABLED" = "false" ]; then
+        echo ""
+        echo "⚠️  WARNINGS:"
+        [ "$FEATURE_EXISTS" = "true" ] && echo "  • Feature branch already exists - you may be overwriting previous work"
+        [ "$GIT_ENABLED" = "false" ] && echo "  • Git is disabled - branch not created, version control unavailable"
+        echo ""
+    fi
+
     if [ -n "$WORKTREE_NOTE" ]; then
         echo ""
         echo "✓ Git worktree created at: $WORKTREE_NOTE"
