@@ -143,7 +143,7 @@ def run_enhanced_verify(
 
     # 4. Feature Detection and Analysis
     try:
-        from . import detect_feature_slug, AcceptanceError
+        from .acceptance import detect_feature_slug, AcceptanceError
         feature_slug = (feature or detect_feature_slug(repo_root, cwd=cwd)).strip()
 
         output_data["feature_detection"] = {
