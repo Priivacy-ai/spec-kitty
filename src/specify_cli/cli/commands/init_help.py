@@ -20,10 +20,27 @@ What Gets Created:
 - Git repository (unless --no-git)
 - Background dashboard (http://127.0.0.1:PORT)
 
+⚠️  AFTER INIT, READ BELOW ⚠️
+Your next step is to establish project governance using `/spec-kitty.constitution`
+in the main repo root (NOT in any worktree). This creates project-wide principles
+that will guide all subsequent development.
+
 Specifying AI Assistants (--ai flag):
 Use comma-separated agent keys (no spaces). Valid keys include:
 codex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,
 auggie, roo, copilot, q.
+
+Template Discovery (Development Mode):
+By default, spec-kitty searches for templates in this order:
+  1. --template-root flag (if provided)
+  2. SPEC_KITTY_TEMPLATE_ROOT environment variable
+  3. Packaged templates (from PyPI installation)
+  4. SPECIFY_TEMPLATE_REPO environment variable (remote)
+
+For development installs from source, use either:
+  export SPEC_KITTY_TEMPLATE_ROOT=$(pwd) && spec-kitty init my-project --ai claude
+  OR
+  spec-kitty init my-project --ai claude --template-root=$(pwd)
 
 Examples:
   spec-kitty init my-project                    # Interactive mode
@@ -32,6 +49,7 @@ Examples:
   spec-kitty init my-project --ai codex,claude --script sh --mission software-dev
   spec-kitty init . --ai codex --force          # Current directory (skip prompts)
   spec-kitty init --here --ai claude            # Alternative syntax for current dir
+  spec-kitty init my-project --ai claude --template-root=/path/to/spec-kitty  # Dev mode
 
 Non-interactive automation example:
   spec-kitty init my-project --ai codex,claude --script sh --mission software-dev --no-git

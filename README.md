@@ -76,6 +76,38 @@ Spec-Driven Development **flips the script** on traditional software development
 
 ## ⚡ Get started
 
+### Development Setup
+
+If you're contributing to Spec Kitty or working with the source code directly, you'll need to install it in development mode:
+
+#### From Local Checkout
+
+```bash
+# Clone the repository
+git clone https://github.com/Priivacy-ai/spec-kitty.git
+cd spec-kitty
+
+# Install in editable mode with development dependencies
+pip install -e ".[test]"
+
+# When running spec-kitty init, set the template root to your local checkout:
+export SPEC_KITTY_TEMPLATE_ROOT=$(pwd)
+spec-kitty init <PROJECT_NAME> --ai=claude
+
+# Or use the --template-root flag directly (no env var needed):
+spec-kitty init <PROJECT_NAME> --ai=claude --template-root=/path/to/spec-kitty
+```
+
+#### Template Discovery Priority
+
+The CLI searches for templates in this order:
+1. **Command-line override**: `--template-root` flag (highest priority)
+2. **Environment variable**: `SPEC_KITTY_TEMPLATE_ROOT` (local checkout)
+3. **Packaged resources**: Built-in templates from PyPI installation
+4. **Remote repository**: `SPECIFY_TEMPLATE_REPO` environment variable
+
+This means development installs automatically find templates when running from the cloned repository, but you may need to set `SPEC_KITTY_TEMPLATE_ROOT` if you move the directory.
+
 ### 1. Install Spec Kitty CLI
 
 Choose your preferred installation method:
@@ -269,6 +301,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 | `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, or `q` |
 | `--script`             | Option   | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell)                 |
 | `--mission`            | Option   | Mission key to seed templates (`software-dev`, `research`, ...)             |
+| `--template-root`      | Option   | Override template location (useful for development mode or custom sources)   |
 | `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                             |
 | `--no-git`             | Flag     | Skip git repository initialization                                          |
 | `--here`               | Flag     | Initialize project in the current directory instead of creating a new one   |
@@ -319,40 +352,61 @@ spec-kitty init my-project --ai claude --debug
 # Use GitHub token for API requests (helpful for corporate environments)
 spec-kitty init my-project --ai claude --github-token ghp_your_token_here
 
+# Use custom template location (development mode)
+spec-kitty init my-project --ai claude --template-root=/path/to/local/spec-kitty
+
 # Check system requirements
 spec-kitty check
 ```
 
 ### Available Slash Commands
 
-After running `spec-kitty init`, your AI coding agent will have access to these slash commands for structured development:
+After running `spec-kitty init`, your AI coding agent will have access to these slash commands for structured development.
 
-#### Core Commands
+#### Quick Reference: Correct Workflow Order
 
-Essential commands for the Spec-Driven Development workflow:
+```
+1️⃣  /spec-kitty.constitution   (in main repo, one time per project)
+2️⃣  /spec-kitty.specify         (creates worktree, then cd into it)
+3️⃣  /spec-kitty.clarify         (optional, before planning)
+4️⃣  /spec-kitty.plan
+5️⃣  /spec-kitty.research        (as needed for tech investigation)
+6️⃣  /spec-kitty.tasks
+7️⃣  /spec-kitty.analyze         (optional, before implementation)
+8️⃣  /spec-kitty.implement
+9️⃣  /spec-kitty.review
+🔟 /spec-kitty.accept
+1️⃣1️⃣ /spec-kitty.merge          (back to main repo)
+```
 
-| Command                  | Description                                                           |
-|--------------------------|-----------------------------------------------------------------------|
-| `/spec-kitty.dashboard`     | Open the real-time kanban dashboard in your browser                   |
-| `/spec-kitty.constitution`  | Create or update project governing principles and development guidelines |
-| `/spec-kitty.specify`       | Define what you want to build (requirements and user stories)        |
-| `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
-| `/spec-kitty.research`      | Run Phase 0 research scaffolding to populate research.md, data-model.md, and evidence logs |
-| `/spec-kitty.tasks`         | Generate actionable task lists and kanban-ready prompt files          |
-| `/spec-kitty.implement`     | Execute tasks by working from `/tasks/doing/` prompts                 |
-| `/spec-kitty.review`        | Review work in `/tasks/for_review/` and move finished prompts to `/tasks/done/` |
-| `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and verify feature complete |
-| `/spec-kitty.merge`         | Merge feature into main branch and clean up worktree                  |
+**Dashboard note:** Always available in background, not a workflow step.
 
-#### Optional Commands
+#### Core Commands (In Recommended Order)
 
-Additional commands for enhanced quality and validation:
+**Workflow sequence for spec-driven development:**
 
-| Command              | Description                                                           |
+| # | Command                  | Description                                                           |
+|---|--------------------------|-----------------------------------------------------------------------|
+| 1 | `/spec-kitty.constitution`  | (**First in main repo**) Create or update project governing principles and development guidelines |
+| 2 | `/spec-kitty.specify`       | Define what you want to build (requirements and user stories; creates worktree) |
+| 3 | `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
+| 4 | `/spec-kitty.research`      | Run Phase 0 research scaffolding to populate research.md, data-model.md, and evidence logs |
+| 5 | `/spec-kitty.tasks`         | Generate actionable task lists and kanban-ready prompt files          |
+| 6 | `/spec-kitty.implement`     | Execute tasks by working from `/tasks/doing/` prompts                 |
+| 7 | `/spec-kitty.review`        | Review work in `/tasks/for_review/` and move finished prompts to `/tasks/done/` |
+| 8 | `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and verify feature complete |
+| 9 | `/spec-kitty.merge`         | Merge feature into main branch and clean up worktree                  |
+
+#### Quality Gates & Development Tools
+
+**Optional commands for enhanced quality and development:**
+
+| Command              | When to Use                                                           |
 |----------------------|-----------------------------------------------------------------------|
-| `/spec-kitty.clarify`   | Clarify underspecified areas (recommended before `/spec-kitty.plan`; formerly `/quizme`) |
-| `/spec-kitty.analyze`   | Cross-artifact consistency & coverage analysis (run after `/spec-kitty.tasks`, before `/spec-kitty.implement`) |
-| `/spec-kitty.checklist` | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
+| `/spec-kitty.clarify`   | **Optional, before `/spec-kitty.plan`**: Clarify underspecified areas in your specification to reduce downstream rework |
+| `/spec-kitty.analyze`   | **Optional, after `/spec-kitty.tasks`, before `/spec-kitty.implement`**: Cross-artifact consistency & coverage analysis |
+| `/spec-kitty.checklist` | **Optional, anytime after `/spec-kitty.plan`**: Generate custom quality checklists that validate requirements completeness, clarity, and consistency |
+| `/spec-kitty.dashboard` | **Anytime (runs in background)**: Open the real-time kanban dashboard in your browser. Automatically starts with `spec-kitty init` and updates as you work. |
 
 ## Worktree Strategy
 
@@ -378,19 +432,28 @@ my-project/                    # Main repo (main branch)
 5. **Automatic cleanup** - worktrees removed after merge
 
 ### The Complete Workflow
+
 ```bash
-# Start in main repo
-/spec-kitty.specify          # Creates branch + worktree
-cd .worktrees/001-my-feature # Enter isolated sandbox
-/spec-kitty.constitution     # (first time only)
-/spec-kitty.plan
-/spec-kitty.research
-/spec-kitty.tasks
-/spec-kitty.implement
-/spec-kitty.review
-/spec-kitty.accept           # Verify feature complete
-/spec-kitty.merge --push     # Merge to main + cleanup
-# Back in main repo, ready for next feature!
+# ========== IN MAIN REPO ==========
+/spec-kitty.constitution     # Step 1: Establish project governance (one time per project)
+
+# ========== CREATE FEATURE BRANCH & WORKTREE ==========
+/spec-kitty.specify          # Step 2: Creates feature branch + isolated worktree
+cd .worktrees/001-my-feature # Enter isolated sandbox for feature development
+
+# ========== IN FEATURE WORKTREE ==========
+/spec-kitty.clarify          # Step 3 (optional): Clarify requirements before planning
+/spec-kitty.plan             # Step 4: Design technical implementation
+/spec-kitty.research         # Step 5 (as needed): Research technologies, patterns, etc.
+/spec-kitty.tasks            # Step 6: Break plan into actionable tasks
+/spec-kitty.analyze          # Step 7 (optional): Check cross-artifact consistency
+/spec-kitty.implement        # Step 8: Execute implementation tasks
+/spec-kitty.review           # Step 9: Review and refine completed work
+/spec-kitty.accept           # Step 10: Acceptance checks & final metadata
+/spec-kitty.merge --push     # Step 11: Merge to main + cleanup worktree
+
+# ========== BACK IN MAIN REPO ==========
+# Ready for next feature!
 ```
 
 ## Feature Acceptance & Merge Workflow
@@ -945,6 +1008,51 @@ Once the implementation is complete, test the application and resolve any runtim
 ---
 
 ## 🔍 Troubleshooting
+
+### Template Discovery Issues
+
+#### Error: "Templates could not be found in any of the expected locations"
+
+This error occurs when `spec-kitty init` cannot locate the template files. Here's how to diagnose and fix it:
+
+**For PyPI installations:**
+```bash
+# Reinstall the package
+pip install --upgrade spec-kitty-cli
+
+# Verify templates are bundled
+python -c "from importlib.resources import files; print(files('specify_cli').joinpath('templates'))"
+```
+
+**For development installations:**
+```bash
+# Make sure you installed in editable mode from the repo root
+cd /path/to/spec-kitty
+pip install -e .
+
+# Option 1: Use environment variable
+export SPEC_KITTY_TEMPLATE_ROOT=$(pwd)
+spec-kitty init my-project --ai=claude
+
+# Option 2: Use --template-root flag (no env var needed)
+spec-kitty init my-project --ai=claude --template-root=$(pwd)
+
+# Option 3: Verify the path exists
+ls -la ./templates/commands
+```
+
+**For moved repositories:**
+If you cloned the spec-kitty repo and moved the directory, update the environment variable:
+```bash
+export SPEC_KITTY_TEMPLATE_ROOT=/new/path/to/spec-kitty
+spec-kitty init my-project --ai=claude
+```
+
+**Debugging with verbose output:**
+```bash
+# Use --debug flag to see which paths were checked
+spec-kitty init my-project --ai=claude --debug --template-root=/path/to/spec-kitty
+```
 
 ### Git Credential Manager on Linux
 
