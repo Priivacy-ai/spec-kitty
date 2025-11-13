@@ -96,6 +96,40 @@ def _print_human_diagnostics(diag: dict[str, Any]) -> None:
 """
     console.print(Panel(worktree_info.strip(), title="Worktrees", border_style="cyan"))
 
+    # Dashboard health
+    dashboard_health = diag.get("dashboard_health", {})
+    metadata_exists = dashboard_health.get("metadata_exists", False)
+    can_start = dashboard_health.get("can_start")
+    startup_test = dashboard_health.get("startup_test")
+
+    if metadata_exists:
+        responding = dashboard_health.get("responding", False)
+        dashboard_info = f"""
+[bold]Metadata File:[/bold] {'[green]Exists[/green]' if metadata_exists else '[red]Missing[/red]'}
+[bold]Port:[/bold] {dashboard_health.get('port', 'Unknown')}
+[bold]Process PID:[/bold] {dashboard_health.get('pid', 'Not tracked')}
+[bold]Responding:[/bold] {'[green]Yes[/green]' if responding else '[red]No[/red]'}
+"""
+        if not responding:
+            dashboard_info += f"[red]⚠️  Dashboard is not responding - may need restart[/red]\n"
+    else:
+        # No dashboard - show startup test results
+        if startup_test == 'SUCCESS':
+            dashboard_info = f"""
+[bold]Status:[/bold] [green]Can start successfully[/green]
+[bold]Test Port:[/bold] {dashboard_health.get('test_port', 'N/A')}
+"""
+        elif startup_test == 'FAILED':
+            dashboard_info = f"""
+[bold]Status:[/bold] [red]Cannot start[/red]
+[bold]Error:[/bold] {dashboard_health.get('startup_error', 'Unknown')}
+[red]⚠️  Dashboard startup is broken for this project[/red]
+"""
+        else:
+            dashboard_info = "[yellow]Dashboard not running (startup not tested)[/yellow]"
+
+    console.print(Panel(dashboard_info.strip(), title="Dashboard Health", border_style="cyan"))
+
     # Current feature
     current_feature = diag.get("current_feature", {})
     if current_feature.get("detected"):

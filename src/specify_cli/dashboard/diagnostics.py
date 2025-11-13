@@ -46,6 +46,7 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
         'worktree_overview': {},
         'current_feature': {},
         'all_features': [],
+        'dashboard_health': {},
         'observations': [],
         'issues': [],
     }
@@ -140,6 +141,64 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
     if worktree_summary.get('active_worktrees', 0) > 5:
         observations.append(f"Multiple worktrees active: {worktree_summary['active_worktrees']}")
 
+    # Check dashboard health
+    dashboard_file = kittify_dir / '.dashboard'
+    dashboard_health = {
+        'metadata_exists': dashboard_file.exists(),
+        'can_start': None,
+        'startup_test': None,
+    }
+
+    if dashboard_file.exists():
+        try:
+            from ..dashboard.lifecycle import _parse_dashboard_file, _check_dashboard_health
+            url, port, token, pid = _parse_dashboard_file(dashboard_file)
+            dashboard_health['url'] = url
+            dashboard_health['port'] = port
+            dashboard_health['pid'] = pid
+            dashboard_health['has_pid'] = pid is not None
+
+            if port:
+                is_healthy = _check_dashboard_health(port, project_dir, token)
+                dashboard_health['responding'] = is_healthy
+                if not is_healthy:
+                    diagnostics['issues'].append(f'Dashboard metadata exists but not responding on port {port}')
+                    if pid:
+                        # Check if process is alive
+                        try:
+                            from ..dashboard.lifecycle import _is_process_alive
+                            if _is_process_alive(pid):
+                                diagnostics['issues'].append(f'Dashboard process (PID {pid}) is alive but not responding')
+                            else:
+                                diagnostics['issues'].append(f'Dashboard process (PID {pid}) is dead - stale metadata file')
+                        except Exception:
+                            pass
+        except Exception as e:
+            dashboard_health['parse_error'] = str(e)
+            diagnostics['issues'].append(f'Dashboard metadata file corrupted: {e}')
+    else:
+        # No dashboard running - try to start one and see what happens
+        try:
+            from ..dashboard.lifecycle import ensure_dashboard_running
+            url, port, started = ensure_dashboard_running(project_dir, background_process=False)
+            dashboard_health['can_start'] = True
+            dashboard_health['startup_test'] = 'SUCCESS'
+            dashboard_health['test_url'] = url
+            dashboard_health['test_port'] = port
+
+            # Stop the test dashboard
+            try:
+                from ..dashboard.lifecycle import stop_dashboard
+                stop_dashboard(project_dir)
+            except Exception:
+                pass
+        except Exception as e:
+            dashboard_health['can_start'] = False
+            dashboard_health['startup_test'] = 'FAILED'
+            dashboard_health['startup_error'] = str(e)
+            diagnostics['issues'].append(f'Dashboard cannot start: {e}')
+
+    diagnostics['dashboard_health'] = dashboard_health
     diagnostics['observations'] = observations
 
     return diagnostics
