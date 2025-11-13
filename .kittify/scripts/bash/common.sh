@@ -597,3 +597,100 @@ exec_cmd() {
     "$@" || return $EXIT_EXECUTION_ERROR
     return $EXIT_SUCCESS
 }
+
+#==============================================================================
+# CONTEXT CACHING (Phase 2B Enhancement)
+# Avoid redundant context detection by caching results
+#==============================================================================
+
+# Cache directory for context information
+SPEC_KITTY_CACHE_DIR="${XDG_CACHE_HOME:-.cache}/spec-kitty"
+
+# Initialize context cache
+init_context_cache() {
+    if [[ ! -d "$SPEC_KITTY_CACHE_DIR" ]]; then
+        mkdir -p "$SPEC_KITTY_CACHE_DIR" 2>/dev/null || return 1
+    fi
+    return 0
+}
+
+# Cache key: repo_root + timestamp
+# Returns cache path if valid, empty string if expired
+get_context_cache_path() {
+    local repo_root="$1"
+    local cache_key=$(echo -n "$repo_root" | md5sum | cut -d' ' -f1)
+    echo "$SPEC_KITTY_CACHE_DIR/context_$cache_key"
+}
+
+# Check if cache is valid (less than 60 seconds old)
+is_context_cache_valid() {
+    local cache_file="$1"
+    local cache_timeout=60
+
+    if [[ ! -f "$cache_file" ]]; then
+        return 1
+    fi
+
+    local file_age=$(($(date +%s) - $(stat -f%m "$cache_file" 2>/dev/null || stat -c%Y "$cache_file" 2>/dev/null || echo 0)))
+    [[ $file_age -lt $cache_timeout ]]
+}
+
+# Save context to cache
+# Usage: save_context_to_cache "/path/to/repo" "001-feature" "/path/to/feature/dir"
+save_context_to_cache() {
+    local repo_root="$1"
+    local feature_branch="$2"
+    local feature_dir="$3"
+
+    init_context_cache || return 1
+
+    local cache_file=$(get_context_cache_path "$repo_root")
+
+    cat > "$cache_file" <<EOF
+FEATURE_BRANCH="$feature_branch"
+FEATURE_DIR="$feature_dir"
+CACHE_TIME=$(date +%s)
+EOF
+
+    return 0
+}
+
+# Load context from cache
+# Usage: load_context_from_cache "/path/to/repo"
+load_context_from_cache() {
+    local repo_root="$1"
+    local cache_file=$(get_context_cache_path "$repo_root")
+
+    if is_context_cache_valid "$cache_file"; then
+        source "$cache_file" 2>/dev/null && return 0
+    fi
+
+    return 1
+}
+
+# Clear context cache for a repo
+# Usage: clear_context_cache "/path/to/repo"
+clear_context_cache() {
+    local repo_root="$1"
+    local cache_file=$(get_context_cache_path "$repo_root")
+    rm -f "$cache_file" 2>/dev/null || true
+}
+
+# Enhanced context detection with caching
+# Usage: detect_feature_context_cached
+detect_feature_context_cached() {
+    local repo_root=$(get_repo_root)
+
+    # Try cache first
+    if load_context_from_cache "$repo_root"; then
+        return 0
+    fi
+
+    # Cache miss or expired, detect context
+    eval $(get_feature_paths)
+
+    # Save to cache for future use
+    save_context_to_cache "$repo_root" "$CURRENT_BRANCH" "$FEATURE_DIR"
+
+    return 0
+}
