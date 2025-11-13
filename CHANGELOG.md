@@ -25,12 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **CRITICAL: Dashboard Process Orphan Leak** – Fixed critical bug where background dashboard processes were orphaned due to lack of PID tracking. Now:
-  - PIDs are captured and stored in `.dashboard` file
-  - Orphaned processes are automatically cleaned up on next init
-  - HTTP shutdown failures fall back to SIGTERM/SIGKILL
-  - Multi-project scenarios remain fully isolated
-  - Prevents "Could not find free port" errors after ~100 uses
+- **CRITICAL: Dashboard Process Orphan Leak** – Fixed critical bug where background dashboard processes were orphaned and accumulated until all ports were exhausted. Complete fix includes:
+  - PIDs are captured and stored in `.dashboard` file (commit b8c7394)
+  - Orphaned processes with .dashboard files are automatically cleaned up on next init
+  - HTTP shutdown failures fall back to SIGTERM/SIGKILL with PID tracking
+  - Port range cleanup scans for orphaned dashboards without .dashboard files (commit 11340a4)
+  - Safe fingerprinting via health check API prevents killing unrelated services
+  - Automatic retry with cleanup when port exhaustion detected
+  - Failed startup processes are cleaned up (no orphans from Ctrl+C during health check)
+  - Multi-project scenarios remain fully isolated (per-project PIDs, safe port sweeps)
+  - Handles all orphan types: with metadata, without metadata, deleted temp projects
+  - Prevents "Could not find free port" errors after repeated uses
 
 - **Import Path Bug** – Fixed `detect_feature_slug` import in `src/specify_cli/dashboard/diagnostics.py` to import from `specify_cli.acceptance` instead of package root.
 
