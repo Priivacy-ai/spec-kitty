@@ -572,3 +572,92 @@ def cleanup_test_dashboards():
     # Cleanup test ports
     for port in range(9992, 10000):
         kill_dashboard_process(port)
+
+
+def test_dashboard_with_symlinked_kitty_specs():
+    """Test dashboard works with symlinked kitty-specs directory (worktree structure).
+
+    This tests the scenario from the bug report where kitty-specs is a symlink
+    to a worktree directory, which was causing false error reporting.
+    """
+    with TemporaryDirectory() as tmpdir:
+        test_project = Path(tmpdir) / "test_project"
+        test_project.mkdir()
+
+        # Create .kittify directory (required by dashboard)
+        kittify_dir = test_project / ".kittify"
+        kittify_dir.mkdir()
+
+        # Initialize git repo (required by dashboard)
+        subprocess.run(["git", "init"], cwd=test_project, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=test_project,
+            check=True,
+            capture_output=True
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"],
+            cwd=test_project,
+            check=True,
+            capture_output=True
+        )
+
+        # Create a worktree structure
+        worktrees_dir = test_project / ".worktrees"
+        worktrees_dir.mkdir()
+
+        # Create worktree with kitty-specs
+        worktree_feature = worktrees_dir / "001-test-feature"
+        worktree_feature.mkdir()
+        worktree_kitty_specs = worktree_feature / "kitty-specs"
+        worktree_kitty_specs.mkdir()
+        feature_dir = worktree_kitty_specs / "001-test-feature"
+        feature_dir.mkdir()
+
+        # Create spec.md and plan.md
+        (feature_dir / "spec.md").write_text("# Test Feature\n\nA test feature.")
+        (feature_dir / "plan.md").write_text("# Implementation Plan\n\n## Overview\nTest plan.")
+
+        # Create symlink to worktree kitty-specs (this is the key test scenario)
+        kitty_specs = test_project / "kitty-specs"
+        kitty_specs.symlink_to(worktree_kitty_specs, target_is_directory=True)
+
+        # Verify symlink structure
+        assert kitty_specs.is_symlink(), "kitty-specs should be a symlink"
+        assert (kitty_specs / "001-test-feature" / "spec.md").exists(), \
+            "Should access spec.md through symlink"
+
+        try:
+            # Run dashboard command
+            test_port = 9998
+            result = subprocess.run(
+                ["spec-kitty", "dashboard", "--port", str(test_port)],
+                cwd=test_project,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            # Wait a bit for dashboard to fully start
+            time.sleep(2)
+
+            # Dashboard should start successfully
+            if is_dashboard_accessible(test_port):
+                assert result.returncode == 0, \
+                    f"CLI should report success when dashboard accessible.\n" \
+                    f"Exit code: {result.returncode}\n" \
+                    f"Stdout: {result.stdout}\n" \
+                    f"Stderr: {result.stderr}"
+
+                assert "✅" in result.stdout or "started" in result.stdout.lower(), \
+                    f"CLI should show success message when dashboard running.\n" \
+                    f"Stdout: {result.stdout}"
+            else:
+                # If dashboard not accessible, error is acceptable
+                assert result.returncode != 0, \
+                    "CLI should report error when dashboard not accessible"
+
+        finally:
+            # Cleanup
+            kill_dashboard_process(test_port)

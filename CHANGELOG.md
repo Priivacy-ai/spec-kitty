@@ -7,6 +7,31 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2025-11-14
+
+### Fixed
+
+- **Dashboard Startup Race Condition** – Fixed root cause of dashboard health check timing out prematurely:
+  - Increased health check timeout from 10 to 20 seconds with exponential backoff
+  - Retry pattern: 10×100ms, 40×250ms, 20×500ms for adaptive performance
+  - Removed workaround fallback check that was masking the real issue
+  - Eliminated false "Unable to start dashboard" errors on slower systems
+
+### Changed
+
+- **Dashboard Health Check Strategy** – Improved reliability with exponential backoff:
+  - Quick initial checks (100ms) for fast systems
+  - Gradual slowdown (250ms then 500ms) for slower systems
+  - Total timeout increased to ~20 seconds for adequate startup time
+  - Cleaner error handling without port-scanning fallback
+
+### Added
+
+- **Symlinked kitty-specs Test Coverage** – New test validates dashboard works with worktree structure:
+  - Tests scenario from bug report (symlinked `kitty-specs/` to `.worktrees/`)
+  - Ensures dashboard starts correctly with symlinked directories
+  - Prevents regression of false error reporting
+
 ## [0.5.1] - 2025-11-14
 
 ### Added

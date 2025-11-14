@@ -335,12 +335,14 @@ def ensure_dashboard_running(
 
     url = f"http://127.0.0.1:{port}"
 
-    # Wait for dashboard to become healthy
-    for _ in range(40):
+    # Wait for dashboard to become healthy (20 seconds with exponential backoff)
+    # Start with quick checks, then slow down for slower systems
+    retry_delays = [0.1] * 10 + [0.25] * 40 + [0.5] * 20  # ~20 seconds total
+    for delay in retry_delays:
         if _check_dashboard_health(port, project_dir_resolved, token):
             _write_dashboard_file(dashboard_file, url, port, token, pid)
             return url, port, True
-        time.sleep(0.25)
+        time.sleep(delay)
 
     # Dashboard started but never became healthy - clean up the failed process
     if pid is not None:

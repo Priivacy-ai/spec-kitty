@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import webbrowser
-from pathlib import Path
 from typing import Optional
 
 import typer
@@ -43,45 +42,14 @@ def dashboard(
     try:
         dashboard_url, active_port, started = ensure_dashboard_running(project_root, preferred_port=port)
     except Exception as exc:  # pragma: no cover
-        # Before reporting error, verify dashboard isn't actually running
-        # (handles race condition where dashboard starts but health check times out)
-        import httpx
-        from specify_cli.dashboard.server import find_free_port
-
-        # Try checking a few common ports
-        found_port = None
-        found_url = None
-        for check_port in range(port or 9280, (port or 9280) + 10):
-            try:
-                test_url = f"http://127.0.0.1:{check_port}/api/health"
-                response = httpx.get(test_url, timeout=1.0)
-                if response.status_code == 200:
-                    data = response.json()
-                    if str(Path(data.get("project_path", "")).resolve()) == str(project_root.resolve()):
-                        # Found our dashboard!
-                        found_port = check_port
-                        found_url = f"http://127.0.0.1:{check_port}"
-                        break
-            except:
-                continue
-
-        if found_url and found_port:
-            # Dashboard IS running, just health check timed out
-            dashboard_url = found_url
-            active_port = found_port
-            started = True
-            console.print(f"[yellow]⚠️  Dashboard health check timed out but server is running[/yellow]")
-            console.print()
-        else:
-            # Dashboard truly failed
-            console.print("[red]❌ Unable to start or locate the dashboard[/red]")
-            console.print(f"   {exc}")
-            console.print()
-            console.print("[yellow]💡 Try running:[/yellow]")
-            console.print(f"  [cyan]cd {project_root}[/cyan]")
-            console.print("  [cyan]spec-kitty init .[/cyan]")
-            console.print()
-            raise typer.Exit(1)
+        console.print("[red]❌ Unable to start or locate the dashboard[/red]")
+        console.print(f"   {exc}")
+        console.print()
+        console.print("[yellow]💡 Try running:[/yellow]")
+        console.print(f"  [cyan]cd {project_root}[/cyan]")
+        console.print("  [cyan]spec-kitty init .[/cyan]")
+        console.print()
+        raise typer.Exit(1)
 
     console.print("[bold green]Spec Kitty Dashboard[/bold green]")
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
