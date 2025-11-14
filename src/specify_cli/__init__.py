@@ -18,13 +18,19 @@ Usage:
     spec-kitty init --here
 """
 
-__version__ = "0.4.13"
-
 import os
 from pathlib import Path
 
 import typer
 from rich.console import Console
+
+# Get version from package metadata
+try:
+    from importlib.metadata import version as get_version
+    __version__ = get_version("spec-kitty-cli")
+except Exception:
+    # Fallback for development/editable installs
+    __version__ = "0.5.0-dev"
 
 from specify_cli.mission import MissionNotFoundError, set_active_mission
 from specify_cli.cli import StepTracker
