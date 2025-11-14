@@ -7,7 +7,7 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - 2025-11-13
+## [0.5.1] - 2025-11-14
 
 ### Added
 
@@ -17,6 +17,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integrated into `/spec-kitty.review` workflow (auto-runs before review)
   - Adds activity log entries documenting all repairs
   - Validates required fields (work_package_id, lane) and formats
+- **Task Metadata Validation Module** (`src/specify_cli/task_metadata_validation.py`) – Core validation:
+  - `detect_lane_mismatch()` - Finds directory/frontmatter inconsistencies
+  - `repair_lane_mismatch()` - Auto-fixes with audit trail
+  - `validate_task_metadata()` - Comprehensive field validation
+  - `scan_all_tasks_for_mismatches()` - Feature-wide scanning
+
+### Changed
+
+- **Version Reading** – Now reads dynamically from package metadata instead of hardcoded value:
+  - Uses `importlib.metadata.version()` to get actual installed version
+  - `spec-kitty --version` always shows correct version
+  - No manual updates needed in `__init__.py`
+- **Review Workflow** – Added automatic task metadata validation before review:
+  - Runs `spec-kitty validate-tasks --fix` automatically
+  - Prevents agents getting stuck on lane mismatches
+  - Documented in `.claude/commands/spec-kitty.review.md`
+
+### Fixed
+
+- **Review Workflow Blocking** – Review command no longer fails when file locations don't match frontmatter metadata. Auto-validation repairs inconsistencies before review.
+- **Hardcoded Version** – `spec-kitty --version` now reads from package metadata, always shows correct installed version.
+
+### Documentation
+
+- **task-metadata-validation.md** (350 lines) – Auto-repair workflow:
+  - Lane mismatch detection and repair
+  - CLI usage examples
+  - Python API reference
+  - Integration with review workflow
+
+### Testing
+
+- Added version detection tests to prevent future hardcoded version bugs
+- Task metadata validation tested with real frontmatter/directory mismatches
+- All tests passing (13/13)
+
+## [0.5.0] - 2025-11-13
+
+### Added
+
 - **Encoding Validation Guardrail** – Comprehensive 5-layer defense system to prevent Windows-1252 characters from crashing the dashboard:
   - **Layer 1**: Dashboard auto-fixes encoding errors on read (server-side resilience)
   - **Layer 2**: Character sanitization module with 15+ problematic character mappings
