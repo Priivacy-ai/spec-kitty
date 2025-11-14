@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Task Metadata Validation Guardrail** – Prevents workflow failures when file locations don't match frontmatter:
+  - Auto-detects lane mismatches (file in `for_review/` but `lane: "planned"`)
+  - CLI command: `spec-kitty validate-tasks --fix`
+  - Integrated into `/spec-kitty.review` workflow (auto-runs before review)
+  - Adds activity log entries documenting all repairs
+  - Validates required fields (work_package_id, lane) and formats
 - **Encoding Validation Guardrail** – Comprehensive 5-layer defense system to prevent Windows-1252 characters from crashing the dashboard:
   - **Layer 1**: Dashboard auto-fixes encoding errors on read (server-side resilience)
   - **Layer 2**: Character sanitization module with 15+ problematic character mappings
@@ -34,6 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Version Reading** – Now reads dynamically from package metadata instead of hardcoded value:
+  - Uses `importlib.metadata.version()` to get actual installed version
+  - `spec-kitty --version` always shows correct version
+  - No manual updates needed in `__init__.py`
+- **Review Workflow** – Added automatic task metadata validation before review:
+  - Runs `spec-kitty validate-tasks --fix` automatically
+  - Prevents agents getting stuck on lane mismatches
+  - Documented in `.claude/commands/spec-kitty.review.md`
 - **Dashboard Scanner** – Now resilient to encoding errors:
   - Auto-fixes files on read with backup creation
   - Creates error cards instead of crashing on bad files
@@ -49,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Dashboard Blank Page Issue** – Dashboard no longer crashes when markdown files contain Windows-1252 smart quotes, ±, ×, ° symbols. Auto-fix sanitizes files on first read.
 - **Agents Skipping Planning** – Research and tasks commands now blocked until plan.md is properly filled out (not just template).
+- **Review Workflow Blocking** – Review command no longer fails when file locations don't match frontmatter metadata. Auto-validation repairs inconsistencies before review.
+- **Hardcoded Version** – `spec-kitty --version` now reads from package metadata, always shows correct installed version.
 
 ### Documentation
 
@@ -63,6 +79,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configuration instructions
   - Testing procedures
   - Benefits and future enhancements
+- **task-metadata-validation.md** (350 lines) – Auto-repair workflow:
+  - Lane mismatch detection and repair
+  - CLI usage examples
+  - Python API reference
+  - Integration with review workflow
 - **TESTING_REQUIREMENTS_ENCODING_AND_PLAN_VALIDATION.md** (1056 lines) – Functional test specifications:
   - 35+ test cases across 6 test suites
   - Coverage targets (85-95%)
