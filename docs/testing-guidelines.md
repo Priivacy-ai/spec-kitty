@@ -145,3 +145,41 @@ def dashboard(tmp_path):
 ---
 
 **Remember: Every orphaned process is a future flaky test. Write defensive cleanup code.**
+
+## Review Attribution
+
+### Critical: Reviewer vs. Implementer Identity
+
+When approving tasks during code review, it's critical to record the **reviewer's** identity, not the implementer's:
+
+**Problem:** Using generic `tasks-move-to-lane.sh` for approvals records the wrong agent:
+- Inherits implementer's `agent` and `shell_pid` from frontmatter
+- Activity log shows implementer approved their own work
+- No audit trail of who actually reviewed the code
+
+**Solution:** Use the dedicated `approve` command:
+
+```bash
+# Capture YOUR identity as the reviewer
+REVIEWER_AGENT="claude-reviewer"  # Or from $AGENT_ID
+REVIEWER_SHELL_PID=$$
+
+# Use dedicated approve command
+python3 .kittify/scripts/tasks/tasks_cli.py approve <FEATURE> <TASK_ID> \
+  --review-status "approved without changes" \
+  --reviewer-agent "$REVIEWER_AGENT" \
+  --reviewer-shell-pid "$REVIEWER_SHELL_PID"
+```
+
+**What this does:**
+- Sets `reviewed_by: "claude-reviewer"` (NEW field)
+- Sets `review_status: "approved without changes"` (NEW field)
+- Updates `agent: "claude-reviewer"` (was implementer)
+- Updates `shell_pid: "$$"` (was implementer's PID)
+- Adds activity log entry with REVIEWER's info
+
+**Why this matters:**
+- **Accountability**: Know who approved potentially buggy code
+- **Process compliance**: Prove reviews actually happened
+- **Debugging**: Trace review decisions when bugs appear
+- **Multi-agent coordination**: Distinguish implementer vs reviewer actions

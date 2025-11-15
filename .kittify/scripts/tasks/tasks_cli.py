@@ -308,6 +308,84 @@ def move_command(args: argparse.Namespace) -> None:
     )
 
 
+def approve_command(args: argparse.Namespace) -> None:
+    """Approve a task for review with proper reviewer attribution.
+
+    This command specifically handles the review→done transition, ensuring:
+    1. Reviewer's agent ID and shell PID are recorded (not implementer's)
+    2. review_status and reviewed_by frontmatter fields are set
+    3. Activity log captures the approval decision
+    """
+    repo_root = find_repo_root()
+    feature = args.feature
+
+    # Locate the work package (must be in for_review lane for approval)
+    wp = locate_work_package(repo_root, feature, args.work_package)
+
+    if wp.current_lane != "for_review":
+        raise TaskCliError(
+            f"Work package must be in 'for_review' lane for approval (currently in '{wp.current_lane}'). "
+            f"Use 'move' command to move between other lanes."
+        )
+
+    # Get reviewer identity (different from original implementer)
+    reviewer_agent = args.reviewer_agent or os.getenv("AGENT_ID") or "reviewer"
+    reviewer_shell_pid = args.reviewer_shell_pid or str(os.getppid())  # Parent shell PID
+    review_status = args.review_status or "approved"
+    target_lane = args.target_lane or "done"
+
+    if target_lane not in LANES:
+        raise TaskCliError(f"Invalid target lane '{target_lane}'. Must be one of: {', '.join(LANES)}")
+
+    timestamp = args.timestamp or now_utc()
+    note = args.note or f"{review_status.capitalize()}"
+
+    # Prepare target directory
+    target_dir = repo_root / "kitty-specs" / feature / "tasks" / target_lane
+    new_path = (target_dir / wp.relative_subpath).resolve()
+
+    if args.dry_run:
+        print(f"[dry-run] Would approve {wp.work_package_id or wp.path.name}")
+        print(f"[dry-run] Review status: {review_status}")
+        print(f"[dry-run] Reviewed by: {reviewer_agent}")
+        print(f"[dry-run] Target lane: {target_lane}")
+        print(f"[dry-run] New path: {new_path.relative_to(repo_root)}")
+        return
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    # Update frontmatter with review-specific fields
+    wp.frontmatter = set_scalar(wp.frontmatter, "lane", target_lane)
+    wp.frontmatter = set_scalar(wp.frontmatter, "review_status", review_status)
+    wp.frontmatter = set_scalar(wp.frontmatter, "reviewed_by", reviewer_agent)
+    wp.frontmatter = set_scalar(wp.frontmatter, "agent", reviewer_agent)  # Update to reviewer
+    if reviewer_shell_pid:
+        wp.frontmatter = set_scalar(wp.frontmatter, "shell_pid", reviewer_shell_pid)
+
+    # Add activity log entry with reviewer's info
+    log_entry = f"- {timestamp} – {reviewer_agent} – shell_pid={reviewer_shell_pid} – lane={target_lane} – {note}"
+    new_body = append_activity_log(wp.body, log_entry)
+
+    # Write the updated file
+    new_content = build_document(wp.frontmatter, new_body, wp.padding)
+    new_path.write_text(new_content, encoding="utf-8")
+
+    # Git operations
+    run_git(["add", str(new_path.relative_to(repo_root))], cwd=repo_root, check=True)
+    if wp.path.resolve() != new_path.resolve():
+        run_git(
+            ["rm", "--quiet", "--force", str(wp.path.relative_to(repo_root))],
+            cwd=repo_root,
+            check=True,
+        )
+
+    print(f"✅ Approved {wp.work_package_id or wp.path.name} → {target_lane}")
+    print(f"   Review status: {review_status}")
+    print(f"   Reviewed by: {reviewer_agent} (shell_pid={reviewer_shell_pid})")
+    print(f"   {wp.path.relative_to(repo_root)} → {new_path.relative_to(repo_root)}")
+    print(f"   Logged: {log_entry}")
+
+
 def history_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     wp = locate_work_package(repo_root, args.feature, args.work_package)
@@ -796,6 +874,17 @@ def build_parser() -> argparse.ArgumentParser:
     move.add_argument("--dry-run", action="store_true", help="Show what would happen without touching files or git")
     move.add_argument("--force", action="store_true", help="Ignore other staged work-package files")
 
+    approve = subparsers.add_parser("approve", help="Approve a task from for_review with reviewer attribution")
+    approve.add_argument("feature", help="Feature directory slug (e.g., 008-awesome-feature)")
+    approve.add_argument("work_package", help="Work package identifier (e.g., WP03)")
+    approve.add_argument("--review-status", help="Review decision (default: approved)")
+    approve.add_argument("--reviewer-agent", help="Reviewer agent ID (defaults to $AGENT_ID or 'reviewer')")
+    approve.add_argument("--reviewer-shell-pid", help="Reviewer shell PID (defaults to parent PID)")
+    approve.add_argument("--target-lane", help="Target lane after approval (default: done)")
+    approve.add_argument("--note", help="Additional note for activity log")
+    approve.add_argument("--timestamp", help="Override UTC timestamp (YYYY-MM-DDTHH:mm:ssZ)")
+    approve.add_argument("--dry-run", action="store_true", help="Show what would happen without modifying files")
+
     history = subparsers.add_parser("history", help="Append a history entry without changing lanes")
     history.add_argument("feature", help="Feature directory slug")
     history.add_argument("work_package", help="Work package identifier (e.g., WP03)")
@@ -877,6 +966,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         if args.command == "move":
             move_command(args)
+        elif args.command == "approve":
+            approve_command(args)
         elif args.command == "history":
             history_command(args)
         elif args.command == "list":
