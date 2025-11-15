@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Command Consolidation** – Merged `spec-kitty check` into `spec-kitty verify-setup`:
-  - Removed redundant `spec-kitty check` command
+- **Command Consolidation** – Merged `spec-kitty check` and `spec-kitty diagnostics` into `spec-kitty verify-setup`:
+  - Removed redundant `spec-kitty check` and `spec-kitty diagnostics` commands
   - Tool checking now integrated into `verify-setup` with `--check-tools` flag (default: enabled)
+  - Diagnostics mode with dashboard health available via `--diagnostics` flag
+  - Removed ASCII banner from verify-setup for cleaner output
   - Simplifies CLI interface - single command for all environment verification
   - JSON output includes tool availability when `--check-tools` is enabled
 
@@ -22,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`spec-kitty check` command** – Functionality moved to `verify-setup --check-tools`
   - Migration: Use `spec-kitty verify-setup` instead of `spec-kitty check`
   - Tool checking enabled by default, disable with `--check-tools=false`
+- **`spec-kitty diagnostics` command** – Functionality moved to `verify-setup --diagnostics`
+  - Migration: Use `spec-kitty verify-setup --diagnostics` instead of `spec-kitty diagnostics`
+  - Shows Rich panel-based output with dashboard health, observations, and issues
 
 ## [0.5.2] - 2025-11-14
 
