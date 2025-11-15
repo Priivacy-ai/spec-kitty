@@ -94,16 +94,29 @@ This is intentional - worktrees provide isolation for parallel feature developme
      * Append a new entry in the prompt's **Activity Log** with timestamp, reviewer agent, shell PID, and summary of feedback.
      * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> planned --note "Code review complete: [brief summary of issues]"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
   - **Approved**:
-     * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script, e.g., `2025-11-11T13:45:00Z – claude – shell_pid=1234 – lane=done – Approved without changes`).
-     * Update frontmatter:
-       - Set `lane: "done"`
-       - Set `review_status: ""` (clear it - no feedback needed)
-       - Set `reviewed_by: <YOUR_AGENT_ID>`
-       - Set `agent` and `shell_pid` to your session metadata
-     * Use helper script to mark the task complete in `tasks.md` (see Step 6).
-     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> done --note "Approved without changes"` (PowerShell variant available) to transition the prompt into `tasks/done/`.
+     * **Use the dedicated approval command** to ensure proper reviewer attribution:
+       ```bash
+       # Capture reviewer identity
+       REVIEWER_AGENT=<YOUR_AGENT_ID>  # e.g., "claude-reviewer" or from $AGENT_ID
+       REVIEWER_SHELL_PID=$$           # Current shell PID
 
-6. Update `tasks.md` automatically:
+       # Use tasks-approve command for proper review attribution
+       python3 .kittify/scripts/tasks/tasks_cli.py approve <FEATURE> <TASK_ID> \
+         --review-status "approved without changes" \
+         --reviewer-agent "$REVIEWER_AGENT" \
+         --reviewer-shell-pid "$REVIEWER_SHELL_PID"
+       ```
+     * This automatically:
+       - Sets `lane: "done"`
+       - Sets `review_status: "approved without changes"` (or your custom status)
+       - Sets `reviewed_by: <YOUR_AGENT_ID>`
+       - Updates `agent: <YOUR_AGENT_ID>` and `shell_pid: <YOUR_SHELL_PID>`
+       - Appends Activity Log entry with reviewer's info (NOT implementer's)
+       - Handles git operations (add new location, remove old location)
+     * **Alternative:** For custom review statuses, use `--review-status "approved with minor notes"` or `--target-lane "planned"` for rejected tasks.
+     * Use helper script to mark the task complete in `tasks.md` (see Step 7).
+
+7. Update `tasks.md` automatically:
    - Run `scripts/bash/mark-task-status.sh --task-id <TASK_ID> --status done` (POSIX) or `scripts/powershell/Set-TaskStatus.ps1 -TaskId <TASK_ID> -Status done` (PowerShell) from repo root.
    - Confirm the task entry now shows `[X]` and includes a reference to the prompt file in its notes.
 
