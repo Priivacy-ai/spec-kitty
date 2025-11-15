@@ -30,14 +30,16 @@ def _load_json_from_output(output: str) -> dict[str, object]:
 def test_cli_help_lists_extracted_commands() -> None:
     result = runner.invoke(cli_app, ["--help"])
     assert result.exit_code == 0
-    for name in ["research", "check", "dashboard", "accept", "merge", "verify-setup"]:
+    for name in ["research", "dashboard", "accept", "merge", "verify-setup"]:
         assert name in result.stdout
 
 
-def test_check_command_runs() -> None:
-    result = runner.invoke(cli_app, ["check"])
+def test_verify_setup_command_runs() -> None:
+    """Test that verify-setup command works (replaces deprecated check command)."""
+    result = runner.invoke(cli_app, ["verify-setup"])
     assert result.exit_code == 0
-    assert "Spec Kitty CLI is ready to use" in result.stdout
+    # verify-setup shows completion message
+    assert "Verification complete" in result.stdout or "✓" in result.stdout
 
 
 def test_dashboard_kill_stops_instance(monkeypatch, tmp_path: Path) -> None:
