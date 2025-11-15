@@ -64,6 +64,28 @@ def kill_dashboard_process(port: int):
         pass
 
 
+def kill_all_spec_kitty_dashboards():
+    """Kill all spec-kitty dashboard processes (test cleanup)."""
+    try:
+        # Find all Python processes running run_dashboard_server
+        result = subprocess.run(
+            ["pgrep", "-f", "run_dashboard_server"],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        if result.stdout.strip():
+            pids = result.stdout.strip().split('\n')
+            for pid in pids:
+                try:
+                    os.kill(int(pid), signal.SIGKILL)
+                except:
+                    pass
+            time.sleep(1)  # Give processes time to die
+    except Exception:
+        pass
+
+
 class TestDashboardCLIStatusReporting:
     """Test CLI command accurately reports dashboard status."""
 
@@ -563,14 +585,28 @@ class TestDashboardCleanup:
                     "Dashboard should not be accessible after --kill"
 
 
-# Pytest fixture for cleanup
+# Module-level cleanup: Kill ALL orphaned dashboards before and after entire test module
+@pytest.fixture(autouse=True, scope="module")
+def cleanup_all_dashboards_module():
+    """Cleanup all spec-kitty dashboard processes before and after test module."""
+    # Before all tests: kill any existing orphaned dashboards
+    kill_all_spec_kitty_dashboards()
+
+    yield
+
+    # After all tests: kill any remaining dashboards
+    kill_all_spec_kitty_dashboards()
+
+
+# Per-test cleanup: Kill dashboards on specific test ports
 @pytest.fixture(autouse=True, scope="function")
 def cleanup_test_dashboards():
     """Cleanup any test dashboard processes after each test."""
     yield
 
-    # Cleanup test ports
-    for port in range(9992, 10000):
+    # Cleanup test ports (expanded range to catch all test dashboards)
+    # Includes both default port range (9237-9290) and explicit test ports (9992-9999)
+    for port in range(9237, 10000):
         kill_dashboard_process(port)
 
 
