@@ -69,8 +69,9 @@ def _background_script(project_dir: Path, port: int, project_token: Optional[str
         import sys
         from pathlib import Path
         repo_root = Path({repr(str(repo_root))})
-        if str(repo_root) not in sys.path:
-            sys.path.insert(0, str(repo_root))
+        # Always insert at position 0 to ensure correct spec-kitty version takes priority
+        # over any other paths in PYTHONPATH or .pth files
+        sys.path.insert(0, str(repo_root))
         from specify_cli.dashboard.server import run_dashboard_server
         run_dashboard_server(Path({repr(str(project_dir))}), {port}, {repr(project_token)})
         """

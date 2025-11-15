@@ -7,6 +7,59 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.5.3] - 2025-11-15
+
+### Fixed
+
+- **Dashboard Orphaned Process Cleanup** – Fixed dashboard startup failures caused by orphaned test processes:
+  - Dashboard now detects and cleans up orphaned processes when health check fails due to project path mismatch
+  - Added retry logic after successful orphan cleanup
+  - Orphan cleanup triggers on health check failure (not just port exhaustion)
+  - Eliminates false "Unable to start dashboard" errors when orphaned test dashboards occupy ports
+
+- **Dashboard Subprocess Import Failure** – Fixed ModuleNotFoundError in complex Python environments:
+  - Dashboard subprocess now always inserts spec-kitty path at sys.path[0]
+  - Fixes import failures when user's PYTHONPATH or .pth files contain spec-kitty path at lower priority
+  - Ensures correct spec-kitty installation takes precedence over environment paths
+  - Resolves "ModuleNotFoundError: No module named 'specify_cli.dashboard'" in subprocesses
+
+### Changed
+
+- **Test Suite Cleanup Improvements** – Enhanced dashboard test cleanup to prevent orphaned processes:
+  - Module-level cleanup fixture kills all orphaned dashboards before and after test runs
+  - Expanded cleanup port range from 9992-9999 to 9237-10000 (covers default and test ranges)
+  - Added `kill_all_spec_kitty_dashboards()` helper using pgrep/pkill
+  - Two-tier cleanup strategy: module-level (all processes) + function-level (specific ports)
+
+### Added
+
+- **Testing Guidelines for Agents** (`docs/testing-guidelines.md`) – Comprehensive testing best practices:
+  - Required cleanup patterns for dashboard tests (pytest fixtures, autouse fixtures)
+  - Anti-patterns to avoid (cleanup in test body, shared directories, no exception handling)
+  - Impact analysis of orphaned processes on local development and CI/CD
+  - Examples of proper test isolation and resource management
+
+### Changed
+
+- **Command Consolidation** – Merged `spec-kitty check` and `spec-kitty diagnostics` into `spec-kitty verify-setup`:
+  - Removed redundant `spec-kitty check` and `spec-kitty diagnostics` commands
+  - Tool checking now integrated into `verify-setup` with `--check-tools` flag (default: enabled)
+  - Diagnostics mode with dashboard health available via `--diagnostics` flag
+  - Removed ASCII banner from verify-setup for cleaner output
+  - Simplifies CLI interface - single command for all environment verification
+  - JSON output includes tool availability when `--check-tools` is enabled
+
+### Removed
+
+- **`spec-kitty check` command** – Functionality moved to `verify-setup --check-tools`
+  - Migration: Use `spec-kitty verify-setup` instead of `spec-kitty check`
+  - Tool checking enabled by default, disable with `--check-tools=false`
+- **`spec-kitty diagnostics` command** – Functionality moved to `verify-setup --diagnostics`
+  - Migration: Use `spec-kitty verify-setup --diagnostics` instead of `spec-kitty diagnostics`
+  - Shows Rich panel-based output with dashboard health, observations, and issues
+
 ## [0.5.2] - 2025-11-14
 
 ### Fixed

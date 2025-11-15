@@ -344,7 +344,38 @@ def ensure_dashboard_running(
             return url, port, True
         time.sleep(delay)
 
-    # Dashboard started but never became healthy - clean up the failed process
+    # Dashboard started but never became healthy
+    # Check if port has an orphaned dashboard from a different project
+    if _is_spec_kitty_dashboard(port):
+        # Port has a spec-kitty dashboard but for wrong project - orphan detected
+        # Clean up the failed process we just started
+        if pid is not None:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+
+        # Cleanup orphaned dashboards and retry ONCE
+        killed = _cleanup_orphaned_dashboards_in_range()
+        if killed > 0:
+            # Retry starting dashboard after cleanup
+            token = secrets.token_hex(16)
+            port, pid = start_dashboard(
+                project_dir_resolved,
+                port=port_to_use,
+                background_process=background_process,
+                project_token=token,
+            )
+            url = f"http://127.0.0.1:{port}"
+
+            # Wait for health check again
+            for delay in retry_delays:
+                if _check_dashboard_health(port, project_dir_resolved, token):
+                    _write_dashboard_file(dashboard_file, url, port, token, pid)
+                    return url, port, True
+                time.sleep(delay)
+
+    # Still failed - clean up and raise error
     if pid is not None:
         try:
             os.kill(pid, signal.SIGKILL)
