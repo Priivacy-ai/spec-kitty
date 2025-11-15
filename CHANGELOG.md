@@ -7,6 +7,22 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Command Consolidation** – Merged `spec-kitty check` into `spec-kitty verify-setup`:
+  - Removed redundant `spec-kitty check` command
+  - Tool checking now integrated into `verify-setup` with `--check-tools` flag (default: enabled)
+  - Simplifies CLI interface - single command for all environment verification
+  - JSON output includes tool availability when `--check-tools` is enabled
+
+### Removed
+
+- **`spec-kitty check` command** – Functionality moved to `verify-setup --check-tools`
+  - Migration: Use `spec-kitty verify-setup` instead of `spec-kitty check`
+  - Tool checking enabled by default, disable with `--check-tools=false`
+
 ## [0.5.2] - 2025-11-14
 
 ### Fixed

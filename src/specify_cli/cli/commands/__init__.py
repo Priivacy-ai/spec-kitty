@@ -5,7 +5,6 @@ from __future__ import annotations
 import typer
 
 from . import accept as accept_module
-from . import check as check_module
 from . import dashboard as dashboard_module
 from . import diagnostics as diagnostics_module
 from . import merge as merge_module
@@ -18,7 +17,6 @@ from . import verify as verify_module
 def register_commands(app: typer.Typer) -> None:
     """Attach all extracted commands to the root Typer application."""
     app.command()(accept_module.accept)
-    app.command()(check_module.check)
     app.command()(dashboard_module.dashboard)
     app.command()(diagnostics_module.diagnostics)
     app.command()(merge_module.merge)
