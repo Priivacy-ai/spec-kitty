@@ -9,10 +9,12 @@ subtasks:
   - "T067"
 title: "Dashboard Mission Display"
 phase: "Phase 5 - Polish"
-lane: "for_review"
+lane: "done"
+review_status: ""
+reviewed_by: "codex"
 assignee: ""
 agent: "codex"
-shell_pid: "4035"
+shell_pid: "15588"
 history:
   - timestamp: "2025-01-16T00:00:00Z"
     lane: "planned"
@@ -460,3 +462,5 @@ history:
 - 2025-11-16T13:25:04Z – codex – shell_pid=4035 – lane=doing – Started implementation
 - 2025-11-16T13:29:56Z – codex – shell_pid=4035 – lane=doing – Completed implementation
 - 2025-11-16T13:30:15Z – codex – shell_pid=4035 – lane=for_review – Ready for review
+- 2025-11-16T13:58:39Z – codex – shell_pid=15588 – lane=done – Approved without changes
+- 2025-11-16T13:58:57Z – codex – shell_pid=15588 – lane=done – Approved without changes
