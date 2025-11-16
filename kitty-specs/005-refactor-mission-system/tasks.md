@@ -16,13 +16,13 @@
 **Prompt**: `/tasks/planned/phase-1-foundation/WP01-guards-module-preflight-validation.md`
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/guards.py` module with docstring and imports
-- [ ] T002 Define `WorktreeValidationResult` dataclass in guards.py
-- [ ] T003 [P] Write unit tests in `tests/unit/test_guards.py` (TDD - write first)
-- [ ] T004 Implement `validate_worktree_location()` function with branch detection
-- [ ] T005 Implement helpful error formatting in `WorktreeValidationResult.format_error()`
-- [ ] T006 Add `validate_git_clean()` function for mission switching pre-checks
-- [ ] T007 Run unit tests and verify 100% coverage for guards module
+- [X] T001 Create `src/specify_cli/guards.py` module with docstring and imports
+- [X] T002 Define `WorktreeValidationResult` dataclass in guards.py
+- [X] T003 [P] Write unit tests in `tests/unit/test_guards.py` (TDD - write first)
+- [X] T004 Implement `validate_worktree_location()` function with branch detection
+- [X] T005 Implement helpful error formatting in `WorktreeValidationResult.format_error()`
+- [X] T006 Add `validate_git_clean()` function for mission switching pre-checks
+- [X] T007 Run unit tests and verify 100% coverage for guards module
 
 ### Implementation Notes
 1. Start with TDD: write test_guards.py first with expected behavior
@@ -49,15 +49,15 @@
 **Prompt**: `/tasks/planned/phase-1-foundation/WP02-pydantic-mission-schema.md`
 
 ### Included Subtasks
-- [ ] T008 Add `pydantic>=2.0` to pyproject.toml or requirements.txt
-- [ ] T009 Create Pydantic models in mission.py: PhaseConfig, ArtifactsConfig, ValidationConfig
-- [ ] T010 Create Pydantic models: WorkflowConfig, MCPToolsConfig, CommandConfig, TaskMetadataConfig
-- [ ] T011 Create root MissionConfig model with all required/optional fields
-- [ ] T012 [P] Write unit tests in `tests/unit/test_mission_schema.py` covering valid configs
-- [ ] T013 [P] Write unit tests for invalid configs (typos, missing fields, wrong types)
-- [ ] T014 Update Mission.__init__ to use Pydantic validation instead of raw YAML
-- [ ] T015 Add error formatting for ValidationError with helpful messages
-- [ ] T016 Test with existing software-dev and research mission.yaml files
+- [X] T008 Add `pydantic>=2.0` to pyproject.toml or requirements.txt
+- [X] T009 Create Pydantic models in mission.py: PhaseConfig, ArtifactsConfig, ValidationConfig
+- [X] T010 Create Pydantic models: WorkflowConfig, MCPToolsConfig, CommandConfig, TaskMetadataConfig
+- [X] T011 Create root MissionConfig model with all required/optional fields
+- [X] T012 [P] Write unit tests in `tests/unit/test_mission_schema.py` covering valid configs
+- [X] T013 [P] Write unit tests for invalid configs (typos, missing fields, wrong types)
+- [X] T014 Update Mission.__init__ to use Pydantic validation instead of raw YAML
+- [X] T015 Add error formatting for ValidationError with helpful messages
+- [X] T016 Test with existing software-dev and research mission.yaml files
 
 ### Implementation Notes
 1. Install Pydantic first
@@ -88,14 +88,14 @@
 **Prompt**: `/tasks/planned/phase-2-mission-cli/WP03-mission-cli-commands.md`
 
 ### Included Subtasks
-- [ ] T017 Create `src/specify_cli/cli/commands/mission.py` with Typer app
-- [ ] T018 Implement `list_cmd()` - display all available missions
-- [ ] T019 Implement `current_cmd()` - show active mission details
-- [ ] T020 Implement `info_cmd(mission_name)` - show specific mission info
-- [ ] T021 Implement `switch_cmd(mission_name)` with validation hooks
-- [ ] T022 Register mission command group in main CLI entry point
-- [ ] T023 [P] Write integration tests in `tests/integration/test_mission_cli.py`
-- [ ] T024 Test all CLI commands with rich output formatting
+- [X] T017 Create `src/specify_cli/cli/commands/mission.py` with Typer app
+- [X] T018 Implement `list_cmd()` - display all available missions
+- [X] T019 Implement `current_cmd()` - show active mission details
+- [X] T020 Implement `info_cmd(mission_name)` - show specific mission info
+- [X] T021 Implement `switch_cmd(mission_name)` with validation hooks
+- [X] T022 Register mission command group in main CLI entry point
+- [X] T023 [P] Write integration tests in `tests/integration/test_mission_cli.py`
+- [X] T024 Test all CLI commands with rich output formatting
 
 ### Implementation Notes
 1. Reuse existing `mission.py` functions (get_active_mission, set_active_mission, list_available_missions)
@@ -124,12 +124,12 @@
 **Prompt**: `/tasks/planned/phase-3-research-mission/WP04-research-mission-templates.md`
 
 ### Included Subtasks
-- [ ] T025 [P] Update `.kittify/missions/research/templates/spec-template.md` with research question format
-- [ ] T026 [P] Update `.kittify/missions/research/templates/plan-template.md` with methodology sections
-- [ ] T027 [P] Update `.kittify/missions/research/templates/tasks-template.md` for research work packages
-- [ ] T028 [P] Verify evidence-log.csv template has correct columns and examples
-- [ ] T029 [P] Verify source-register.csv template has correct columns and examples
-- [ ] T030 Update research mission.yaml with complete validation rules and artifact list
+- [X] T025 [P] Update `.kittify/missions/research/templates/spec-template.md` with research question format
+- [X] T026 [P] Update `.kittify/missions/research/templates/plan-template.md` with methodology sections
+- [X] T027 [P] Update `.kittify/missions/research/templates/tasks-template.md` for research work packages
+- [X] T028 [P] Verify evidence-log.csv template has correct columns and examples
+- [X] T029 [P] Verify source-register.csv template has correct columns and examples
+- [X] T030 Update research mission.yaml with complete validation rules and artifact list
 
 ### Implementation Notes
 1. Templates must guide researchers clearly (research question, hypothesis, methodology, findings)
@@ -157,16 +157,16 @@
 **Prompt**: `/tasks/planned/phase-3-research-mission/WP05-research-citation-validators.md`
 
 ### Included Subtasks
-- [ ] T031 Create `src/specify_cli/validators/` directory
-- [ ] T032 Create `src/specify_cli/validators/research.py` module
-- [ ] T033 Define CitationValidationResult and CitationIssue dataclasses
-- [ ] T034 [P] Implement BibTeX citation pattern regex
-- [ ] T035 [P] Implement APA citation pattern regex
-- [ ] T036 [P] Implement Simple citation pattern regex
-- [ ] T037 Implement `validate_citations()` function for evidence-log.csv
-- [ ] T038 Implement `validate_source_register()` for source-register.csv
-- [ ] T039 [P] Write unit tests in `tests/unit/test_validators.py` with sample citations
-- [ ] T040 Integrate citation validation into research mission review workflow
+- [X] T031 Create `src/specify_cli/validators/` directory
+- [X] T032 Create `src/specify_cli/validators/research.py` module
+- [X] T033 Define CitationValidationResult and CitationIssue dataclasses
+- [X] T034 [P] Implement BibTeX citation pattern regex
+- [X] T035 [P] Implement APA citation pattern regex
+- [X] T036 [P] Implement Simple citation pattern regex
+- [X] T037 Implement `validate_citations()` function for evidence-log.csv
+- [X] T038 Implement `validate_source_register()` for source-register.csv
+- [X] T039 [P] Write unit tests in `tests/unit/test_validators.py` with sample citations
+- [X] T040 Integrate citation validation into research mission review workflow
 
 ### Implementation Notes
 1. Progressive validation: errors for completeness, warnings for format
@@ -194,14 +194,14 @@
 **Prompt**: `/tasks/planned/phase-4-integration/WP06-update-command-prompts.md`
 
 ### Included Subtasks
-- [ ] T041 Update `.kittify/missions/software-dev/commands/plan.md` - replace inline checks with Python call
-- [ ] T042 Update `.kittify/missions/software-dev/commands/implement.md` - replace inline checks
-- [ ] T043 Update `.kittify/missions/software-dev/commands/review.md` - replace inline checks
-- [ ] T044 Update `.kittify/missions/software-dev/commands/merge.md` - replace inline checks
-- [ ] T045 Update `.kittify/missions/research/commands/plan.md` - replace inline checks
-- [ ] T046 Update `.kittify/missions/research/commands/implement.md` - add citation tracking guidance
-- [ ] T047 Update `.kittify/missions/research/commands/review.md` - add citation validation calls
-- [ ] T048 Update `.kittify/missions/research/commands/merge.md` - replace inline checks
+- [X] T041 Update `.kittify/missions/software-dev/commands/plan.md` - replace inline checks with Python call
+- [X] T042 Update `.kittify/missions/software-dev/commands/implement.md` - replace inline checks
+- [X] T043 Update `.kittify/missions/software-dev/commands/review.md` - replace inline checks
+- [X] T044 Update `.kittify/missions/software-dev/commands/merge.md` - replace inline checks
+- [X] T045 Update `.kittify/missions/research/commands/plan.md` - replace inline checks
+- [X] T046 Update `.kittify/missions/research/commands/implement.md` - add citation tracking guidance
+- [X] T047 Update `.kittify/missions/research/commands/review.md` - add citation validation calls
+- [X] T048 Update `.kittify/missions/research/commands/merge.md` - replace inline checks
 
 ### Implementation Notes
 1. **CRITICAL**: This work package MUST wait for WP01 (guards.py) to complete
@@ -266,11 +266,11 @@
 **Prompt**: `/tasks/planned/phase-5-polish/WP08-documentation-terminology.md`
 
 ### Included Subtasks
-- [ ] T057 [P] Add glossary section to README.md with Project/Feature/Mission definitions
-- [ ] T058 [P] Review and update README.md for consistent terminology
-- [ ] T059 [P] Update CLI help text for consistent terminology
-- [ ] T060 [P] Update error messages for consistent terminology
-- [ ] T061 [P] Update command prompt files for consistent terminology
+- [X] T057 [P] Add glossary section to README.md with Project/Feature/Mission definitions
+- [X] T058 [P] Review and update README.md for consistent terminology
+- [X] T059 [P] Update CLI help text for consistent terminology
+- [X] T060 [P] Update error messages for consistent terminology
+- [X] T061 [P] Update command prompt files for consistent terminology
 
 ### Implementation Notes
 1. Define clear, concise definitions with examples
@@ -300,12 +300,12 @@
 **Prompt**: `/tasks/planned/phase-5-polish/WP09-dashboard-mission-display.md`
 
 ### Included Subtasks
-- [ ] T062 Update `src/specify_cli/dashboard/server.py` to include mission in context
-- [ ] T063 [P] Update dashboard HTML template to display mission name
-- [ ] T064 [P] Add refresh button to dashboard header (optional enhancement)
-- [ ] T065 Style mission display to be prominent but not obtrusive
-- [ ] T066 Test dashboard with software-dev mission
-- [ ] T067 Switch to research mission, refresh dashboard, verify update
+- [X] T062 Update `src/specify_cli/dashboard/server.py` to include mission in context
+- [X] T063 [P] Update dashboard HTML template to display mission name
+- [X] T064 [P] Add refresh button to dashboard header (optional enhancement)
+- [X] T065 Style mission display to be prominent but not obtrusive
+- [X] T066 Test dashboard with software-dev mission
+- [X] T067 Switch to research mission, refresh dashboard, verify update
 
 ### Implementation Notes
 1. Add mission to template context in index route
@@ -333,15 +333,15 @@
 **Prompt**: `/tasks/planned/phase-6-testing/WP10-integration-testing.md`
 
 ### Included Subtasks
-- [ ] T068 Create `tests/integration/test_mission_switching.py`
-- [ ] T069 Test: Clean project → mission switch → verify success
-- [ ] T070 Test: Active worktrees → mission switch → verify blocked
-- [ ] T071 Test: Dirty git → mission switch → verify blocked
-- [ ] T072 Test: Switch to research → create feature → verify research templates used
-- [ ] T073 Create `tests/integration/test_research_workflow.py`
-- [ ] T074 Test: Full research workflow (init → specify → plan → tasks → implement → review → accept)
-- [ ] T075 Test: Citation validation in research workflow
-- [ ] T076 Test: Path validation warnings at switch, errors at acceptance
+- [X] T068 Create `tests/integration/test_mission_switching.py`
+- [X] T069 Test: Clean project → mission switch → verify success
+- [X] T070 Test: Active worktrees → mission switch → verify blocked
+- [X] T071 Test: Dirty git → mission switch → verify blocked
+- [X] T072 Test: Switch to research → create feature → verify research templates used
+- [X] T073 Create `tests/integration/test_research_workflow.py`
+- [X] T074 Test: Full research workflow (init → specify → plan → tasks → implement → review → accept)
+- [X] T075 Test: Citation validation in research workflow
+- [X] T076 Test: Path validation warnings at switch, errors at acceptance
 
 ### Implementation Notes
 1. Use pytest fixtures for project setup/teardown

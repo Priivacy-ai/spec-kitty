@@ -13,7 +13,7 @@ subtasks:
 title: "Pydantic Mission Schema Validation"
 phase: "Phase 1 - Foundation"
 lane: "done"
-assignee: ""
+assignee: "claude"
 agent: "claude"
 shell_pid: "70190"
 history:

@@ -11,7 +11,7 @@ subtasks:
 title: Guards Module - Pre-flight Validation
 phase: Phase 1 - Foundation
 lane: "done"
-assignee: ''
+assignee: "codex"
 agent: "claude"
 shell_pid: "53768"
 history:

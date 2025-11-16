@@ -10,7 +10,7 @@ subtasks:
 title: "Research Mission Templates"
 phase: "Phase 3 - Research Mission"
 lane: "done"
-assignee: ""
+assignee: "claude"
 agent: "claude"
 shell_pid: "76722"
 history:

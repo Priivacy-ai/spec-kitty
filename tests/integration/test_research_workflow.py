@@ -160,13 +160,9 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
     # Initialize research project via CLI
     result = run_cli(tmp_path, "init", "research-test", "--mission", "research", "--ai", "claude", "--no-git")
 
-    # Init may fail if dependencies missing, skip if so
-    if result.returncode != 0:
-        pytest.skip(f"Init failed: {result.stderr}")
-
     project_dir = tmp_path / "research-test"
-    if not project_dir.exists():
-        pytest.skip("Project not created")
+    assert result.returncode == 0, f"CLI init failed: {result.stderr}"
+    assert project_dir.exists(), "spec-kitty init did not create project directory"
 
     # Init git for testing
     subprocess.run(["git", "init"], cwd=project_dir, check=True, capture_output=True)

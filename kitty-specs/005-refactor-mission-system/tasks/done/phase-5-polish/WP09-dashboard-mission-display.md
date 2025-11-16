@@ -12,7 +12,7 @@ phase: "Phase 5 - Polish"
 lane: "done"
 review_status: ""
 reviewed_by: "codex"
-assignee: ""
+assignee: "codex"
 agent: "codex"
 shell_pid: "37165"
 history:

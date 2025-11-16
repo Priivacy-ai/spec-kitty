@@ -14,7 +14,7 @@ subtasks:
 title: "Research Citation Validators"
 phase: "Phase 3 - Research Mission"
 lane: "done"
-assignee: ""
+assignee: "claude"
 agent: "claude"
 shell_pid: "96219"
 history:

@@ -54,6 +54,8 @@ def test_mission_switch_shows_path_warnings_via_cli(clean_project: Path, run_cli
 
     # Should succeed (warnings non-blocking)
     assert result.returncode == 0
+    output = (result.stdout + result.stderr).lower()
+    assert "path convention warnings" in output or "expects workspace path" in output, "Mission switch did not emit path warnings"
 
     # May show warnings about missing paths (implementation-dependent)
     # Just verify switch succeeded

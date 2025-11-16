@@ -12,7 +12,7 @@ subtasks:
 title: "Mission CLI Commands"
 phase: "Phase 2 - Mission CLI"
 lane: "done"
-assignee: ""
+assignee: "claude"
 agent: "claude"
 shell_pid: "88714"
 history:

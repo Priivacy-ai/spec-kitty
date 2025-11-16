@@ -9,7 +9,7 @@ subtasks:
 title: "Documentation & Terminology Clarification"
 phase: "Phase 5 - Polish"
 lane: "done"
-assignee: ""
+assignee: "claude"
 agent: "claude"
 shell_pid: "5975"
 history:

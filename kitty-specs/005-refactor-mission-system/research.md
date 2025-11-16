@@ -28,7 +28,7 @@ Which schema validation library provides the best balance of error messages, zer
 - Excellent error messages with field-level details
 - Full type hint integration
 - Auto-generates schema documentation
-- Coercion support (e.g., int ’ str)
+- Coercion support (e.g., int โ€ str)
 - Fast (Rust core in v2)
 - Active development and community
 
@@ -222,10 +222,10 @@ class MissionConfig:
 | Dependencies | 1 (5MB) | 2 (400KB) | 1 (300KB) | 0 |
 | Type Hints |  Full |  Full | L None |  Full |
 | IDE Support |  Excellent |  Good | L Limited |  Excellent |
-| Maintenance |  Low |  Low | =แ Medium | L High |
-| Performance |  Fast |  Fast | =แ Medium |  Fastest |
-| Learning Curve | =แ Medium | =แ Medium |  Low |  Low |
-| Community |  Huge | =แ Small |  Large |  Stdlib |
+| Maintenance |  Low |  Low | =รก Medium | L High |
+| Performance |  Fast |  Fast | =รก Medium |  Fastest |
+| Learning Curve | =รก Medium | =รก Medium |  Low |  Low |
+| Community |  Huge | =รก Small |  Large |  Stdlib |
 
 ### Recommended Decision
 
@@ -509,10 +509,10 @@ setInterval(async () => {
 
 | Criterion | Server-Side | Polling | WebSocket | Hybrid |
 |-----------|-------------|---------|-----------|--------|
-| Complexity |  Minimal | =แ Low | L High |  Minimal |
+| Complexity |  Minimal | =รก Low | L High |  Minimal |
 | Dependencies |  Zero |  Zero | L New libs |  Zero |
-| Update Speed | L Manual | =แ 5-10sec |  <1sec | L Manual |
-| User Experience | =แ Acceptable |  Good |  Excellent |  Good |
+| Update Speed | L Manual | =รก 5-10sec |  <1sec | L Manual |
+| User Experience | =รก Acceptable |  Good |  Excellent |  Good |
 | Maintenance |  Low |  Low | L Medium |  Low |
 
 ### Recommended Decision
