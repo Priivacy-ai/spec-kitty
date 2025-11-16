@@ -9,7 +9,7 @@ subtasks:
   - "T030"
 title: "Research Mission Templates"
 phase: "Phase 3 - Research Mission"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "codex"
 shell_pid: "60030"
@@ -711,3 +711,5 @@ history:
 
 - 2025-01-16T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 - 2025-11-16T13:00:56Z – codex – shell_pid=60030 – lane=doing – Started implementation
+- 2025-11-16T13:05:04Z – codex – shell_pid=60030 – lane=doing – Completed research template implementation
+- 2025-11-16T13:06:28Z – codex – shell_pid=60030 – lane=for_review – Ready for review

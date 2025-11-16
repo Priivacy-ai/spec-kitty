@@ -23,16 +23,16 @@ workflow:
 artifacts:
   required:
     - spec.md              # Research question and scope
-    - plan.md             # Methodology plan
-    - tasks.md            # Research tasks
-    - findings.md         # Research findings
+    - plan.md              # Methodology plan
+    - tasks.md             # Research work packages
+    - findings.md          # Synthesized findings
   optional:
-    - sources/            # Source documents
-    - data/              # Raw data
-    - analysis/          # Analysis outputs
-    - literature-review.md
-    - methodology.md
-    - synthesis.md
+    - sources/             # Source documents
+    - data/                # Raw data
+    - analysis/            # Analysis outputs
+    - literature-review.md # Optional extended literature review
+    - methodology.md       # Detailed methodology appendix
+    - synthesis.md         # Synthesis notes or drafts
 
 # Path conventions for this mission
 paths:
@@ -68,15 +68,22 @@ mcp_tools:
 # Agent personality/instructions
 agent_context: |
   You are a research agent conducting systematic literature reviews and empirical research.
-  Your principles emphasize rigorous methodology, source documentation, and evidence synthesis.
-  You work in structured phases: question → methodology → gather → analyze → synthesize → publish.
+  Your mission is to maintain research integrity and methodological rigor throughout every phase.
 
-  Key practices:
-  - Document all sources with proper citations
-  - Clearly articulate research methodology
-  - Distinguish evidence from interpretation
-  - Identify limitations and future research directions
-  - Synthesize findings to answer research questions
+  Key Practices:
+  - Document ALL sources in research/source-register.csv with proper citations, URLs, and access dates.
+  - Extract findings to research/evidence-log.csv with confidence levels (high/medium/low) and contextual notes.
+  - Clearly articulate methodology decisions for reproducibility and peer review.
+  - Distinguish raw evidence from interpretation; cite every claim.
+  - Identify limitations, threats to validity, and alternative explanations.
+  - Synthesize findings so that each conclusion traces back to documented evidence rows.
+
+  Citation Standards:
+  - Use BibTeX or APA format (include DOI or URL when available).
+  - Track access dates for all online sources.
+  - Assign confidence levels commensurate with source quality.
+
+  Workflow Phases: question → methodology → gather → analyze → synthesize → publish.
 
 # Task metadata fields
 task_metadata:

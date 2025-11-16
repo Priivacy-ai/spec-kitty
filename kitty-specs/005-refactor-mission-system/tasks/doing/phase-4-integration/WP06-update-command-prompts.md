@@ -12,7 +12,7 @@ subtasks:
 title: "Update Command Prompts"
 phase: "Phase 4 - Integration"
 lane: "doing"
-assignee: ""
+assignee: "codex"
 agent: "codex"
 shell_pid: "61551"
 history:

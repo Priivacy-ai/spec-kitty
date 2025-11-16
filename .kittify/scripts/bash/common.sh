@@ -527,11 +527,11 @@ EOF
 # Handle common flags (Issue #4: Standardized --help)
 # Sets DRY_RUN, JSON_OUTPUT, QUIET_MODE, SHOW_HELP
 # Usage: handle_common_flags "$@"; set -- "${REMAINING_ARGS[@]}"
-declare -g DRY_RUN=false
-declare -g JSON_OUTPUT=false
-declare -g QUIET_MODE=false
-declare -g SHOW_HELP=false
-declare -ga REMAINING_ARGS=()
+DRY_RUN=false
+JSON_OUTPUT=false
+QUIET_MODE=false
+SHOW_HELP=false
+declare -a REMAINING_ARGS=()
 
 handle_common_flags() {
     local arg
