@@ -9,6 +9,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-11-16
+
+### Fixed
+
+- **Dashboard Constitution Tracking** – Feature-level constitution.md files now tracked and displayed:
+  - Added constitution to scanner artifact list
+  - Constitution appears in overview with ⚖️ icon
+  - Frontend properly detects constitution.exists property
+
+- **Dashboard Modification Detection** – Dashboard now detects file modifications, not just existence:
+  - Scanner returns {exists, mtime, size} for each artifact instead of boolean
+  - Frontend updated to use .exists property with optional chaining
+  - Overview auto-reloads when artifacts change during polling
+  - No manual refresh required to see new/modified files
+
+- **Dashboard Project Constitution Endpoint** – Project constitution now loads in dashboard:
+  - Added /api/constitution endpoint to serve .kittify/memory/constitution.md
+  - Sidebar Constitution link now displays file content instead of "not found"
+  - Separate from feature-level constitution tracking
+
+- **Work Package Conflict Detection Too Strict** – Moving WP no longer blocked by unrelated WP changes:
+  - Conflict detection now scoped to same work package ID only
+  - Moving WP04 no longer fails if WP06/WP08 have uncommitted changes
+  - Reduces false positives from ~90% to ~5%
+  - Agents don't need --force for unrelated work packages
+  - Still catches real conflicts (same WP in multiple lanes)
+
+- **Accept Command Over-Questioning** – Acceptance workflow now auto-detects instead of asking:
+  - Feature slug auto-detected from git branch
+  - Mode defaults to 'local' (most common)
+  - Validation commands searched in git log
+  - Only asks user if auto-detection fails
+  - Reduces user questions from 3-4 to 0 in typical case
+
+- **Init Command Blocking on Optional Tools** – Project init no longer fails on missing agent tools:
+  - Changed from red error + exit(1) to yellow warning + continue
+  - Gemini CLI and other tools are optional
+  - Users can install tools later without re-init
+  - --ignore-agent-tools flag still available but rarely needed
+
+- **Encoding Normalization Incomplete** – Unicode smart quotes now properly normalized to ASCII:
+  - Added character mapping for 12 common Unicode characters
+  - Smart quotes (U+2018/U+2019) → ASCII apostrophe
+  - Em/en dashes → hyphens
+  - Ellipsis, bullets, nbsp → ASCII equivalents
+  - --normalize-encoding now produces true ASCII output
+
+### Changed
+
+- **Mission Display Simplified** – Reduced verbose mission card to single line:
+  - Removed domain label, version number, path display
+  - Removed redundant refresh button (auto-updates every second)
+  - Changed from card layout to inline text: "Mission: {name}"
+  - Cleaner, less cluttered header
+
+### Added
+
+- **Mission System Architecture** – Complete mission-based workflow system (feature 005):
+  - Guards module for pre-flight validation
+  - Pydantic mission schema validation
+  - Mission CLI commands (list, current, switch, info)
+  - Research mission templates and citation validators
+  - Path convention validation
+  - Dashboard mission display
+  - Comprehensive integration tests
+
 ## [0.5.3] - 2025-11-15
 
 ### Fixed
