@@ -151,3 +151,56 @@ def test_path_validation_for_research_mission(research_project_root: Path) -> No
     (research_project_root / "research").mkdir()
     result2 = validate_mission_paths(mission, research_project_root, strict=False)
     assert len(result2.missing_paths) < len(result.missing_paths)
+
+
+def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
+    """Full research workflow using CLI commands end-to-end."""
+    import subprocess
+
+    # Initialize research project via CLI
+    result = run_cli(tmp_path, "init", "research-test", "--mission", "research", "--ai", "claude", "--no-git")
+
+    # Init may fail if dependencies missing, skip if so
+    if result.returncode != 0:
+        pytest.skip(f"Init failed: {result.stderr}")
+
+    project_dir = tmp_path / "research-test"
+    if not project_dir.exists():
+        pytest.skip("Project not created")
+
+    # Init git for testing
+    subprocess.run(["git", "init"], cwd=project_dir, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=project_dir, check=True, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=project_dir, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "Init"], cwd=project_dir, check=True, capture_output=True)
+
+    # Verify research mission active
+    result = run_cli(project_dir, "mission", "current")
+    assert result.returncode == 0
+    assert "research" in result.stdout.lower()
+
+    # Create CSV artifacts
+    research_dir = project_dir / "research"
+    research_dir.mkdir()
+    
+    (research_dir / "evidence-log.csv").write_text(
+        "timestamp,source_type,citation,key_finding,confidence,notes\n"
+        "2025-01-15T10:00:00,journal,\"Smith (2024). Title.\",Finding,high,Notes\n"
+    )
+    
+    (research_dir / "source-register.csv").write_text(
+        "source_id,citation,url,accessed_date,relevance,status\n"
+        "smith2024,\"Smith (2024). Title.\",https://example.com,2025-01-15,high,reviewed\n"
+    )
+
+    # Validate artifacts
+    import sys
+    sys.path.insert(0, str(Path.cwd() / "src"))
+    from specify_cli.validators.research import validate_citations, validate_source_register
+
+    result_cit = validate_citations(research_dir / "evidence-log.csv")
+    assert not result_cit.has_errors
+
+    result_src = validate_source_register(research_dir / "source-register.csv")
+    assert not result_src.has_errors

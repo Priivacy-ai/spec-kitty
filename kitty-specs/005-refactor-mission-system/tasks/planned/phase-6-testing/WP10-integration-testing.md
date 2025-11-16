@@ -12,11 +12,11 @@ subtasks:
   - "T076"
 title: "Integration Testing"
 phase: "Phase 6 - Testing"
-lane: "for_review"
-review_status: ""
-assignee: "codex"
+lane: "planned"
+review_status: "has_feedback"
+assignee: ""
 agent: "codex"
-shell_pid: "37258"
+shell_pid: "49816"
 reviewed_by: "codex"
 history:
   - timestamp: "2025-01-16T00:00:00Z"
@@ -31,17 +31,17 @@ history:
 **Status**: ❌ **Needs Changes**
 
 **Key Issues**:
-1. **Research workflow suite missing** – WP10 calls for a dedicated `tests/integration/test_research_workflow.py` that exercises the full research workflow plus citation/source register/path validations (`kitty-specs/005-refactor-mission-system/tasks/for_review/phase-6-testing/WP10-integration-testing.md:63-76`, `kitty-specs/005-refactor-mission-system/tasks/for_review/phase-6-testing/WP10-integration-testing.md:353-529`). The repo only contains `tests/integration/test_init_flow.py` and `tests/integration/test_mission_cli.py`, so none of the research scenarios or validators are covered.
-2. **Mission switching coverage incomplete** – The plan requires `tests/integration/test_mission_switching.py` with happy/sad paths, template verification, and path validation warnings/errors (`kitty-specs/005-refactor-mission-system/tasks/for_review/phase-6-testing/WP10-integration-testing.md:63-76`, `kitty-specs/005-refactor-mission-system/tasks/for_review/phase-6-testing/WP10-integration-testing.md:541-564`, `kitty-specs/005-refactor-mission-system/tasks/for_review/phase-6-testing/WP10-integration-testing.md:684-699`). The implemented `tests/integration/test_mission_cli.py:78-122` only checks CLI output and never validates template changes, switch-back workflow, or path validation behaviors, leaving SC-009/SC-011 untested.
+1. **Mission switch CLI scenarios are still untested** – WP10 explicitly requires the happy path plus worktree/dirty-git blockers to be exercised via `spec-kitty mission switch …` so the guard rails run end-to-end (`kitty-specs/005-refactor-mission-system/tasks/for_review/phase-6-testing/WP10-integration-testing.md:192-318`). The current `tests/integration/test_mission_switching.py:45-176` only calls `set_active_mission()`/`validate_mission_paths()` directly, so the CLI pre-flight checks (worktrees, git cleanliness, warning text) and template verification never execute. SC-009 through SC-011 therefore remain unverified.
+2. **Research workflow integration lacks an end-to-end test** – T073-T074 expect a `test_full_research_workflow` that initializes a research mission via the CLI and walks through the artifacts/validation stack (`kitty-specs/005-refactor-mission-system/tasks/for_review/phase-6-testing/WP10-integration-testing.md:372-485`). The new `tests/integration/test_research_workflow.py:12-153` creates ad-hoc directories and calls validators directly, so we never prove that `spec-kitty init --mission research` sets up the workflow, that `mission current/info` work in that context, or that the CSV validators wire into the acceptance path. This leaves SC-006 untested and the Definition of Done box “Full workflow infrastructure tested” unchecked.
 
 **What Was Done Well**:
-- Mission CLI smoke tests hit the real CLI entry point via `_run_cli`, so list/current/switch commands execute end-to-end (`tests/integration/test_mission_cli.py:18-122`).
-- `pytest tests/integration/ -v` completes in ~2.5s, keeping CI fast even after the suite expands.
+- The shared `run_cli` fixture wires tests into the real CLI module, so list/current/info coverage in `tests/integration/test_mission_cli.py:9-27` exercises the Typer command stack.
+- Citation/source-register/path validators behave correctly in isolation (`tests/integration/test_research_workflow.py:83-153`), which gives good building blocks for the missing workflow test.
 
 **Action Items** (must complete before re-review):
-- [ ] Implement `tests/integration/test_research_workflow.py` per T073–T075 to cover the full research workflow plus citation/source register/path validations.
-- [ ] Expand the mission switching suite (and relocate it to `test_mission_switching.py`) to cover template change verification, switch-back flow, and path validation warnings/errors for T068–T072/T076.
-- [ ] Re-run `pytest tests/integration/ -v` and attach the results.
+- [ ] Add CLI-backed mission switch tests (`tests/integration/test_mission_switching.py`) that cover the happy path, worktree blocker, and dirty-git blocker and assert on the emitted warnings/messages as described in T069-T071.
+- [ ] Implement the `test_full_research_workflow` scenario that calls `spec-kitty init --mission research`, validates `mission current/info`, wires in CSV artifacts, and asserts validator results to satisfy T073-T074/SC-006.
+- [ ] Re-run `pytest tests/integration/ -v` and include the updated log in the prompt once the new tests are in place.
 
 # Work Package Prompt: WP10 – Integration Testing
 
@@ -762,3 +762,4 @@ After integration tests pass, manually verify critical user journeys:
 - 2025-11-16T14:24:40Z – codex – shell_pid=37258 – lane=doing – Addressed feedback: Added research workflow integration tests for citations, source register, and path validation
 - 2025-11-16T14:25:15Z – codex – shell_pid=37258 – lane=doing – Addressed feedback: Re-ran pytest tests/integration/ -v (18 tests passing)
 - 2025-11-16T14:25:45Z – codex – shell_pid=37258 – lane=for_review – Ready for review
+- 2025-11-16T14:49:47Z – codex – shell_pid=49816 – lane=planned – Code review complete: CLI mission switch + research workflow coverage missing
