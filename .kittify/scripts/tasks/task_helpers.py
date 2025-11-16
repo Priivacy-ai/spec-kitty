@@ -90,13 +90,39 @@ def normalize_note(note: Optional[str], target_lane: str) -> str:
 def detect_conflicting_wp_status(
     status_lines: List[str], feature: str, old_path: Path, new_path: Path
 ) -> List[str]:
-    """Return staged work-package entries unrelated to the requested move."""
+    """Return staged work-package entries that conflict with the requested move.
+
+    Only detects conflicts for the SAME work package (by ID), not unrelated WPs.
+    For example, moving WP04 won't conflict with staged changes to WP06.
+    """
+    import re
+
     base_path = Path("kitty-specs") / feature / "tasks"
     prefix = f"{base_path.as_posix()}/"
     allowed = {
         str(old_path).lstrip("./"),
         str(new_path).lstrip("./"),
     }
+
+    # Extract work package ID from filename (e.g., "WP04" from "WP04-some-title.md")
+    def _extract_wp_id(path: str) -> Optional[str]:
+        # Match WP followed by digits (WP01, WP02, etc.)
+        match = re.search(r'\bWP\d+\b', path)
+        return match.group(0) if match else None
+
+    # Get the WP ID for the file being moved
+    current_wp_id = _extract_wp_id(str(old_path)) or _extract_wp_id(str(new_path))
+    if not current_wp_id:
+        # Can't determine WP ID, fall back to blocking all task files (safe default)
+        conflicts = []
+        for line in status_lines:
+            path = line[3:] if len(line) > 3 else ""
+            if not path.startswith(prefix):
+                continue
+            clean = path.strip()
+            if clean not in allowed:
+                conflicts.append(line)
+        return conflicts
 
     def _wp_suffix(path: Path) -> Optional[str]:
         try:
@@ -118,6 +144,13 @@ def detect_conflicting_wp_status(
             continue
         clean = path.strip()
         if clean not in allowed:
+            # Only treat as conflict if it's the SAME work package ID
+            file_wp_id = _extract_wp_id(clean)
+            if file_wp_id != current_wp_id:
+                # Different WP ID - not a conflict, skip it
+                continue
+
+            # Same WP ID - check if it's a deletion of an old copy
             if suffixes and line and line[0] == "D":
                 for suffix in suffixes:
                     if clean.endswith(suffix):
