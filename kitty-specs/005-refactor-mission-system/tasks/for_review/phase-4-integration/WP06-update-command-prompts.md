@@ -11,7 +11,7 @@ subtasks:
   - "T048"
 title: "Update Command Prompts"
 phase: "Phase 4 - Integration"
-lane: "doing"
+lane: "for_review"
 assignee: "codex"
 agent: "codex"
 shell_pid: "61551"
@@ -541,3 +541,5 @@ This validates you're on a feature branch in a worktree, not on main.
 
 - 2025-01-16T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 - 2025-11-16T13:03:43Z – codex – shell_pid=61551 – lane=doing – Started implementation
+- 2025-11-16T13:22:26Z – codex – shell_pid=61551 – lane=doing – Completed implementation
+- 2025-11-16T13:23:09Z – codex – shell_pid=61551 – lane=for_review – Ready for review
