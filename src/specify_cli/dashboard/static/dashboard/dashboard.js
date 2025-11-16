@@ -223,7 +223,7 @@ function updateSidebarState() {
             return;
         }
 
-        const hasArtifact = page === 'overview' || artifacts[page.replace('-', '_')];
+        const hasArtifact = page === 'overview' || artifacts[page.replace('-', '_')]?.exists;
 
         if (hasArtifact) {
             item.classList.remove('disabled');
@@ -280,6 +280,7 @@ return `
 
     const artifacts = feature.artifacts;
     const artifactList = [
+        {name: 'Constitution', key: 'constitution', icon: '⚖️'},
         {name: 'Specification', key: 'spec', icon: '📄'},
         {name: 'Plan', key: 'plan', icon: '🏗️'},
         {name: 'Tasks', key: 'tasks', icon: '📋'},
@@ -290,9 +291,9 @@ return `
         {name: 'Contracts', key: 'contracts', icon: '📜'},
         {name: 'Checklists', key: 'checklists', icon: '✅'},
     ].map(a => `
-        <div style="padding: 10px; background: ${artifacts[a.key] ? '#ecfdf5' : '#fef2f2'};
-             border-radius: 6px; border-left: 3px solid ${artifacts[a.key] ? '#10b981' : '#ef4444'};">
-            ${a.icon} ${a.name}: ${artifacts[a.key] ? '✅ Available' : '❌ Not created'}
+        <div style="padding: 10px; background: ${artifacts[a.key]?.exists ? '#ecfdf5' : '#fef2f2'};
+             border-radius: 6px; border-left: 3px solid ${artifacts[a.key]?.exists ? '#10b981' : '#ef4444'};">
+            ${a.icon} ${a.name}: ${artifacts[a.key]?.exists ? '✅ Available' : '❌ Not created'}
         </div>
     `).join('');
 
@@ -952,11 +953,11 @@ function updateFeatureList(features) {
         if (savedState.page === 'constitution') {
             // Will be handled by showConstitution() call below
             currentPage = savedState.page;
-        } else if (savedState.page === 'kanban' && feature && feature.artifacts && feature.artifacts.kanban) {
+        } else if (savedState.page === 'kanban' && feature && feature.artifacts && feature.artifacts.kanban?.exists) {
             currentPage = savedState.page;
         } else if (feature && feature.artifacts) {
             const artifactKey = savedState.page.replace('-', '_');
-            if (feature.artifacts[artifactKey] || savedState.page === 'overview') {
+            if (feature.artifacts[artifactKey]?.exists || savedState.page === 'overview') {
                 currentPage = savedState.page;
             }
         }

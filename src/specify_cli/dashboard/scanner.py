@@ -142,27 +142,41 @@ def work_package_sort_key(task: Dict[str, Any]) -> tuple:
     return (tuple(number_parts), work_id.lower())
 
 
-def get_feature_artifacts(feature_dir: Path) -> Dict[str, bool]:
-    """Return which artifacts exist for a feature."""
+def _get_artifact_info(path: Path) -> Dict[str, any]:
+    """Get artifact information including existence, mtime, and size."""
+    if not path.exists():
+        return {"exists": False, "mtime": None, "size": None}
+
+    stat = path.stat()
     return {
-        "spec": (feature_dir / "spec.md").exists(),
-        "plan": (feature_dir / "plan.md").exists(),
-        "tasks": (feature_dir / "tasks.md").exists(),
-        "research": (feature_dir / "research.md").exists(),
-        "quickstart": (feature_dir / "quickstart.md").exists(),
-        "data_model": (feature_dir / "data-model.md").exists(),
-        "contracts": (feature_dir / "contracts").exists(),
-        "checklists": (feature_dir / "checklists").exists(),
-        "kanban": (feature_dir / "tasks").exists(),
+        "exists": True,
+        "mtime": stat.st_mtime,
+        "size": stat.st_size if path.is_file() else None,
     }
 
 
-def get_workflow_status(artifacts: Dict[str, bool]) -> Dict[str, str]:
+def get_feature_artifacts(feature_dir: Path) -> Dict[str, Dict[str, any]]:
+    """Return which artifacts exist for a feature with modification info."""
+    return {
+        "constitution": _get_artifact_info(feature_dir / "constitution.md"),
+        "spec": _get_artifact_info(feature_dir / "spec.md"),
+        "plan": _get_artifact_info(feature_dir / "plan.md"),
+        "tasks": _get_artifact_info(feature_dir / "tasks.md"),
+        "research": _get_artifact_info(feature_dir / "research.md"),
+        "quickstart": _get_artifact_info(feature_dir / "quickstart.md"),
+        "data_model": _get_artifact_info(feature_dir / "data-model.md"),
+        "contracts": _get_artifact_info(feature_dir / "contracts"),
+        "checklists": _get_artifact_info(feature_dir / "checklists"),
+        "kanban": _get_artifact_info(feature_dir / "tasks"),
+    }
+
+
+def get_workflow_status(artifacts: Dict[str, Dict[str, any]]) -> Dict[str, str]:
     """Determine workflow progression status."""
-    has_spec = artifacts.get("spec", False)
-    has_plan = artifacts.get("plan", False)
-    has_tasks = artifacts.get("tasks", False)
-    has_kanban = artifacts.get("kanban", False)
+    has_spec = artifacts.get("spec", {}).get("exists", False)
+    has_plan = artifacts.get("plan", {}).get("exists", False)
+    has_tasks = artifacts.get("tasks", {}).get("exists", False)
+    has_kanban = artifacts.get("kanban", {}).get("exists", False)
 
     workflow: Dict[str, str] = {}
 
