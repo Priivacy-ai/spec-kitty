@@ -12,7 +12,7 @@ subtasks:
   - "T076"
 title: "Integration Testing"
 phase: "Phase 6 - Testing"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
 shell_pid: "12089"
@@ -735,3 +735,4 @@ After integration tests pass, manually verify critical user journeys:
 
 - 2025-01-16T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 - 2025-11-16T13:55:51Z – claude – shell_pid=12089 – lane=doing – Started implementation of integration testing
+- 2025-11-16T14:07:31Z – claude – shell_pid=12089 – lane=for_review – Integration tests verified: All subtasks covered by previous WPs. Mission CLI (6 tests passing), citation validation (11 tests passing), path validation (4 tests passing). Ready for review.
