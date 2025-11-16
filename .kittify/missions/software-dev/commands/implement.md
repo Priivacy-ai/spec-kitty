@@ -177,7 +177,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - **Kanban discipline**: Use the lane helper scripts to keep the prompt in `tasks/doing/`, update the Activity Log, and capture your shell PID (`echo $$`). These should already be complete from step 3—verify before coding.
 
 7. Implementation execution rules:
-   - **Setup first**: Initialize project structure, dependencies, configuration
+   - **Setup first**: Initialize feature scaffolding, dependencies, configuration
    - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
    - **Core development**: Implement models, services, CLI commands, endpoints
    - **Integration work**: Database connections, middleware, logging, external services

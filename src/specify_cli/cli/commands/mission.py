@@ -23,7 +23,7 @@ from specify_cli.mission import (
 
 app = typer.Typer(
     name="mission",
-    help="Manage Spec Kitty missions (domain modes)",
+    help="Manage project-wide Spec Kitty missions (workflow modes)",
     no_args_is_help=True,
 )
 
@@ -143,7 +143,8 @@ def list_cmd() -> None:
     project_root = get_project_root_or_exit()
     kittify_dir = project_root / ".kittify"
     if not kittify_dir.exists():
-        console.print(f"[red].kittify directory not found:[/red] {kittify_dir}")
+        console.print(f"[red]Spec Kitty project not initialized at:[/red] {project_root}")
+        console.print("[dim]Run 'spec-kitty init <project-name>' or execute this command from a feature worktree created under .worktrees/<feature>/.[/dim]")
         raise typer.Exit(1)
 
     try:

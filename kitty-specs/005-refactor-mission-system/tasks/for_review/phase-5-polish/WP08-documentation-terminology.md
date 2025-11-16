@@ -8,7 +8,7 @@ subtasks:
   - "T061"
 title: "Documentation & Terminology Clarification"
 phase: "Phase 5 - Polish"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "codex"
 shell_pid: "63137"
@@ -478,3 +478,5 @@ grep -r "feature mission" src/  # Should be "active mission"
 
 - 2025-01-16T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 - 2025-11-16T13:05:21Z – codex – shell_pid=63137 – lane=doing – Started implementation
+- 2025-11-16T13:18:59Z – codex – shell_pid=63137 – lane=doing – Completed implementation
+- 2025-11-16T13:19:22Z – codex – shell_pid=63137 – lane=for_review – Ready for review

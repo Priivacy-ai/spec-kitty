@@ -81,7 +81,9 @@ def verify_setup(
             print(json.dumps(output_data))
         else:
             console.print(f"[red]✗[/red] Repository detection failed: {exc}")
-            console.print("\n[yellow]Solution:[/yellow] Ensure you're in a git repository or spec-kitty project")
+            console.print(
+                "\n[yellow]Solution:[/yellow] Run this command from a Spec Kitty project root or from a feature worktree inside .worktrees/<feature>/ (use 'spec-kitty init <name>' to create a project)."
+            )
         raise typer.Exit(1)
 
     project_root = get_project_root_or_exit(repo_root)

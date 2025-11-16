@@ -338,10 +338,106 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 ---
 
+## 📚 Terminology
+
+Spec Kitty differentiates between the **project** that holds your entire codebase, the **features** you build within that project, and the **mission** that defines your workflow. Use these definitions whenever you write docs, prompts, or help text.
+
+### Project
+**Definition**: The entire codebase (one Git repository) that contains all missions, features, and `.kittify/` automation.
+
+**Examples**:
+- "spec-kitty project" (this repository)
+- "priivacy_rust project"
+- "my-agency-portal project"
+
+**Usage**: Projects are initialized once with `spec-kitty init`. A project contains:
+- One active mission at a time
+- Multiple features (each with its own spec/plan/tasks)
+- Shared automation under `.kittify/`
+
+**Commands**: Initialize with `spec-kitty init my-project` (or `spec-kitty init --here` for the current directory).
+
+---
+
+### Feature
+**Definition**: A single unit of work tracked by Spec Kitty. Every feature has its own spec, plan, tasks, and implementation worktree.
+
+**Examples**:
+- "001-auth-system feature"
+- "005-refactor-mission-system feature" (this document)
+- "042-dashboard-refresh feature"
+
+**Structure**:
+- Specification: `/kitty-specs/###-feature-name/spec.md`
+- Plan: `/kitty-specs/###-feature-name/plan.md`
+- Tasks: `/kitty-specs/###-feature-name/tasks.md`
+- Implementation: `.worktrees/###-feature-name/`
+
+**Lifecycle**:
+1. `/spec-kitty.specify` – Create the feature and its branch
+2. `/spec-kitty.plan` – Document the technical design
+3. `/spec-kitty.tasks` – Break work into packages
+4. `/spec-kitty.implement` – Build the feature inside its worktree
+5. `/spec-kitty.review` – Peer review
+6. `/spec-kitty.accept` – Validate according to gates
+7. `/spec-kitty.merge` – Merge and clean up
+
+**Commands**: Always create features with `/spec-kitty.specify`.
+
+---
+
+### Mission
+**Definition**: A domain adapter that configures Spec Kitty (workflows, templates, validation). Missions are project-wide; all features in a project share the same active mission.
+
+**Examples**:
+- "software-dev mission" (ship software with TDD)
+- "research mission" (conduct systematic investigations)
+- "writing mission" (future workflow)
+
+**What missions define**:
+- Workflow phases (e.g., design → implement vs. question → gather findings)
+- Templates (spec, plan, tasks, prompts)
+- Validation rules (tests pass vs. citations documented)
+- Path conventions (e.g., `src/` vs. `research/`)
+
+**Scope**: Entire project. Switch missions before starting a new feature if you need a different workflow.
+
+**Commands**:
+- Select at init: `spec-kitty init my-project --mission research`
+- Switch later: `spec-kitty mission switch research`
+- Inspect: `spec-kitty mission current` / `spec-kitty mission list`
+
+---
+
+### Quick Reference
+
+| Term | Scope | Example | Key Command |
+|------|-------|---------|-------------|
+| **Project** | Entire codebase | "spec-kitty project" | `spec-kitty init my-project` |
+| **Feature** | Unit of work | "001-auth-system feature" | `/spec-kitty.specify "auth system"` |
+| **Mission** | Workflow adapter | "research mission" | `spec-kitty mission switch research` |
+
+### Common Questions
+
+**Q: What's the difference between a project and a feature?**  
+A project is your entire git repository. A feature is one unit of work inside that project with its own spec/plan/tasks.
+
+**Q: Can I have multiple missions in one project?**  
+Only one mission is active at a time, but you can switch missions between features with `spec-kitty mission switch`.
+
+**Q: Should I create a new project for every feature?**  
+No. Initialize a project once, then create as many features as you need with `/spec-kitty.specify`.
+
+**Q: What's a task?**  
+Tasks (T001, T002, etc.) are subtasks within a feature's work packages. They are **not** separate features or projects.
+
+---
+
 ## Table of Contents
 
 - [🚀 Getting Started: Complete Workflow](#-getting-started-complete-workflow)
 - [📋 Quick Reference: Command Order](#-quick-reference-command-order)
+- [📚 Terminology](#-terminology)
 - [🎯 Why Spec-Kitty?](#-why-spec-kitty)
 - [📊 Real-Time Dashboard](#-real-time-dashboard)
 - [🔍 Spec-Kitty vs. Other Spec-Driven Tools](#-spec-kitty-vs-other-spec-driven-tools)
@@ -1112,9 +1208,9 @@ The first step should be establishing your project's governing principles using 
 
 This step creates or updates the `.kittify/memory/constitution.md` file with your project's foundational guidelines that the AI agent will reference during specification, planning, and implementation phases.
 
-### **STEP 2:** Create project specifications
+### **STEP 2:** Create feature specifications
 
-With your project principles established, you can now create the functional specifications. Use the `/spec-kitty.specify` command and then provide the concrete requirements for the project you want to develop.
+With your project principles established, you can now create the functional specifications for a single feature. Use the `/spec-kitty.specify` command and then provide the concrete requirements for the feature you want to develop inside the project.
 
 >[!IMPORTANT]
 >Be as explicit as possible about _what_ you are trying to build and _why_. **Do not focus on the tech stack at this point**.
