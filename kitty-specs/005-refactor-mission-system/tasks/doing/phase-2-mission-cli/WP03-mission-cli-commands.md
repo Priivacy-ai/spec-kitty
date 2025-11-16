@@ -11,10 +11,10 @@ subtasks:
   - "T024"
 title: "Mission CLI Commands"
 phase: "Phase 2 - Mission CLI"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "codex"
+shell_pid: "56646"
 history:
   - timestamp: "2025-01-16T00:00:00Z"
     lane: "planned"
@@ -765,3 +765,4 @@ pytest tests/integration/test_mission_cli.py --cov=src/specify_cli/cli/commands/
 ## Activity Log
 
 - 2025-01-16T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
+- 2025-11-16T13:01:29Z – codex – shell_pid=56646 – lane=doing – Started implementation
