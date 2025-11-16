@@ -94,3 +94,30 @@ class APIHandler(DashboardHandler):
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(error_msg).encode())
+
+    def handle_constitution(self) -> None:
+        """Serve project-level constitution from .kittify/memory/constitution.md"""
+        try:
+            constitution_path = Path(self.project_dir) / ".kittify" / "memory" / "constitution.md"
+
+            if not constitution_path.exists():
+                self.send_response(404)
+                self.send_header('Content-type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'Constitution not found')
+                return
+
+            content = constitution_path.read_text(encoding='utf-8')
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain; charset=utf-8')
+            self.send_header('Cache-Control', 'no-cache')
+            self.end_headers()
+            self.wfile.write(content.encode('utf-8'))
+        except Exception as exc:  # pragma: no cover - fallback safety
+            import traceback
+
+            error_msg = f"Error loading constitution: {exc}\n{traceback.format_exc()}"
+            self.send_response(500)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(error_msg.encode())

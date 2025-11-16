@@ -61,6 +61,10 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
             self.handle_diagnostics()
             return
 
+        if path == '/api/constitution':
+            self.handle_constitution()
+            return
+
         if path.startswith(STATIC_URL_PREFIX):
             self.handle_static(path)
             return
