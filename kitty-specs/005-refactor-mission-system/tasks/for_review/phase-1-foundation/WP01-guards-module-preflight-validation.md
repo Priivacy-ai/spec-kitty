@@ -1,4 +1,29 @@
 ---
+work_package_id: WP01
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+- T007
+title: Guards Module - Pre-flight Validation
+phase: Phase 1 - Foundation
+lane: "for_review"
+assignee: ''
+agent: "codex"
+shell_pid: "45439"
+history:
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+activity_log: "  - timestamp: \"2025-11-16T12:45:07Z\"\n    lane: \"planned\"\n  \
+  \  agent: \"system\"\n    shell_pid: \"54352\"\n    action: \"Auto-repaired lane\
+  \ metadata (was: for_review)\"\n"
+---
 work_package_id: "WP01"
 subtasks:
   - "T001"
@@ -20,8 +45,6 @@ history:
     agent: "system"
     shell_pid: ""
     action: "Prompt generated via /spec-kitty.tasks"
----
-
 # Work Package Prompt: WP01 – Guards Module - Pre-flight Validation
 
 ## Objectives & Success Criteria
@@ -455,3 +478,4 @@ def mock_git_main_branch(monkeypatch):
 - 2025-11-16T12:26:07Z – codex – shell_pid=45439 – lane=doing – Started implementation
 - 2025-11-16T12:33:11Z – codex – shell_pid=45439 – lane=doing – Completed implementation
 - 2025-11-16T12:33:20Z – codex – shell_pid=45439 – lane=for_review – Ready for review
+- 2025-11-16T12:45:19Z – codex – shell_pid=45439 – lane=for_review – Moved to for_review
