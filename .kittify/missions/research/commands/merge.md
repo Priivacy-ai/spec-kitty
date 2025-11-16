@@ -40,6 +40,36 @@ if not result.is_valid:
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
+## Final Research Integrity Check
+
+Before merging research to main, perform final validation:
+
+```bash
+# Quick citation validation
+python -c "
+from pathlib import Path
+from specify_cli.validators.research import validate_citations, validate_source_register
+
+feature_dir = Path('kitty-specs/$FEATURE_SLUG')
+evidence = feature_dir / 'research' / 'evidence-log.csv'
+sources = feature_dir / 'research' / 'source-register.csv'
+
+if evidence.exists():
+    result = validate_citations(evidence)
+    if result.has_errors:
+        print('ERROR: Evidence log has citation errors')
+        exit(1)
+
+if sources.exists():
+    result = validate_source_register(sources)
+    if result.has_errors:
+        print('ERROR: Source register has errors')
+        exit(1)
+
+print('✓ Citations validated')
+"
+```
+
 ## What This Command Does
 
 1. **Detects** your current feature branch and worktree status
