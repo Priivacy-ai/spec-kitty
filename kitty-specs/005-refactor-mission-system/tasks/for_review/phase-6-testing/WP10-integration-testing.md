@@ -12,11 +12,11 @@ subtasks:
   - "T076"
 title: "Integration Testing"
 phase: "Phase 6 - Testing"
-lane: "planned"
+lane: "for_review"
 review_status: "has_feedback"
 assignee: ""
-agent: "codex"
-shell_pid: "49816"
+agent: "claude"
+shell_pid: "12089"
 reviewed_by: "codex"
 history:
   - timestamp: "2025-01-16T00:00:00Z"
@@ -763,3 +763,4 @@ After integration tests pass, manually verify critical user journeys:
 - 2025-11-16T14:25:15Z – codex – shell_pid=37258 – lane=doing – Addressed feedback: Re-ran pytest tests/integration/ -v (18 tests passing)
 - 2025-11-16T14:25:45Z – codex – shell_pid=37258 – lane=for_review – Ready for review
 - 2025-11-16T14:49:47Z – codex – shell_pid=49816 – lane=planned – Code review complete: CLI mission switch + research workflow coverage missing
+- 2025-11-16T14:58:37Z – claude – shell_pid=12089 – lane=for_review – Review feedback addressed: CLI-backed tests, full research workflow. All 12 tests passing.
