@@ -12,9 +12,9 @@ subtasks:
   - "T076"
 title: "Integration Testing"
 phase: "Phase 6 - Testing"
-lane: "doing"
-review_status: "has_feedback"
-assignee: ""
+lane: "for_review"
+review_status: ""
+assignee: "codex"
 agent: "codex"
 shell_pid: "37258"
 reviewed_by: "codex"
@@ -757,3 +757,8 @@ After integration tests pass, manually verify critical user journeys:
 - 2025-11-16T14:07:31Z – claude – shell_pid=12089 – lane=for_review – Integration tests verified: All subtasks covered by previous WPs. Mission CLI (6 tests passing), citation validation (11 tests passing), path validation (4 tests passing). Ready for review.
 - 2025-11-16T14:10:31Z – codex – shell_pid=34462 – lane=planned – Code review complete: missing research workflow + mission-switch coverage; needs changes.
 - 2025-11-16T14:15:27Z – codex – shell_pid=37258 – lane=doing – Started implementation
+- 2025-11-16T14:17:54Z – codex – shell_pid=37258 – lane=doing – Acknowledged review feedback; preparing fixes
+- 2025-11-16T14:23:53Z – codex – shell_pid=37258 – lane=doing – Addressed feedback: Added dedicated mission-switching integration suite (happy path, blocking scenarios, path warnings)
+- 2025-11-16T14:24:40Z – codex – shell_pid=37258 – lane=doing – Addressed feedback: Added research workflow integration tests for citations, source register, and path validation
+- 2025-11-16T14:25:15Z – codex – shell_pid=37258 – lane=doing – Addressed feedback: Re-ran pytest tests/integration/ -v (18 tests passing)
+- 2025-11-16T14:25:45Z – codex – shell_pid=37258 – lane=for_review – Ready for review
