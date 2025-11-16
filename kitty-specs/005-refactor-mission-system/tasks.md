@@ -230,14 +230,14 @@
 **Prompt**: `/tasks/planned/phase-4-integration/WP07-path-convention-validation.md`
 
 ### Included Subtasks
-- [ ] T049 Create `src/specify_cli/validators/paths.py` module
-- [ ] T050 Define PathValidationResult dataclass
-- [ ] T051 Implement `validate_mission_paths()` with strict/non-strict modes
-- [ ] T052 Implement `suggest_directory_creation()` helper function
-- [ ] T053 [P] Write unit tests in `tests/unit/test_validators.py` for path validation
-- [ ] T054 Integrate path validation into mission switch command (warnings only)
-- [ ] T055 Integrate path validation into acceptance workflow (errors block)
-- [ ] T056 Update acceptance.py to include path validation in 7-point readiness check
+- [X] T049 Create `src/specify_cli/validators/paths.py` module
+- [X] T050 Define PathValidationResult dataclass
+- [X] T051 Implement `validate_mission_paths()` with strict/non-strict modes
+- [X] T052 Implement `suggest_directory_creation()` helper function
+- [X] T053 [P] Write unit tests in `tests/unit/test_validators.py` for path validation
+- [X] T054 Integrate path validation into mission switch command (warnings only)
+- [X] T055 Integrate path validation into acceptance workflow (errors block)
+- [X] T056 Update acceptance.py to include path validation in 7-point readiness check
 
 ### Implementation Notes
 1. Read mission.paths from MissionConfig
