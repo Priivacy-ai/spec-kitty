@@ -12,7 +12,7 @@ subtasks:
   - "T016"
 title: "Pydantic Mission Schema Validation"
 phase: "Phase 1 - Foundation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "codex"
 shell_pid: "56646"
@@ -579,3 +579,5 @@ tests/unit/test_mission_schema.py
 
 - 2025-01-16T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 - 2025-11-16T12:52:05Z – codex – shell_pid=56646 – lane=doing – Started implementation
+- 2025-11-16T12:57:45Z – codex – shell_pid=56646 – lane=doing – Completed implementation
+- 2025-11-16T12:58:03Z – codex – shell_pid=56646 – lane=for_review – Ready for review
