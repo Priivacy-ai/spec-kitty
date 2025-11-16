@@ -17,6 +17,10 @@ let activeMission = {
     description: ''
 };
 
+if (typeof window !== 'undefined' && window.__INITIAL_MISSION__) {
+    activeMission = window.__INITIAL_MISSION__;
+}
+
 function updateMissionDisplay(mission) {
     const container = document.getElementById('mission-display');
     if (!container) return;

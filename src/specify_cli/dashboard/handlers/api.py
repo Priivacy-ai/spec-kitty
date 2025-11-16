@@ -6,8 +6,10 @@ import json
 from pathlib import Path
 
 from ..diagnostics import run_diagnostics
+from ..scanner import format_path_for_display
 from ..templates import get_dashboard_html
 from .base import DashboardHandler
+from specify_cli.mission import MissionError, get_active_mission
 
 __all__ = ["APIHandler"]
 
@@ -17,10 +19,33 @@ class APIHandler(DashboardHandler):
 
     def handle_root(self) -> None:
         """Return the rendered dashboard HTML shell."""
+        project_path = Path(self.project_dir).resolve()
+
+        mission_context = {
+            'name': 'Unknown mission',
+            'domain': 'unknown',
+            'version': '',
+            'slug': '',
+            'description': '',
+            'path': '',
+        }
+        try:
+            mission = get_active_mission(project_path)
+            mission_context = {
+                'name': mission.name,
+                'domain': mission.domain,
+                'version': mission.version,
+                'slug': mission.path.name,
+                'description': mission.description or '',
+                'path': format_path_for_display(str(mission.path)),
+            }
+        except MissionError:
+            pass
+
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
-        self.wfile.write(get_dashboard_html().encode())
+        self.wfile.write(get_dashboard_html(mission_context=mission_context).encode())
 
     def handle_health(self) -> None:
         """Return project health metadata."""
