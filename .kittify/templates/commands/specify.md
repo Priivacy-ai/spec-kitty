@@ -18,6 +18,44 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+---
+
+## Workflow Entry Point Context
+
+**IMPORTANT**: This is the FIRST command in the spec-kitty feature workflow.
+
+**Location Context**:
+- **Before running {SCRIPT}**: You are in the main repository root
+- **After running {SCRIPT}**: A new feature worktree is created at `.worktrees/001-feature-name/`
+
+The script handles location setup automatically. You do NOT need to navigate anywhere before running it.
+
+**What {SCRIPT} Provides**:
+When you run the creation script, it returns JSON with:
+- **BRANCH_NAME**: Your feature branch name (e.g., "001-checkout-flow")
+- **SPEC_FILE**: Absolute path to newly created spec.md
+- **FEATURE_NUM**: Feature number (e.g., "001")
+- **FRIENDLY_NAME**: Your feature title (e.g., "Checkout Upsell Flow")
+- **WORKTREE_PATH**: Absolute path to your feature worktree (e.g., `.worktrees/001-checkout-flow`)
+
+---
+
+## Workflow Context
+
+**This is the START** of the spec-kitty feature lifecycle.
+
+**After this command**:
+1. Navigate to your new worktree: `cd <WORKTREE_PATH>`
+2. (Optional) Run `/spec-kitty.clarify` to resolve ambiguities in the spec
+3. Run `/spec-kitty.plan` to create the implementation plan
+4. Run `/spec-kitty.tasks` to break down into work packages
+5. Run `/spec-kitty.implement` to write the code
+6. Run `/spec-kitty.review` to get code feedback
+7. Run `/spec-kitty.accept` to validate readiness
+8. Run `/spec-kitty.merge` to integrate into main
+
+---
+
 ## Discovery Gate (mandatory)
 
 Before running any scripts or writing to disk you **must** conduct a structured discovery interview.

@@ -13,6 +13,38 @@ scripts:
 
 This command merges a completed feature branch into the main/target branch and handles cleanup of worktrees and branches.
 
+## ⛔ Location Pre-flight Check (CRITICAL)
+
+**BEFORE PROCEEDING:** You MUST be in the feature worktree, NOT the main repository.
+
+Verify your current location:
+```bash
+pwd
+git branch --show-current
+```
+
+**Expected output:**
+- `pwd`: Should end with `.worktrees/001-feature-name` (or similar feature worktree)
+- Branch: Should show your feature branch name like `001-feature-name` (NOT `main` or `release/*`)
+
+**If you see:**
+- Branch showing `main` or `release/`
+- OR pwd shows the main repository root
+
+⛔ **STOP - DANGER! You are in the wrong location!**
+
+This command merges your feature INTO main. Running from the wrong location can cause:
+- Loss of work
+- Merge conflicts
+- Repository corruption
+
+**Correct the issue:**
+1. Navigate to your feature worktree: `cd .worktrees/001-feature-name`
+2. Verify you're on the correct feature branch: `git branch --show-current`
+3. Then run this merge command again
+
+---
+
 ## Prerequisites
 
 Before running this command:

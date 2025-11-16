@@ -17,26 +17,30 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check (CRITICAL for AI Agents)
 
-Before proceeding with review, verify you are in the correct working directory:
+**BEFORE PROCEEDING:** Verify you are working from inside the feature worktree.
 
-**Check your current branch:**
+**Check current working directory and branch:**
 ```bash
+pwd
 git branch --show-current
 ```
 
-**Expected output:** A feature branch like `001-feature-name`
-**If you see `main`:** You are in the wrong location!
+**Expected output:**
+- `pwd`: `/path/to/project/.worktrees/004-feature-name` (or similar)
+- Branch: `004-feature-name` (NOT `main` or `release/x.x.x`)
 
-**This command MUST run from a feature worktree, not the main repository.**
+**If you see `main` or `release/*` branch, OR if pwd shows the main repo:**
 
-If you're on the `main` branch:
-1. Check for available worktrees: `ls .worktrees/`
-2. Navigate to the appropriate feature worktree: `cd .worktrees/<feature-name>`
-3. Verify you're in the right place: `git branch --show-current` should show the feature branch
-4. Then re-run this command
+⛔ **STOP - You are in the wrong location!**
 
-The script will fail if you're not in a feature worktree.
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**DO NOT use `cd` to navigate to the worktree.** File editing tools (Edit, Write) will still use your original working directory.
+
+**Instead:**
+1. Tell the user: "This command must be run from inside the worktree at `.worktrees/<feature>/`"
+2. Stop execution
+3. Wait for the user to restart the session from the correct location
+
+**Path reference rule:** Always use paths relative to the worktree root (e.g., `kitty-specs/004-feature/tasks/`). When communicating with the user, mention absolute paths for clarity.
 
 This is intentional - worktrees provide isolation for parallel feature development.
 
@@ -92,16 +96,14 @@ This is intentional - worktrees provide isolation for parallel feature developme
   - **Approved**:
      * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script, e.g., `2025-11-11T13:45:00Z – claude – shell_pid=1234 – lane=done – Approved without changes`).
      * Update frontmatter:
-       - Sets `lane: "done"`
-       - Sets `review_status: "approved without changes"` (or your custom status)
-       - Sets `reviewed_by: <YOUR_AGENT_ID>`
-       - Updates `agent: <YOUR_AGENT_ID>` and `shell_pid: <YOUR_SHELL_PID>`
-       - Appends Activity Log entry with reviewer's info (NOT implementer's)
-       - Handles git operations (add new location, remove old location)
-     * **Alternative:** For custom review statuses, use `--review-status "approved with minor notes"` or `--target-lane "planned"` for rejected tasks.
-     * Use helper script to mark the task complete in `tasks.md` (see Step 7).
+       - Set `lane: "done"`
+       - Set `review_status: ""` (clear it - no feedback needed)
+       - Set `reviewed_by: <YOUR_AGENT_ID>`
+       - Set `agent` and `shell_pid` to your session metadata
+     * Use helper script to mark the task complete in `tasks.md` (see Step 6).
+     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> done --note "Approved without changes"` (PowerShell variant available) to transition the prompt into `tasks/done/`.
 
-7. Update `tasks.md` automatically:
+6. Update `tasks.md` automatically:
    - Run `scripts/bash/mark-task-status.sh --task-id <TASK_ID> --status done` (POSIX) or `scripts/powershell/Set-TaskStatus.ps1 -TaskId <TASK_ID> -Status done` (PowerShell) from repo root.
    - Confirm the task entry now shows `[X]` and includes a reference to the prompt file in its notes.
 

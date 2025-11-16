@@ -1,42 +1,47 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Script: refresh-kittify-tasks.sh
-# Purpose: Update task helper modules in existing projects
-# Issues Fixed: #1 (separate streams), #4 (standardized --help), #5 (validation)
+# refresh-kittify-tasks.sh
+# Copy the latest task helper modules into an existing Spec Kitty project.
+# Usage:
+#   scripts/bash/refresh-kittify-tasks.sh [<project-root>]
+# If no project root is provided the script walks upward from the current
+# directory until it finds a .kittify/scripts directory.
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=./common.sh
-source "$SCRIPT_DIR/common.sh"
+usage() {
+  cat <<'EOF'
+Usage: refresh-kittify-tasks.sh [<project-root>]
 
-# Handle common flags
-handle_common_flags "$@"
-set -- "${REMAINING_ARGS[@]}"
+Copies the current repo's scripts/tasks helpers into the target project's
+.kittify/scripts/tasks directory. Provide the project root explicitly or run
+from anywhere inside the project tree.
+EOF
+}
 
-if [[ "$SHOW_HELP" == true ]]; then
-    show_script_help "$(basename "$0")" \
-        "Update task helper modules in existing Spec Kitty projects" \
-        "[project-root]" "Target project root (optional, auto-detects if not provided)"
-    exit $EXIT_SUCCESS
+if [[ ${1:-} == "--help" ]] || [[ ${1:-} == "-h" ]]; then
+  usage
+  exit 0
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SOURCE_TASK_DIR="$REPO_ROOT/scripts/tasks"
 
 if [[ ! -d "$SOURCE_TASK_DIR" ]]; then
-  show_log "❌ ERROR: Expected task helpers at $SOURCE_TASK_DIR"
-  exit $EXIT_PRECONDITION_ERROR
+  echo "Error: expected task helpers at $SOURCE_TASK_DIR" >&2
+  exit 1
 fi
 
 if [[ $# -gt 1 ]]; then
-  show_log "❌ ERROR: Too many arguments provided"
-  exit $EXIT_USAGE_ERROR
+  echo "Error: too many arguments" >&2
+  usage >&2
+  exit 1
 fi
 
 if [[ $# -eq 1 ]]; then
   if [[ ! -d $1 ]]; then
-    show_log "❌ ERROR: project path '$1' does not exist or is not a directory"
-    exit $EXIT_VALIDATION_ERROR
+    echo "Error: project path '$1' does not exist or is not a directory" >&2
+    exit 1
   fi
   START_PATH="$(cd "$1" && pwd)"
 else
@@ -60,8 +65,8 @@ locate_project_root() {
 
 PROJECT_ROOT="$(locate_project_root "$START_PATH" || true)"
 if [[ -z "$PROJECT_ROOT" ]]; then
-  show_log "❌ ERROR: Unable to locate .kittify/scripts starting from $START_PATH"
-  exit $EXIT_VALIDATION_ERROR
+  echo "Error: unable to locate .kittify/scripts starting from $START_PATH" >&2
+  exit 1
 fi
 
 TARGET_SCRIPT_ROOT="$PROJECT_ROOT/.kittify/scripts"
@@ -95,13 +100,9 @@ def ignore_cb(_path, names):
 shutil.copytree(src, dst, ignore=ignore_cb)
 PY
 
-if ! is_quiet; then
-    show_log "✓ Updated .kittify scripts successfully"
-    show_log "  Source : $SOURCE_TASK_DIR"
-    show_log "  Target : $TARGET_TASK_DIR"
-    if [[ -f "$LEGACY_BACKUP" ]]; then
-      show_log "  Legacy backup saved at $LEGACY_BACKUP"
-    fi
+echo "✅ Updated .kittify scripts:"
+echo "   Source : $SOURCE_TASK_DIR"
+echo "   Target : $TARGET_TASK_DIR"
+if [[ -f "$LEGACY_BACKUP" ]]; then
+  echo "   Legacy backup saved at $LEGACY_BACKUP"
 fi
-
-exit $EXIT_SUCCESS

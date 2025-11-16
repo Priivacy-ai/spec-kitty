@@ -1,32 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Script: mark-task-status.sh
-# Purpose: Mark task completion status (done/pending)
-# Issues Fixed: #1 (separate streams), #4 (standardized --help), #5 (validation)
+print_usage() {
+    cat <<'USAGE'
+Usage: mark-task-status.sh --task-id TXXX --status <done|pending> [--tasks-file path]
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=./common.sh
-source "$SCRIPT_DIR/common.sh"
+Marks a task entry in tasks.md with the desired checkbox state.
+- If --tasks-file is omitted, the current feature's tasks.md is used via common.sh helpers.
+- Updates the first matching task ID only; aborts if no entry is found.
+USAGE
+}
 
 TASK_ID=""
 STATUS=""
 TASKS_FILE=""
 
-# Handle common flags
-handle_common_flags "$@"
-set -- "${REMAINING_ARGS[@]}"
-
-if [[ "$SHOW_HELP" == true ]]; then
-    show_script_help "$(basename "$0")" \
-        "Mark task completion status in tasks.md" \
-        "--task-id" "Task identifier (required)" \
-        "--status" "Status: done or pending (required)" \
-        "--tasks-file" "Path to tasks.md (optional, uses feature default)"
-    exit $EXIT_SUCCESS
-fi
-
-# Parse remaining arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --task-id)
@@ -41,41 +29,49 @@ while [[ $# -gt 0 ]]; do
             TASKS_FILE="$2"
             shift 2
             ;;
+        --help|-h)
+            print_usage
+            exit 0
+            ;;
         *)
-            show_log "❌ ERROR: Unknown argument: $1"
-            exit $EXIT_USAGE_ERROR
+            echo "Unknown argument: $1" >&2
+            print_usage >&2
+            exit 1
             ;;
     esac
 done
 
-# Validate required arguments (Issue #5)
 if [[ -z "$TASK_ID" ]]; then
-    show_log "❌ ERROR: --task-id is required"
-    exit $EXIT_VALIDATION_ERROR
+    echo "--task-id is required" >&2
+    exit 1
 fi
 
 if [[ -z "$STATUS" ]]; then
-    show_log "❌ ERROR: --status is required"
-    exit $EXIT_VALIDATION_ERROR
+    echo "--status is required" >&2
+    exit 1
 fi
 
-if [[ "$STATUS" != "done" && "$STATUS" != "pending" ]]; then
-    show_log "❌ ERROR: --status must be 'done' or 'pending' (got: $STATUS)"
-    exit $EXIT_VALIDATION_ERROR
-fi
+case "$STATUS" in
+    done|pending)
+        ;;
+    *)
+        echo "--status must be 'done' or 'pending'" >&2
+        exit 1
+        ;;
+esac
 
-# Get feature paths
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
+
 eval $(get_feature_paths)
 
 if [[ -z "$TASKS_FILE" ]]; then
     TASKS_FILE="$TASKS"
 fi
 
-# Validate tasks file exists
 if [[ ! -f "$TASKS_FILE" ]]; then
-    show_log "❌ ERROR: tasks file not found: $TASKS_FILE"
-    show_log "Have you run '/spec-kitty.tasks' yet?"
-    exit $EXIT_VALIDATION_ERROR
+    echo "tasks file not found: $TASKS_FILE" >&2
+    exit 1
 fi
 
 python3 - "$TASK_ID" "$STATUS" "$TASKS_FILE" <<'PY'
@@ -100,8 +96,4 @@ if count == 0:
 path.write_text(new_text)
 PY
 
-if ! is_quiet; then
-    show_log "✓ Updated $TASK_ID to status: $STATUS"
-fi
-
-exit $EXIT_SUCCESS
+echo "Updated $TASK_ID to $STATUS in $TASKS_FILE"

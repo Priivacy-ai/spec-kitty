@@ -21,58 +21,62 @@
 
 set -e
 
-# Script: check-prerequisites.sh
-# Purpose: Validate feature structure and prerequisites for spec workflow
-# Issues Fixed: #1 (separate streams), #4 (standardized --help), #5 (validation)
-
-# Source common functions first
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
-
-# Initialize variables
+# Parse command line arguments
+JSON_MODE=false
 REQUIRE_TASKS=false
 INCLUDE_TASKS=false
 PATHS_ONLY=false
 
-# Handle common flags (--help, --json, --quiet, --dry-run)
-handle_common_flags "$@"
-set -- "${REMAINING_ARGS[@]}"
-
-# Parse custom arguments
-while [[ $# -gt 0 ]]; do
-    case "$1" in
+for arg in "$@"; do
+    case "$arg" in
+        --json)
+            JSON_MODE=true
+            ;;
         --require-tasks)
             REQUIRE_TASKS=true
-            shift
             ;;
         --include-tasks)
             INCLUDE_TASKS=true
-            shift
             ;;
         --paths-only)
             PATHS_ONLY=true
-            shift
+            ;;
+        --help|-h)
+            cat << 'EOF'
+Usage: check-prerequisites.sh [OPTIONS]
+
+Consolidated prerequisite checking for Spec-Driven Development workflow.
+
+OPTIONS:
+  --json              Output in JSON format
+  --require-tasks     Require tasks.md to exist (for implementation phase)
+  --include-tasks     Include tasks.md in AVAILABLE_DOCS list
+  --paths-only        Only output path variables (no prerequisite validation)
+  --help, -h          Show this help message
+
+EXAMPLES:
+  # Check task prerequisites (plan.md required)
+  ./check-prerequisites.sh --json
+  
+  # Check implementation prerequisites (plan.md + tasks.md required)
+  ./check-prerequisites.sh --json --require-tasks --include-tasks
+  
+  # Get feature paths only (no validation)
+  ./check-prerequisites.sh --paths-only
+  
+EOF
+            exit 0
             ;;
         *)
-            show_log "❌ ERROR: Unknown option '$1'"
-            show_script_help "$(basename "$0")" \
-                "Consolidated prerequisite checking for Spec-Driven Development workflow" \
-                "--require-tasks" "Require tasks.md to exist (for implementation phase)" \
-                "--include-tasks" "Include tasks.md in AVAILABLE_DOCS list" \
-                "--paths-only" "Only output path variables (no prerequisite validation)"
-            exit $EXIT_USAGE_ERROR
+            echo "ERROR: Unknown option '$arg'. Use --help for usage information." >&2
+            exit 1
             ;;
     esac
 done
 
-if [[ "$SHOW_HELP" == true ]]; then
-    show_script_help "$(basename "$0")" \
-        "Consolidated prerequisite checking for Spec-Driven Development workflow" \
-        "--require-tasks" "Require tasks.md to exist (for implementation phase)" \
-        "--include-tasks" "Include tasks.md in AVAILABLE_DOCS list" \
-        "--paths-only" "Only output path variables (no prerequisite validation)"
-    exit $EXIT_SUCCESS
-fi
+# Source common functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
 # Auto-switch to the most recent feature worktree when invoked from main or an
 # ambiguous location. This keeps downstream commands from thrashing while they
@@ -117,57 +121,22 @@ fi
 
 # Validate required directories and files
 if [[ ! -d "$FEATURE_DIR" ]]; then
-    show_log "❌ ERROR: Feature directory not found: $FEATURE_DIR"
-    show_log "Run /spec-kitty.specify first to create the feature structure."
-    exit $EXIT_VALIDATION_ERROR
+    echo "ERROR: Feature directory not found: $FEATURE_DIR" >&2
+    echo "Run /spec-kitty.specify first to create the feature structure." >&2
+    exit 1
 fi
 
 if [[ ! -f "$IMPL_PLAN" ]]; then
-    show_log "❌ ERROR: plan.md not found in $FEATURE_DIR"
-    show_log "Run /spec-kitty.plan first to create the implementation plan."
-    exit $EXIT_VALIDATION_ERROR
-fi
-
-# Validate that plan.md has been filled out (not just template)
-# Check for common template markers that should be replaced
-template_markers=(
-    '\[FEATURE\]'
-    '\[###-feature-name\]'
-    '\[DATE\]'
-    'ACTION REQUIRED: Replace the content'
-    '\[e.g., Python 3.11'
-    'or NEEDS CLARIFICATION'
-    '# \[REMOVE IF UNUSED\]'
-    '\[Gates determined based on constitution file\]'
-)
-
-marker_count=0
-for marker in "${template_markers[@]}"; do
-    if grep -qE "$marker" "$IMPL_PLAN" 2>/dev/null; then
-        ((marker_count++)) || true
-    fi
-done
-
-# If 5 or more template markers are still present, plan is unfilled
-if [[ $marker_count -ge 5 ]]; then
-    show_log "❌ ERROR: plan.md appears to be unfilled (still in template form)"
-    show_log "Found $marker_count template markers that need to be replaced."
-    show_log ""
-    show_log "Please complete the /spec-kitty.plan workflow:"
-    show_log "  1. Fill in [FEATURE], [DATE], and technical context placeholders"
-    show_log "  2. Replace 'NEEDS CLARIFICATION' with actual values"
-    show_log "  3. Remove [REMOVE IF UNUSED] sections and choose your project structure"
-    show_log "  4. Replace [Gates determined...] with actual constitution checks"
-    show_log ""
-    show_log "Then run this command again."
-    exit $EXIT_VALIDATION_ERROR
+    echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
+    echo "Run /spec-kitty.plan first to create the implementation plan." >&2
+    exit 1
 fi
 
 # Check for tasks.md if required
 if $REQUIRE_TASKS && [[ ! -f "$TASKS" ]]; then
-    show_log "❌ ERROR: tasks.md not found in $FEATURE_DIR"
-    show_log "Run /spec-kitty.tasks first to create the task list."
-    exit $EXIT_VALIDATION_ERROR
+    echo "ERROR: tasks.md not found in $FEATURE_DIR" >&2
+    echo "Run /spec-kitty.tasks first to create the task list." >&2
+    exit 1
 fi
 
 # Build list of available documents
@@ -189,8 +158,8 @@ if $INCLUDE_TASKS && [[ -f "$TASKS" ]]; then
     docs+=("tasks.md")
 fi
 
-# Output results (Issue #1: JSON to stdout, logs to stderr)
-if [[ "$JSON_OUTPUT" == true ]]; then
+# Output results
+if $JSON_MODE; then
     # Build JSON array of documents
     if [[ ${#docs[@]} -eq 0 ]]; then
         json_docs="[]"
@@ -198,25 +167,20 @@ if [[ "$JSON_OUTPUT" == true ]]; then
         json_docs=$(printf '"%s",' "${docs[@]}")
         json_docs="[${json_docs%,}]"
     fi
-
+    
     printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s}\n' "$FEATURE_DIR" "$json_docs"
 else
     # Text output
-    if ! is_quiet; then
-        show_log "✓ Prerequisites validated"
-        show_log "FEATURE_DIR: $FEATURE_DIR"
-        show_log "AVAILABLE_DOCS:"
-
-        # Show status of each potential document
-        check_file "$RESEARCH" "  research.md"
-        check_file "$DATA_MODEL" "  data-model.md"
-        check_dir "$CONTRACTS_DIR" "  contracts/"
-        check_file "$QUICKSTART" "  quickstart.md"
-
-        if $INCLUDE_TASKS; then
-            check_file "$TASKS" "  tasks.md"
-        fi
+    echo "FEATURE_DIR:$FEATURE_DIR"
+    echo "AVAILABLE_DOCS:"
+    
+    # Show status of each potential document
+    check_file "$RESEARCH" "research.md"
+    check_file "$DATA_MODEL" "data-model.md"
+    check_dir "$CONTRACTS_DIR" "contracts/"
+    check_file "$QUICKSTART" "quickstart.md"
+    
+    if $INCLUDE_TASKS; then
+        check_file "$TASKS" "tasks.md"
     fi
 fi
-
-exit $EXIT_SUCCESS

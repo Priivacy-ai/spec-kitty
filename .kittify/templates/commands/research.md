@@ -10,17 +10,68 @@ scripts:
 *Path: [templates/commands/research.md](templates/commands/research.md)*
 
 
+## Location Pre-flight Check
+
+**BEFORE PROCEEDING:** Verify you are working in the feature worktree.
+
+```bash
+pwd
+git branch --show-current
+```
+
+**Expected output:**
+- `pwd`: Should end with `.worktrees/001-feature-name` (or similar feature worktree)
+- Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
+
+**If you see the main branch or main repository path:**
+
+⛔ **STOP - You are in the wrong location!**
+
+This command creates research artifacts in your feature directory. You must be in the feature worktree.
+
+**Correct the issue:**
+1. Navigate to your feature worktree: `cd .worktrees/001-feature-name`
+2. Verify you're on the correct feature branch: `git branch --show-current`
+3. Then run this research command again
+
+---
+
+## What This Command Creates
+
+When you run `{SCRIPT}`, the following files are generated in your feature directory:
+
+**Generated files**:
+- **research.md** – Decisions, rationale, and supporting evidence
+- **data-model.md** – Entities, attributes, and relationships
+- **research/evidence-log.csv** – Sources and findings audit trail
+- **research/source-register.csv** – Reference tracking for all sources
+
+**Location**: All files go in `kitty-specs/001-feature-name/`
+
+---
+
+## Workflow Context
+
+**Before this**: `/spec-kitty.plan` calls this as "Phase 0" research phase
+
+**This command**:
+- Scaffolds research artifacts
+- Creates templates for capturing decisions and evidence
+- Establishes audit trail for traceability
+
+**After this**:
+- Fill in research.md, data-model.md, and CSV logs with actual findings
+- Continue with `/spec-kitty.plan` which uses your research to drive technical design
+
+---
+
 ## Goal
 
 Create `research.md`, `data-model.md`, and supporting CSV stubs based on the active mission so implementation planning can reference concrete decisions and evidence.
 
 ## What to do
 
-1. Confirm you are working inside the correct feature worktree (e.g., `001-feature-name`). Check with:
-   ```bash
-   git branch --show-current
-   ```
-   If you are still on `main`, switch into the feature worktree before proceeding.
+1. You should already be in the correct feature worktree (verified above with pre-flight check).
 2. Run `{SCRIPT}` to generate the mission-specific research artifacts. (Add `--force` only when it is acceptable to overwrite existing drafts.)
 3. Open the generated files and fill in the required content:
    - `research.md` – capture decisions, rationale, and supporting evidence.

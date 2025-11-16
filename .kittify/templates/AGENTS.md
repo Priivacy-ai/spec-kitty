@@ -30,19 +30,29 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 
 ### What to Avoid (Will Break the Dashboard)
 
-❌ **Windows-1252 smart quotes**: “ ” ‘ ’ (from Word/Outlook/Office)  
-❌ **Em/en dashes and special punctuation**: — –  
-❌ **Copy-pasted arrows**: → (becomes illegal bytes)  
-❌ **Multiplication sign**: × (0xD7 in Windows-1252)  
-❌ **Copy/paste from Microsoft Office** without cleaning  
+❌ **Windows-1252 smart quotes**: " " ' ' (from Word/Outlook/Office)
+❌ **Em/en dashes and special punctuation**: — –
+❌ **Copy-pasted arrows**: → (becomes illegal bytes)
+❌ **Multiplication sign**: × (0xD7 in Windows-1252)
+❌ **Plus-minus sign**: ± (0xB1 in Windows-1252)
+❌ **Degree symbol**: ° (0xB0 in Windows-1252)
+❌ **Copy/paste from Microsoft Office** without cleaning
+
+**Real examples that crashed the dashboard:**
+- "User's favorite feature" → "User's favorite feature" (smart quote)
+- "Price: $100 ± $10" → "Price: $100 +/- $10"
+- "Temperature: 72°F" → "Temperature: 72 degrees F"
+- "3 × 4 matrix" → "3 x 4 matrix"
 
 ### What to Use Instead
 
-✅ Standard ASCII quotes: `"`, `'`  
-✅ Hyphen-minus: `-` instead of en/em dash  
-✅ ASCII arrow: `->` instead of →  
-✅ Lowercase `x` for multiplication  
-✅ Plain punctuation  
+✅ Standard ASCII quotes: `"`, `'`
+✅ Hyphen-minus: `-` instead of en/em dash
+✅ ASCII arrow: `->` instead of →
+✅ Lowercase `x` for multiplication
+✅ `+/-` for plus-minus
+✅ ` degrees` for temperature
+✅ Plain punctuation
 
 ### Safe Characters
 
@@ -52,12 +62,27 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 
 ### Copy/Paste Guidance
 
-1. Paste into a plain-text buffer first (VS Code, TextEdit in plain mode)  
-2. Replace smart quotes and dashes  
-3. Verify no � replacement characters appear  
-4. Run `python scripts/validate_encoding.py <path>` when in doubt
+1. Paste into a plain-text buffer first (VS Code, TextEdit in plain mode)
+2. Replace smart quotes and dashes
+3. Verify no � replacement characters appear
+4. Run `spec-kitty validate-encoding --feature <feature-id>` to check
+5. Run `spec-kitty validate-encoding --feature <feature-id> --fix` to auto-repair
 
 **Failure to follow this rule causes the dashboard to render blank pages.**
+
+### Auto-Fix Available
+
+If you accidentally introduce problematic characters:
+```bash
+# Check for encoding issues
+spec-kitty validate-encoding --feature 001-my-feature
+
+# Automatically fix all issues (creates .bak backups)
+spec-kitty validate-encoding --feature 001-my-feature --fix
+
+# Check all features at once
+spec-kitty validate-encoding --all --fix
+```
 
 ---
 

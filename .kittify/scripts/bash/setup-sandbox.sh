@@ -2,14 +2,6 @@
 
 set -euo pipefail
 
-# Script: setup-sandbox.sh
-# Purpose: Bootstrap fresh Spec Kitty sandbox environment
-# Issues Fixed: #1 (separate streams), #4 (standardized --help), #5 (validation)
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=./common.sh
-source "$SCRIPT_DIR/common.sh"
-
 usage() {
     cat <<'EOF'
 Usage: setup-sandbox.sh [options] <destination>
@@ -77,21 +69,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$DESTINATION" ]]; then
-    show_log "❌ ERROR: destination is required"
+    echo "Error: destination is required" >&2
     usage
-    exit $EXIT_USAGE_ERROR
+    exit 1
 fi
 
 if ! command -v uv >/dev/null 2>&1; then
-    show_log "❌ ERROR: uv is required but not found in PATH"
-    exit $EXIT_PRECONDITION_ERROR
+    echo "Error: uv is required but not found in PATH" >&2
+    exit 1
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PYPROJECT="$REPO_ROOT/pyproject.toml"
 if [[ ! -f "$PYPROJECT" ]]; then
-    show_log "❌ ERROR: pyproject.toml not found at $PYPROJECT"
-    exit $EXIT_PRECONDITION_ERROR
+    echo "Error: pyproject.toml not found at $PYPROJECT" >&2
+    exit 1
 fi
 
 if [[ -z "${UV_CACHE_DIR:-}" ]]; then
@@ -107,8 +99,8 @@ mkdir -p "$UV_TOOL_DIR"
 # Determine CLI version from pyproject.toml to avoid stale cached wheels.
 CLI_VERSION="$(grep -E '^version = \"' "$PYPROJECT" | head -n1 | sed -E 's/^version = \"([^\"]+)\"/\1/')"
 if [[ -z "$CLI_VERSION" ]]; then
-    show_log "❌ ERROR: Could not parse version from pyproject.toml"
-    exit $EXIT_PRECONDITION_ERROR
+    echo "Error: could not parse version from pyproject.toml" >&2
+    exit 1
 fi
 
 if [[ -z "$SCRIPT_TYPE" ]]; then
@@ -123,63 +115,55 @@ if [[ -z "$SCRIPT_TYPE" ]]; then
 fi
 
 if [[ "$SCRIPT_TYPE" != "sh" && "$SCRIPT_TYPE" != "ps" ]]; then
-    show_log "❌ ERROR: --script-type must be 'sh' or 'ps' (got: $SCRIPT_TYPE)"
-    exit $EXIT_VALIDATION_ERROR
+    echo "Error: --script-type must be 'sh' or 'ps'" >&2
+    exit 1
 fi
 
 DEST_ABS="$(cd "$(dirname "$DESTINATION")" && pwd)/$(basename "$DESTINATION")"
 
 if [[ -e "$DEST_ABS" ]]; then
     if [[ "$RESET" == true ]]; then
-        if ! is_quiet; then
-            show_log "Resetting existing destination: $DEST_ABS"
-        fi
+        echo "Resetting existing destination: $DEST_ABS"
         if command -v chflags >/dev/null 2>&1; then
             chflags -R nouchg "$DEST_ABS" 2>/dev/null || true
         fi
         chmod -R u+w "$DEST_ABS" 2>/dev/null || true
         rm -rf "$DEST_ABS" 2>/dev/null || true
         if [[ -e "$DEST_ABS" ]]; then
-            show_log "❌ ERROR: Failed to remove $DEST_ABS. Check permissions or remove manually."
-            exit $EXIT_EXECUTION_ERROR
+            echo "Error: failed to remove $DEST_ABS. Check permissions or remove manually." >&2
+            exit 1
         fi
     else
-        show_log "❌ ERROR: $DEST_ABS already exists. Use --reset to remove it first."
-        exit $EXIT_VALIDATION_ERROR
+        echo "Error: $DEST_ABS already exists. Use --reset to remove it first." >&2
+        exit 1
     fi
 fi
 
 mkdir -p "$(dirname "$DEST_ABS")"
 
 if [[ "$SKIP_INSTALL" != true ]]; then
-    if ! is_quiet; then
-        show_log "Installing spec-kitty-cli (version $CLI_VERSION) from $REPO_ROOT"
-    fi
+    echo "Installing spec-kitty-cli (version $CLI_VERSION) from $REPO_ROOT"
     set +e
-    uv tool install --from "$REPO_ROOT" spec-kitty-cli --force >/dev/null 2>&1
+    uv tool install --from "$REPO_ROOT" spec-kitty-cli --force
     install_status=$?
     set -e
     if [[ $install_status -ne 0 ]]; then
         if command -v spec-kitty >/dev/null 2>&1; then
-            show_log "⚠️  Warning: spec-kitty-cli install failed (exit $install_status); existing installation will be reused."
+            echo "Warning: spec-kitty-cli install failed (exit $install_status); existing installation will be reused." >&2
         else
-            show_log "❌ ERROR: spec-kitty-cli install failed (exit $install_status) and no existing spec-kitty command was found."
-            show_log "Re-run with --skip-install after installing manually."
-            exit $EXIT_EXECUTION_ERROR
+            echo "Error: spec-kitty-cli install failed (exit $install_status) and no existing spec-kitty command was found. Re-run with --skip-install after installing manually." >&2
+            exit 1
         fi
     fi
 else
-    if ! is_quiet; then
-        show_log "Skipping spec-kitty-cli installation per request"
-    fi
+    echo "Skipping spec-kitty-cli installation per request"
 fi
 
 export SPEC_KITTY_TEMPLATE_ROOT="$REPO_ROOT"
 
 if ! command -v spec-kitty >/dev/null 2>&1; then
-    show_log "❌ ERROR: spec-kitty executable not found in PATH."
-    show_log "Install spec-kitty-cli or rerun without --skip-install."
-    exit $EXIT_PRECONDITION_ERROR
+    echo "Error: spec-kitty executable not found in PATH. Install spec-kitty-cli or rerun without --skip-install." >&2
+    exit 1
 fi
 
 # Normalise agent list: allow comma or space separated values.
@@ -187,15 +171,9 @@ IFS=',' read -r -a agent_parts <<<"${AGENTS// /,}"
 NORMALISED_AGENTS="$(printf "%s," "${agent_parts[@]}")"
 NORMALISED_AGENTS="${NORMALISED_AGENTS%,}"
 
-if ! is_quiet; then
-    show_log "Bootstrapping sandbox at $DEST_ABS (agents: $NORMALISED_AGENTS, script: $SCRIPT_TYPE)"
-fi
+echo "Bootstrapping sandbox at $DEST_ABS (agents: $NORMALISED_AGENTS, script: $SCRIPT_TYPE)"
 spec-kitty init "$DEST_ABS" --ai "$NORMALISED_AGENTS" --script "$SCRIPT_TYPE"
 
-if ! is_quiet; then
-    show_log ""
-    show_log "✓ Sandbox ready at $DEST_ABS"
-    show_log "  Template root used: $SPEC_KITTY_TEMPLATE_ROOT"
-fi
-
-exit $EXIT_SUCCESS
+echo
+echo "Sandbox ready at $DEST_ABS"
+echo "Template root used: $SPEC_KITTY_TEMPLATE_ROOT"

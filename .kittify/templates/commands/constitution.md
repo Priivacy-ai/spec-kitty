@@ -15,6 +15,50 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+---
+
+## What This Command Does
+
+This command manages the **project constitution** - the global set of principles and governance rules that apply to ALL features in this project.
+
+**Location**: The constitution lives at `.kittify/memory/constitution.md` (in the main repository, not feature worktrees)
+
+**Scope**: This command is project-wide, not feature-specific
+- Does NOT need to be run from a worktree
+- Can be run from the main repository root
+- Creates/updates principles that all features must follow
+- Updates dependent templates to stay in sync
+
+---
+
+## Why Constitutions Matter
+
+The project constitution defines non-negotiable principles such as:
+- Code quality standards
+- Security and compliance requirements
+- Testing discipline
+- Documentation standards
+- Performance expectations
+
+All features (`/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks`) must align with these principles.
+
+---
+
+## Workflow Context
+
+**When to use**:
+- First time: Create initial project constitution with your team's core principles
+- Later: Update constitution when principles change or new ones are needed
+- Impacts: Every feature automatically validates against current constitution
+
+**What it affects**:
+- All spec.md files (features must comply with constitution)
+- All plan.md files (architecture must align with principles)
+- All tasks.md files (testing and quality tasks reflect constitution)
+- The `/spec-kitty.analyze` command validates constitution alignment
+
+---
+
 ## Outline
 
 You are updating the project constitution at `/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[PROJECT_NAME]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely, and (c) propagate any amendments across dependent artifacts.

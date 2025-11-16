@@ -1,44 +1,30 @@
 #!/usr/bin/env bash
 
-# Script: create-new-feature.sh
-# Purpose: Create new feature branch and specification
-# Issues Fixed: #1 (separate streams), #4 (standardized --help), #5 (input validation)
-
 set -e
 
-# Source common functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=./common.sh
-source "$SCRIPT_DIR/common.sh"
-
+JSON_MODE=false
 FEATURE_NAME=""
 ARGS=()
 
-# Handle common flags (Issue #4: standardized --help, Issue #1: separate logs)
-handle_common_flags "$@"
-set -- "${REMAINING_ARGS[@]}"
-
-if [[ "$SHOW_HELP" == true ]]; then
-    show_script_help "$(basename "$0")" \
-        "Create a new feature branch and specification file" \
-        "feature_description" "Description of the feature to create" \
-        "--feature-name" "Friendly name for the feature (optional)"
-    exit $EXIT_SUCCESS
-fi
-
-# Parse remaining arguments
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --json)
+            JSON_MODE=true
+            ;;
         --feature-name=*)
             FEATURE_NAME="${1#*=}"
             ;;
         --feature-name)
             shift
             if [ -z "${1:-}" ]; then
-                show_log "❌ ERROR: --feature-name requires a value"
-                exit $EXIT_USAGE_ERROR
+                echo "Error: --feature-name requires a value" >&2
+                exit 1
             fi
             FEATURE_NAME="$1"
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--json] [--feature-name \"Friendly Title\"] <feature_description>"
+            exit 0
             ;;
         *)
             ARGS+=("$1")
@@ -49,14 +35,12 @@ done
 
 FEATURE_DESCRIPTION="${ARGS[*]}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
-    show_log "❌ ERROR: Feature description required"
-    show_log ""
-    show_log "This script must only run after the discovery interview"
-    show_log "produces a confirmed intent summary."
-    show_log ""
-    show_log "Return WAITING_FOR_DISCOVERY_INPUT, gather the answers,"
-    show_log "then invoke the script with the finalized description."
-    exit $EXIT_USAGE_ERROR
+    cat >&2 <<'EOF'
+[spec-kitty] Error: Feature description missing.
+This script must only run after the discovery interview produces a confirmed intent summary.
+Return WAITING_FOR_DISCOVERY_INPUT, gather the answers, then invoke the script with the finalized description.
+EOF
+    exit 1
 fi
 
 # Function to find the repository root by searching for existing project markers
@@ -135,6 +119,8 @@ BRANCH_NAME="${FEATURE_NUM}-${WORDS}"
 WORKTREE_NOTE=""
 TARGET_ROOT="$REPO_ROOT"
 WORKTREE_CREATED=false
+GIT_ENABLED=true
+FEATURE_EXISTS=false
 
 if [ "$HAS_GIT" = true ]; then
     case "$REPO_ROOT" in
@@ -183,6 +169,12 @@ if [ "$HAS_GIT" = true ]; then
 
     if [ "$WORKTREE_CREATED" != "true" ]; then
         if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
+            # Feature branch already exists
+            FEATURE_EXISTS=true
+            >&2 echo "[spec-kitty] ⚠️  Warning: Branch '$BRANCH_NAME' already exists"
+            >&2 echo "[spec-kitty]    This may indicate you're recreating an existing feature."
+            >&2 echo "[spec-kitty]    Existing feature specs may be overwritten."
+
             if ! git checkout "$BRANCH_NAME"; then
                 >&2 echo "[spec-kitty] Error: Failed to check out existing branch $BRANCH_NAME"
                 exit 1
@@ -195,7 +187,10 @@ if [ "$HAS_GIT" = true ]; then
         fi
     fi
 else
-    >&2 echo "[spec-kitty] Warning: Git repository not detected; skipped branch creation for $BRANCH_NAME"
+    >&2 echo "[spec-kitty] ⚠️  Warning: Git repository not detected"
+    >&2 echo "[spec-kitty]    Feature branch '$BRANCH_NAME' will NOT be created"
+    >&2 echo "[spec-kitty]    Version control disabled for this feature"
+    GIT_ENABLED=false
 fi
 
 REPO_ROOT="$TARGET_ROOT"
@@ -205,6 +200,16 @@ SPECS_DIR="$REPO_ROOT/kitty-specs"
 mkdir -p "$SPECS_DIR"
 
 FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
+
+# Check if feature already exists (specs directory already present)
+if [ -d "$FEATURE_DIR" ]; then
+    if [ ! "$FEATURE_EXISTS" = "true" ]; then
+        FEATURE_EXISTS=true
+        >&2 echo "[spec-kitty] ⚠️  Warning: Feature directory already exists at $FEATURE_DIR"
+        >&2 echo "[spec-kitty]    Existing feature specs may be overwritten."
+    fi
+fi
+
 mkdir -p "$FEATURE_DIR"
 
 SPEC_FILE="$FEATURE_DIR/spec.md"
@@ -224,11 +229,9 @@ done
 
 if [ -n "$TEMPLATE" ]; then
     cp "$TEMPLATE" "$SPEC_FILE"
-    if ! is_quiet; then
-        show_log "✓ Copied spec template from $TEMPLATE"
-    fi
+    echo "[spec-kitty] Copied spec template from $TEMPLATE"
 else
-    show_log "⚠️  Warning: Spec template not found for active mission; creating empty spec.md"
+    echo "[spec-kitty] Warning: Spec template not found for active mission; creating empty spec.md"
     touch "$SPEC_FILE"
 fi
 
@@ -261,41 +264,61 @@ cat > "$META_FILE" <<EOF
 }
 EOF
 
-# Output results (Issue #1: JSON to stdout, logs to stderr)
-if [[ "$JSON_OUTPUT" == true ]]; then
-    output_json \
-        "BRANCH_NAME" "$BRANCH_NAME" \
-        "SPEC_FILE" "$SPEC_FILE" \
-        "FEATURE_NUM" "$FEATURE_NUM" \
-        "FRIENDLY_NAME" "$FRIENDLY_NAME" \
-        "WORKTREE_PATH" "$WORKTREE_NOTE"
-else
-    # Human-readable output
-    if ! is_quiet; then
-        show_log "✓ Feature created successfully"
-        show_log ""
-        show_log "Details:"
-        show_log "  BRANCH_NAME: $BRANCH_NAME"
-        show_log "  SPEC_FILE: $SPEC_FILE"
-        show_log "  FEATURE_NUM: $FEATURE_NUM"
-        show_log "  FRIENDLY_NAME: $FRIENDLY_NAME"
-        show_log ""
+WORKTREE_JSON=$(json_escape "$WORKTREE_NOTE")
 
-        if [ -n "$WORKTREE_NOTE" ]; then
-            show_log "✓ Git worktree created at: $WORKTREE_NOTE"
-            show_log ""
-            show_log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            show_log "NEXT STEP (REQUIRED):"
-            show_log "  cd \"$WORKTREE_NOTE\""
-            show_log ""
-            show_log "Then continue with:"
-            show_log "  /spec-kitty.plan"
-            show_log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            show_log ""
-            show_log "When finished, remove the worktree with:"
-            show_log "  git worktree remove \"$WORKTREE_NOTE\""
-        fi
+if $JSON_MODE; then
+    # Build JSON with warning fields for both issues
+    if [ "$FEATURE_EXISTS" = "true" ] || [ "$GIT_ENABLED" = "false" ]; then
+        # Include warnings in JSON output
+        WARNINGS=()
+        [ "$FEATURE_EXISTS" = "true" ] && WARNINGS+=("FEATURE_ALREADY_EXISTS")
+        [ "$GIT_ENABLED" = "false" ] && WARNINGS+=("GIT_DISABLED")
+
+        printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","FRIENDLY_NAME":"%s","WORKTREE_PATH":"%s","GIT_ENABLED":%s,"FEATURE_EXISTS":%s,"WARNINGS":[' \
+            "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$FRIENDLY_JSON" "$WORKTREE_JSON" \
+            "$([ "$GIT_ENABLED" = "true" ] && echo "true" || echo "false")" \
+            "$([ "$FEATURE_EXISTS" = "true" ] && echo "true" || echo "false")"
+
+        for i in "${!WARNINGS[@]}"; do
+            [ "$i" -gt 0 ] && printf ","
+            printf '"%s"' "${WARNINGS[$i]}"
+        done
+        printf ']}\n'
+    else
+        # Clean output when no issues
+        printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","FRIENDLY_NAME":"%s","WORKTREE_PATH":"%s","GIT_ENABLED":true,"FEATURE_EXISTS":false,"WARNINGS":[]}\n' \
+            "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$FRIENDLY_JSON" "$WORKTREE_JSON"
+    fi
+else
+    echo "BRANCH_NAME: $BRANCH_NAME"
+    echo "SPEC_FILE: $SPEC_FILE"
+    echo "FEATURE_NUM: $FEATURE_NUM"
+    echo "FRIENDLY_NAME: $FRIENDLY_NAME"
+    echo "SPECIFY_FEATURE environment variable set to: $BRANCH_NAME"
+    echo "SPECIFY_FEATURE_NAME environment variable set to: $FRIENDLY_NAME"
+
+    # Show warnings prominently in human-readable output
+    if [ "$FEATURE_EXISTS" = "true" ] || [ "$GIT_ENABLED" = "false" ]; then
+        echo ""
+        echo "⚠️  WARNINGS:"
+        [ "$FEATURE_EXISTS" = "true" ] && echo "  • Feature branch already exists - you may be overwriting previous work"
+        [ "$GIT_ENABLED" = "false" ] && echo "  • Git is disabled - branch not created, version control unavailable"
+        echo ""
+    fi
+
+    if [ -n "$WORKTREE_NOTE" ]; then
+        echo ""
+        echo "✓ Git worktree created at: $WORKTREE_NOTE"
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "NEXT STEP (REQUIRED):"
+        echo "  cd \"$WORKTREE_NOTE\""
+        echo ""
+        echo "Then continue with:"
+        echo "  /spec-kitty.plan"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "When finished, remove the worktree with:"
+        echo "  git worktree remove \"$WORKTREE_NOTE\""
     fi
 fi
-
-exit $EXIT_SUCCESS
