@@ -22,47 +22,14 @@ if (typeof window !== 'undefined' && window.__INITIAL_MISSION__) {
 }
 
 function updateMissionDisplay(mission) {
-    const container = document.getElementById('mission-display');
-    if (!container) return;
+    const nameEl = document.getElementById('mission-name');
+    if (!nameEl) return;
 
     if (mission) {
         activeMission = mission;
     }
 
-    const nameEl = document.getElementById('mission-name');
-    const domainEl = document.getElementById('mission-domain');
-    const versionEl = document.getElementById('mission-version');
-    const pathEl = document.getElementById('mission-path');
-
-    if (nameEl) {
-        nameEl.textContent = activeMission.name || 'Unknown mission';
-    }
-
-    if (domainEl) {
-        domainEl.textContent = activeMission.domain ? `(${activeMission.domain})` : '';
-    }
-
-    if (versionEl) {
-        versionEl.textContent = activeMission.version ? `Version ${activeMission.version}` : '';
-        versionEl.style.display = activeMission.version ? 'block' : 'none';
-    }
-
-    if (pathEl) {
-        pathEl.textContent = activeMission.path || '';
-        pathEl.style.display = activeMission.path ? 'block' : 'none';
-    }
-
-    container.title = activeMission.description || activeMission.path || 'Active mission';
-}
-
-function registerMissionRefreshButton() {
-    const button = document.getElementById('mission-refresh-button');
-    if (!button) {
-        return;
-    }
-    button.addEventListener('click', () => {
-        window.location.reload();
-    });
+    nameEl.textContent = activeMission.name || 'Unknown mission';
 }
 
 // Cookie-based state persistence
@@ -1248,7 +1215,6 @@ function refreshDiagnostics() {
     loadDiagnostics();
 }
 
-registerMissionRefreshButton();
 updateMissionDisplay();
 updateTreeInfo();
 fetchData(true);  // Pass true for initial load
