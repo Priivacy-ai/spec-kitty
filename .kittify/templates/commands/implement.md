@@ -17,34 +17,27 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check (CRITICAL for AI Agents)
 
-**BEFORE PROCEEDING:** Verify you are working from inside the feature worktree.
+Before proceeding with implementation, verify you are in the correct working directory by running the shared pre-flight validation:
 
-**Check current working directory and branch:**
-```bash
-pwd
-git branch --show-current
+```python
+from specify_cli.guards import validate_worktree_location
+
+# Validate location
+result = validate_worktree_location()
+if not result.is_valid:
+    print(result.format_error())
+    print("\nThis command MUST run from a feature worktree, not the main repository.")
+    exit(1)
 ```
 
-**Expected output:**
-- `pwd`: `/path/to/project/.worktrees/004-feature-name` (or similar)
-- Branch: `004-feature-name` (NOT `main` or `release/x.x.x`)
+**What this validates**:
+- Current branch follows the feature pattern like `001-feature-name`
+- You're not attempting to run from `main` or any release branch
+- The validator prints clear navigation instructions if you're outside the feature worktree
 
-**If you see `main` or `release/*` branch, OR if pwd shows the main repo:**
-
-⛔ **STOP - You are in the wrong location!**
-
-**DO NOT use `cd` to navigate to the worktree.** File creation tools (Write, Edit) will still use your original working directory.
-
-**Instead:**
-1. Tell the user: "This command must be run from inside the worktree at `.worktrees/<feature>/`"
-2. Stop execution
-3. Wait for the user to restart the session from the correct location
-
-**Path reference rule:** Always use paths relative to the worktree root (e.g., `src/specify_cli/`, `kitty-specs/004-feature/`). When communicating with the user, mention absolute paths for clarity.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
 This is intentional - worktrees provide isolation for parallel feature development.
-
----
 
 ## ⚠️ CRITICAL: Review Feedback Check
 
@@ -67,10 +60,11 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 ## Outline
 
-1. **Verify worktree context** (already validated in pre-flight):
-   - Working directory MUST be inside `PROJECT_ROOT/.worktrees/FEATURE-SLUG`
-   - If not, the pre-flight check should have stopped you
-   - All file paths are relative to this worktree root
+1. **Verify worktree context**:
+   - The CLI prefers an isolated checkout at `PROJECT_ROOT/.worktrees/FEATURE-SLUG`; use the path returned by `create-new-feature` when it exists.
+   - If that directory is present and you are not already inside it, `cd` into the worktree before proceeding.
+    - When inspecting git status or listing files, always reference the worktree paths (for example, `kitty-specs/<feature>/...` inside `.worktrees/<feature>/`).
+   - If worktree creation was skipped (the CLI returned no worktree path or the directory is missing), remain in the primary checkout on the feature branch or recreate the worktree with `git worktree add PROJECT_ROOT/.worktrees/FEATURE-SLUG FEATURE-SLUG` and then `cd` into it.
 
 2. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
 
@@ -183,7 +177,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - **Kanban discipline**: Use the lane helper scripts to keep the prompt in `tasks/doing/`, update the Activity Log, and capture your shell PID (`echo $$`). These should already be complete from step 3—verify before coding.
 
 7. Implementation execution rules:
-   - **Setup first**: Initialize project structure, dependencies, configuration
+   - **Setup first**: Initialize feature scaffolding, dependencies, configuration
    - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
    - **Core development**: Implement models, services, CLI commands, endpoints
    - **Integration work**: Database connections, middleware, logging, external services
@@ -275,4 +269,3 @@ Leverage your agent’s native orchestration so one work package advances while 
 - **Amazon Q Developer CLI** – Use Container Use recipes to create multiple isolated Q sessions so one agent handles reviews while another implements new changes.[^amazonq_parallel]
 
 If an agent lacks built-in subagents, mimic the pattern manually: open a second terminal, move a review prompt to `tasks/doing/`, and run the reviewer commands there while your primary session keeps coding.
-

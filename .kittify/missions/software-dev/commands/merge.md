@@ -18,6 +18,28 @@ Before running this command:
 3. ✅ Working directory must be clean (no uncommitted changes)
 4. ✅ You must be on the feature branch (or in its worktree)
 
+## Location Pre-flight Check (CRITICAL for AI Agents)
+
+Before merging, verify you are in the correct working directory by running the shared pre-flight validation:
+
+```python
+from specify_cli.guards import validate_worktree_location
+
+# Validate location
+result = validate_worktree_location()
+if not result.is_valid:
+    print(result.format_error())
+    print("\nThis command MUST run from a feature worktree, not the main repository.")
+    exit(1)
+```
+
+**What this validates**:
+- Current branch follows the feature pattern like `001-feature-name`
+- You're not attempting to run from `main` or any release branch
+- The validator prints clear navigation instructions if you're outside the feature worktree
+
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+
 ## What This Command Does
 
 1. **Detects** your current feature branch and worktree status

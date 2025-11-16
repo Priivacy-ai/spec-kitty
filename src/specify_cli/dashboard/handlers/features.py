@@ -14,6 +14,7 @@ from ..scanner import (
     scan_feature_kanban,
 )
 from .base import DashboardHandler
+from specify_cli.mission import MissionError, get_active_mission
 
 __all__ = ["FeatureHandler"]
 
@@ -30,6 +31,27 @@ class FeatureHandler(DashboardHandler):
 
         project_path = Path(self.project_dir).resolve()
         features = scan_all_features(project_path)
+
+        mission_context = {
+            'name': 'Unknown mission',
+            'domain': 'unknown',
+            'version': '',
+            'slug': '',
+            'description': '',
+            'path': '',
+        }
+        try:
+            mission = get_active_mission(project_path)
+            mission_context = {
+                'name': mission.name,
+                'domain': mission.domain,
+                'version': mission.version,
+                'slug': mission.path.name,
+                'description': mission.description or '',
+                'path': format_path_for_display(str(mission.path)),
+            }
+        except MissionError:
+            pass
 
         worktrees_root_path = project_path / '.worktrees'
         try:
@@ -65,6 +87,7 @@ class FeatureHandler(DashboardHandler):
             'project_path': format_path_for_display(str(project_path)),
             'worktrees_root': worktrees_root_display,
             'active_worktree': active_worktree_display,
+            'active_mission': mission_context,
         }
         self.wfile.write(json.dumps(response).encode())
 

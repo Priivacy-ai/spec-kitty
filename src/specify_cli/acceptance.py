@@ -3,11 +3,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
 import json
 import os
 import re
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
@@ -22,6 +22,8 @@ from .tasks_support import (
     run_git,
     split_frontmatter,
 )
+from specify_cli.mission import MissionError, get_active_mission
+from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
@@ -59,6 +61,7 @@ class AcceptanceSummary:
     missing_artifacts: List[str]
     optional_missing: List[str]
     git_dirty: List[str]
+    path_violations: List[str]
     warnings: List[str]
 
     @property
@@ -79,6 +82,7 @@ class AcceptanceSummary:
             and not self.needs_clarification
             and not self.missing_artifacts
             and not self.git_dirty
+            and not self.path_violations
         )
 
     def outstanding(self) -> Dict[str, List[str]]:
@@ -94,6 +98,7 @@ class AcceptanceSummary:
             "needs_clarification": self.needs_clarification,
             "missing_artifacts": self.missing_artifacts,
             "git_dirty": self.git_dirty,
+            "path_violations": self.path_violations,
         }
         return {key: value for key, value in buckets.items() if value}
 
@@ -126,6 +131,7 @@ class AcceptanceSummary:
             "missing_artifacts": self.missing_artifacts,
             "optional_missing": self.optional_missing,
             "git_dirty": self.git_dirty,
+            "path_violations": self.path_violations,
             "warnings": self.warnings,
             "all_done": self.all_done,
             "ok": self.ok,
@@ -380,11 +386,26 @@ def collect_feature_summary(
     except TaskCliError:
         git_dirty = []
 
+    path_violations: List[str] = []
+    try:
+        mission = get_active_mission(repo_root)
+    except MissionError:
+        mission = None
+
+    if mission and mission.config.paths:
+        try:
+            validate_mission_paths(mission, repo_root, strict=True)
+        except PathValidationError as exc:
+            message = exc.result.format_errors() or str(exc)
+            path_violations.append(message)
+
     warnings: List[str] = []
     if missing_optional:
         warnings.append(
             "Optional artifacts missing: " + ", ".join(missing_optional)
         )
+    if path_violations:
+        warnings.append("Path conventions not satisfied.")
 
     return AcceptanceSummary(
         feature=feature,
@@ -403,6 +424,7 @@ def collect_feature_summary(
         missing_artifacts=missing_required,
         optional_missing=missing_optional,
         git_dirty=git_dirty,
+        path_violations=path_violations,
         warnings=warnings,
     )
 

@@ -6,9 +6,12 @@ writing, etc.) with domain-specific templates, workflows, and validation.
 """
 
 import os
+import warnings
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Literal, Optional
+
 import yaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 
 class MissionError(Exception):
@@ -19,6 +22,139 @@ class MissionError(Exception):
 class MissionNotFoundError(MissionError):
     """Raised when a mission cannot be found."""
     pass
+
+
+MISSION_ROOT_FIELDS: tuple[str, ...] = (
+    "name",
+    "description",
+    "version",
+    "domain",
+    "workflow",
+    "artifacts",
+    "paths",
+    "validation",
+    "mcp_tools",
+    "agent_context",
+    "task_metadata",
+    "commands",
+)
+
+
+class PhaseConfig(BaseModel):
+    """Workflow phase definition."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., description="Phase identifier")
+    description: str = Field(..., description="Phase description")
+
+
+class ArtifactsConfig(BaseModel):
+    """Required and optional artifacts."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    required: List[str] = Field(default_factory=list, description="Artifacts required for acceptance")
+    optional: List[str] = Field(default_factory=list, description="Optional artifacts and directories")
+
+
+class ValidationConfig(BaseModel):
+    """Validation rules for the mission."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    checks: List[str] = Field(default_factory=list, description="Validation checks executed for this mission")
+    custom_validators: bool = Field(default=False, description="Whether validators.py should be invoked")
+
+
+class WorkflowConfig(BaseModel):
+    """Mission workflow configuration."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    phases: List[PhaseConfig] = Field(..., min_length=1, description="Ordered workflow phases")
+
+
+class MCPToolsConfig(BaseModel):
+    """Mission MCP tool recommendations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    required: List[str] = Field(default_factory=list)
+    recommended: List[str] = Field(default_factory=list)
+    optional: List[str] = Field(default_factory=list)
+
+
+class CommandConfig(BaseModel):
+    """Command customization for a mission."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    prompt: str = Field(..., description="Command-specific prompt/description")
+
+
+class TaskMetadataConfig(BaseModel):
+    """Task metadata definitions."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    required: List[str] = Field(default_factory=list)
+    optional: List[str] = Field(default_factory=list)
+
+
+class MissionConfig(BaseModel):
+    """Complete mission configuration schema."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., description="Mission display name")
+    description: str = Field(..., description="Mission description")
+    version: str = Field(..., pattern=r"^\d+\.\d+\.\d+$", description="Semver version (major.minor.patch)")
+    domain: Literal["software", "research", "writing", "seo", "other"] = Field(
+        ..., description="Mission domain classification"
+    )
+    workflow: WorkflowConfig = Field(..., description="Workflow definition")
+    artifacts: ArtifactsConfig = Field(..., description="Artifacts required/optional")
+    paths: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Path conventions (workspace/tests/deliverables/documentation/data/etc.)",
+    )
+    validation: ValidationConfig = Field(default_factory=ValidationConfig, description="Validation settings")
+    mcp_tools: Optional[MCPToolsConfig] = Field(default=None, description="MCP tool recommendations")
+    agent_context: Optional[str] = Field(default=None, description="Agent instructions/personality")
+    task_metadata: Optional[TaskMetadataConfig] = Field(default=None, description="Task metadata definitions")
+    commands: Optional[Dict[str, CommandConfig]] = Field(default=None, description="Command-specific prompts")
+
+    def model_post_init(self, __context: Any) -> None:  # pragma: no cover - simple warning logic
+        """Warn on unknown path convention keys while permitting customization."""
+        valid_path_keys = {"workspace", "tests", "deliverables", "documentation", "data"}
+        unknown_paths = set(self.paths.keys()) - valid_path_keys
+        if unknown_paths:
+            warnings.warn(
+                f"Unknown path conventions: {sorted(unknown_paths)}. "
+                f"Known conventions: {sorted(valid_path_keys)}",
+                stacklevel=2,
+            )
+
+
+def _format_validation_error(config_path: Path, error: ValidationError) -> str:
+    """Return a human-friendly validation error message."""
+    header = [
+        f"Invalid mission configuration in {config_path}:",
+        "",
+        "Detected issues:",
+    ]
+    for err in error.errors():
+        path = " -> ".join(str(part) for part in err.get("loc", ())) or "<root>"
+        message = err.get("msg", "Invalid value")
+        detail = f"- {path}: {message}"
+        if err.get("type") == "extra_forbidden" and len(err.get("loc", ())) == 1:
+            valid_fields = ", ".join(MISSION_ROOT_FIELDS)
+            detail += f" (check for typos; valid root fields: {valid_fields})"
+        header.append(detail)
+    header.append("")
+    header.append("Refer to kitty-specs/005-refactor-mission-system/data-model.md for the schema definition.")
+    return "\n".join(header)
 
 
 class Mission:
@@ -38,16 +174,17 @@ class Mission:
         if not self.path.exists():
             raise MissionNotFoundError(f"Mission directory not found: {self.path}")
 
-        self.config = self._load_config()
+        self.config: MissionConfig = self._load_and_validate_config()
 
-    def _load_config(self) -> Dict[str, Any]:
-        """Load mission configuration from mission.yaml.
+    def _load_and_validate_config(self) -> MissionConfig:
+        """Load and validate mission configuration from mission.yaml.
 
         Returns:
-            Dictionary containing mission configuration
+            MissionConfig instance containing validated configuration
 
         Raises:
             MissionNotFoundError: If mission.yaml doesn't exist
+            MissionError: If YAML is malformed or validation fails
             yaml.YAMLError: If mission.yaml is malformed
         """
         config_file = self.path / "mission.yaml"
@@ -60,29 +197,40 @@ class Mission:
 
         with open(config_file, 'r') as f:
             try:
-                return yaml.safe_load(f)
+                raw_config = yaml.safe_load(f) or {}
             except yaml.YAMLError as e:
                 raise MissionError(f"Invalid mission.yaml: {e}")
+
+        if not isinstance(raw_config, dict):
+            raise MissionError(
+                f"Mission config must be a mapping/dictionary in {config_file}, "
+                f"got {type(raw_config).__name__} instead."
+            )
+
+        try:
+            return MissionConfig.model_validate(raw_config)
+        except ValidationError as error:
+            raise MissionError(_format_validation_error(config_file, error)) from error
 
     @property
     def name(self) -> str:
         """Get the mission name (e.g., 'Software Dev Kitty')."""
-        return self.config.get("name", "Unknown Mission")
+        return self.config.name
 
     @property
     def description(self) -> str:
         """Get the mission description."""
-        return self.config.get("description", "")
+        return self.config.description
 
     @property
     def version(self) -> str:
         """Get the mission version."""
-        return self.config.get("version", "0.0.0")
+        return self.config.version
 
     @property
     def domain(self) -> str:
         """Get the mission domain (e.g., 'software', 'research')."""
-        return self.config.get("domain", "unknown")
+        return self.config.domain
 
     @property
     def templates_dir(self) -> Path:
@@ -163,11 +311,11 @@ class Mission:
 
     def get_validation_checks(self) -> List[str]:
         """Get list of validation checks for this mission."""
-        return self.config.get("validation", {}).get("checks", [])
+        return list(self.config.validation.checks)
 
     def has_custom_validators(self) -> bool:
         """Check if mission has custom validators.py."""
-        return self.config.get("validation", {}).get("custom_validators", False)
+        return self.config.validation.custom_validators
 
     def get_workflow_phases(self) -> List[Dict[str, str]]:
         """Get workflow phases for this mission.
@@ -175,19 +323,19 @@ class Mission:
         Returns:
             List of dicts with 'name' and 'description' keys
         """
-        return self.config.get("workflow", {}).get("phases", [])
+        return [phase.model_dump() for phase in self.config.workflow.phases]
 
     def get_required_artifacts(self) -> List[str]:
         """Get list of required artifacts for this mission."""
-        return self.config.get("artifacts", {}).get("required", [])
+        return list(self.config.artifacts.required)
 
     def get_optional_artifacts(self) -> List[str]:
         """Get list of optional artifacts for this mission."""
-        return self.config.get("artifacts", {}).get("optional", [])
+        return list(self.config.artifacts.optional)
 
     def get_path_conventions(self) -> Dict[str, str]:
         """Get path conventions for this mission (e.g., workspace, tests)."""
-        return self.config.get("paths", {})
+        return dict(self.config.paths)
 
     def get_mcp_tools(self) -> Dict[str, List[str]]:
         """Get MCP tools configuration for this mission.
@@ -195,16 +343,18 @@ class Mission:
         Returns:
             Dict with 'required', 'recommended', 'optional' lists
         """
-        mcp_tools = self.config.get("mcp_tools", {})
+        mcp_tools = self.config.mcp_tools
+        if mcp_tools is None:
+            return {"required": [], "recommended": [], "optional": []}
         return {
-            "required": mcp_tools.get("required", []),
-            "recommended": mcp_tools.get("recommended", []),
-            "optional": mcp_tools.get("optional", [])
+            "required": list(mcp_tools.required),
+            "recommended": list(mcp_tools.recommended),
+            "optional": list(mcp_tools.optional),
         }
 
     def get_agent_context(self) -> str:
         """Get agent personality/instructions for this mission."""
-        return self.config.get("agent_context", "")
+        return self.config.agent_context or ""
 
     def get_command_config(self, command_name: str) -> Dict[str, str]:
         """Get configuration for a specific command.
@@ -215,8 +365,11 @@ class Mission:
         Returns:
             Dict with command configuration (e.g., 'prompt')
         """
-        commands_config = self.config.get("commands", {})
-        return commands_config.get(command_name, {})
+        if not self.config.commands:
+            return {}
+
+        command = self.config.commands.get(command_name)
+        return command.model_dump() if command else {}
 
     def __repr__(self) -> str:
         return f"Mission(name='{self.name}', domain='{self.domain}', version='{self.version}')"

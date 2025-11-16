@@ -1,0 +1,21 @@
+{
+  "accept_commit": null,
+  "acceptance_history": [
+    {
+      "accepted_at": "2025-11-16T15:23:25Z",
+      "accepted_by": "claude",
+      "accepted_from_commit": "c2c1b7f4e2255af2fc11c382dda859f071606ad0",
+      "branch": "005-refactor-mission-system",
+      "mode": "local"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2025-11-16T15:23:25Z",
+  "accepted_by": "claude",
+  "accepted_from_commit": "c2c1b7f4e2255af2fc11c382dda859f071606ad0",
+  "created_at": "2025-11-16T11:44:29Z",
+  "feature_number": "005",
+  "friendly_name": "Refactor mission system.",
+  "slug": "005-refactor-mission-system",
+  "source_description": "Refactor mission system to address architectural concerns: extract duplicate pre-flight checks, add Pydantic schema validation, make research mission production-ready with bibliography/citation hooks, implement mission switching CLI (only when clean), enforce path conventions, clarify terminology, and integrate with dashboard."
+}

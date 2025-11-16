@@ -54,6 +54,26 @@ Before running this command:
 3. ✅ Working directory must be clean (no uncommitted changes)
 4. ✅ Run the command from the feature worktree (Spec Kitty will move the merge to the primary repo automatically)
 
+## Location Pre-flight Check (CRITICAL for AI Agents)
+
+Before merging, verify you are in the correct working directory by running the shared pre-flight validation:
+
+```python
+from specify_cli.guards import validate_worktree_location
+
+# Validate location
+result = validate_worktree_location()
+if not result.is_valid:
+    print(result.format_error())
+    print("\nThis command MUST run from a feature worktree, not the main repository.")
+    exit(1)
+```
+
+**What this validates**:
+- Current branch follows the feature pattern like `001-feature-name`
+- You're not attempting to run from `main` or any release branch
+- The validator prints clear navigation instructions if you're outside the feature worktree
+
 ## What This Command Does
 
 1. **Detects** your current feature branch and worktree status

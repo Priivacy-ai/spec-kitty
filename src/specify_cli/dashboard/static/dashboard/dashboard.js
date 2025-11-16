@@ -8,6 +8,62 @@ let activeWorktreeDisplay = 'detecting…';
 let featureWorktreeDisplay = 'select a feature';
 let featureSelectActive = false;
 let featureSelectIdleTimer = null;
+let activeMission = {
+    name: 'Loading…',
+    domain: '',
+    version: '',
+    slug: '',
+    path: '',
+    description: ''
+};
+
+if (typeof window !== 'undefined' && window.__INITIAL_MISSION__) {
+    activeMission = window.__INITIAL_MISSION__;
+}
+
+function updateMissionDisplay(mission) {
+    const container = document.getElementById('mission-display');
+    if (!container) return;
+
+    if (mission) {
+        activeMission = mission;
+    }
+
+    const nameEl = document.getElementById('mission-name');
+    const domainEl = document.getElementById('mission-domain');
+    const versionEl = document.getElementById('mission-version');
+    const pathEl = document.getElementById('mission-path');
+
+    if (nameEl) {
+        nameEl.textContent = activeMission.name || 'Unknown mission';
+    }
+
+    if (domainEl) {
+        domainEl.textContent = activeMission.domain ? `(${activeMission.domain})` : '';
+    }
+
+    if (versionEl) {
+        versionEl.textContent = activeMission.version ? `Version ${activeMission.version}` : '';
+        versionEl.style.display = activeMission.version ? 'block' : 'none';
+    }
+
+    if (pathEl) {
+        pathEl.textContent = activeMission.path || '';
+        pathEl.style.display = activeMission.path ? 'block' : 'none';
+    }
+
+    container.title = activeMission.description || activeMission.path || 'Active mission';
+}
+
+function registerMissionRefreshButton() {
+    const button = document.getElementById('mission-refresh-button');
+    if (!button) {
+        return;
+    }
+    button.addEventListener('click', () => {
+        window.location.reload();
+    });
+}
 
 // Cookie-based state persistence
 function restoreState() {
@@ -988,6 +1044,10 @@ function fetchData(isInitialLoad = false) {
                 activeWorktreeDisplay = '';
             }
 
+            if (data.active_mission) {
+                updateMissionDisplay(data.active_mission);
+            }
+
             const currentFeatureObj = allFeatures.find(f => f.id === currentFeature);
             computeFeatureWorktreeStatus(currentFeatureObj || null);
             updateTreeInfo();
@@ -1187,6 +1247,8 @@ function refreshDiagnostics() {
     loadDiagnostics();
 }
 
+registerMissionRefreshButton();
+updateMissionDisplay();
 updateTreeInfo();
 fetchData(true);  // Pass true for initial load
 
