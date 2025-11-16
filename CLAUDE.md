@@ -29,4 +29,11 @@ Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 - 003-auto-protect-agent: Added Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (for console output), subprocess (for git operations)
 
 <!-- MANUAL ADDITIONS START -->
+
+ Never claim something in the frontend works without Playwright proof.
+
+  - API responses don't guarantee UI works
+  - Frontend can break silently (404 caught, shows fallback)
+  - Always test the actual user experience, not just backend
+
 <!-- MANUAL ADDITIONS END -->
