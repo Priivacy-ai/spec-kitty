@@ -969,8 +969,10 @@ function updateFeatureList(features) {
 function updateFeatureListSilent(features) {
     // Same as updateFeatureList but doesn't reload the current page
     // Used during polling to avoid resetting user's view
+    const oldFeature = allFeatures.find(f => f.id === currentFeature);
     allFeatures = features;
     const feature = features.find(f => f.id === currentFeature);
+
     if (feature && feature.workflow) {
         updateWorkflowIcons(feature.workflow);
         computeFeatureWorktreeStatus(feature);
@@ -978,7 +980,15 @@ function updateFeatureListSilent(features) {
         computeFeatureWorktreeStatus(null);
     }
     updateSidebarState();
-    // Note: We intentionally don't call loadCurrentPage() here
+
+    // Detect artifact changes and reload overview if artifacts changed
+    if (currentPage === 'overview' && oldFeature && feature) {
+        const oldArtifacts = JSON.stringify(oldFeature.artifacts);
+        const newArtifacts = JSON.stringify(feature.artifacts);
+        if (oldArtifacts !== newArtifacts) {
+            loadOverview();
+        }
+    }
 }
 
 function fetchData(isInitialLoad = false) {
