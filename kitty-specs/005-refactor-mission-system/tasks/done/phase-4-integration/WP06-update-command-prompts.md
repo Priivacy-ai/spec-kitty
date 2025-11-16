@@ -11,10 +11,10 @@ subtasks:
   - "T048"
 title: "Update Command Prompts"
 phase: "Phase 4 - Integration"
-lane: "for_review"
+lane: "done"
 assignee: "codex"
-agent: "codex"
-shell_pid: "61551"
+agent: "claude"
+shell_pid: "5794"
 history:
   - timestamp: "2025-01-16T00:00:00Z"
     lane: "planned"
@@ -543,3 +543,4 @@ This validates you're on a feature branch in a worktree, not on main.
 - 2025-11-16T13:03:43Z – codex – shell_pid=61551 – lane=doing – Started implementation
 - 2025-11-16T13:22:26Z – codex – shell_pid=61551 – lane=doing – Completed implementation
 - 2025-11-16T13:23:09Z – codex – shell_pid=61551 – lane=for_review – Ready for review
+- 2025-11-16T13:28:15Z – claude – shell_pid=5794 – lane=done – Code review complete: APPROVED. Successfully updated 4 command prompts in .kittify/templates/commands/ to use shared guards.validate_worktree_location(). DRY violation eliminated (45 lines removed, 62 added for cleaner Python calls). All commands now use identical validation logic from WP01. Research commands include citation tracking guidance. Ready for production.
