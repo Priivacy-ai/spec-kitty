@@ -190,16 +190,16 @@ def init(
             for agent_key, display_name, url in missing_agents:
                 lines.append(f"[cyan]{display_name}[/cyan] ({agent_key}) → install: [cyan]{url}[/cyan]")
             lines.append("")
-            lines.append("Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check")
-            error_panel = Panel(
+            lines.append("These tools are optional. You can install them later to enable additional features.")
+            warning_panel = Panel(
                 "\n".join(lines),
-                title="[red]Agent Tool(s) Missing[/red]",
-                border_style="red",
+                title="[yellow]Optional Agent Tool(s) Not Found[/yellow]",
+                border_style="yellow",
                 padding=(1, 2),
             )
             _console.print()
-            _console.print(error_panel)
-            raise typer.Exit(1)
+            _console.print(warning_panel)
+            # Continue with init instead of blocking
 
     # Determine script type (explicit, interactive, or OS default)
     if script_type:
