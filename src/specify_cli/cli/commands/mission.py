@@ -20,6 +20,7 @@ from specify_cli.mission import (
     list_available_missions,
     set_active_mission,
 )
+from specify_cli.validators.paths import validate_mission_paths
 
 app = typer.Typer(
     name="mission",
@@ -270,21 +271,40 @@ def switch_cmd(
         raise typer.Exit(0)
 
     warnings: List[str] = []
+    artifact_warnings: List[str] = []
     for artifact in target_mission.config.artifacts.required:
         artifact_path = project_root / artifact
         if not artifact_path.exists():
-            warnings.append(f"Required artifact missing: {artifact}")
+            message = f"Required artifact missing: {artifact}"
+            warnings.append(message)
+            artifact_warnings.append(message)
+
+    path_warning_text = ""
+    if target_mission.config.paths:
+        path_result = validate_mission_paths(
+            target_mission,
+            project_root,
+            strict=False,
+        )
+        if not path_result.is_valid:
+            warnings.extend(path_result.warnings)
+            path_warning_text = path_result.format_warnings()
 
     console.print("\n[cyan]Switch Summary[/cyan]")
     console.print(f"  From: {current_display}")
     console.print(f"  To:   {target_mission.name}")
     console.print(f"  Domain: {target_mission.domain}")
 
-    if warnings:
+    if artifact_warnings:
         console.print("\n[yellow]Warnings:[/yellow]")
-        for warning in warnings:
+        for warning in artifact_warnings:
             console.print(f"  • {warning}")
         console.print("[dim]You can create these artifacts after switching.[/dim]")
+
+    if path_warning_text:
+        console.print("")
+        console.print(path_warning_text)
+        console.print("\n[dim]You can create these directories after switching.[/dim]")
 
     if not force:
         typer.echo("")

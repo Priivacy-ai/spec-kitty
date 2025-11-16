@@ -1,8 +1,10 @@
-"""Unit tests for research citation validators."""
+"""Unit tests for mission validators (citations, paths, etc.)."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Dict
 
 import pytest
 
@@ -16,6 +18,12 @@ from specify_cli.validators.research import (
     is_simple_format,
     validate_citations,
     validate_source_register,
+)
+from specify_cli.validators.paths import (
+    PathValidationError,
+    PathValidationResult,
+    suggest_directory_creation,
+    validate_mission_paths,
 )
 
 
@@ -146,3 +154,72 @@ def test_validation_result_format_report() -> None:
     assert "ERRORS" in report
     assert "WARNINGS" in report
     assert "Line 2" in report
+
+
+class _MissionStub:
+    """Minimal mission-like object for path validator tests."""
+
+    def __init__(self, name: str, paths: Dict[str, str]) -> None:
+        self.name = name
+        self.config = SimpleNamespace(paths=paths)
+
+
+def test_validate_paths_all_exist(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "tests").mkdir()
+
+    mission = _MissionStub("Software Dev Kitty", {"workspace": "src/", "tests": "tests/"})
+    result = validate_mission_paths(mission, tmp_path, strict=False)
+
+    assert result.is_valid
+    assert result.existing_paths == ["src/", "tests/"]
+    assert not result.warnings
+
+
+def test_validate_paths_warns_when_missing(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    mission = _MissionStub("Software Dev Kitty", {"workspace": "src/", "tests": "tests/"})
+
+    result = validate_mission_paths(mission, tmp_path, strict=False)
+
+    assert not result.is_valid
+    assert result.missing_paths == ["tests/"]
+    assert any("tests/" in warning for warning in result.warnings)
+    assert any("mkdir -p tests/" in suggestion for suggestion in result.suggestions)
+
+
+def test_validate_paths_strict_mode_raises(tmp_path: Path) -> None:
+    mission = _MissionStub("Software Dev Kitty", {"workspace": "src/"})
+
+    with pytest.raises(PathValidationError) as excinfo:
+        validate_mission_paths(mission, tmp_path, strict=True)
+
+    assert excinfo.value.result.missing_paths == ["src/"]
+    assert "Path Convention Errors" in excinfo.value.result.format_errors()
+
+
+def test_suggest_directory_creation_handles_files_and_dirs() -> None:
+    suggestions = suggest_directory_creation(["src/", "tests/", "README.md", "scripts"])
+    joined = "Create directories in one go" in suggestions[0]
+    assert joined
+    assert any("touch README.md" in suggestion for suggestion in suggestions)
+    assert any("mkdir -p scripts" in suggestion for suggestion in suggestions)
+
+
+def test_path_validation_result_formatters() -> None:
+    result = PathValidationResult(
+        mission_name="Research Kitty",
+        required_paths={"workspace": "research/"},
+        existing_paths=[],
+        missing_paths=["research/"],
+        warnings=["Research Kitty expects workspace path: research/ (not found)"],
+        suggestions=["mkdir -p research/"],
+    )
+
+    warnings_text = result.format_warnings()
+    errors_text = result.format_errors()
+
+    assert "Path Convention Warnings" in warnings_text
+    assert "Suggestions" in warnings_text
+    assert "Path Convention Errors" in errors_text
+    assert "Research Kitty" in errors_text
