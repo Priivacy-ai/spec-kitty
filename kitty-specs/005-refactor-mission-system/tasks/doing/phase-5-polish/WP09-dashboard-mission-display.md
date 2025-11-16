@@ -9,12 +9,12 @@ subtasks:
   - "T067"
 title: "Dashboard Mission Display"
 phase: "Phase 5 - Polish"
-lane: "planned"
+lane: "doing"
 review_status: "has_feedback"
 reviewed_by: "codex"
 assignee: ""
 agent: "codex"
-shell_pid: "15588"
+shell_pid: "60030"
 history:
   - timestamp: "2025-01-16T00:00:00Z"
     lane: "planned"
@@ -479,3 +479,4 @@ history:
 - 2025-11-16T13:30:15Z – codex – shell_pid=4035 – lane=for_review – Ready for review
 - 2025-11-16T14:02:45Z – codex – shell_pid=15588 – lane=planned – Review feedback: Server still missing mission context injection
 - 2025-11-16T14:03:33Z – codex – shell_pid=15588 – lane=planned – Code review complete: needs mission context injection
+- 2025-11-16T14:06:03Z – codex – shell_pid=60030 – lane=doing – Started implementation
