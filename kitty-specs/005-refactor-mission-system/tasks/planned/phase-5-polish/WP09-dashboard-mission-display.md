@@ -9,10 +9,12 @@ subtasks:
   - "T067"
 title: "Dashboard Mission Display"
 phase: "Phase 5 - Polish"
-lane: "for_review"
+lane: "planned"
+review_status: "has_feedback"
+reviewed_by: "codex"
 assignee: ""
 agent: "codex"
-shell_pid: "4035"
+shell_pid: "15588"
 history:
   - timestamp: "2025-01-16T00:00:00Z"
     lane: "planned"
@@ -20,6 +22,21 @@ history:
     shell_pid: ""
     action: "Prompt generated via /spec-kitty.tasks"
 ---
+
+## Review Feedback
+
+**Status**: ❌ **Needs Changes**
+
+**Key Issues**:
+1. **Server still omits mission context** – Subtask T062 and the research decision both call for adding the active mission details to the dashboard template context at render time (see spec FR-027/Instruction T062). The current change only attaches mission data to the `/api/features` response in `FeatureHandler.handle_features_list`, so the page continues to render without populated mission data unless the polling request succeeds. If the API request fails or JavaScript is disabled, the new header never shows the mission, defeating the requirement for server-side availability.
+
+**What Was Done Well**:
+- Header styling and refresh affordance align nicely with the dashboard aesthetic.
+- Reusing the features API to keep mission data updated automatically was a good idea for real-time changes.
+
+**Action Items** (must complete before re-review):
+- [ ] Update the dashboard root handler (e.g., `handle_root` or template loader) to inject the active mission context into the initial HTML payload so the mission display renders immediately, even before polling occurs.
+- [ ] Ensure the inline mission data mirrors the structure returned by `/api/features` so the client-side update logic continues to work after the first render.
 
 # Work Package Prompt: WP09 – Dashboard Mission Display
 
@@ -460,3 +477,5 @@ history:
 - 2025-11-16T13:25:04Z – codex – shell_pid=4035 – lane=doing – Started implementation
 - 2025-11-16T13:29:56Z – codex – shell_pid=4035 – lane=doing – Completed implementation
 - 2025-11-16T13:30:15Z – codex – shell_pid=4035 – lane=for_review – Ready for review
+- 2025-11-16T14:02:45Z – codex – shell_pid=15588 – lane=planned – Review feedback: Server still missing mission context injection
+- 2025-11-16T14:03:33Z – codex – shell_pid=15588 – lane=planned – Code review complete: needs mission context injection
