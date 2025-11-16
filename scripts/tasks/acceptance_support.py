@@ -286,6 +286,27 @@ def _missing_artifacts(feature_dir: Path) -> Tuple[List[str], List[str]]:
 
 
 def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
+    """Normalize file encoding from Windows-1252 to UTF-8 with ASCII character mapping.
+
+    Converts Windows-1252 encoded files to UTF-8, replacing Unicode smart quotes
+    and special characters with ASCII equivalents for maximum compatibility.
+    """
+    # Map Unicode characters to ASCII equivalents
+    NORMALIZE_MAP = {
+        '\u2018': "'",    # Left single quotation mark → apostrophe
+        '\u2019': "'",    # Right single quotation mark → apostrophe
+        '\u201A': "'",    # Single low-9 quotation mark → apostrophe
+        '\u201C': '"',    # Left double quotation mark → straight quote
+        '\u201D': '"',    # Right double quotation mark → straight quote
+        '\u201E': '"',    # Double low-9 quotation mark → straight quote
+        '\u2014': '--',   # Em dash → double hyphen
+        '\u2013': '-',    # En dash → hyphen
+        '\u2026': '...',  # Horizontal ellipsis → three dots
+        '\u00A0': ' ',    # Non-breaking space → regular space
+        '\u2022': '*',    # Bullet → asterisk
+        '\u00B7': '*',    # Middle dot → asterisk
+    }
+
     feature_dir = repo_root / "kitty-specs" / feature
     if not feature_dir.exists():
         return []
@@ -327,6 +348,10 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
                 continue
         if text is None:
             text = data.decode("utf-8", errors="replace")
+
+        # Normalize Unicode characters to ASCII equivalents
+        for unicode_char, ascii_replacement in NORMALIZE_MAP.items():
+            text = text.replace(unicode_char, ascii_replacement)
 
         path.write_text(text, encoding="utf-8")
         rewritten.append(path)
