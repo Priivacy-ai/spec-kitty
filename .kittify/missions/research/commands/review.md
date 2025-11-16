@@ -35,47 +35,41 @@ if not result.is_valid:
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
-## Citation Validation (Research Mission)
+## Citation Validation (Research Mission Specific)
 
-Before proceeding with code review, validate research citations:
+Before reviewing research tasks, validate all citations and sources:
 
 ```python
+from pathlib import Path
 from specify_cli.validators.research import validate_citations, validate_source_register
 
 # Validate evidence log
 evidence_log = FEATURE_DIR / "research" / "evidence-log.csv"
-result = validate_citations(evidence_log)
-
-if result.has_errors:
-    print(result.format_report())
-    print("\n[red]ERROR:[/red] Citation validation failed.")
-    print("Fix errors in evidence-log.csv before proceeding.")
-    exit(1)
-
-if result.warning_count > 0:
-    print(result.format_report())
-    print("\n[yellow]Warnings found.[/yellow] Consider improving citation quality.")
+if evidence_log.exists():
+    result = validate_citations(evidence_log)
+    if result.has_errors:
+        print(result.format_report())
+        print("\nERROR: Citation validation failed. Fix errors before proceeding.")
+        exit(1)
+    elif result.warning_count > 0:
+        print(result.format_report())
+        print("\nWarnings found - consider addressing for better citation quality.")
 
 # Validate source register
 source_register = FEATURE_DIR / "research" / "source-register.csv"
-result = validate_source_register(source_register)
-
-if result.has_errors:
-    print(result.format_report())
-    print("\n[red]ERROR:[/red] Source register validation failed.")
-    exit(1)
+if source_register.exists():
+    result = validate_source_register(source_register)
+    if result.has_errors:
+        print(result.format_report())
+        print("\nERROR: Source register validation failed.")
+        exit(1)
 ```
 
-**What gets validated**:
-- All citations non-empty
-- source_type values valid
-- confidence levels valid
-- source_id uniqueness
-- Citation format recognized (warning if not)
-
-**Action if validation fails**:
-- Return task to implementer with specific citation issues
-- Do not proceed with review until fixed
+**Validation Requirements**:
+- All sources must be documented with unique `source_id` entries.
+- Citations must be present in both CSVs (format warnings are advisory).
+- Confidence levels should be filled for evidence entries.
+- Research review cannot proceed if validation reports blocking errors.
 
 ## Outline
 
