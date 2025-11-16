@@ -12,7 +12,7 @@ subtasks:
 title: "Path Convention Validation"
 phase: "Phase 4 - Integration"
 lane: "doing"
-assignee: ""
+assignee: "codex"
 agent: "codex"
 shell_pid: "5621"
 history:
