@@ -27,6 +27,7 @@ from task_helpers import (  # noqa: E402
     ensure_lane,
     find_repo_root,
     git_status_lines,
+    is_file_tracked,
     normalize_note,
     now_utc,
     path_has_changes,
@@ -252,7 +253,15 @@ def move_command(args: argparse.Namespace) -> None:
     status_lines = git_status_lines(repo_root)
     if not args.dry_run:
         source_rel = wp.path.relative_to(repo_root)
-        if path_has_changes(status_lines, source_rel):
+        # Ensure the source file is tracked before attempting to move it
+        if not is_file_tracked(repo_root, wp.path):
+            # File is untracked - add it first so git rm will work later
+            if wp.path.exists():
+                run_git(["add", str(source_rel)], cwd=repo_root, check=True)
+                status_lines = git_status_lines(repo_root)
+                print(f"[spec-kitty] Added untracked file: {source_rel}", file=sys.stderr)
+        elif path_has_changes(status_lines, source_rel):
+            # File is tracked but has unstaged changes - stage them
             run_git(["add", str(source_rel)], cwd=repo_root, check=True)
             status_lines = git_status_lines(repo_root)
     new_path = (

@@ -81,6 +81,24 @@ def path_has_changes(status_lines: List[str], path: Path) -> bool:
     return False
 
 
+def is_file_tracked(repo_root: Path, file_path: Path) -> bool:
+    """Check if a file is tracked by git.
+
+    Returns True if the file is tracked (in git's index), False if untracked.
+    """
+    try:
+        rel_path = file_path.relative_to(repo_root)
+    except ValueError:
+        return False
+
+    result = run_git(
+        ["ls-files", "--error-unmatch", str(rel_path)],
+        cwd=repo_root,
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def normalize_note(note: Optional[str], target_lane: str) -> str:
     default = f"Moved to {target_lane}"
     cleaned = (note or default).strip()
@@ -375,10 +393,12 @@ __all__ = [
     "extract_scalar",
     "find_repo_root",
     "git_status_lines",
+    "is_file_tracked",
     "load_meta",
     "locate_work_package",
     "normalize_note",
     "now_utc",
+    "path_has_changes",
     "run_git",
     "set_scalar",
     "split_frontmatter",
