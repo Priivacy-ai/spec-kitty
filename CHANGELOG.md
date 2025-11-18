@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2025-11-18
+
+### Fixed
+
+- **Untracked Task File Moves** – Task move workflow now handles untracked files:
+  - Added `is_file_tracked()` helper to detect if file is in git index
+  - Move command automatically stages untracked source files before moving
+  - Fixes `/spec-kitty.implement` failures when `/spec-kitty.tasks` doesn't commit
+  - Provides clear feedback: `[spec-kitty] Added untracked file: ...`
+  - Defensive fix works with both existing untracked files and future workflows
+
 ## [0.6.0] - 2025-11-16
 
 ### Fixed
