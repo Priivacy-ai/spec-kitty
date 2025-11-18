@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2025-11-18
+
+### Fixed
+
+- **PowerShell Wrapper Parameter Handling** – Windows lane transitions now work correctly:
+  - Fixed `tasks-move-to-lane.ps1` to properly parse named PowerShell parameters
+  - Translates Spec Kitty's named params (`-FeatureName`, `-TaskId`, `-TargetLane`) to `tasks_cli.py` positional args
+  - Resolves `unrecognized arguments` error that broke `/spec-kitty.review` on Windows
+  - Maintains backward compatibility with positional argument usage
+  - Fixes #34
+
 ## [0.6.1] - 2025-11-18
 
 ### Fixed
