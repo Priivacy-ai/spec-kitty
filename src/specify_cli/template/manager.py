@@ -157,8 +157,9 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
                 shutil.copyfileobj(src, dst)
 
     missions_resource_candidates = [
-        data_root.joinpath(".kittify", "missions"),
-        data_root.joinpath("template_data", "missions"),
+        data_root.joinpath("missions"),  # Primary location per pyproject.toml
+        data_root.joinpath(".kittify", "missions"),  # Legacy fallback
+        data_root.joinpath("template_data", "missions"),  # Legacy fallback
     ]
     for missions_resource in missions_resource_candidates:
         if missions_resource.exists():

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2025-11-25
+
+### Fixed
+
+- **Mission Directory Not Copied During Init** – Projects initialized with `spec-kitty init` now correctly receive mission templates:
+  - Fixed `copy_specify_base_from_package()` to look at correct path `specify_cli/missions` (matching pyproject.toml)
+  - Previously looked at wrong paths: `.kittify/missions` and `template_data/missions`
+  - `software-dev` mission was missing from initialized projects, breaking `/spec-kitty.plan` and other commands
+  - Root cause: pyproject.toml packages missions to `specify_cli/missions` but code looked elsewhere
+
 ## [0.6.2] - 2025-11-18
 
 ### Fixed
