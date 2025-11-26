@@ -226,3 +226,22 @@ function Test-DirHasFiles {
         return $false
     }
 }
+
+
+function Activate-RepoVenv {
+    $repoRoot = Get-RepoRoot
+    $venvPath = Join-Path $repoRoot ".venv"
+    $activateScript = Join-Path $venvPath "Scripts/Activate.ps1"
+    if (Test-Path $activateScript) {
+        Write-Output "Activating virtual environment at $venvPath"
+        & $activateScript
+    } else {
+        Write-Warning ".venv not found at repo root: $venvPath"
+    }
+}
+
+# Optionally, auto-activate if not already in a venv
+if (-not $env:VIRTUAL_ENV) {
+    Activate-RepoVenv
+}
+
