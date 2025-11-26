@@ -246,7 +246,7 @@ def _read_file(path: Path) -> str:
 
 def _read_text_strict(path: Path) -> str:
     try:
-        return path.read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError as exc:
         raise ArtifactEncodingError(path, exc) from exc
 
