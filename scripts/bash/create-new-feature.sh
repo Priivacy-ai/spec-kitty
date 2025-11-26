@@ -147,6 +147,36 @@ if [ "$HAS_GIT" = true ]; then
                         WORKTREE_CREATED=true
                         WORKTREE_NOTE="$WORKTREE_PATH"
                         >&2 echo "[spec-kitty] Warning: Reusing existing worktree at $WORKTREE_PATH for $BRANCH_NAME."
+
+                        # Ensure agent command symlinks exist (may be missing in older worktrees)
+                        AGENT_DIRS=(
+                            ".claude/commands"
+                            ".gemini/commands"
+                            ".github/prompts"
+                            ".cursor/commands"
+                            ".qwen/commands"
+                            ".opencode/command"
+                            ".windsurf/workflows"
+                            ".codex/prompts"
+                            ".kilocode/workflows"
+                            ".augment/commands"
+                            ".roo/commands"
+                            ".amazonq/prompts"
+                        )
+
+                        for agent_dir in "${AGENT_DIRS[@]}"; do
+                            src_dir="$PRIMARY_REPO_ROOT/$agent_dir"
+                            dest_dir="$WORKTREE_PATH/$agent_dir"
+
+                            if [ -d "$src_dir" ] && [ ! -e "$dest_dir" ]; then
+                                dest_parent="$(dirname "$dest_dir")"
+                                mkdir -p "$dest_parent"
+                                # Relative path: from .worktrees/<feature>/.agent/commands -> main/.agent/commands
+                                # Need to go up 3 levels: commands -> .agent -> feature -> .worktrees -> main
+                                rel_path="../../../$agent_dir"
+                                ln -s "$rel_path" "$dest_dir" 2>/dev/null || true
+                            fi
+                        done
                     else
                         >&2 echo "[spec-kitty] Warning: Existing worktree at $WORKTREE_PATH is checked out to $CURRENT_WORKTREE_BRANCH; skipping worktree creation."
                     fi
@@ -158,6 +188,44 @@ if [ "$HAS_GIT" = true ]; then
                     TARGET_ROOT="$WORKTREE_PATH"
                     WORKTREE_CREATED=true
                     WORKTREE_NOTE="$WORKTREE_PATH"
+
+                    # Symlink agent command directories from main repo to worktree
+                    # This ensures slash commands work in all worktrees for all AI agents
+                    AGENT_DIRS=(
+                        ".claude/commands"
+                        ".gemini/commands"
+                        ".github/prompts"
+                        ".cursor/commands"
+                        ".qwen/commands"
+                        ".opencode/command"
+                        ".windsurf/workflows"
+                        ".codex/prompts"
+                        ".kilocode/workflows"
+                        ".augment/commands"
+                        ".roo/commands"
+                        ".amazonq/prompts"
+                    )
+
+                    for agent_dir in "${AGENT_DIRS[@]}"; do
+                        src_dir="$PRIMARY_REPO_ROOT/$agent_dir"
+                        dest_dir="$WORKTREE_PATH/$agent_dir"
+
+                        if [ -d "$src_dir" ]; then
+                            # Create parent directory if needed
+                            dest_parent="$(dirname "$dest_dir")"
+                            mkdir -p "$dest_parent"
+
+                            # Create symlink (use relative path for portability)
+                            # Relative path: from .worktrees/<feature>/.agent/commands -> main/.agent/commands
+                            # Need to go up 3 levels: commands -> .agent -> feature -> .worktrees -> main
+                            rel_path="../../../$agent_dir"
+
+                            if [ ! -e "$dest_dir" ]; then
+                                ln -s "$rel_path" "$dest_dir" 2>/dev/null || \
+                                    >&2 echo "[spec-kitty] Warning: Could not symlink $agent_dir"
+                            fi
+                        fi
+                    done
                 else
                     >&2 echo "[spec-kitty] Warning: Unable to create git worktree for $BRANCH_NAME; falling back to in-place checkout."
                 fi

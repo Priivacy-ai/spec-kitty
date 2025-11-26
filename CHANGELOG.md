@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.4] - 2025-11-26
+
+### Fixed
+
+- **Agent Commands Missing in Worktrees** – Slash commands now work in all feature worktrees for all AI agents:
+  - `create-new-feature.sh` now symlinks agent command directories from main repo to worktrees
+  - Supports all 12 agent types: Claude, Gemini, Copilot, Cursor, Qwen, OpenCode, Windsurf, Codex, KiloCode, Auggie, Roo, Amazon Q
+  - Fixes `/spec-kitty.research`, `/spec-kitty.plan`, and all other slash commands in worktrees
+  - Existing worktrees get symlinks added when reused (backward compatible)
+  - Root cause: worktrees are separate working directories that don't share `.claude/commands/` etc.
+
 ## [0.6.3] - 2025-11-25
 
 ### Fixed
