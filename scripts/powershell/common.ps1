@@ -227,21 +227,25 @@ function Test-DirHasFiles {
     }
 }
 
-
 function Activate-RepoVenv {
     $repoRoot = Get-RepoRoot
-    $venvPath = Join-Path $repoRoot ".venv"
+    # If inside a .worktrees directory, use its root to detect a VIRTUAL_ENV
+    $venvBase = $repoRoot
+    if ($repoRoot -match ".worktrees") {
+        $venvBase = $repoRoot.Substring(0, $repoRoot.IndexOf(".worktrees"))
+    }
+    $venvPath = Join-Path $venvBase ".venv"
     $activateScript = Join-Path $venvPath "Scripts/Activate.ps1"
-    if (Test-Path $activateScript) {
-        Write-Output "Activating virtual environment at $venvPath"
-        & $activateScript
-    } else {
-        Write-Warning ".venv not found at repo root: $venvPath"
+    if (-not $env:VIRTUAL_ENV) {
+        if (Test-Path $activateScript) {
+            Write-Output "Activating virtual environment at $venvPath"
+            $env:VIRTUAL_ENV = $venvPath
+            & $activateScript
+        } else {
+            Write-Warning ".venv not found at repo root: $venvPath"
+        }
     }
 }
 
-# Optionally, auto-activate if not already in a venv
-if (-not $env:VIRTUAL_ENV) {
-    Activate-RepoVenv
-}
-
+# auto-activate if not already in a venv
+Activate-RepoVenv
