@@ -184,7 +184,7 @@ def validate_citations(evidence_log_path: Path) -> CitationValidationResult:
     valid = 0
 
     try:
-        with evidence_log_path.open("r", encoding="utf-8") as handle:
+        with evidence_log_path.open("r", encoding="utf-8-sig") as handle:
             reader = csv.DictReader(handle)
             missing_columns = _missing_columns(reader.fieldnames, EVIDENCE_REQUIRED_COLUMNS)
             if missing_columns:
@@ -296,7 +296,7 @@ def validate_source_register(source_register_path: Path) -> CitationValidationRe
     seen_ids: set[str] = set()
 
     try:
-        with source_register_path.open("r", encoding="utf-8") as handle:
+        with source_register_path.open("r", encoding="utf-8-sig") as handle:
             reader = csv.DictReader(handle)
             missing_columns = _missing_columns(reader.fieldnames, SOURCE_REGISTER_REQUIRED_COLUMNS)
             if missing_columns:

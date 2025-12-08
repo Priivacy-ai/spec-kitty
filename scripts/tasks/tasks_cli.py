@@ -74,7 +74,7 @@ def stage_move(
     new_body = append_activity_log(wp.body, log_entry)
 
     new_content = build_document(wp.frontmatter, new_body, wp.padding)
-    new_path.write_text(new_content, encoding="utf-8")
+    new_path.write_text(new_content, encoding="utf-8-sig")
 
     run_git(["add", str(new_path.relative_to(repo_root))], cwd=repo_root, check=True)
     if wp.path.resolve() != new_path.resolve():
@@ -335,7 +335,7 @@ def history_command(args: argparse.Namespace) -> None:
         return
 
     new_content = build_document(wp.frontmatter, updated_body, wp.padding)
-    wp.path.write_text(new_content, encoding="utf-8")
+    wp.path.write_text(new_content, encoding="utf-8-sig")
     run_git(["add", str(wp.path.relative_to(repo_root))], cwd=repo_root, check=True)
 
     print(f"📝 Appended activity for {wp.work_package_id or wp.path.name}")
@@ -354,7 +354,7 @@ def list_command(args: argparse.Namespace) -> None:
         if not lane_dir.exists():
             continue
         for path in sorted(lane_dir.rglob("*.md")):
-            text = path.read_text(encoding="utf-8")
+            text = path.read_text(encoding="utf-8-sig")
             front, body, padding = split_frontmatter(text)
             wp = WorkPackage(
                 feature=args.feature,
@@ -608,7 +608,7 @@ def _prepare_merge_metadata(
     meta: Dict[str, Any] = {}
     if meta_path.exists():
         try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
         except json.JSONDecodeError:
             meta = {}
 
@@ -626,7 +626,7 @@ def _prepare_merge_metadata(
     meta["merged_strategy"] = strategy
     meta["merged_push"] = pushed
 
-    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8-sig")
     return meta_path
 
 
@@ -635,7 +635,7 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
         return
 
     try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError:
         meta = {}
 
@@ -645,7 +645,7 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
             history[-1]["merge_commit"] = merge_commit
     meta["merged_commit"] = merge_commit
 
-    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8-sig")
 
 def merge_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()

@@ -155,7 +155,7 @@ def sanitize_file(
     try:
         # Try reading as UTF-8 first
         try:
-            original_text = file_path.read_text(encoding="utf-8")
+            original_text = file_path.read_text(encoding="utf-8-sig")
             encoding_issue = False
         except UnicodeDecodeError:
             # Fall back to cp1252 or latin-1
@@ -187,7 +187,7 @@ def sanitize_file(
             backup_path.write_bytes(file_path.read_bytes())
 
         # Write sanitized content
-        file_path.write_text(sanitized_text, encoding="utf-8")
+        file_path.write_text(sanitized_text, encoding="utf-8-sig")
         return True, None
 
     except Exception as exc:

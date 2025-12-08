@@ -267,7 +267,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
         )
 
     lane, path, lane_path = candidates[0]
-    text = path.read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8-sig")
     front, body, padding = split_frontmatter(text)
     relative = path.relative_to(lane_path)
     return WorkPackage(
@@ -284,7 +284,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
 def load_meta(meta_path: Path) -> Dict:
     if not meta_path.exists():
         raise TaskCliError(f"Meta file not found at {meta_path}")
-    return json.loads(meta_path.read_text(encoding="utf-8"))
+    return json.loads(meta_path.read_text(encoding="utf-8-sig"))
 
 
 __all__ = [

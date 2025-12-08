@@ -246,7 +246,7 @@ def _read_file(path: Path) -> str:
 
 def _read_text_strict(path: Path) -> str:
     try:
-        return path.read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError as exc:
         raise ArtifactEncodingError(path, exc) from exc
 
@@ -353,7 +353,7 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
         for unicode_char, ascii_replacement in NORMALIZE_MAP.items():
             text = text.replace(unicode_char, ascii_replacement)
 
-        path.write_text(text, encoding="utf-8")
+        path.write_text(text, encoding="utf-8-sig")
         rewritten.append(path)
 
     return rewritten
@@ -571,7 +571,7 @@ def perform_acceptance(
         if len(history) > 20:
             meta["acceptance_history"] = history[-20:]
 
-        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8-sig")
         run_git(
             ["add", str(meta_path.relative_to(summary.repo_root))],
             cwd=summary.repo_root,

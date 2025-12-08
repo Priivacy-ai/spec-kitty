@@ -65,7 +65,7 @@ def detect_lane_mismatch(task_file: Path) -> tuple[bool, Optional[str], Optional
 
     # Read frontmatter
     try:
-        content = task_file.read_text(encoding="utf-8")
+        content = task_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = parse_frontmatter(content)
     except Exception:
         return False, expected_lane, None
@@ -116,7 +116,7 @@ def repair_lane_mismatch(
         return False, f"Could not determine expected lane for {task_file.name}"
 
     try:
-        content = task_file.read_text(encoding="utf-8")
+        content = task_file.read_text(encoding="utf-8-sig")
         frontmatter, body, padding = parse_frontmatter(content)
     except Exception as exc:
         return False, f"Failed to parse frontmatter: {exc}"
@@ -163,7 +163,7 @@ def repair_lane_mismatch(
         # Convert frontmatter dict back to YAML string
         frontmatter_yaml = yaml.dump(frontmatter, default_flow_style=False, allow_unicode=True, sort_keys=False)
         new_content = build_document(frontmatter_yaml, body, padding)
-        task_file.write_text(new_content, encoding="utf-8")
+        task_file.write_text(new_content, encoding="utf-8-sig")
         return True, None
     except Exception as exc:
         return False, f"Failed to write file: {exc}"
@@ -205,7 +205,7 @@ def validate_task_metadata(task_file: Path) -> list[str]:
 
     # Parse frontmatter
     try:
-        content = task_file.read_text(encoding="utf-8")
+        content = task_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = parse_frontmatter(content)
     except Exception as exc:
         issues.append(f"Failed to parse frontmatter: {exc}")

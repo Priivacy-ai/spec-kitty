@@ -58,7 +58,7 @@ def read_file_resilient(
 
     try:
         # Try strict UTF-8 first
-        content = file_path.read_text(encoding="utf-8")
+        content = file_path.read_text(encoding="utf-8-sig")
         return content, None
     except UnicodeDecodeError as exc:
         # Log the encoding error
@@ -83,7 +83,7 @@ def read_file_resilient(
 
             if was_modified:
                 # Read the fixed file
-                content = file_path.read_text(encoding="utf-8")
+                content = file_path.read_text(encoding="utf-8-sig")
                 logger.info(f"Successfully fixed encoding for {file_path.name}")
                 return content, None
             else:
@@ -246,7 +246,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
         meta_path = feature_dir / "meta.json"
         if meta_path.exists():
             try:
-                meta_data = json.loads(meta_path.read_text(encoding="utf-8"))
+                meta_data = json.loads(meta_path.read_text(encoding="utf-8-sig"))
                 potential_name = meta_data.get("friendly_name")
                 if isinstance(potential_name, str) and potential_name.strip():
                     friendly_name = potential_name.strip()

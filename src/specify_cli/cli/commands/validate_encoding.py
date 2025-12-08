@@ -148,7 +148,7 @@ def _validate_feature_dir(feature_dir: Path, *, fix: bool, backup: bool) -> tupl
             try:
                 # Read with fallback encoding
                 try:
-                    content = first_file.read_text(encoding="utf-8")
+                    content = first_file.read_text(encoding="utf-8-sig")
                 except UnicodeDecodeError:
                     content_bytes = first_file.read_bytes()
                     for encoding in ("cp1252", "latin-1"):

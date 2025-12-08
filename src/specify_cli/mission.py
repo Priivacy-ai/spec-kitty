@@ -408,7 +408,7 @@ def get_active_mission(project_root: Optional[Path] = None) -> Mission:
             mission_path = active_mission_link.resolve()
         elif active_mission_link.is_file():
             try:
-                mission_name = active_mission_link.read_text(encoding="utf-8").strip()
+                mission_name = active_mission_link.read_text(encoding="utf-8-sig").strip()
             except OSError:
                 mission_name = ""
             if mission_name:
@@ -517,4 +517,4 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
         active_mission_link.symlink_to(Path("missions") / mission_name)
     except (OSError, NotImplementedError):
         # Fall back to plain file marker when symlinks are unavailable
-        active_mission_link.write_text(f"{mission_name}\n", encoding="utf-8")
+        active_mission_link.write_text(f"{mission_name}\n", encoding="utf-8-sig")

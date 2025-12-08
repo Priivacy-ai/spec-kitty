@@ -49,7 +49,7 @@ def detect_unfilled_plan(plan_path: Path) -> tuple[bool, list[str]]:
         return False, []
 
     try:
-        content = plan_path.read_text(encoding="utf-8")
+        content = plan_path.read_text(encoding="utf-8-sig")
     except Exception:
         # If we can't read it, assume it's filled (don't block progress)
         return False, []

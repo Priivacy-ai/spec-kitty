@@ -93,7 +93,7 @@ def get_active_mission_key(project_path: Path) -> str:
 
     if active_path.is_file():
         try:
-            key = active_path.read_text(encoding="utf-8").strip()
+            key = active_path.read_text(encoding="utf-8-sig").strip()
             if key:
                 return key
         except OSError:
