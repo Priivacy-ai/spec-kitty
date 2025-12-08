@@ -329,3 +329,35 @@ EOF
 
 check_file() { [[ -f "$1" ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
 check_dir() { [[ -d "$1" && -n $(ls -A "$1" 2>/dev/null) ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
+
+activate_repo_venv() {
+    # Activate the project's Python virtual environment if it exists.
+    # This ensures that any Python code executed by spec-kitty uses the project's
+    # dependencies rather than the system Python environment.
+    #
+    # Handles worktree edge case: if called from within a .worktrees directory,
+    # looks for .venv in the parent repository root instead.
+
+    local repo_root
+    repo_root=$(get_repo_root)
+
+    # If inside a .worktrees directory, use its root to detect .venv
+    local venv_base="$repo_root"
+    if [[ "$repo_root" == *".worktrees"* ]]; then
+        venv_base="${repo_root%%/.worktrees*}"
+    fi
+
+    local venv_path="$venv_base/.venv"
+    local activate_script="$venv_path/bin/activate"
+
+    # Only activate if not already in a virtual environment
+    if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+        if [[ -f "$activate_script" ]]; then
+            echo "[spec-kitty] Activating virtual environment at $venv_path"
+            # shellcheck source=/dev/null
+            source "$activate_script"
+        else
+            echo "[spec-kitty] Warning: .venv not found at repo root: $venv_path" >&2
+        fi
+    fi
+}

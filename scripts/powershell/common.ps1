@@ -228,24 +228,40 @@ function Test-DirHasFiles {
 }
 
 function Activate-RepoVenv {
+    <#
+    .SYNOPSIS
+    Activate the project's Python virtual environment if it exists.
+
+    .DESCRIPTION
+    Activates the project's Python virtual environment to ensure that any Python
+    code executed by spec-kitty uses the project's dependencies rather than the
+    system Python environment.
+
+    Handles worktree edge case: if called from within a .worktrees directory,
+    looks for .venv in the parent repository root instead.
+
+    Only activates if not already in a virtual environment (checks $env:VIRTUAL_ENV).
+    #>
+
     $repoRoot = Get-RepoRoot
-    # If inside a .worktrees directory, use its root to detect a VIRTUAL_ENV
+
+    # If inside a .worktrees directory, use its root to detect .venv
     $venvBase = $repoRoot
-    if ($repoRoot -match ".worktrees") {
+    if ($repoRoot -match "\.worktrees") {
         $venvBase = $repoRoot.Substring(0, $repoRoot.IndexOf(".worktrees"))
     }
+
     $venvPath = Join-Path $venvBase ".venv"
     $activateScript = Join-Path $venvPath "Scripts/Activate.ps1"
+
+    # Only activate if not already in a virtual environment
     if (-not $env:VIRTUAL_ENV) {
         if (Test-Path $activateScript) {
-            Write-Output "Activating virtual environment at $venvPath"
+            Write-Output "[spec-kitty] Activating virtual environment at $venvPath"
             $env:VIRTUAL_ENV = $venvPath
             & $activateScript
         } else {
-            Write-Warning ".venv not found at repo root: $venvPath"
+            Write-Warning "[spec-kitty] .venv not found at repo root: $venvPath"
         }
     }
 }
-
-# auto-activate if not already in a venv
-Activate-RepoVenv
