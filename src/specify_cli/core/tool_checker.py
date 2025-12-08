@@ -11,7 +11,7 @@ from typing import Dict, Mapping, Tuple, TYPE_CHECKING
 if TYPE_CHECKING:
     from specify_cli.cli import StepTracker
 
-from specify_cli.core.config import AGENT_TOOL_REQUIREMENTS
+from specify_cli.core.config import AGENT_TOOL_REQUIREMENTS, IDE_AGENTS
 
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
 
@@ -25,10 +25,20 @@ def check_tool_for_tracker(tool: str, tracker: "StepTracker") -> bool:
     return False
 
 
-def check_tool(tool: str, install_hint: str) -> bool:
-    """Return True when the tool is available on PATH (with Claude CLI override)."""
+def check_tool(tool: str, install_hint: str, agent_name: str | None = None) -> bool:
+    """Return True when the tool is available on PATH (with Claude CLI override and IDE agent bypass).
+
+    IDE-integrated agents (cursor, windsurf, copilot, kilocode) don't require CLI
+    installation, so we skip the availability check for them.
+    """
+    # Skip CLI checks for IDE agents - they run within the IDE, not as CLI tools
+    if agent_name and agent_name in IDE_AGENTS:
+        return True
+
+    # Special case: Claude local installation
     if tool == "claude" and CLAUDE_LOCAL_PATH.exists() and CLAUDE_LOCAL_PATH.is_file():
         return True
+
     return shutil.which(tool) is not None
 
 

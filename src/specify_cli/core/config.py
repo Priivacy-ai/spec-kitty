@@ -38,6 +38,9 @@ SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
 DEFAULT_TEMPLATE_REPO = "spec-kitty/spec-kitty"
 
+# IDE-integrated agents that don't require CLI installation
+IDE_AGENTS = {"cursor", "windsurf", "copilot", "kilocode"}
+
 AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     "claude": {"dir": ".claude/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
     "gemini": {"dir": ".gemini/commands", "ext": "toml", "arg_format": "{{args}}"},
@@ -88,5 +91,6 @@ __all__ = [
     "SCRIPT_TYPE_CHOICES",
     "DEFAULT_TEMPLATE_REPO",
     "AGENT_COMMAND_CONFIG",
+    "IDE_AGENTS",
     "BANNER",
 ]

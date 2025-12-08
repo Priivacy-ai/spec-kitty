@@ -61,13 +61,32 @@ pipx run spec-kitty-cli init <PROJECT_NAME>
 uvx spec-kitty-cli init <PROJECT_NAME>
 ```
 
-Or initialize in the current directory:
+### Add to Existing Project
+
+To add Spec Kitty to an existing project, use the `--here` flag:
 
 ```bash
+# Navigate to your existing project directory
+cd /path/to/existing-project
+
+# Initialize Spec Kitty in the current directory
 spec-kitty init .
 # or use the --here flag
 spec-kitty init --here
 ```
+
+When adding to an existing project:
+- Spec Kitty will **merge** its templates with your existing files
+- You'll be prompted to confirm if the directory is not empty
+- Use `--force` to skip confirmation: `spec-kitty init --here --force`
+- Agent configurations, mission system, and dashboard will be added
+- Your existing source code and dependencies are preserved
+
+**Best Practices for Existing Projects:**
+1. **Backup first**: Commit your current work to git before adding Spec Kitty
+2. **Review .gitignore**: Spec Kitty automatically protects agent directories in `.gitignore`
+3. **Team alignment**: Add Spec Kitty to a feature branch before merging to main if you're in a team
+4. **Follow the workflow**: After init, run `/spec-kitty.specify` to begin your first feature
 
 ### Choose AI Agent
 

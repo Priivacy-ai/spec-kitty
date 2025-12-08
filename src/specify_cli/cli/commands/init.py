@@ -182,7 +182,7 @@ def init(
             if not requirement:
                 continue
             tool_name, url = requirement
-            if not check_tool(tool_name, url):
+            if not check_tool(tool_name, url, agent_name=agent_key):
                 missing_agents.append((agent_key, AI_CHOICES[agent_key], url))
 
         if missing_agents:
