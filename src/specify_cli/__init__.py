@@ -76,7 +76,7 @@ def activate_mission(project_path: Path, mission_key: str, mission_display: str,
         # Fall back to plain marker file when mission templates are missing or
         # symlinks are unavailable (e.g. Windows without developer mode)
         active_marker = kittify_root / "active-mission"
-        active_marker.write_text(f"{mission_key}\n", encoding="utf-8-sig")
+        active_marker.write_text(f"{mission_key}\n", encoding="utf-8")
 
     return status_detail
 

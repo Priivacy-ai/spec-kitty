@@ -171,6 +171,9 @@ def sanitize_file(
                 # Last resort: replace invalid characters
                 original_text = original_bytes.decode("utf-8", errors="replace")
 
+        # Strip UTF-8 BOM if present in the text
+        original_text = original_text.lstrip('\ufeff')
+
         # Sanitize the text
         sanitized_text = sanitize_markdown_text(original_text)
 
@@ -187,7 +190,7 @@ def sanitize_file(
             backup_path.write_bytes(file_path.read_bytes())
 
         # Write sanitized content
-        file_path.write_text(sanitized_text, encoding="utf-8-sig")
+        file_path.write_text(sanitized_text, encoding="utf-8")
         return True, None
 
     except Exception as exc:

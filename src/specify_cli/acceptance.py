@@ -500,7 +500,7 @@ def perform_acceptance(
         if len(history) > 20:
             meta["acceptance_history"] = history[-20:]
 
-        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8-sig")
+        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         run_git(
             ["add", str(meta_path.relative_to(summary.repo_root))],
             cwd=summary.repo_root,

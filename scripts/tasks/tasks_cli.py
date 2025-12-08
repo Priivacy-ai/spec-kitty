@@ -74,7 +74,7 @@ def stage_move(
     new_body = append_activity_log(wp.body, log_entry)
 
     new_content = build_document(wp.frontmatter, new_body, wp.padding)
-    new_path.write_text(new_content, encoding="utf-8-sig")
+    new_path.write_text(new_content, encoding="utf-8")
 
     run_git(["add", str(new_path.relative_to(repo_root))], cwd=repo_root, check=True)
     if wp.path.resolve() != new_path.resolve():
@@ -335,7 +335,7 @@ def history_command(args: argparse.Namespace) -> None:
         return
 
     new_content = build_document(wp.frontmatter, updated_body, wp.padding)
-    wp.path.write_text(new_content, encoding="utf-8-sig")
+    wp.path.write_text(new_content, encoding="utf-8")
     run_git(["add", str(wp.path.relative_to(repo_root))], cwd=repo_root, check=True)
 
     print(f"📝 Appended activity for {wp.work_package_id or wp.path.name}")
@@ -626,7 +626,7 @@ def _prepare_merge_metadata(
     meta["merged_strategy"] = strategy
     meta["merged_push"] = pushed
 
-    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8-sig")
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return meta_path
 
 
@@ -645,7 +645,7 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
             history[-1]["merge_commit"] = merge_commit
     meta["merged_commit"] = merge_commit
 
-    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8-sig")
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def merge_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()

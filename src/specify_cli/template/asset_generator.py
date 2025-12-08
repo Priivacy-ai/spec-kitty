@@ -35,7 +35,7 @@ def generate_agent_assets(commands_dir: Path, project_path: Path, agent_key: str
         if agent_key == "codex":
             stem = stem.replace("-", "_")
         filename = f"spec-kitty.{stem}.{ext}" if ext else f"spec-kitty.{stem}"
-        (output_dir / filename).write_text(rendered, encoding="utf-8-sig")
+        (output_dir / filename).write_text(rendered, encoding="utf-8")
 
     if agent_key == "copilot":
         vscode_settings = commands_dir.parent / "vscode-settings.json"

@@ -150,7 +150,7 @@ class GitignoreManager:
 
             # Join with detected line ending
             content = self._line_ending.join(lines)
-            self.gitignore_path.write_text(content, encoding="utf-8-sig")
+            self.gitignore_path.write_text(content, encoding="utf-8")
 
         return changed
 

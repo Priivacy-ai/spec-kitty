@@ -517,4 +517,4 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
         active_mission_link.symlink_to(Path("missions") / mission_name)
     except (OSError, NotImplementedError):
         # Fall back to plain file marker when symlinks are unavailable
-        active_mission_link.write_text(f"{mission_name}\n", encoding="utf-8-sig")
+        active_mission_link.write_text(f"{mission_name}\n", encoding="utf-8")
