@@ -543,9 +543,10 @@ function loadContracts() {
 function renderContractsList(files) {
     const contractsHtml = files.map((file, idx) => {
         const fileNameEscaped = escapeHtml(file.name);
+        const filePathEscaped = escapeHtml(file.path);
         return `
             <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid var(--lavender); cursor: pointer;"
-                 data-filename="${fileNameEscaped}" class="contract-item">
+                 data-filepath="${filePathEscaped}" data-filename="${fileNameEscaped}" class="contract-item">
                 <div style="font-weight: 600; color: var(--dark-text); margin-bottom: 5px;">
                     ${file.icon} ${fileNameEscaped}
                 </div>
@@ -566,19 +567,19 @@ function renderContractsList(files) {
     // Add click handlers
     document.querySelectorAll('.contract-item').forEach(item => {
         item.addEventListener('click', () => {
-            loadContractFile(item.dataset.filename);
+            loadContractFile(item.dataset.filepath, item.dataset.filename);
         });
     });
 }
 
-function loadContractFile(fileName) {
-    fetch(`/api/contracts/${currentFeature}/${fileName}`)
+function loadContractFile(filePath, fileName) {
+    fetch(`/api/contracts/${currentFeature}/${encodeURIComponent(filePath)}`)
         .then(response => response.ok ? response.text() : Promise.reject('Not found'))
         .then(content => {
             let htmlContent;
 
             // Format JSON files nicely
-            if (fileName.endsWith('.json')) {
+            if (filePath.endsWith('.json')) {
                 try {
                     const jsonData = JSON.parse(content);
                     const prettyJson = JSON.stringify(jsonData, null, 2);
@@ -587,14 +588,14 @@ function loadContractFile(fileName) {
                     // If JSON parsing fails, show as plain text
                     htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto;"><code>${escapeHtml(content)}</code></pre>`;
                 }
-            } else if (fileName.endsWith('.md')) {
+            } else if (filePath.endsWith('.md')) {
                 // Render markdown files with proper styling
                 const renderedMarkdown = marked.parse(content);
                 htmlContent = `<div class="markdown-content" style="line-height: 1.6; font-size: 0.95em;">${renderedMarkdown}</div>`;
-            } else if (fileName.endsWith('.csv')) {
+            } else if (filePath.endsWith('.csv')) {
                 // Render CSV as a table
                 htmlContent = renderCSV(content);
-            } else if (fileName.endsWith('.yml') || fileName.endsWith('.yaml')) {
+            } else if (filePath.endsWith('.yml') || filePath.endsWith('.yaml')) {
                 // Show YAML files as code blocks
                 htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto; border: 1px solid #dee2e6;"><code style="font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; line-height: 1.5;">${escapeHtml(content)}</code></pre>`;
             } else {
