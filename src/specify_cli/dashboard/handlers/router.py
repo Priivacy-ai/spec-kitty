@@ -53,6 +53,10 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
             self.handle_research(path)
             return
 
+        if path.startswith('/api/contracts/'):
+            self.handle_contracts(path)
+            return
+
         if path.startswith('/api/artifact/'):
             self.handle_artifact(path)
             return

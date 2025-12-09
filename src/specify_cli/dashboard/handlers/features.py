@@ -252,3 +252,82 @@ class FeatureHandler(DashboardHandler):
 
         self.send_response(404)
         self.end_headers()
+
+    def handle_contracts(self, path: str) -> None:
+        """Return contracts directory contents or serve a specific file."""
+        parts = path.split('/')
+        if len(parts) < 4:
+            self.send_response(404)
+            self.end_headers()
+            return
+
+        feature_id = parts[3]
+        project_path = Path(self.project_dir)
+        feature_dir = resolve_feature_dir(project_path, feature_id)
+
+        if len(parts) == 4:
+            # Return list of files in contracts directory
+            response = {'files': []}
+
+            if feature_dir:
+                contracts_dir = feature_dir / 'contracts'
+                if contracts_dir.exists() and contracts_dir.is_dir():
+                    for file_path in sorted(contracts_dir.rglob('*')):
+                        if file_path.is_file():
+                            relative_path = str(file_path.relative_to(feature_dir))
+                            icon = '📄'
+                            if file_path.suffix in ['.yaml', '.yml']:
+                                icon = '📋'
+                            elif file_path.suffix == '.json':
+                                icon = '📋'
+                            elif file_path.suffix == '.md':
+                                icon = '📝'
+                            response['files'].append({
+                                'name': file_path.name,
+                                'path': relative_path,
+                                'icon': icon,
+                            })
+
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Cache-Control', 'no-cache')
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode())
+            return
+
+        # Serve specific file content
+        if len(parts) >= 5 and feature_dir:
+            file_path_encoded = parts[4]
+            file_path_str = urllib.parse.unquote(file_path_encoded)
+            artifact_file = (feature_dir / file_path_str).resolve()
+
+            try:
+                artifact_file.relative_to(feature_dir.resolve())
+            except ValueError:
+                self.send_response(404)
+                self.end_headers()
+                return
+
+            if artifact_file.exists() and artifact_file.is_file():
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain')
+                self.send_header('Cache-Control', 'no-cache')
+                self.end_headers()
+                try:
+                    content = artifact_file.read_text(encoding='utf-8')
+                    self.wfile.write(content.encode('utf-8'))
+                except UnicodeDecodeError as err:
+                    error_msg = (
+                        f'⚠️ Encoding Error in {artifact_file.name}\\n\\n'
+                        f'This file contains non-UTF-8 characters at position {err.start}.\\n'
+                        'Please convert the file to UTF-8 encoding.\\n\\n'
+                        'Attempting to read with error recovery...\\n\\n'
+                    )
+                    content = artifact_file.read_text(encoding='utf-8', errors='replace')
+                    self.wfile.write(error_msg.encode('utf-8') + content.encode('utf-8'))
+                except Exception as exc:
+                    self.wfile.write(f'Error reading file: {exc}'.encode('utf-8'))
+                return
+
+        self.send_response(404)
+        self.end_headers()
