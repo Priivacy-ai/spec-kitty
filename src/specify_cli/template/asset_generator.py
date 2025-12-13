@@ -11,7 +11,7 @@ from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.template.renderer import render_template, rewrite_paths
 
 
-def generate_agent_assets(commands_dir: Path, project_path: Path, agent_key: str, script_type: str) -> None:
+def generate_agent_assets(command_templates_dir: Path, project_path: Path, agent_key: str, script_type: str) -> None:
     """Render every command template for the selected agent."""
     config = AGENT_COMMAND_CONFIG[agent_key]
     output_dir = project_path / config["dir"]
@@ -19,10 +19,10 @@ def generate_agent_assets(commands_dir: Path, project_path: Path, agent_key: str
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if not commands_dir.exists():
-        _raise_template_discovery_error(commands_dir)
+    if not command_templates_dir.exists():
+        _raise_template_discovery_error(command_templates_dir)
 
-    for template_path in sorted(commands_dir.glob("*.md")):
+    for template_path in sorted(command_templates_dir.glob("*.md")):
         rendered = render_command_template(
             template_path,
             script_type,

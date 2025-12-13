@@ -113,11 +113,71 @@ spec-kitty validate-encoding --all --fix
 
 **Keep commits clean and auditable.**
 
-- Commit only meaningful units of work.  
-- Write descriptive commit messages (imperative mood).  
-- Do not rewrite history of shared branches.  
-- Keep feature branches up to date with main via merge or rebase as appropriate.  
+- Commit only meaningful units of work.
+- Write descriptive commit messages (imperative mood).
+- Do not rewrite history of shared branches.
+- Keep feature branches up to date with main via merge or rebase as appropriate.
 - Never commit secrets, tokens, or credentials.
+
+---
+
+## 6. Git Best Practices for Agent Directories
+
+**NEVER commit agent directories to git.**
+
+### Why Agent Directories Must Not Be Committed
+
+Agent directories like `.claude/`, `.codex/`, `.gemini/` contain:
+- Authentication tokens and API keys
+- User-specific credentials (auth.json)
+- Session data and conversation history
+- Temporary files and caches
+
+### What Should Be Committed
+
+✅ **DO commit:**
+- `.kittify/templates/` - Command templates (source)
+- `.kittify/missions/` - Mission definitions
+- `.kittify/memory/constitution.md` - Project constitution
+- `.gitignore` - With all agent directories excluded
+
+❌ **DO NOT commit:**
+- `.claude/`, `.codex/`, `.gemini/`, etc. - Agent runtime directories
+- `.kittify/templates/command-templates/` - These are templates, not final commands
+- Any `auth.json`, `credentials.json`, or similar files
+
+### Automatic Protection
+
+Spec Kitty automatically:
+1. Adds all agent directories to `.gitignore` during `spec-kitty init`
+2. Installs pre-commit hook to block accidental commits
+3. Creates `.claudeignore` to optimize AI scanning
+
+### Manual Verification
+
+```bash
+# Verify .gitignore protection
+cat .gitignore | grep -E '\.(claude|codex|gemini|cursor)/'
+
+# Check for accidentally staged agent files
+git status | grep -E '\.(claude|codex|gemini|cursor)/'
+
+# If you find staged agent files, unstage them:
+git reset HEAD .claude/
+```
+
+### Worktree Constitution Sharing
+
+In worktrees, `.kittify/memory/` is a symlink to the main repo's memory,
+ensuring all feature branches share the same constitution.
+
+```bash
+# In a worktree, this should show a symlink:
+ls -la .kittify/memory
+# lrwxr-xr-x ... .kittify/memory -> ../../../.kittify/memory
+```
+
+This is intentional and correct - it ensures a single source of truth for project principles.
 
 ---
 

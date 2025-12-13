@@ -193,6 +193,52 @@ else
     GIT_ENABLED=false
 fi
 
+# SHARED CONSTITUTION VIA SYMLINK
+# Worktrees use relative symlinks to share the main repo's constitution.
+# This ensures all feature branches follow the same project principles.
+#
+# Structure:
+#   Main repo: /path/to/repo/.kittify/memory/constitution.md
+#   Worktree:  /path/to/repo/.worktrees/001-feature/.kittify/memory -> ../../../.kittify/memory
+#
+# Benefits:
+#   - Single source of truth for constitution
+#   - Changes immediately visible in all worktrees
+#   - Works even if repository is moved (relative path)
+if [ "$WORKTREE_CREATED" = "true" ]; then
+    WORKTREE_KITTIFY_DIR="$WORKTREE_PATH/.kittify"
+    WORKTREE_MEMORY_DIR="$WORKTREE_KITTIFY_DIR/memory"
+
+    # Calculate relative path from worktree to main repo
+    # Worktree: .worktrees/001-feature/.kittify/memory
+    # Main:     .kittify/memory
+    # Relative: ../../../.kittify/memory
+    RELATIVE_MEMORY_PATH="../../../.kittify/memory"
+
+    # Remove copied memory directory if it exists
+    if [ -d "$WORKTREE_MEMORY_DIR" ]; then
+        rm -rf "$WORKTREE_MEMORY_DIR"
+    fi
+
+    # Ensure parent directory exists
+    mkdir -p "$WORKTREE_KITTIFY_DIR"
+
+    # Try to create relative symlink (works even if repo is moved)
+    cd "$WORKTREE_KITTIFY_DIR"
+
+    # Try symlink, fall back to copy on Windows if it fails
+    if ln -s "$RELATIVE_MEMORY_PATH" memory 2>/dev/null; then
+        >&2 echo "[spec-kitty] ✓ Shared constitution symlink created"
+    else
+        >&2 echo "[spec-kitty] Warning: Symlink failed (Windows?), using directory copy"
+        if [ -d "$PRIMARY_REPO_ROOT/.kittify/memory" ]; then
+            cp -r "$PRIMARY_REPO_ROOT/.kittify/memory" "$WORKTREE_MEMORY_DIR"
+        fi
+    fi
+
+    cd - >/dev/null
+fi
+
 REPO_ROOT="$TARGET_ROOT"
 cd "$REPO_ROOT"
 

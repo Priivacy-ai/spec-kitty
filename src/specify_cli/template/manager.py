@@ -19,30 +19,30 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         override_path: Optional override path (e.g., from --template-root flag)
 
     Returns:
-        Path to repository root containing templates/commands, or None
+        Path to repository root containing templates/command-templates, or None
     """
     # Check override path first (from --template-root flag)
     if override_path:
         override = Path(override_path).expanduser().resolve()
-        if (override / "templates" / "commands").exists():
+        if (override / "templates" / "command-templates").exists():
             return override
         console.print(
-            f"[yellow]--template-root set to {override}, but templates/commands not found there. Ignoring.[/yellow]"
+            f"[yellow]--template-root set to {override}, but templates/command-templates not found there. Ignoring.[/yellow]"
         )
 
     # Check environment variable
     env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
     if env_root:
         root_path = Path(env_root).expanduser().resolve()
-        if (root_path / "templates" / "commands").exists():
+        if (root_path / "templates" / "command-templates").exists():
             return root_path
         console.print(
-            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but templates/commands not found there. Ignoring.[/yellow]"
+            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but templates/command-templates not found there. Ignoring.[/yellow]"
         )
 
     # Check package location
     candidate = Path(__file__).resolve().parents[2]
-    if (candidate / "templates" / "commands").exists():
+    if (candidate / "templates" / "command-templates").exists():
         return candidate
     return None
 
@@ -98,7 +98,7 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             shutil.copytree(missions_src, missions_dest)
             break
 
-    return specify_root / "templates" / "commands"
+    return specify_root / "templates" / "command-templates"
 
 
 def copy_package_tree(resource, dest: Path) -> None:
@@ -166,7 +166,7 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
             copy_package_tree(missions_resource, specify_root / "missions")
             break
 
-    return specify_root / "templates" / "commands"
+    return specify_root / "templates" / "command-templates"
 
 
 __all__ = [
