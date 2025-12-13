@@ -155,7 +155,7 @@ def sanitize_file(
     try:
         # Try reading as UTF-8 first
         try:
-            original_text = file_path.read_text(encoding="utf-8")
+            original_text = file_path.read_text(encoding="utf-8-sig")
             encoding_issue = False
         except UnicodeDecodeError:
             # Fall back to cp1252 or latin-1
@@ -170,6 +170,9 @@ def sanitize_file(
             else:
                 # Last resort: replace invalid characters
                 original_text = original_bytes.decode("utf-8", errors="replace")
+
+        # Strip UTF-8 BOM if present in the text
+        original_text = original_text.lstrip('\ufeff')
 
         # Sanitize the text
         sanitized_text = sanitize_markdown_text(original_text)

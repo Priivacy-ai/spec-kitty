@@ -178,7 +178,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
         if lane not in LANES:
             continue
         for path in sorted(lane_dir.rglob("*.md")):
-            text = path.read_text(encoding="utf-8")
+            text = path.read_text(encoding="utf-8-sig")
             front, body, padding = split_frontmatter(text)
             relative = path.relative_to(lane_dir)
             yield WorkPackage(
@@ -232,7 +232,7 @@ def detect_feature_slug(
 
 
 def _read_file(path: Path) -> str:
-    return path.read_text(encoding="utf-8") if path.exists() else ""
+    return path.read_text(encoding="utf-8-sig") if path.exists() else ""
 
 
 def _find_unchecked_tasks(tasks_file: Path) -> List[str]:
@@ -240,7 +240,7 @@ def _find_unchecked_tasks(tasks_file: Path) -> List[str]:
         return ["tasks.md missing"]
 
     unchecked: List[str] = []
-    for line in tasks_file.read_text(encoding="utf-8").splitlines():
+    for line in tasks_file.read_text(encoding="utf-8-sig").splitlines():
         if re.match(r"^\s*-\s*\[ \]", line):
             unchecked.append(line.strip())
     return unchecked
@@ -250,7 +250,7 @@ def _check_needs_clarification(files: Sequence[Path]) -> List[str]:
     results: List[str] = []
     for file_path in files:
         if file_path.exists():
-            text = file_path.read_text(encoding="utf-8")
+            text = file_path.read_text(encoding="utf-8-sig")
             if "[NEEDS CLARIFICATION" in text:
                 results.append(str(file_path))
     return results
@@ -474,7 +474,7 @@ def perform_acceptance(
 
         meta_path = summary.feature_dir / "meta.json"
         if meta_path.exists():
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
         else:
             meta = {}
 

@@ -354,7 +354,7 @@ def list_command(args: argparse.Namespace) -> None:
         if not lane_dir.exists():
             continue
         for path in sorted(lane_dir.rglob("*.md")):
-            text = path.read_text(encoding="utf-8")
+            text = path.read_text(encoding="utf-8-sig")
             front, body, padding = split_frontmatter(text)
             wp = WorkPackage(
                 feature=args.feature,
@@ -608,7 +608,7 @@ def _prepare_merge_metadata(
     meta: Dict[str, Any] = {}
     if meta_path.exists():
         try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
         except json.JSONDecodeError:
             meta = {}
 
@@ -635,7 +635,7 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
         return
 
     try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError:
         meta = {}
 

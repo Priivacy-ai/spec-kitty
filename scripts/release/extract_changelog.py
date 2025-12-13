@@ -69,7 +69,7 @@ def main() -> int:
         print(f"Error: CHANGELOG.md not found at {changelog_path}", file=sys.stderr)
         return 1
 
-    changelog_text = changelog_path.read_text(encoding="utf-8")
+    changelog_text = changelog_path.read_text(encoding="utf-8-sig")
     section = extract_changelog_section(changelog_text, version)
     print(section)
 

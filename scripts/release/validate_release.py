@@ -136,7 +136,7 @@ def load_pyproject_version(path: Path) -> str:
 def read_changelog(path: Path) -> str:
     if not path.exists():
         raise ReleaseValidatorError(f"CHANGELOG not found at {path}.")
-    return path.read_text(encoding="utf-8")
+    return path.read_text(encoding="utf-8-sig")
 
 
 def changelog_has_entry(changelog: str, version: str) -> bool:

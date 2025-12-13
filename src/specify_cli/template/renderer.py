@@ -62,7 +62,7 @@ def render_template(
     variables: VariablesResolver | None = None,
 ) -> tuple[dict[str, Any], str, str]:
     """Render a template by applying frontmatter parsing and substitutions."""
-    text = template_path.read_text(encoding="utf-8").replace("\r", "")
+    text = template_path.read_text(encoding="utf-8-sig").replace("\r", "")
     metadata, body, raw_frontmatter = parse_frontmatter(text)
     replacements = _resolve_variables(variables, metadata)
     rendered = _apply_variables(body, replacements)

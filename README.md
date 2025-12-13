@@ -338,6 +338,40 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 ---
 
+## 🔒 Agent Directory Best Practices
+
+**Important**: Agent directories (`.claude/`, `.codex/`, `.gemini/`, etc.) should **NEVER** be committed to git.
+
+### Why?
+
+These directories may contain:
+- Authentication tokens and API keys
+- User-specific credentials (auth.json)
+- Session data and conversation history
+
+### Automatic Protection
+
+Spec Kitty automatically protects you:
+- ✅ Adds all agent directories to `.gitignore` during `spec-kitty init`
+- ✅ Installs pre-commit hooks to block accidental commits
+- ✅ Creates `.claudeignore` to optimize AI scanning (excludes `.kittify/` templates)
+
+### What Gets Committed?
+
+✅ **DO commit:**
+- `.kittify/templates/` - Command templates (source)
+- `.kittify/missions/` - Mission workflows
+- `.kittify/memory/constitution.md` - Project principles
+- `.gitignore` - Protection rules
+
+❌ **NEVER commit:**
+- `.claude/`, `.gemini/`, `.cursor/`, etc. - Agent runtime directories
+- Any `auth.json` or credentials files
+
+See [AGENTS.md](.kittify/AGENTS.md) for complete guidelines.
+
+---
+
 ## 📚 Terminology
 
 Spec Kitty differentiates between the **project** that holds your entire codebase, the **features** you build within that project, and the **mission** that defines your workflow. Use these definitions whenever you write docs, prompts, or help text.

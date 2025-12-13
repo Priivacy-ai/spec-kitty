@@ -65,6 +65,7 @@ AGENT_DIRECTORIES = [
     AgentDirectory("auggie", ".augment/", False, "Auggie"),
     AgentDirectory("roo", ".roo/", False, "Roo Coder"),
     AgentDirectory("amazonq", ".amazonq/", False, "Amazon Q"),
+    AgentDirectory("copilot", ".github/copilot/", True, "GitHub Copilot (user settings)"),
 ]
 
 
@@ -113,7 +114,7 @@ class GitignoreManager:
 
         # Read existing content or start with empty list
         if self.gitignore_path.exists():
-            content = self.gitignore_path.read_text(encoding="utf-8")
+            content = self.gitignore_path.read_text(encoding="utf-8-sig")
             # Detect and store line ending style
             self._line_ending = self._detect_line_ending(content)
             lines = content.splitlines()
@@ -199,7 +200,7 @@ class GitignoreManager:
             # Track existing entries before modification
             existing_before = set()
             if self.gitignore_path.exists():
-                content = self.gitignore_path.read_text(encoding="utf-8")
+                content = self.gitignore_path.read_text(encoding="utf-8-sig")
                 existing_before = set(content.splitlines())
 
 
@@ -209,7 +210,7 @@ class GitignoreManager:
 
             # Track what was added vs skipped
             if self.gitignore_path.exists():
-                content = self.gitignore_path.read_text(encoding="utf-8")
+                content = self.gitignore_path.read_text(encoding="utf-8-sig")
                 existing_after = set(content.splitlines())
 
                 for directory in all_directories:
@@ -263,7 +264,7 @@ class GitignoreManager:
             # Track existing entries before modification
             existing_before = set()
             if self.gitignore_path.exists():
-                content = self.gitignore_path.read_text(encoding="utf-8")
+                content = self.gitignore_path.read_text(encoding="utf-8-sig")
                 existing_before = set(content.splitlines())
 
             # Attempt to add selected directories
@@ -272,7 +273,7 @@ class GitignoreManager:
 
             # Track what was added vs skipped
             if self.gitignore_path.exists():
-                content = self.gitignore_path.read_text(encoding="utf-8")
+                content = self.gitignore_path.read_text(encoding="utf-8-sig")
                 existing_after = set(content.splitlines())
 
                 for directory in directories_to_add:

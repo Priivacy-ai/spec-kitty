@@ -56,7 +56,7 @@ class FileManifest:
             manifest["mission_files"].append(str(mission_yaml.relative_to(self.kittify_dir)))
 
         # Commands
-        commands_dir = self.mission_dir / "commands"
+        commands_dir = self.mission_dir / "command-templates"
         if commands_dir.exists():
             for cmd_file in commands_dir.glob("*.md"):
                 manifest["commands"].append(str(cmd_file.relative_to(self.kittify_dir)))
@@ -86,7 +86,7 @@ class FileManifest:
         if not self.mission_dir:
             return []
 
-        commands_dir = self.mission_dir / "commands"
+        commands_dir = self.mission_dir / "command-templates"
         if not commands_dir.exists():
             return []
 

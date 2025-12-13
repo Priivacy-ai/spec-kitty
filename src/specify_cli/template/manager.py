@@ -19,30 +19,30 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         override_path: Optional override path (e.g., from --template-root flag)
 
     Returns:
-        Path to repository root containing templates/commands, or None
+        Path to repository root containing templates/command-templates, or None
     """
     # Check override path first (from --template-root flag)
     if override_path:
         override = Path(override_path).expanduser().resolve()
-        if (override / "templates" / "commands").exists():
+        if (override / "templates" / "command-templates").exists():
             return override
         console.print(
-            f"[yellow]--template-root set to {override}, but templates/commands not found there. Ignoring.[/yellow]"
+            f"[yellow]--template-root set to {override}, but templates/command-templates not found there. Ignoring.[/yellow]"
         )
 
     # Check environment variable
     env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
     if env_root:
         root_path = Path(env_root).expanduser().resolve()
-        if (root_path / "templates" / "commands").exists():
+        if (root_path / "templates" / "command-templates").exists():
             return root_path
         console.print(
-            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but templates/commands not found there. Ignoring.[/yellow]"
+            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but templates/command-templates not found there. Ignoring.[/yellow]"
         )
 
     # Check package location
     candidate = Path(__file__).resolve().parents[2]
-    if (candidate / "templates" / "commands").exists():
+    if (candidate / "templates" / "command-templates").exists():
         return candidate
     return None
 
@@ -52,14 +52,18 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
     specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
 
-    memory_src = repo_root / "memory"
+    # Copy from .kittify/memory/ for consistency with other .kittify paths
+    memory_src = repo_root / ".kittify" / "memory"
     if memory_src.exists():
         memory_dest = specify_root / "memory"
         if memory_dest.exists():
             shutil.rmtree(memory_dest)
         shutil.copytree(memory_src, memory_dest)
 
-    scripts_src = repo_root / "scripts"
+    # Copy from .kittify/scripts/ (not root /scripts/)
+    # The .kittify/scripts/ directory has the full implementation including
+    # worktree symlink code for shared constitution
+    scripts_src = repo_root / ".kittify" / "scripts"
     if scripts_src.exists():
         scripts_dest = specify_root / "scripts"
         if scripts_dest.exists():
@@ -76,7 +80,13 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             if item.is_file():
                 shutil.copy2(item, scripts_dest / item.name)
 
-    templates_src = repo_root / "templates"
+    # Copy from .kittify/templates/ (not root /templates/)
+    # The .kittify/templates/ directory contains:
+    # - command-templates/ (agent command templates)
+    # - git-hooks/ (pre-commit hooks)
+    # - claudeignore-template
+    # - AGENTS.md
+    templates_src = repo_root / ".kittify" / "templates"
     if templates_src.exists():
         templates_dest = specify_root / "templates"
         if templates_dest.exists():
@@ -98,7 +108,9 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             shutil.copytree(missions_src, missions_dest)
             break
 
-    return specify_root / "templates" / "commands"
+    # NOTE: Templates are copied temporarily for agent command generation
+    # They will be cleaned up after all commands are generated (see init.py)
+    return specify_root / "templates" / "command-templates"
 
 
 def copy_package_tree(resource, dest: Path) -> None:
@@ -166,7 +178,7 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
             copy_package_tree(missions_resource, specify_root / "missions")
             break
 
-    return specify_root / "templates" / "commands"
+    return specify_root / "templates" / "command-templates"
 
 
 __all__ = [

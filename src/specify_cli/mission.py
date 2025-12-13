@@ -238,9 +238,9 @@ class Mission:
         return self.path / "templates"
 
     @property
-    def commands_dir(self) -> Path:
-        """Get the commands directory for this mission."""
-        return self.path / "commands"
+    def command_templates_dir(self) -> Path:
+        """Get the command templates directory for this mission."""
+        return self.path / "command-templates"
 
     @property
     def constitution_dir(self) -> Path:
@@ -286,7 +286,7 @@ class Mission:
         if not command_name.endswith('.md'):
             command_name = f"{command_name}.md"
 
-        command_path = self.commands_dir / command_name
+        command_path = self.command_templates_dir / command_name
 
         if not command_path.exists():
             raise FileNotFoundError(
@@ -305,9 +305,9 @@ class Mission:
 
     def list_commands(self) -> List[str]:
         """List all available command templates in this mission."""
-        if not self.commands_dir.exists():
+        if not self.command_templates_dir.exists():
             return []
-        return [f.stem for f in self.commands_dir.glob("*.md")]
+        return [f.stem for f in self.command_templates_dir.glob("*.md")]
 
     def get_validation_checks(self) -> List[str]:
         """Get list of validation checks for this mission."""
@@ -408,7 +408,7 @@ def get_active_mission(project_root: Optional[Path] = None) -> Mission:
             mission_path = active_mission_link.resolve()
         elif active_mission_link.is_file():
             try:
-                mission_name = active_mission_link.read_text(encoding="utf-8").strip()
+                mission_name = active_mission_link.read_text(encoding="utf-8-sig").strip()
             except OSError:
                 mission_name = ""
             if mission_name:

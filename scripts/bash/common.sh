@@ -192,7 +192,7 @@ except Exception:
             try:
                 import yaml  # type: ignore
 
-                with config_path.open("r", encoding="utf-8") as fh:
+                with config_path.open("r", encoding="utf-8-sig") as fh:
                     data = yaml.safe_load(fh) or {}
             except Exception:
                 data = {}
@@ -231,7 +231,7 @@ except Exception:
                 mission_path = active_link.resolve()
             elif active_link.is_file():
                 try:
-                    mission_name = active_link.read_text(encoding="utf-8").strip()
+                    mission_name = active_link.read_text(encoding="utf-8-sig").strip()
                 except OSError:
                     mission_name = ""
                 if mission_name:

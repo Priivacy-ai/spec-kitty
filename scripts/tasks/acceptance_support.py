@@ -246,7 +246,7 @@ def _read_file(path: Path) -> str:
 
 def _read_text_strict(path: Path) -> str:
     try:
-        return path.read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError as exc:
         raise ArtifactEncodingError(path, exc) from exc
 
@@ -348,6 +348,9 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
                 continue
         if text is None:
             text = data.decode("utf-8", errors="replace")
+
+        # Strip UTF-8 BOM if present in the text
+        text = text.lstrip('\ufeff')
 
         # Normalize Unicode characters to ASCII equivalents
         for unicode_char, ascii_replacement in NORMALIZE_MAP.items():
