@@ -602,9 +602,11 @@ def init(
     if templates_dir.exists():
         try:
             shutil.rmtree(templates_dir)
-        except Exception:
-            # Don't fail init if cleanup fails
-            pass
+        except PermissionError:
+            _console.print("[dim]Note: Could not remove .kittify/templates/ (permission denied)[/dim]")
+        except Exception as e:
+            # Log but don't fail init if cleanup fails
+            _console.print(f"[dim]Note: Could not remove .kittify/templates/: {e}[/dim]")
 
 
 def register_init_command(

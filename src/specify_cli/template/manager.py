@@ -52,14 +52,18 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
     specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
 
-    memory_src = repo_root / "memory"
+    # Copy from .kittify/memory/ for consistency with other .kittify paths
+    memory_src = repo_root / ".kittify" / "memory"
     if memory_src.exists():
         memory_dest = specify_root / "memory"
         if memory_dest.exists():
             shutil.rmtree(memory_dest)
         shutil.copytree(memory_src, memory_dest)
 
-    scripts_src = repo_root / "scripts"
+    # Copy from .kittify/scripts/ (not root /scripts/)
+    # The .kittify/scripts/ directory has the full implementation including
+    # worktree symlink code for shared constitution
+    scripts_src = repo_root / ".kittify" / "scripts"
     if scripts_src.exists():
         scripts_dest = specify_root / "scripts"
         if scripts_dest.exists():
