@@ -48,15 +48,20 @@ _activate_mission: Callable[[Path, str, str, Console], str] | None = None
 _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = None
 
 
-def _install_git_hooks(project_path: Path, tracker: StepTracker | None = None) -> None:
+def _install_git_hooks(project_path: Path, templates_root: Path | None = None, tracker: StepTracker | None = None) -> None:
     """Install git hooks from templates to .git/hooks directory.
 
     Args:
         project_path: Path to the project root
+        templates_root: Path to the templates directory (if available)
         tracker: Optional progress tracker
     """
     git_hooks_dir = project_path / ".git" / "hooks"
-    template_hooks_dir = project_path / ".kittify" / "templates" / "git-hooks"
+    # Use templates_root if available, otherwise fall back to user project (for backwards compat)
+    if templates_root:
+        template_hooks_dir = templates_root / "git-hooks"
+    else:
+        template_hooks_dir = project_path / ".kittify" / "templates" / "git-hooks"
 
     if not git_hooks_dir.exists():
         if tracker:
@@ -329,6 +334,7 @@ def init(
         project_path.mkdir(parents=True)
 
     command_templates_dir: Path | None = None
+    templates_root: Path | None = None  # Track template source for later use
     base_prepared = False
     if template_mode == "remote" and (repo_owner is None or repo_name is None):
         repo_owner, repo_name = parse_repo_slug(DEFAULT_TEMPLATE_REPO)
@@ -354,6 +360,9 @@ def init(
                             else:
                                 command_templates_dir = copy_specify_base_from_package(project_path, selected_script)
                             base_prepared = True
+                            # Track templates root for later use (AGENTS.md, .claudeignore, git-hooks)
+                            if command_templates_dir:
+                                templates_root = command_templates_dir.parent
                         if command_templates_dir is None:
                             raise RuntimeError("Command templates directory was not prepared")
                         generate_agent_assets(command_templates_dir, project_path, agent_key, selected_script)
@@ -399,13 +408,7 @@ def init(
             # Ensure scripts are executable (POSIX)
             _ensure_executable_scripts(project_path, tracker=tracker)
 
-            # Install git hooks if git is initialized
-            if not no_git and (is_git_repo(project_path) or should_init_git):
-                tracker.add("git-hooks", "Install git hooks")
-                tracker.start("git-hooks")
-                _install_git_hooks(project_path, tracker=tracker)
-
-            # Git step
+            # Git step - must happen BEFORE hook installation
             if not no_git:
                 tracker.start("git")
                 if is_git_repo(project_path):
@@ -419,6 +422,12 @@ def init(
                     tracker.skip("git", "git not available")
             else:
                 tracker.skip("git", "--no-git flag")
+
+            # Install git hooks AFTER git is initialized
+            if not no_git and is_git_repo(project_path):
+                tracker.add("git-hooks", "Install git hooks")
+                tracker.start("git-hooks")
+                _install_git_hooks(project_path, templates_root=templates_root, tracker=tracker)
 
             tracker.complete("final", "project ready")
         except Exception as e:
@@ -573,18 +582,19 @@ def init(
     for error in result.errors:
         _console.print(f"[red]❌ {error}[/red]")
 
-    # Copy AGENTS.md from template if it doesn't exist
-    agents_target = project_path / ".kittify" / "AGENTS.md"
-    agents_template = project_path / ".kittify" / "templates" / "AGENTS.md"
-    if not agents_target.exists() and agents_template.exists():
-        shutil.copy2(agents_template, agents_target)
+    # Copy AGENTS.md from template source (not user project)
+    if templates_root:
+        agents_target = project_path / ".kittify" / "AGENTS.md"
+        agents_template = templates_root / "AGENTS.md"
+        if not agents_target.exists() and agents_template.exists():
+            shutil.copy2(agents_template, agents_target)
 
-    # Generate .claudeignore to exclude .kittify/ from AI scanning
-    claudeignore_template = project_path / ".kittify" / "templates" / "claudeignore-template"
-    claudeignore_dest = project_path / ".claudeignore"
-    if claudeignore_template.exists() and not claudeignore_dest.exists():
-        shutil.copy2(claudeignore_template, claudeignore_dest)
-        _console.print("[dim]Created .claudeignore to optimize AI assistant scanning[/dim]")
+        # Generate .claudeignore from template source
+        claudeignore_template = templates_root / "claudeignore-template"
+        claudeignore_dest = project_path / ".claudeignore"
+        if claudeignore_template.exists() and not claudeignore_dest.exists():
+            shutil.copy2(claudeignore_template, claudeignore_dest)
+            _console.print("[dim]Created .claudeignore to optimize AI assistant scanning[/dim]")
 
     # Clean up templates directory - it's only needed during init
     # User projects should only have the generated agent commands, not the source templates
