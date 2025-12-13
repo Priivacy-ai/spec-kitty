@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "0.6.6"
+version = "0.6.7"
 description = "Spec Kitty CLI, a community fork of GitHub's Spec Kit for bootstrapping Spec-Driven Development (SDD) projects."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -71,3 +71,24 @@ packages = ["src/specify_cli"]
 "scripts" = "specify_cli/scripts"
 "memory" = "specify_cli/memory"
 ".kittify/missions" = "specify_cli/missions"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/**/*",
+    "templates/**/*",
+    "scripts/**/*",
+    "memory/**/*",
+    ".kittify/missions/software-dev/**/*",
+    ".kittify/missions/research/**/*",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "pyproject.toml",
+]
+exclude = [
+    ".kittify/active-mission",
+]
+
+[tool.hatch.build.targets.sdist.force-include]
+".kittify/missions/software-dev" = ".kittify/missions/software-dev"
+".kittify/missions/research" = ".kittify/missions/research"

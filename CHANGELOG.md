@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.7] - 2025-12-13
+
+### Fixed
+
+- **Missing software-dev Mission in PyPI Package** – Fixed build configuration to include all missions:
+  - Added explicit sdist include patterns to pyproject.toml
+  - The `software-dev` mission was missing from v0.6.5 and v0.6.6 wheel builds
+  - Root cause: `force-include` only applied to wheel target, not sdist (wheel was built from sdist)
+  - Now both `software-dev` and `research` missions are correctly packaged
+
 ## [0.6.6] - 2025-12-13
 
 ### Fixed
