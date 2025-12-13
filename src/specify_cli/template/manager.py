@@ -76,7 +76,13 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             if item.is_file():
                 shutil.copy2(item, scripts_dest / item.name)
 
-    templates_src = repo_root / "templates"
+    # Copy from .kittify/templates/ (not root /templates/)
+    # The .kittify/templates/ directory contains:
+    # - command-templates/ (agent command templates)
+    # - git-hooks/ (pre-commit hooks)
+    # - claudeignore-template
+    # - AGENTS.md
+    templates_src = repo_root / ".kittify" / "templates"
     if templates_src.exists():
         templates_dest = specify_root / "templates"
         if templates_dest.exists():
