@@ -11,7 +11,7 @@
 <p align="center">
     <a href="#-get-started">Quick Start</a> •
     <a href="#-real-time-dashboard">Live Dashboard</a> •
-    <a href="#-supported-ai-agents">11 AI Agents</a> •
+    <a href="#-supported-ai-agents">12 AI Agents</a> •
     <a href="https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md">Full Docs</a>
 </p>
 
@@ -22,7 +22,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
-[![AI Agents: 11](https://img.shields.io/badge/AI_Agents-11_Supported-brightgreen.svg)](#-supported-ai-agents)
+[![AI Agents: 12](https://img.shields.io/badge/AI_Agents-12_Supported-brightgreen.svg)](#-supported-ai-agents)
 [![Real-time Dashboard](https://img.shields.io/badge/Dashboard-Real--time_Kanban-orange.svg)](#-real-time-dashboard)
 [![Spec-Driven](https://img.shields.io/badge/Workflow-Spec--Driven-blue.svg)](#-what-is-spec-driven-development)
 [![Multi-Agent](https://img.shields.io/badge/Multi--Agent-Orchestration-purple.svg)](#-why-spec-kitty)
@@ -37,7 +37,7 @@
 We built on Spec Kit's solid foundation and added:
 
 ✅ **Real-time kanban dashboard** with live agent tracking
-✅ **Multi-agent orchestration** (11 agents vs Spec Kit's limited support)
+✅ **Multi-agent orchestration** (12 agents vs Spec Kit's limited support)
 ✅ **Worktree strategy** for parallel feature isolation
 ✅ **Mission system** (Software Dev + Deep Research workflows)
 ✅ **Enhanced automation scripts** for task lane management
@@ -81,7 +81,7 @@ Perfect for teams using Claude Code, Cursor, Windsurf, Gemini CLI, or GitHub Cop
 What makes Spec Kitty unique in the spec-driven development space:
 
 1. **Only SDD tool with built-in real-time kanban dashboard** - See AI agent progress live
-2. **True multi-agent orchestration** - Coordinate 11 different AI coding agents
+2. **True multi-agent orchestration** - Coordinate 12 different AI coding agents
 3. **Worktree-first approach** - Parallel feature isolation without branch switching hell
 4. **Mission system** - Switch between Software Dev and Deep Research workflows
 5. **Constitution framework** - Encode quality standards once, enforce automatically
@@ -351,10 +351,26 @@ These directories may contain:
 
 ### Automatic Protection
 
-Spec Kitty automatically protects you:
-- ✅ Adds all agent directories to `.gitignore` during `spec-kitty init`
-- ✅ Installs pre-commit hooks to block accidental commits
+Spec Kitty automatically protects you with multiple layers:
+
+**During `spec-kitty init`:**
+- ✅ Adds all 12 agent directories to `.gitignore`
+- ✅ Installs pre-commit hooks that block commits containing agent files
 - ✅ Creates `.claudeignore` to optimize AI scanning (excludes `.kittify/` templates)
+
+**Pre-commit Hook Protection:**
+The installed pre-commit hook will block any commit that includes files from:
+`.claude/`, `.codex/`, `.gemini/`, `.cursor/`, `.qwen/`, `.opencode/`,
+`.windsurf/`, `.kilocode/`, `.augment/`, `.roo/`, `.amazonq/`, `.github/copilot/`
+
+If you need to bypass the hook (not recommended): `git commit --no-verify`
+
+**Worktree Constitution Sharing:**
+When creating feature worktrees, Spec Kitty uses symlinks to share the constitution:
+```
+.worktrees/001-feature/.kittify/memory -> ../../../.kittify/memory
+```
+This ensures all features follow the same project principles.
 
 ### What Gets Committed?
 
@@ -1034,7 +1050,9 @@ git push origin v0.2.4
    - ✅ Run twine check
    - ✅ Generate checksums
    - ✅ Create GitHub Release with changelog
-   - ✅ Publish to PyPI
+   - ✅ Publish to PyPI (via trusted publishing)
+
+> **Note:** The release workflow uses [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/) via GitHub Actions OIDC. This means the workflow obtains a short-lived token automatically without needing stored API keys. However, `PYPI_API_TOKEN` is still required as a fallback. The workflow will show "This environment is not supported for trusted publishing" if running outside of GitHub Actions or if trusted publishing isn't configured for the package.
 
 #### 6. Verify Release
 
