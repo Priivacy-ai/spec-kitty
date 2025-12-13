@@ -18,7 +18,7 @@
 .augment/
 .roo/
 .amazonq/
-.github/copilot/
+.github/prompts/
 
 # Git metadata
 .git/

@@ -98,6 +98,8 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             shutil.copytree(missions_src, missions_dest)
             break
 
+    # NOTE: Templates are copied temporarily for agent command generation
+    # They will be cleaned up after all commands are generated (see init.py)
     return specify_root / "templates" / "command-templates"
 
 

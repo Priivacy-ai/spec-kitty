@@ -573,6 +573,7 @@ def init(
     for error in result.errors:
         _console.print(f"[red]❌ {error}[/red]")
 
+    # Copy AGENTS.md from template if it doesn't exist
     agents_target = project_path / ".kittify" / "AGENTS.md"
     agents_template = project_path / ".kittify" / "templates" / "AGENTS.md"
     if not agents_target.exists() and agents_template.exists():
@@ -584,6 +585,16 @@ def init(
     if claudeignore_template.exists() and not claudeignore_dest.exists():
         shutil.copy2(claudeignore_template, claudeignore_dest)
         _console.print("[dim]Created .claudeignore to optimize AI assistant scanning[/dim]")
+
+    # Clean up templates directory - it's only needed during init
+    # User projects should only have the generated agent commands, not the source templates
+    templates_dir = project_path / ".kittify" / "templates"
+    if templates_dir.exists():
+        try:
+            shutil.rmtree(templates_dir)
+        except Exception:
+            # Don't fail init if cleanup fails
+            pass
 
 
 def register_init_command(

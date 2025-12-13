@@ -9,10 +9,10 @@
 # These should NEVER be committed to version control.
 
 AGENT_DIRS=(".claude" ".codex" ".gemini" ".cursor" ".qwen" ".opencode"
-            ".windsurf" ".kilocode" ".augment" ".roo" ".amazonq")
+            ".windsurf" ".kilocode" ".augment" ".roo" ".amazonq" ".github/prompts")
 
 STAGED_AGENT_FILES=$(git diff --cached --name-only --diff-filter=ACM |
-                      grep -E "^\.(claude|codex|gemini|cursor|qwen|opencode|windsurf|kilocode|augment|roo|amazonq)/" || true)
+                      grep -E "^\.(claude|codex|gemini|cursor|qwen|opencode|windsurf|kilocode|augment|roo|amazonq)/|^\.github/prompts/" || true)
 
 if [ -n "$STAGED_AGENT_FILES" ]; then
     echo "❌ COMMIT BLOCKED: Agent directory files detected"
