@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.6] - 2025-12-13
+
+### Fixed
+
+- **Test Suite Updated for 12 Agent Directories** – All tests now expect 12 agents (added `.github/copilot/`):
+  - Updated `test_init_flow.py`, `test_gitignore_management.py`, `test_gitignore_manager_simple.py`
+  - Updated `tests/unit/test_gitignore_manager.py` to expect 12 agents
+  - Fixed template manager tests to use new `.kittify/` source paths
+
+### Changed
+
+- **Template Source Paths** – Tests now use correct `.kittify/templates/command-templates/` paths
+
+## [0.6.5] - 2025-12-13
+
+### Added
+
+- **Pre-commit Git Hooks** – Automatic protection against committing agent directories:
+  - Blocks commits containing `.claude/`, `.codex/`, `.gemini/`, etc.
+  - Warns about `.github/copilot/` (nested in `.github/` which is usually committed)
+  - Installed automatically during `spec-kitty init`
+
+- **GitHub Copilot Directory Protection** – Added `.github/copilot/` as 12th protected agent directory
+
+- **.claudeignore Generation** – Optimizes Claude Code token usage by excluding templates
+
+### Fixed
+
+- **Worktree Constitution Symlinks** – Feature worktrees now share constitution via symlink
+- **Git Hooks Installation Timing** – Hooks now install after `.git/` is created
+
 ## [0.6.4] - 2025-11-26
 
 ### Fixed

@@ -10,7 +10,8 @@ from specify_cli.template.manager import copy_specify_base_from_local, get_local
 
 
 def test_get_local_repo_root_prefers_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    templates_dir = tmp_path / "templates" / "commands"
+    # Manager expects templates/command-templates to exist for repo root detection
+    templates_dir = tmp_path / "templates" / "command-templates"
     templates_dir.mkdir(parents=True)
     marker = templates_dir / "demo.md"
     marker.write_text("# demo", encoding="utf-8")
@@ -27,20 +28,21 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
-    memory_src = repo_root / "memory"
-    (memory_src / "seed.txt").parent.mkdir(parents=True, exist_ok=True)
+    # Manager now copies from .kittify/ directories
+    memory_src = repo_root / ".kittify" / "memory"
+    memory_src.mkdir(parents=True, exist_ok=True)
     (memory_src / "seed.txt").write_text("hello", encoding="utf-8")
 
-    scripts_src = repo_root / "scripts"
+    scripts_src = repo_root / ".kittify" / "scripts"
     (scripts_src / "bash").mkdir(parents=True)
     (scripts_src / "bash" / "bootstrap.sh").write_text("echo hi", encoding="utf-8")
     (scripts_src / "tasks").mkdir()
     (scripts_src / "tasks" / "tasks_cli.py").write_text("print('ok')", encoding="utf-8")
 
-    templates_src = repo_root / "templates" / "commands"
+    templates_src = repo_root / ".kittify" / "templates" / "command-templates"
     templates_src.mkdir(parents=True)
     (templates_src / "sample.md").write_text("content", encoding="utf-8")
-    (repo_root / "templates" / "AGENTS.md").write_text("agents", encoding="utf-8")
+    (repo_root / ".kittify" / "templates" / "AGENTS.md").write_text("agents", encoding="utf-8")
 
     missions_src = repo_root / ".kittify" / "missions" / "default"
     missions_src.mkdir(parents=True)
@@ -55,7 +57,7 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     assert (project_path / ".kittify" / "memory" / "seed.txt").read_text(encoding="utf-8") == "hello"
     assert (project_path / ".kittify" / "scripts" / "bash" / "bootstrap.sh").exists()
     assert (project_path / ".kittify" / "scripts" / "tasks" / "tasks_cli.py").exists()
-    assert (project_path / ".kittify" / "templates" / "commands" / "sample.md").exists()
+    assert (project_path / ".kittify" / "templates" / "command-templates" / "sample.md").exists()
     assert (project_path / ".kittify" / "missions" / "default" / "rules.md").exists()
 
 
@@ -72,12 +74,13 @@ def test_copy_specify_base_from_package_uses_packaged_assets(
     (scripts_root / "tasks").mkdir()
     (scripts_root / "tasks" / "tasks_cli.py").write_text("print('ok')", encoding="utf-8")
 
-    templates_root = fake_pkg / "templates" / "commands"
+    # Package uses templates/command-templates
+    templates_root = fake_pkg / "templates" / "command-templates"
     templates_root.mkdir(parents=True)
     (templates_root / "sample.md").write_text("demo", encoding="utf-8")
     (fake_pkg / "templates" / "AGENTS.md").write_text("rules", encoding="utf-8")
 
-    missions_root = fake_pkg / ".kittify" / "missions" / "default"
+    missions_root = fake_pkg / "missions" / "default"
     missions_root.mkdir(parents=True)
     (missions_root / "rules.md").write_text("mission rules", encoding="utf-8")
 

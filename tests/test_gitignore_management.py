@@ -127,7 +127,7 @@ def test_protect_all_agents_adds_all_directories():
         assert result.modified
 
         # Check that all 12 directories were added
-        assert len(result.entries_added) == 11
+        assert len(result.entries_added) == 12
 
         # Check that .gitignore was updated
         gitignore_path = project_path / ".gitignore"
@@ -138,7 +138,7 @@ def test_protect_all_agents_adds_all_directories():
         expected_dirs = [
             ".claude/", ".codex/", ".opencode/", ".windsurf/",
             ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".roo/", ".amazonq/"
+            ".augment/", ".roo/", ".amazonq/", ".github/copilot/"
         ]
         for dir_name in expected_dirs:
             assert dir_name in content
@@ -166,8 +166,8 @@ def test_protect_all_agents_with_existing_directory():
         assert ".codex/" in result.entries_skipped
         assert ".claude/" in result.entries_skipped
 
-        # Check that new entries were added
-        assert len(result.entries_added) == 9
+        # Check that new entries were added (12 total - 2 existing = 10)
+        assert len(result.entries_added) == 10
 
 
 def test_protect_selected_agents():
