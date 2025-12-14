@@ -151,13 +151,28 @@ def upgrade(
     )
 
     if json_output:
+        # Build detailed migrations array
+        migrations_detail = []
+        for migration in migrations_needed:
+            status = "applied" if migration.migration_id in result.migrations_applied else (
+                "skipped" if migration.migration_id in result.migrations_skipped else "pending"
+            )
+            migrations_detail.append({
+                "id": migration.migration_id,
+                "description": migration.description,
+                "target_version": migration.target_version,
+                "status": status,
+            })
+
         output = {
             "status": "success" if result.success else "failed",
-            "from_version": result.from_version,
-            "to_version": result.to_version,
+            "current_version": result.from_version,
+            "target_version": result.to_version,
             "dry_run": result.dry_run,
+            "migrations": migrations_detail,
             "migrations_applied": result.migrations_applied,
             "migrations_skipped": result.migrations_skipped,
+            "success": result.success,
             "errors": result.errors,
             "warnings": result.warnings,
         }

@@ -181,3 +181,59 @@ class VersionDetector:
 
         missing = [d for d in self.EXPECTED_AGENTS if d not in content]
         return len(missing)
+
+    @classmethod
+    def detect_broken_mission_system(cls, project_path: Path) -> bool:
+        """Detect if the mission system has corrupted files.
+
+        Checks for:
+        1. Missing mission.yaml files in mission directories
+        2. Invalid YAML syntax in mission.yaml files
+        3. Missing required fields (name)
+
+        Args:
+            project_path: Path to the project root
+
+        Returns:
+            True if mission system is broken/corrupted, False if healthy
+        """
+        import yaml
+
+        missions_dir = project_path / ".kittify" / "missions"
+
+        # No missions directory at all is broken
+        if not missions_dir.exists():
+            return True
+
+        # Check each mission directory
+        has_any_mission = False
+        for mission_dir in missions_dir.iterdir():
+            if not mission_dir.is_dir():
+                continue
+
+            has_any_mission = True
+            mission_yaml = mission_dir / "mission.yaml"
+
+            # Check if mission.yaml exists
+            if not mission_yaml.exists():
+                return True
+
+            # Check if mission.yaml is valid YAML with required fields
+            try:
+                with open(mission_yaml, encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
+
+                # Check required fields
+                if not data or "name" not in data:
+                    return True
+
+            except yaml.YAMLError:
+                return True
+            except OSError:
+                return True
+
+        # If no mission directories found, that's broken
+        if not has_any_mission:
+            return True
+
+        return False

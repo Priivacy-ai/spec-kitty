@@ -153,6 +153,61 @@ spec-kitty dashboard  # Opens http://localhost:3000-5000
 - ✅ Started real-time kanban dashboard (runs in background)
 - ✅ Initialized git repository with proper `.gitignore`
 
+---
+
+## 🔄 Upgrading Existing Projects
+
+> **Important:** If you've upgraded `spec-kitty-cli` via pip/uv, run `spec-kitty upgrade` in each of your projects to apply structural migrations.
+
+### Quick Upgrade
+
+```bash
+cd your-project
+spec-kitty upgrade              # Upgrade to current version
+```
+
+### What Gets Upgraded
+
+The upgrade command automatically migrates your project structure across versions:
+
+| Migration | Description |
+|-----------|-------------|
+| **0.2.0** | `.specify/` → `.kittify/` directory rename |
+| **0.4.8** | Add all 12 agent directories to `.gitignore` |
+| **0.5.0** | Install encoding validation git hooks |
+| **0.6.5** | `commands/` → `command-templates/` rename |
+| **0.6.7** | Ensure software-dev and research missions are present |
+
+### Upgrade Options
+
+```bash
+# Preview changes without applying
+spec-kitty upgrade --dry-run
+
+# Show detailed migration information
+spec-kitty upgrade --verbose
+
+# Upgrade to specific version
+spec-kitty upgrade --target 0.6.5
+
+# Skip worktree upgrades (main project only)
+spec-kitty upgrade --no-worktrees
+
+# JSON output for CI/CD integration
+spec-kitty upgrade --json
+```
+
+### When to Upgrade
+
+Run `spec-kitty upgrade` after:
+- Installing a new version of `spec-kitty-cli`
+- Cloning a project that was created with an older version
+- Seeing "Unknown mission" or missing slash commands
+
+The upgrade command is **idempotent** - safe to run multiple times. It automatically detects your project's version and applies only the necessary migrations.
+
+---
+
 ### Phase 2: Start Your AI Agent (Terminal)
 
 ```bash
@@ -486,6 +541,7 @@ Tasks (T001, T002, etc.) are subtasks within a feature's work packages. They are
 ## Table of Contents
 
 - [🚀 Getting Started: Complete Workflow](#-getting-started-complete-workflow)
+- [🔄 Upgrading Existing Projects](#-upgrading-existing-projects)
 - [📋 Quick Reference: Command Order](#-quick-reference-command-order)
 - [📚 Terminology](#-terminology)
 - [🎯 Why Spec-Kitty?](#-why-spec-kitty)
@@ -582,6 +638,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 | Command     | Description                                                    |
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Spec Kitty project from templates |
+| `upgrade`   | **Upgrade project structure to current version** (run after updating spec-kitty-cli) |
 | `accept`    | Validate feature readiness before merging to main |
 | `check`     | Check that required tooling is available |
 | `dashboard` | Open or stop the Spec Kitty dashboard |
@@ -654,6 +711,38 @@ spec-kitty init my-project --ai claude --template-root=/path/to/local/spec-kitty
 
 # Check system requirements
 spec-kitty check
+```
+
+### `spec-kitty upgrade` Options
+
+| Option | Description |
+|--------|-------------|
+| `--dry-run` | Preview changes without applying them |
+| `--force` | Skip confirmation prompts |
+| `--target <version>` | Target version to upgrade to (defaults to current CLI version) |
+| `--json` | Output results as JSON (for CI/CD integration) |
+| `--verbose`, `-v` | Show detailed migration information |
+| `--no-worktrees` | Skip upgrading worktrees (main project only) |
+
+**Examples:**
+```bash
+# Upgrade to current version
+spec-kitty upgrade
+
+# Preview what would be changed
+spec-kitty upgrade --dry-run
+
+# Upgrade with detailed output
+spec-kitty upgrade --verbose
+
+# Upgrade to specific version
+spec-kitty upgrade --target 0.6.5
+
+# JSON output for scripting
+spec-kitty upgrade --json
+
+# Skip worktree upgrades
+spec-kitty upgrade --no-worktrees
 ```
 
 ### `spec-kitty dashboard` Options

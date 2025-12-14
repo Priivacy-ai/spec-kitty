@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from .metadata import MigrationRecord, ProjectMetadata
 from .detector import VersionDetector
-from .registry import MigrationRegistry
+from .registry import MigrationRegistry, register
 from .runner import MigrationRunner, UpgradeResult
 
 __all__ = [
@@ -14,4 +14,5 @@ __all__ = [
     "MigrationRegistry",
     "MigrationRunner",
     "UpgradeResult",
+    "register",
 ]

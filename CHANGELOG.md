@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-12-14
+
+### Added
+
+- **`spec-kitty upgrade` Command** – Automatically migrate existing projects to current version:
+  - Detects project version via metadata or directory structure heuristics
+  - Applies all necessary migrations in order (0.2.0 → 0.6.7)
+  - Auto-upgrades worktrees alongside main project
+  - Supports `--dry-run`, `--verbose`, `--json`, `--target`, `--no-worktrees` options
+  - Tracks applied migrations in `.kittify/metadata.yaml`
+  - Idempotent - safe to run multiple times
+
+- **Migration System** – Five automatic migrations for project structure updates:
+  - `0.2.0`: `.specify/` → `.kittify/` directory rename
+  - `0.4.8`: Add all 12 agent directories to `.gitignore`
+  - `0.5.0`: Install encoding validation git hooks
+  - `0.6.5`: `commands/` → `command-templates/` rename
+  - `0.6.7`: Ensure software-dev and research missions are present
+
+- **Broken Mission Detection** – `VersionDetector.detect_broken_mission_system()` identifies corrupted mission.yaml files
+
+- **Migration Registry Validation** – Duplicate migration IDs and missing required fields now raise `ValueError`
+
+### Fixed
+
+- **Test Timeout in Dashboard CLI Tests** – Reduced port cleanup from 763 ports to 8 specific test ports
+- **Playwright Window Handling** – Tests now open new windows (not tabs) and close properly on exit
+
 ## [0.6.7] - 2025-12-13
 
 ### Fixed

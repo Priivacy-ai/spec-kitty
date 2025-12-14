@@ -57,6 +57,7 @@ The dashboard starts automatically when you run `spec-kitty init` and runs in th
 - [📦 Examples](#-examples)
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get started](#-get-started)
+- [🔄 Upgrading Existing Projects](#upgrading-existing-projects)
 - [🤖 Supported AI Agents](#-supported-ai-agents)
 - [🔧 Spec Kitty CLI Reference](#-spec-kitty-cli-reference)
 - [🌳 Worktree Strategy](#-worktree-strategy)
@@ -136,6 +137,19 @@ uvx spec-kitty-cli init <PROJECT_NAME>
 - Better tool management (`pip list`, `uv tool list`, etc.)
 - Faster execution (no download on each run)
 - Cleaner shell configuration
+
+### Upgrading Existing Projects
+
+After updating `spec-kitty-cli`, run the upgrade command in your existing projects:
+
+```bash
+cd your-project
+spec-kitty upgrade              # Upgrade to current version
+spec-kitty upgrade --dry-run    # Preview changes first
+spec-kitty upgrade --verbose    # See detailed migration info
+```
+
+The upgrade command automatically migrates your project structure across versions (directory renames, missing missions, gitignore updates). It's **idempotent** - safe to run multiple times.
 
 ### 2. Establish project principles
 

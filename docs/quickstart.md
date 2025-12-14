@@ -53,6 +53,18 @@ spec-kitty init <PROJECT_NAME>
 
 > Need more than one assistant? Pass a comma-separated list, e.g. `--ai claude,codex`, and the initializer will bring in the command files for both.
 
+### Upgrading Existing Projects
+
+If you've upgraded `spec-kitty-cli`, run the upgrade command in your existing projects:
+
+```bash
+cd your-project
+spec-kitty upgrade              # Upgrade to current version
+spec-kitty upgrade --dry-run    # Preview changes first
+```
+
+The upgrade command automatically migrates your project structure (e.g., directory renames, missing missions, gitignore updates). It's idempotent - safe to run multiple times.
+
 Pick script type explicitly (optional):
 ```bash
 spec-kitty init <PROJECT_NAME> --script ps  # Force PowerShell
