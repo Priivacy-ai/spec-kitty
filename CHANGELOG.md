@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2025-12-14
+
+### Fixed
+
+- **Duplicate Feature Numbers with Worktrees** – Script now scans both `kitty-specs/` AND `.worktrees/` for existing feature numbers:
+  - Previously only scanned `kitty-specs/` which was empty when using worktrees
+  - This caused new features to get `001` even when `001-*` worktree already existed
+  - Now correctly finds highest number across both locations
+
 ## [0.7.2] - 2025-12-14
 
 ### Fixed

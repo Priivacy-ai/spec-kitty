@@ -84,10 +84,26 @@ slugify() {
     echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-//' | sed 's/-$//'
 }
 
+# Find highest feature number from BOTH kitty-specs/ AND .worktrees/
+# This ensures we don't reuse numbers when features exist in worktrees
 SPECS_DIR_BASE="$REPO_ROOT/kitty-specs"
+WORKTREES_DIR="$REPO_ROOT/.worktrees"
 HIGHEST=0
+
+# Scan kitty-specs/ for feature numbers
 if [ -d "$SPECS_DIR_BASE" ]; then
     for dir in "$SPECS_DIR_BASE"/*; do
+        [ -d "$dir" ] || continue
+        dirname=$(basename "$dir")
+        number=$(echo "$dirname" | grep -o '^[0-9]\+' || echo "0")
+        number=$((10#$number))
+        if [ "$number" -gt "$HIGHEST" ]; then HIGHEST=$number; fi
+    done
+fi
+
+# Also scan .worktrees/ for feature numbers (worktree names = branch names = feature numbers)
+if [ -d "$WORKTREES_DIR" ]; then
+    for dir in "$WORKTREES_DIR"/*; do
         [ -d "$dir" ] || continue
         dirname=$(basename "$dir")
         number=$(echo "$dirname" | grep -o '^[0-9]\+' || echo "0")

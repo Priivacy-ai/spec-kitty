@@ -60,9 +60,14 @@ try {
 
 Set-Location $repoRoot
 
+# Find highest feature number from BOTH kitty-specs/ AND .worktrees/
+# This ensures we don't reuse numbers when features exist in worktrees
 $specsDir = Join-Path $repoRoot 'kitty-specs'
+$worktreesDir = Join-Path $repoRoot '.worktrees'
 
 $highest = 0
+
+# Scan kitty-specs/ for feature numbers
 if (Test-Path $specsDir) {
     Get-ChildItem -Path $specsDir -Directory | ForEach-Object {
         if ($_.Name -match '^(\d{3})') {
@@ -71,6 +76,17 @@ if (Test-Path $specsDir) {
         }
     }
 }
+
+# Also scan .worktrees/ for feature numbers (worktree names = branch names = feature numbers)
+if (Test-Path $worktreesDir) {
+    Get-ChildItem -Path $worktreesDir -Directory | ForEach-Object {
+        if ($_.Name -match '^(\d{3})') {
+            $num = [int]$matches[1]
+            if ($num -gt $highest) { $highest = $num }
+        }
+    }
+}
+
 $next = $highest + 1
 $featureNum = ('{0:000}' -f $next)
 
