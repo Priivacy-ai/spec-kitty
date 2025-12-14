@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2025-12-14
+
+### Fixed
+
+- **Duplicate Slash Commands in Worktrees** – Claude Code found commands in both worktree and main repo:
+  - Added `0.7.1_worktree_commands_dedup` migration
+  - Removes `.claude/commands/` from main repo when worktrees exist
+  - Worktrees have their own `.claude/commands/` so no duplicates occur
+  - Root cause: Worktrees are nested inside main repo, Claude Code traverses up finding both
+
 ## [0.7.0] - 2025-12-14
 
 ### Added

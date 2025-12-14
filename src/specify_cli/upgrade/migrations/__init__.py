@@ -11,6 +11,7 @@ from . import m_0_4_8_gitignore_agents
 from . import m_0_5_0_encoding_hooks
 from . import m_0_6_5_commands_rename
 from . import m_0_6_7_ensure_missions
+from . import m_0_7_1_worktree_commands_dedup
 
 __all__ = [
     "m_0_2_0_specify_to_kittify",
@@ -18,4 +19,5 @@ __all__ = [
     "m_0_5_0_encoding_hooks",
     "m_0_6_5_commands_rename",
     "m_0_6_7_ensure_missions",
+    "m_0_7_1_worktree_commands_dedup",
 ]

@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "0.7.0"
+version = "0.7.1"
 description = "Spec Kitty CLI, a community fork of GitHub's Spec Kit for bootstrapping Spec-Driven Development (SDD) projects."
 readme = "README.md"
 license = { file = "LICENSE" }
