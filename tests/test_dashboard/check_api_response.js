@@ -1,7 +1,28 @@
 import { chromium } from 'playwright';
 
+// Ensure browser closes on exit/interrupt
+let browser = null;
+const cleanup = async () => {
+  if (browser) {
+    try {
+      await browser.close();
+      browser = null;
+    } catch (e) {
+      // Ignore close errors
+    }
+  }
+  process.exit(0);
+};
+process.on('SIGINT', cleanup);
+process.on('SIGTERM', cleanup);
+
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  // Launch a NEW browser window (not reusing existing)
+  browser = await chromium.launch({
+    headless: true,
+    args: ['--new-window']  // Force new window
+  });
+  // Create isolated context (like a new window, not a tab)
   const context = await browser.newContext();
   const page = await context.newPage();
 
@@ -42,6 +63,9 @@ import { chromium } from 'playwright';
   } catch (error) {
     console.error('Error:', error.message);
   } finally {
+    // Close context first, then browser to ensure clean shutdown
+    await context.close();
     await browser.close();
+    browser = null;
   }
 })();

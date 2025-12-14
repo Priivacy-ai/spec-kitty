@@ -604,9 +604,10 @@ def cleanup_test_dashboards():
     """Cleanup any test dashboard processes after each test."""
     yield
 
-    # Cleanup test ports (expanded range to catch all test dashboards)
-    # Includes both default port range (9237-9290) and explicit test ports (9992-9999)
-    for port in range(9237, 10000):
+    # Cleanup only the specific test ports actually used in tests
+    # This is MUCH faster than iterating 763 ports
+    test_ports = [9992, 9993, 9994, 9995, 9996, 9997, 9998, 9999]
+    for port in test_ports:
         kill_dashboard_process(port)
 
 

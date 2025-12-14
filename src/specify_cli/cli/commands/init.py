@@ -596,6 +596,26 @@ def init(
             shutil.copy2(claudeignore_template, claudeignore_dest)
             _console.print("[dim]Created .claudeignore to optimize AI assistant scanning[/dim]")
 
+    # Create project metadata for upgrade tracking
+    try:
+        from datetime import datetime
+        import platform as plat
+        import sys as system
+        from specify_cli import __version__
+        from specify_cli.upgrade.metadata import ProjectMetadata
+
+        metadata = ProjectMetadata(
+            version=__version__,
+            initialized_at=datetime.now(),
+            python_version=plat.python_version(),
+            platform=system.platform,
+            platform_version=plat.platform(),
+        )
+        metadata.save(project_path / ".kittify")
+    except Exception as e:
+        # Don't fail init if metadata creation fails
+        _console.print(f"[dim]Note: Could not create project metadata: {e}[/dim]")
+
     # Clean up templates directory - it's only needed during init
     # User projects should only have the generated agent commands, not the source templates
     templates_dir = project_path / ".kittify" / "templates"
