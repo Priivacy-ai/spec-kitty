@@ -9,10 +9,10 @@ subtasks:
   - "T016"
 title: "Specify Command Integration"
 phase: "Phase 2 - Core Workflow"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "41714"
 review_status: ""
 reviewed_by: ""
 history:
@@ -221,3 +221,4 @@ history:
 ## Activity Log
 
 - 2025-12-15T11:55:00Z – system – lane=planned – Prompt created.
+- 2025-12-15T11:05:40Z – claude – shell_pid=41714 – lane=doing – Started implementation
