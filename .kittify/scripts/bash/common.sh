@@ -155,6 +155,7 @@ get_feature_dir() { echo "$1/kitty-specs/$2"; }
 
 get_mission_exports() {
     local repo_root="$1"
+    local feature_dir="${2:-}"  # Optional feature directory for per-feature mission lookup
 
     # Use python3 for mission detection to keep logic in sync with CLI behavior
     local python_bin="python3"
@@ -166,13 +167,14 @@ get_mission_exports() {
         return 1
     fi
 
-"$python_bin" - "$repo_root" <<'PY'
+"$python_bin" - "$repo_root" "$feature_dir" <<'PY'
 from pathlib import Path
 import os
 import sys
+import json
 
 try:
-    from specify_cli.mission import get_active_mission, MissionNotFoundError  # type: ignore
+    from specify_cli.mission import get_mission_for_feature, get_active_mission, MissionNotFoundError  # type: ignore
 except Exception:
     class MissionNotFoundError(Exception):
         """Local fallback when specify_cli isn't importable."""
@@ -265,10 +267,50 @@ except Exception:
     def get_active_mission(project_root: Path) -> _FallbackMission:
         return _FallbackMission(_resolve_mission_path(project_root))
 
+    def get_mission_for_feature(feature_dir: Path, project_root: Path | None = None) -> _FallbackMission:
+        """Get mission for feature from meta.json, falling back to project default."""
+        if project_root is None:
+            # Walk up to find project root with .kittify
+            candidate = feature_dir
+            while candidate != candidate.parent:
+                if (candidate / ".kittify").exists():
+                    project_root = candidate
+                    break
+                candidate = candidate.parent
+            if project_root is None:
+                project_root = feature_dir
+
+        # Try to read mission from feature's meta.json
+        meta_file = feature_dir / "meta.json"
+        mission_key = "software-dev"  # default
+        if meta_file.exists():
+            try:
+                with open(meta_file, 'r', encoding='utf-8') as f:
+                    meta = json.load(f)
+                mission_key = meta.get("mission", "software-dev")
+            except (json.JSONDecodeError, OSError):
+                pass
+
+        # Resolve mission path from key
+        mission_path = project_root / ".kittify" / "missions" / mission_key
+        if not mission_path.exists():
+            # Fall back to software-dev
+            mission_path = project_root / ".kittify" / "missions" / "software-dev"
+
+        if not mission_path.exists():
+            raise MissionNotFoundError(f"Mission '{mission_key}' not found and software-dev fallback missing")
+
+        return _FallbackMission(mission_path)
+
 repo_root = Path(sys.argv[1])
+feature_dir_arg = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else None
 
 try:
-    mission = get_active_mission(repo_root)
+    if feature_dir_arg:
+        feature_dir = Path(feature_dir_arg)
+        mission = get_mission_for_feature(feature_dir, repo_root)
+    else:
+        mission = get_active_mission(repo_root)
 except MissionNotFoundError as exc:
     print(f"[spec-kitty] Error: {exc}", file=sys.stderr)
     sys.exit(1)
@@ -301,14 +343,15 @@ get_feature_paths() {
     local repo_root=$(get_repo_root)
     local current_branch=$(get_current_branch)
     local has_git_repo="false"
-    
+
     if has_git; then
         has_git_repo="true"
     fi
-    
+
     local feature_dir=$(get_feature_dir "$repo_root" "$current_branch")
     local mission_exports
-    mission_exports=$(get_mission_exports "$repo_root") || return 1
+    # Pass feature_dir to enable per-feature mission lookup from meta.json
+    mission_exports=$(get_mission_exports "$repo_root" "$feature_dir") || return 1
     
     cat <<EOF
 REPO_ROOT='$repo_root'

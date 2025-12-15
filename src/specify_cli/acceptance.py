@@ -22,7 +22,7 @@ from .tasks_support import (
     run_git,
     split_frontmatter,
 )
-from specify_cli.mission import MissionError, get_active_mission
+from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
@@ -388,7 +388,7 @@ def collect_feature_summary(
 
     path_violations: List[str] = []
     try:
-        mission = get_active_mission(repo_root)
+        mission = get_mission_for_feature(feature_dir)
     except MissionError:
         mission = None
 
