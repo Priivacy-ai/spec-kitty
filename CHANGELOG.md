@@ -9,6 +9,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-12-15
+
+### Breaking Changes
+
+- **Mission system refactored to per-feature model**
+  - Missions are now selected during `/spec-kitty.specify` instead of `spec-kitty init`
+  - Each feature stores its mission in `meta.json` (field: `"mission": "software-dev"`)
+  - `.kittify/active-mission` symlink/file is no longer used
+  - Run `spec-kitty upgrade` to clean up existing projects
+
+- **Removed commands**
+  - `spec-kitty mission switch` - Missions are now per-feature, not per-project
+  - Running this command now shows a helpful error message explaining the new workflow
+
+- **Removed flags**
+  - `--mission` flag from `spec-kitty init` - Use `/spec-kitty.specify` instead
+  - Flag is hidden but shows deprecation warning if used
+
+### Added
+
+- **Mission inference during `/spec-kitty.specify`** - LLM analyzes feature description and suggests appropriate mission:
+  - "Build a REST API" → suggests `software-dev`
+  - "Research best practices" → suggests `research`
+  - User confirms or overrides the suggestion
+  - Explicit `--mission` flag bypasses inference
+
+- **Per-feature mission storage** - Selected mission stored in feature's `meta.json`:
+  - All downstream commands read mission from feature context
+  - Legacy features without mission field default to `software-dev`
+
+- **Mission discovery** - New `discover_missions()` function returns all available missions with source indicators
+
+- **Updated `spec-kitty mission list`** - Shows source column (project/built-in) for each mission
+
+- **Migration for v0.8.0** - `spec-kitty upgrade` removes obsolete `.kittify/active-mission` file
+
+### Changed
+
+- All downstream commands (`/spec-kitty.plan`, `/spec-kitty.tasks`, `/spec-kitty.implement`, `/spec-kitty.review`, `/spec-kitty.accept`) now read mission from feature's `meta.json`
+- `create-new-feature.sh` accepts `--mission <key>` parameter to set mission in meta.json
+- Common bash/PowerShell scripts updated to resolve mission from feature directory
+- `spec-kitty mission current` shows current default mission (for informational purposes)
+
+### Deprecated
+
+- `set_active_mission()` function - Shows deprecation warning, will be removed in future version
+
+### Migration Guide
+
+1. Run `spec-kitty upgrade` to remove `.kittify/active-mission`
+2. Existing features without `mission` field will use `software-dev` by default
+3. New features will have mission set during `/spec-kitty.specify`
+
 ## [0.7.3] - 2025-12-14
 
 ### Fixed
