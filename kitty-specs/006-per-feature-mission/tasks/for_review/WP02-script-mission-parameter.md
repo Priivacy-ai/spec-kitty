@@ -8,10 +8,10 @@ subtasks:
   - "T010"
 title: "Script Mission Parameter"
 phase: "Phase 1 - Foundation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
-shell_pid: "41263"
+shell_pid: "41644"
 review_status: ""
 reviewed_by: ""
 history:
@@ -231,3 +231,4 @@ history:
 
 - 2025-12-15T11:55:00Z – system – lane=planned – Prompt created.
 - 2025-12-15T11:03:45Z – claude – shell_pid=41263 – lane=doing – Started implementation
+- 2025-12-15T11:05:17Z – claude – shell_pid=41644 – lane=for_review – Ready for review - script tests pass
