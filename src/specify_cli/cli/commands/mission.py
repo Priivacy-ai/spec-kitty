@@ -10,21 +10,19 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli.helpers import console, get_project_root_or_exit
-from specify_cli.guards import GuardValidationError, validate_git_clean
 from specify_cli.mission import (
     Mission,
     MissionError,
     MissionNotFoundError,
+    discover_missions,
     get_active_mission,
     get_mission_by_name,
     list_available_missions,
-    set_active_mission,
 )
-from specify_cli.validators.paths import validate_mission_paths
 
 app = typer.Typer(
     name="mission",
-    help="Manage project-wide Spec Kitty missions (workflow modes)",
+    help="View available Spec Kitty missions. Missions are selected per-feature during /spec-kitty.specify.",
     no_args_is_help=True,
 )
 
@@ -109,38 +107,37 @@ def _mission_details_lines(mission: Mission, include_description: bool = True) -
     return details
 
 
-def _print_available_missions(kittify_dir: Path) -> None:
-    missions = list_available_missions(kittify_dir)
+def _print_available_missions(project_root: Path) -> None:
+    """Print available missions with source indicators (project/built-in)."""
+    missions = discover_missions(project_root)
     if not missions:
         console.print("[yellow]No missions found in .kittify/missions/[/yellow]")
         return
 
-    try:
-        active = get_active_mission(kittify_dir.parent)
-        active_name = active.path.name
-    except MissionError:
-        active_name = None
-
     table = Table(title="Available Missions", show_header=True)
-    table.add_column("Mission", style="cyan")
+    table.add_column("Key", style="cyan")
+    table.add_column("Name", style="green")
     table.add_column("Domain", style="magenta")
     table.add_column("Description", overflow="fold")
-    table.add_column("Active", justify="center", style="green")
+    table.add_column("Source", style="dim")
 
-    for mission_name in missions:
-        try:
-            mission = get_mission_by_name(mission_name, kittify_dir)
-            active_marker = "✓" if mission_name == active_name else ""
-            table.add_row(mission.name, mission.domain, mission.description, active_marker)
-        except Exception as exc:  # pragma: no cover - defensive logging
-            table.add_row(mission_name, "[red]error[/red]", str(exc), "")
+    for key, (mission, source) in sorted(missions.items()):
+        table.add_row(
+            key,
+            mission.name,
+            mission.domain,
+            mission.description or "",
+            source,
+        )
 
     console.print(table)
+    console.print()
+    console.print("[dim]Missions are selected per-feature during /spec-kitty.specify[/dim]")
 
 
 @app.command("list")
 def list_cmd() -> None:
-    """List all available missions."""
+    """List all available missions with their source (project/built-in)."""
     project_root = get_project_root_or_exit()
     kittify_dir = project_root / ".kittify"
     if not kittify_dir.exists():
@@ -149,7 +146,7 @@ def list_cmd() -> None:
         raise typer.Exit(1)
 
     try:
-        _print_available_missions(kittify_dir)
+        _print_available_missions(project_root)
     except typer.Exit:
         raise
     except Exception as exc:
@@ -218,106 +215,23 @@ def _print_active_worktrees(active_worktrees: Iterable[str]) -> None:
     )
 
 
-@app.command("switch")
+@app.command("switch", deprecated=True)
 def switch_cmd(
-    mission_name: str = typer.Argument(..., help="Mission name to switch to"),
-    force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
+    mission_name: str = typer.Argument(..., help="Mission name (no longer supported)"),
+    force: bool = typer.Option(False, "--force", help="(ignored)"),
 ) -> None:
-    """Switch to a different mission after validation."""
-    project_root = get_project_root_or_exit()
-    primary_repo_root = _resolve_primary_repo_root(project_root)
-    kittify_dir = project_root / ".kittify"
-
-    active_worktrees = _list_active_worktrees(primary_repo_root)
-    if active_worktrees:
-        _print_active_worktrees(active_worktrees)
-        raise typer.Exit(1)
-
-    try:
-        git_clean_result = validate_git_clean(project_root)
-    except GuardValidationError as exc:
-        console.print(f"[red]Error checking git status:[/red] {exc}")
-        raise typer.Exit(1)
-
-    if not git_clean_result.is_valid:
-        console.print("[red]Cannot switch missions: uncommitted changes detected[/red]")
-        for error in git_clean_result.errors:
-            console.print(f"  [yellow]{error}[/yellow]")
-        console.print("\n[cyan]Suggestion:[/cyan] Commit or stash changes before switching.")
-        raise typer.Exit(1)
-
-    try:
-        target_mission = get_mission_by_name(mission_name, kittify_dir)
-    except MissionNotFoundError:
-        console.print(f"[red]Mission not found:[/red] {mission_name}")
-        available = list_available_missions(kittify_dir)
-        if available:
-            console.print("\n[yellow]Available missions:[/yellow]")
-            for name in available:
-                console.print(f"  • {name}")
-        raise typer.Exit(1)
-
-    current_name: Optional[str] = None
-    current_display = "Unknown"
-    try:
-        current_mission = get_active_mission(project_root)
-        current_name = current_mission.path.name
-        current_display = current_mission.name
-    except MissionError:
-        current_mission = None
-
-    if current_name == mission_name:
-        console.print(f"[yellow]Already using mission:[/yellow] {target_mission.name}")
-        raise typer.Exit(0)
-
-    warnings: List[str] = []
-    artifact_warnings: List[str] = []
-    for artifact in target_mission.config.artifacts.required:
-        artifact_path = project_root / artifact
-        if not artifact_path.exists():
-            message = f"Required artifact missing: {artifact}"
-            warnings.append(message)
-            artifact_warnings.append(message)
-
-    path_warning_text = ""
-    if target_mission.config.paths:
-        path_result = validate_mission_paths(
-            target_mission,
-            project_root,
-            strict=False,
-        )
-        if not path_result.is_valid:
-            warnings.extend(path_result.warnings)
-            path_warning_text = path_result.format_warnings()
-
-    console.print("\n[cyan]Switch Summary[/cyan]")
-    console.print(f"  From: {current_display}")
-    console.print(f"  To:   {target_mission.name}")
-    console.print(f"  Domain: {target_mission.domain}")
-
-    if artifact_warnings:
-        console.print("\n[yellow]Warnings:[/yellow]")
-        for warning in artifact_warnings:
-            console.print(f"  • {warning}")
-        console.print("[dim]You can create these artifacts after switching.[/dim]")
-
-    if path_warning_text:
-        console.print("")
-        console.print(path_warning_text)
-        console.print("\n[dim]You can create these directories after switching.[/dim]")
-
-    if not force:
-        typer.echo("")
-        confirm = typer.confirm("Proceed with mission switch?")
-        if not confirm:
-            console.print("[yellow]Mission switch cancelled[/yellow]")
-            raise typer.Exit(0)
-
-    console.print("\n[cyan]Switching mission...[/cyan]")
-    set_active_mission(mission_name, kittify_dir)
-    console.print(f"[green]✓ Switched to mission:[/green] {target_mission.name}")
-    console.print(
-        "\n[cyan]Next steps:[/cyan]\n"
-        "  • Run /spec-kitty.specify to start a new feature\n"
-        "  • Verify the active mission with: spec-kitty mission current"
-    )
+    """[REMOVED] Switch active mission - this command was removed in v0.8.0."""
+    console.print("[bold red]Error:[/bold red] The 'mission switch' command was removed in v0.8.0.")
+    console.print()
+    console.print("Missions are now selected [bold]per-feature[/bold] during [cyan]/spec-kitty.specify[/cyan].")
+    console.print()
+    console.print("[cyan]New workflow:[/cyan]")
+    console.print("  1. Run [bold]/spec-kitty.specify[/bold] to start a new feature")
+    console.print("  2. The system will infer and confirm the appropriate mission")
+    console.print("  3. Mission is stored in the feature's [dim]meta.json[/dim]")
+    console.print()
+    console.print("[cyan]To see available missions:[/cyan]")
+    console.print("  spec-kitty mission list")
+    console.print()
+    console.print("[dim]See: https://github.com/your-org/spec-kitty#per-feature-missions[/dim]")
+    raise typer.Exit(1)

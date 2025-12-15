@@ -491,7 +491,12 @@ def get_mission_by_name(mission_name: str, kittify_dir: Optional[Path] = None) -
 
 
 def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) -> None:
-    """Set the active mission for a project.
+    """DEPRECATED: Set the active mission for a project.
+
+    .. deprecated:: 0.8.0
+        Missions are now selected per-feature during /spec-kitty.specify.
+        This function is kept for backwards compatibility but will be removed
+        in a future version. Use get_mission_for_feature() instead.
 
     Args:
         mission_name: Name of the mission to activate
@@ -500,6 +505,15 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
     Raises:
         MissionNotFoundError: If mission doesn't exist
     """
+    import warnings
+    warnings.warn(
+        "set_active_mission() is deprecated. Missions are now per-feature "
+        "and selected during /spec-kitty.specify. This function will be "
+        "removed in a future version.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     if kittify_dir is None:
         kittify_dir = Path.cwd() / ".kittify"
 

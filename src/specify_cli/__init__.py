@@ -32,7 +32,7 @@ except Exception:
     # Fallback for development/editable installs
     __version__ = "0.5.0-dev"
 
-from specify_cli.mission import MissionNotFoundError, set_active_mission
+from specify_cli.mission import MissionNotFoundError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import (
     BannerGroup,
@@ -45,40 +45,25 @@ from specify_cli.cli.commands.init import register_init_command
 
 def activate_mission(project_path: Path, mission_key: str, mission_display: str, console: Console) -> str:
     """
-    Persist the active mission selection and warn if mission resources are missing.
+    DEPRECATED: No-op function for backwards compatibility.
+
+    As of v0.8.0, missions are selected per-feature during /spec-kitty.specify,
+    not at the project level during init. This function is kept for backwards
+    compatibility with existing init code but no longer sets an active mission.
     """
+    # Just verify the mission directory exists
     kittify_root = project_path / ".kittify"
     missions_dir = kittify_root / "missions"
-
-    kittify_root.mkdir(parents=True, exist_ok=True)
-    missions_dir.mkdir(parents=True, exist_ok=True)
-
     mission_path = missions_dir / mission_key
-    status_detail = mission_display
 
-    if not mission_path.exists():
+    if mission_path.exists():
+        return f"{mission_display} (per-feature selection)"
+    else:
         console.print(
-            f"[yellow]Warning:[/yellow] Mission resources for [cyan]{mission_display}[/cyan] "
-            f"not found at [cyan]{mission_path}[/cyan]."
+            f"[yellow]Note:[/yellow] Mission [cyan]{mission_display}[/cyan] templates will be "
+            f"available when you run [cyan]/spec-kitty.specify[/cyan]."
         )
-        console.print(
-            "[yellow]Hint:[/yellow] Run [cyan]spec-kitty mission switch[/cyan] after templates are available "
-            "or reinstall project templates."
-        )
-        status_detail = f"{mission_display} (templates missing)"
-
-    try:
-        if mission_path.exists():
-            set_active_mission(mission_key, kittify_root)
-        else:
-            raise MissionNotFoundError(mission_key)
-    except (MissionNotFoundError, OSError, NotImplementedError):
-        # Fall back to plain marker file when mission templates are missing or
-        # symlinks are unavailable (e.g. Windows without developer mode)
-        active_marker = kittify_root / "active-mission"
-        active_marker.write_text(f"{mission_key}\n", encoding="utf-8")
-
-    return status_detail
+        return f"{mission_display} (templates pending)"
 
 
 def version_callback(value: bool) -> None:
