@@ -4,6 +4,7 @@ set -e
 
 JSON_MODE=false
 FEATURE_NAME=""
+MISSION=""
 ARGS=()
 
 while [ "$#" -gt 0 ]; do
@@ -22,8 +23,25 @@ while [ "$#" -gt 0 ]; do
             fi
             FEATURE_NAME="$1"
             ;;
+        --mission=*)
+            MISSION="${1#*=}"
+            ;;
+        --mission)
+            shift
+            if [ -z "${1:-}" ]; then
+                echo "Error: --mission requires a value" >&2
+                exit 1
+            fi
+            MISSION="$1"
+            ;;
         --help|-h)
-            echo "Usage: $0 [--json] [--feature-name \"Friendly Title\"] <feature_description>"
+            echo "Usage: $0 [--json] [--feature-name \"Friendly Title\"] [--mission <key>] <feature_description>"
+            echo ""
+            echo "Options:"
+            echo "  --json              Output JSON format for script consumption"
+            echo "  --feature-name      Friendly title for the feature"
+            echo "  --mission           Mission key (e.g., software-dev, research)"
+            echo "                      If not specified, no mission is set in meta.json"
             exit 0
             ;;
         *)
@@ -71,6 +89,19 @@ else
         exit 1
     fi
     HAS_GIT=false
+fi
+
+# Validate mission if provided
+if [ -n "$MISSION" ]; then
+    MISSION_DIR="$REPO_ROOT/.kittify/missions/$MISSION"
+    if [ ! -f "$MISSION_DIR/mission.yaml" ]; then
+        echo "Error: Mission '$MISSION' not found" >&2
+        echo "Available missions:" >&2
+        for m in "$REPO_ROOT/.kittify/missions"/*/mission.yaml; do
+            [ -f "$m" ] && echo "  - $(basename "$(dirname "$m")")" >&2
+        done
+        exit 1
+    fi
 fi
 
 trim() {
@@ -252,6 +283,20 @@ if [ "$WORKTREE_CREATED" = "true" ]; then
         fi
     fi
 
+    # Also symlink AGENTS.md so command templates can find it
+    # Relative: ../../../.kittify/AGENTS.md
+    RELATIVE_AGENTS_PATH="../../../.kittify/AGENTS.md"
+    if [ -f "$PRIMARY_REPO_ROOT/.kittify/AGENTS.md" ]; then
+        # Remove existing AGENTS.md if present
+        rm -f "$WORKTREE_KITTIFY_DIR/AGENTS.md" 2>/dev/null
+        if ln -s "$RELATIVE_AGENTS_PATH" AGENTS.md 2>/dev/null; then
+            >&2 echo "[spec-kitty] ✓ Shared AGENTS.md symlink created"
+        else
+            >&2 echo "[spec-kitty] Warning: AGENTS.md symlink failed, using file copy"
+            cp "$PRIMARY_REPO_ROOT/.kittify/AGENTS.md" "$WORKTREE_KITTIFY_DIR/AGENTS.md"
+        fi
+    fi
+
     cd - >/dev/null
 fi
 
@@ -316,7 +361,20 @@ json_escape() {
 FRIENDLY_JSON=$(json_escape "$FRIENDLY_NAME")
 DESCRIPTION_JSON=$(json_escape "$FEATURE_DESCRIPTION")
 
-cat > "$META_FILE" <<EOF
+# Build meta.json with optional mission field
+if [ -n "$MISSION" ]; then
+    cat > "$META_FILE" <<EOF
+{
+  "feature_number": "$FEATURE_NUM",
+  "slug": "$BRANCH_NAME",
+  "friendly_name": "$FRIENDLY_JSON",
+  "source_description": "$DESCRIPTION_JSON",
+  "created_at": "$timestamp",
+  "mission": "$MISSION"
+}
+EOF
+else
+    cat > "$META_FILE" <<EOF
 {
   "feature_number": "$FEATURE_NUM",
   "slug": "$BRANCH_NAME",
@@ -325,6 +383,7 @@ cat > "$META_FILE" <<EOF
   "created_at": "$timestamp"
 }
 EOF
+fi
 
 WORKTREE_JSON=$(json_escape "$WORKTREE_NOTE")
 

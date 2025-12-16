@@ -5,10 +5,11 @@ which allow Spec Kitty to support multiple domains (software dev, research,
 writing, etc.) with domain-specific templates, workflows, and validation.
 """
 
+import json
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -490,7 +491,12 @@ def get_mission_by_name(mission_name: str, kittify_dir: Optional[Path] = None) -
 
 
 def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) -> None:
-    """Set the active mission for a project.
+    """DEPRECATED: Set the active mission for a project.
+
+    .. deprecated:: 0.8.0
+        Missions are now selected per-feature during /spec-kitty.specify.
+        This function is kept for backwards compatibility but will be removed
+        in a future version. Use get_mission_for_feature() instead.
 
     Args:
         mission_name: Name of the mission to activate
@@ -499,6 +505,15 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
     Raises:
         MissionNotFoundError: If mission doesn't exist
     """
+    import warnings
+    warnings.warn(
+        "set_active_mission() is deprecated. Missions are now per-feature "
+        "and selected during /spec-kitty.specify. This function will be "
+        "removed in a future version.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+
     if kittify_dir is None:
         kittify_dir = Path.cwd() / ".kittify"
 
@@ -518,3 +533,127 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
     except (OSError, NotImplementedError):
         # Fall back to plain file marker when symlinks are unavailable
         active_mission_link.write_text(f"{mission_name}\n", encoding="utf-8")
+
+
+# =============================================================================
+# Per-Feature Mission Functions (v0.8.0+)
+# =============================================================================
+
+
+def get_feature_mission_key(feature_dir: Path) -> str:
+    """Extract mission key from feature's meta.json, defaulting to software-dev.
+
+    This is a helper function for reading the mission field from a feature's
+    metadata file. It handles missing files and invalid JSON gracefully.
+
+    Args:
+        feature_dir: Path to the feature directory (kitty-specs/<feature>/)
+
+    Returns:
+        Mission key string (e.g., 'software-dev', 'research')
+    """
+    meta_file = feature_dir / "meta.json"
+    if not meta_file.exists():
+        return "software-dev"
+    try:
+        with open(meta_file, 'r', encoding='utf-8') as f:
+            meta = json.load(f)
+        return meta.get("mission", "software-dev")
+    except (json.JSONDecodeError, OSError):
+        return "software-dev"
+
+
+def get_mission_for_feature(feature_dir: Path, project_root: Optional[Path] = None) -> Mission:
+    """Get the mission for a specific feature.
+
+    Reads the mission key from the feature's meta.json and loads the
+    corresponding mission. If the mission field is missing or the specified
+    mission doesn't exist, falls back to software-dev for backward compatibility.
+
+    Args:
+        feature_dir: Path to the feature directory (kitty-specs/<feature>/)
+        project_root: Optional project root (defaults to finding .kittify)
+
+    Returns:
+        Mission object for the feature
+
+    Raises:
+        MissionNotFoundError: If feature meta.json not found and no default available
+    """
+    # Get the mission key from meta.json
+    mission_key = get_feature_mission_key(feature_dir)
+
+    # Find project root if not provided
+    if project_root is None:
+        # Walk up from feature_dir to find .kittify
+        current = feature_dir.resolve()
+        while current != current.parent:
+            if (current / ".kittify").exists():
+                project_root = current
+                break
+            current = current.parent
+
+        if project_root is None:
+            raise MissionNotFoundError(
+                f"Could not find .kittify directory from {feature_dir}\n"
+                f"Is this a Spec Kitty project?"
+            )
+
+    kittify_dir = project_root / ".kittify"
+
+    # Try to load the specified mission
+    try:
+        return get_mission_by_name(mission_key, kittify_dir)
+    except MissionNotFoundError:
+        # Fall back to software-dev with warning
+        warnings.warn(
+            f"Mission '{mission_key}' not found for feature {feature_dir.name}, "
+            f"using software-dev as default",
+            stacklevel=2
+        )
+        return get_mission_by_name("software-dev", kittify_dir)
+
+
+def discover_missions(project_root: Optional[Path] = None) -> Dict[str, Tuple[Mission, str]]:
+    """Discover all available missions with their sources.
+
+    Scans the project's .kittify/missions/ directory for valid mission
+    configurations and returns them with source indicators.
+
+    Args:
+        project_root: Path to project root (defaults to current directory)
+
+    Returns:
+        Dict mapping mission key to (Mission, source) tuple.
+        Source is one of: "project", "built-in"
+        (Currently both are in the same location, but conceptually distinct)
+    """
+    if project_root is None:
+        project_root = Path.cwd()
+
+    kittify_dir = project_root / ".kittify"
+
+    if not kittify_dir.exists():
+        return {}
+
+    missions_dir = kittify_dir / "missions"
+
+    if not missions_dir.exists():
+        return {}
+
+    missions: Dict[str, Tuple[Mission, str]] = {}
+
+    for mission_dir in missions_dir.iterdir():
+        if mission_dir.is_dir() and (mission_dir / "mission.yaml").exists():
+            try:
+                mission = Mission(mission_dir)
+                # For now, all missions are "project" source
+                # (built-in and project share same location in .kittify/missions/)
+                missions[mission_dir.name] = (mission, "project")
+            except MissionError as e:
+                warnings.warn(
+                    f"Skipping invalid mission '{mission_dir.name}': {e}",
+                    stacklevel=2
+                )
+
+    return missions

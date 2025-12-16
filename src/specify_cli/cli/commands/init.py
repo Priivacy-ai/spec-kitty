@@ -94,7 +94,7 @@ def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
     ai_assistant: str = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps", rich_help_panel="Selection"),
-    mission_key: str = typer.Option(None, "--mission", help="Mission key to activate (software-dev, research, ...)", rich_help_panel="Selection"),
+    mission_key: str = typer.Option(None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
     here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
@@ -258,21 +258,15 @@ def init(
         else:
             selected_script = default_script
 
-    # Determine mission selection (explicit, interactive, or default)
+    # Mission selection deprecated - missions are now per-feature
     if mission_key:
-        mission_key = mission_key.strip().lower()
-        if mission_key not in MISSION_CHOICES:
-            _console.print(f"[red]Error:[/red] Invalid mission '{mission_key}'. Choose from: {', '.join(MISSION_CHOICES.keys())}")
-            raise typer.Exit(1)
-        selected_mission = mission_key
-    else:
-        default_mission = DEFAULT_MISSION_KEY if DEFAULT_MISSION_KEY in MISSION_CHOICES else next(iter(MISSION_CHOICES))
-        if sys.stdin.isatty():
-            selected_mission = select_with_arrows(MISSION_CHOICES, "Choose mission (or press Enter)", default_mission)
-        else:
-            selected_mission = default_mission
+        _console.print("[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-feature during /spec-kitty.specify")
+        _console.print("[dim]Ignoring --mission flag and continuing with initialization...[/dim]")
+        _console.print()
 
-    mission_display = MISSION_CHOICES[selected_mission]
+    # No longer select a project-level mission - just use software-dev for initial setup
+    selected_mission = DEFAULT_MISSION_KEY
+    mission_display = MISSION_CHOICES.get(selected_mission, "Software Dev Kitty")
 
     template_mode = "package"
     local_repo = get_local_repo_root(override_path=template_root)
@@ -500,7 +494,7 @@ def init(
         steps_lines.append(f"{step_num}. You're already in the project directory!")
     step_num += 1
 
-    steps_lines.append(f"{step_num}. Active mission: [cyan]{mission_display}[/cyan] (change later with [cyan]spec-kitty mission switch[/cyan])")
+    steps_lines.append(f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] (selected per-feature during [cyan]/spec-kitty.specify[/cyan])")
     step_num += 1
 
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent (in workflow order):")

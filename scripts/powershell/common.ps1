@@ -93,7 +93,10 @@ function Get-FeatureDir {
 }
 
 function Get-ActiveMissionInfo {
-    param([string]$RepoRoot)
+    param(
+        [string]$RepoRoot,
+        [string]$FeatureDir = ""  # Optional feature directory for per-feature mission lookup
+    )
 
     $python = Get-Command python3 -ErrorAction SilentlyContinue
     if (-not $python) {
@@ -109,14 +112,20 @@ import json
 import sys
 
 try:
-    from specify_cli.mission import get_active_mission, MissionNotFoundError  # type: ignore
+    from specify_cli.mission import get_mission_for_feature, get_active_mission, MissionNotFoundError  # type: ignore
 except Exception as exc:  # pragma: no cover - defensive
     print(json.dumps({'error': f'Unable to import mission module: {exc}'}))
     sys.exit(1)
 
 repo_root = Path(sys.argv[1])
+feature_dir_arg = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else None
+
 try:
-    mission = get_active_mission(repo_root)
+    if feature_dir_arg:
+        feature_dir = Path(feature_dir_arg)
+        mission = get_mission_for_feature(feature_dir, repo_root)
+    else:
+        mission = get_active_mission(repo_root)
 except MissionNotFoundError as exc:
     print(json.dumps({'error': str(exc)}))
     sys.exit(1)
@@ -137,7 +146,7 @@ payload = {
 print(json.dumps(payload))
 "@
 
-    $output = & $python.Path -c $script $RepoRoot 2>&1
+    $output = & $python.Path -c $script $RepoRoot $FeatureDir 2>&1
     if ($LASTEXITCODE -ne 0) {
         $message = ($output | Out-String).Trim()
         if (-not $message) {
@@ -162,7 +171,8 @@ function Get-FeaturePathsEnv {
     $missionInfo = $null
 
     try {
-        $missionInfo = Get-ActiveMissionInfo -RepoRoot $repoRoot
+        # Pass feature_dir to enable per-feature mission lookup from meta.json
+        $missionInfo = Get-ActiveMissionInfo -RepoRoot $repoRoot -FeatureDir $featureDir
     } catch {
         Write-Warning ("[spec-kitty] " + $_.Exception.Message)
         $defaultMissionPath = Join-Path $repoRoot ".kittify/missions/software-dev"

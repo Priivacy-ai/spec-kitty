@@ -4,6 +4,7 @@ set -e
 
 JSON_MODE=false
 FEATURE_NAME=""
+MISSION=""
 ARGS=()
 
 while [ "$#" -gt 0 ]; do
@@ -22,8 +23,25 @@ while [ "$#" -gt 0 ]; do
             fi
             FEATURE_NAME="$1"
             ;;
+        --mission=*)
+            MISSION="${1#*=}"
+            ;;
+        --mission)
+            shift
+            if [ -z "${1:-}" ]; then
+                echo "Error: --mission requires a value" >&2
+                exit 1
+            fi
+            MISSION="$1"
+            ;;
         --help|-h)
-            echo "Usage: $0 [--json] [--feature-name \"Friendly Title\"] <feature_description>"
+            echo "Usage: $0 [--json] [--feature-name \"Friendly Title\"] [--mission <key>] <feature_description>"
+            echo ""
+            echo "Options:"
+            echo "  --json              Output JSON format for script consumption"
+            echo "  --feature-name      Friendly title for the feature"
+            echo "  --mission           Mission key (e.g., software-dev, research)"
+            echo "                      If not specified, no mission is set in meta.json"
             exit 0
             ;;
         *)
@@ -59,7 +77,7 @@ find_repo_root() {
 # Resolve repository root. Prefer git information when available, but fall back
 # to searching for repository markers so the workflow still functions in repositories that
 # were initialised with --no-git.
-SCRIPT_DIR="$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if git rev-parse --show-toplevel >/dev/null 2>&1; then
     REPO_ROOT=$(git rev-parse --show-toplevel)
@@ -71,6 +89,19 @@ else
         exit 1
     fi
     HAS_GIT=false
+fi
+
+# Validate mission if provided
+if [ -n "$MISSION" ]; then
+    MISSION_DIR="$REPO_ROOT/.kittify/missions/$MISSION"
+    if [ ! -f "$MISSION_DIR/mission.yaml" ]; then
+        echo "Error: Mission '$MISSION' not found" >&2
+        echo "Available missions:" >&2
+        for m in "$REPO_ROOT/.kittify/missions"/*/mission.yaml; do
+            [ -f "$m" ] && echo "  - $(basename "$(dirname "$m")")" >&2
+        done
+        exit 1
+    fi
 fi
 
 trim() {
@@ -163,36 +194,6 @@ if [ "$HAS_GIT" = true ]; then
                         WORKTREE_CREATED=true
                         WORKTREE_NOTE="$WORKTREE_PATH"
                         >&2 echo "[spec-kitty] Warning: Reusing existing worktree at $WORKTREE_PATH for $BRANCH_NAME."
-
-                        # Ensure agent command symlinks exist (may be missing in older worktrees)
-                        AGENT_DIRS=(
-                            ".claude/commands"
-                            ".gemini/commands"
-                            ".github/prompts"
-                            ".cursor/commands"
-                            ".qwen/commands"
-                            ".opencode/command"
-                            ".windsurf/workflows"
-                            ".codex/prompts"
-                            ".kilocode/workflows"
-                            ".augment/commands"
-                            ".roo/commands"
-                            ".amazonq/prompts"
-                        )
-
-                        for agent_dir in "${AGENT_DIRS[@]}"; do
-                            src_dir="$PRIMARY_REPO_ROOT/$agent_dir"
-                            dest_dir="$WORKTREE_PATH/$agent_dir"
-
-                            if [ -d "$src_dir" ] && [ ! -e "$dest_dir" ]; then
-                                dest_parent="$(dirname "$dest_dir")"
-                                mkdir -p "$dest_parent"
-                                # Relative path: from .worktrees/<feature>/.agent/commands -> main/.agent/commands
-                                # Need to go up 3 levels: commands -> .agent -> feature -> .worktrees -> main
-                                rel_path="../../../$agent_dir"
-                                ln -s "$rel_path" "$dest_dir" 2>/dev/null || true
-                            fi
-                        done
                     else
                         >&2 echo "[spec-kitty] Warning: Existing worktree at $WORKTREE_PATH is checked out to $CURRENT_WORKTREE_BRANCH; skipping worktree creation."
                     fi
@@ -204,44 +205,6 @@ if [ "$HAS_GIT" = true ]; then
                     TARGET_ROOT="$WORKTREE_PATH"
                     WORKTREE_CREATED=true
                     WORKTREE_NOTE="$WORKTREE_PATH"
-
-                    # Symlink agent command directories from main repo to worktree
-                    # This ensures slash commands work in all worktrees for all AI agents
-                    AGENT_DIRS=(
-                        ".claude/commands"
-                        ".gemini/commands"
-                        ".github/prompts"
-                        ".cursor/commands"
-                        ".qwen/commands"
-                        ".opencode/command"
-                        ".windsurf/workflows"
-                        ".codex/prompts"
-                        ".kilocode/workflows"
-                        ".augment/commands"
-                        ".roo/commands"
-                        ".amazonq/prompts"
-                    )
-
-                    for agent_dir in "${AGENT_DIRS[@]}"; do
-                        src_dir="$PRIMARY_REPO_ROOT/$agent_dir"
-                        dest_dir="$WORKTREE_PATH/$agent_dir"
-
-                        if [ -d "$src_dir" ]; then
-                            # Create parent directory if needed
-                            dest_parent="$(dirname "$dest_dir")"
-                            mkdir -p "$dest_parent"
-
-                            # Create symlink (use relative path for portability)
-                            # Relative path: from .worktrees/<feature>/.agent/commands -> main/.agent/commands
-                            # Need to go up 3 levels: commands -> .agent -> feature -> .worktrees -> main
-                            rel_path="../../../$agent_dir"
-
-                            if [ ! -e "$dest_dir" ]; then
-                                ln -s "$rel_path" "$dest_dir" 2>/dev/null || \
-                                    >&2 echo "[spec-kitty] Warning: Could not symlink $agent_dir"
-                            fi
-                        fi
-                    done
                 else
                     >&2 echo "[spec-kitty] Warning: Unable to create git worktree for $BRANCH_NAME; falling back to in-place checkout."
                 fi
@@ -275,6 +238,66 @@ else
     >&2 echo "[spec-kitty]    Feature branch '$BRANCH_NAME' will NOT be created"
     >&2 echo "[spec-kitty]    Version control disabled for this feature"
     GIT_ENABLED=false
+fi
+
+# SHARED CONSTITUTION VIA SYMLINK
+# Worktrees use relative symlinks to share the main repo's constitution.
+# This ensures all feature branches follow the same project principles.
+#
+# Structure:
+#   Main repo: /path/to/repo/.kittify/memory/constitution.md
+#   Worktree:  /path/to/repo/.worktrees/001-feature/.kittify/memory -> ../../../.kittify/memory
+#
+# Benefits:
+#   - Single source of truth for constitution
+#   - Changes immediately visible in all worktrees
+#   - Works even if repository is moved (relative path)
+if [ "$WORKTREE_CREATED" = "true" ]; then
+    WORKTREE_KITTIFY_DIR="$WORKTREE_PATH/.kittify"
+    WORKTREE_MEMORY_DIR="$WORKTREE_KITTIFY_DIR/memory"
+
+    # Calculate relative path from worktree to main repo
+    # Worktree: .worktrees/001-feature/.kittify/memory
+    # Main:     .kittify/memory
+    # Relative: ../../../.kittify/memory
+    RELATIVE_MEMORY_PATH="../../../.kittify/memory"
+
+    # Remove copied memory directory if it exists
+    if [ -d "$WORKTREE_MEMORY_DIR" ]; then
+        rm -rf "$WORKTREE_MEMORY_DIR"
+    fi
+
+    # Ensure parent directory exists
+    mkdir -p "$WORKTREE_KITTIFY_DIR"
+
+    # Try to create relative symlink (works even if repo is moved)
+    cd "$WORKTREE_KITTIFY_DIR"
+
+    # Try symlink, fall back to copy on Windows if it fails
+    if ln -s "$RELATIVE_MEMORY_PATH" memory 2>/dev/null; then
+        >&2 echo "[spec-kitty] ✓ Shared constitution symlink created"
+    else
+        >&2 echo "[spec-kitty] Warning: Symlink failed (Windows?), using directory copy"
+        if [ -d "$PRIMARY_REPO_ROOT/.kittify/memory" ]; then
+            cp -r "$PRIMARY_REPO_ROOT/.kittify/memory" "$WORKTREE_MEMORY_DIR"
+        fi
+    fi
+
+    # Also symlink AGENTS.md so command templates can find it
+    # Relative: ../../../.kittify/AGENTS.md
+    RELATIVE_AGENTS_PATH="../../../.kittify/AGENTS.md"
+    if [ -f "$PRIMARY_REPO_ROOT/.kittify/AGENTS.md" ]; then
+        # Remove existing AGENTS.md if present
+        rm -f "$WORKTREE_KITTIFY_DIR/AGENTS.md" 2>/dev/null
+        if ln -s "$RELATIVE_AGENTS_PATH" AGENTS.md 2>/dev/null; then
+            >&2 echo "[spec-kitty] ✓ Shared AGENTS.md symlink created"
+        else
+            >&2 echo "[spec-kitty] Warning: AGENTS.md symlink failed, using file copy"
+            cp "$PRIMARY_REPO_ROOT/.kittify/AGENTS.md" "$WORKTREE_KITTIFY_DIR/AGENTS.md"
+        fi
+    fi
+
+    cd - >/dev/null
 fi
 
 REPO_ROOT="$TARGET_ROOT"
@@ -338,7 +361,20 @@ json_escape() {
 FRIENDLY_JSON=$(json_escape "$FRIENDLY_NAME")
 DESCRIPTION_JSON=$(json_escape "$FEATURE_DESCRIPTION")
 
-cat > "$META_FILE" <<EOF
+# Build meta.json with optional mission field
+if [ -n "$MISSION" ]; then
+    cat > "$META_FILE" <<EOF
+{
+  "feature_number": "$FEATURE_NUM",
+  "slug": "$BRANCH_NAME",
+  "friendly_name": "$FRIENDLY_JSON",
+  "source_description": "$DESCRIPTION_JSON",
+  "created_at": "$timestamp",
+  "mission": "$MISSION"
+}
+EOF
+else
+    cat > "$META_FILE" <<EOF
 {
   "feature_number": "$FEATURE_NUM",
   "slug": "$BRANCH_NAME",
@@ -347,6 +383,7 @@ cat > "$META_FILE" <<EOF
   "created_at": "$timestamp"
 }
 EOF
+fi
 
 WORKTREE_JSON=$(json_escape "$WORKTREE_NOTE")
 

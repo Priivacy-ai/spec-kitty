@@ -83,6 +83,42 @@ Discovery requirements (scale to feature complexity):
 3. When you have sufficient context for the feature's scope, paraphrase into an **Intent Summary** and confirm. For trivial features, this can be very brief.
 4. If user explicitly asks to skip questions or says "just testing", acknowledge and proceed with minimal discovery.
 
+## Mission Selection
+
+After completing discovery and confirming the Intent Summary, determine the appropriate mission for this feature.
+
+### Available Missions
+
+- **software-dev**: For building software features, APIs, CLI tools, applications
+  - Phases: research → design → implement → test → review
+  - Best for: code changes, new features, bug fixes, refactoring
+
+- **research**: For investigations, literature reviews, technical analysis
+  - Phases: question → methodology → gather → analyze → synthesize → publish
+  - Best for: feasibility studies, market research, technology evaluation
+
+### Mission Inference
+
+1. **Analyze the feature description** to identify the primary goal:
+   - Building, coding, implementing, creating software → **software-dev**
+   - Researching, investigating, analyzing, evaluating → **research**
+
+2. **Check for explicit mission requests** in the user's description:
+   - If user mentions "research project", "investigation", "analysis" → use research
+   - If user mentions "build", "implement", "create feature" → use software-dev
+
+3. **Confirm with user** (unless explicit):
+   > "Based on your description, this sounds like a **[software-dev/research]** project.
+   > I'll use the **[mission name]** mission. Does that work for you?"
+
+4. **Handle user response**:
+   - If confirmed: proceed with selected mission
+   - If user wants different mission: use their choice
+
+5. **Handle --mission flag**: If the user provides `--mission <key>` in their command, skip inference and use the specified mission directly.
+
+Store the final mission selection to pass to the script via `--mission "<selected-mission>"`.
+
 ## Outline
 
 ### 0. Generate a Friendly Feature Title
@@ -103,12 +139,14 @@ Given that feature description, do this:
    - Only proceed once every discovery question has an explicit answer and the user has acknowledged the Intent Summary.
    - Empty invocation rule: stay in interview mode until you can restate the agreed-upon feature description. Do **not** call `{SCRIPT}` while the description is missing or provisional.
 
-2. When discovery is complete and the intent summary **and title** are confirmed, run the script `{SCRIPT}` from repo root, inserting `--feature-name "<Friendly Title>"` (replace the quoted text with the confirmed title) immediately before the feature description argument. For example:
+2. When discovery is complete and the intent summary, **title**, and **mission** are confirmed, run the script `{SCRIPT}` from repo root, inserting `--feature-name "<Friendly Title>"` and `--mission "<selected-mission>"` immediately before the feature description argument. For example:
 
-   - **bash/zsh**: `.kittify/scripts/bash/create-new-feature.sh --json --feature-name "Checkout Upsell Flow" "$ARGUMENTS"`
-   - **PowerShell**: `.kittify/scripts/powershell/create-new-feature.ps1 -Json -FeatureName "Checkout Upsell Flow" "$ARGUMENTS"`
+   - **bash/zsh**: `.kittify/scripts/bash/create-new-feature.sh --json --feature-name "Checkout Upsell Flow" --mission "software-dev" "$ARGUMENTS"`
+   - **PowerShell**: `.kittify/scripts/powershell/create-new-feature.ps1 -Json -FeatureName "Checkout Upsell Flow" -Mission "software-dev" "$ARGUMENTS"`
 
    Parse its JSON output for `BRANCH_NAME`, `SPEC_FILE`, `FEATURE_NUM`, and `FRIENDLY_NAME`. All file paths must be absolute.
+
+   **Note**: The `--mission` flag writes the mission to the feature's `meta.json`, which downstream commands will read to use the correct templates.
 
    **IMPORTANT** You must only ever run this script once. The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for.
 3. Load `templates/spec-template.md` to understand required sections.
