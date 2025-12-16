@@ -1,6 +1,6 @@
 <div align="center">
     <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/logo_small.webp" alt="Spec Kitty Logo"/>
-    <h1>🐱 Spec Kitty</h1>
+    <h1>Spec Kitty</h1>
     <h3><em>Real-Time AI Development Dashboard for Spec-Driven Multi-Agent Workflows</em></h3>
 </div>
 
