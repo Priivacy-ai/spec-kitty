@@ -30,10 +30,32 @@ Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
 <!-- MANUAL ADDITIONS START -->
 
- Never claim something in the frontend works without Playwright proof.
+## PyPI Release (Quick Reference)
 
-  - API responses don't guarantee UI works
-  - Frontend can break silently (404 caught, shows fallback)
-  - Always test the actual user experience, not just backend
+```bash
+# 1. Ensure version is bumped in pyproject.toml
+# 2. Ensure CHANGELOG.md has entry for version
+# 3. Create and push annotated tag:
+git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
+git push origin vX.Y.Z
+
+# 4. Monitor workflow:
+gh run list --workflow=release.yml --limit=1
+gh run watch <run_id>
+
+# 5. Verify:
+gh release view vX.Y.Z
+pip install --upgrade spec-kitty-cli && spec-kitty --version
+```
+
+Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
+
+## Other Notes
+
+Never claim something in the frontend works without Playwright proof.
+
+- API responses don't guarantee UI works
+- Frontend can break silently (404 caught, shows fallback)
+- Always test the actual user experience, not just backend
 
 <!-- MANUAL ADDITIONS END -->
