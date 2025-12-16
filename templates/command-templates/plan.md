@@ -7,8 +7,6 @@ agent_scripts:
   sh: scripts/bash/update-agent-context.sh __AGENT__
   ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
-*Path: [templates/commands/plan.md](templates/commands/plan.md)*
-
 
 ## User Input
 
@@ -20,28 +18,25 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check (CRITICAL for AI Agents)
 
-Before proceeding with planning, verify you are in the correct working directory:
+Before proceeding with planning, verify you are in the correct working directory by running the shared pre-flight validation:
 
-**Check your current branch:**
-```bash
-git branch --show-current
+```python
+from specify_cli.guards import validate_worktree_location
+
+# Validate location
+result = validate_worktree_location()
+if not result.is_valid:
+    print(result.format_error())
+    print("\nThis command MUST run from a feature worktree, not the main repository.")
+    exit(1)
 ```
 
-**Expected output:** A feature branch like `001-feature-name`
-**If you see `main`:** You are in the wrong location!
+**What this validates**:
+- Current branch follows the feature pattern like `001-feature-name`
+- You're not attempting to run from `main` or any release branch
+- The validator prints clear navigation instructions if you're outside the feature worktree
 
-**This command MUST run from a feature worktree, not the main repository.**
-
-If you're on the `main` branch:
-1. Check for available worktrees: `ls .worktrees/`
-2. Navigate to the appropriate feature worktree: `cd .worktrees/<feature-name>`
-3. Verify you're in the right place: `git branch --show-current` should show the feature branch
-4. Then re-run this command
-
-The script will fail if you're not in a feature worktree.
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
-
-This is intentional - worktrees provide isolation for parallel feature development.
 
 ## Planning Interrogation (mandatory)
 
@@ -84,18 +79,18 @@ Planning requirements (scale to complexity):
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
    - Fill Constitution Check section from constitution and challenge any conflicts directly with the user
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
-   - Phase 0: Run `spec-kitty research` (or `/spec-kitty.research`) to scaffold research.md, data-model.md, and research CSV logs, then populate findings using the validated planning answers
-   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent (building on the Phase 0 outputs)
+   - Phase 0: Generate research.md (commission research to resolve every outstanding clarification)
+   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design, asking the user to resolve new gaps before proceeding
 
-5. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+5. **STOP and report**: This command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+
+   **⚠️ CRITICAL: DO NOT proceed to task generation!** The user must explicitly run `/spec-kitty.tasks` to generate work packages. Your job is COMPLETE after reporting the planning artifacts.
 
 ## Phases
 
 ### Phase 0: Outline & Research
-
-> Kick off this phase by running `spec-kitty research` to scaffold the mission-specific files listed below. Then use the checklist to enrich each artifact with the clarifications uncovered during planning.
 
 1. **Extract unknowns from Technical Context** above:
    - For each NEEDS CLARIFICATION → research task
@@ -144,3 +139,28 @@ Planning requirements (scale to complexity):
 
 - Use absolute paths
 - ERROR on gate failures or unresolved clarifications
+
+---
+
+## ⛔ MANDATORY STOP POINT
+
+**This command is COMPLETE after generating planning artifacts.**
+
+After reporting:
+- `plan.md` path
+- `research.md` path (if generated)
+- `data-model.md` path (if generated)
+- `contracts/` contents (if generated)
+- Agent context file updated
+
+**YOU MUST STOP HERE.**
+
+Do NOT:
+- ❌ Generate `tasks.md`
+- ❌ Create work package (WP) files
+- ❌ Create `tasks/` subdirectories
+- ❌ Proceed to implementation
+
+The user will run `/spec-kitty.tasks` when they are ready to generate work packages.
+
+**Next suggested command**: `/spec-kitty.tasks` (user must invoke this explicitly)

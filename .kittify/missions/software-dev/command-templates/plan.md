@@ -84,7 +84,9 @@ Planning requirements (scale to complexity):
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design, asking the user to resolve new gaps before proceeding
 
-5. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+5. **STOP and report**: This command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+
+   **⚠️ CRITICAL: DO NOT proceed to task generation!** The user must explicitly run `/spec-kitty.tasks` to generate work packages. Your job is COMPLETE after reporting the planning artifacts.
 
 ## Phases
 
@@ -137,3 +139,28 @@ Planning requirements (scale to complexity):
 
 - Use absolute paths
 - ERROR on gate failures or unresolved clarifications
+
+---
+
+## ⛔ MANDATORY STOP POINT
+
+**This command is COMPLETE after generating planning artifacts.**
+
+After reporting:
+- `plan.md` path
+- `research.md` path (if generated)
+- `data-model.md` path (if generated)
+- `contracts/` contents (if generated)
+- Agent context file updated
+
+**YOU MUST STOP HERE.**
+
+Do NOT:
+- ❌ Generate `tasks.md`
+- ❌ Create work package (WP) files
+- ❌ Create `tasks/` subdirectories
+- ❌ Proceed to implementation
+
+The user will run `/spec-kitty.tasks` when they are ready to generate work packages.
+
+**Next suggested command**: `/spec-kitty.tasks` (user must invoke this explicitly)
