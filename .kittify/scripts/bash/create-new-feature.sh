@@ -283,6 +283,20 @@ if [ "$WORKTREE_CREATED" = "true" ]; then
         fi
     fi
 
+    # Also symlink AGENTS.md so command templates can find it
+    # Relative: ../../../.kittify/AGENTS.md
+    RELATIVE_AGENTS_PATH="../../../.kittify/AGENTS.md"
+    if [ -f "$PRIMARY_REPO_ROOT/.kittify/AGENTS.md" ]; then
+        # Remove existing AGENTS.md if present
+        rm -f "$WORKTREE_KITTIFY_DIR/AGENTS.md" 2>/dev/null
+        if ln -s "$RELATIVE_AGENTS_PATH" AGENTS.md 2>/dev/null; then
+            >&2 echo "[spec-kitty] ✓ Shared AGENTS.md symlink created"
+        else
+            >&2 echo "[spec-kitty] Warning: AGENTS.md symlink failed, using file copy"
+            cp "$PRIMARY_REPO_ROOT/.kittify/AGENTS.md" "$WORKTREE_KITTIFY_DIR/AGENTS.md"
+        fi
+    fi
+
     cd - >/dev/null
 fi
 
