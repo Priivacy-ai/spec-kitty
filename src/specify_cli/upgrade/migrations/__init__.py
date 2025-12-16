@@ -12,6 +12,7 @@ from . import m_0_5_0_encoding_hooks
 from . import m_0_6_5_commands_rename
 from . import m_0_6_7_ensure_missions
 from . import m_0_7_2_worktree_commands_dedup
+from . import m_0_7_3_update_scripts
 from . import m_0_8_0_remove_active_mission
 from . import m_0_8_0_worktree_agents_symlink
 
@@ -22,6 +23,7 @@ __all__ = [
     "m_0_6_5_commands_rename",
     "m_0_6_7_ensure_missions",
     "m_0_7_2_worktree_commands_dedup",
+    "m_0_7_3_update_scripts",
     "m_0_8_0_remove_active_mission",
     "m_0_8_0_worktree_agents_symlink",
 ]

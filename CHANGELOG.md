@@ -45,12 +45,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Migration for v0.8.0** - `spec-kitty upgrade` removes obsolete `.kittify/active-mission` file
 
+- **AGENTS.md worktree fix** - New worktrees get AGENTS.md symlink, and `spec-kitty upgrade` fixes existing worktrees
+
 ### Changed
 
 - All downstream commands (`/spec-kitty.plan`, `/spec-kitty.tasks`, `/spec-kitty.implement`, `/spec-kitty.review`, `/spec-kitty.accept`) now read mission from feature's `meta.json`
 - `create-new-feature.sh` accepts `--mission <key>` parameter to set mission in meta.json
 - Common bash/PowerShell scripts updated to resolve mission from feature directory
 - `spec-kitty mission current` shows current default mission (for informational purposes)
+- Dashboard template now includes dynamic AGENTS.md path discovery instructions
 
 ### Deprecated
 
@@ -61,6 +64,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 1. Run `spec-kitty upgrade` to remove `.kittify/active-mission`
 2. Existing features without `mission` field will use `software-dev` by default
 3. New features will have mission set during `/spec-kitty.specify`
+
+## [0.7.4] - 2025-12-14
+
+### Added
+
+- **Script Update Migration** – `spec-kitty upgrade` now updates project scripts:
+  - Copies latest `create-new-feature.sh` from package to project
+  - Fixes worktree feature numbering bug in existing projects
+  - Previously, projects kept old scripts from when they were initialized
 
 ## [0.7.3] - 2025-12-14
 
