@@ -7,10 +7,10 @@ subtasks:
   - "T004"
 title: "Foundation - Legacy Detection & Shared Utilities"
 phase: "Phase 0 - Foundation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "63393"
 review_status: ""
 reviewed_by: ""
 history:
@@ -192,3 +192,7 @@ Create the foundation components that all other work packages depend on:
 - Verify lane extraction handles edge cases (missing, invalid)
 - Check warning/error messages are clear and actionable
 - Ensure no breaking changes to existing function signatures
+
+## Activity Log
+
+- 2025-12-17T12:11:54Z – claude – shell_pid=63393 – lane=doing – Started implementation

@@ -10,6 +10,8 @@ Auto-generated from all feature plans. Last updated: 2025-11-10
 - File system (no database) (004-modular-code-refactoring)
 - Python 3.11+ (existing spec-kitty codebase requirement) (005-refactor-mission-system)
 - Filesystem only (YAML configs, CSV files, markdown templates) (005-refactor-mission-system)
+- Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (console output), ruamel.yaml (frontmatter parsing), typer (CLI) (007-frontmatter-only-lane)
+- Filesystem only (YAML frontmatter in markdown files) (007-frontmatter-only-lane)
 
 ## Project Structure
 ```
@@ -24,9 +26,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
 ## Recent Changes
+- 007-frontmatter-only-lane: Added Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (console output), ruamel.yaml (frontmatter parsing), typer (CLI)
 - 005-refactor-mission-system: Added Python 3.11+ (existing spec-kitty codebase requirement)
 - 004-modular-code-refactoring: Added Python 3.11+ (existing spec-kitty codebase) + yper, rich, httpx, pyyaml, readchar
-- 003-auto-protect-agent: Added Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (for console output), subprocess (for git operations)
 
 <!-- MANUAL ADDITIONS START -->
 
