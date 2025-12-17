@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from src.specify_cli.legacy_detector import is_legacy_format
+from specify_cli.legacy_detector import is_legacy_format
 
 # IMPORTANT: Keep in sync with scripts/tasks/task_helpers.py
 LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")

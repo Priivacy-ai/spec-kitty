@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.template import parse_frontmatter
 from specify_cli.text_sanitization import sanitize_file
 
@@ -232,6 +233,26 @@ def resolve_feature_dir(project_dir: Path, feature_id: str) -> Optional[Path]:
     return feature_paths.get(feature_id)
 
 
+def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> Dict[str, int]:
+    """Count work packages by lane from frontmatter (new format)."""
+    counts = {"planned": 0, "doing": 0, "for_review": 0, "done": 0}
+
+    if not tasks_dir.exists():
+        return counts
+
+    for wp_file in tasks_dir.glob("WP*.md"):
+        content, error = read_file_resilient(wp_file, auto_fix=True)
+        if content is None:
+            continue
+
+        frontmatter, _, _ = parse_frontmatter(content)
+        lane = frontmatter.get("lane", "planned") if isinstance(frontmatter, dict) else "planned"
+        if lane in counts:
+            counts[lane] += 1
+
+    return counts
+
+
 def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
     """Scan all features and return metadata."""
     features: List[Dict[str, Any]] = []
@@ -259,10 +280,20 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
         kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "done": 0}
         if artifacts["kanban"]:
             tasks_dir = feature_dir / "tasks"
-            for lane in ["planned", "doing", "for_review", "done"]:
-                lane_dir = tasks_dir / lane
-                if lane_dir.exists():
-                    count = len(list(lane_dir.rglob("WP*.md")))
+            use_legacy = is_legacy_format(feature_dir)
+
+            if use_legacy:
+                # Legacy format: count WPs in lane subdirectories
+                for lane in ["planned", "doing", "for_review", "done"]:
+                    lane_dir = tasks_dir / lane
+                    if lane_dir.exists():
+                        count = len(list(lane_dir.rglob("WP*.md")))
+                        kanban_stats[lane] = count
+                        kanban_stats["total"] += count
+            else:
+                # New format: count WPs by frontmatter lane
+                lane_counts = _count_wps_by_lane_frontmatter(tasks_dir)
+                for lane, count in lane_counts.items():
                     kanban_stats[lane] = count
                     kanban_stats["total"] += count
 
@@ -290,8 +321,59 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
     return features
 
 
+def _process_wp_file(
+    prompt_file: Path,
+    project_dir: Path,
+    default_lane: str,
+) -> Optional[Dict[str, Any]]:
+    """Process a single WP file and return task data or None on error."""
+    content, error = read_file_resilient(prompt_file, auto_fix=True)
+
+    if content is None:
+        logger.error(f"Failed to read {prompt_file.name}: {error}")
+        return {
+            "id": prompt_file.stem,
+            "title": f"⚠️ Encoding Error: {prompt_file.name}",
+            "lane": default_lane,
+            "subtasks": [],
+            "agent": "",
+            "assignee": "",
+            "phase": "",
+            "prompt_markdown": f"**Encoding Error**\n\n{error}",
+            "prompt_path": str(prompt_file.relative_to(project_dir))
+            if prompt_file.is_relative_to(project_dir)
+            else str(prompt_file),
+            "encoding_error": True,
+        }
+
+    frontmatter, prompt_body, _ = parse_frontmatter(content)
+
+    if not isinstance(frontmatter, dict) or "work_package_id" not in frontmatter:
+        return None
+
+    title_match = re.search(r"^#\s+Work Package Prompt:\s+(.+)$", content, re.MULTILINE)
+    title = title_match.group(1) if title_match else prompt_file.stem
+
+    return {
+        "id": frontmatter.get("work_package_id", prompt_file.stem),
+        "title": title,
+        "lane": frontmatter.get("lane", default_lane),
+        "subtasks": frontmatter.get("subtasks", []),
+        "agent": frontmatter.get("agent", ""),
+        "assignee": frontmatter.get("assignee", ""),
+        "phase": frontmatter.get("phase", ""),
+        "prompt_markdown": prompt_body.strip(),
+        "prompt_path": str(prompt_file.relative_to(project_dir))
+        if prompt_file.is_relative_to(project_dir)
+        else str(prompt_file),
+    }
+
+
 def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Dict[str, Any]]]:
-    """Scan kanban board for a specific feature."""
+    """Scan kanban board for a specific feature.
+
+    Supports both legacy (directory-based) and new (frontmatter-based) lane formats.
+    """
     feature_dir = resolve_feature_dir(project_dir, feature_id)
     lanes: Dict[str, List[Dict[str, Any]]] = {
         "planned": [],
@@ -307,64 +389,41 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
     if not tasks_dir.exists():
         return lanes
 
-    for lane in lanes.keys():
-        lane_dir = tasks_dir / lane
-        if not lane_dir.exists():
-            continue
+    use_legacy = is_legacy_format(feature_dir)
 
-        for prompt_file in lane_dir.rglob("WP*.md"):
+    if use_legacy:
+        # Legacy format: scan lane subdirectories
+        for lane in lanes.keys():
+            lane_dir = tasks_dir / lane
+            if not lane_dir.exists():
+                continue
+
+            for prompt_file in lane_dir.rglob("WP*.md"):
+                try:
+                    task_data = _process_wp_file(prompt_file, project_dir, lane)
+                    if task_data is not None:
+                        lanes[lane].append(task_data)
+                except Exception as exc:
+                    logger.error(f"Unexpected error processing {prompt_file.name}: {exc}")
+                    continue
+
+            lanes[lane].sort(key=work_package_sort_key)
+    else:
+        # New format: scan flat tasks/ directory, lane from frontmatter
+        for prompt_file in tasks_dir.glob("WP*.md"):
             try:
-                # Use resilient reader with auto-fix
-                content, error = read_file_resilient(prompt_file, auto_fix=True)
-
-                if content is None:
-                    # Log the error and create an error task card
-                    logger.error(f"Failed to read {prompt_file.name}: {error}")
-                    lanes[lane].append(
-                        {
-                            "id": prompt_file.stem,
-                            "title": f"⚠️ Encoding Error: {prompt_file.name}",
-                            "lane": lane,
-                            "subtasks": [],
-                            "agent": "",
-                            "assignee": "",
-                            "phase": "",
-                            "prompt_markdown": f"**Encoding Error**\n\n{error}",
-                            "prompt_path": str(prompt_file.relative_to(project_dir))
-                            if prompt_file.is_relative_to(project_dir)
-                            else str(prompt_file),
-                            "encoding_error": True,
-                        }
-                    )
-                    continue
-
-                frontmatter, prompt_body, _ = parse_frontmatter(content)
-
-                if "work_package_id" not in frontmatter:
-                    continue
-
-                title_match = re.search(r"^#\s+Work Package Prompt:\s+(.+)$", content, re.MULTILINE)
-                title = title_match.group(1) if title_match else prompt_file.stem
-
-                task_data = {
-                    "id": frontmatter.get("work_package_id", prompt_file.stem),
-                    "title": title,
-                    "lane": frontmatter.get("lane", lane),
-                    "subtasks": frontmatter.get("subtasks", []),
-                    "agent": frontmatter.get("agent", ""),
-                    "assignee": frontmatter.get("assignee", ""),
-                    "phase": frontmatter.get("phase", ""),
-                    "prompt_markdown": prompt_body.strip(),
-                    "prompt_path": str(prompt_file.relative_to(project_dir))
-                    if prompt_file.is_relative_to(project_dir)
-                    else str(prompt_file),
-                }
-
-                lanes[lane].append(task_data)
+                task_data = _process_wp_file(prompt_file, project_dir, "planned")
+                if task_data is not None:
+                    lane = task_data.get("lane", "planned")
+                    if lane not in lanes:
+                        lane = "planned"
+                    lanes[lane].append(task_data)
             except Exception as exc:
                 logger.error(f"Unexpected error processing {prompt_file.name}: {exc}")
                 continue
 
-        lanes[lane].sort(key=work_package_sort_key)
+        # Sort all lanes
+        for lane in lanes.keys():
+            lanes[lane].sort(key=work_package_sort_key)
 
     return lanes

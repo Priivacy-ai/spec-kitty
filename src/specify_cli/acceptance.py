@@ -18,7 +18,9 @@ from .tasks_support import (
     activity_entries,
     extract_scalar,
     find_repo_root,
+    get_lane_from_frontmatter,
     git_status_lines,
+    is_legacy_format,
     run_git,
     split_frontmatter,
 )
@@ -167,20 +169,49 @@ class AcceptanceResult:
 
 
 def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
-    tasks_dir = repo_root / "kitty-specs" / feature / "tasks"
+    """Iterate over work packages, supporting both legacy and new formats.
+
+    Legacy format: WP files in tasks/{lane}/ subdirectories
+    New format: WP files in flat tasks/ directory with lane in frontmatter
+    """
+    feature_path = repo_root / "kitty-specs" / feature
+    tasks_dir = feature_path / "tasks"
     if not tasks_dir.exists():
         raise AcceptanceError(f"Feature '{feature}' has no tasks directory at {tasks_dir}.")
 
-    for lane_dir in sorted(tasks_dir.iterdir()):
-        if not lane_dir.is_dir():
-            continue
-        lane = lane_dir.name
-        if lane not in LANES:
-            continue
-        for path in sorted(lane_dir.rglob("*.md")):
+    use_legacy = is_legacy_format(feature_path)
+
+    if use_legacy:
+        # Legacy format: iterate over lane subdirectories
+        for lane_dir in sorted(tasks_dir.iterdir()):
+            if not lane_dir.is_dir():
+                continue
+            lane = lane_dir.name
+            if lane not in LANES:
+                continue
+            for path in sorted(lane_dir.rglob("*.md")):
+                text = path.read_text(encoding="utf-8-sig")
+                front, body, padding = split_frontmatter(text)
+                relative = path.relative_to(lane_dir)
+                yield WorkPackage(
+                    feature=feature,
+                    path=path,
+                    current_lane=lane,
+                    relative_subpath=relative,
+                    frontmatter=front,
+                    body=body,
+                    padding=padding,
+                )
+    else:
+        # New format: flat tasks/ directory, lane from frontmatter
+        for path in sorted(tasks_dir.glob("*.md")):
+            if path.name.lower() == "readme.md":
+                continue
             text = path.read_text(encoding="utf-8-sig")
             front, body, padding = split_frontmatter(text)
-            relative = path.relative_to(lane_dir)
+            # Get lane from frontmatter
+            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+            relative = path.relative_to(tasks_dir)
             yield WorkPackage(
                 feature=feature,
                 path=path,
@@ -313,6 +344,8 @@ def collect_feature_summary(
     metadata_issues: List[str] = []
     activity_issues: List[str] = []
 
+    use_legacy = is_legacy_format(feature_dir)
+
     for wp in _iter_work_packages(repo_root, feature):
         wp_id = wp.work_package_id or wp.path.stem
         title = (wp.title or "").strip('"')
@@ -334,7 +367,8 @@ def collect_feature_summary(
             lane_value = (wp.lane or "").strip()
             if not lane_value:
                 metadata_issues.append(f"{wp_id}: missing lane in frontmatter")
-            elif lane_value != wp.current_lane:
+            elif use_legacy and lane_value != wp.current_lane:
+                # Only check directory/frontmatter mismatch in legacy format
                 metadata_issues.append(
                     f"{wp_id}: frontmatter lane '{lane_value}' does not match directory '{wp.current_lane}'"
                 )
