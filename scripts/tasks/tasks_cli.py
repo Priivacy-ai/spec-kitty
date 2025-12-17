@@ -28,6 +28,7 @@ from task_helpers import (  # noqa: E402
     find_repo_root,
     get_lane_from_frontmatter,
     git_status_lines,
+    is_legacy_format,
     normalize_note,
     now_utc,
     path_has_changes,
@@ -36,13 +37,6 @@ from task_helpers import (  # noqa: E402
     split_frontmatter,
     locate_work_package,
 )
-
-# Add project root to path for importing src modules
-PROJECT_ROOT = SCRIPT_DIR.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from src.specify_cli.legacy_detector import is_legacy_format  # noqa: E402
 from acceptance_support import (  # noqa: E402
     AcceptanceError,
     AcceptanceResult,

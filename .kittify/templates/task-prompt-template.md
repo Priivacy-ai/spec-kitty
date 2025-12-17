@@ -4,7 +4,7 @@ subtasks:
   - "Txxx"
 title: "Replace with work package title"
 phase: "Phase N - Replace with phase name"
-lane: "planned"  # DO NOT EDIT - use: tasks_cli.py move <feature> <WP> <lane>
+lane: "planned"  # Edit directly or use: tasks_cli.py update <feature> <WP> <lane>
 assignee: ""      # Optional friendly name when in doing/for_review
 agent: ""         # CLI agent identifier (claude, codex, etc.)
 shell_pid: ""     # PID captured when the task moved to the current lane
@@ -96,24 +96,17 @@ history:
 
 ---
 
-### Updating Metadata When Changing Lanes
+### Updating Lane Status
 
-**IMPORTANT: Never manually edit the `lane:` field.** The lane is determined by the file's directory location, not the YAML field. Editing the field without moving the file creates a mismatch that breaks the system.
+To change a work package's lane, either:
 
-**Always use the move command:**
-```bash
-python3 .kittify/scripts/tasks/tasks_cli.py move <FEATURE> <WPID> <lane> --note "Your note"
-```
+1. **Edit directly**: Change the `lane:` field in frontmatter
+2. **Use CLI**: `tasks_cli.py update <FEATURE> <WPID> <lane> --note "message"`
 
-This command:
-1. Moves the file to the correct `tasks/<lane>/` directory
-2. Updates the `lane:` field in YAML
-3. Updates `agent` and `shell_pid` metadata
-4. Appends an entry to the Activity Log
-5. Stages the changes for commit
+The CLI command also updates the activity log automatically.
 
-You can add `--agent <name>` and `--shell-pid <pid>` flags for explicit metadata.
+**Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
-### Optional Phase Subdirectories
+### File Structure
 
-For large features, organize prompts under `tasks/planned/phase-<n>-<label>/` to keep bundles grouped while maintaining lexical ordering.
+All WP files live in a flat `tasks/` directory. The lane is determined by the `lane:` frontmatter field, not the directory location.

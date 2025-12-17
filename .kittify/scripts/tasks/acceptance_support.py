@@ -18,7 +18,9 @@ from task_helpers import (
     activity_entries,
     extract_scalar,
     find_repo_root,
+    get_lane_from_frontmatter,
     git_status_lines,
+    is_legacy_format,
     run_git,
     split_frontmatter,
 )
@@ -176,25 +178,49 @@ class AcceptanceResult:
 
 
 def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
-    tasks_dir = repo_root / "kitty-specs" / feature / "tasks"
+    """Iterate work packages for a feature.
+
+    Supports both legacy (directory-based) and new (frontmatter-only) lane formats.
+    """
+    feature_dir = repo_root / "kitty-specs" / feature
+    tasks_dir = feature_dir / "tasks"
     if not tasks_dir.exists():
         raise AcceptanceError(f"Feature '{feature}' has no tasks directory at {tasks_dir}.")
 
-    for lane_dir in sorted(tasks_dir.iterdir()):
-        if not lane_dir.is_dir():
-            continue
-        lane = lane_dir.name
-        if lane not in LANES:
-            continue
-        for path in sorted(lane_dir.rglob("*.md")):
+    if is_legacy_format(feature_dir):
+        # Legacy format: lane determined by subdirectory
+        for lane_dir in sorted(tasks_dir.iterdir()):
+            if not lane_dir.is_dir():
+                continue
+            lane = lane_dir.name
+            if lane not in LANES:
+                continue
+            for path in sorted(lane_dir.rglob("*.md")):
+                text = _read_text_strict(path)
+                front, body, padding = split_frontmatter(text)
+                relative = path.relative_to(lane_dir)
+                yield WorkPackage(
+                    feature=feature,
+                    path=path,
+                    current_lane=lane,
+                    relative_subpath=relative,
+                    frontmatter=front,
+                    body=body,
+                    padding=padding,
+                )
+    else:
+        # New format: flat directory, lane from frontmatter
+        for path in sorted(tasks_dir.glob("*.md")):
+            if path.name == "README.md":
+                continue
             text = _read_text_strict(path)
             front, body, padding = split_frontmatter(text)
-            relative = path.relative_to(lane_dir)
+            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
             yield WorkPackage(
                 feature=feature,
                 path=path,
                 current_lane=lane,
-                relative_subpath=relative,
+                relative_subpath=path.relative_to(tasks_dir),
                 frontmatter=front,
                 body=body,
                 padding=padding,
@@ -246,7 +272,7 @@ def _read_file(path: Path) -> str:
 
 def _read_text_strict(path: Path) -> str:
     try:
-        return path.read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError as exc:
         raise ArtifactEncodingError(path, exc) from exc
 
@@ -349,6 +375,9 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> List[Path]:
         if text is None:
             text = data.decode("utf-8", errors="replace")
 
+        # Strip UTF-8 BOM if present in the text
+        text = text.lstrip('\ufeff')
+
         # Normalize Unicode characters to ASCII equivalents
         for unicode_char, ascii_replacement in NORMALIZE_MAP.items():
             text = text.replace(unicode_char, ascii_replacement)
@@ -426,7 +455,7 @@ def collect_feature_summary(
                 metadata_issues.append(f"{wp_id}: missing lane in frontmatter")
             elif lane_value != wp.current_lane:
                 metadata_issues.append(
-                    f"{wp_id}: frontmatter lane '{lane_value}' does not match directory '{wp.current_lane}'"
+                    f"{wp_id}: frontmatter lane '{lane_value}' does not match expected '{wp.current_lane}'"
                 )
 
             if not wp.agent:

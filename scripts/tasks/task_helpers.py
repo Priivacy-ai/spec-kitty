@@ -15,14 +15,43 @@ from typing import Dict, List, Optional, Tuple
 # IMPORTANT: Keep in sync with src/specify_cli/tasks_support.py
 LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
 
-# Add project root to path for importing src modules
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from src.specify_cli.legacy_detector import is_legacy_format  # noqa: E402
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+# Lane directories that indicate legacy format when they contain .md files
+LEGACY_LANE_DIRS: List[str] = ["planned", "doing", "for_review", "done"]
+
+
+def is_legacy_format(feature_path: Path) -> bool:
+    """Check if feature uses legacy directory-based lanes.
+
+    A feature is considered to use legacy format if:
+    - It has a tasks/ subdirectory
+    - Any of the lane subdirectories (planned/, doing/, for_review/, done/)
+      exist AND contain at least one .md file
+
+    Args:
+        feature_path: Path to the feature directory (e.g., kitty-specs/007-feature/)
+
+    Returns:
+        True if legacy directory-based lanes detected, False otherwise.
+
+    Note:
+        Empty lane directories (containing only .gitkeep) are NOT considered
+        legacy format - only directories with actual .md work package files.
+    """
+    tasks_dir = feature_path / "tasks"
+    if not tasks_dir.exists():
+        return False
+
+    for lane in LEGACY_LANE_DIRS:
+        lane_path = tasks_dir / lane
+        if lane_path.is_dir():
+            # Check if there are any .md files (not just .gitkeep)
+            md_files = list(lane_path.glob("*.md"))
+            if md_files:
+                return True
+
+    return False
 
 
 class TaskCliError(RuntimeError):
@@ -430,6 +459,7 @@ __all__ = [
     "locate_work_package",
     "normalize_note",
     "now_utc",
+    "path_has_changes",
     "run_git",
     "set_scalar",
     "split_frontmatter",

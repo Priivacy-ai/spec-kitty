@@ -1,21 +1,36 @@
 # Tasks Directory
 
-This directory contains work package (WP) prompt files organized by kanban lane.
+This directory contains work package (WP) prompt files for the feature.
 
 ## Directory Structure
 
+All WP files live in this flat directory:
 ```
 tasks/
-├── planned/      # WP files ready for implementation
-├── doing/        # WP files currently being worked on
-├── for_review/   # WP files awaiting review
-├── done/         # Completed WP files
-└── README.md     # This file
+├── WP01-setup.md
+├── WP02-implement.md
+├── WP03-test.md
+└── README.md
 ```
+
+## Lane Management
+
+Each WP file has a `lane:` field in its YAML frontmatter:
+- `planned` - Not yet started
+- `doing` - In progress
+- `for_review` - Ready for review
+- `done` - Complete
+
+To change a WP's lane:
+```bash
+python3 .kittify/scripts/tasks/tasks_cli.py update <feature> <WP> <lane>
+```
+
+Or edit the `lane:` field directly in the WP file.
 
 ## Work Package File Format
 
-Each WP file **MUST** use YAML frontmatter (not markdown headers):
+Each WP file **MUST** use YAML frontmatter:
 
 ```yaml
 ---
@@ -25,7 +40,7 @@ subtasks:
   - "T002"
 title: "Work Package Title"
 phase: "Phase 1 - Setup"
-lane: "planned"
+lane: "planned"  # Edit directly or use: tasks_cli.py update
 assignee: ""
 agent: ""
 shell_pid: ""
@@ -39,7 +54,7 @@ history:
     action: "Prompt generated via /spec-kitty.tasks"
 ---
 
-# Work Package Prompt: WP01 – Work Package Title
+# Work Package Prompt: WP01 - Work Package Title
 
 [Content follows...]
 ```
@@ -49,14 +64,8 @@ history:
 - Format: `WP01-kebab-case-slug.md` (no extra hyphens in WP number)
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
 
-## Moving Between Lanes
+## Viewing Status
 
-Use the helper script:
 ```bash
-.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <WPID> <lane>
+python3 .kittify/scripts/tasks/tasks_cli.py status <feature>
 ```
-
-Or manually:
-1. Move the file to the target lane directory
-2. Update the `lane` field in frontmatter
-3. Add a history entry with timestamp

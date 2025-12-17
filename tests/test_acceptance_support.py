@@ -10,14 +10,16 @@ import task_helpers as th
 
 
 def test_collect_feature_summary_reports_metadata_issue(feature_repo: Path, feature_slug: str) -> None:
-    wp_path = feature_repo / "kitty-specs" / feature_slug / "tasks" / "planned" / "WP01.md"
+    # WP files now live in flat tasks/ directory
+    wp_path = feature_repo / "kitty-specs" / feature_slug / "tasks" / "WP01.md"
     front, body, padding = th.split_frontmatter(wp_path.read_text(encoding="utf-8"))
     lines = [line for line in front.splitlines() if not line.startswith("assignee:")]
     wp_path.write_text(th.build_document("\n".join(lines), body, padding), encoding="utf-8")
 
     from tests.utils import run_tasks_cli
 
-    run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
+    # Use 'update' command (renamed from 'move')
+    run_tasks_cli(["update", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
 
     summary = acc.collect_feature_summary(feature_repo, feature_slug)
     assert any("missing assignee" in issue for issue in summary.metadata_issues)
@@ -44,9 +46,10 @@ def test_perform_acceptance_without_commit(feature_repo: Path, feature_slug: str
 
     from tests.utils import run
 
-    run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
-    run(["git", "commit", "-am", "Move to doing"], cwd=feature_repo)
-    run_tasks_cli(["move", feature_slug, "WP01", "done", "--force"], cwd=feature_repo)
+    # Use 'update' command (renamed from 'move')
+    run_tasks_cli(["update", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
+    run(["git", "commit", "-am", "Update to doing"], cwd=feature_repo)
+    run_tasks_cli(["update", feature_slug, "WP01", "done", "--force"], cwd=feature_repo)
 
     summary = acc.collect_feature_summary(feature_repo, feature_slug, strict_metadata=True)
     assert summary.lanes["planned"] == []
