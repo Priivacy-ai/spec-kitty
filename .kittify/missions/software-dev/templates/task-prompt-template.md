@@ -4,7 +4,7 @@ subtasks:
   - "Txxx"
 title: "Replace with work package title"
 phase: "Phase N - Replace with phase name"
-lane: "planned"  # planned | doing | for_review | done
+lane: "planned"  # DO NOT EDIT - use: tasks_cli.py move <feature> <WP> <lane>
 assignee: ""      # Optional friendly name when in doing/for_review
 agent: ""         # CLI agent identifier (claude, codex, etc.)
 shell_pid: ""     # PID captured when the task moved to the current lane
@@ -102,11 +102,21 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 ### Updating Metadata When Changing Lanes
 
-1. Capture your shell PID: `echo $$` (or use helper scripts when available).
-2. Update frontmatter (`lane`, `assignee`, `agent`, `shell_pid`).
-3. Add an entry to the **Activity Log** describing the transition.
-4. Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <WPID> <lane>` (PowerShell variant available) to move the prompt, update metadata, and append history in one step.
-5. Commit or stage the change, preserving history.
+**IMPORTANT: Never manually edit the `lane:` field.** The lane is determined by the file's directory location, not the YAML field. Editing the field without moving the file creates a mismatch that breaks the system.
+
+**Always use the move command:**
+```bash
+python3 .kittify/scripts/tasks/tasks_cli.py move <FEATURE> <WPID> <lane> --note "Your note"
+```
+
+This command:
+1. Moves the file to the correct `tasks/<lane>/` directory
+2. Updates the `lane:` field in YAML
+3. Updates `agent` and `shell_pid` metadata
+4. Appends an entry to the Activity Log
+5. Stages the changes for commit
+
+You can add `--agent <name>` and `--shell-pid <pid>` flags for explicit metadata.
 
 ### Optional Phase Subdirectories
 

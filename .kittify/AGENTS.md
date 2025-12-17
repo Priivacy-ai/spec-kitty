@@ -109,7 +109,31 @@ spec-kitty validate-encoding --all --fix
 
 ---
 
-## 5. Git Discipline Rule
+## 5. Task Lane Management Rule
+
+**CRITICAL: Never manually edit the `lane:` field in work package YAML frontmatter.**
+
+The system determines a work package's lane by its **directory location** (`tasks/planned/`, `tasks/doing/`, etc.), not the YAML field. Manually editing the field without moving the file creates a mismatch that breaks lane transitions.
+
+**Always use the move command:**
+```bash
+python3 .kittify/scripts/tasks/tasks_cli.py move <FEATURE> <WPID> <lane> --note "Your note"
+
+# Examples:
+python3 .kittify/scripts/tasks/tasks_cli.py move 011-my-feature WP04 doing --note "Starting implementation"
+python3 .kittify/scripts/tasks/tasks_cli.py move 011-my-feature WP04 for_review --note "Ready for review"
+```
+
+The move command handles:
+1. Moving the file to the correct `tasks/<lane>/` directory
+2. Updating the `lane:` field in YAML frontmatter
+3. Recording `agent` and `shell_pid` metadata
+4. Appending an entry to the Activity Log
+5. Staging the changes for commit
+
+---
+
+## 6. Git Discipline Rule
 
 **Keep commits clean and auditable.**
 
@@ -123,8 +147,9 @@ spec-kitty validate-encoding --all --fix
 
 ### Quick Reference
 
-- 📁 **Paths**: Always specify exact locations.  
-- 🔤 **Encoding**: UTF-8 only. Run the validator when unsure.  
-- 🧠 **Context**: Read what you need; don’t forget what you already learned.  
-- ✅ **Quality**: Follow secure, tested, documented practices.  
-- 📝 **Git**: Commit cleanly with clear messages.
+- **Paths**: Always specify exact locations.
+- **Encoding**: UTF-8 only. Run the validator when unsure.
+- **Context**: Read what you need; don't forget what you already learned.
+- **Quality**: Follow secure, tested, documented practices.
+- **Tasks**: Use `tasks_cli.py move` - never edit `lane:` field directly.
+- **Git**: Commit cleanly with clear messages.

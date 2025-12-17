@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2025-12-17
+
+### Added
+
+- **Task lane management documentation** - Added clear instructions to AGENTS.md and task templates warning agents never to manually edit the `lane:` YAML field
+  - Lane is determined by directory location, not YAML field
+  - Editing `lane:` without moving the file creates a mismatch that breaks the system
+  - All templates now include YAML comment: `# DO NOT EDIT - use: tasks_cli.py move`
+  - Added "Task Lane Management Rule" section to project AGENTS.md
+
 ## [0.8.1] - 2025-12-17
 
 ### Fixed

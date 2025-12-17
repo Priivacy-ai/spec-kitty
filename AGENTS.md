@@ -12,6 +12,46 @@ The toolkit supports multiple AI coding assistants, allowing teams to use their 
 
 ---
 
+## Task Lane Management (Work Packages)
+
+**CRITICAL: Never manually edit the `lane:` field in work package YAML frontmatter.**
+
+The system determines a work package's lane by its **directory location** (`tasks/planned/`, `tasks/doing/`, etc.), not the YAML field. Manually editing the field without moving the file creates a mismatch that breaks lane transitions.
+
+### Moving Work Packages Between Lanes
+
+**Always use the move command:**
+```bash
+python3 .kittify/scripts/tasks/tasks_cli.py move <FEATURE> <WPID> <lane> --note "Your note"
+
+# Examples:
+python3 .kittify/scripts/tasks/tasks_cli.py move 011-my-feature WP04 doing --note "Starting implementation"
+python3 .kittify/scripts/tasks/tasks_cli.py move 011-my-feature WP04 for_review --note "Ready for review"
+python3 .kittify/scripts/tasks/tasks_cli.py move 011-my-feature WP04 done --note "Approved"
+```
+
+The move command handles:
+1. Moving the file to the correct `tasks/<lane>/` directory
+2. Updating the `lane:` field in YAML frontmatter
+3. Recording `agent` and `shell_pid` metadata
+4. Appending an entry to the Activity Log
+5. Staging the changes for commit
+
+### Other Task Commands
+
+```bash
+# List all work packages for a feature
+python3 .kittify/scripts/tasks/tasks_cli.py list <FEATURE>
+
+# Add a history entry without changing lanes
+python3 .kittify/scripts/tasks/tasks_cli.py history <FEATURE> <WPID> --note "Progress update"
+
+# Rollback to previous lane
+python3 .kittify/scripts/tasks/tasks_cli.py rollback <FEATURE> <WPID>
+```
+
+---
+
 ## General practices
 
 - Any changes to `__init__.py` for the Spec Kitty CLI require a version rev in `pyproject.toml` and addition of entries to `CHANGELOG.md`.
