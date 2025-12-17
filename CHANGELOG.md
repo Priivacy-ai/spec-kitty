@@ -9,6 +9,137 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-12-17
+
+### 🎯 Major Release: Frontmatter-Only Lane Management
+
+This release fundamentally changes how Spec Kitty manages work package lanes, eliminating directory-based lane tracking in favor of a simpler, conflict-free frontmatter-only system.
+
+### ⚠️ Breaking Changes
+
+- **Lane system completely redesigned**
+  - Work packages now live in a flat `kitty-specs/<feature>/tasks/` directory
+  - Lane status determined **solely by `lane:` frontmatter field** (no more subdirectories)
+  - Old system: `tasks/planned/WP01.md`, `tasks/doing/WP02.md` ❌
+  - New system: `tasks/WP01.md` with `lane: "planned"` ✅
+
+- **Command renamed: `move` → `update`**
+  - `tasks_cli.py move` command removed
+  - Use `tasks_cli.py update <feature> <WP> <lane>` instead
+  - Semantic clarity: command updates metadata, doesn't move files
+  - Legacy format detection: `update` command refuses to work on old directory-based structure
+
+- **Direct frontmatter editing now supported**
+  - You can now directly edit the `lane:` field in WP frontmatter
+  - Previous "DO NOT EDIT" warnings removed from all templates
+  - System recognizes manual lane changes immediately
+  - No file movement required for lane transitions
+
+### 🆕 Added
+
+- **Migration command: `spec-kitty upgrade`**
+  - Automatically migrates features from directory-based to frontmatter-only format
+  - Preserves all lane assignments during migration
+  - Idempotent: safe to run multiple times
+  - Cleans up empty lane subdirectories after migration
+  - Migrates both main repo and worktree features
+
+- **Legacy format detection**
+  - `is_legacy_format()` function detects old directory-based structure
+  - CLI commands display helpful warnings when legacy format detected
+  - Dashboard shows migration prompt for legacy features
+  - Non-blocking: legacy features remain functional until migrated
+
+- **Enhanced status command**
+  - Better formatted output with lane grouping
+  - Auto-detects feature from branch/worktree when not specified
+  - Shows work packages organized by current lane
+  - Works with both legacy and new formats
+
+### 🔧 Changed
+
+- **Work package location logic**
+  - `locate_work_package()` now searches flat `tasks/` directory first
+  - Falls back to legacy subdirectory search for backwards compatibility
+  - Exact WP ID matching (WP04 won't match WP04b)
+
+- **Lane extraction utilities**
+  - New `get_lane_from_frontmatter()` function extracts lane from YAML
+  - Defaults to "planned" when `lane:` field missing
+  - Validates lane values against allowed set
+  - Available in both `task_helpers.py` and `tasks_support.py`
+
+- **Dashboard scanner updates**
+  - Reads lane from frontmatter instead of directory location
+  - Displays legacy format warnings
+  - Works seamlessly with both formats during transition
+
+- **Activity log behavior**
+  - Lane transitions still append activity log entries
+  - Captures agent, shell PID, and timestamp
+  - No file movement logged (because no movement occurs)
+
+### 📚 Documentation
+
+- **Updated all templates**
+  - `.kittify/templates/task-prompt-template.md` - Removed "DO NOT EDIT" warnings
+  - `.kittify/templates/tasks-template.md` - Updated for flat structure
+  - `.kittify/templates/AGENTS.md` - New lane management instructions
+  - `tasks/README.md` - Rewritten for flat directory layout
+
+- **Updated mission templates**
+  - All mission-specific templates updated (software-dev, research)
+  - Command templates updated (`implement.md`, `review.md`, `merge.md`)
+  - Examples updated to show new workflow
+
+- **Updated main documentation**
+  - `README.md` - Updated quick start examples
+  - `docs/quickstart.md` - New lane management workflow
+  - `docs/multi-agent-orchestration.md` - Updated collaboration examples
+  - All `examples/` updated with new commands
+
+### 🧪 Testing
+
+- 286 tests passing (0 failures)
+- New tests for frontmatter-only lane system
+- Legacy format detection tests
+- Migration command tests
+- Dual-format compatibility tests
+
+### 🚀 Migration Guide
+
+**For existing projects:**
+
+1. **Back up your work** (commit changes, push to remote)
+2. **Run migration**: `spec-kitty upgrade`
+3. **Verify**: `spec-kitty status --feature <your-feature>`
+4. **Update workflows**: Replace `move` with `update` in scripts/docs
+
+**Key benefits of upgrading:**
+
+- ✅ No file conflicts during lane changes (especially in worktrees)
+- ✅ Direct editing of `lane:` field supported
+- ✅ Better multi-agent compatibility
+- ✅ Simpler mental model (one directory, not four)
+- ✅ Fewer git operations per lane change
+
+**Legacy format still works** - You can continue using old directory structure until ready to migrate. All commands detect format automatically.
+
+### 🐛 Fixed
+
+- File conflicts during simultaneous lane changes by multiple agents
+- Git staging issues with lane transitions
+- Race conditions in worktree-based parallel development
+- Lane mismatch validation errors (no longer possible with frontmatter-only)
+
+### 🔗 Related
+
+- Feature implementation: `007-frontmatter-only-lane`
+- All 6 work packages completed and reviewed
+- Comprehensive test coverage added
+
+---
+
 ## [0.8.2] - 2025-12-17
 
 ### Added

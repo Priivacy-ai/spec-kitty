@@ -26,7 +26,9 @@ from task_helpers import (  # noqa: E402
     detect_conflicting_wp_status,
     ensure_lane,
     find_repo_root,
+    get_lane_from_frontmatter,
     git_status_lines,
+    is_legacy_format,
     normalize_note,
     now_utc,
     path_has_changes,
@@ -48,7 +50,7 @@ from acceptance_support import (  # noqa: E402
 )
 
 
-def stage_move(
+def stage_update(
     repo_root: Path,
     wp: WorkPackage,
     target_lane: str,
@@ -58,13 +60,13 @@ def stage_move(
     timestamp: str,
     dry_run: bool = False,
 ) -> Path:
-    target_dir = repo_root / "kitty-specs" / wp.feature / "tasks" / target_lane
-    new_path = (target_dir / wp.relative_subpath).resolve()
+    """Update work package lane in frontmatter (no file movement).
 
+    The frontmatter-only lane system keeps all WP files in a flat tasks/ directory.
+    Lane changes update the `lane:` field in frontmatter without moving the file.
+    """
     if dry_run:
-        return new_path
-
-    target_dir.mkdir(parents=True, exist_ok=True)
+        return wp.path
 
     wp.frontmatter = set_scalar(wp.frontmatter, "lane", target_lane)
     wp.frontmatter = set_scalar(wp.frontmatter, "agent", agent)
@@ -74,17 +76,11 @@ def stage_move(
     new_body = append_activity_log(wp.body, log_entry)
 
     new_content = build_document(wp.frontmatter, new_body, wp.padding)
-    new_path.write_text(new_content, encoding="utf-8")
+    wp.path.write_text(new_content, encoding="utf-8")
 
-    run_git(["add", str(new_path.relative_to(repo_root))], cwd=repo_root, check=True)
-    if wp.path.resolve() != new_path.resolve():
-        run_git(
-            ["rm", "--quiet", "--force", str(wp.path.relative_to(repo_root))],
-            cwd=repo_root,
-            check=True,
-        )
+    run_git(["add", str(wp.path.relative_to(repo_root))], cwd=repo_root, check=True)
 
-    return new_path
+    return wp.path
 
 
 def _collect_summary_with_encoding(
@@ -139,98 +135,43 @@ def _handle_encoding_failure(exc: ArtifactEncodingError, attempted_fix: bool) ->
     sys.exit(1)
 
 
-def move_command(args: argparse.Namespace) -> None:
+_legacy_warning_shown = False
+
+
+def _check_legacy_format(feature: str, repo_root: Path) -> bool:
+    """Check for legacy format and warn once. Returns True if legacy format detected."""
+    global _legacy_warning_shown
+    feature_path = repo_root / "kitty-specs" / feature
+    if is_legacy_format(feature_path):
+        if not _legacy_warning_shown:
+            print("\n" + "=" * 60, file=sys.stderr)
+            print("Legacy directory-based lanes detected.", file=sys.stderr)
+            print("", file=sys.stderr)
+            print("Your project uses the old lane structure (tasks/planned/, tasks/doing/, etc.).", file=sys.stderr)
+            print("Run `spec-kitty upgrade` to migrate to frontmatter-only lanes.", file=sys.stderr)
+            print("", file=sys.stderr)
+            print("Benefits of upgrading:", file=sys.stderr)
+            print("  - No file conflicts during lane changes", file=sys.stderr)
+            print("  - Direct editing of lane: field supported", file=sys.stderr)
+            print("  - Better multi-agent compatibility", file=sys.stderr)
+            print("=" * 60 + "\n", file=sys.stderr)
+            _legacy_warning_shown = True
+        return True
+    return False
+
+
+def update_command(args: argparse.Namespace) -> None:
+    """Update a work package's lane in frontmatter (no file movement)."""
     repo_root = find_repo_root()
     feature = args.feature
 
-    def cleanup_stale_target(message: str) -> bool:
-        """Remove a stale target-lane copy created by an aborted move."""
-        if args.dry_run:
-            return False
+    # Check for legacy format and error out
+    if _check_legacy_format(feature, repo_root):
+        print("Error: Cannot use 'update' command on legacy format.", file=sys.stderr)
+        print("Run 'spec-kitty upgrade' first, then retry.", file=sys.stderr)
+        sys.exit(1)
 
-        candidate_lines = [
-            line.strip()
-            for line in message.splitlines()
-            if line.strip().startswith("kitty-specs/")
-        ]
-        if len(candidate_lines) < 2:
-            return False
-
-        # Prefer keeping the copy in for_review/, then doing/, planned/, done/.
-        preference = ["for_review", "doing", "planned", "done"]
-        keep_line = None
-        for pref in preference:
-            for line in candidate_lines:
-                if f"/tasks/{pref}/" in line:
-                    keep_line = line
-                    break
-            if keep_line:
-                break
-        if keep_line is None:
-            keep_line = candidate_lines[0]
-
-        cleaned = False
-        for line in candidate_lines:
-            full_path = (repo_root / Path(line)).resolve()
-            rel = full_path.relative_to(repo_root)
-            if line == keep_line:
-                continue
-
-            # Use filesystem delete instead of git rm to avoid leaving staged deletions
-            # that block subsequent operations. The deletion will be picked up by
-            # git status naturally without blocking other agents' work.
-            try:
-                full_path.unlink()
-                # Unstage any staged changes for this file to avoid conflicts
-                run_git(["reset", "HEAD", "--", str(rel)], cwd=repo_root, check=False)
-            except FileNotFoundError:
-                pass
-
-            print(f"[cleanup] Removed extra copy at {rel}", file=sys.stderr)
-            cleaned = True
-
-        return cleaned
-
-    def cleanup_other_lane_copies() -> None:
-        """Remove any lingering copies of the work package in other lanes."""
-        base_dir = Path("kitty-specs") / feature / "tasks"
-        for lane in LANES:
-            candidate = (repo_root / base_dir / lane / wp.relative_subpath).resolve()
-            if candidate == wp.path.resolve():
-                continue
-            if not candidate.exists():
-                continue
-
-            rel = candidate.relative_to(repo_root)
-
-            # Use filesystem delete instead of git rm to avoid leaving staged deletions
-            # that block subsequent operations. Stage the deletion explicitly only if
-            # the file was tracked.
-            try:
-                candidate.unlink()
-                # Unstage any staged changes for this file to avoid conflicts
-                run_git(["reset", "HEAD", "--", str(rel)], cwd=repo_root, check=False)
-            except IsADirectoryError:
-                # Should not happen (we only target files), but guard anyway.
-                for subpath in candidate.rglob("*"):
-                    if subpath.is_file():
-                        subpath.unlink()
-                candidate.rmdir()
-            except FileNotFoundError:
-                pass
-
-            print(f"[cleanup] Removed stray copy at {rel}", file=sys.stderr)
-
-    while True:
-        try:
-            wp = locate_work_package(repo_root, feature, args.work_package)
-            break
-        except TaskCliError as err:
-            message = str(err)
-            if "Multiple files matched" not in message or not cleanup_stale_target(message):
-                raise
-            # Stale copy removed; retry lookup.
-            continue
+    wp = locate_work_package(repo_root, feature, args.work_package)
 
     if wp.current_lane == args.lane:
         raise TaskCliError(f"Work package already in lane '{args.lane}'.")
@@ -240,45 +181,8 @@ def move_command(args: argparse.Namespace) -> None:
     shell_pid = args.shell_pid or wp.shell_pid or ""
     note = normalize_note(args.note, args.lane)
 
-    cleanup_other_lane_copies()
-
-    status_lines = git_status_lines(repo_root)
-    if not args.dry_run:
-        source_rel = wp.path.relative_to(repo_root)
-        if path_has_changes(status_lines, source_rel):
-            run_git(["add", str(source_rel)], cwd=repo_root, check=True)
-            status_lines = git_status_lines(repo_root)
-    new_path = (
-        repo_root
-        / "kitty-specs"
-        / feature
-        / "tasks"
-        / args.lane
-        / wp.relative_subpath
-    )
-    conflicts = detect_conflicting_wp_status(
-        status_lines,
-        feature,
-        wp.path.relative_to(repo_root),
-        new_path.relative_to(repo_root),
-    )
-    if conflicts and not args.force:
-        conflict_display = "\n".join(conflicts)
-        guidance_lines = []
-        for line in conflicts:
-            indicator = line[:2].strip() or line[:2]
-            path = line[3:].strip()
-            guidance_lines.append(
-                f"    - {indicator} {path} (resolve with `git add {path}` or `git restore --staged {path}`)"
-            )
-        raise TaskCliError(
-            "Other work-package files are staged or modified:\n"
-            f"{conflict_display}\n\nClear or commit these changes, or re-run with --force.\n"
-            "Cleanup tips:\n"
-            + "\n".join(guidance_lines)
-        )
-
-    new_file_path = stage_move(
+    # Stage the update (frontmatter only, no file movement)
+    updated_path = stage_update(
         repo_root=repo_root,
         wp=wp,
         target_lane=args.lane,
@@ -290,12 +194,12 @@ def move_command(args: argparse.Namespace) -> None:
     )
 
     if args.dry_run:
-        print(f"[dry-run] Would move {wp.work_package_id or wp.path.name} to lane '{args.lane}'")
-        print(f"[dry-run] New path: {new_file_path.relative_to(repo_root)}")
+        print(f"[dry-run] Would update {wp.work_package_id or wp.path.name} to lane '{args.lane}'")
+        print(f"[dry-run] File stays at: {updated_path.relative_to(repo_root)}")
         return
 
-    print(f"✅ Moved {wp.work_package_id or wp.path.name} → {args.lane}")
-    print(f"   {wp.path.relative_to(repo_root)} → {new_file_path.relative_to(repo_root)}")
+    print(f"✅ Updated {wp.work_package_id or wp.path.name} → {args.lane}")
+    print(f"   {wp.path.relative_to(repo_root)}")
     print(
         f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – lane={args.lane} – {note}"
     )
@@ -337,23 +241,63 @@ def history_command(args: argparse.Namespace) -> None:
 
 def list_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
-    feature_dir = repo_root / "kitty-specs" / args.feature / "tasks"
+    feature_path = repo_root / "kitty-specs" / args.feature
+    feature_dir = feature_path / "tasks"
     if not feature_dir.exists():
         raise TaskCliError(f"Feature '{args.feature}' has no tasks directory at {feature_dir}.")
 
+    # Check for legacy format and warn
+    use_legacy = is_legacy_format(feature_path)
+    if use_legacy:
+        _check_legacy_format(args.feature, repo_root)
+
     rows = []
-    for lane in LANES:
-        lane_dir = feature_dir / lane
-        if not lane_dir.exists():
-            continue
-        for path in sorted(lane_dir.rglob("*.md")):
+
+    if use_legacy:
+        # Legacy format: scan lane subdirectories
+        for lane in LANES:
+            lane_dir = feature_dir / lane
+            if not lane_dir.exists():
+                continue
+            for path in sorted(lane_dir.rglob("*.md")):
+                text = path.read_text(encoding="utf-8-sig")
+                front, body, padding = split_frontmatter(text)
+                wp = WorkPackage(
+                    feature=args.feature,
+                    path=path,
+                    current_lane=lane,
+                    relative_subpath=path.relative_to(lane_dir),
+                    frontmatter=front,
+                    body=body,
+                    padding=padding,
+                )
+                wp_id = wp.work_package_id or path.stem
+                title = (wp.title or "").strip('"')
+                assignee = (wp.assignee or "").strip()
+                agent = (wp.agent or "").strip()
+                rows.append(
+                    {
+                        "lane": lane,
+                        "id": wp_id,
+                        "title": title,
+                        "assignee": assignee,
+                        "agent": agent,
+                        "path": str(path.relative_to(repo_root)),
+                    }
+                )
+    else:
+        # New format: scan flat tasks/ directory and group by frontmatter lane
+        for path in sorted(feature_dir.glob("*.md")):
+            if path.name.lower() == "readme.md":
+                continue
             text = path.read_text(encoding="utf-8-sig")
             front, body, padding = split_frontmatter(text)
+            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
             wp = WorkPackage(
                 feature=args.feature,
                 path=path,
                 current_lane=lane,
-                relative_subpath=path.relative_to(lane_dir),
+                relative_subpath=path.relative_to(feature_dir),
                 frontmatter=front,
                 body=body,
                 padding=padding,
@@ -412,7 +356,7 @@ def rollback_command(args: argparse.Namespace) -> None:
 
     previous_lane = ensure_lane(entries[-2]["lane"])
     note = args.note or f"Rolled back to {previous_lane}"
-    args_for_move = argparse.Namespace(
+    args_for_update = argparse.Namespace(
         feature=args.feature,
         work_package=args.work_package,
         lane=previous_lane,
@@ -424,7 +368,7 @@ def rollback_command(args: argparse.Namespace) -> None:
         dry_run=args.dry_run,
         force=args.force,
     )
-    move_command(args_for_move)
+    update_command(args_for_update)
 
 
 def _resolve_feature(repo_root: Path, requested: Optional[str]) -> str:
@@ -777,17 +721,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Spec Kitty task utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    move = subparsers.add_parser("move", help="Move a work package to the specified lane")
-    move.add_argument("feature", help="Feature directory slug (e.g., 008-awesome-feature)")
-    move.add_argument("work_package", help="Work package identifier (e.g., WP03)")
-    move.add_argument("lane", help=f"Target lane ({', '.join(LANES)})")
-    move.add_argument("--note", help="Activity note to record with the move")
-    move.add_argument("--agent", help="Agent identifier to record (defaults to existing agent/system)")
-    move.add_argument("--assignee", help="Friendly assignee name to store in frontmatter")
-    move.add_argument("--shell-pid", help="Shell PID to capture in frontmatter/history")
-    move.add_argument("--timestamp", help="Override UTC timestamp (YYYY-MM-DDTHH:mm:ssZ)")
-    move.add_argument("--dry-run", action="store_true", help="Show what would happen without touching files or git")
-    move.add_argument("--force", action="store_true", help="Ignore other staged work-package files")
+    update = subparsers.add_parser("update", help="Update a work package's lane in frontmatter")
+    update.add_argument("feature", help="Feature directory slug (e.g., 008-awesome-feature)")
+    update.add_argument("work_package", help="Work package identifier (e.g., WP03)")
+    update.add_argument("lane", help=f"Target lane ({', '.join(LANES)})")
+    update.add_argument("--note", help="Activity note to record with the update")
+    update.add_argument("--agent", help="Agent identifier to record (defaults to existing agent/system)")
+    update.add_argument("--assignee", help="Friendly assignee name to store in frontmatter")
+    update.add_argument("--shell-pid", help="Shell PID to capture in frontmatter/history")
+    update.add_argument("--timestamp", help="Override UTC timestamp (YYYY-MM-DDTHH:mm:ssZ)")
+    update.add_argument("--dry-run", action="store_true", help="Show what would happen without touching files or git")
+    update.add_argument("--force", action="store_true", help="Ignore other staged work-package files")
 
     history = subparsers.add_parser("history", help="Append a history entry without changing lanes")
     history.add_argument("feature", help="Feature directory slug")
@@ -868,8 +812,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        if args.command == "move":
-            move_command(args)
+        if args.command == "update":
+            update_command(args)
         elif args.command == "history":
             history_command(args)
         elif args.command == "list":

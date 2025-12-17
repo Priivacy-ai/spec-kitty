@@ -31,6 +31,10 @@
 
 > **Note:** Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
+> **🎉 Version 0.9.0 Released - Frontmatter-Only Lane Management**
+> Work packages now use a flat `tasks/` directory with lane status in frontmatter (no more lane subdirectories).
+> **Existing projects:** Run `spec-kitty upgrade` to migrate. Legacy format still works. [See CHANGELOG](CHANGELOG.md#090---2025-12-17) for full details.
+
 <details>
 <summary><b>🔄 What's Different from GitHub Spec Kit?</b></summary>
 

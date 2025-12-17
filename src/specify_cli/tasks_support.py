@@ -11,6 +11,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from specify_cli.legacy_detector import is_legacy_format
+
+# IMPORTANT: Keep in sync with scripts/tasks/task_helpers.py
 LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -244,19 +247,42 @@ class WorkPackage:
 
 
 def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
-    tasks_root = repo_root / "kitty-specs" / feature / "tasks"
+    """Locate a work package by ID, supporting both legacy and new formats.
+
+    Legacy format: WP files in tasks/{lane}/ subdirectories
+    New format: WP files in flat tasks/ directory with lane in frontmatter
+    """
+    feature_path = repo_root / "kitty-specs" / feature
+    tasks_root = feature_path / "tasks"
     if not tasks_root.exists():
         raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")
 
+    # Use exact WP ID matching with word boundary to avoid WP04 matching WP04b
+    # Matches: WP04.md, WP04-something.md, WP04_something.md
+    # Does NOT match: WP04b.md, WP04b-something.md
+    wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
+
+    use_legacy = is_legacy_format(feature_path)
     candidates = []
-    for lane_dir in tasks_root.iterdir():
-        if not lane_dir.is_dir():
-            continue
-        lane = lane_dir.name
-        lane_path = tasks_root / lane
-        for path in lane_path.rglob("*.md"):
-            if path.name.startswith(wp_id):
-                candidates.append((lane, path, lane_path))
+
+    if use_legacy:
+        # Legacy format: search lane subdirectories
+        for lane_dir in tasks_root.iterdir():
+            if not lane_dir.is_dir():
+                continue
+            lane = lane_dir.name
+            for path in lane_dir.rglob("*.md"):
+                if wp_pattern.match(path.name):
+                    candidates.append((lane, path, lane_dir))
+    else:
+        # New format: search flat tasks/ directory
+        for path in tasks_root.glob("*.md"):
+            if path.name.lower() == "readme.md":
+                continue
+            if wp_pattern.match(path.name):
+                # Get lane from frontmatter
+                lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+                candidates.append((lane, path, tasks_root))
 
     if not candidates:
         raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks.")
@@ -266,10 +292,10 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
             f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}"
         )
 
-    lane, path, lane_path = candidates[0]
+    lane, path, base_dir = candidates[0]
     text = path.read_text(encoding="utf-8-sig")
     front, body, padding = split_frontmatter(text)
-    relative = path.relative_to(lane_path)
+    relative = path.relative_to(base_dir)
     return WorkPackage(
         feature=feature,
         path=path,
@@ -287,6 +313,54 @@ def load_meta(meta_path: Path) -> Dict:
     return json.loads(meta_path.read_text(encoding="utf-8-sig"))
 
 
+def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> str:
+    """Extract lane from WP file frontmatter.
+
+    This is the authoritative way to determine a work package's lane
+    in the frontmatter-only lane system.
+
+    Args:
+        wp_path: Path to the work package markdown file
+        warn_on_missing: If True, print warning when lane field is missing
+
+    Returns:
+        Lane value (planned, doing, for_review, done)
+
+    Raises:
+        ValueError: If lane value is not in LANES
+    """
+    content = wp_path.read_text(encoding="utf-8-sig")
+    frontmatter, _, _ = split_frontmatter(content)
+
+    lane = extract_scalar(frontmatter, "lane")
+
+    if lane is None:
+        if warn_on_missing:
+            # Import here to avoid circular dependency issues
+            try:
+                from rich.console import Console
+                console = Console(stderr=True)
+                console.print(
+                    f"[yellow]Warning: {wp_path.name} missing lane field, "
+                    f"defaulting to 'planned'[/yellow]"
+                )
+            except ImportError:
+                import sys
+                print(
+                    f"Warning: {wp_path.name} missing lane field, defaulting to 'planned'",
+                    file=sys.stderr
+                )
+        return "planned"
+
+    if lane not in LANES:
+        raise ValueError(
+            f"Invalid lane '{lane}' in {wp_path.name}. "
+            f"Valid lanes: {', '.join(LANES)}"
+        )
+
+    return lane
+
+
 __all__ = [
     "LANES",
     "TIMESTAMP_FORMAT",
@@ -299,7 +373,9 @@ __all__ = [
     "ensure_lane",
     "extract_scalar",
     "find_repo_root",
+    "get_lane_from_frontmatter",
     "git_status_lines",
+    "is_legacy_format",
     "load_meta",
     "locate_work_package",
     "match_frontmatter_line",

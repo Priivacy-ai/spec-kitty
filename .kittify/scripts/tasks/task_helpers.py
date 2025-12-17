@@ -6,13 +6,52 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+# IMPORTANT: Keep in sync with src/specify_cli/tasks_support.py
 LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
+
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+# Lane directories that indicate legacy format when they contain .md files
+LEGACY_LANE_DIRS: List[str] = ["planned", "doing", "for_review", "done"]
+
+
+def is_legacy_format(feature_path: Path) -> bool:
+    """Check if feature uses legacy directory-based lanes.
+
+    A feature is considered to use legacy format if:
+    - It has a tasks/ subdirectory
+    - Any of the lane subdirectories (planned/, doing/, for_review/, done/)
+      exist AND contain at least one .md file
+
+    Args:
+        feature_path: Path to the feature directory (e.g., kitty-specs/007-feature/)
+
+    Returns:
+        True if legacy directory-based lanes detected, False otherwise.
+
+    Note:
+        Empty lane directories (containing only .gitkeep) are NOT considered
+        legacy format - only directories with actual .md work package files.
+    """
+    tasks_dir = feature_path / "tasks"
+    if not tasks_dir.exists():
+        return False
+
+    for lane in LEGACY_LANE_DIRS:
+        lane_path = tasks_dir / lane
+        if lane_path.is_dir():
+            # Check if there are any .md files (not just .gitkeep)
+            md_files = list(lane_path.glob("*.md"))
+            if md_files:
+                return True
+
+    return False
 
 
 class TaskCliError(RuntimeError):
@@ -81,24 +120,6 @@ def path_has_changes(status_lines: List[str], path: Path) -> bool:
     return False
 
 
-def is_file_tracked(repo_root: Path, file_path: Path) -> bool:
-    """Check if a file is tracked by git.
-
-    Returns True if the file is tracked (in git's index), False if untracked.
-    """
-    try:
-        rel_path = file_path.relative_to(repo_root)
-    except ValueError:
-        return False
-
-    result = run_git(
-        ["ls-files", "--error-unmatch", str(rel_path)],
-        cwd=repo_root,
-        check=False,
-    )
-    return result.returncode == 0
-
-
 def normalize_note(note: Optional[str], target_lane: str) -> str:
     default = f"Moved to {target_lane}"
     cleaned = (note or default).strip()
@@ -108,39 +129,13 @@ def normalize_note(note: Optional[str], target_lane: str) -> str:
 def detect_conflicting_wp_status(
     status_lines: List[str], feature: str, old_path: Path, new_path: Path
 ) -> List[str]:
-    """Return staged work-package entries that conflict with the requested move.
-
-    Only detects conflicts for the SAME work package (by ID), not unrelated WPs.
-    For example, moving WP04 won't conflict with staged changes to WP06.
-    """
-    import re
-
+    """Return staged work-package entries unrelated to the requested move."""
     base_path = Path("kitty-specs") / feature / "tasks"
     prefix = f"{base_path.as_posix()}/"
     allowed = {
         str(old_path).lstrip("./"),
         str(new_path).lstrip("./"),
     }
-
-    # Extract work package ID from filename (e.g., "WP04" from "WP04-some-title.md")
-    def _extract_wp_id(path: str) -> Optional[str]:
-        # Match WP followed by digits (WP01, WP02, etc.)
-        match = re.search(r'\bWP\d+\b', path)
-        return match.group(0) if match else None
-
-    # Get the WP ID for the file being moved
-    current_wp_id = _extract_wp_id(str(old_path)) or _extract_wp_id(str(new_path))
-    if not current_wp_id:
-        # Can't determine WP ID, fall back to blocking all task files (safe default)
-        conflicts = []
-        for line in status_lines:
-            path = line[3:] if len(line) > 3 else ""
-            if not path.startswith(prefix):
-                continue
-            clean = path.strip()
-            if clean not in allowed:
-                conflicts.append(line)
-        return conflicts
 
     def _wp_suffix(path: Path) -> Optional[str]:
         try:
@@ -162,13 +157,6 @@ def detect_conflicting_wp_status(
             continue
         clean = path.strip()
         if clean not in allowed:
-            # Only treat as conflict if it's the SAME work package ID
-            file_wp_id = _extract_wp_id(clean)
-            if file_wp_id != current_wp_id:
-                # Different WP ID - not a conflict, skip it
-                continue
-
-            # Same WP ID - check if it's a deletion of an old copy
             if suffixes and line and line[0] == "D":
                 for suffix in suffixes:
                     if clean.endswith(suffix):
@@ -338,7 +326,13 @@ class WorkPackage:
 
 
 def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
-    tasks_root = repo_root / "kitty-specs" / feature / "tasks"
+    """Locate a work package by ID, supporting both legacy and new formats.
+
+    Legacy format: WP files in tasks/{lane}/ subdirectories
+    New format: WP files in flat tasks/ directory with lane in frontmatter
+    """
+    feature_path = repo_root / "kitty-specs" / feature
+    tasks_root = feature_path / "tasks"
     if not tasks_root.exists():
         raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")
 
@@ -347,14 +341,27 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     # Does NOT match: WP04b.md, WP04b-something.md
     wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
 
+    use_legacy = is_legacy_format(feature_path)
     candidates = []
-    for lane_dir in tasks_root.iterdir():
-        if not lane_dir.is_dir():
-            continue
-        lane = lane_dir.name
-        for path in lane_dir.rglob("*.md"):
+
+    if use_legacy:
+        # Legacy format: search lane subdirectories
+        for lane_dir in tasks_root.iterdir():
+            if not lane_dir.is_dir():
+                continue
+            lane = lane_dir.name
+            for path in lane_dir.rglob("*.md"):
+                if wp_pattern.match(path.name):
+                    candidates.append((lane, path, lane_dir))
+    else:
+        # New format: search flat tasks/ directory
+        for path in tasks_root.glob("*.md"):
+            if path.name.lower() == "readme.md":
+                continue
             if wp_pattern.match(path.name):
-                candidates.append((lane, path, lane_dir))
+                # Get lane from frontmatter
+                lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+                candidates.append((lane, path, tasks_root))
 
     if not candidates:
         raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks.")
@@ -364,10 +371,10 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
             f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}"
         )
 
-    lane, path, lane_dir = candidates[0]
-    text = path.read_text(encoding="utf-8")
+    lane, path, base_dir = candidates[0]
+    text = path.read_text(encoding="utf-8-sig")
     front, body, padding = split_frontmatter(text)
-    relative = path.relative_to(lane_dir)
+    relative = path.relative_to(base_dir)
     return WorkPackage(
         feature=feature,
         path=path,
@@ -382,7 +389,55 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
 def load_meta(meta_path: Path) -> Dict:
     if not meta_path.exists():
         raise TaskCliError(f"Meta file not found at {meta_path}")
-    return json.loads(meta_path.read_text(encoding="utf-8"))
+    return json.loads(meta_path.read_text(encoding="utf-8-sig"))
+
+
+def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> str:
+    """Extract lane from WP file frontmatter.
+
+    This is the authoritative way to determine a work package's lane
+    in the frontmatter-only lane system.
+
+    Args:
+        wp_path: Path to the work package markdown file
+        warn_on_missing: If True, print warning when lane field is missing
+
+    Returns:
+        Lane value (planned, doing, for_review, done)
+
+    Raises:
+        ValueError: If lane value is not in LANES
+    """
+    content = wp_path.read_text(encoding="utf-8-sig")
+    frontmatter, _, _ = split_frontmatter(content)
+
+    lane = extract_scalar(frontmatter, "lane")
+
+    if lane is None:
+        if warn_on_missing:
+            # Import here to avoid circular dependency issues
+            try:
+                from rich.console import Console
+                console = Console(stderr=True)
+                console.print(
+                    f"[yellow]Warning: {wp_path.name} missing lane field, "
+                    f"defaulting to 'planned'[/yellow]"
+                )
+            except ImportError:
+                import sys
+                print(
+                    f"Warning: {wp_path.name} missing lane field, defaulting to 'planned'",
+                    file=sys.stderr
+                )
+        return "planned"
+
+    if lane not in LANES:
+        raise ValueError(
+            f"Invalid lane '{lane}' in {wp_path.name}. "
+            f"Valid lanes: {', '.join(LANES)}"
+        )
+
+    return lane
 
 
 __all__ = [
@@ -397,8 +452,9 @@ __all__ = [
     "ensure_lane",
     "extract_scalar",
     "find_repo_root",
+    "get_lane_from_frontmatter",
     "git_status_lines",
-    "is_file_tracked",
+    "is_legacy_format",
     "load_meta",
     "locate_work_package",
     "normalize_note",

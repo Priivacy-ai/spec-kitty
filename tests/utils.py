@@ -46,12 +46,26 @@ def write_wp(
     shell_pid: str = "1234",
     note: str = "Created",
     timestamp: str = "2025-01-01T00:00:00Z",
+    legacy: bool = False,
 ) -> Path:
+    """Create a work package file for testing.
+
+    Args:
+        legacy: If True, create in subdirectory (tasks/planned/WP01.md).
+                If False (default), create in flat structure (tasks/WP01.md).
+    """
     from task_helpers import append_activity_log, build_document, set_scalar, split_frontmatter
 
-    lane_dir = repo_root / "kitty-specs" / feature / "tasks" / lane
-    lane_dir.mkdir(parents=True, exist_ok=True)
-    path = lane_dir / f"{wp_id}.md"
+    if legacy:
+        # Legacy format: tasks/<lane>/WP01.md
+        lane_dir = repo_root / "kitty-specs" / feature / "tasks" / lane
+        lane_dir.mkdir(parents=True, exist_ok=True)
+        path = lane_dir / f"{wp_id}.md"
+    else:
+        # New format: flat tasks/WP01.md with lane in frontmatter
+        tasks_dir = repo_root / "kitty-specs" / feature / "tasks"
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        path = tasks_dir / f"{wp_id}.md"
 
     frontmatter = "\n".join(
         [

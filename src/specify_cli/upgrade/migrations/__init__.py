@@ -15,6 +15,7 @@ from . import m_0_7_2_worktree_commands_dedup
 from . import m_0_7_3_update_scripts
 from . import m_0_8_0_remove_active_mission
 from . import m_0_8_0_worktree_agents_symlink
+from . import m_0_9_0_frontmatter_only_lanes
 
 __all__ = [
     "m_0_2_0_specify_to_kittify",
@@ -26,4 +27,5 @@ __all__ = [
     "m_0_7_3_update_scripts",
     "m_0_8_0_remove_active_mission",
     "m_0_8_0_worktree_agents_symlink",
+    "m_0_9_0_frontmatter_only_lanes",
 ]
