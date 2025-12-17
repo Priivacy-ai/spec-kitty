@@ -305,7 +305,7 @@ function loadKanban() {
     fetch(`/api/kanban/${currentFeature}`)
         .then(response => response.json())
         .then(data => {
-            renderKanban(data);
+            renderKanban(data && data.lanes ? data.lanes : data);
         })
         .catch(error => {
             document.getElementById('kanban-board').innerHTML =
