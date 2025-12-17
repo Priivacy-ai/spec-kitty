@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -26,6 +27,92 @@ app = typer.Typer(
 )
 
 console = Console()
+
+
+def _find_feature_directory(repo_root: Path, cwd: Path) -> Path:
+    """Find the current feature directory.
+
+    Handles three contexts:
+    1. Worktree root (cwd contains kitty-specs/)
+    2. Inside feature directory (walk up to find kitty-specs/)
+    3. Main repo (find latest feature in kitty-specs/)
+
+    Args:
+        repo_root: Repository root path
+        cwd: Current working directory
+
+    Returns:
+        Path to feature directory
+
+    Raises:
+        ValueError: If feature directory cannot be determined
+    """
+    # Check if we're in a worktree
+    if is_worktree_context(cwd):
+        # Get the current git branch name to match feature directory
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            branch_name = result.stdout.strip()
+        except subprocess.CalledProcessError:
+            branch_name = None
+
+        # Strategy 1: Check if cwd contains kitty-specs/ (we're at worktree root)
+        kitty_specs_candidate = cwd / "kitty-specs"
+        if kitty_specs_candidate.exists() and kitty_specs_candidate.is_dir():
+            kitty_specs = kitty_specs_candidate
+        else:
+            # Strategy 2: Walk up to find kitty-specs directory
+            kitty_specs = cwd
+            while kitty_specs != kitty_specs.parent:
+                if kitty_specs.name == "kitty-specs":
+                    break
+                kitty_specs = kitty_specs.parent
+
+            if kitty_specs.name != "kitty-specs":
+                raise ValueError("Could not locate kitty-specs directory in worktree")
+
+        # Find the ###-* feature directory that matches the branch name
+        if branch_name:
+            # First try exact match with branch name
+            branch_feature_dir = kitty_specs / branch_name
+            if branch_feature_dir.exists() and branch_feature_dir.is_dir():
+                return branch_feature_dir
+
+        # Fallback: Find any ###-* feature directory (for older worktrees)
+        for item in kitty_specs.iterdir():
+            if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
+                return item
+
+        raise ValueError("Could not find feature directory in worktree")
+    else:
+        # We're in main repo - find latest feature
+        specs_dir = repo_root / "kitty-specs"
+        if not specs_dir.exists():
+            raise ValueError("No kitty-specs directory found in repository")
+
+        # Find the highest numbered feature
+        max_num = 0
+        feature_dir = None
+        for item in specs_dir.iterdir():
+            if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
+                try:
+                    num = int(item.name[:3])
+                    if num > max_num:
+                        max_num = num
+                        feature_dir = item
+                except ValueError:
+                    continue
+
+        if feature_dir is None:
+            raise ValueError("No feature directories found in kitty-specs/")
+
+        return feature_dir
 
 
 @app.command(name="create-feature")
@@ -98,48 +185,7 @@ def check_prerequisites(
 
         # Determine feature directory (main repo or worktree)
         cwd = Path.cwd().resolve()
-
-        # Check if we're in a worktree
-        if is_worktree_context(cwd):
-            # We're in a worktree - find the feature directory
-            # Look for kitty-specs/###-* directory
-            kitty_specs = cwd
-            while kitty_specs != kitty_specs.parent:
-                if kitty_specs.name == "kitty-specs":
-                    break
-                kitty_specs = kitty_specs.parent
-
-            if kitty_specs.name == "kitty-specs":
-                # Find the ###-* feature directory
-                for item in kitty_specs.iterdir():
-                    if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
-                        feature_dir = item
-                        break
-                else:
-                    raise ValueError("Could not find feature directory in worktree")
-            else:
-                raise ValueError("Could not locate kitty-specs directory in worktree")
-        else:
-            # We're in main repo - find latest feature or use CWD
-            specs_dir = repo_root / "kitty-specs"
-            if not specs_dir.exists():
-                raise ValueError("No kitty-specs directory found in repository")
-
-            # Find the highest numbered feature
-            max_num = 0
-            feature_dir = None
-            for item in specs_dir.iterdir():
-                if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
-                    try:
-                        num = int(item.name[:3])
-                        if num > max_num:
-                            max_num = num
-                            feature_dir = item
-                    except ValueError:
-                        continue
-
-            if feature_dir is None:
-                raise ValueError("No feature directories found in kitty-specs/")
+        feature_dir = _find_feature_directory(repo_root, cwd)
 
         validation_result = validate_feature_structure(feature_dir, check_tasks=include_tasks)
 
@@ -193,47 +239,7 @@ def setup_plan(
 
         # Determine feature directory (main repo or worktree)
         cwd = Path.cwd().resolve()
-
-        # Check if we're in a worktree
-        if is_worktree_context(cwd):
-            # We're in a worktree - find the feature directory
-            kitty_specs = cwd
-            while kitty_specs != kitty_specs.parent:
-                if kitty_specs.name == "kitty-specs":
-                    break
-                kitty_specs = kitty_specs.parent
-
-            if kitty_specs.name == "kitty-specs":
-                # Find the ###-* feature directory
-                for item in kitty_specs.iterdir():
-                    if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
-                        feature_dir = item
-                        break
-                else:
-                    raise ValueError("Could not find feature directory in worktree")
-            else:
-                raise ValueError("Could not locate kitty-specs directory in worktree")
-        else:
-            # We're in main repo - find latest feature
-            specs_dir = repo_root / "kitty-specs"
-            if not specs_dir.exists():
-                raise ValueError("No kitty-specs directory found in repository")
-
-            # Find the highest numbered feature
-            max_num = 0
-            feature_dir = None
-            for item in specs_dir.iterdir():
-                if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
-                    try:
-                        num = int(item.name[:3])
-                        if num > max_num:
-                            max_num = num
-                            feature_dir = item
-                    except ValueError:
-                        continue
-
-            if feature_dir is None:
-                raise ValueError("No feature directories found in kitty-specs/")
+        feature_dir = _find_feature_directory(repo_root, cwd)
 
         # Find plan template
         plan_template_candidates = [
