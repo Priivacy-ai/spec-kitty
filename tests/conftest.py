@@ -75,3 +75,54 @@ def merge_repo(temp_repo: Path) -> tuple[Path, Path, str]:
     run(["git", "worktree", "add", str(worktree_dir), feature_slug], cwd=repo)
 
     return repo, worktree_dir, feature_slug
+
+
+@pytest.fixture
+def mock_worktree(tmp_path: Path) -> dict[str, Path]:
+    """
+    Create temporary worktree structure for testing path resolution.
+
+    Creates a minimal spec-kitty project structure with a feature worktree.
+
+    Returns:
+        Dictionary with 'repo_root', 'worktree_path', and 'feature_dir' paths
+    """
+    repo_root = tmp_path
+    worktree = repo_root / ".worktrees" / "test-feature"
+    worktree.mkdir(parents=True)
+
+    # Create .kittify marker in repo root
+    kittify = repo_root / ".kittify"
+    kittify.mkdir()
+
+    # Create feature directory in worktree
+    feature_dir = worktree / "kitty-specs" / "001-test-feature"
+    feature_dir.mkdir(parents=True)
+
+    return {
+        "repo_root": repo_root,
+        "worktree_path": worktree,
+        "feature_dir": feature_dir
+    }
+
+
+@pytest.fixture
+def mock_main_repo(tmp_path: Path) -> Path:
+    """
+    Create temporary main repository structure for testing.
+
+    Creates a minimal spec-kitty project structure in the main repo
+    (not a worktree).
+
+    Returns:
+        Path to the temporary repository root
+    """
+    # Create .kittify marker
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+
+    # Create specs directory
+    specs = tmp_path / "kitty-specs"
+    specs.mkdir()
+
+    return tmp_path
