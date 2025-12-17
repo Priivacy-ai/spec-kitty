@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,6 +14,14 @@ from typing import Dict, List, Optional, Tuple
 
 # IMPORTANT: Keep in sync with src/specify_cli/tasks_support.py
 LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
+
+# Add project root to path for importing src modules
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.specify_cli.legacy_detector import is_legacy_format  # noqa: E402
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -288,7 +297,13 @@ class WorkPackage:
 
 
 def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
-    tasks_root = repo_root / "kitty-specs" / feature / "tasks"
+    """Locate a work package by ID, supporting both legacy and new formats.
+
+    Legacy format: WP files in tasks/{lane}/ subdirectories
+    New format: WP files in flat tasks/ directory with lane in frontmatter
+    """
+    feature_path = repo_root / "kitty-specs" / feature
+    tasks_root = feature_path / "tasks"
     if not tasks_root.exists():
         raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")
 
@@ -297,14 +312,27 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     # Does NOT match: WP04b.md, WP04b-something.md
     wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
 
+    use_legacy = is_legacy_format(feature_path)
     candidates = []
-    for lane_dir in tasks_root.iterdir():
-        if not lane_dir.is_dir():
-            continue
-        lane = lane_dir.name
-        for path in lane_dir.rglob("*.md"):
+
+    if use_legacy:
+        # Legacy format: search lane subdirectories
+        for lane_dir in tasks_root.iterdir():
+            if not lane_dir.is_dir():
+                continue
+            lane = lane_dir.name
+            for path in lane_dir.rglob("*.md"):
+                if wp_pattern.match(path.name):
+                    candidates.append((lane, path, lane_dir))
+    else:
+        # New format: search flat tasks/ directory
+        for path in tasks_root.glob("*.md"):
+            if path.name.lower() == "readme.md":
+                continue
             if wp_pattern.match(path.name):
-                candidates.append((lane, path, lane_dir))
+                # Get lane from frontmatter
+                lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+                candidates.append((lane, path, tasks_root))
 
     if not candidates:
         raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks.")
@@ -314,10 +342,10 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
             f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}"
         )
 
-    lane, path, lane_dir = candidates[0]
+    lane, path, base_dir = candidates[0]
     text = path.read_text(encoding="utf-8-sig")
     front, body, padding = split_frontmatter(text)
-    relative = path.relative_to(lane_dir)
+    relative = path.relative_to(base_dir)
     return WorkPackage(
         feature=feature,
         path=path,
@@ -397,6 +425,7 @@ __all__ = [
     "find_repo_root",
     "get_lane_from_frontmatter",
     "git_status_lines",
+    "is_legacy_format",
     "load_meta",
     "locate_work_package",
     "normalize_note",

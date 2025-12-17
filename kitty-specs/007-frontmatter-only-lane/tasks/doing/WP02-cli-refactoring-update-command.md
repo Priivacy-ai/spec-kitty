@@ -10,7 +10,7 @@ subtasks:
   - "T011"
 title: "CLI Refactoring - Update Command"
 phase: "Phase 1 - Core Implementation"
-lane: "planned"
+lane: "doing"
 assignee: ""
 agent: ""
 shell_pid: ""
