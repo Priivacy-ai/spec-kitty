@@ -8,9 +8,9 @@ subtasks:
   - "T016"
 title: "Status Command & Dashboard"
 phase: "Phase 1 - Core Implementation"
-lane: "planned"
+lane: "for_review"
 assignee: ""
-agent: ""
+agent: "claude"
 shell_pid: ""
 review_status: ""
 reviewed_by: ""
@@ -20,8 +20,14 @@ history:
     agent: "system"
     shell_pid: ""
     action: "Prompt generated via /spec-kitty.tasks"
+  - timestamp: "2025-12-17T16:30:00Z"
+    lane: "for_review"
+    agent: "claude"
+    shell_pid: ""
+    action: "Implementation complete - scanner and acceptance updated"
 activity_log: |
   - 2025-12-17T13:15:00Z – system – lane=planned – Prompt created
+  - 2025-12-17T16:30:00Z – claude – lane=for_review – Implementation complete
 ---
 
 # Work Package Prompt: WP03 – Status Command & Dashboard
