@@ -14,6 +14,7 @@ from ..scanner import (
     scan_feature_kanban,
 )
 from .base import DashboardHandler
+from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.mission import MissionError, get_active_mission
 
 __all__ = ["FeatureHandler"]
@@ -31,6 +32,11 @@ class FeatureHandler(DashboardHandler):
 
         project_path = Path(self.project_dir).resolve()
         features = scan_all_features(project_path)
+
+        # Add legacy format indicator to each feature
+        for feature in features:
+            feature_dir = project_path / feature['path']
+            feature['is_legacy'] = is_legacy_format(feature_dir)
 
         mission_context = {
             'name': 'Unknown mission',
@@ -99,11 +105,21 @@ class FeatureHandler(DashboardHandler):
             project_path = Path(self.project_dir).resolve()
             kanban_data = scan_feature_kanban(project_path, feature_id)
 
+            # Check if feature uses legacy format
+            feature_dir = resolve_feature_dir(project_path, feature_id)
+            is_legacy = is_legacy_format(feature_dir) if feature_dir else False
+
+            response = {
+                'lanes': kanban_data,
+                'is_legacy': is_legacy,
+                'upgrade_needed': is_legacy,
+            }
+
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Cache-Control', 'no-cache')
             self.end_headers()
-            self.wfile.write(json.dumps(kanban_data).encode())
+            self.wfile.write(json.dumps(response).encode())
             return
 
         self.send_response(404)
