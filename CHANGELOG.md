@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2025-12-17
+
+### 🐛 Fixed
+
+- **Critical symlink detection fix**
+  - Now checks `is_symlink()` BEFORE `exists()` (exists() returns False for broken symlinks!)
+  - Properly removes both working and broken symlinks from worktrees
+  - Fixes remaining test failures in worktree cleanup migration
+  - Handles all symlink scenarios correctly
+
+This completes the fix for symlink removal in worktree cleanup.
+
 ## [0.9.2] - 2025-12-17
 
 ### 🐛 Fixed

@@ -34,6 +34,19 @@ Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
 ## PyPI Release (Quick Reference)
 
+**CRITICAL: NEVER create releases without explicit user instruction!**
+
+Only cut a release when the user explicitly says:
+- "cut a release"
+- "release v0.X.Y"
+- "push to PyPI"
+- Similar clear instructions
+
+**DO NOT**:
+- Automatically release after fixing bugs
+- Release without verification
+- Assume a fix should be released immediately
+
 ```bash
 # 1. Ensure version is bumped in pyproject.toml
 # 2. Ensure CHANGELOG.md has entry for version

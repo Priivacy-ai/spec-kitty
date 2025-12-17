@@ -372,7 +372,8 @@ class CompleteLaneMigration(BaseMigration):
             # Remove agent command directories
             for agent_dir, subdir in self.AGENT_DIRS:
                 commands_dir = worktree / agent_dir / subdir
-                if commands_dir.exists():
+                # Check is_symlink() FIRST - exists() returns False for broken symlinks!
+                if commands_dir.is_symlink() or commands_dir.exists():
                     if dry_run:
                         is_symlink = commands_dir.is_symlink()
                         type_str = "symlink" if is_symlink else "directory"
@@ -387,7 +388,7 @@ class CompleteLaneMigration(BaseMigration):
                                 changes.append(
                                     f"[{worktree_name}] Removed {agent_dir}/{subdir}/ symlink (inherits from main)"
                                 )
-                            else:
+                            elif commands_dir.is_dir():
                                 shutil.rmtree(commands_dir)
                                 changes.append(
                                     f"[{worktree_name}] Removed {agent_dir}/{subdir}/ (inherits from main)"
@@ -407,7 +408,8 @@ class CompleteLaneMigration(BaseMigration):
 
             # Remove .kittify/scripts/
             scripts_dir = worktree / ".kittify" / "scripts"
-            if scripts_dir.exists():
+            # Check is_symlink() FIRST - exists() returns False for broken symlinks!
+            if scripts_dir.is_symlink() or scripts_dir.exists():
                 if dry_run:
                     is_symlink = scripts_dir.is_symlink()
                     type_str = "symlink" if is_symlink else "directory"
@@ -422,7 +424,7 @@ class CompleteLaneMigration(BaseMigration):
                             changes.append(
                                 f"[{worktree_name}] Removed .kittify/scripts/ symlink (inherits from main)"
                             )
-                        else:
+                        elif scripts_dir.is_dir():
                             shutil.rmtree(scripts_dir)
                             changes.append(
                                 f"[{worktree_name}] Removed .kittify/scripts/ (inherits from main)"
