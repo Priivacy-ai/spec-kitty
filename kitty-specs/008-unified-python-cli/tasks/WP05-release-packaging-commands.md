@@ -57,6 +57,12 @@ history:
 
 **T070**: Create `src/specify_cli/core/release.py` module
 
+**Validation Step**: Before implementing release utilities, verify `.github/workflows/scripts/` directory exists:
+```bash
+ls .github/workflows/scripts/ 2>/dev/null || echo "Directory not found - will skip in T101"
+```
+If directory doesn't exist, document in release.py that GitHub Actions migration (T091) may not have bash scripts to replace.
+
 **T071**: Implement `get_next_version(repo_root)`:
 ```python
 def get_next_version(repo_root: Path) -> str:

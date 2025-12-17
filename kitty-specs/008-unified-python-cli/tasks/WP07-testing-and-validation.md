@@ -204,13 +204,39 @@ pytest tests/ -v --cov --cov-report=term
 ```
 
 **T129**: Run CI tests on Windows (verify file copy fallback)
+
+**Test Specification**:
 ```bash
 # In GitHub Actions Windows runner
 pytest tests/ -v --cov --cov-report=term
-
-# Verify symlink fallback works
-python -c "from specify_cli.core.worktree import setup_feature_directory; import platform; assert platform.system() == 'Windows'"
 ```
+
+**Windows-Specific Test** (add to `tests/unit/agent/test_feature.py`):
+```python
+import platform
+import pytest
+
+@pytest.mark.skipif(platform.system() != "Windows", reason="Windows-only test")
+def test_windows_symlink_fallback(tmp_path):
+    """Verify file copy fallback when symlinks unsupported on Windows."""
+    from specify_cli.core.worktree import setup_feature_directory
+
+    # Create feature directory with symlink fallback
+    feature_dir = tmp_path / "kitty-specs" / "001-test"
+    feature_dir.mkdir(parents=True)
+
+    # Test setup with create_symlinks=False (Windows fallback)
+    setup_feature_directory(feature_dir, create_symlinks=False)
+
+    # Verify template files exist as regular files (not symlinks)
+    if (feature_dir / "template.md").exists():
+        assert not (feature_dir / "template.md").is_symlink(), \
+            "Expected regular file on Windows, found symlink"
+        assert (feature_dir / "template.md").is_file(), \
+            "Expected file to exist as regular file"
+```
+
+**Acceptance**: Test passes on Windows CI runner, verifying FR-015 (file copy fallback)
 
 **GitHub Actions Matrix**:
 ```yaml
@@ -271,11 +297,21 @@ pytest tests/ \
 - Identify gaps
 - If below 90%, add targeted tests
 
-**T135**: Verify zero path-related errors:
+**T135**: Verify zero path-related errors
+
+**Success Criteria** (per SC-005):
+- **Target**: 95%+ reduction in agent retry behavior due to path issues
+- **Baseline**: Current agent error logs (if available) OR user-reported pain points
+- **Measurement**: Zero path-related errors in T115-T121 workflow tests
+- **Validation**: Qualitative confirmation acceptable (per research.md Risk 3 mitigation)
+
+**Test Steps**:
 - Review agent execution logs (if available)
-- Test from various starting directories
-- Test with broken symlinks
-- Test with missing .kittify marker
+- Test from various starting directories (main repo, worktree, nested)
+- Test with broken symlinks (should handle gracefully)
+- Test with missing .kittify marker (should walk up tree or use git)
+
+**Acceptance**: No path resolution errors occur during workflow tests OR errors have clear, actionable messages
 
 **T136**: Document edge cases discovered:
 - Create `EDGE_CASES.md` with findings

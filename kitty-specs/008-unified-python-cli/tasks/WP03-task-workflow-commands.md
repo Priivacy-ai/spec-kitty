@@ -258,11 +258,26 @@ Add tests for uncovered branches until 90%+ achieved.
 
 ### T053 – Deprecate old tasks_support.py
 
-After verifying all functionality migrated:
-1. Add deprecation warning to `tasks_support.py`
+**Timeline Clarification**:
+- **WP03 (this work package)**: Add deprecation warning, update references
+- **WP06 (cleanup phase)**: Physical deletion of file along with all bash scripts
+
+**Steps for WP03**:
+1. Add deprecation warning to `tasks_support.py` module docstring:
+   ```python
+   """
+   DEPRECATED: This module is deprecated as of v0.10.0.
+   Use `spec-kitty agent tasks` commands instead.
+
+   This file will be removed in the next release.
+   See: src/specify_cli/cli/commands/agent/tasks.py
+   """
+   ```
 2. Update any internal references to use new `agent tasks` commands
 3. Document migration in code comments
-4. Schedule removal for WP06 (cleanup phase)
+4. **Do NOT delete file yet** - deletion happens in WP06 T100-T101
+
+**Verification**: Deprecation warning visible, all functionality works via new commands
 
 ---
 

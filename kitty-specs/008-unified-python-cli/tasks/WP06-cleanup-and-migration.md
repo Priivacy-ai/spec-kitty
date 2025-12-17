@@ -152,6 +152,18 @@ if bash_dir.exists():
 
 **T101**: Delete `.github/workflows/scripts/` directory
 
+**Implementation**:
+```python
+import shutil
+workflows_scripts = repo_root / ".github" / "workflows" / "scripts"
+if workflows_scripts.exists():
+    shutil.rmtree(workflows_scripts)
+    results["bash_scripts_removed"].append(str(workflows_scripts))
+else:
+    # Directory doesn't exist - may be empty repo or already cleaned
+    results["warnings"].append("No .github/workflows/scripts/ directory found (skipped)")
+```
+
 **T102**: Update `.gitignore` if needed (remove bash entries)
 
 **T103**: Scan and update all slash command templates:
@@ -197,6 +209,15 @@ if bash_dir.exists():
 - Test upgrade on project with custom modifications
 
 **T113**: Verify all bash scripts deleted from main repository
+
+**Verification**:
+```bash
+# Check for any remaining bash scripts
+find .kittify/scripts/bash -type f 2>/dev/null | wc -l  # Should be 0 (or directory not found)
+find .github/workflows/scripts -type f 2>/dev/null | wc -l  # Should be 0 (or directory not found)
+```
+
+**Success**: Both commands return 0 OR directory doesn't exist (both acceptable)
 
 **T114**: Verify all slash commands updated
 
