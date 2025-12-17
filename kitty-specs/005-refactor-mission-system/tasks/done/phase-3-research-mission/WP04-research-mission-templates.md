@@ -1,24 +1,24 @@
 ---
-work_package_id: "WP04"
-subtasks:
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-title: "Research Mission Templates"
-phase: "Phase 3 - Research Mission"
-lane: "done"
-assignee: "claude"
-agent: "claude"
-shell_pid: "76722"
+work_package_id: WP04
+title: Research Mission Templates
+lane: done
 history:
-  - timestamp: "2025-01-16T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: claude
+assignee: claude
+phase: Phase 3 - Research Mission
+shell_pid: '76722'
+subtasks:
+- T025
+- T026
+- T027
+- T028
+- T029
+- T030
 ---
 
 # Work Package Prompt: WP04 – Research Mission Templates

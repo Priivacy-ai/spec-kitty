@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP07"
-subtasks:
-  - "T049"
-  - "T050"
-  - "T051"
-  - "T052"
-  - "T053"
-  - "T054"
-  - "T055"
-  - "T056"
-title: "Path Convention Validation"
-phase: "Phase 4 - Integration"
-lane: "done"
-assignee: "codex"
-agent: "codex"
-shell_pid: "60030"
-review_status: ""
-reviewed_by: "codex"
+work_package_id: WP07
+title: Path Convention Validation
+lane: done
 history:
-  - timestamp: "2025-01-16T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: codex
+assignee: codex
+phase: Phase 4 - Integration
+review_status: ''
+reviewed_by: codex
+shell_pid: '60030'
+subtasks:
+- T049
+- T050
+- T051
+- T052
+- T053
+- T054
+- T055
+- T056
 ---
 
 # Work Package Prompt: WP07 – Path Convention Validation

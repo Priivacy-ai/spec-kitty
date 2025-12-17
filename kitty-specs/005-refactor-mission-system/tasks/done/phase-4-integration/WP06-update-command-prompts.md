@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP06"
-subtasks:
-  - "T041"
-  - "T042"
-  - "T043"
-  - "T044"
-  - "T045"
-  - "T046"
-  - "T047"
-  - "T048"
-title: "Update Command Prompts"
-phase: "Phase 4 - Integration"
-lane: "done"
-assignee: "codex"
-agent: "claude"
-shell_pid: "5794"
+work_package_id: WP06
+title: Update Command Prompts
+lane: done
 history:
-  - timestamp: "2025-01-16T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: claude
+assignee: codex
+phase: Phase 4 - Integration
+shell_pid: '5794'
+subtasks:
+- T041
+- T042
+- T043
+- T044
+- T045
+- T046
+- T047
+- T048
 ---
 
 # Work Package Prompt: WP06 – Update Command Prompts

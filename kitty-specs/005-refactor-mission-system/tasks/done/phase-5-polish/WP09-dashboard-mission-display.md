@@ -1,26 +1,26 @@
 ---
-work_package_id: "WP09"
-subtasks:
-  - "T062"
-  - "T063"
-  - "T064"
-  - "T065"
-  - "T066"
-  - "T067"
-title: "Dashboard Mission Display"
-phase: "Phase 5 - Polish"
-lane: "done"
-review_status: ""
-reviewed_by: "codex"
-assignee: "codex"
-agent: "codex"
-shell_pid: "37165"
+work_package_id: WP09
+title: Dashboard Mission Display
+lane: done
 history:
-  - timestamp: "2025-01-16T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: codex
+assignee: codex
+phase: Phase 5 - Polish
+review_status: ''
+reviewed_by: codex
+shell_pid: '37165'
+subtasks:
+- T062
+- T063
+- T064
+- T065
+- T066
+- T067
 ---
 
 ## Review Feedback

@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP05"
-subtasks:
-  - "T031"
-  - "T032"
-  - "T033"
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-  - "T038"
-  - "T039"
-  - "T040"
-title: "Research Citation Validators"
-phase: "Phase 3 - Research Mission"
-lane: "done"
-assignee: "claude"
-agent: "claude"
-shell_pid: "96219"
+work_package_id: WP05
+title: Research Citation Validators
+lane: done
 history:
-  - timestamp: "2025-01-16T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: claude
+assignee: claude
+phase: Phase 3 - Research Mission
+shell_pid: '96219'
+subtasks:
+- T031
+- T032
+- T033
+- T034
+- T035
+- T036
+- T037
+- T038
+- T039
+- T040
 ---
 
 # Work Package Prompt: WP05 – Research Citation Validators

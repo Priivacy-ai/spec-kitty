@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP10"
-subtasks:
-  - "T068"
-  - "T069"
-  - "T070"
-  - "T071"
-  - "T072"
-  - "T073"
-  - "T074"
-  - "T075"
-  - "T076"
-title: "Integration Testing"
-phase: "Phase 6 - Testing"
-lane: "done"
-review_status: ""
-assignee: "codex"
-agent: "codex"
-shell_pid: "59270"
-reviewed_by: "codex"
+work_package_id: WP10
+title: Integration Testing
+lane: done
 history:
-  - timestamp: "2025-01-16T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2025-01-16T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: codex
+assignee: codex
+phase: Phase 6 - Testing
+review_status: ''
+reviewed_by: codex
+shell_pid: '59270'
+subtasks:
+- T068
+- T069
+- T070
+- T071
+- T072
+- T073
+- T074
+- T075
+- T076
 ---
 
 ## Review Feedback
