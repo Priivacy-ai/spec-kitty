@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+# IMPORTANT: Keep in sync with scripts/tasks/task_helpers.py
 LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -287,6 +288,54 @@ def load_meta(meta_path: Path) -> Dict:
     return json.loads(meta_path.read_text(encoding="utf-8-sig"))
 
 
+def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> str:
+    """Extract lane from WP file frontmatter.
+
+    This is the authoritative way to determine a work package's lane
+    in the frontmatter-only lane system.
+
+    Args:
+        wp_path: Path to the work package markdown file
+        warn_on_missing: If True, print warning when lane field is missing
+
+    Returns:
+        Lane value (planned, doing, for_review, done)
+
+    Raises:
+        ValueError: If lane value is not in LANES
+    """
+    content = wp_path.read_text(encoding="utf-8-sig")
+    frontmatter, _, _ = split_frontmatter(content)
+
+    lane = extract_scalar(frontmatter, "lane")
+
+    if lane is None:
+        if warn_on_missing:
+            # Import here to avoid circular dependency issues
+            try:
+                from rich.console import Console
+                console = Console(stderr=True)
+                console.print(
+                    f"[yellow]Warning: {wp_path.name} missing lane field, "
+                    f"defaulting to 'planned'[/yellow]"
+                )
+            except ImportError:
+                import sys
+                print(
+                    f"Warning: {wp_path.name} missing lane field, defaulting to 'planned'",
+                    file=sys.stderr
+                )
+        return "planned"
+
+    if lane not in LANES:
+        raise ValueError(
+            f"Invalid lane '{lane}' in {wp_path.name}. "
+            f"Valid lanes: {', '.join(LANES)}"
+        )
+
+    return lane
+
+
 __all__ = [
     "LANES",
     "TIMESTAMP_FORMAT",
@@ -299,6 +348,7 @@ __all__ = [
     "ensure_lane",
     "extract_scalar",
     "find_repo_root",
+    "get_lane_from_frontmatter",
     "git_status_lines",
     "load_meta",
     "locate_work_package",
