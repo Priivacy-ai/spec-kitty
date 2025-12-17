@@ -350,3 +350,246 @@ def test_refresh_script_upgrades_legacy_copy(temp_repo: Path) -> None:
     new_content = new_cli.read_text(encoding="utf-8")
     assert "specify_cli" not in new_content
     assert (legacy_tasks_dir / "task_helpers.py").exists()
+
+
+# ============================================================================
+# Tests for WP ID exact matching (WP04 vs WP04b bug fix)
+# ============================================================================
+
+def test_exact_wp_id_matching_not_prefix(feature_repo: Path, feature_slug: str) -> None:
+    """Test: WP04 should NOT match WP04b (prefix matching bug).
+
+    GIVEN: Both WP04 and WP04b exist in planned/
+    WHEN: Moving WP04 to doing
+    THEN: Only WP04 should move, WP04b should stay in planned
+    """
+    # Create WP04b alongside WP01 (which acts like WP04 for this test)
+    write_wp(feature_repo, feature_slug, "planned", "WP04")
+    write_wp(feature_repo, feature_slug, "planned", "WP04b")
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add WP04 and WP04b"], cwd=feature_repo)
+
+    # Move WP04
+    result = run_tasks_cli(["move", feature_slug, "WP04", "doing", "--force"], cwd=feature_repo)
+    assert_success(result)
+
+    # WP04 should be in doing
+    wp04_doing = feature_repo / "kitty-specs" / feature_slug / "tasks" / "doing" / "WP04.md"
+    wp04_planned = feature_repo / "kitty-specs" / feature_slug / "tasks" / "planned" / "WP04.md"
+    assert wp04_doing.exists(), "WP04 should be in doing/"
+    assert not wp04_planned.exists(), "WP04 should NOT be in planned/"
+
+    # WP04b should still be in planned (not moved)
+    wp04b_planned = feature_repo / "kitty-specs" / feature_slug / "tasks" / "planned" / "WP04b.md"
+    wp04b_doing = feature_repo / "kitty-specs" / feature_slug / "tasks" / "doing" / "WP04b.md"
+    assert wp04b_planned.exists(), "WP04b should still be in planned/"
+    assert not wp04b_doing.exists(), "WP04b should NOT be moved to doing/"
+
+
+def test_exact_wp_id_matching_with_slug(feature_repo: Path, feature_slug: str) -> None:
+    """Test: WP04 matches WP04-slug.md but not WP04b-slug.md.
+
+    GIVEN: WP04-feature.md and WP04b-other.md exist
+    WHEN: Moving WP04
+    THEN: Only WP04-feature.md should move
+    """
+    # Create WP files with slugs
+    planned_dir = feature_repo / "kitty-specs" / feature_slug / "tasks" / "planned"
+    write_wp(feature_repo, feature_slug, "planned", "WP04")
+    # Rename to have a slug
+    (planned_dir / "WP04.md").rename(planned_dir / "WP04-feature-name.md")
+
+    write_wp(feature_repo, feature_slug, "planned", "WP04b")
+    (planned_dir / "WP04b.md").rename(planned_dir / "WP04b-other-feature.md")
+
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add slugged WP files"], cwd=feature_repo)
+
+    # Move WP04
+    result = run_tasks_cli(["move", feature_slug, "WP04", "doing", "--force"], cwd=feature_repo)
+    assert_success(result)
+
+    # WP04-feature-name.md should be in doing
+    doing_files = list((feature_repo / "kitty-specs" / feature_slug / "tasks" / "doing").glob("WP04*.md"))
+    planned_wp04b = list((feature_repo / "kitty-specs" / feature_slug / "tasks" / "planned").glob("WP04b*.md"))
+
+    assert len(doing_files) == 1, f"Should have exactly one WP04 file in doing. Found: {doing_files}"
+    assert "WP04-feature-name.md" in doing_files[0].name, "WP04-feature-name.md should be in doing"
+    assert len(planned_wp04b) == 1, "WP04b should still be in planned"
+
+
+# ============================================================================
+# Tests for cleanup not leaving staged deletions
+# ============================================================================
+
+def test_cleanup_does_not_leave_staged_deletions(feature_repo: Path, feature_slug: str) -> None:
+    """Test: Cleanup should not leave staged deletions that block subsequent moves.
+
+    GIVEN: A WP file exists with a stale copy in another lane
+    WHEN: Moving the WP (which triggers cleanup)
+    THEN: Git status should be clean after the move (no staged deletions blocking)
+    """
+    # Move to for_review first
+    assert_success(run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo))
+    run(["git", "commit", "-am", "Move to doing"], cwd=feature_repo)
+    assert_success(run_tasks_cli(["move", feature_slug, "WP01", "for_review", "--force"], cwd=feature_repo))
+    run(["git", "commit", "-am", "Move to for_review"], cwd=feature_repo)
+
+    # Create a stale copy in planned/ (simulating partial move failure)
+    planned_dir = feature_repo / "kitty-specs" / feature_slug / "tasks" / "planned"
+    for_review_dir = feature_repo / "kitty-specs" / feature_slug / "tasks" / "for_review"
+    planned_dir.mkdir(exist_ok=True)
+
+    stale_copy = planned_dir / "WP01.md"
+    original = for_review_dir / "WP01.md"
+    stale_copy.write_text(original.read_text(), encoding="utf-8")
+    run(["git", "add", str(stale_copy.relative_to(feature_repo))], cwd=feature_repo)
+
+    # Move again - this should trigger cleanup
+    result = run_tasks_cli(["move", feature_slug, "WP01", "done", "--force"], cwd=feature_repo)
+    assert_success(result)
+
+    # Check git status - should not have staged deletions blocking
+    status_result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=feature_repo,
+        capture_output=True,
+        text=True
+    )
+
+    # Filter for WP01-related staged deletions (D in first column)
+    staged_deletions = [
+        line for line in status_result.stdout.strip().split('\n')
+        if line and line[0] == 'D' and 'WP01' in line
+    ]
+
+    assert len(staged_deletions) == 0, \
+        f"Cleanup should not leave staged deletions. Found: {staged_deletions}"
+
+
+def test_move_succeeds_after_cleanup_of_duplicate(feature_repo: Path, feature_slug: str) -> None:
+    """Test: Move should succeed even when cleanup removes duplicates.
+
+    GIVEN: Duplicates exist across multiple lanes
+    WHEN: Moving to a new lane
+    THEN: Move succeeds and only one copy exists in target lane
+    """
+    # Setup: move through lanes
+    assert_success(run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo))
+    run(["git", "commit", "-am", "Move to doing"], cwd=feature_repo)
+
+    # Create duplicates in planned/ and for_review/
+    base = feature_repo / "kitty-specs" / feature_slug / "tasks"
+    doing_wp = base / "doing" / "WP01.md"
+    content = doing_wp.read_text(encoding="utf-8")
+
+    # Duplicate in planned
+    planned_dup = base / "planned" / "WP01.md"
+    planned_dup.parent.mkdir(exist_ok=True)
+    planned_dup.write_text(content, encoding="utf-8")
+
+    # Duplicate in for_review
+    review_dup = base / "for_review" / "WP01.md"
+    review_dup.parent.mkdir(exist_ok=True)
+    review_dup.write_text(content, encoding="utf-8")
+
+    # Stage them
+    run(["git", "add", "."], cwd=feature_repo)
+
+    # Move to done - should clean up all duplicates
+    result = run_tasks_cli(["move", feature_slug, "WP01", "done", "--force"], cwd=feature_repo)
+    assert_success(result)
+
+    # Verify only one copy exists
+    all_wp01_files = list(base.rglob("WP01.md"))
+    assert len(all_wp01_files) == 1, f"Should have exactly one WP01.md. Found: {all_wp01_files}"
+    assert all_wp01_files[0].parent.name == "done", "WP01 should be in done/"
+
+
+# ============================================================================
+# Tests for multi-agent race condition handling
+# ============================================================================
+
+def test_move_ignores_other_wp_modifications(feature_repo: Path, feature_slug: str) -> None:
+    """Test: Moving WP01 should not be blocked by modifications to WP02.
+
+    GIVEN: WP02 has uncommitted modifications (simulating another agent's work)
+    WHEN: Moving WP01
+    THEN: Move should succeed (not blocked by WP02 changes)
+    """
+    # Create WP02
+    write_wp(feature_repo, feature_slug, "planned", "WP02")
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add WP02"], cwd=feature_repo)
+
+    # Modify WP02 (simulating another agent editing it)
+    wp02_path = feature_repo / "kitty-specs" / feature_slug / "tasks" / "planned" / "WP02.md"
+    original_content = wp02_path.read_text(encoding="utf-8")
+    wp02_path.write_text(original_content + "\n<!-- Agent B editing WP02 -->\n", encoding="utf-8")
+
+    # Move WP01 - should NOT be blocked by WP02 modifications
+    result = run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
+    assert_success(result)
+
+    # Verify WP01 moved
+    wp01_doing = feature_repo / "kitty-specs" / feature_slug / "tasks" / "doing" / "WP01.md"
+    assert wp01_doing.exists(), "WP01 should have moved to doing/"
+
+    # Verify WP02 still has its modifications
+    wp02_content = wp02_path.read_text(encoding="utf-8")
+    assert "Agent B editing WP02" in wp02_content, "WP02 modifications should be preserved"
+
+
+def test_move_with_staged_other_wp_changes(feature_repo: Path, feature_slug: str) -> None:
+    """Test: Move succeeds even when other WP files are staged.
+
+    GIVEN: WP02 is staged (modified and git added)
+    WHEN: Moving WP01
+    THEN: Move should succeed (force mode bypasses conflict check for other WPs)
+    """
+    # Create WP02
+    write_wp(feature_repo, feature_slug, "planned", "WP02")
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add WP02"], cwd=feature_repo)
+
+    # Modify and stage WP02
+    wp02_path = feature_repo / "kitty-specs" / feature_slug / "tasks" / "planned" / "WP02.md"
+    original_content = wp02_path.read_text(encoding="utf-8")
+    wp02_path.write_text(original_content + "\n<!-- Agent B staged WP02 -->\n", encoding="utf-8")
+    run(["git", "add", str(wp02_path.relative_to(feature_repo))], cwd=feature_repo)
+
+    # Move WP01 with --force
+    result = run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
+    assert_success(result)
+
+    # Verify WP01 moved
+    wp01_doing = feature_repo / "kitty-specs" / feature_slug / "tasks" / "doing" / "WP01.md"
+    assert wp01_doing.exists(), "WP01 should have moved to doing/"
+
+
+def test_sequential_moves_by_different_agents(feature_repo: Path, feature_slug: str) -> None:
+    """Test: Two agents can move their WPs sequentially without conflicts.
+
+    GIVEN: WP01 and WP02 both exist in planned
+    WHEN: Agent A moves WP01, then Agent B moves WP02
+    THEN: Both moves succeed independently
+    """
+    # Create WP02
+    write_wp(feature_repo, feature_slug, "planned", "WP02")
+    run(["git", "add", "."], cwd=feature_repo)
+    run(["git", "commit", "-m", "Add WP02"], cwd=feature_repo)
+
+    # Agent A moves WP01
+    result_a = run_tasks_cli(["move", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
+    assert_success(result_a)
+
+    # Agent B moves WP02 (without committing WP01 move first - simulates race)
+    result_b = run_tasks_cli(["move", feature_slug, "WP02", "doing", "--force"], cwd=feature_repo)
+    assert_success(result_b)
+
+    # Both should be in doing
+    base = feature_repo / "kitty-specs" / feature_slug / "tasks"
+    assert (base / "doing" / "WP01.md").exists(), "WP01 should be in doing/"
+    assert (base / "doing" / "WP02.md").exists(), "WP02 should be in doing/"
+    assert not (base / "planned" / "WP01.md").exists(), "WP01 should not be in planned/"
+    assert not (base / "planned" / "WP02.md").exists(), "WP02 should not be in planned/"

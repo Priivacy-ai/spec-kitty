@@ -342,13 +342,18 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     if not tasks_root.exists():
         raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")
 
+    # Use exact WP ID matching with word boundary to avoid WP04 matching WP04b
+    # Matches: WP04.md, WP04-something.md, WP04_something.md
+    # Does NOT match: WP04b.md, WP04b-something.md
+    wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
+
     candidates = []
     for lane_dir in tasks_root.iterdir():
         if not lane_dir.is_dir():
             continue
         lane = lane_dir.name
         for path in lane_dir.rglob("*.md"):
-            if path.name.startswith(wp_id):
+            if wp_pattern.match(path.name):
                 candidates.append((lane, path, lane_dir))
 
     if not candidates:

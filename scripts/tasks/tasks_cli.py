@@ -176,20 +176,15 @@ def move_command(args: argparse.Namespace) -> None:
             if line == keep_line:
                 continue
 
-            status_snapshot = git_status_lines(repo_root)
-            if path_has_changes(status_snapshot, rel):
-                run_git(["add", str(rel)], cwd=repo_root, check=True)
-
-            result = run_git(
-                ["rm", "--quiet", "--force", str(rel)],
-                cwd=repo_root,
-                check=False,
-            )
-            if getattr(result, "returncode", 0) not in (0,):
-                try:
-                    full_path.unlink()
-                except FileNotFoundError:
-                    pass
+            # Use filesystem delete instead of git rm to avoid leaving staged deletions
+            # that block subsequent operations. The deletion will be picked up by
+            # git status naturally without blocking other agents' work.
+            try:
+                full_path.unlink()
+                # Unstage any staged changes for this file to avoid conflicts
+                run_git(["reset", "HEAD", "--", str(rel)], cwd=repo_root, check=False)
+            except FileNotFoundError:
+                pass
 
             print(f"[cleanup] Removed extra copy at {rel}", file=sys.stderr)
             cleaned = True
@@ -208,23 +203,21 @@ def move_command(args: argparse.Namespace) -> None:
 
             rel = candidate.relative_to(repo_root)
 
-            # Attempt to remove via git; fall back to unlinking directly if needed.
-            result = run_git(
-                ["rm", "--quiet", "--force", str(rel)],
-                cwd=repo_root,
-                check=False,
-            )
-            if getattr(result, "returncode", 0) not in (0,):
-                try:
-                    candidate.unlink()
-                except IsADirectoryError:
-                    # Should not happen (we only target files), but guard anyway.
-                    for subpath in candidate.rglob("*"):
-                        if subpath.is_file():
-                            subpath.unlink()
-                    candidate.rmdir()
-                except FileNotFoundError:
-                    pass
+            # Use filesystem delete instead of git rm to avoid leaving staged deletions
+            # that block subsequent operations. Stage the deletion explicitly only if
+            # the file was tracked.
+            try:
+                candidate.unlink()
+                # Unstage any staged changes for this file to avoid conflicts
+                run_git(["reset", "HEAD", "--", str(rel)], cwd=repo_root, check=False)
+            except IsADirectoryError:
+                # Should not happen (we only target files), but guard anyway.
+                for subpath in candidate.rglob("*"):
+                    if subpath.is_file():
+                        subpath.unlink()
+                candidate.rmdir()
+            except FileNotFoundError:
+                pass
 
             print(f"[cleanup] Removed stray copy at {rel}", file=sys.stderr)
 

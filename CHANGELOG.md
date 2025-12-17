@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2025-12-17
+
+### Fixed
+
+- **Work package move race conditions** - Multiple agents can now work on different WPs simultaneously without blocking each other
+  - Conflict detection now only blocks on changes to the same WP, not unrelated WP files
+  - Agents working on WP05 no longer block moves of WP04
+
+- **Exact WP ID matching** - `WP04` no longer incorrectly matches `WP04b`
+  - Changed from prefix matching to exact boundary matching
+  - Pattern now requires WP ID to be followed by `-`, `_`, `.`, or end of filename
+
+- **Cleanup no longer leaves staged deletions** - Stale copy cleanup uses filesystem delete instead of `git rm`
+  - Prevents orphaned staged deletions from blocking subsequent operations
+  - Automatically unstages any previously staged changes to cleaned files
+
 ## [0.8.0] - 2025-12-15
 
 ### Breaking Changes
