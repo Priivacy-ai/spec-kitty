@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
-"""Shared utilities for manipulating Spec Kitty task prompts."""
+"""Shared utilities for manipulating Spec Kitty task prompts.
+
+DEPRECATED: This module is deprecated as of v0.10.0.
+Use `spec-kitty agent tasks` commands instead.
+
+This file will be removed in the next release.
+See: src/specify_cli/cli/commands/agent/tasks.py
+
+Migration Guide:
+- tasks_cli.py update → spec-kitty agent tasks move-task
+- For all other operations, use the new agent tasks commands
+"""
 
 from __future__ import annotations
 
