@@ -7,9 +7,9 @@ subtasks:
   - "T028"
 title: "Legacy Detection Integration"
 phase: "Phase 2 - Polish"
-lane: "planned"
+lane: "for_review"
 assignee: ""
-agent: ""
+agent: "claude"
 shell_pid: ""
 review_status: ""
 reviewed_by: ""
@@ -19,8 +19,14 @@ history:
     agent: "system"
     shell_pid: ""
     action: "Prompt generated via /spec-kitty.tasks"
+  - timestamp: "2025-12-17T17:00:00Z"
+    lane: "for_review"
+    agent: "claude"
+    shell_pid: ""
+    action: "Implementation complete - T025-T027 from WP02, T028 dashboard integration"
 activity_log: |
   - 2025-12-17T13:15:00Z – system – lane=planned – Prompt created
+  - 2025-12-17T17:00:00Z – claude – lane=for_review – Implementation complete
 ---
 
 # Work Package Prompt: WP05 – Legacy Detection Integration
