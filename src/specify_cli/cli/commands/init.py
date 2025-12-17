@@ -243,20 +243,16 @@ def init(
             _console.print(warning_panel)
             # Continue with init instead of blocking
 
-    # Determine script type (explicit, interactive, or OS default)
+    # Determine script type (explicit or auto-detect)
     if script_type:
         if script_type not in SCRIPT_TYPE_CHOICES:
             _console.print(f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}")
             raise typer.Exit(1)
         selected_script = script_type
     else:
-        # Auto-detect default
-        default_script = "ps" if os.name == "nt" else "sh"
-        # Provide interactive selection similar to AI if stdin is a TTY
-        if sys.stdin.isatty():
-            selected_script = select_with_arrows(SCRIPT_TYPE_CHOICES, "Choose script type (or press Enter)", default_script)
-        else:
-            selected_script = default_script
+        # Auto-detect based on platform
+        selected_script = "ps" if os.name == "nt" else "sh"
+        _console.print(f"[dim]Auto-detected script type:[/dim] [cyan]{SCRIPT_TYPE_CHOICES[selected_script]}[/cyan]")
 
     # Mission selection deprecated - missions are now per-feature
     if mission_key:
