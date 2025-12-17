@@ -341,7 +341,18 @@ tasks/
 └── README.md
 ```
 
-All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, done) is stored in the YAML frontmatter `lane:` field.
+All WP files are stored **FLAT** in `tasks/`. The lane (planned, doing, for_review, done) is stored in the YAML frontmatter `lane:` field.
+
+⚠️  **CRITICAL: NO SUBDIRECTORIES ALLOWED**
+
+**DO NOT** create subdirectories in tasks/ for organization:
+- ❌ `tasks/phase-1/WP01.md` - WRONG
+- ❌ `tasks/backend/WP02.md` - WRONG
+- ❌ `tasks/planned/WP03.md` - WRONG (old format)
+- ✅ `tasks/WP01.md` - CORRECT
+
+Even if your plan has "Phase 1", "Phase 2", etc., all WP files go directly in `tasks/`.
+Use the `phase:` frontmatter field to track phases, not directories.
 
 ## Work Package File Format
 

@@ -86,18 +86,24 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 6. **Generate prompt files (one per work package)**:
    - **CRITICAL PATH RULE**: All task directories and prompt files MUST be created under `FEATURE_DIR/tasks/`, NOT in the repo root!
-   - Correct structure: `FEATURE_DIR/tasks/planned/WPxx-slug.md`, `FEATURE_DIR/tasks/doing/`, `FEATURE_DIR/tasks/for_review/`, `FEATURE_DIR/tasks/done/`
-   - WRONG (do not create): `/tasks/planned/`, `tasks/planned/`, or any path not under FEATURE_DIR
-   - Ensure `FEATURE_DIR/tasks/planned/` exists (create `FEATURE_DIR/tasks/doing/`, `FEATURE_DIR/tasks/for_review/`, `FEATURE_DIR/tasks/done/` if missing)
-   - Create optional phase subfolders under each lane when teams will benefit (e.g., `FEATURE_DIR/tasks/planned/phase-1-setup/`)
+   - **v0.9.0+ FLAT STRUCTURE**: All WP files go directly in `FEATURE_DIR/tasks/`, NOT in subdirectories
+   - Correct structure: `FEATURE_DIR/tasks/WP01-slug.md`, `FEATURE_DIR/tasks/WP02-slug.md`
+   - WRONG (do not create):
+     - ❌ `FEATURE_DIR/tasks/planned/WP01.md` (no lane subdirectories!)
+     - ❌ `FEATURE_DIR/tasks/phase-1/WP01.md` (no phase subdirectories!)
+     - ❌ `FEATURE_DIR/tasks/backend/WP01.md` (no organizational subdirectories!)
+     - ❌ `/tasks/WP01.md` (missing FEATURE_DIR prefix)
+   - **NEVER CREATE SUBDIRECTORIES** in `tasks/` - even for phases, components, or organization
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
-     - Full path example: `FEATURE_DIR/tasks/planned/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
+     - Full path example: `FEATURE_DIR/tasks/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
+     - **ALWAYS place directly in FEATURE_DIR/tasks/**, never in a subdirectory
      - Use `.kittify/templates/task-prompt-template.md` to capture:
-       - Frontmatter with `work_package_id`, `subtasks` array, `lane=planned`, history entry
+       - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `phase` field (for organization), history entry
        - Objective, context, detailed guidance per subtask
        - Test strategy (only if requested)
        - Definition of Done, risks, reviewer guidance
+   - **Organization**: Use frontmatter fields (`phase: "Phase 1"`, `component: "Backend"`) instead of directories
      - Update `tasks.md` to reference the prompt filename
    - Keep prompts exhaustive enough that a new agent can complete the work package unaided
 

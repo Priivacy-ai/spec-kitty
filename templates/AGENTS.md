@@ -10,15 +10,17 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 
 **When you mention directories or files, provide either the absolute path or a path relative to the project root.**
 
-✅ **CORRECT**:
-- `kitty-specs/001-feature/tasks/planned/WP01.md`
+✅ **CORRECT** (v0.9.0+):
+- `kitty-specs/001-feature/tasks/WP01.md`
 - `/Users/robert/Code/myproject/kitty-specs/001-feature/spec.md`
-- `tasks/planned/WP01.md` (relative to feature directory)
+- `tasks/WP01.md` (relative to feature directory)
 
 ❌ **WRONG**:
 - "the tasks folder" (which one? where?)
-- "WP01.md" (in which lane? which feature?)
+- "WP01.md" (where? which feature?)
 - "the spec" (which feature's spec?)
+- `tasks/planned/WP01.md` (v0.8.x format - no longer used)
+- `tasks/phase-1/WP01.md` (NO subdirectories!)
 
 **Why**: Clarity and precision prevent errors. Never refer to a folder by name alone.
 
@@ -109,23 +111,44 @@ spec-kitty validate-encoding --all --fix
 
 ---
 
-## 5. Task Lane Management Rule
+## 5. Task Lane Management Rule (v0.9.0+)
 
-**CRITICAL: Never manually edit the `lane:` field in work package YAML frontmatter.**
+**v0.9.0+ FLAT STRUCTURE**: All WP files are stored directly in `tasks/` (no subdirectories).
 
-The system determines a work package's lane by its **directory location** (`tasks/planned/`, `tasks/doing/`, etc.), not the YAML field. Manually editing the field without moving the file creates a mismatch that breaks lane transitions.
+The lane is determined **solely by the `lane:` frontmatter field**, not directory location.
 
-**Always use the move command:**
-```bash
-python3 .kittify/scripts/tasks/tasks_cli.py move <FEATURE> <WPID> <lane> --note "Your note"
-
-# Examples:
-python3 .kittify/scripts/tasks/tasks_cli.py move 011-my-feature WP04 doing --note "Starting implementation"
-python3 .kittify/scripts/tasks/tasks_cli.py move 011-my-feature WP04 for_review --note "Ready for review"
+**Directory structure:**
+```
+tasks/
+├── WP01-setup.md       (lane: "planned" in frontmatter)
+├── WP02-backend.md     (lane: "doing" in frontmatter)
+├── WP03-frontend.md    (lane: "for_review" in frontmatter)
+└── WP04-testing.md     (lane: "done" in frontmatter)
 ```
 
-The move command handles:
-1. Moving the file to the correct `tasks/<lane>/` directory
+⚠️  **CRITICAL: NO SUBDIRECTORIES IN tasks/**
+
+**NEVER** create subdirectories for organization:
+- ❌ `tasks/phase-1/WP01.md` - WRONG
+- ❌ `tasks/backend/WP02.md` - WRONG
+- ❌ `tasks/planned/WP03.md` - WRONG (old v0.8.x format)
+- ✅ `tasks/WP01.md` - CORRECT
+
+Use frontmatter fields for organization:
+- `phase: "Phase 1"` - NOT directories
+- `component: "Backend"` - NOT directories
+
+**To change lanes, use the update command:**
+```bash
+python3 .kittify/scripts/tasks/tasks_cli.py update <FEATURE> <WPID> <lane> --note "Your note"
+
+# Examples:
+python3 .kittify/scripts/tasks/tasks_cli.py update 011-my-feature WP04 doing --note "Starting implementation"
+python3 .kittify/scripts/tasks/tasks_cli.py update 011-my-feature WP04 for_review --note "Ready for review"
+```
+
+The update command handles:
+1. Updating the `lane:` field in frontmatter (file stays in `tasks/`)
 2. Updating the `lane:` field in YAML frontmatter
 3. Recording `agent` and `shell_pid` metadata
 4. Appending an entry to the Activity Log
@@ -151,5 +174,5 @@ The move command handles:
 - **Encoding**: UTF-8 only. Run the validator when unsure.
 - **Context**: Read what you need; don't forget what you already learned.
 - **Quality**: Follow secure, tested, documented practices.
-- **Tasks**: Use `tasks_cli.py move` - never edit `lane:` field directly.
+- **Tasks**: FLAT structure only - NO subdirectories in `tasks/`. Use `tasks_cli.py update` to change lanes.
 - **Git**: Commit cleanly with clear messages.

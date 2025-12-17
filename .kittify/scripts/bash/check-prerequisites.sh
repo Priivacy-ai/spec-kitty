@@ -137,6 +137,41 @@ if [[ ! -f "$IMPL_PLAN" ]]; then
     exit 1
 fi
 
+# Validate flat tasks/ structure (no subdirectories except legacy lanes)
+TASKS_DIR="$FEATURE_DIR/tasks"
+if [[ -d "$TASKS_DIR" ]]; then
+    # Find any subdirectories (excluding legacy lane dirs and . .. README)
+    SUBDIRS=$(find "$TASKS_DIR" -mindepth 1 -maxdepth 1 -type d ! -name "planned" ! -name "doing" ! -name "for_review" ! -name "done" 2>/dev/null)
+    if [[ -n "$SUBDIRS" ]]; then
+        echo "" >&2
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+        echo "❌ ERROR: Subdirectories found in tasks/" >&2
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+        echo "" >&2
+        echo "The tasks/ directory must be FLAT (v0.9.0+)." >&2
+        echo "" >&2
+        echo "Found subdirectories:" >&2
+        while IFS= read -r dir; do
+            basename_dir=$(basename "$dir")
+            echo "  ❌ tasks/$basename_dir/" >&2
+        done <<< "$SUBDIRS"
+        echo "" >&2
+        echo "All WP files must be directly in tasks/, not in subdirectories." >&2
+        echo "" >&2
+        echo "❌ WRONG:" >&2
+        echo "   tasks/phase-1/WP01.md" >&2
+        echo "   tasks/backend/WP02.md" >&2
+        echo "" >&2
+        echo "✅ CORRECT:" >&2
+        echo "   tasks/WP01.md  (with 'phase: \"Phase 1\"' in frontmatter)" >&2
+        echo "   tasks/WP02.md  (with 'phase: \"Backend\"' in frontmatter)" >&2
+        echo "" >&2
+        echo "Please move files to flat structure and use frontmatter for organization." >&2
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+        exit 1
+    fi
+fi
+
 # Check for tasks.md if required
 if $REQUIRE_TASKS && [[ ! -f "$TASKS" ]]; then
     echo "ERROR: tasks.md not found in $FEATURE_DIR" >&2

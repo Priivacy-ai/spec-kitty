@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4] - 2025-12-17
+
+### 📚 Documentation & Validation
+
+- **Prevent agent-created subdirectories in tasks/**
+  - Added explicit warnings to tasks/README.md
+  - Updated AGENTS.md with flat structure requirements
+  - Updated /spec-kitty.tasks template to forbid subdirectories
+  - Added runtime validation in check-prerequisites.sh
+  - Blocks execution if phase-*, component-*, or any subdirectories found
+  - Clear error messages with examples of correct vs wrong paths
+
+This prevents Claude agents from creating organizational subdirectories like `tasks/phase-1/`, `tasks/backend/`, etc.
+
 ## [0.9.3] - 2025-12-17
 
 ### 🐛 Fixed
