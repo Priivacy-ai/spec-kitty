@@ -140,23 +140,11 @@ echo "✓ Full workflow validation passed!"
 
 ---
 
-### T122-T123 – Test release workflow
+### T122-T123 – REMOVED (release commands out of scope)
 
-**T122**: Test release in dry-run mode:
-```bash
-spec-kitty agent build-release --dry-run --json
-```
+**Note**: These subtasks were removed after scope correction. The original WP05 incorrectly targeted `.github/workflows/scripts/` (meta-scripts for spec-kitty deployment) instead of package scripts. No release workflow commands exist in the corrected scope.
 
-Verify:
-- Version detection works
-- Version alignment validated
-- Release notes generated
-- No actual publish (dry-run respected)
-
-**T123**: Test release in GitHub Actions CI:
-- Create test workflow that runs `spec-kitty agent build-release --dry-run`
-- Verify CI environment variables work
-- Verify `gh` CLI integration works
+**Subtask numbering preserved** for consistency with other work packages. T124-T136 continue as planned.
 
 ---
 
@@ -287,7 +275,6 @@ pytest tests/ \
   --cov=src/specify_cli/cli/commands/agent \
   --cov=src/specify_cli/core/worktree \
   --cov=src/specify_cli/core/agent_context \
-  --cov=src/specify_cli/core/release \
   --cov-report=term-missing \
   --cov-report=html
 ```
@@ -334,9 +321,7 @@ pytest tests/ \
 - Automated script for CI validation
 - Verify from both main repo and worktree
 
-**Release Tests** (T122-T123):
-- Dry-run mode validation
-- CI environment testing
+**Release Tests** (T122-T123): REMOVED - out of scope
 - GitHub API integration
 
 **Migration Tests** (T124-T126):
@@ -363,7 +348,6 @@ pytest tests/ \
 ## Acceptance Criteria Checklist
 
 - [ ] All workflows tested end-to-end (T115-T121) ✅
-- [ ] Release workflow validated (T122-T123) ✅
 - [ ] Upgrade migration tested (T124-T126) ✅
 - [ ] Cross-platform tests passing (T127-T129) ✅
 - [ ] Performance targets met (T130-T132) ✅
@@ -389,7 +373,6 @@ pytest tests/ \
 ## Definition of Done Checklist
 
 - [ ] All workflows passing (T115-T121)
-- [ ] Release workflow validated (T122-T123)
 - [ ] Upgrade tested (T124-T126)
 - [ ] CI passing on all platforms (T127-T129)
 - [ ] Performance validated (T130-T132)

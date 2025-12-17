@@ -21,11 +21,12 @@ history:
 
 ## Objectives & Success Criteria
 
-**Goal**: Remove all bash scripts, update slash command templates, create upgrade migration for existing projects.
+**Goal**: Remove package bash scripts, update slash command templates, create upgrade migration for existing projects.
 
 **Success Criteria**:
 - Upgrade migration successfully updates test project
-- All bash scripts deleted: `scripts/bash/`, `.github/workflows/scripts/`
+- All package bash scripts deleted: `scripts/bash/`
+- Meta-scripts preserved: `.github/workflows/scripts/` (deployment scripts, not part of package)
 - All slash command templates updated to reference `spec-kitty agent` commands
 - Migration is idempotent (safe to run multiple times)
 - Custom bash modifications detected and warned
@@ -40,9 +41,13 @@ history:
 
 **This is SEQUENTIAL work** - blocks on all parallel streams finishing.
 
-**Bash Scripts to Delete**:
-- `.kittify/scripts/bash/` (24 scripts, ~2,600 lines)
-- `.github/workflows/scripts/` (6 scripts)
+**Package Bash Scripts to Delete**:
+- `scripts/bash/` directory (16 package scripts, ~2,600 lines)
+- Development tools: `scripts/bash/setup-sandbox.sh`, `scripts/bash/refresh-kittify-tasks.sh`
+
+**Meta Scripts to PRESERVE** (out of scope):
+- `.github/workflows/scripts/` (6 deployment scripts for spec-kitty itself)
+- `scripts/release/` (Python deployment scripts)
 
 **Templates to Update**:
 - `.claude/commands/*.md` (10+ slash commands)
@@ -150,19 +155,9 @@ if bash_dir.exists():
     shutil.rmtree(bash_dir)
 ```
 
-**T101**: Delete `.github/workflows/scripts/` directory
+**T101**: REMOVED - `.github/workflows/scripts/` are meta-scripts (out of scope)
 
-**Implementation**:
-```python
-import shutil
-workflows_scripts = repo_root / ".github" / "workflows" / "scripts"
-if workflows_scripts.exists():
-    shutil.rmtree(workflows_scripts)
-    results["bash_scripts_removed"].append(str(workflows_scripts))
-else:
-    # Directory doesn't exist - may be empty repo or already cleaned
-    results["warnings"].append("No .github/workflows/scripts/ directory found (skipped)")
-```
+**Note**: This subtask was removed after scope correction. The `.github/workflows/scripts/` directory contains deployment scripts for spec-kitty itself (get-next-version.sh, create-release-packages.sh, etc.) and should NOT be deleted as part of this migration. These are not package scripts distributed to users.
 
 **T102**: Update `.gitignore` if needed (remove bash entries)
 
@@ -208,16 +203,18 @@ else:
 - Test upgrade on project with bash scripts
 - Test upgrade on project with custom modifications
 
-**T113**: Verify all bash scripts deleted from main repository
+**T113**: Verify all package bash scripts deleted from main repository
 
 **Verification**:
 ```bash
-# Check for any remaining bash scripts
-find .kittify/scripts/bash -type f 2>/dev/null | wc -l  # Should be 0 (or directory not found)
-find .github/workflows/scripts -type f 2>/dev/null | wc -l  # Should be 0 (or directory not found)
+# Check that package bash scripts are removed
+find scripts/bash -type f -name "*.sh" 2>/dev/null | wc -l  # Should be 0 (or directory not found)
+
+# Verify meta-scripts are preserved (NOT deleted)
+ls .github/workflows/scripts/*.sh 2>/dev/null | wc -l  # Should still exist (6 files)
 ```
 
-**Success**: Both commands return 0 OR directory doesn't exist (both acceptable)
+**Success**: Package scripts removed, meta-scripts preserved
 
 **T114**: Verify all slash commands updated
 

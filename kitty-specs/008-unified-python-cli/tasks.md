@@ -211,55 +211,39 @@
 
 ---
 
-## Work Package WP05: Release Packaging Commands (Priority: P2) 🎯 STREAM D
+## Work Package WP05: Final Feature Lifecycle Commands (Priority: P2) 🎯 STREAM D
 
-**Goal**: Migrate GitHub Actions CI bash scripts to Python for testability.
-**Independent Test**: `spec-kitty agent build-release --dry-run --json` executes release workflow without publishing; all CI bash scripts eliminated.
-**Prompt**: `kitty-specs/008-unified-python-cli/tasks/WP05-release-packaging-commands.md`
-**Phase**: Phase 5 - Release Commands (Stream D, Agent Delta, Day 8)
-**Stream**: Stream D (can run in parallel with WP02, WP03, WP04 after WP01 complete)
+**Goal**: Complete feature lifecycle by migrating accept and merge bash wrappers to Python.
+**Independent Test**: `spec-kitty agent feature accept --json` and `spec-kitty agent feature merge --json` execute successfully; bash wrappers eliminated.
+**Prompt**: `kitty-specs/008-unified-python-cli/tasks/WP05-final-feature-lifecycle-commands.md`
+**Phase**: Phase 5 - Completion Commands (Stream D, Agent Delta, Day 8)
+**Stream**: Stream D (can run in parallel with WP03, WP04 after WP01-WP02 complete)
 
 ### Included Subtasks
-- [ ] T070 Create `src/specify_cli/core/release.py` module
-- [ ] T071 Implement `get_next_version(repo_root)` to determine next semantic version
-- [ ] T072 Implement `update_version(repo_root, version)` to update `pyproject.toml`
-- [ ] T073 Implement `generate_release_notes(repo_root, version)` from git log
-- [ ] T074 Implement `create_release_packages(repo_root, version)` for build artifacts
-- [ ] T075 Implement `create_github_release(version, notes)` via GitHub API
-- [ ] T076 Implement `build-release` command in `src/specify_cli/cli/commands/agent/release.py`
-- [ ] T077 Add `--version` flag to specify version explicitly
-- [ ] T078 Add `--dry-run` flag to test workflow without publishing
-- [ ] T079 Add `--json` flag for agent-parseable output
-- [ ] T080 Validate version alignment (git tag, pyproject.toml, CHANGELOG.md)
-- [ ] T081 Ensure dual output mode (JSON for agents, Rich for humans)
-- [ ] T082 Unit test: `get_next_version()` with various git tag patterns
-- [ ] T083 Unit test: `update_version()` with pyproject.toml manipulation
-- [ ] T084 Unit test: `generate_release_notes()` from git log
-- [ ] T085 Unit test: `create_release_packages()` (mocked build)
-- [ ] T086 Unit test: `create_github_release()` (mocked API calls)
-- [ ] T087 Unit test: `build-release` command with all flag combinations
-- [ ] T088 Integration test: Full release workflow in dry-run mode
-- [ ] T089 Integration test: Release command from CI/CD environment (GitHub Actions)
-- [ ] T090 Verify 90%+ test coverage for `release.py`
-- [ ] T091 Update `.github/workflows/release.yml` to call `spec-kitty agent build-release`
+- [ ] T070 Analyze existing `tasks_cli.py accept` and `merge` implementations
+- [ ] T071 Implement `accept` command in `src/specify_cli/cli/commands/agent/feature.py`
+- [ ] T072 Implement `merge` command with auto-retry logic from `merge-feature.sh`
+- [ ] T073 Unit tests for accept and merge commands
+- [ ] T074 Integration test: Full feature lifecycle (create → accept → merge)
+- [ ] T075 Verify 90%+ test coverage for new commands
 
 ### Implementation Notes
-- Read bash scripts being replaced: 6 scripts in `.github/workflows/scripts/` (get-next-version.sh, update-version.sh, etc.)
-- GitHub API calls use `gh` CLI or `httpx` library for releases
-- Dry-run mode must execute all validation steps without side effects
-- Version validation must catch mismatches early (prevent bad releases)
+- Bash wrappers to replace: `accept-feature.sh`, `merge-feature.sh` (thin wrappers around `tasks_cli.py`)
+- Leverage existing Python implementation in `scripts/tasks/tasks_cli.py`
+- Migrate auto-retry logic from `merge-feature.sh` (auto-navigate to latest worktree if in wrong location)
+- Extract `find_latest_feature_worktree()` utility from `common.sh`
 
 ### Parallel Opportunities
-- Unit tests (T082-T087) can run concurrently with implementation
-- Integration tests (T088-T089) can run after all utilities implemented
+- Unit tests (T073) can run concurrently with implementation
+- Integration test (T074) can run after both commands implemented
 
 ### Dependencies
-- **Requires**: WP01 complete (foundation infrastructure)
-- **No conflicts with**: WP02, WP03, WP04 (different modules)
+- **Requires**: WP01-WP02 complete (foundation + feature.py exists)
+- **No conflicts with**: WP03, WP04 (different commands within feature.py)
 
 ### Risks & Mitigations
-- **Risk**: GitHub API rate limits in CI/CD
-- **Mitigation**: Use `gh` CLI (respects auth tokens), implement retry logic with exponential backoff
+- **Risk**: Auto-retry logic may not work correctly across platforms
+- **Mitigation**: Test on all platforms, preserve SPEC_KITTY_AUTORETRY env var behavior
 
 ---
 
@@ -378,10 +362,10 @@
 **Execution Order**:
 1. **WP01** (Foundation) - SEQUENTIAL, must complete first
 2. **WP02-WP05** (Commands) - PARALLEL after WP01 complete
-   - WP02 (Feature) - Stream A
+   - WP02 (Feature: create, check, setup) - Stream A
    - WP03 (Tasks) - Stream B
    - WP04 (Context) - Stream C
-   - WP05 (Release) - Stream D
+   - WP05 (Feature: accept, merge) - Stream D (needs WP02)
 3. **WP06** (Cleanup) - SEQUENTIAL after WP02-WP05 complete
 4. **WP07** (Validation) - SEQUENTIAL after WP06 complete
 
@@ -472,28 +456,12 @@
 | T067 | Integration test: Multiple agent types | WP04 | P2 | Yes |
 | T068 | Integration test: Preserve manual additions | WP04 | P2 | Yes |
 | T069 | Verify 90%+ coverage context.py | WP04 | P2 | No |
-| T070 | Create release.py module | WP05 | P2 | No |
-| T071 | Implement get_next_version() | WP05 | P2 | No |
-| T072 | Implement update_version() | WP05 | P2 | No |
-| T073 | Implement generate_release_notes() | WP05 | P2 | No |
-| T074 | Implement create_release_packages() | WP05 | P2 | No |
-| T075 | Implement create_github_release() | WP05 | P2 | No |
-| T076 | Implement build-release command | WP05 | P2 | No |
-| T077 | Add --version flag | WP05 | P2 | No |
-| T078 | Add --dry-run flag | WP05 | P2 | No |
-| T079 | Add --json flag | WP05 | P2 | No |
-| T080 | Validate version alignment | WP05 | P2 | No |
-| T081 | Ensure dual output for release commands | WP05 | P2 | No |
-| T082 | Unit test: get_next_version() | WP05 | P2 | Yes |
-| T083 | Unit test: update_version() | WP05 | P2 | Yes |
-| T084 | Unit test: generate_release_notes() | WP05 | P2 | Yes |
-| T085 | Unit test: create_release_packages() | WP05 | P2 | Yes |
-| T086 | Unit test: create_github_release() | WP05 | P2 | Yes |
-| T087 | Unit test: build-release command | WP05 | P2 | Yes |
-| T088 | Integration test: Release dry-run | WP05 | P2 | Yes |
-| T089 | Integration test: Release in CI | WP05 | P2 | Yes |
-| T090 | Verify 90%+ coverage release.py | WP05 | P2 | No |
-| T091 | Update release.yml workflow | WP05 | P2 | No |
+| T070 | Analyze tasks_cli.py accept/merge | WP05 | P2 | No |
+| T071 | Implement accept command | WP05 | P2 | No |
+| T072 | Implement merge command w/ auto-retry | WP05 | P2 | No |
+| T073 | Unit tests: accept/merge commands | WP05 | P2 | Yes |
+| T074 | Integration test: Full lifecycle | WP05 | P2 | Yes |
+| T075 | Verify 90%+ coverage | WP05 | P2 | No |
 | T092 | Create m_0_10_0_python_only.py | WP06 | P0 | No |
 | T093 | Implement bash script detection | WP06 | P0 | No |
 | T094 | Implement template scanning | WP06 | P0 | No |
