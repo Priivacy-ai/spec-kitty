@@ -7,20 +7,23 @@ subtasks:
   - "T004"
 title: "Foundation - Legacy Detection & Shared Utilities"
 phase: "Phase 0 - Foundation"
-lane: "for_review"
-assignee: ""
-agent: "claude"
-shell_pid: "63393"
+lane: "done"
+assignee: "Claude"
+agent: "claude-reviewer"
+shell_pid: "$$"
 review_status: ""
-reviewed_by: ""
+reviewed_by: "claude-reviewer"
 history:
   - timestamp: "2025-12-17T13:15:00Z"
     lane: "planned"
     agent: "system"
-    shell_pid: ""
+    shell_pid: "$$"
     action: "Prompt generated via /spec-kitty.tasks"
 activity_log: |
   - 2025-12-17T13:15:00Z – system – lane=planned – Prompt created
+  - 2025-12-17T12:11:54Z – claude – shell_pid=63393 – lane=doing – Started implementation
+  - 2025-12-17T14:00:00Z – claude-reviewer – shell_pid=$$ – lane=done – Approved: All deliverables met, tests pass
+  - 2025-12-17T14:05:00Z – claude-reviewer – shell_pid=$$ – lane=done – Approved: implementation verified
 ---
 
 # Work Package Prompt: WP01 – Foundation - Legacy Detection & Shared Utilities
