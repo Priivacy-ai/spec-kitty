@@ -7,7 +7,7 @@ subtasks:
   - "T004"
 title: "Foundation - Legacy Detection & Shared Utilities"
 phase: "Phase 0 - Foundation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
 shell_pid: "63393"
