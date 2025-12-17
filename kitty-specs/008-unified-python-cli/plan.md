@@ -71,7 +71,7 @@ Migrate all bash scripts (~2,600 lines) to unified Python CLI under `spec-kitty 
 
 ### Principles Applied
 
-✅ **Single Responsibility**: Each agent command module (`feature.py`, `tasks.py`, `context.py`, `release.py`) handles one domain
+✅ **Single Responsibility**: Each agent command module (`feature.py`, `tasks.py`, `context.py`) handles one domain
 ✅ **DRY (Don't Repeat Yourself)**: Consolidate bash path resolution (5 implementations) → single Python path resolver
 ✅ **Testability**: All agent commands unit + integration testable (90%+ coverage requirement)
 ✅ **Cross-Platform**: Python + pathlib ensures Windows/macOS/Linux compatibility
@@ -128,10 +128,9 @@ src/specify_cli/
 │   │   ├── upgrade.py           # User command (existing, will extend)
 │   │   └── agent/               # NEW: Agent command namespace
 │   │       ├── __init__.py      # Agent CLI registration (Phase 1)
-│   │       ├── feature.py       # Feature lifecycle commands (Phase 2)
+│   │       ├── feature.py       # Feature lifecycle commands (Phase 2, 5: create, check, setup, accept, merge)
 │   │       ├── context.py       # Agent context management (Phase 4)
-│   │       ├── tasks.py         # Task workflow commands (Phase 3)
-│   │       └── release.py       # Release packaging commands (Phase 5)
+│   │       └── tasks.py         # Task workflow commands (Phase 3)
 │   └── __init__.py              # Main CLI (update in Phase 1)
 ├── core/
 │   ├── paths.py                 # Path resolution (enhance in Phase 1)
@@ -451,46 +450,42 @@ Phase 7: Validation (Sequential - Day 11)
 
 **Output**: Agent context management functional, `update-agent-context.sh` eliminated
 
-## Phase 5: Release Packaging (Stream D - Day 8)
+## Phase 5: Final Feature Lifecycle Commands (Stream D - Day 8)
 
-**Goal**: Migrate GitHub Actions CI scripts to Python
+**Goal**: Complete feature lifecycle by migrating accept and merge bash wrappers to Python
 
-**Prerequisites**: Phase 1 complete ✅
+**Prerequisites**: Phase 1-2 complete ✅ (needs WP02 for feature management foundation)
 
-**Dependencies**: None (can run in parallel with Phases 2, 3, 4)
+**Dependencies**: WP02 (feature.py exists), but can run in parallel with WP03, WP04
 
 **Work Items**:
 
-1. Create `src/specify_cli/core/release.py`:
-   - `get_next_version(repo_root)` - Migrates `get-next-version.sh`
-   - `update_version(repo_root, version)` - Migrates `update-version.sh`
-   - `generate_release_notes(repo_root, version)` - Migrates `generate-release-notes.sh`
-   - `create_release_packages(repo_root, version)` - Migrates `create-release-packages.sh`
-   - `create_github_release(version, notes)` - Migrates `create-github-release.sh`
+1. Expose existing Python implementations:
+   - `spec-kitty agent feature accept` - Wraps `tasks_cli.py accept` command
+   - `spec-kitty agent feature merge` - Wraps `tasks_cli.py merge` command with auto-retry logic
 
-2. Implement `src/specify_cli/cli/commands/agent/release.py`:
-   - `build-release` command with `--json`, `--version`, `--dry-run` flags
-   - Orchestrates full release workflow
-   - Validates version alignment (tag, pyproject.toml, CHANGELOG.md)
+2. Migrate auto-retry logic from `merge-feature.sh`:
+   - Implement `find_latest_feature_worktree()` utility in Python
+   - Auto-navigate to latest worktree if command run from wrong location
+   - Preserve SPEC_KITTY_AUTORETRY environment variable behavior
 
-3. Update GitHub Actions workflow:
-   - `.github/workflows/release.yml` - Replace bash script calls with `spec-kitty agent build-release`
-
-4. Testing:
-   - Unit tests for release utilities
-   - Integration test: Full release workflow (dry-run mode)
+3. Testing:
+   - Unit tests for accept and merge commands
+   - Integration test: Full feature lifecycle (create → accept → merge)
+   - Test auto-retry logic
 
 **Acceptance Criteria**:
-- ✅ `spec-kitty agent build-release --dry-run --json` executes release workflow without publishing
-- ✅ All 6 GitHub Actions bash scripts eliminated
-- ✅ Works in CI/CD environment
-- ✅ 90%+ test coverage for release.py
+- ✅ `spec-kitty agent feature accept --json` executes acceptance workflow with parseable JSON
+- ✅ `spec-kitty agent feature merge --json` executes merge workflow with parseable JSON
+- ✅ Auto-retry logic works (auto-navigates to latest worktree if in wrong location)
+- ✅ Bash wrappers replaced: `accept-feature.sh`, `merge-feature.sh`
+- ✅ 90%+ test coverage for new commands
 
 **Estimated Effort**: 1 day
 
-**Blockers**: Requires Phase 1 foundation
+**Blockers**: Requires Phase 1-2 foundation
 
-**Output**: Release packaging functional, CI bash scripts eliminated
+**Output**: Complete feature lifecycle available through Python CLI, final bash wrappers eliminated
 
 ## Phase 6: Cleanup & Migration (Sequential - Days 9-10)
 
@@ -510,9 +505,10 @@ Phase 7: Validation (Sequential - Day 11)
    - Detect and warn on custom bash modifications
    - Implement idempotent execution (version tracking)
 
-2. Delete bash scripts:
-   - Remove entire `scripts/bash/` directory
-   - Remove entire `.github/workflows/scripts/` directory
+2. Delete package bash scripts:
+   - Remove entire `scripts/bash/` directory (package scripts only)
+   - Remove development tools: `scripts/bash/setup-sandbox.sh`, `scripts/bash/refresh-kittify-tasks.sh`
+   - Keep meta-scripts: `.github/workflows/scripts/` (these are for spec-kitty deployment, not part of the package)
    - Update `.gitignore` if needed
 
 3. Update all slash command templates:
@@ -562,12 +558,7 @@ Phase 7: Validation (Sequential - Day 11)
    - `/spec-kitty.accept` → acceptance workflow
    - `/spec-kitty.merge` → merges and cleans up
 
-2. Test release workflow:
-   - `spec-kitty agent build-release --dry-run`
-   - Verify all packages created
-   - Test in GitHub Actions CI environment
-
-3. Test upgrade migration:
+2. Test upgrade migration:
    - Create test project with old bash structure
    - Run `spec-kitty upgrade`
    - Verify migration succeeded

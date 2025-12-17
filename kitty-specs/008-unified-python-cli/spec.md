@@ -101,8 +101,7 @@ Before implementation begins, a research phase validates that the proposed migra
 - **FR-007**: System MUST automatically detect whether execution is in main repository or worktree
 - **FR-008**: System MUST resolve all file paths correctly regardless of execution location
 - **FR-009**: Agent commands MUST work identically on Windows, macOS, and Linux
-- **FR-010**: System MUST eliminate all bash scripts in `.kittify/scripts/bash/` (approximately 2,600+ lines)
-- **FR-011**: System MUST eliminate all bash scripts in `.github/workflows/scripts/`
+- **FR-010**: System MUST eliminate all bash scripts in `scripts/bash/` that are part of the spec-kitty package (approximately 2,600+ lines)
 
 **Path Resolution**:
 - **FR-012**: System MUST walk up directory tree to find repository root (via `.kittify/` marker or git)
@@ -119,10 +118,9 @@ Before implementation begins, a research phase validates that the proposed migra
 - **FR-021**: Upgrade MUST be idempotent (safe to run multiple times)
 
 **Agent Command Coverage**:
-- **FR-022**: System MUST provide agent commands for feature management (`create-feature`, `check-prerequisites`, `setup-plan`)
-- **FR-023**: System MUST provide agent commands for task workflow (`move-task`, `mark-status`, `validate-workflow`)
+- **FR-022**: System MUST provide agent commands for feature management (`create-feature`, `check-prerequisites`, `setup-plan`, `accept`, `merge`)
+- **FR-023**: System MUST provide agent commands for task workflow (`move-task`, `mark-status`, `list-tasks`, `add-history`, `rollback-task`, `validate-workflow`)
 - **FR-024**: System MUST provide agent commands for context management (`update-context`)
-- **FR-025**: System MUST provide agent commands for release packaging (`build-release`)
 
 **Testing & Quality**:
 - **FR-026**: All agent commands MUST have unit test coverage
@@ -143,7 +141,7 @@ Before implementation begins, a research phase validates that the proposed migra
 
 - **SC-001**: AI agents complete all spec-kitty workflows (specify, plan, tasks, implement, review, accept, merge) without path-related errors (0% error rate)
 - **SC-002**: Agent commands work identically whether executed from main repository or any worktree location
-- **SC-003**: All bash scripts in `.kittify/scripts/bash/` and `.github/workflows/scripts/` are eliminated (approximately 2,600+ lines removed)
+- **SC-003**: All package bash scripts in `scripts/bash/` are eliminated and migrated to Python (approximately 2,600+ lines removed from package)
 - **SC-004**: 100% of existing spec-kitty projects can successfully upgrade via `spec-kitty upgrade` without manual intervention (or with clear warnings for edge cases)
 - **SC-005**: Agent retry behavior due to path issues is reduced by 95% or more (measurable via agent error logs)
 - **SC-006**: Research phase produces documented findings with go/no-go recommendation and validated approach
@@ -162,6 +160,8 @@ Before implementation begins, a research phase validates that the proposed migra
 ## Out of Scope *(optional)*
 
 - Migrating git hooks (e.g., `pre-commit-task-workflow.sh`) to Python in this phase
+- Migrating meta-scripts in `.github/workflows/scripts/` (these are for spec-kitty deployment, not part of the package)
+- Migrating development tools in `scripts/` like `setup-sandbox.sh` and `refresh-kittify-tasks.sh` (developer utilities)
 - Providing backward compatibility for bash scripts (clean cut migration)
 - Supporting non-standard worktree structures
 - Migrating non-spec-kitty bash scripts in user codebases
