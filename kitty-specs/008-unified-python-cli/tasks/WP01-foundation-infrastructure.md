@@ -20,7 +20,7 @@ subtasks:
   - "T017"
 title: "Foundation Infrastructure"
 phase: "Phase 1 - Foundation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
 shell_pid: "59225"
@@ -673,3 +673,4 @@ spec-kitty agent --help
 
 - 2025-12-17T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 - 2025-12-17T21:27:29Z – claude – shell_pid=59225 – lane=doing – Started implementation of Foundation Infrastructure
+- 2025-12-17T21:32:43Z – claude – shell_pid=59225 – lane=for_review – Completed implementation: All T001-T017 tasks complete, 10 unit tests passing, spec-kitty agent --help verified
