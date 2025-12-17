@@ -3,7 +3,7 @@ work_package_id: "WP03"
 subtasks: ["T034", "T035", "T036", "T037", "T038", "T039", "T040", "T041", "T042", "T043", "T044", "T045", "T046", "T047", "T048", "T049", "T050", "T051", "T052", "T053"]
 title: "Task Workflow Commands"
 phase: "Phase 3 - Task Commands (Stream B)"
-lane: "for_review"
+lane: "doing"
 assignee: ""
 agent: "claude"
 shell_pid: "71324"
@@ -315,3 +315,4 @@ Add tests for uncovered branches until 90%+ achieved.
 - 2025-12-17T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 - 2025-12-17T22:17:57Z – claude – shell_pid=71324 – lane=doing – Started implementation
 - 2025-12-17T22:21:26Z – claude – shell_pid=71324 – lane=for_review – Core implementation complete (T034-T043,T053). Tests pending in follow-up.
+- 2025-12-17T22:27:56Z – claude – shell_pid=71324 – lane=doing – Resuming to complete tests (T044-T052)
