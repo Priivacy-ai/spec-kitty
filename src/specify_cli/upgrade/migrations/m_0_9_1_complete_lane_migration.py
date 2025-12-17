@@ -374,15 +374,24 @@ class CompleteLaneMigration(BaseMigration):
                 commands_dir = worktree / agent_dir / subdir
                 if commands_dir.exists():
                     if dry_run:
+                        is_symlink = commands_dir.is_symlink()
+                        type_str = "symlink" if is_symlink else "directory"
                         changes.append(
-                            f"[{worktree_name}] Would remove {agent_dir}/{subdir}/"
+                            f"[{worktree_name}] Would remove {agent_dir}/{subdir}/ ({type_str})"
                         )
                     else:
                         try:
-                            shutil.rmtree(commands_dir)
-                            changes.append(
-                                f"[{worktree_name}] Removed {agent_dir}/{subdir}/ (inherits from main)"
-                            )
+                            # Check if it's a symlink - handle differently
+                            if commands_dir.is_symlink():
+                                commands_dir.unlink()
+                                changes.append(
+                                    f"[{worktree_name}] Removed {agent_dir}/{subdir}/ symlink (inherits from main)"
+                                )
+                            else:
+                                shutil.rmtree(commands_dir)
+                                changes.append(
+                                    f"[{worktree_name}] Removed {agent_dir}/{subdir}/ (inherits from main)"
+                                )
 
                             # Clean up parent directory if now empty
                             parent = commands_dir.parent
@@ -400,15 +409,24 @@ class CompleteLaneMigration(BaseMigration):
             scripts_dir = worktree / ".kittify" / "scripts"
             if scripts_dir.exists():
                 if dry_run:
+                    is_symlink = scripts_dir.is_symlink()
+                    type_str = "symlink" if is_symlink else "directory"
                     changes.append(
-                        f"[{worktree_name}] Would remove .kittify/scripts/"
+                        f"[{worktree_name}] Would remove .kittify/scripts/ ({type_str})"
                     )
                 else:
                     try:
-                        shutil.rmtree(scripts_dir)
-                        changes.append(
-                            f"[{worktree_name}] Removed .kittify/scripts/ (inherits from main)"
-                        )
+                        # Check if it's a symlink - handle differently
+                        if scripts_dir.is_symlink():
+                            scripts_dir.unlink()
+                            changes.append(
+                                f"[{worktree_name}] Removed .kittify/scripts/ symlink (inherits from main)"
+                            )
+                        else:
+                            shutil.rmtree(scripts_dir)
+                            changes.append(
+                                f"[{worktree_name}] Removed .kittify/scripts/ (inherits from main)"
+                            )
                         cleaned_this_worktree = True
                     except OSError as e:
                         errors.append(

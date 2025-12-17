@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2025-12-17
+
+### 🐛 Fixed
+
+- **Symlink handling in worktree cleanup**
+  - Migration now properly detects and removes symlinks to command directories
+  - Uses `unlink()` for symlinks instead of `shutil.rmtree()`
+  - Fixes "Cannot call rmtree on a symbolic link" error during upgrade
+  - Handles both symlinks and regular directories correctly
+
+This fixes the upgrade failure when worktrees have symlinked agent command directories.
+
 ## [0.9.1] - 2025-12-17
 
 ### 🔧 Bug Fixes & Improvements
