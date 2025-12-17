@@ -19,10 +19,10 @@ subtasks:
   - "T033"
 title: "Feature Management Commands"
 phase: "Phase 2 - Feature Commands (Stream A)"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "61618"
 review_status: ""
 reviewed_by: ""
 history:
@@ -803,3 +803,4 @@ pytest tests/unit/agent/test_feature.py \
 ## Activity Log
 
 - 2025-12-17T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
+- 2025-12-17T21:39:48Z – claude – shell_pid=61618 – lane=doing – Started implementation
