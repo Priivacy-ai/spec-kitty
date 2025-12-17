@@ -8,7 +8,7 @@ from pathlib import Path
 import typer
 
 from specify_cli.cli import StepTracker
-from specify_cli.cli.helpers import console, show_banner
+from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.core.git_ops import run_command
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
@@ -40,6 +40,8 @@ def merge(
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
+
+    check_version_compatibility(repo_root, "merge")
 
     feature_worktree_path = merge_root = repo_root
     tracker.start("detect")

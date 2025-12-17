@@ -11,7 +11,7 @@ from rich.panel import Panel
 
 from specify_cli.acceptance import AcceptanceError, detect_feature_slug
 from specify_cli.cli import StepTracker
-from specify_cli.cli.helpers import console, get_project_root_or_exit, show_banner
+from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES, get_active_mission_key
 from specify_cli.core.project_resolver import resolve_template_path, resolve_worktree_aware_feature_dir
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
@@ -33,6 +33,7 @@ def research(
         raise typer.Exit(1)
 
     project_root = get_project_root_or_exit(repo_root)
+    check_version_compatibility(project_root, "research")
     mission_key = get_active_mission_key(project_root)
     mission_display = MISSION_CHOICES.get(mission_key, mission_key)
 

@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli import StepTracker
-from specify_cli.cli.helpers import console, get_project_root_or_exit
+from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.tool_checker import check_tool_for_tracker
 from specify_cli.dashboard.diagnostics import run_diagnostics
 from specify_cli.tasks_support import TaskCliError, find_repo_root
@@ -87,6 +87,7 @@ def verify_setup(
         raise typer.Exit(1)
 
     project_root = get_project_root_or_exit(repo_root)
+    check_version_compatibility(project_root, "verify")
     cwd = Path.cwd()
 
     result = run_enhanced_verify(

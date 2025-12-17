@@ -737,3 +737,77 @@ detect_feature_context_cached() {
 
     return 0
 }
+
+# ============================================================================
+# VERSION COMPATIBILITY CHECKING
+# ============================================================================
+
+# Check CLI/project version compatibility using Python helper
+# Exits with error if versions are incompatible
+check_version_compatibility() {
+    local repo_root="$1"
+    local command_name="${2:-bash-script}"
+
+    # Find python interpreter
+    local python_bin="python3"
+    if ! command -v "$python_bin" >/dev/null 2>&1; then
+        python_bin="python"
+    fi
+    if ! command -v "$python_bin" >/dev/null 2>&1; then
+        show_log "Warning: Python not found; skipping version check"
+        return 0
+    fi
+
+    # Call Python version checker
+    "$python_bin" -c "
+import sys
+from pathlib import Path
+
+try:
+    from specify_cli.core.version_checker import (
+        get_cli_version,
+        get_project_version,
+        compare_versions,
+        format_version_error,
+    )
+
+    project_root = Path('$repo_root')
+    cli_version = get_cli_version()
+    project_version = get_project_version(project_root)
+
+    # Handle missing metadata (legacy project)
+    if project_version is None:
+        print('', file=sys.stderr)
+        print('[spec-kitty] ⚠️  Warning: Project metadata not found', file=sys.stderr)
+        print('[spec-kitty] Please run: spec-kitty upgrade', file=sys.stderr)
+        print('', file=sys.stderr)
+        sys.exit(0)  # Warn but don't block
+
+    comparison, mismatch_type = compare_versions(cli_version, project_version)
+
+    # Handle version mismatches
+    if mismatch_type != 'match':
+        if mismatch_type == 'unknown':
+            print('', file=sys.stderr)
+            print('[spec-kitty] ⚠️  Warning: Unable to determine version compatibility', file=sys.stderr)
+            print(f'[spec-kitty]   CLI version: {cli_version}', file=sys.stderr)
+            print(f'[spec-kitty]   Project version: {project_version}', file=sys.stderr)
+            print('', file=sys.stderr)
+            sys.exit(0)  # Warn but don't block
+
+        # Hard error for known version mismatches
+        print('', file=sys.stderr)
+        error_msg = format_version_error(cli_version, project_version, mismatch_type)
+        print(error_msg, file=sys.stderr)
+        print('', file=sys.stderr)
+        sys.exit(1)
+
+except ImportError:
+    print('[spec-kitty] Warning: Version checker not available; skipping version check', file=sys.stderr)
+    sys.exit(0)
+except Exception as e:
+    print(f'[spec-kitty] Warning: Version check failed: {e}', file=sys.stderr)
+    sys.exit(0)
+"
+    return $?
+}

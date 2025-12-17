@@ -18,7 +18,7 @@ from specify_cli.acceptance import (
     perform_acceptance,
 )
 from specify_cli.cli import StepTracker
-from specify_cli.cli.helpers import console, show_banner
+from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.tasks_support import LANES, TaskCliError, find_repo_root
 
 
@@ -100,6 +100,8 @@ def accept(
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
+
+    check_version_compatibility(repo_root, "accept")
 
     tracker = StepTracker("Feature Acceptance")
     tracker.add("detect", "Identify feature slug")

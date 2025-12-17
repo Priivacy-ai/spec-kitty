@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from typing import List, Tuple
 
@@ -60,12 +61,18 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
         if not tasks_dir.exists():
             return False
 
+        # A feature is legacy if it has ANY lane subdirectories
+        # (even if empty - they shouldn't exist in new format)
         for lane in self.LANE_DIRS:
             lane_path = tasks_dir / lane
-            if lane_path.is_dir():
-                # Check if there are any .md files (not just .gitkeep)
-                md_files = list(lane_path.glob("*.md"))
-                if md_files:
+            if lane_path.exists() and lane_path.is_dir():
+                # Directory exists - this is legacy format
+                # Check if it has any content (not just .gitkeep)
+                contents = [f for f in lane_path.iterdir() if f.name != ".gitkeep"]
+                if contents:
+                    return True
+                # Even if only .gitkeep, still need migration to remove the directory
+                elif any(lane_path.iterdir()):
                     return True
 
         return False
@@ -169,56 +176,61 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
             if not lane_dir.is_dir():
                 continue
 
-            for wp_file in sorted(lane_dir.glob("WP*.md")):
-                target = tasks_dir / wp_file.name
+            # Find ALL markdown files, not just WP*.md
+            md_files = sorted(lane_dir.glob("*.md"))
+
+            for md_file in md_files:
+                # Skip README.md if it exists
+                if md_file.name == "README.md":
+                    continue
+
+                target = tasks_dir / md_file.name
 
                 # Check if already exists in flat directory
                 if target.exists():
-                    warnings.append(f"  Skip: {wp_file.name} already exists in tasks/")
+                    warnings.append(f"  Skip: {md_file.name} already exists in tasks/")
                     skipped += 1
                     continue
 
                 try:
                     if dry_run:
-                        changes.append(f"  Would move: {lane}/{wp_file.name} → tasks/{wp_file.name}")
+                        changes.append(f"  Would move: {lane}/{md_file.name} → tasks/{md_file.name}")
                     else:
                         # Read and update content
-                        content = wp_file.read_text(encoding="utf-8-sig")
+                        content = md_file.read_text(encoding="utf-8-sig")
                         updated_content = self._ensure_lane_in_frontmatter(content, lane)
 
                         # Write to new location
                         target.write_text(updated_content, encoding="utf-8")
 
                         # Remove original
-                        wp_file.unlink()
+                        md_file.unlink()
 
-                        changes.append(f"  Moved: {lane}/{wp_file.name} → tasks/{wp_file.name}")
+                        changes.append(f"  Moved: {lane}/{md_file.name} → tasks/{md_file.name}")
 
                     migrated += 1
 
                 except Exception as e:
-                    errors.append(f"  Error migrating {wp_file.name}: {e}")
+                    errors.append(f"  Error migrating {md_file.name}: {e}")
 
         # Clean up empty lane directories
         if not dry_run:
             for lane in self.LANE_DIRS:
                 lane_dir = tasks_dir / lane
-                if lane_dir.is_dir():
+                if lane_dir.exists() and lane_dir.is_dir():
                     contents = list(lane_dir.iterdir())
                     # Remove if empty or only .gitkeep
                     if not contents or (len(contents) == 1 and contents[0].name == ".gitkeep"):
-                        gitkeep = lane_dir / ".gitkeep"
-                        if gitkeep.exists():
-                            gitkeep.unlink()
                         try:
-                            lane_dir.rmdir()
+                            # Use shutil.rmtree for more robust removal
+                            shutil.rmtree(lane_dir)
                             changes.append(f"  Removed empty: {lane}/")
-                        except OSError:
-                            pass  # Directory not empty, skip
+                        except OSError as e:
+                            warnings.append(f"  Could not remove {lane}/: {e}")
         else:
             for lane in self.LANE_DIRS:
                 lane_dir = tasks_dir / lane
-                if lane_dir.is_dir():
+                if lane_dir.exists() and lane_dir.is_dir():
                     contents = list(lane_dir.iterdir())
                     if not contents or (len(contents) == 1 and contents[0].name == ".gitkeep"):
                         changes.append(f"  Would remove empty: {lane}/")

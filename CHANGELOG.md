@@ -9,6 +9,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2025-12-17
+
+### 🔧 Bug Fixes & Improvements
+
+This release fixes critical issues found in v0.9.0 and adds version checking to prevent compatibility problems.
+
+### 🆕 Added
+
+- **Version compatibility checking**
+  - CLI now checks for version mismatches between installed spec-kitty-cli and project version
+  - Hard error with explicit instructions when versions don't match
+  - Special critical warning for v0.9.0+ upgrade explaining breaking changes
+  - Shows detailed before/after directory structure comparison
+  - Version checks in all CLI commands and bash scripts
+  - Graceful handling of legacy projects without metadata
+
+- **Programmatic frontmatter management**
+  - New `specify_cli.frontmatter` module for consistent YAML operations
+  - Uses ruamel.yaml for absolute formatting consistency
+  - No more manual YAML editing by LLMs or scripts
+  - Prevents quoted vs unquoted value inconsistencies
+
+### 🐛 Fixed
+
+- **Migration improvements**
+  - v0.9.0 migration now finds ALL markdown files (not just WP*.md)
+  - Detects and removes empty lane subdirectories
+  - Uses shutil.rmtree() for robust directory removal
+  - Better detection of legacy format
+
+- **Complete lane migration (v0.9.1)**
+  - Migrates files missed by v0.9.0 (phase-*.md, task-*.md, etc.)
+  - Removes ALL agent command directories from worktrees (.codex/prompts/, .gemini/commands/, etc.)
+  - Removes .kittify/scripts/ from worktrees (inherit from main repo)
+  - Normalizes all frontmatter to consistent YAML format
+  - Fixes issue where worktrees had old command templates referencing deprecated scripts
+
+- **Flat structure in new features**
+  - Fixed create-new-feature.sh to create flat tasks/ directory (not subdirectories)
+  - Updated README.md documentation to reflect v0.9.0+ structure
+  - New features now work correctly with frontmatter-only lanes from day one
+
+- **Lane validation**
+  - tasks_cli.py update command now validates lane values
+  - Rejects invalid lanes before processing
+  - Clear error messages for invalid input
+
+### 🔧 Changed
+
+- Added `ruamel.yaml>=0.18.0` dependency for consistent YAML handling
+- Updated success messages to reflect flat structure
+
+### 🚀 Migration
+
+If you upgraded to v0.9.0 and still have issues, run `spec-kitty upgrade` again to apply v0.9.1 fixes:
+- Completes any remaining lane migrations
+- Cleans up worktree command directories
+- Normalizes all frontmatter for consistency
+
 ## [0.9.0] - 2025-12-17
 
 ### 🎯 Major Release: Frontmatter-Only Lane Management

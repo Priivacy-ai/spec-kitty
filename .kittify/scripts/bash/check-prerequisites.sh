@@ -102,6 +102,11 @@ fi
 eval $(get_feature_paths)
 check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
 
+# Check version compatibility
+if ! check_version_compatibility "$REPO_ROOT" "check-prerequisites"; then
+    exit 1
+fi
+
 # If paths-only mode, output paths and exit (support JSON + paths-only combined)
 if $PATHS_ONLY; then
     if $JSON_MODE; then

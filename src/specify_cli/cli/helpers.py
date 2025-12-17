@@ -70,4 +70,54 @@ def get_project_root_or_exit(start: Path | None = None) -> Path:
     return project_root
 
 
-__all__ = ["BannerGroup", "callback", "console", "get_project_root_or_exit", "show_banner"]
+def check_version_compatibility(project_root: Path, command_name: str) -> None:
+    """Check CLI/project version compatibility and exit if mismatch.
+
+    Args:
+        project_root: Path to project root (.kittify parent)
+        command_name: Name of command being run (for should_check_version)
+
+    Raises:
+        typer.Exit(1) if version mismatch detected
+    """
+    from specify_cli.core.version_checker import (
+        get_cli_version,
+        get_project_version,
+        compare_versions,
+        format_version_error,
+        should_check_version,
+    )
+
+    # Skip check for certain commands
+    if not should_check_version(command_name):
+        return
+
+    cli_version = get_cli_version()
+    project_version = get_project_version(project_root)
+
+    # Handle missing metadata (legacy project)
+    if project_version is None:
+        console.print("[yellow]Warning:[/yellow] Project metadata not found (.kittify/metadata.yaml)")
+        console.print("[yellow]Please run:[/yellow] spec-kitty upgrade")
+        console.print()
+        return  # Warn but don't block
+
+    comparison, mismatch_type = compare_versions(cli_version, project_version)
+
+    # Handle version mismatches
+    if mismatch_type != "match":
+        if mismatch_type == "unknown":
+            console.print("[yellow]Warning:[/yellow] Unable to determine version compatibility")
+            console.print(f"  CLI version: {cli_version}")
+            console.print(f"  Project version: {project_version}")
+            console.print()
+            return  # Warn but don't block
+
+        # Hard error for known version mismatches
+        error_msg = format_version_error(cli_version, project_version, mismatch_type)
+        console.print(error_msg)
+        console.print()
+        raise typer.Exit(1)
+
+
+__all__ = ["BannerGroup", "callback", "check_version_compatibility", "console", "get_project_root_or_exit", "show_banner"]

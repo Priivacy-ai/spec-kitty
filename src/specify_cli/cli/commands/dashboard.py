@@ -7,7 +7,7 @@ from typing import Optional
 
 import typer
 
-from specify_cli.cli.helpers import console, get_project_root_or_exit
+from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.dashboard import ensure_dashboard_running, stop_dashboard
 
 
@@ -25,6 +25,7 @@ def dashboard(
 ) -> None:
     """Open or stop the Spec Kitty dashboard."""
     project_root = get_project_root_or_exit()
+    check_version_compatibility(project_root, "dashboard")
 
     console.print()
 

@@ -162,6 +162,13 @@ def _check_legacy_format(feature: str, repo_root: Path) -> bool:
 
 def update_command(args: argparse.Namespace) -> None:
     """Update a work package's lane in frontmatter (no file movement)."""
+    # Validate lane value first
+    try:
+        validated_lane = ensure_lane(args.lane)
+    except TaskCliError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
     repo_root = find_repo_root()
     feature = args.feature
 
@@ -173,19 +180,19 @@ def update_command(args: argparse.Namespace) -> None:
 
     wp = locate_work_package(repo_root, feature, args.work_package)
 
-    if wp.current_lane == args.lane:
-        raise TaskCliError(f"Work package already in lane '{args.lane}'.")
+    if wp.current_lane == validated_lane:
+        raise TaskCliError(f"Work package already in lane '{validated_lane}'.")
 
     timestamp = args.timestamp or now_utc()
     agent = args.agent or wp.agent or "system"
     shell_pid = args.shell_pid or wp.shell_pid or ""
-    note = normalize_note(args.note, args.lane)
+    note = normalize_note(args.note, validated_lane)
 
     # Stage the update (frontmatter only, no file movement)
     updated_path = stage_update(
         repo_root=repo_root,
         wp=wp,
-        target_lane=args.lane,
+        target_lane=validated_lane,
         agent=agent,
         shell_pid=shell_pid,
         note=note,
@@ -194,14 +201,14 @@ def update_command(args: argparse.Namespace) -> None:
     )
 
     if args.dry_run:
-        print(f"[dry-run] Would update {wp.work_package_id or wp.path.name} to lane '{args.lane}'")
+        print(f"[dry-run] Would update {wp.work_package_id or wp.path.name} to lane '{validated_lane}'")
         print(f"[dry-run] File stays at: {updated_path.relative_to(repo_root)}")
         return
 
-    print(f"✅ Updated {wp.work_package_id or wp.path.name} → {args.lane}")
+    print(f"✅ Updated {wp.work_package_id or wp.path.name} → {validated_lane}")
     print(f"   {wp.path.relative_to(repo_root)}")
     print(
-        f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – lane={args.lane} – {note}"
+        f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – lane={validated_lane} – {note}"
     )
 
 

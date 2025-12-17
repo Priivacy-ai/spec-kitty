@@ -91,6 +91,14 @@ else
     HAS_GIT=false
 fi
 
+# Source common functions for version checking
+source "$SCRIPT_DIR/common.sh"
+
+# Check version compatibility
+if ! check_version_compatibility "$REPO_ROOT" "create-new-feature"; then
+    exit 1
+fi
+
 # Validate mission if provided
 if [ -n "$MISSION" ]; then
     MISSION_DIR="$REPO_ROOT/.kittify/missions/$MISSION"
@@ -319,50 +327,43 @@ fi
 
 mkdir -p "$FEATURE_DIR"
 
-# Scaffold tasks directory structure (kanban lanes)
+# Scaffold tasks directory structure (flat structure with frontmatter lanes)
 # This guides agents to use the correct structure when /spec-kitty.tasks runs
 TASKS_DIR="$FEATURE_DIR/tasks"
-mkdir -p "$TASKS_DIR/planned"
-mkdir -p "$TASKS_DIR/doing"
-mkdir -p "$TASKS_DIR/for_review"
-mkdir -p "$TASKS_DIR/done"
-
-# Create .gitkeep files to preserve empty directories
-touch "$TASKS_DIR/planned/.gitkeep"
-touch "$TASKS_DIR/doing/.gitkeep"
-touch "$TASKS_DIR/for_review/.gitkeep"
-touch "$TASKS_DIR/done/.gitkeep"
+mkdir -p "$TASKS_DIR"
+touch "$TASKS_DIR/.gitkeep"
 
 # Create README with frontmatter format reference
 cat > "$TASKS_DIR/README.md" <<'TASKS_README'
 # Tasks Directory
 
-This directory contains work package (WP) prompt files organized by kanban lane.
+This directory contains work package (WP) prompt files with lane status in frontmatter.
 
-## Directory Structure
+## Directory Structure (v0.9.0+)
 
 ```
 tasks/
-├── planned/      # WP files ready for implementation
-├── doing/        # WP files currently being worked on
-├── for_review/   # WP files awaiting review
-├── done/         # Completed WP files
-└── README.md     # This file
+├── WP01-setup-infrastructure.md
+├── WP02-user-authentication.md
+├── WP03-api-endpoints.md
+└── README.md
 ```
+
+All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, done) is stored in the YAML frontmatter `lane:` field.
 
 ## Work Package File Format
 
-Each WP file **MUST** use YAML frontmatter (not markdown headers):
+Each WP file **MUST** use YAML frontmatter:
 
 ```yaml
 ---
 work_package_id: "WP01"
+title: "Work Package Title"
+lane: "planned"
 subtasks:
   - "T001"
   - "T002"
-title: "Work Package Title"
 phase: "Phase 1 - Setup"
-lane: "planned"
 assignee: ""
 agent: ""
 shell_pid: ""
@@ -372,7 +373,6 @@ history:
   - timestamp: "2025-01-01T00:00:00Z"
     lane: "planned"
     agent: "system"
-    shell_pid: ""
     action: "Prompt generated via /spec-kitty.tasks"
 ---
 
@@ -381,25 +381,32 @@ history:
 [Content follows...]
 ```
 
-## File Naming
+## Valid Lane Values
 
-- Format: `WP01-kebab-case-slug.md` (no extra hyphens in WP number)
-- Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
+- `planned` - Ready for implementation
+- `doing` - Currently being worked on
+- `for_review` - Awaiting review
+- `done` - Completed
 
 ## Moving Between Lanes
 
-Use the helper script:
+Use the CLI (updates frontmatter only, no file movement):
+```bash
+spec-kitty tasks update <WPID> --lane <lane>
+```
+
+Or use the helper script:
 ```bash
 .kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <WPID> <lane>
 ```
 
-Or manually:
-1. Move the file to the target lane directory
-2. Update the `lane` field in frontmatter
-3. Add a history entry with timestamp
+## File Naming
+
+- Format: `WP01-kebab-case-slug.md`
+- Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
 TASKS_README
 
->&2 echo "[spec-kitty] ✓ Tasks directory scaffolded (planned/doing/for_review/done)"
+>&2 echo "[spec-kitty] ✓ Tasks directory created (flat structure with frontmatter lanes)"
 
 SPEC_FILE="$FEATURE_DIR/spec.md"
 SPEC_TEMPLATE_CANDIDATES=(

@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.acceptance import AcceptanceError, detect_feature_slug
-from specify_cli.cli.helpers import console, get_project_root_or_exit
+from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 from specify_cli.text_sanitization import detect_problematic_characters, sanitize_directory, sanitize_file
@@ -35,6 +35,7 @@ def validate_encoding(
         raise typer.Exit(1)
 
     project_root = get_project_root_or_exit(repo_root)
+    check_version_compatibility(project_root, "validate-encoding")
 
     if check_all:
         # Validate all features
