@@ -657,7 +657,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 |------------------------|----------|------------------------------------------------------------------------------|
 | `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
 | `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, or `q` |
-| `--script`             | Option   | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell)                 |
+| `--script`             | Option   | (Deprecated in v0.10.0) Script variant - all commands now use Python CLI     |
 | `--mission`            | Option   | Mission key to seed templates (`software-dev`, `research`, ...)             |
 | `--template-root`      | Option   | Override template location (useful for development mode or custom sources)   |
 | `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                             |
@@ -747,6 +747,40 @@ spec-kitty upgrade --json
 
 # Skip worktree upgrades
 spec-kitty upgrade --no-worktrees
+```
+
+### `spec-kitty agent` Commands
+
+The `spec-kitty agent` namespace provides programmatic access to all workflow automation commands. All commands support `--json` output for agent consumption.
+
+**Feature Management:**
+- `spec-kitty agent create-feature <name>` – Create new feature with worktree
+- `spec-kitty agent check-prerequisites` – Validate project setup and feature context
+- `spec-kitty agent setup-plan` – Initialize plan template for feature
+- `spec-kitty agent update-context` – Update agent context files
+- `spec-kitty agent feature accept` – Run acceptance workflow
+- `spec-kitty agent feature merge` – Merge feature branch and cleanup
+
+**Task Workflow:**
+- `spec-kitty agent move-task <id> --to <lane>` – Move task between kanban lanes
+- `spec-kitty agent list-tasks` – List all tasks grouped by lane
+- `spec-kitty agent mark-status <id> --status <status>` – Mark task status
+- `spec-kitty agent add-history <id> --note <message>` – Add activity log entry
+- `spec-kitty agent validate-workflow <id>` – Validate task metadata
+
+**Example Usage:**
+```bash
+# Create feature (agent-friendly)
+spec-kitty agent create-feature --feature-name "Payment Flow" --json
+
+# Move task to doing lane
+spec-kitty agent move-task WP01 --to doing --agent claude --json
+
+# Validate workflow
+spec-kitty agent validate-workflow WP01 --json
+
+# Accept feature
+spec-kitty agent feature accept --json
 ```
 
 ### `spec-kitty dashboard` Options
@@ -988,11 +1022,16 @@ The merge command:
 
 ## Task Workflow Automation
 
-- `scripts/bash/move-task-to-doing.sh WP01 kitty-specs/FEATURE` – moves a work-package prompt from `tasks/planned/` to `tasks/doing/`, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry, and prints the canonical location.
-- `scripts/bash/validate-task-workflow.sh WP01 kitty-specs/FEATURE` – blocks implementation if the work-package prompt is not in the `doing` lane or is missing required metadata.
-- Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`.
-- Optional git hook: `ln -s ../../scripts/git-hooks/pre-commit-task-workflow.sh .git/hooks/pre-commit` to enforce lane metadata before every commit.
-- Prefer running scripts from the feature worktree (`.worktrees/<feature-slug>`). After `/spec-kitty.specify`, `cd .worktrees/<feature-slug>` when that directory exists; if worktree creation was skipped, stay in the primary checkout on the feature branch or recreate the worktree with `git worktree add …`.
+All task workflow commands are available through the `spec-kitty agent` CLI:
+
+- `spec-kitty agent move-task WP01 --to doing` – moves a work-package prompt from one lane to another, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry
+- `spec-kitty agent validate-workflow WP01` – validates that the work-package is in the correct lane with required metadata
+- `spec-kitty agent list-tasks` – lists all tasks grouped by lane
+- `spec-kitty agent mark-status WP01 --status completed` – marks a task with a specific status
+
+Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`.
+
+For programmatic access with JSON output, add the `--json` flag to any command.
 
 ## 🧭 Mission System
 
