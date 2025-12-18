@@ -2,92 +2,77 @@
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 ---
 
-## User Input
+## Work Package Selection
 
-```text
-$ARGUMENTS
+**User specified**: `$ARGUMENTS`
+
+**Your task**: Determine which WP to implement:
+- If `$ARGUMENTS` is empty → Find first WP file with `lane: "planned"` in `tasks/` directory
+- If `$ARGUMENTS` provided → Normalize it:
+  - `wp01` → `WP01`
+  - `WP01` → `WP01`
+  - `WP01-foo-bar` → `WP01`
+  - Then find: `tasks/WP01*.md`
+
+**Once you know which WP**, proceed to setup.
+
+---
+
+## Setup (Do This First)
+
+**1. Move WP to doing lane:**
+```bash
+spec-kitty agent tasks move-task <WPID> doing --note "Started implementation" --agent "codex"
+```
+This updates frontmatter, captures shell PID, adds activity log, and creates a commit.
+
+**2. Get the prompt file path:**
+The WP file is at: `kitty-specs/<feature>/tasks/<WPID>-<slug>.md`
+Find the full absolute path.
+
+**3. Verify the move worked:**
+```bash
+git log -1  # Should show "Start <WPID>: Move to doing lane"
 ```
 
 ---
 
-## Automatic Setup (Command Handles This)
+## Implementation (Do This Second)
 
-Before showing you any instructions, this command automatically:
+**1. READ THE PROMPT FILE** (`tasks/<WPID>-slug.md`)
+   - This is your complete implementation guide
+   - Check `review_status` in frontmatter:
+     - If `has_feedback` → Read `## Review Feedback` section first
+     - Treat action items as your TODO list
 
-1. **Determines which WP to implement**:
-   - If `$ARGUMENTS` is empty → Find first WP with `lane: "planned"`
-   - If `$ARGUMENTS` is provided → Normalize and find matching WP
-     - Accepts: `wp01`, `WP01`, `WP01-foo-bar` → All resolve to same file
-     - Finds: `tasks/WP01*.md`
-
-2. **Moves WP to doing lane**:
-   ```bash
-   spec-kitty agent tasks move-task <WPID> doing --note "Started implementation" --agent "<your-agent>"
-   ```
-   This automatically:
-   - Updates `lane: "doing"` in frontmatter
-   - Captures and records shell PID
-   - Adds activity log entry
-   - Commits the change with message: "Start <WPID>: Move to doing lane"
-
-3. **Gets the prompt file path**:
-   - Full absolute path to `tasks/WPxx-slug.md`
-   - Verifies lane is now "doing"
-
-4. **Tells you what to do** (see below)
-
----
-
-## Your Job (What You Actually Do)
-
-✅ **Work Package <WPID> is now in "doing" lane**
-
-**Prompt file**: `<ABSOLUTE_PATH_TO_PROMPT>`
-
-**Your workflow**:
-
-1. **READ THE PROMPT FILE** (link above) - This is your implementation guide
-2. **Check for review feedback**:
-   - Look at `review_status` field in frontmatter
-   - If `has_feedback` or `acknowledged` → Read `## Review Feedback` section first
-   - Treat action items as your TODO list
-3. **Read supporting docs**:
+**2. Read supporting docs:**
    - `tasks.md` - Full task breakdown
-   - `plan.md` - Architecture and tech stack
-   - `spec.md` - User requirements
-   - `data-model.md`, `contracts/`, `research.md`, `quickstart.md` (if they exist)
-4. **Implement the work** following the prompt's guidance
-5. **When complete**, move to for_review:
-   ```bash
-   spec-kitty agent tasks move-task <WPID> for_review --note "Ready for review"
-   ```
-   Then commit your implementation changes.
+   - `plan.md` - Tech stack and architecture
+   - `spec.md` - Requirements
+   - `data-model.md`, `contracts/`, `research.md`, `quickstart.md` (if exist)
+
+**3. Implement following the prompt's guidance:**
+   - Follow subtask order
+   - Respect dependencies (sequential vs parallel `[P]`)
+   - Run tests if required
+   - Commit as you complete major milestones
+
+**4. When complete:**
+```bash
+spec-kitty agent tasks move-task <WPID> for_review --note "Ready for review"
+git add <your-changes>
+git commit -m "Complete <WPID>: <description>"
+```
 
 ---
 
-## Implementation Guidelines
+## That's It
 
-**Execution rules**:
-- Follow the prompt's subtask order
-- Respect dependencies (sequential vs parallel markers `[P]`)
-- Run tests if the prompt requires them
-- Update activity log in prompt file as you complete major milestones
+**Simple workflow:**
+1. Find which WP (from `$ARGUMENTS` or first planned)
+2. Move it to doing
+3. Read the prompt file
+4. Do the work
+5. Move to for_review
 
-**Error handling**:
-- Report clear errors if you can't proceed
-- Don't skip required steps
-- If blocked, explain why and suggest next steps
-
-**When done**:
-- Move to for_review (command above)
-- Commit your implementation
-- Report what you completed
-
----
-
-## Notes
-
-- Shell PID, frontmatter updates, and workflow mechanics are handled automatically
-- Focus on implementation, not busywork
-- The prompt file is your authoritative guide
-- All `$ARGUMENTS` processing happened before you saw this
+**No busywork, no shell PID tracking, just implement.**
