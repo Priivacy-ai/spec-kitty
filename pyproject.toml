@@ -44,6 +44,7 @@ dependencies = [
     "pyyaml>=6.0",
     "ruamel.yaml>=0.18.0",
     "pydantic>=2.0",
+    "packaging>=23.0",
 ]
 
 [project.urls]
