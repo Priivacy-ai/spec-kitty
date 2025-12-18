@@ -263,7 +263,30 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
-    feature_path = repo_root / "kitty-specs" / feature
+    from specify_cli.core.paths import is_worktree_context
+
+    cwd = Path.cwd().resolve()
+
+    # Check if we're in a worktree - if so, use worktree's kitty-specs
+    if is_worktree_context(cwd):
+        # We're in a worktree, look for kitty-specs relative to cwd
+        if (cwd / "kitty-specs" / feature).exists():
+            feature_path = cwd / "kitty-specs" / feature
+        else:
+            # Walk up to find kitty-specs
+            current = cwd
+            while current != current.parent:
+                if (current / "kitty-specs" / feature).exists():
+                    feature_path = current / "kitty-specs" / feature
+                    break
+                current = current.parent
+            else:
+                # Fallback to repo_root
+                feature_path = repo_root / "kitty-specs" / feature
+    else:
+        # We're in main repo
+        feature_path = repo_root / "kitty-specs" / feature
+
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():
         raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")

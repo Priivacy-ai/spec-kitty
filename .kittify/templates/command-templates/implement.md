@@ -22,7 +22,7 @@ description: Execute the implementation plan by processing and executing all tas
 
 **1. Move WP to doing lane:**
 ```bash
-spec-kitty agent tasks move-task <WPID> doing --note "Started implementation" --agent "codex"
+spec-kitty agent tasks move-task <WPID> --to doing --note "Started implementation" --agent "codex"
 ```
 This updates frontmatter, captures shell PID, adds activity log, and creates a commit.
 
@@ -59,7 +59,7 @@ git log -1  # Should show "Start <WPID>: Move to doing lane"
 
 **4. When complete:**
 ```bash
-spec-kitty agent tasks move-task <WPID> for_review --note "Ready for review"
+spec-kitty agent tasks move-task <WPID> --to for_review --note "Ready for review"
 git add <your-changes>
 git commit -m "Complete <WPID>: <description>"
 ```
