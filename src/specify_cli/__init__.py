@@ -151,5 +151,7 @@ register_commands(app)
 def main():
     app()
 
+__all__ = ["main", "app", "__version__"]
+
 if __name__ == "__main__":
     main()

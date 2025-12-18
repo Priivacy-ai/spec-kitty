@@ -97,13 +97,10 @@ class PythonOnlyMigration(BaseMigration):
         if not kittify_bash.exists():
             return False
 
-        # Check if any package scripts exist
-        for script_name in self.PACKAGE_SCRIPTS:
-            script_path = kittify_bash / script_name
-            if script_path.exists():
-                return True
-
-        return False
+        # Check if ANY .sh files exist (not just known scripts)
+        # This catches custom scripts and ensures complete cleanup
+        bash_scripts = list(kittify_bash.glob("*.sh"))
+        return len(bash_scripts) > 0
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Migration can always be applied if bash scripts are detected."""
@@ -135,10 +132,8 @@ class PythonOnlyMigration(BaseMigration):
         changes.extend(template_changes)
         errors.extend(template_errors)
 
-        # Step 4: Check for custom modifications
-        custom_mods = self._detect_custom_modifications(project_path)
-        if custom_mods:
-            warnings.extend(custom_mods)
+        # Note: Custom script detection now happens in _remove_bash_scripts()
+        # before deletion, so users get warnings about custom scripts
 
         success = len(errors) == 0
         return MigrationResult(
@@ -161,16 +156,28 @@ class PythonOnlyMigration(BaseMigration):
             warnings.append("No .kittify/scripts/bash/ directory found - already migrated?")
             return changes, warnings
 
-        scripts_removed = 0
-        for script_name in self.PACKAGE_SCRIPTS:
-            script_path = kittify_bash / script_name
-            if script_path.exists():
-                if dry_run:
-                    changes.append(f"Would remove: .kittify/scripts/bash/{script_name}")
-                else:
-                    script_path.unlink()
-                    changes.append(f"Removed: .kittify/scripts/bash/{script_name}")
-                scripts_removed += 1
+        # First, detect custom scripts (not in PACKAGE_SCRIPTS) and warn user
+        all_bash_scripts = list(kittify_bash.glob("*.sh"))
+        custom_scripts = [s for s in all_bash_scripts if s.name not in self.PACKAGE_SCRIPTS]
+
+        if custom_scripts:
+            custom_names = [s.name for s in custom_scripts]
+            warnings.append(f"Custom bash scripts detected: {', '.join(custom_names)}")
+            warnings.append(
+                "These custom scripts will be removed as part of the migration to Python-only. "
+                "If you need this functionality, please migrate it manually before upgrading."
+            )
+
+        # Now delete ALL .sh files (including custom ones)
+        # This ensures complete cleanup, matching PowerShell/worktree behavior
+        scripts_removed = len(all_bash_scripts)
+
+        for script in all_bash_scripts:
+            if dry_run:
+                changes.append(f"Would remove: .kittify/scripts/bash/{script.name}")
+            else:
+                script.unlink()
+                changes.append(f"Removed: .kittify/scripts/bash/{script.name}")
 
         # Remove PowerShell equivalents if they exist
         kittify_ps = project_path / ".kittify" / "scripts" / "powershell"

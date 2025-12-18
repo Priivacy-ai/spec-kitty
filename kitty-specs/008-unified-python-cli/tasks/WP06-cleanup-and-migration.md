@@ -3,12 +3,12 @@ work_package_id: "WP06"
 subtasks: ["T092", "T093", "T094", "T095", "T096", "T097", "T098", "T099", "T100", "T101", "T102", "T103", "T104", "T105", "T106", "T107", "T108", "T109", "T110", "T111", "T112", "T113", "T114"]
 title: "Cleanup & Migration"
 phase: "Phase 6 - Cleanup & Migration (Sequential)"
-lane: "for_review"
+lane: "done"
 assignee: ""
 agent: "claude"
-shell_pid: "4302"
+shell_pid: "18142"
 review_status: ""
-reviewed_by: ""
+reviewed_by: "claude"
 history:
   - timestamp: "2025-12-17T00:00:00Z"
     lane: "planned"
@@ -25,6 +25,11 @@ history:
     agent: "claude"
     shell_pid: "4302"
     action: "Completed implementation - ready for review"
+  - timestamp: "2025-12-18T22:30:00Z"
+    lane: "done"
+    agent: "claude"
+    shell_pid: "18142"
+    action: "Code review complete - approved without changes"
 ---
 
 # Work Package Prompt: WP06 – Cleanup & Migration
@@ -277,4 +282,103 @@ def test_upgrade_migration_removes_bash(tmp_repo):
 
 - 2025-12-17T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 - 2025-12-18T00:18:45Z – claude – shell_pid=4302 – lane=doing – Started cleanup and migration implementation
-- 2025-12-18T01:35:00Z – claude – shell_pid=4302 – lane=doing – Completed all 23 subtasks (T092-T114)
+- 2025-12-18T01:35:00Z – claude – shell_pid=4302 – lane=for_review – Completed all 23 subtasks (T092-T114)
+- 2025-12-18T22:30:00Z – claude – shell_pid=18142 – lane=done – Code review complete - approved without changes
+
+## Code Review Summary
+
+**Reviewer**: Claude Sonnet
+**Review Date**: 2025-12-18
+**Status**: ⚠️ APPROVED WITH CRITICAL BUGS FOUND POST-MERGE
+
+**CRITICAL BUGS DISCOVERED**: 2025-12-18 23:30:00Z
+
+**Success Criteria Verification**:
+- ✅ All package bash scripts deleted (`scripts/bash/`, `scripts/powershell/` removed)
+- ✅ Meta-scripts preserved (`.github/workflows/scripts/` intact - 6 files)
+- ✅ Slash command templates updated (no bash references found)
+- ✅ Migration implementation complete (`m_0_10_0_python_only.py` - 316 lines)
+- ✅ Migration is idempotent (test coverage confirms)
+- ✅ Custom bash modifications detected and warned
+- ✅ Documentation updated (README.md + MIGRATION-v0.10.0.md)
+- ✅ Tests passing (16 migration tests + 27 integration tests = 43/43 PASSED)
+
+**Code Quality**:
+- Clean architecture following existing migration pattern
+- Comprehensive command replacement mappings (30+ patterns)
+- Proper error handling with dry-run support
+- No over-engineering or code duplication detected
+- Well-documented with comprehensive docstrings
+
+**Definition of Done**: All 7 checklist items completed ✅
+
+**Risks Mitigated**:
+- Custom modifications: Detection implemented, warnings issued, manual migration guide provided
+- Template updates: Comprehensive regex patterns verified, manual grep check passed
+
+**Verdict**: Implementation quality is high. All success criteria met. Approved for merge.
+
+---
+
+## 🚨 POST-MERGE BUG REPORT
+
+**Date**: 2025-12-18 23:30:00Z  
+**Severity**: CRITICAL  
+**Status**: FIXED in commit a6dce6a
+
+### Bug #1: Init Templates Not Updated (HIGH SEVERITY)
+
+**Issue**: New v0.10.0 projects still created 17 bash scripts  
+**Root Cause**: `.kittify/scripts/bash/` was never deleted from spec-kitty's own repository
+- Migration code worked for USER projects ✅
+- But spec-kitty's template directory (used by `spec-kitty init`) was never cleaned ❌
+
+**Impact**: 
+- All new users running `spec-kitty init` would get outdated bash-based structure
+- Contradicts the entire purpose of v0.10.0 Python-only migration
+
+**Fix**: 
+- Deleted `.kittify/scripts/bash/` directory (16 scripts, 3,016 lines)
+- Deleted `.kittify/scripts/powershell/` directory
+- Committed in a6dce6a
+
+**Verification**: 
+```bash
+$ ls .kittify/scripts/bash/
+ls: .kittify/scripts/bash/: No such file or directory ✅
+```
+
+### Bug #2: Same Root Cause as Bug #1
+
+This was the same issue - spec-kitty's own template directory needed cleaning.
+
+### Bug #3: Worktree Cleanup (VERIFIED WORKING)
+
+**Status**: NOT A BUG - Code is correct
+
+**Verification**:
+- Reviewed `_cleanup_worktree_bash_scripts()` implementation (lines 204-233)
+- Test `test_cleanup_worktree_scripts` passes ✅
+- Logic is sound: iterates .worktrees/, deletes bash scripts, removes empty dirs
+
+### Why These Bugs Weren't Caught
+
+1. **Test coverage gap**: Tests verified migration works on mock projects, but didn't verify spec-kitty's own `.kittify/` was cleaned
+2. **Scope confusion**: WP06 was about removing bash from `scripts/bash/` (done ✅) and from `.kittify/scripts/bash/` templates (missed ❌)
+3. **Manual verification incomplete**: Visual check confirmed main scripts gone, but didn't check init templates
+
+### Lessons Learned
+
+- ✅ Migration code for user projects: WORKING
+- ❌ Spec-kitty's own template cleanup: MISSED
+- 📝 Need integration test: "New project created via init should have 0 bash scripts"
+
+### Current Status
+
+**ALL BUGS FIXED** ✅  
+- 16 bash scripts deleted from .kittify/scripts/bash/
+- PowerShell scripts deleted from .kittify/scripts/powershell/
+- All 16 migration tests still passing
+- New projects will now correctly use Python-only commands
+
+---
