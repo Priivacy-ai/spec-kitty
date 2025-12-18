@@ -6,6 +6,25 @@ Spec Kitty is a community-driven fork of GitHub's [Spec Kit](https://github.com/
 
 Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
+## Supported AI Agents
+
+Spec Kitty supports **12 AI coding agents**. When contributing features that affect slash commands, migrations, or templates, ensure changes apply to ALL agents:
+
+- **Claude Code** (`.claude/commands/`)
+- **GitHub Copilot** (`.github/prompts/`)
+- **GitHub Codex** (`.codex/prompts/`)
+- **OpenCode** (`.opencode/command/`)
+- **Google Gemini** (`.gemini/commands/`)
+- **Cursor** (`.cursor/commands/`)
+- **Windsurf** (`.windsurf/workflows/`)
+- **Qwen Code** (`.qwen/commands/`)
+- **Kilocode** (`.kilocode/workflows/`)
+- **Augment Code** (`.augment/commands/`)
+- **Roo Cline** (`.roo/commands/`)
+- **Amazon Q** (`.amazonq/prompts/`)
+
+**For contributors**: Use the `AGENT_DIRS` constant from `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` when writing migrations or features that affect slash commands.
+
 ## Prerequisites for running and testing code
 
 These are one time installations required to be able to test your changes locally as part of the pull request (PR) submission process.
