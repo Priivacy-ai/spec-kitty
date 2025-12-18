@@ -1,8 +1,5 @@
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
-scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
 ---
 *Path: [templates/commands/implement.md](templates/commands/implement.md)*
 
@@ -66,7 +63,11 @@ This is intentional - worktrees provide isolation for parallel feature developme
     - When inspecting git status or listing files, always reference the worktree paths (for example, `kitty-specs/<feature>/...` inside `.worktrees/<feature>/`).
    - If worktree creation was skipped (the CLI returned no worktree path or the directory is missing), remain in the primary checkout on the feature branch or recreate the worktree with `git worktree add PROJECT_ROOT/.worktrees/FEATURE-SLUG FEATURE-SLUG` and then `cd` into it.
 
-2. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
+2. Run `spec-kitty agent feature check-prerequisites --json --include-tasks` from worktree root and parse JSON for:
+   - `feature_dir`: Absolute path to feature directory
+   - `spec_file`: Path to spec.md
+   - `plan_file`: Path to plan.md
+   - `tasks_file`: Path to tasks.md
 
 2. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
    - Scan all checklist files in the checklists/ directory
@@ -103,16 +104,11 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
    a. **Move task prompt to doing lane**:
       ```bash
-      # Capture your shell PID
-      SHELL_PID=$(echo $$)
-
-      # Move prompt (example for T001)
-      .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX doing \
-        --shell-pid "$SHELL_PID" \
-        --agent "claude" \
-        --note "Started implementation"
+      # Move prompt (example for WP01)
+      spec-kitty agent tasks move-task WP01 doing \
+        --note "Started implementation" \
+        --agent "claude"
       ```
-      > Windows users: run `.kittify/scripts/powershell/tasks-move-to-lane.ps1` with the same arguments.
 
    b. **Verify frontmatter metadata** in the moved file:
       ```yaml
@@ -197,7 +193,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
        ```
      - Move prompt to for_review:
      ```bash
-     .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX for_review \
+     spec-kitty agent tasks move-task FEATURE-SLUG TXXX for_review \
        --shell-pid "$SHELL_PID" \
        --agent "claude" \
        --note "Ready for review"
@@ -225,7 +221,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
 **For every task**:
 
 1. **START**: `planned/` → `doing/`
-   - `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID doing --note "Started implementation"`
+   - `spec-kitty agent tasks move-task FEATURE-SLUG WPID doing --note "Started implementation"`
    - Verify frontmatter: `lane: "doing"`, confirm `shell_pid`, `agent`
    - Confirm activity log entry
    - Commit
@@ -237,7 +233,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 3. **COMPLETE**: `doing/` → `for_review/`
    - Add completion entry to activity log
-   - `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID for_review --note "Ready for review"`
+   - `spec-kitty agent tasks move-task FEATURE-SLUG WPID for_review --note "Ready for review"`
    - Verify frontmatter: `lane: "for_review"`
    - Confirm review-ready log entry
    - Commit

@@ -1,9 +1,5 @@
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
-scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
----
 *Path: [templates/commands/implement.md](templates/commands/implement.md)*
 
 
@@ -144,12 +140,12 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
       SHELL_PID=$(echo $$)
 
       # Move prompt (example for T001)
-      .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX doing \
+      spec-kitty agent tasks move-task FEATURE-SLUG TXXX doing \
         --shell-pid "$SHELL_PID" \
         --agent "claude" \
         --note "Started implementation"
       ```
-      > Windows users: run `.kittify/scripts/powershell/tasks-move-to-lane.ps1` with the same arguments.
+      > Windows users: run `spec-kitty agent tasks move-task` with the same arguments.
 
    b. **Verify frontmatter metadata** in the moved file:
       ```yaml
@@ -234,7 +230,7 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
        ```
      - Move prompt to for_review:
      ```bash
-     .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX for_review \
+     spec-kitty agent tasks move-task FEATURE-SLUG TXXX for_review \
        --shell-pid "$SHELL_PID" \
        --agent "claude" \
        --note "Ready for review"
@@ -262,7 +258,7 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
 **For every task**:
 
 1. **START**: `planned/` → `doing/`
-   - `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID doing --note "Started implementation"`
+   - `spec-kitty agent tasks move-task FEATURE-SLUG WPID doing --note "Started implementation"`
    - Verify frontmatter: `lane: "doing"`, confirm `shell_pid`, `agent`
    - Confirm activity log entry
    - Commit
@@ -274,7 +270,7 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
 
 3. **COMPLETE**: `doing/` → `for_review/`
    - Add completion entry to activity log
-   - `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID for_review --note "Ready for review"`
+   - `spec-kitty agent tasks move-task FEATURE-SLUG WPID for_review --note "Ready for review"`
    - Verify frontmatter: `lane: "for_review"`
    - Confirm review-ready log entry
    - Commit

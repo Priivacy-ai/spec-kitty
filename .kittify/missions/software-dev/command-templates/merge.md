@@ -1,9 +1,5 @@
 ---
 description: Merge a completed feature into the main branch and clean up worktree
-scripts:
-  sh: ".kittify/scripts/bash/merge-feature.sh"
-  ps: ".kittify/scripts/powershell/Merge-Feature.ps1"
----
 
 # Merge Feature Branch
 

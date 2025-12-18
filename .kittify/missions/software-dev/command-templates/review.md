@@ -1,9 +1,5 @@
 ---
 description: Perform structured code review and kanban transitions for completed task prompt files.
-scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
----
 
 ## User Input
 
@@ -60,12 +56,12 @@ if not result.is_valid:
      * Append a new entry in the prompt’s **Activity Log** detailing feedback (include timestamp, reviewer agent, shell PID).
      * Update frontmatter `lane` back to `planned`, clear `assignee` if necessary, keep history entry.
      * Add/revise a `## Review Feedback` section (create if missing) summarizing action items.
-     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> planned --note "Returned for changes"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
+     * Run `spec-kitty agent tasks move-task <FEATURE> <TASK_ID> planned --note "Returned for changes"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
   - **Approved**:
      * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script).
      * Update frontmatter: set `lane=done`, set reviewer metadata (`agent`, `shell_pid`), optional `assignee` for approver.
      * Use helper script to mark the task complete in `tasks.md` (see Step 6).
-     * Run `.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <TASK_ID> done --note "Approved for release"` (PowerShell variant available) to transition the prompt into `tasks/`.
+     * Run `spec-kitty agent tasks move-task <FEATURE> <TASK_ID> done --note "Approved for release"` (PowerShell variant available) to transition the prompt into `tasks/`.
 
 6. Update `tasks.md` automatically:
    - Run `scripts/bash/mark-task-status.sh --task-id <TASK_ID> --status done` (POSIX) or `scripts/powershell/Set-TaskStatus.ps1 -TaskId <TASK_ID> -Status done` (PowerShell) from repo root.

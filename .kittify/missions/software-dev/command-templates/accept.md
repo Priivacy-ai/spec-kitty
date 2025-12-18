@@ -1,9 +1,5 @@
 ---
 description: Validate feature readiness and guide final acceptance steps.
-scripts:
-  sh: .kittify/scripts/bash/accept-feature.sh --json {ARGS}
-  ps: .kittify/scripts/powershell/accept-feature.ps1 --json {ARGS}
----
 
 ## User Input
 
