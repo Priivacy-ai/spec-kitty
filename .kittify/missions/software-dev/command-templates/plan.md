@@ -1,11 +1,5 @@
 ---
 description: Execute the implementation planning workflow using the plan template to generate design artifacts.
-scripts:
-  sh: scripts/bash/setup-plan.sh --json
-  ps: scripts/powershell/setup-plan.ps1 -Json
-agent_scripts:
-  sh: scripts/bash/update-agent-context.sh __AGENT__
-  ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
 
 ## User Input
@@ -68,10 +62,13 @@ Planning requirements (scale to complexity):
 ## Outline
 
 1. **Check planning discovery status**:
-   - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user’s response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run `{SCRIPT}` yet.
+   - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user's response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run the setup command yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.
+2. **Setup**: Run `spec-kitty agent feature setup-plan --json` from the worktree root and parse JSON for:
+   - `result`: "success" or error message
+   - `plan_file`: Absolute path to the created plan.md
+   - `feature_dir`: Absolute path to the feature directory
 
 3. **Load context**: Read FEATURE_SPEC and `.kittify/memory/constitution.md`. Load IMPL_PLAN template (already copied).
 

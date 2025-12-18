@@ -1,8 +1,5 @@
 ---
 description: Generate grouped work packages with actionable subtasks and matching prompt files for the feature in one pass.
-scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
 ---
 
 ## User Input
@@ -37,9 +34,9 @@ The script will fail if you're not in a feature worktree. This is intentional - 
 
 ## Outline
 
-1. **Setup**: Run `{SCRIPT}` from repo root and capture `FEATURE_DIR` plus `AVAILABLE_DOCS`. All paths must be absolute.
+1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the worktree root and capture `FEATURE_DIR` plus `AVAILABLE_DOCS`. All paths must be absolute.
 
-   **CRITICAL**: The script returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
+   **CRITICAL**: The command returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations. Example:
    ```
