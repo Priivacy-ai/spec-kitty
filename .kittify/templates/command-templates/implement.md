@@ -20,14 +20,6 @@ You **MUST** consider the user input before proceeding (if not empty).
 Before proceeding with implementation, verify you are in the correct working directory by running the shared pre-flight validation:
 
 ```python
-from specify_cli.guards import validate_worktree_location
-
-# Validate location
-result = validate_worktree_location()
-if not result.is_valid:
-    print(result.format_error())
-    print("\nThis command MUST run from a feature worktree, not the main repository.")
-    exit(1)
 ```
 
 **What this validates**:
