@@ -11,9 +11,9 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 **When you mention directories or files, provide either the absolute path or a path relative to the project root.**
 
 ✅ **CORRECT**:
-- `kitty-specs/001-feature/tasks/planned/WP01.md`
+- `kitty-specs/001-feature/tasks/WP01.md`
 - `/Users/robert/Code/myproject/kitty-specs/001-feature/spec.md`
-- `tasks/planned/WP01.md` (relative to feature directory)
+- `tasks/WP01.md` (relative to feature directory)
 
 ❌ **WRONG**:
 - "the tasks folder" (which one? where?)

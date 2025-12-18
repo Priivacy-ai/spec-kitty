@@ -44,8 +44,8 @@ This is intentional - worktrees provide isolation for parallel feature developme
 1. Run `{SCRIPT}` from repo root; capture `FEATURE_DIR`, `AVAILABLE_DOCS`, and `tasks.md` path.
 
 2. Determine the review target:
-   - If user input specifies a filename, validate it exists under `tasks/for_review/` (support phase subdirectories).
-   - Otherwise, select the oldest file in `tasks/for_review/` (lexical order is sufficient because filenames retain task ordering).
+   - If user input specifies a filename, validate it exists under `tasks/` (support phase subdirectories).
+   - Otherwise, select the oldest file in `tasks/` (lexical order is sufficient because filenames retain task ordering).
    - Abort with instructional message if no files are waiting for review.
 
 3. Load context for the selected task:
@@ -111,6 +111,6 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - Follow-up actions (if any) for other team members.
    - Reminder to push changes or notify teammates as per project conventions.
 
-Context for review: {ARGS} (resolve this to the prompt's relative path, e.g., `kitty-specs/<feature>/tasks/for_review/WPXX.md`)
+Context for review: {ARGS} (resolve this to the prompt's relative path, e.g., `kitty-specs/<feature>/tasks/WPXX.md`)
 
 All review feedback must live inside the prompt file, ensuring future implementers understand historical decisions before revisiting the task.

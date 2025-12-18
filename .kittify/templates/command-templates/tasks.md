@@ -50,12 +50,12 @@ This is intentional - worktrees provide isolation for parallel feature developme
    ```
    FEATURE_DIR = "/Users/robert/Code/new_specify/kitty-specs/001-a-simple-hello"
    tasks.md location: FEATURE_DIR + "/tasks.md"
-   prompt location: FEATURE_DIR + "/tasks/planned/WP01-slug.md"
+   prompt location: FEATURE_DIR + "/tasks/WP01-slug.md"
    ```
 
    **DO NOT CREATE** paths like:
-   - ❌ `tasks/planned/WP01-slug.md` (missing FEATURE_DIR prefix)
-   - ❌ `/tasks/planned/WP01-slug.md` (wrong root)
+   - ❌ `tasks/WP01-slug.md` (missing FEATURE_DIR prefix)
+   - ❌ `/tasks/WP01-slug.md` (wrong root)
    - ❌ `WP01-slug.md` (wrong directory)
 
 2. **Load design documents** from `FEATURE_DIR` (only those present):
@@ -86,13 +86,13 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 6. **Generate prompt files (one per work package)**:
    - **CRITICAL PATH RULE**: All task directories and prompt files MUST be created under `FEATURE_DIR/tasks/`, NOT in the repo root!
-   - Correct structure: `FEATURE_DIR/tasks/planned/WPxx-slug.md`, `FEATURE_DIR/tasks/doing/`, `FEATURE_DIR/tasks/for_review/`, `FEATURE_DIR/tasks/done/`
-   - WRONG (do not create): `/tasks/planned/`, `tasks/planned/`, or any path not under FEATURE_DIR
-   - Ensure `FEATURE_DIR/tasks/planned/` exists (create `FEATURE_DIR/tasks/doing/`, `FEATURE_DIR/tasks/for_review/`, `FEATURE_DIR/tasks/done/` if missing)
-   - Create optional phase subfolders under each lane when teams will benefit (e.g., `FEATURE_DIR/tasks/planned/phase-1-setup/`)
+   - Correct structure: `FEATURE_DIR/tasks/WPxx-slug.md`, `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/`
+   - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under FEATURE_DIR
+   - Ensure `FEATURE_DIR/tasks/` exists (create `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/` if missing)
+   - Create optional phase subfolders under each lane when teams will benefit (e.g., `FEATURE_DIR/tasks/phase-1-setup/`)
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
-     - Full path example: `FEATURE_DIR/tasks/planned/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
+     - Full path example: `FEATURE_DIR/tasks/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
      - Use `.kittify/templates/task-prompt-template.md` to capture:
        - Frontmatter with `work_package_id`, `subtasks` array, `lane=planned`, history entry
        - Objective, context, detailed guidance per subtask

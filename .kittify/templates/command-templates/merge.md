@@ -50,7 +50,7 @@ This command merges your feature INTO main. Running from the wrong location can 
 Before running this command:
 
 1. ✅ Feature must pass `/spec-kitty.accept` checks
-2. ✅ All work packages must be in `tasks/done/`
+2. ✅ All work packages must be in `tasks/`
 3. ✅ Working directory must be clean (no uncommitted changes)
 4. ✅ Run the command from the feature worktree (Spec Kitty will move the merge to the primary repo automatically)
 
