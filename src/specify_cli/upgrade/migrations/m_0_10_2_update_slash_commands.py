@@ -11,7 +11,7 @@ from .base import BaseMigration, MigrationResult
 
 @MigrationRegistry.register
 class UpdateSlashCommandsMigration(BaseMigration):
-    """Update .claude/commands/ to use Python CLI and flat tasks/ structure.
+    """Update all agent slash commands to use Python CLI and flat tasks/ structure.
 
     This migration addresses two critical issues from feature 008 and 007:
     1. Slash commands still referenced deleted bash scripts (feature 008 bug)
@@ -21,26 +21,51 @@ class UpdateSlashCommandsMigration(BaseMigration):
     1. Detects if slash commands have old bash script references
     2. Detects if slash commands have subdirectory instructions
     3. Re-copies templates from mission to get latest Python CLI + flat structure
+    4. Updates ALL 12 supported agent directories
     """
 
     migration_id = "0.10.2_update_slash_commands"
     description = "Update slash commands to Python CLI and flat structure"
     target_version = "0.10.2"
 
+    # Canonical list from m_0_9_1 (all supported agents)
+    AGENT_DIRS = [
+        (".claude", "commands"),
+        (".github", "prompts"),
+        (".gemini", "commands"),
+        (".cursor", "commands"),
+        (".qwen", "commands"),
+        (".opencode", "command"),
+        (".windsurf", "workflows"),
+        (".codex", "prompts"),
+        (".kilocode", "workflows"),
+        (".augment", "commands"),
+        (".roo", "commands"),
+        (".amazonq", "prompts"),
+    ]
+
     def detect(self, project_path: Path) -> bool:
         """Check if slash commands need updating."""
-        claude_commands = project_path / ".claude" / "commands"
+        # Check ALL agent directories
+        for agent_root, subdir in self.AGENT_DIRS:
+            agent_dir = project_path / agent_root / subdir
 
-        if not claude_commands.exists():
-            return True
+            if not agent_dir.exists():
+                continue
 
-        # Check for bash script references (old)
-        for cmd_file in claude_commands.glob("spec-kitty.*.md"):
-            content = cmd_file.read_text(encoding="utf-8")
-            if ".kittify/scripts/bash/" in content or "scripts/bash/" in content:
-                return True
-            if "tasks/planned/" in content or "tasks/doing/" in content:
-                return True
+            # Check for bash script references (old) or subdirectory references
+            for cmd_file in agent_dir.glob("spec-kitty.*.md"):
+                content = cmd_file.read_text(encoding="utf-8")
+                # Check for bash/PowerShell scripts
+                if ".kittify/scripts/bash/" in content or "scripts/bash/" in content:
+                    return True
+                if ".kittify/scripts/powershell/" in content or "scripts/powershell/" in content:
+                    return True
+                # Check for subdirectory violations (feature 007)
+                if "tasks/planned/" in content or "tasks/doing/" in content:
+                    # Exclude "WRONG" examples
+                    if "WRONG" not in content or content.count("tasks/planned/") > 2:
+                        return True
 
         return False
 
@@ -99,30 +124,27 @@ class UpdateSlashCommandsMigration(BaseMigration):
                 warnings=warnings,
             )
 
-        # Update slash commands in all agent directories (overwrite existing)
-        agent_dirs = [
-            (project_path / ".claude" / "commands", "md", "Claude"),
-            (project_path / ".codex" / "prompts", "md", "Codex"),
-            (project_path / ".opencode" / "command", "md", "OpenCode"),
-        ]
-
+        # Update slash commands in ALL agent directories (overwrite existing)
         total_updated = 0
-        for agent_dir, extension, agent_name in agent_dirs:
+        for agent_root, subdir in self.AGENT_DIRS:
+            agent_dir = project_path / agent_root / subdir
+
             if not agent_dir.exists():
                 continue
 
             updated_count = 0
             for template_path in sorted(command_templates_dir.glob("*.md")):
-                filename = f"spec-kitty.{template_path.stem}.{extension}"
+                filename = f"spec-kitty.{template_path.stem}.md"
                 dest_path = agent_dir / filename
 
                 if dry_run:
-                    changes.append(f"Would update {agent_name}: {dest_path.name}")
+                    changes.append(f"Would update {agent_root}: {dest_path.name}")
                 else:
                     dest_path.write_text(template_path.read_text(encoding="utf-8"), encoding="utf-8")
                     updated_count += 1
 
             if updated_count > 0:
+                agent_name = agent_root.strip(".")
                 changes.append(f"Updated {updated_count} slash commands for {agent_name}")
                 total_updated += updated_count
 

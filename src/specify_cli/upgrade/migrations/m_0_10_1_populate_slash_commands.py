@@ -11,22 +11,38 @@ from .base import BaseMigration, MigrationResult
 
 @MigrationRegistry.register
 class PopulateSlashCommandsMigration(BaseMigration):
-    """Populate .claude/commands/ from mission templates if missing.
+    """Populate agent command directories from mission templates if missing.
 
     Some v0.9.x projects initialized before proper template extraction
-    may have empty .claude/commands/ directories. This migration ensures
+    may have empty agent command directories. This migration ensures
     all projects have slash commands available.
 
     This migration:
-    1. Checks if .claude/commands/ is empty or missing slash commands
+    1. Checks if agent command directories are empty or missing slash commands
     2. Finds mission command templates (software-dev or active mission)
-    3. Copies templates to .claude/commands/ with spec-kitty. prefix
-    4. Handles other agent directories (gemini, copilot, etc.) if present
+    3. Copies templates to all agent directories with spec-kitty. prefix
+    4. Handles all 12 supported agents
     """
 
     migration_id = "0.10.1_populate_slash_commands"
     description = "Populate missing slash commands from mission templates"
     target_version = "0.10.1"
+
+    # Canonical list from m_0_9_1 (all supported agents)
+    AGENT_DIRS = [
+        (".claude", "commands"),
+        (".github", "prompts"),
+        (".gemini", "commands"),
+        (".cursor", "commands"),
+        (".qwen", "commands"),
+        (".opencode", "command"),
+        (".windsurf", "workflows"),
+        (".codex", "prompts"),
+        (".kilocode", "workflows"),
+        (".augment", "commands"),
+        (".roo", "commands"),
+        (".amazonq", "prompts"),
+    ]
 
     def detect(self, project_path: Path) -> bool:
         """Check if slash commands are missing from agent directories."""
@@ -105,23 +121,21 @@ class PopulateSlashCommandsMigration(BaseMigration):
             )
 
         # Populate all agent command directories
-        agent_dirs = [
-            (project_path / ".claude" / "commands", "md", "Claude"),
-            (project_path / ".codex" / "prompts", "md", "Codex"),
-            (project_path / ".opencode" / "command", "md", "OpenCode"),
-        ]
-
         total_created = 0
-        for agent_dir, extension, agent_name in agent_dirs:
-            if agent_dir.parent.exists() or agent_name == "Claude":  # Always create Claude dir
+        for agent_root, subdir in self.AGENT_DIRS:
+            agent_dir = project_path / agent_root / subdir
+
+            # Always create .claude/commands/, only create others if parent exists
+            if agent_dir.parent.exists() or agent_root == ".claude":
                 created = self._populate_agent_commands(
                     command_templates_dir,
                     agent_dir,
-                    extension,
+                    "md",
                     dry_run,
                     changes
                 )
                 if created > 0:
+                    agent_name = agent_root.strip(".")
                     changes.append(f"Created {created} slash commands for {agent_name} from {mission_name}")
                     total_created += created
 
