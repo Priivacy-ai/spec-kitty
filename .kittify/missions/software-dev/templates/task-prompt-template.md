@@ -120,4 +120,4 @@ You can add `--agent <name>` and `--shell-pid <pid>` flags for explicit metadata
 
 ### Optional Phase Subdirectories
 
-For large features, organize prompts under `tasks/planned/phase-<n>-<label>/` to keep bundles grouped while maintaining lexical ordering.
+For large features, organize prompts under `tasks/` to keep bundles grouped while maintaining lexical ordering.

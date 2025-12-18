@@ -14,7 +14,7 @@ This command merges a completed feature branch into the main/target branch and h
 Before running this command:
 
 1. ✅ Feature must pass `/spec-kitty.accept` checks
-2. ✅ All work packages must be in `tasks/done/`
+2. ✅ All work packages must be in `tasks/`
 3. ✅ Working directory must be clean (no uncommitted changes)
 4. ✅ You must be on the feature branch (or in its worktree)
 

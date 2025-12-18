@@ -168,7 +168,7 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
       ```
 
    **VALIDATION**: Before proceeding to implementation, verify:
-   - [ ] Prompt file exists in `tasks/doing/phase-X-name/`
+   - [ ] Prompt file exists in `tasks/`
    - [ ] Frontmatter has `lane: "doing"`
    - [ ] Frontmatter has your `shell_pid`
    - [ ] Activity log has "Started implementation" entry
@@ -179,7 +179,7 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
 
 4. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
-   - **REQUIRED**: Read the task prompt file from `tasks/doing/phase-X-name/TXXX-slug.md` (moved in step 3)
+   - **REQUIRED**: Read the task prompt file from `tasks/WPxx-slug.md` (with lane updated to "doing" in step 3)
    - **MANDATORY** 🚨 **REVIEW FEEDBACK CHECK**: Look at the `review_status` field in the frontmatter:
      - If `review_status: has_feedback` or `review_status: acknowledged`, **STOP** and read the `## Review Feedback` section immediately (it's right after the frontmatter)
      - **Do not proceed** until you have read and understood all feedback items
@@ -200,7 +200,7 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
    - **Execution flow**: Order and dependency requirements
 
 6. Execute implementation following the task plan:
-   - **Pull from planned intentionally**: Select the next task from `tasks/planned/`.
+   - **Pull from planned intentionally**: Select the next task from `tasks/`.
      - **If it recently came back from `for_review/`** (check `reviewed_by` field and `review_status: has_feedback`):
        - Treat the `## Review Feedback` section as your primary TODO list
        - Complete all action items in the "Action Items" checklist
@@ -211,7 +211,7 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
-   - **Kanban discipline**: Use the lane helper scripts to keep the prompt in `tasks/doing/`, update the Activity Log, and capture your shell PID (`echo $$`). These should already be complete from step 3—verify before coding.
+   - **Kanban discipline**: Use the lane helper scripts to keep the prompt in `tasks/`, update the Activity Log, and capture your shell PID (`echo $$`). These should already be complete from step 3—verify before coding.
 
 7. Implementation execution rules:
    - **Setup first**: Initialize feature scaffolding, dependencies, configuration
@@ -226,7 +226,7 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
    - For parallel tasks [P], continue with successful tasks, report failed ones
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
-   - Leave the task checkbox unchecked—reviewers will mark completion when moving the prompt to `tasks/done/`.
+   - Leave the task checkbox unchecked—reviewers will mark completion when updating the prompt's lane to "done".
    - **After completing each task**:
      - Update the prompt's activity log:
        ```markdown
@@ -245,7 +245,7 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
        git commit -m "Complete TXXX: Move to for_review lane"
        ```
    - **VALIDATION BEFORE CONTINUING TO NEXT TASK**:
-     - [ ] Prompt is in `tasks/for_review/` lane
+     - [ ] Prompt is in `tasks/` lane
      - [ ] Frontmatter shows `lane: "for_review"`
      - [ ] Activity log has completion entry
      - [ ] Git commit exists for the move
@@ -282,7 +282,7 @@ As you conduct research and gather evidence, you MUST maintain proper citation t
 4. **REVIEW**: Reviewer moves `for_review/` → `done/`
    - Reviewer validates work
    - Reviewer updates tasks.md checkbox (`- [x]`)
-   - Reviewer uses the lane helper script to move to `tasks/done/` and commits
+   - Reviewer uses the lane helper script to update lane to "done" and commits
 
 **Shell PID**: Capture once per session with `echo $$` and reuse it
 
@@ -305,4 +305,4 @@ Leverage your agent’s native orchestration so one work package advances while 
 - **OpenCode** – The task tool reminds you to “launch multiple agents concurrently whenever possible”; start a review subagent while the build agent continues edits.[^opencode_parallel]
 - **Amazon Q Developer CLI** – Use Container Use recipes to create multiple isolated Q sessions so one agent handles reviews while another implements new changes.[^amazonq_parallel]
 
-If an agent lacks built-in subagents, mimic the pattern manually: open a second terminal, move a review prompt to `tasks/doing/`, and run the reviewer commands there while your primary session keeps coding.
+If an agent lacks built-in subagents, mimic the pattern manually: open a second terminal, move a review prompt to `tasks/`, and run the reviewer commands there while your primary session keeps coding.

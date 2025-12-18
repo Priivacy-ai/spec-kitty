@@ -28,7 +28,7 @@ description: "Work package task list template for research methodology execution
 
 **Goal**: Identify and collect all relevant sources for the research question.  
 **Independent Test**: `research/source-register.csv` contains the minimum required high-quality sources with relevance ratings.  
-**Prompt**: `/tasks/planned/WP01-literature-search.md`
+**Prompt**: `/tasks/WP01-literature-search.md`
 
 ### Included Subtasks
 - [ ] T001 Define search keywords and inclusion/exclusion criteria
@@ -49,7 +49,7 @@ description: "Work package task list template for research methodology execution
 
 **Goal**: Review prioritized sources and extract key findings.  
 **Independent Test**: `research/evidence-log.csv` contains findings from all high-relevance sources with confidence levels.  
-**Prompt**: `/tasks/planned/WP02-source-review.md`
+**Prompt**: `/tasks/WP02-source-review.md`
 
 ### Included Subtasks
 - [ ] T008 [P] Review high-relevance sources (parallelizable by researcher/source)
@@ -68,7 +68,7 @@ description: "Work package task list template for research methodology execution
 
 **Goal**: Synthesize findings and answer the research question.  
 **Independent Test**: findings.md contains synthesized conclusions backed by citations.  
-**Prompt**: `/tasks/planned/WP03-analysis-synthesis.md`
+**Prompt**: `/tasks/WP03-analysis-synthesis.md`
 
 ### Included Subtasks
 - [ ] T013 Code findings by theme/category

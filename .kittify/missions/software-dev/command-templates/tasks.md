@@ -42,12 +42,13 @@ The script will fail if you're not in a feature worktree. This is intentional - 
    ```
    FEATURE_DIR = "/Users/robert/Code/new_specify/kitty-specs/001-a-simple-hello"
    tasks.md location: FEATURE_DIR + "/tasks.md"
-   prompt location: FEATURE_DIR + "/tasks/planned/WP01-slug.md"
+   prompt location: FEATURE_DIR + "/tasks/WP01-slug.md"
    ```
 
    **DO NOT CREATE** paths like:
-   - ❌ `tasks/planned/WP01-slug.md` (missing FEATURE_DIR prefix)
-   - ❌ `/tasks/planned/WP01-slug.md` (wrong root)
+   - ❌ `tasks/WP01-slug.md` (missing FEATURE_DIR prefix)
+   - ❌ `/tasks/WP01-slug.md` (wrong root)
+   - ❌ `FEATURE_DIR/tasks/planned/WP01-slug.md` (WRONG - no subdirectories!)
    - ❌ `WP01-slug.md` (wrong directory)
 
 2. **Load design documents** from `FEATURE_DIR` (only those present):
@@ -77,21 +78,23 @@ The script will fail if you're not in a feature worktree. This is intentional - 
    - Preserve the checklist style so implementers can mark progress
 
 6. **Generate prompt files (one per work package)**:
-   - **CRITICAL PATH RULE**: All task directories and prompt files MUST be created under `FEATURE_DIR/tasks/`, NOT in the repo root!
-   - Correct structure: `FEATURE_DIR/tasks/planned/WPxx-slug.md`, `FEATURE_DIR/tasks/doing/`, `FEATURE_DIR/tasks/for_review/`, `FEATURE_DIR/tasks/done/`
-   - WRONG (do not create): `/tasks/planned/`, `tasks/planned/`, or any path not under FEATURE_DIR
-   - Ensure `FEATURE_DIR/tasks/planned/` exists (create `FEATURE_DIR/tasks/doing/`, `FEATURE_DIR/tasks/for_review/`, `FEATURE_DIR/tasks/done/` if missing)
-   - Create optional phase subfolders under each lane when teams will benefit (e.g., `FEATURE_DIR/tasks/planned/phase-1-setup/`)
+   - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `FEATURE_DIR/tasks/` directory, NOT in subdirectories!
+   - Correct structure: `FEATURE_DIR/tasks/WPxx-slug.md` (flat, no subdirectories)
+   - WRONG (do not create): `FEATURE_DIR/tasks/planned/`, `FEATURE_DIR/tasks/doing/`, or ANY lane subdirectories
+   - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under FEATURE_DIR
+   - Ensure `FEATURE_DIR/tasks/` exists (create as flat directory, NO subdirectories)
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
-     - Full path example: `FEATURE_DIR/tasks/planned/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
+     - Full path example: `FEATURE_DIR/tasks/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
      - Use `.kittify/templates/task-prompt-template.md` to capture:
-       - Frontmatter with `work_package_id`, `subtasks` array, `lane=planned`, history entry
+       - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, history entry
        - Objective, context, detailed guidance per subtask
        - Test strategy (only if requested)
        - Definition of Done, risks, reviewer guidance
      - Update `tasks.md` to reference the prompt filename
    - Keep prompts exhaustive enough that a new agent can complete the work package unaided
+
+   **IMPORTANT**: All WP files live in flat `tasks/` directory. Lane status is tracked ONLY in the `lane:` frontmatter field, NOT by directory location. Agents can change lanes by editing the `lane:` field directly or using `tasks_cli.py update`.
 
 7. **Report**: Provide a concise outcome summary:
    - Path to `tasks.md`
