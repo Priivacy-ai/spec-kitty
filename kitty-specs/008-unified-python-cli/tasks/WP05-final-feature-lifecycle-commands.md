@@ -3,10 +3,10 @@ work_package_id: "WP05"
 subtasks: ["T070", "T071", "T072", "T073", "T074", "T075"]
 title: "Final Feature Lifecycle Commands"
 phase: "Phase 5 - Completion Commands (Stream D)"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "200"
 review_status: ""
 reviewed_by: ""
 history:
@@ -468,3 +468,4 @@ Add tests for uncovered branches until 90%+ achieved.
 
 - 2025-12-17T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 - 2025-12-18T01:30:00Z – claude – lane=planned – Prompt rewritten with corrected scope after discovering original targeted meta-scripts instead of package scripts
+- 2025-12-18T00:07:10Z – claude – shell_pid=200 – lane=doing – Started implementation of accept/merge commands
