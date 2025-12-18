@@ -134,7 +134,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - [ ] Changes are committed to git
 
    **If validation fails**: STOP and fix the workflow before implementing.
-   (Optional) Run `scripts/bash/validate-task-workflow.sh TXXX FEATURE_DIR` for automated checks.
+   
 
 4. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan

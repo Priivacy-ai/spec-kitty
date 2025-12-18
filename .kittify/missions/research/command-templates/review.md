@@ -100,7 +100,7 @@ if source_register.exists():
      * Run `spec-kitty agent tasks move-task <FEATURE> <TASK_ID> done --note "Approved for release"` (PowerShell variant available) to transition the prompt into `tasks/`.
 
 6. Update `tasks.md` automatically:
-   - Run `scripts/bash/mark-task-status.sh --task-id <TASK_ID> --status done` (POSIX) or `scripts/powershell/Set-TaskStatus.ps1 -TaskId <TASK_ID> -Status done` (PowerShell) from repo root.
+   - Run `spec-kitty agent tasks mark-status --task-id <TASK_ID> --status done` (POSIX) or `spec-kitty agent tasks mark-status --task-id <TASK_ID> --status done` (PowerShell) from repo root.
    - Confirm the task entry now shows `[X]` and includes a reference to the prompt file in its notes.
 
 7. Produce a review report summarizing:
