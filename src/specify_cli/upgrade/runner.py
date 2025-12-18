@@ -74,7 +74,7 @@ class MigrationRunner:
         )
 
         # Get applicable migrations
-        migrations = MigrationRegistry.get_applicable(from_version, target_version)
+        migrations = MigrationRegistry.get_applicable(from_version, target_version, project_path=self.project_path)
 
         if not migrations:
             result.warnings.append(

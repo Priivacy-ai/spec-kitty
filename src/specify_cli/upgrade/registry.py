@@ -68,17 +68,19 @@ class MigrationRegistry:
 
     @classmethod
     def get_applicable(
-        cls, from_version: str, to_version: str
+        cls, from_version: str, to_version: str, project_path: "Path | None" = None
     ) -> List["BaseMigration"]:
         """Get migrations needed to go from one version to another.
 
         Args:
             from_version: Current version
             to_version: Target version
+            project_path: Optional project path for detect() check
 
         Returns:
             List of applicable migrations in order
         """
+        from pathlib import Path
         from_v = Version(from_version)
         to_v = Version(to_version)
 
@@ -88,6 +90,10 @@ class MigrationRegistry:
             # Include if target is > from_version AND <= to_version
             if from_v < target <= to_v:
                 applicable.append(migration)
+            # ALSO include migrations at current version if detect() returns True
+            elif target == from_v and project_path is not None:
+                if migration.detect(Path(project_path) if isinstance(project_path, str) else project_path):
+                    applicable.append(migration)
 
         return applicable
 
