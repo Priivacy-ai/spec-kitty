@@ -85,7 +85,7 @@ def upgrade(
     # Get needed migrations
     # Handle "unknown" version by treating it as very old (0.0.0)
     version_for_migration = "0.0.0" if current_version == "unknown" else current_version
-    migrations_needed = MigrationRegistry.get_applicable(version_for_migration, target_version)
+    migrations_needed = MigrationRegistry.get_applicable(version_for_migration, target_version, project_path=project_path)
 
     if not migrations_needed:
         if json_output:

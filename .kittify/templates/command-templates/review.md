@@ -44,7 +44,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
 1. Run `{SCRIPT}` from repo root; capture `FEATURE_DIR`, `AVAILABLE_DOCS`, and `tasks.md` path.
 
 2. Determine the review target:
-   - If user input specifies a filename, validate it exists under `tasks/` (support phase subdirectories).
+   - If user input specifies a filename, validate it exists under `tasks/` (flat structure, check `lane: "for_review"` in frontmatter).
    - Otherwise, select the oldest file in `tasks/` (lexical order is sufficient because filenames retain task ordering).
    - Abort with instructional message if no files are waiting for review.
 

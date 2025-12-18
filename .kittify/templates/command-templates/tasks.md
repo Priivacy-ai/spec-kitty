@@ -89,7 +89,6 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - Correct structure: `FEATURE_DIR/tasks/WPxx-slug.md`, `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/`
    - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under FEATURE_DIR
    - Ensure `FEATURE_DIR/tasks/` exists (create `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/` if missing)
-   - Create optional phase subfolders under each lane when teams will benefit (e.g., `FEATURE_DIR/tasks/phase-1-setup/`)
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `FEATURE_DIR/tasks/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
