@@ -1,8 +1,8 @@
 ---
 description: Create or update the feature specification from a natural language feature description.
 scripts:
-  sh: .kittify/scripts/bash/create-new-feature.sh --json "{ARGS}"
-  ps: .kittify/scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
+  sh: spec-kitty agent create-feature --json "{ARGS}"
+  ps: spec-kitty agent create-feature --json "{ARGS}"
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
@@ -141,8 +141,7 @@ Given that feature description, do this:
 
 2. When discovery is complete and the intent summary, **title**, and **mission** are confirmed, run the script `{SCRIPT}` from repo root, inserting `--feature-name "<Friendly Title>"` and `--mission "<selected-mission>"` immediately before the feature description argument. For example:
 
-   - **bash/zsh**: `.kittify/scripts/bash/create-new-feature.sh --json --feature-name "Checkout Upsell Flow" --mission "software-dev" "$ARGUMENTS"`
-   - **PowerShell**: `.kittify/scripts/powershell/create-new-feature.ps1 -Json -FeatureName "Checkout Upsell Flow" -Mission "software-dev" "$ARGUMENTS"`
+   - **All platforms**: `spec-kitty agent create-feature --json --feature-name "Checkout Upsell Flow" --mission "software-dev"`
 
    Parse its JSON output for `BRANCH_NAME`, `SPEC_FILE`, `FEATURE_NUM`, and `FRIENDLY_NAME`. All file paths must be absolute.
 

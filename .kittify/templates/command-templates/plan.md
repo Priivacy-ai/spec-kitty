@@ -1,11 +1,11 @@
 ---
 description: Execute the implementation planning workflow using the plan template to generate design artifacts.
 scripts:
-  sh: scripts/bash/setup-plan.sh --json
-  ps: scripts/powershell/setup-plan.ps1 -Json
+  sh: spec-kitty agent setup-plan --json
+  ps: spec-kitty agent -Json
 agent_scripts:
-  sh: scripts/bash/update-agent-context.sh __AGENT__
-  ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
+  sh: spec-kitty agent update-context __AGENT__
+  ps: spec-kitty agent -AgentType __AGENT__
 ---
 *Path: [templates/commands/plan.md](templates/commands/plan.md)*
 

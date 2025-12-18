@@ -1,8 +1,8 @@
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
+  sh: spec-kitty agent check-prerequisites --json --require-tasks --include-tasks
+  ps: spec-kitty agent -Json -RequireTasks -IncludeTasks
 ---
 *Path: [templates/commands/implement.md](templates/commands/implement.md)*
 
@@ -107,12 +107,12 @@ This is intentional - worktrees provide isolation for parallel feature developme
       SHELL_PID=$(echo $$)
 
       # Move prompt (example for T001)
-      .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX doing \
+      spec-kitty agent move-task FEATURE-SLUG TXXX doing \
         --shell-pid "$SHELL_PID" \
         --agent "claude" \
         --note "Started implementation"
       ```
-      > Windows users: run `.kittify/scripts/powershell/tasks-move-to-lane.ps1` with the same arguments.
+      > Windows users: run `spec-kitty agent` with the same arguments.
 
    b. **Verify frontmatter metadata** in the moved file:
       ```yaml
@@ -138,7 +138,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - [ ] Changes are committed to git
 
    **If validation fails**: STOP and fix the workflow before implementing.
-   (Optional) Run `scripts/bash/validate-task-workflow.sh TXXX FEATURE_DIR` for automated checks.
+   (Optional) Run `spec-kitty agent validate-workflow TXXX FEATURE_DIR` for automated checks.
 
 4. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
@@ -197,7 +197,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
        ```
      - Move prompt to for_review:
      ```bash
-     .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG TXXX for_review \
+     spec-kitty agent move-task FEATURE-SLUG TXXX for_review \
        --shell-pid "$SHELL_PID" \
        --agent "claude" \
        --note "Ready for review"
@@ -225,7 +225,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
 **For every task**:
 
 1. **START**: `planned/` → `doing/`
-   - `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID doing --note "Started implementation"`
+   - `spec-kitty agent move-task FEATURE-SLUG WPID doing --note "Started implementation"`
    - Verify frontmatter: `lane: "doing"`, confirm `shell_pid`, `agent`
    - Confirm activity log entry
    - Commit
@@ -237,7 +237,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 3. **COMPLETE**: `doing/` → `for_review/`
    - Add completion entry to activity log
-   - `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPID for_review --note "Ready for review"`
+   - `spec-kitty agent move-task FEATURE-SLUG WPID for_review --note "Ready for review"`
    - Verify frontmatter: `lane: "for_review"`
    - Confirm review-ready log entry
    - Commit

@@ -1,8 +1,8 @@
 ---
 description: Validate feature readiness and guide final acceptance steps.
 scripts:
-  sh: .kittify/scripts/bash/accept-feature.sh --json {ARGS}
-  ps: .kittify/scripts/powershell/accept-feature.ps1 --json {ARGS}
+  sh: spec-kitty agent feature accept --json {ARGS}
+  ps: spec-kitty agent --json {ARGS}
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 

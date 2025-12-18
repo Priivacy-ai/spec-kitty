@@ -1,8 +1,8 @@
 ---
 description: Generate grouped work packages with actionable subtasks and matching prompt files for the feature in one pass.
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
+  sh: spec-kitty agent check-prerequisites --json --include-tasks
+  ps: spec-kitty agent -Json -IncludeTasks
 ---
 *Path: [templates/commands/tasks.md](templates/commands/tasks.md)*
 

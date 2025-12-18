@@ -1,8 +1,8 @@
 ---
 description: Merge a completed feature into the main branch and clean up worktree
 scripts:
-  sh: ".kittify/scripts/bash/merge-feature.sh"
-  ps: ".kittify/scripts/powershell/Merge-Feature.ps1"
+  sh: "spec-kitty agent feature merge"
+  ps: "spec-kitty agent"
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
