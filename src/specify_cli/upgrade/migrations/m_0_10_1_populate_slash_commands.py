@@ -104,17 +104,26 @@ class PopulateSlashCommandsMigration(BaseMigration):
                 warnings=warnings,
             )
 
-        # Populate .claude/commands/
-        claude_commands_created = self._populate_agent_commands(
-            command_templates_dir,
-            project_path / ".claude" / "commands",
-            "md",
-            dry_run,
-            changes
-        )
+        # Populate all agent command directories
+        agent_dirs = [
+            (project_path / ".claude" / "commands", "md", "Claude"),
+            (project_path / ".codex" / "prompts", "md", "Codex"),
+            (project_path / ".opencode" / "command", "md", "OpenCode"),
+        ]
 
-        if claude_commands_created > 0:
-            changes.append(f"Created {claude_commands_created} slash commands for Claude from {mission_name}")
+        total_created = 0
+        for agent_dir, extension, agent_name in agent_dirs:
+            if agent_dir.parent.exists() or agent_name == "Claude":  # Always create Claude dir
+                created = self._populate_agent_commands(
+                    command_templates_dir,
+                    agent_dir,
+                    extension,
+                    dry_run,
+                    changes
+                )
+                if created > 0:
+                    changes.append(f"Created {created} slash commands for {agent_name} from {mission_name}")
+                    total_created += created
 
         success = len(errors) == 0
         return MigrationResult(

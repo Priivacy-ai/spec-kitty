@@ -99,22 +99,35 @@ class UpdateSlashCommandsMigration(BaseMigration):
                 warnings=warnings,
             )
 
-        # Update slash commands (overwrite existing)
-        updated_count = 0
-        for template_path in sorted(command_templates_dir.glob("*.md")):
-            filename = f"spec-kitty.{template_path.stem}.md"
-            dest_path = claude_commands / filename
+        # Update slash commands in all agent directories (overwrite existing)
+        agent_dirs = [
+            (project_path / ".claude" / "commands", "md", "Claude"),
+            (project_path / ".codex" / "prompts", "md", "Codex"),
+            (project_path / ".opencode" / "command", "md", "OpenCode"),
+        ]
 
-            if dry_run:
-                changes.append(f"Would update: {dest_path.name}")
-            else:
-                dest_path.write_text(template_path.read_text(encoding="utf-8"), encoding="utf-8")
-                changes.append(f"Updated: {dest_path.name}")
+        total_updated = 0
+        for agent_dir, extension, agent_name in agent_dirs:
+            if not agent_dir.exists():
+                continue
 
-            updated_count += 1
+            updated_count = 0
+            for template_path in sorted(command_templates_dir.glob("*.md")):
+                filename = f"spec-kitty.{template_path.stem}.{extension}"
+                dest_path = agent_dir / filename
 
-        if updated_count > 0:
-            changes.append(f"Updated {updated_count} slash commands from {mission_name} mission")
+                if dry_run:
+                    changes.append(f"Would update {agent_name}: {dest_path.name}")
+                else:
+                    dest_path.write_text(template_path.read_text(encoding="utf-8"), encoding="utf-8")
+                    updated_count += 1
+
+            if updated_count > 0:
+                changes.append(f"Updated {updated_count} slash commands for {agent_name}")
+                total_updated += updated_count
+
+        if total_updated > 0:
+            changes.append(f"Total: Updated {total_updated} slash commands from {mission_name} mission")
             changes.append("Slash commands now use Python CLI (no bash scripts)")
             changes.append("Slash commands now enforce flat tasks/ structure (feature 007)")
 
