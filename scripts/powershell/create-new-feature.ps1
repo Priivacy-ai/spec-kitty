@@ -157,6 +157,34 @@ if ($hasGit) {
                     $targetRoot = (Resolve-Path $worktreePath).Path
                     $worktreeCreated = $true
                     $worktreeMessage = $targetRoot
+                    
+                    # Copy .kittify resources to worktree (since .kittify/ is gitignored)
+                    $worktreeKittifyDir = Join-Path $targetRoot '.kittify'
+                    New-Item -ItemType Directory -Path $worktreeKittifyDir -Force | Out-Null
+                    
+                    # Copy memory/ directory (constitution)
+                    $primaryMemory = Join-Path $primaryRepoRoot '.kittify/memory'
+                    if (Test-Path $primaryMemory) {
+                        $worktreeMemory = Join-Path $worktreeKittifyDir 'memory'
+                        Copy-Item -Path "$primaryMemory\*" -Destination $worktreeMemory -Recurse -Force
+                        Write-Output "[spec-kitty] Copied shared constitution"
+                    }
+                    
+                    # Copy AGENTS.md
+                    $primaryAgents = Join-Path $primaryRepoRoot '.kittify/AGENTS.md'
+                    if (Test-Path $primaryAgents) {
+                        $worktreeAgents = Join-Path $worktreeKittifyDir 'AGENTS.md'
+                        Copy-Item -Path $primaryAgents -Destination $worktreeAgents -Force
+                        Write-Output "[spec-kitty] Copied AGENTS.md"
+                    }
+                    
+                    # Copy templates/ directory (needed for update-agent-context.ps1)
+                    $primaryTemplates = Join-Path $primaryRepoRoot '.kittify/templates'
+                    if (Test-Path $primaryTemplates) {
+                        $worktreeTemplates = Join-Path $worktreeKittifyDir 'templates'
+                        Copy-Item -Path "$primaryTemplates\*" -Destination $worktreeTemplates -Recurse -Force
+                        Write-Output "[spec-kitty] Copied templates directory"
+                    }
                 } catch {
                     Write-Warning "[spec-kitty] Unable to create git worktree for $branchName; falling back to in-place checkout."
                 }
