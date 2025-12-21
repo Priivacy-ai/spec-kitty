@@ -217,7 +217,7 @@ class EnsureMissionsMigration(BaseMigration):
                 if missions_dir.exists() and pyproject.exists():
                     # Verify it's the spec-kitty repo by checking pyproject.toml
                     try:
-                        content = pyproject.read_text()
+                        content = pyproject.read_text(encoding='utf-8-sig')
                         if "spec-kitty-cli" in content:
                             return missions_dir
                     except OSError:

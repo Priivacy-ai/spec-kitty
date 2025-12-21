@@ -27,7 +27,7 @@ class FileManifest:
                 return target.name
             elif active_mission_path.is_file():
                 # It's a file with the mission name
-                return active_mission_path.read_text().strip()
+                return active_mission_path.read_text(encoding='utf-8-sig').strip()
 
         # Default to software-dev if no active mission
         return "software-dev"
@@ -96,7 +96,7 @@ class FileManifest:
 
         # Parse command files for script references
         for cmd_file in commands_dir.glob("*.md"):
-            content = cmd_file.read_text()
+            content = cmd_file.read_text(encoding='utf-8-sig')
             lines = content.split('\n')
 
             # Look for script references in YAML frontmatter
