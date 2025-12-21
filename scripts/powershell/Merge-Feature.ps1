@@ -34,5 +34,9 @@ if (-not (Test-Path $helper)) {
     exit 1
 }
 
-$python = Get-Python3
-& $python $helper merge @Remaining
+if (-not (Get-Command python3 -ErrorAction SilentlyContinue)) {
+    Write-Error "python3 is required but was not found on PATH."
+    exit 1
+}
+
+python3 $helper merge @Remaining
