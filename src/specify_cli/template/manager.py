@@ -60,10 +60,9 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             shutil.rmtree(memory_dest)
         shutil.copytree(memory_src, memory_dest)
 
-    # Copy from .kittify/scripts/ (not root /scripts/)
-    # The .kittify/scripts/ directory has the full implementation including
-    # worktree symlink code for shared constitution
-    scripts_src = repo_root / ".kittify" / "scripts"
+    # Copy scripts from root /scripts/ directory
+    # The scripts/ directory contains bash/ and powershell/ variants plus tasks/
+    scripts_src = repo_root / "scripts"
     if scripts_src.exists():
         scripts_dest = specify_root / "scripts"
         if scripts_dest.exists():
