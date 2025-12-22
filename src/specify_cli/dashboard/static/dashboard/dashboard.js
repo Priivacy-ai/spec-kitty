@@ -212,6 +212,8 @@ function loadCurrentPage() {
         loadKanban();
     } else if (currentPage === 'contracts') {
         loadContracts();
+    } else if (currentPage === 'checklists') {
+        loadChecklists();
     } else if (currentPage === 'research') {
         loadResearch();
     } else {
@@ -543,9 +545,10 @@ function loadContracts() {
 function renderContractsList(files) {
     const contractsHtml = files.map((file, idx) => {
         const fileNameEscaped = escapeHtml(file.name);
+        const filePathEscaped = escapeHtml(file.path);
         return `
             <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid var(--lavender); cursor: pointer;"
-                 data-filename="${fileNameEscaped}" class="contract-item">
+                 data-filepath="${filePathEscaped}" data-filename="${fileNameEscaped}" class="contract-item">
                 <div style="font-weight: 600; color: var(--dark-text); margin-bottom: 5px;">
                     ${file.icon} ${fileNameEscaped}
                 </div>
@@ -566,13 +569,13 @@ function renderContractsList(files) {
     // Add click handlers
     document.querySelectorAll('.contract-item').forEach(item => {
         item.addEventListener('click', () => {
-            loadContractFile(item.dataset.filename);
+            loadContractFile(item.dataset.filepath, item.dataset.filename);
         });
     });
 }
 
-function loadContractFile(fileName) {
-    fetch(`/api/contracts/${currentFeature}/${fileName}`)
+function loadContractFile(filePath, fileName) {
+    fetch(`/api/contracts/${currentFeature}/${encodeURIComponent(filePath)}`)
         .then(response => response.ok ? response.text() : Promise.reject('Not found'))
         .then(content => {
             let htmlContent;
@@ -616,6 +619,103 @@ function loadContractFile(fileName) {
         .catch(error => {
             document.getElementById('contracts-content').innerHTML =
                 '<div class="empty-state">Error loading contract file</div>';
+        });
+}
+
+function loadChecklists() {
+    fetch(`/api/checklists/${currentFeature}`)
+        .then(response => response.ok ? response.json() : Promise.reject('Not found'))
+        .then(data => {
+            if (data.files && data.files.length > 0) {
+                renderChecklistsList(data.files);
+            } else {
+                document.getElementById('checklists-content').innerHTML =
+                    '<div class="empty-state">No checklists available.</div>';
+            }
+        })
+        .catch(error => {
+            document.getElementById('checklists-content').innerHTML =
+                '<div class="empty-state">Checklists directory not found</div>';
+        });
+}
+
+function renderChecklistsList(files) {
+    const checklistsHtml = files.map((file, idx) => {
+        const fileNameEscaped = escapeHtml(file.name);
+        const filePathEscaped = escapeHtml(file.path);
+        return `
+            <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid var(--lavender); cursor: pointer;"
+                 data-filepath="${filePathEscaped}" data-filename="${fileNameEscaped}" class="checklist-item">
+                <div style="font-weight: 600; color: var(--dark-text); margin-bottom: 5px;">
+                    ${file.icon} ${fileNameEscaped}
+                </div>
+                <div style="font-size: 0.85em; color: var(--medium-text);">
+                    Click to view checklist
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    document.getElementById('checklists-content').innerHTML = `
+        <p style="margin-bottom: 20px; color: var(--medium-text);">
+            Quality control and validation checklists for this feature.
+        </p>
+        ${checklistsHtml}
+    `;
+
+    // Add click handlers
+    document.querySelectorAll('.checklist-item').forEach(item => {
+        item.addEventListener('click', () => {
+            loadChecklistFile(item.dataset.filepath, item.dataset.filename);
+        });
+    });
+}
+
+function loadChecklistFile(filePath, fileName) {
+    fetch(`/api/checklists/${currentFeature}/${encodeURIComponent(filePath)}`)
+        .then(response => response.ok ? response.text() : Promise.reject('Not found'))
+        .then(content => {
+            let htmlContent;
+
+            // Format JSON files nicely
+            if (fileName.endsWith('.json')) {
+                try {
+                    const jsonData = JSON.parse(content);
+                    const prettyJson = JSON.stringify(jsonData, null, 2);
+                    htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto; border: 1px solid #dee2e6;"><code style="font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; line-height: 1.5; color: #212529;">${escapeHtml(prettyJson)}</code></pre>`;
+                } catch (e) {
+                    // If JSON parsing fails, show as plain text
+                    htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto;"><code>${escapeHtml(content)}</code></pre>`;
+                }
+            } else if (fileName.endsWith('.md')) {
+                // Render markdown files with proper styling
+                const renderedMarkdown = marked.parse(content);
+                htmlContent = `<div class="markdown-content" style="line-height: 1.6; font-size: 0.95em;">${renderedMarkdown}</div>`;
+            } else if (fileName.endsWith('.csv')) {
+                // Render CSV as a table
+                htmlContent = renderCSV(content);
+            } else if (fileName.endsWith('.yml') || fileName.endsWith('.yaml')) {
+                // Show YAML files as code blocks
+                htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto; border: 1px solid #dee2e6;"><code style="font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; line-height: 1.5;">${escapeHtml(content)}</code></pre>`;
+            } else {
+                // Default: show as code block
+                htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto;"><code>${escapeHtml(content)}</code></pre>`;
+            }
+
+            document.getElementById('checklists-content').innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <button onclick="loadChecklists()"
+                            style="padding: 8px 16px; background: var(--baby-blue); border: none; border-radius: 6px; cursor: pointer; color: var(--dark-text); font-weight: 500;">
+                        ← Back to Checklists List
+                    </button>
+                </div>
+                <h3 style="color: var(--grassy-green); margin-bottom: 15px;">${escapeHtml(fileName)}</h3>
+                ${htmlContent}
+            `;
+        })
+        .catch(error => {
+            document.getElementById('checklists-content').innerHTML =
+                '<div class="empty-state">Error loading checklist file</div>';
         });
 }
 
@@ -1088,8 +1188,8 @@ function displayDiagnostics(data) {
     // Display environment status
     const statusHtml = `
         <h3>Environment</h3>
-        <div><strong>Working Directory:</strong> ${data.current_working_directory}</div>
-        <div><strong>Repository Root:</strong> ${data.project_path}</div>
+        <div><strong>Working Directory:</strong> ${data.current_working_directory || '(not available)'}</div>
+        <div><strong>Repository Root:</strong> ${data.project_path || '(not available)'}</div>
         <div><strong>Git Branch:</strong> ${data.git_branch || 'Not detected'}</div>
         <div><strong>In Worktree:</strong> ${data.in_worktree ? '✅ Yes' : '❌ No'}</div>
         <div><strong>Active Mission:</strong> ${data.active_mission || 'software-dev'}</div>
