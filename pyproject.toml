@@ -71,7 +71,7 @@ packages = ["src/specify_cli"]
 [tool.hatch.build.targets.wheel.force-include]
 "templates" = "specify_cli/templates"
 "scripts" = "specify_cli/scripts"
-"memory" = "specify_cli/memory"
+".kittify/memory" = "specify_cli/memory"
 ".kittify/missions" = "specify_cli/missions"
 
 [tool.hatch.build.targets.sdist]
@@ -79,7 +79,7 @@ include = [
     "src/**/*",
     "templates/**/*",
     "scripts/**/*",
-    "memory/**/*",
+    ".kittify/memory/**/*",
     ".kittify/missions/software-dev/**/*",
     ".kittify/missions/research/**/*",
     "README.md",
