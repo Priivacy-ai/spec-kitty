@@ -55,6 +55,18 @@ def test_project(tmp_path: Path) -> Path:
     subprocess.run(["git", "add", "."], cwd=project, check=True)
     subprocess.run(["git", "commit", "-m", "Initial project"], cwd=project, check=True)
 
+    # Upgrade project to current CLI version to avoid version mismatch errors
+    env = os.environ.copy()
+    src_path = REPO_ROOT / "src"
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
+    env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
+    subprocess.run(
+        [sys.executable, "-m", "specify_cli.__init__", "upgrade", "--yes"],
+        cwd=str(project),
+        env=env,
+        capture_output=True,
+    )
+
     return project
 
 
