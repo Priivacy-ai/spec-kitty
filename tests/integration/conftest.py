@@ -68,8 +68,10 @@ def test_project(tmp_path: Path) -> Path:
             pyproject = tomllib.load(f)
         current_version = pyproject["project"]["version"]
 
-        # Update version in metadata
-        metadata["version"] = current_version
+        # Update version in nested spec_kitty.version structure
+        if "spec_kitty" not in metadata:
+            metadata["spec_kitty"] = {}
+        metadata["spec_kitty"]["version"] = current_version
 
         with open(metadata_file, "w", encoding="utf-8") as f:
             yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
