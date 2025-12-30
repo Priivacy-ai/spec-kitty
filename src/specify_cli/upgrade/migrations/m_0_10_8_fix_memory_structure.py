@@ -127,7 +127,7 @@ class FixMemoryStructureMigration(BaseMigration):
                         except Exception as copy_error:
                             return MigrationResult(
                                 success=False,
-                                actions=actions,
+                                changes_made=changes_made,
                                 warnings=warnings,
                                 errors=[f"Failed to move or copy memory/: {copy_error}"]
                             )
@@ -246,7 +246,7 @@ class FixMemoryStructureMigration(BaseMigration):
 
         return MigrationResult(
             success=True,
-            actions=actions,
+            changes_made=changes_made,
             warnings=warnings,
             errors=[]
         )
