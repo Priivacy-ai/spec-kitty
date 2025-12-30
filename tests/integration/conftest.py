@@ -4,10 +4,12 @@ import os
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from typing import Callable
 
 import pytest
+import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -55,17 +57,22 @@ def test_project(tmp_path: Path) -> Path:
     subprocess.run(["git", "add", "."], cwd=project, check=True)
     subprocess.run(["git", "commit", "-m", "Initial project"], cwd=project, check=True)
 
-    # Upgrade project to current CLI version to avoid version mismatch errors
-    env = os.environ.copy()
-    src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
-    env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
-    subprocess.run(
-        [sys.executable, "-m", "specify_cli.__init__", "upgrade", "--yes"],
-        cwd=str(project),
-        env=env,
-        capture_output=True,
-    )
+    # Update metadata.yaml to current version to avoid version mismatch errors
+    metadata_file = project / ".kittify" / "metadata.yaml"
+    if metadata_file.exists():
+        with open(metadata_file, "r", encoding="utf-8") as f:
+            metadata = yaml.safe_load(f) or {}
+
+        # Get current version from pyproject.toml
+        with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+            pyproject = tomllib.load(f)
+        current_version = pyproject["project"]["version"]
+
+        # Update version in metadata
+        metadata["version"] = current_version
+
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            yaml.dump(metadata, f, default_flow_style=False, sort_keys=False)
 
     return project
 
