@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pytest
 import ssl
 import subprocess
 import sys
