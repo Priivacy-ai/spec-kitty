@@ -16,25 +16,37 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Location Pre-flight Check (CRITICAL for AI Agents)
+## Location Pre-flight Check (CRITICAL - RUN FIRST)
 
-Before proceeding with planning, verify you are in the correct working directory by running the shared pre-flight validation:
+**⚠️ STOP: Before doing ANYTHING else, verify you are in the correct directory.**
+
+Run this validation code to confirm you're in a feature worktree (NOT the main repository):
 
 ```python
 from specify_cli.guards import validate_worktree_location
 
-# Validate location
+# Validate location - MUST pass before proceeding
 result = validate_worktree_location()
 if not result.is_valid:
     print(result.format_error())
-    print("\nThis command MUST run from a feature worktree, not the main repository.")
+    print("\n❌ CRITICAL ERROR: This command MUST run from inside the feature worktree directory.")
+    print(f"Current branch: {result.current_branch}")
+    print("\nYou should be in a directory like: .worktrees/001-feature-name/")
+    print("NOT in the main repository root!")
     exit(1)
+
+print(f"✓ Location validated: {result.current_branch}")
 ```
 
-**What this validates**:
-- Current branch follows the feature pattern like `001-feature-name`
-- You're not attempting to run from `main` or any release branch
-- The validator prints clear navigation instructions if you're outside the feature worktree
+**This check ensures**:
+- You're on a feature branch (matches `001-feature-name` pattern)
+- You're NOT on `main` or `master` branch
+- Plans and artifacts will be created in the correct location
+
+**If the check fails**: Navigate to the correct worktree directory before continuing:
+```bash
+cd .worktrees/<feature-name>
+```
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
