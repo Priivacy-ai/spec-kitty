@@ -3,9 +3,9 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 0.9.4
+  version: 0.10.8
   initialized_at: '2025-12-17T21:25:39.712032'
-  last_upgraded_at: '2025-12-17T21:25:39.866605'
+  last_upgraded_at: '2025-12-30T20:48:41.763875'
 environment:
   python_version: 3.11.14
   platform: darwin
@@ -119,3 +119,26 @@ migrations:
       Normalized: kitty-specs/007-frontmatter-only-lane/tasks/WP05-legacy-detection-integration.md;
       Normalized: kitty-specs/007-frontmatter-only-lane/tasks/WP06-documentation-test-updates.md;
       Normalized 39 files, skipped 1'
+  - id: 0.10.0_python_only
+    applied_at: '2025-12-30T20:48:41.756005'
+    result: skipped
+    notes: Not applicable
+  - id: 0.10.1_populate_slash_commands
+    applied_at: '2025-12-30T20:48:41.756516'
+    result: skipped
+    notes: Not applicable
+  - id: 0.10.2_update_slash_commands
+    applied_at: '2025-12-30T20:48:41.763600'
+    result: success
+    notes: 'Updated 12 slash commands for claude; Updated 12 slash commands for opencode;
+      Updated 12 slash commands for codex; Total: Updated 36 slash commands from software-dev
+      mission; Slash commands now use Python CLI (no bash scripts); Slash commands
+      now enforce flat tasks/ structure (feature 007)'
+  - id: 0.10.6_workflow_simplification
+    applied_at: '2025-12-30T20:48:41.763839'
+    result: skipped
+    notes: Not applicable
+  - id: 0.10.8_fix_memory_structure
+    applied_at: '2025-12-30T20:48:41.763872'
+    result: skipped
+    notes: Not applicable
