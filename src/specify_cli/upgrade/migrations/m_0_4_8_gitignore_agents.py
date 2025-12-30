@@ -55,8 +55,9 @@ class GitignoreAgentsMigration(BaseMigration):
 
         if gitignore.exists():
             try:
-                gitignore.read_text()  # Test read access
-            except PermissionError:
+                # Test read access; tolerate BOM and ignore invalid UTF-8 bytes
+                gitignore.read_text(encoding="utf-8-sig", errors="ignore")
+            except (OSError, UnicodeDecodeError):
                 return False, ".gitignore is not readable"
 
         return True, ""
