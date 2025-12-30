@@ -38,7 +38,7 @@ def generate_agent_assets(command_templates_dir: Path, project_path: Path, agent
         (output_dir / filename).write_text(rendered, encoding="utf-8")
 
     if agent_key == "copilot":
-        vscode_settings = commands_dir.parent / "vscode-settings.json"
+        vscode_settings = command_templates_dir.parent / "vscode-settings.json"
         if vscode_settings.exists():
             vscode_dest = project_path / ".vscode"
             vscode_dest.mkdir(parents=True, exist_ok=True)
