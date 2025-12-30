@@ -282,12 +282,12 @@ Or use the helper script:
     use_copy = is_windows or not create_symlinks
 
     # Setup memory/ symlink or copy
-    if worktree_memory.exists() and worktree_memory.is_dir():
+    if worktree_memory.is_symlink():
+        # Remove existing symlink first (can't use rmtree on symlinks)
+        worktree_memory.unlink()
+    elif worktree_memory.exists() and worktree_memory.is_dir():
         # Remove existing directory (from git worktree add)
         shutil.rmtree(worktree_memory)
-    elif worktree_memory.is_symlink():
-        # Remove existing symlink
-        worktree_memory.unlink()
 
     if use_copy:
         # Copy memory directory

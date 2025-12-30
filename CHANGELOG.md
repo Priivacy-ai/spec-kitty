@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.8] - 2025-12-30
+
+### 🐛 Fixed
+
+- **Critical: Constitution not copied to worktrees** (#46)
+  - Moved `memory/` directory from root to `.kittify/memory/` where code expects it
+  - Removed broken circular symlinks (`.kittify/memory` → `../../../.kittify/memory`)
+  - Fixed `.kittify/AGENTS.md` to be real file instead of broken symlink
+  - Fixed worktree.py symlink handling (check for symlink before trying rmtree)
+  - Added migration to automatically fix existing projects
+  - Worktrees now correctly access constitution from main repo
+
+- **Migration system** (v0.10.8_fix_memory_structure)
+  - Automatically moves `memory/` to `.kittify/memory/` in existing projects
+  - Removes broken symlinks and creates proper structure
+  - Updates worktrees to use correct paths
+  - Handles both Unix symlinks and Windows file copies
+
+### 🔧 Changed
+
+- **Directory structure standardization**
+  - `memory/` → `.kittify/memory/` (matches `.kittify/scripts/`, `.kittify/templates/`)
+  - `.kittify/AGENTS.md` is now a real file (not symlink)
+  - All `.kittify/` resources now follow consistent pattern
+
 ## [0.10.7] - 2025-12-30
 
 ### 🐛 Fixed
