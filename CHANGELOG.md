@@ -9,6 +9,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.7] - 2025-12-30
+
+### 🐛 Fixed
+
+- **Critical: Copilot initialization bug** (#53, fixes #61, #50)
+  - Fixed NameError when running `spec-kitty init --ai copilot`
+  - Changed `commands_dir` to `command_templates_dir` in asset_generator.py
+  - Unblocks all users trying to initialize projects with Copilot
+
+- **Critical: Dashboard contracts and checklists missing** (#59, fixes #52)
+  - Restored contracts and checklists handlers that were lost in Nov 11 dashboard refactoring
+  - Added generic `_handle_artifact_directory()` helper method
+  - Both contracts and checklists now display correctly in dashboard
+  - Fixed frontend to use full filepath instead of filename only
+
+- **Critical: Windows UTF-8 encoding errors** (#56)
+  - Added explicit `encoding='utf-8'` to read_text() calls
+  - Fixes dashboard diagnostics showing "undefined" on Windows
+  - Affects manifest.py and migration files
+  - Windows defaults to cp1252, causing UnicodeDecodeError with UTF-8 content
+
+- **Plan.md location validation** (#60)
+  - Improved validation messaging in plan.md template
+  - Added prominent ⚠️ STOP header for AI agents
+  - Clearer examples of correct vs wrong worktree locations
+  - Template-only change (no code modifications)
+
+### 🔄 Closed
+
+- PR #58 - Obsolete (PowerShell scripts deleted in v0.10.0)
+- PR #57 - Obsolete (PowerShell scripts deleted in v0.10.0)
+- PR #49 - Superseded by #59 (better architecture)
+- PR #43 - Obsolete (PowerShell scripts deleted in v0.10.0)
+
+## [0.10.6] - 2025-12-18
+
+### ✨ Added
+
+- **Workflow commands for simplified agent experience**
+  - New `spec-kitty agent workflow implement [WP_ID]` command
+  - New `spec-kitty agent workflow review [WP_ID]` command
+  - Commands display full WP prompt directly to agents (no file navigation)
+  - Auto-detect first planned/for_review WP when no ID provided
+  - Auto-move WP to "doing" lane before displaying prompt
+  - Show "WHEN YOU'RE DONE" instructions at top of output
+  - Display source file path for easy re-reading
+  - Prevents race conditions (two agents picking same WP)
+
+### 🔧 Changed
+
+- **Slash command template simplification**
+  - implement.md: 78 lines → 11 lines (calls workflow command)
+  - review.md: 72 lines → 11 lines (calls workflow command)
+  - Templates now just run workflow commands instead of complex instructions
+  - Agents see prompts immediately without navigation confusion
+
+- **Consistent lane management**
+  - Both implement and review workflows move WP to "doing" at start
+  - Prevents ambiguity about which lane means "actively working"
+  - Review workflow now supports auto-detect (no argument needed)
+
+### 🐛 Fixed
+
+- **Worktree path resolution**
+  - Fixed `_find_first_planned_wp()` to work correctly in worktrees
+  - Fixed `_find_first_for_review_wp()` to work correctly in worktrees
+  - Auto-detect now finds WPs in worktree's kitty-specs/, not main repo
+
+- **Legacy subdirectory cleanup**
+  - Migrated features 007 and 010 from old subdirectory structure to flat structure
+  - Moved 15 WP files from `tasks/done/phase-*/` to flat `tasks/`
+  - All features now use proper flat structure with frontmatter-only lanes
+
 ## [0.9.4] - 2025-12-17
 
 ### 📚 Documentation & Validation

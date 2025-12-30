@@ -1,71 +1,11 @@
 ---
-description: Perform structured code review and kanban transitions for completed task prompt files.
+description: Perform structured code review and kanban transitions for completed task prompt files
+---
 
-## User Input
+Run this command to get the work package prompt and review instructions:
 
-```text
-$ARGUMENTS
+```bash
+spec-kitty agent workflow review $ARGUMENTS
 ```
 
-You **MUST** consider the user input before proceeding (if not empty).
-
-## Location Pre-flight Check (CRITICAL for AI Agents)
-
-Before proceeding with review, verify you are in the correct working directory by running the shared pre-flight validation:
-
-```python
-```
-
-**What this validates**:
-- Current branch follows the feature pattern like `001-feature-name`
-- You're not attempting to run from `main` or any release branch
-- The validator prints clear navigation instructions if you're outside the feature worktree
-
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
-
-## Outline
-
-1. Run `{SCRIPT}` from repo root; capture `FEATURE_DIR`, `AVAILABLE_DOCS`, and `tasks.md` path.
-
-2. Determine the review target:
-   - If user input specifies a filename, validate it exists under `tasks/` (flat structure, check `lane: "for_review"` in frontmatter).
-   - Otherwise, select the oldest file in `tasks/` (lexical order is sufficient because filenames retain task ordering).
-   - Abort with instructional message if no files are waiting for review.
-
-3. Load context for the selected task:
-   - Read the prompt file frontmatter (lane MUST be `for_review`); note `task_id`, `phase`, `agent`, `shell_pid`.
-   - Read the body sections (Objective, Context, Implementation Guidance, etc.).
-   - Consult supporting documents as referenced: constitution, plan, spec, data-model, contracts, research, quickstart, code changes.
-   - Review the associated code in the repository (diffs, tests, docs) to validate the implementation.
-
-4. Conduct the review:
-   - Verify implementation against the prompt’s Definition of Done and Review Guidance.
-   - Run required tests or commands; capture results.
-   - Document findings explicitly: bugs, regressions, missing tests, risks, or validation notes.
-
-5. Decide outcome:
-  - **Needs changes**:
-     * Append a new entry in the prompt’s **Activity Log** detailing feedback (include timestamp, reviewer agent, shell PID).
-     * Update frontmatter `lane` back to `planned`, clear `assignee` if necessary, keep history entry.
-     * Add/revise a `## Review Feedback` section (create if missing) summarizing action items.
-     * Run `spec-kitty agent tasks move-task <FEATURE> <TASK_ID> planned --note "Returned for changes"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
-  - **Approved**:
-     * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script).
-     * Update frontmatter: set `lane=done`, set reviewer metadata (`agent`, `shell_pid`), optional `assignee` for approver.
-     * Use helper script to mark the task complete in `tasks.md` (see Step 6).
-     * Run `spec-kitty agent tasks move-task <FEATURE> <TASK_ID> done --note "Approved for release"` (PowerShell variant available) to transition the prompt into `tasks/`.
-
-6. Update `tasks.md` automatically:
-   - Run `spec-kitty agent tasks mark-status --task-id <TASK_ID> --status done` (POSIX) or `spec-kitty agent tasks mark-status --task-id <TASK_ID> --status done` (PowerShell) from repo root.
-   - Confirm the task entry now shows `[X]` and includes a reference to the prompt file in its notes.
-
-7. Produce a review report summarizing:
-   - Task ID and filename reviewed.
-  - Approval status and key findings.
-   - Tests executed and their results.
-   - Follow-up actions (if any) for other team members.
-   - Reminder to push changes or notify teammates as per project conventions.
-
-Context for review: {ARGS}
-
-All review feedback must live inside the prompt file, ensuring future implementers understand historical decisions before revisiting the task.
+If no WP ID is provided, it will automatically find the first work package with `lane: "for_review"` and move it to "doing" for you.

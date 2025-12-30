@@ -18,6 +18,73 @@ Debugging means fixing specifications and their implementation plans that genera
 
 The development team focuses in on their creativity, experimentation, their critical thinking.
 
+## The Spec Kitty Philosophy: Code as Source of Truth
+
+**This is where Spec Kitty diverges from traditional spec-driven development.**
+
+In Spec Kitty, **CODE IS THE SOURCE OF TRUTH** - it represents what exists NOW. The specification is NOT a comprehensive digital twin of the codebase. Instead, specifications are **CHANGE REQUESTS** that describe the DELTA between current reality and desired future state.
+
+### Why This Matters
+
+**For LLMs working with Spec Kitty:**
+- **Always read the code** to understand current implementation
+- The specification tells you WHAT TO CHANGE, not what currently exists
+- Don't assume the spec documents the entire system
+- Code truth > spec documentation
+
+**For developers:**
+- Specs describe "we want to ADD authentication" not "the system includes authentication"
+- Specs are forward-looking change requests, not backward-looking documentation
+- Keep specs focused on the delta, not comprehensive system documentation
+- After merging, the code becomes the new truth; the spec is now historical context
+
+### The Philosophical Break from Spec Kit
+
+**Traditional Spec-Driven Development (Spec Kit approach):**
+- Specification attempts to be comprehensive documentation
+- Spec describes the entire system state
+- Updates try to keep spec in sync with code
+- Spec serves as system documentation
+
+**Spec Kitty Philosophy:**
+- Code is always the definitive source of truth
+- Specifications are change requests (deltas)
+- LLMs read code to understand NOW, read specs to understand FUTURE
+- Specs become historical record after merge, not living documentation
+
+### Why This Approach Works Better for AI Agents
+
+AI agents have a superpower: **they can read and understand code instantly**. Traditional specs tried to save humans from reading code by documenting everything. But LLMs don't need that protection - they can read thousands of lines of code in seconds.
+
+**Benefits:**
+- ✅ Specs stay focused and concise (describe only what changes)
+- ✅ No spec drift (specs don't try to track current state)
+- ✅ LLMs always work from ground truth (the actual code)
+- ✅ Faster development (no comprehensive system documentation needed)
+- ✅ Specs accurately describe intent (the delta) not current state
+
+**Example:**
+
+**Traditional approach (Spec Kit):**
+```
+Specification: "The system has user authentication with email/password,
+session management, and password reset. It uses JWT tokens stored in
+httpOnly cookies. The UserService handles authentication logic..."
+[... 500 lines documenting entire auth system ...]
+```
+
+**Spec Kitty approach:**
+```
+Specification: "Add OAuth2 social login (Google, GitHub) alongside
+existing email/password authentication. Keep current JWT session
+management unchanged."
+
+Implementation: LLM reads current auth code, understands JWT system,
+adds OAuth2 providers as delta to existing system.
+```
+
+**The difference:** Spec Kitty specs are concise change requests. LLMs read the codebase to understand context, then implement the specified delta.
+
 ## Real-Time Progress Tracking with Integrated Kanban
 
 Spec Kitty pairs specification rigor with a **visual workflow** that keeps the entire team aligned. The built-in task dashboard streams lane transitions from every feature worktree, giving product owners, reviewers, and AI assistants a single source of truth for progress. Agents coordinate through structured lane scripts, so the dashboard highlights blockers, review requests, and idle work packages in real time. This **task dashboard** becomes the heartbeat of the project—drive agent coordination from one screen, rebalance workloads instantly, and archive the full timeline for compliance.
@@ -122,16 +189,17 @@ After a plan is created **and Phase 0 research is complete**, this command analy
 1. **Inputs**: Reads `plan.md` (required) and, if present, `data-model.md`, `contracts/`, `research.md` (from `spec-kitty research`), and `quickstart.md`.
 2. **Task Derivation**: Converts contracts, entities, and scenarios into fine-grained subtasks (`Txxx`), marking safe parallelization with `[P]`.
 3. **Work Package Grouping**: Rolls the subtasks into at most ten work packages (`WPxx`), each aligned with a user story or cohesive subsystem so teams can deliver in independent slices.
-4. **Prompt Generation**: Builds the `/tasks/` mini-board directories, writes one prompt file per work package in `tasks/planned/` using the bundle template (complete with metadata and implementation detail), and links each package from `tasks.md`.
-5. **Outputs**: Produces `tasks.md` plus the populated `/tasks/planned/` directory so implementers can immediately move bundled work into `/tasks/doing/` and start building.
+4. **Prompt Generation**: Creates work package prompt files in flat `tasks/` directory using the bundle template (complete with metadata and implementation detail), sets `lane: "planned"` in frontmatter, and links each package from `tasks.md`.
+5. **Outputs**: Produces `tasks.md` plus WP prompt files in flat `tasks/` directory with `lane: "planned"` so implementers can use workflow commands to start building.
 
 ### The `/spec-kitty.review` Command
 
-Provides a structured hand-off gate for work that lands in `tasks/for_review/`:
+Provides a structured hand-off gate for work packages with `lane: "for_review"`:
 
-1. **Selection**: Picks the oldest prompt in the review column (unless a specific file is supplied).
-2. **Deep Review**: Re-reads the prompt, supporting docs, and code changes before rendering findings.
-3. **Decision Flow**: Moves prompts back to `/planned/` with feedback or forward to `/done/` on approval, always updating frontmatter history and activity logs with agent + PID data.
+1. **Selection**: Auto-detects first WP with `lane: "for_review"` (or accepts explicit WP ID).
+2. **Auto-move to doing**: Moves WP to `lane: "doing"` and displays full prompt with review instructions.
+3. **Deep Review**: Agent reviews prompt, supporting docs, and code changes before rendering findings.
+4. **Decision Flow**: Agent updates `lane` to "done" (approved) or "planned" (changes requested) using move-task commands, always updating frontmatter and activity logs with agent + PID data.
 4. **Automation Hooks**: Invokes helper scripts to flip task checkboxes in `tasks.md` when review passes, keeping status in sync with the kanban board.
 
 ### The `/spec-kitty.accept` Command
@@ -169,7 +237,7 @@ Before any coding begins, `/spec-kitty.implement` requires each work package to 
 **Validation Checkpoint:**
 
 The agent must verify before proceeding to implementation:
-- Prompt file exists in `tasks/doing/`
+- Prompt file exists in flat `tasks/` directory
 - Frontmatter shows `lane: "doing"`
 - `shell_pid` is captured
 - Activity log has "Started implementation" entry
@@ -241,7 +309,7 @@ Total: ~12 hours of documentation work
 # - kitty-specs/003-chat-system/contracts/ (WebSocket events, REST endpoints)
 # - kitty-specs/003-chat-system/quickstart.md (Key validation scenarios)
 # - kitty-specs/003-chat-system/tasks.md (Work packages with subtasks)
-# - kitty-specs/003-chat-system/tasks/planned/WP0x-*.md (Prompt bundles for each work package)
+# - kitty-specs/003-chat-system/tasks/WP0x-*.md (Prompt bundles in flat directory, lane: "planned" in frontmatter)
 ```
 
 In 15 minutes, you have:

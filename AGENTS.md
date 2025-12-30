@@ -14,40 +14,71 @@ The toolkit supports multiple AI coding assistants, allowing teams to use their 
 
 ## Task Lane Management (Work Packages)
 
-**CRITICAL: Never manually edit the `lane:` field in work package YAML frontmatter.**
+**Flat Structure**: All work package (WP) files live in a flat `tasks/` directory. Lane status is tracked **only** in frontmatter - files never move between subdirectories.
 
-The system determines a work package's lane by its **directory location** (`tasks/planned/`, `tasks/doing/`, etc.), not the YAML field. Manually editing the field without moving the file creates a mismatch that breaks lane transitions.
+### Current System (v0.9.0+)
+
+```
+kitty-specs/001-my-feature/tasks/
+  ├── WP01-setup.md        (lane: "planned")
+  ├── WP02-core.md         (lane: "doing")
+  ├── WP03-tests.md        (lane: "for_review")
+  └── WP04-docs.md         (lane: "done")
+```
+
+**Key principles:**
+- Lane is determined by `lane:` field in frontmatter (NOT directory location)
+- All WP files stay in flat `tasks/` directory
+- Use Python CLI commands to update lanes (updates frontmatter + activity log)
 
 ### Moving Work Packages Between Lanes
 
-**Always use the move command:**
+**Use the Python CLI:**
 ```bash
-python3 .kittify/scripts/tasks/tasks_cli.py move <FEATURE> <WPID> <lane> --note "Your note"
-
-# Examples:
-python3 .kittify/scripts/tasks/tasks_cli.py move 011-my-feature WP04 doing --note "Starting implementation"
-python3 .kittify/scripts/tasks/tasks_cli.py move 011-my-feature WP04 for_review --note "Ready for review"
-python3 .kittify/scripts/tasks/tasks_cli.py move 011-my-feature WP04 done --note "Approved"
+spec-kitty agent tasks move-task WP01 --to doing --note "Started implementation"
+spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review"
+spec-kitty agent tasks move-task WP01 --to done --note "Review passed"
 ```
 
-The move command handles:
-1. Moving the file to the correct `tasks/<lane>/` directory
-2. Updating the `lane:` field in YAML frontmatter
-3. Recording `agent` and `shell_pid` metadata
-4. Appending an entry to the Activity Log
-5. Staging the changes for commit
+The move command:
+1. Updates `lane:` field in YAML frontmatter
+2. Records `agent` and `shell_pid` metadata
+3. Appends entry to Activity Log with timestamp
+4. Writes updated file
+5. Does NOT move the file (stays in flat tasks/ directory)
+
+### Workflow Commands (Recommended for Agents)
+
+**For implementation:**
+```bash
+spec-kitty agent workflow implement [WP01]
+```
+- Auto-detects first WP with `lane: "planned"` if no ID provided
+- Moves WP to `lane: "doing"` automatically
+- Displays full prompt with "WHEN YOU'RE DONE" instructions
+
+**For review:**
+```bash
+spec-kitty agent workflow review [WP01]
+```
+- Auto-detects first WP with `lane: "for_review"` if no ID provided
+- Moves WP to `lane: "doing"` automatically
+- Displays full prompt with review instructions
 
 ### Other Task Commands
 
 ```bash
-# List all work packages for a feature
-python3 .kittify/scripts/tasks/tasks_cli.py list <FEATURE>
+# List all work packages for current feature
+spec-kitty agent tasks list-tasks
+
+# List tasks in specific lane
+spec-kitty agent tasks list-tasks --lane doing
 
 # Add a history entry without changing lanes
-python3 .kittify/scripts/tasks/tasks_cli.py history <FEATURE> <WPID> --note "Progress update"
+spec-kitty agent tasks add-history WP01 --note "Progress update"
 
 # Rollback to previous lane
-python3 .kittify/scripts/tasks/tasks_cli.py rollback <FEATURE> <WPID>
+spec-kitty agent tasks rollback-task WP01
 ```
 
 ---

@@ -31,9 +31,9 @@
 
 > **Note:** Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
-> **🎉 Version 0.9.0 Released - Frontmatter-Only Lane Management**
-> Work packages now use a flat `tasks/` directory with lane status in frontmatter (no more lane subdirectories).
-> **Existing projects:** Run `spec-kitty upgrade` to migrate. Legacy format still works. [See CHANGELOG](CHANGELOG.md#090---2025-12-17) for full details.
+> **🎉 Version 0.10.6 Released - Simplified Agent Workflows**
+> Agent workflows now display prompts directly with auto-lane management. Slash commands simplified from 78+ lines to ~11 lines.
+> **Existing projects:** Run `spec-kitty upgrade` to migrate. [See CHANGELOG](CHANGELOG.md#0106---2025-12-18) for full details.
 
 <details>
 <summary><b>🔄 What's Different from GitHub Spec Kit?</b></summary>
@@ -304,7 +304,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 **What this creates:**
 - `kitty-specs/001-auth-system/tasks.md` - Kanban checklist
-- `kitty-specs/001-auth-system/tasks/planned/WP01.md` - Work package prompts
+- `kitty-specs/001-auth-system/tasks/WP01.md` - Work package prompts (flat structure)
 - Up to 10 work packages ready for implementation
 
 **Check your dashboard:** You'll now see tasks in the "Planned" lane!
@@ -318,10 +318,10 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ```
 
 **What this does:**
-- Picks next task from `/tasks/planned/`
-- Moves it to `/tasks/doing/` with metadata tracking
-- Implements the feature according to plan
-- Moves to `/tasks/for_review/` when complete
+- Auto-detects first WP with `lane: "planned"` (or specify WP ID)
+- Automatically moves to `lane: "doing"` and displays the prompt
+- Shows clear "WHEN YOU'RE DONE" instructions
+- Agent implements, then runs command to move to `lane: "for_review"`
 
 **Repeat** until all work packages are done!
 
@@ -332,9 +332,10 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ```
 
 **What this does:**
-- Reviews code in `/tasks/for_review/`
-- Provides feedback or approves
-- Moves approved work to `/tasks/done/`
+- Auto-detects first WP with `lane: "for_review"` (or specify WP ID)
+- Automatically moves to `lane: "doing"` and displays the prompt
+- Agent reviews code and provides feedback or approval
+- Shows commands to move to `lane: "done"` (passed) or `lane: "planned"` (changes needed)
 
 ### Phase 6: Accept & Merge (In Feature Worktree)
 
@@ -345,7 +346,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ```
 
 **What this does:**
-- Verifies all tasks in `/tasks/done/`
+- Verifies all WPs have `lane: "done"`
 - Checks metadata and activity logs
 - Confirms no `NEEDS CLARIFICATION` markers remain
 - Records acceptance timestamp
@@ -754,30 +755,37 @@ spec-kitty upgrade --no-worktrees
 The `spec-kitty agent` namespace provides programmatic access to all workflow automation commands. All commands support `--json` output for agent consumption.
 
 **Feature Management:**
-- `spec-kitty agent create-feature <name>` – Create new feature with worktree
-- `spec-kitty agent check-prerequisites` – Validate project setup and feature context
-- `spec-kitty agent setup-plan` – Initialize plan template for feature
-- `spec-kitty agent update-context` – Update agent context files
+- `spec-kitty agent feature create-feature <name>` – Create new feature with worktree
+- `spec-kitty agent feature check-prerequisites` – Validate project setup and feature context
+- `spec-kitty agent feature setup-plan` – Initialize plan template for feature
+- `spec-kitty agent context update` – Update agent context files
 - `spec-kitty agent feature accept` – Run acceptance workflow
 - `spec-kitty agent feature merge` – Merge feature branch and cleanup
 
 **Task Workflow:**
-- `spec-kitty agent move-task <id> --to <lane>` – Move task between kanban lanes
-- `spec-kitty agent list-tasks` – List all tasks grouped by lane
-- `spec-kitty agent mark-status <id> --status <status>` – Mark task status
-- `spec-kitty agent add-history <id> --note <message>` – Add activity log entry
-- `spec-kitty agent validate-workflow <id>` – Validate task metadata
+- `spec-kitty agent tasks move-task <id> --to <lane>` – Move task between kanban lanes (updates frontmatter)
+- `spec-kitty agent tasks list-tasks` – List all tasks grouped by lane
+- `spec-kitty agent tasks mark-status <id> --status <status>` – Mark task status
+- `spec-kitty agent tasks add-history <id> --note <message>` – Add activity log entry
+- `spec-kitty agent tasks validate-workflow <id>` – Validate task metadata
+
+**Workflow Commands:**
+- `spec-kitty agent workflow implement [WP_ID]` – Display WP prompt and auto-move to "doing" lane
+- `spec-kitty agent workflow review [WP_ID]` – Display WP prompt for review and auto-move to "doing" lane
 
 **Example Usage:**
 ```bash
 # Create feature (agent-friendly)
-spec-kitty agent create-feature --feature-name "Payment Flow" --json
+spec-kitty agent feature create-feature "Payment Flow" --json
 
-# Move task to doing lane
-spec-kitty agent move-task WP01 --to doing --agent claude --json
+# Display WP prompt and auto-move to doing
+spec-kitty agent workflow implement WP01
+
+# Move task to for_review lane
+spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review"
 
 # Validate workflow
-spec-kitty agent validate-workflow WP01 --json
+spec-kitty agent tasks validate-workflow WP01 --json
 
 # Accept feature
 spec-kitty agent feature accept --json
@@ -906,9 +914,9 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 | 2 | `/spec-kitty.specify`       | Define what you want to build (requirements and user stories; creates worktree) |
 | 3 | `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
 | 4 | `/spec-kitty.research`      | Run Phase 0 research scaffolding to populate research.md, data-model.md, and evidence logs |
-| 5 | `/spec-kitty.tasks`         | Generate actionable task lists and kanban-ready prompt files          |
-| 6 | `/spec-kitty.implement`     | Execute tasks by working from `/tasks/doing/` prompts                 |
-| 7 | `/spec-kitty.review`        | Review work in `/tasks/for_review/` and move finished prompts to `/tasks/done/` |
+| 5 | `/spec-kitty.tasks`         | Generate actionable task lists and work package prompts in flat tasks/ directory |
+| 6 | `/spec-kitty.implement`     | Display WP prompt, auto-move to "doing" lane, show completion instructions |
+| 7 | `/spec-kitty.review`        | Display WP prompt for review, auto-move to "doing" lane, show next steps |
 | 8 | `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and verify feature complete |
 | 9 | `/spec-kitty.merge`         | Merge feature into main branch and clean up worktree                  |
 
@@ -978,14 +986,14 @@ cd .worktrees/001-my-feature # Enter isolated sandbox for feature development
 > **📖 Quick Start:** See [Phase 6 in the Getting Started guide](#phase-6-accept--merge-in-feature-worktree) for a simplified version of this workflow.
 
 ### Step 1: Accept
-Once every work package lives in `tasks/done/`, verify the feature is ready:
+Once every work package has `lane: "done"` in its frontmatter, verify the feature is ready:
 
 ```bash
 /spec-kitty.accept
 ```
 
 The accept command:
-- Verifies kanban lanes, frontmatter metadata, activity logs, `tasks.md`, and required spec artifacts
+- Verifies all WPs have `lane: "done"`, checks frontmatter metadata, activity logs, `tasks.md`, and required spec artifacts
 - Records acceptance metadata in `kitty-specs/<feature>/meta.json`
 - Creates an acceptance commit
 - Confirms the feature is ready to merge
@@ -1024,12 +1032,14 @@ The merge command:
 
 All task workflow commands are available through the `spec-kitty agent` CLI:
 
-- `spec-kitty agent move-task WP01 --to doing` – moves a work-package prompt from one lane to another, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry
-- `spec-kitty agent validate-workflow WP01` – validates that the work-package is in the correct lane with required metadata
-- `spec-kitty agent list-tasks` – lists all tasks grouped by lane
-- `spec-kitty agent mark-status WP01 --status completed` – marks a task with a specific status
+- `spec-kitty agent tasks move-task WP01 --to doing` – moves a work-package between lanes, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry
+- `spec-kitty agent tasks validate-workflow WP01` – validates that the work-package has correct metadata
+- `spec-kitty agent tasks list-tasks` – lists all tasks grouped by lane
+- `spec-kitty agent tasks mark-status WP01 --status done` – marks a task with a specific status
+- `spec-kitty agent workflow implement [WP01]` – displays WP prompt and auto-moves to "doing" lane
+- `spec-kitty agent workflow review [WP01]` – displays WP prompt for review and auto-moves to "doing" lane
 
-Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`.
+Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`. All WP files live in flat `tasks/` directory with lane tracked in frontmatter (no subdirectories).
 
 For programmatic access with JSON output, add the `--json` flag to any command.
 

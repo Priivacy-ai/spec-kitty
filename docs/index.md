@@ -183,7 +183,7 @@ Like `/spec-kitty.specify`, the planner asks **one question at a time** and bloc
 
 ### 5. Break down into tasks & prompts
 
-Use **`/spec-kitty.tasks`** to create an actionable task list *and* the matching prompt files for your mini-kanban board. The command writes `tasks.md`, groups subtasks into up to ten work packages, generates one prompt file per package under `/tasks/planned/`, and links each work package to its bundled brief.
+Use **`/spec-kitty.tasks`** to create an actionable task list *and* the matching prompt files for your mini-kanban board. The command writes `tasks.md`, groups subtasks into up to ten work packages, generates one prompt file per package in flat `tasks/` directory with `lane: "planned"` in frontmatter, and links each work package to its bundled brief.
 
 ```bash
 /spec-kitty.tasks
@@ -191,17 +191,19 @@ Use **`/spec-kitty.tasks`** to create an actionable task list *and* the matching
 
 ### 6. Execute implementation
 
-Use **`/spec-kitty.implement`** to pick up a prompt from `/tasks/planned/`, move it to `/tasks/doing/`, and build the feature according to the plan.
+Use **`/spec-kitty.implement`** to auto-detect the first WP with `lane: "planned"` and display its prompt directly to the agent.
 
 ```bash
 /spec-kitty.implement
 ```
 
-**Mandatory workflow initialization:** Before coding begins, the command enforces the kanban workflow by moving prompts to `/tasks/doing/`, updating frontmatter metadata (`lane`, `agent`, `shell_pid`), adding activity log entries, and committing the transition. After implementation completes, prompts move to `/tasks/for_review/` with completion metadata.
+**Automatic workflow:** The command auto-moves the WP to `lane: "doing"`, displays the full prompt with "WHEN YOU'RE DONE" instructions, and shows the source file path. Agent implements the feature, then runs the provided command to move to `lane: "for_review"` when complete.
 
 ### 7. Review & close tasks
 
-Finish the cycle by running **`/spec-kitty.review`** to process files in `/tasks/for_review/`, capture feedback, and move approved work to `/tasks/done/` while marking the task complete in `tasks.md`.
+Finish the cycle by running **`/spec-kitty.review`** to auto-detect the first WP with `lane: "for_review"`, display the prompt, and show review instructions.
+
+**Automatic workflow:** The command auto-moves the WP to `lane: "doing"`, displays the prompt with review guidance. Agent reviews code and provides feedback, then runs provided command to move to `lane: "done"` (passed) or `lane: "planned"` (changes needed).
 
 ```bash
 /spec-kitty.review
@@ -336,8 +338,8 @@ Essential commands for the Spec-Driven Development workflow:
 | `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
 | `/spec-kitty.research`      | Run Phase 0 research scaffolding to populate research.md, data-model.md, and evidence logs |
 | `/spec-kitty.tasks`         | Generate actionable task lists and kanban-ready prompt files          |
-| `/spec-kitty.implement`     | Execute tasks by working from `/tasks/doing/` prompts                 |
-| `/spec-kitty.review`        | Review work in `/tasks/for_review/` and move finished prompts to `/tasks/done/` |
+| `/spec-kitty.implement`     | Display WP prompt, auto-move to "doing" lane, show completion instructions |
+| `/spec-kitty.review`        | Display WP prompt for review, auto-move to "doing" lane, show next steps |
 | `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and verify feature complete |
 | `/spec-kitty.merge`         | Merge feature into main branch and clean up worktree                  |
 
@@ -437,11 +439,20 @@ The merge command:
 
 ## Task Workflow Automation
 
-- `scripts/bash/move-task-to-doing.sh WP01 kitty-specs/FEATURE` – moves a work-package prompt from `tasks/planned/` to `tasks/doing/`, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry, and prints the canonical location.
-- `scripts/bash/validate-task-workflow.sh WP01 kitty-specs/FEATURE` – blocks implementation if the work-package prompt is not in the `doing` lane or is missing required metadata.
-- Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`.
-- Optional git hook: `ln -s ../../scripts/git-hooks/pre-commit-task-workflow.sh .git/hooks/pre-commit` to enforce lane metadata before every commit.
-- Prefer running scripts from the feature worktree (`.worktrees/<feature-slug>`). After `/spec-kitty.specify`, `cd .worktrees/<feature-slug>` when that directory exists; if worktree creation was skipped, stay in the primary checkout on the feature branch or recreate the worktree with `git worktree add …`.
+**Workflow Commands (Recommended):**
+- `spec-kitty agent workflow implement [WP01]` – Auto-detects first WP with `lane: "planned"`, moves to "doing", displays full prompt with instructions
+- `spec-kitty agent workflow review [WP01]` – Auto-detects first WP with `lane: "for_review"`, moves to "doing", displays prompt with review guidance
+
+**Manual Lane Management:**
+- `spec-kitty agent tasks move-task WP01 --to doing --note "Started"` – Updates lane in frontmatter, records metadata (agent, shell PID), appends Activity Log entry
+- `spec-kitty agent tasks validate-workflow WP01` – Validates WP has correct lane and required metadata
+- `spec-kitty agent tasks list-tasks --lane doing` – Lists all WPs in specific lane
+
+**Key principles:**
+- Work-package IDs follow pattern `WPxx` and reference bundled subtasks (`Txxx`) in `tasks.md`
+- All WP files live in flat `tasks/` directory (no subdirectories)
+- Lane tracked in frontmatter `lane:` field, not directory location
+- Prefer running commands from feature worktree (`.worktrees/<feature-slug>`) after `/spec-kitty.specify` creates it
 
 ## 🧭 Mission System
 
