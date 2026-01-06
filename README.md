@@ -20,7 +20,7 @@ cd myproject
 # Launch Claude Code and use slash commands
 claude
 # Inside Claude: "/spec-kitty.specify Describe your feature here..."
-# Spec Kitty guides the AI through: Requirements → Plan → Tasks → Implementation
+# Spec Kitty guides the AI through: Specification → Plan → Tasks → Implementation
 # Watch live progress: "spec-kitty dashboard"
 
 # Result: Fully-specified feature with tracked progress
@@ -82,7 +82,7 @@ claude
 ---
 ## 🎯 Core Features
 
-- 📊 **Live Kanban Dashboard** - Real-time visibility into AI agent progress (auto-starts on `localhost:33333`)
+- 📊 **Live Kanban Dashboard** - Real-time visibility into AI agent progress (run `spec-kitty dashboard`)
 - 👥 **12 AI Agents Supported** - Claude Code, Cursor, Windsurf, Gemini, Copilot, and more
 - 🔄 **Systematic Workflow** - Spec → Plan → Tasks → Implement → Review → Merge
 - 📦 **Git Worktrees** - Parallel feature isolation without branch switching
@@ -111,18 +111,6 @@ The dashboard starts automatically when you run `spec-kitty init` and runs in th
 - 👥 **Multi-Agent Support**: See which AI agents are working on which tasks
 - 📦 **Artifact Status**: Track specification, plan, tasks, and other deliverables
 - 🔄 **Live Updates**: Dashboard refreshes automatically as you work
-
-### Why the Dashboard Matters
-
-Traditional AI coding workflows suffer from **context loss** and **visibility gaps**. Spec Kitty's real-time dashboard solves this by:
-
-- **Preventing work duplication** - See what each agent is working on
-- **Identifying bottlenecks** - Spot tasks stuck in "doing" lane
-- **Coordinating parallel work** - Manage multiple features simultaneously
-- **Demonstrating progress** - Show stakeholders/clients live updates
-- **Maintaining context** - Visual history of development flow
-
-Perfect for engineering managers, tech leads, and agencies building with AI coding agents.
 
 ---
 
