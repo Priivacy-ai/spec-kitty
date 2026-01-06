@@ -98,20 +98,13 @@ spec-kitty init <project_name> --ai gemini
 spec-kitty init <project_name> --ai copilot
 ```
 
-### Choose Script Type (Shell vs PowerShell)
+### Cross-Platform Python CLI (v0.10.0+)
 
-All automation scripts now have both Bash (`.sh`) and PowerShell (`.ps1`) variants.
+As of v0.10.0, all automation uses cross-platform Python CLI commands (`spec-kitty agent`).
 
-Auto behavior:
-- Windows default: `ps`
-- Other OS default: `sh`
-- Interactive mode: you'll be prompted unless you pass `--script`
+The legacy `--script` option is no longer needed - all commands work identically across Windows, macOS, and Linux.
 
-Force a specific script type:
-```bash
-spec-kitty init <project_name> --script sh
-spec-kitty init <project_name> --script ps
-```
+> **Migration Note:** Projects created before v0.10.0 had bash/PowerShell scripts. Run `spec-kitty upgrade` to migrate to Python CLI commands. See [MIGRATION-v0.10.0.md](../MIGRATION-v0.10.0.md) for details.
 
 ### Ignore Agent Tools Check
 
@@ -130,8 +123,6 @@ After initialization, you should see the following commands available in your AI
 - `/spec-kitty.tasks` - Break down into actionable tasks
 
 When you run `/spec-kitty.specify` or `/spec-kitty.plan`, expect the assistant to pause with `WAITING_FOR_DISCOVERY_INPUT` or `WAITING_FOR_PLANNING_INPUT` until you answer its question tables.
-
-The `.kittify/scripts` directory will contain both `.sh` and `.ps1` scripts.
 
 ## Troubleshooting
 

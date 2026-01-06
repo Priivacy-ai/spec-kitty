@@ -31,9 +31,9 @@
 
 > **Note:** Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
-> **🎉 Version 0.10.6 Released - Simplified Agent Workflows**
-> Agent workflows now display prompts directly with auto-lane management. Slash commands simplified from 78+ lines to ~11 lines.
-> **Existing projects:** Run `spec-kitty upgrade` to migrate. [See CHANGELOG](CHANGELOG.md#0106---2025-12-18) for full details.
+> **🎉 Version 0.10.9 Released - Template Bundling Fix**
+> Fixed critical issue where wrong templates were bundled in PyPI packages (#62, #63, #64). All 12 AI agents now receive correct Python CLI slash commands.
+> **Existing projects:** Run `spec-kitty upgrade` to apply repair migration. [See CHANGELOG](CHANGELOG.md#0109---2026-01-06) for full details.
 
 <details>
 <summary><b>🔄 What's Different from GitHub Spec Kit?</b></summary>
@@ -644,6 +644,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Spec Kitty project from templates |
 | `upgrade`   | **Upgrade project structure to current version** (run after updating spec-kitty-cli) |
+| `repair`    | **Repair broken template installations** (fixes bash script references from v0.10.0-0.10.8) |
 | `accept`    | Validate feature readiness before merging to main |
 | `check`     | Check that required tooling is available |
 | `dashboard` | Open or stop the Spec Kitty dashboard |
@@ -1443,20 +1444,21 @@ At this stage, your project folder contents should resemble the following:
 ├── .kittify
 │   ├── memory
 │   │   └── constitution.md
-│   ├── scripts
-│   │   ├── check-prerequisites.sh
-│   │   ├── common.sh
-│   │   ├── create-new-feature.sh
-│   │   ├── setup-plan.sh
-│   │   └── update-claude-md.sh
-│   └── templates
-│       ├── plan-template.md
-│       ├── spec-template.md
-│       └── tasks-template.md
+│   ├── templates
+│   │   ├── command-templates/
+│   │   ├── git-hooks/
+│   │   ├── plan-template.md
+│   │   ├── spec-template.md
+│   │   └── tasks-template.md
+│   └── missions
+│       ├── software-dev/
+│       └── research/
 └── kitty-specs
     └── 001-create-taskify
         └── spec.md
 ```
+
+> **Note:** Automation uses Python CLI commands (`spec-kitty agent`) not bash scripts. See [v0.10.0 migration](MIGRATION-v0.10.0.md).
 
 ### **STEP 3:** Functional specification clarification (required before planning)
 
@@ -1501,15 +1503,12 @@ The output of this step will include a number of implementation detail documents
 ```text
 .
 ├── CLAUDE.md
-├── memory
-│	 └── constitution.md
-├── scripts
-│	 ├── check-prerequisites.sh
-│	 ├── common.sh
-│	 ├── create-new-feature.sh
-│	 ├── setup-plan.sh
-│	 └── update-claude-md.sh
-├── specs
+├── .kittify
+│   ├── memory
+│   │   └── constitution.md
+│   ├── templates/
+│   └── missions/
+├── kitty-specs
 │	 └── 001-create-taskify
 │	     ├── contracts
 │	     │	 ├── api-spec.json

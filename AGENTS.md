@@ -201,51 +201,27 @@ gh release create "$VERSION" \
   # Add new agent packages here
 ```
 
-#### 5. Update Agent Context Scripts
+#### 5. Agent Context Management (v0.10.0+)
 
-##### Bash script (`scripts/bash/update-agent-context.sh`):
+> **Note:** As of v0.10.0, bash/PowerShell scripts were removed in favor of Python CLI commands.
 
-Add file variable:
+Agent context is now managed via the Python CLI:
+
 ```bash
-WINDSURF_FILE="$REPO_ROOT/.windsurf/rules/specify-rules.md"
+# Update agent context programmatically
+spec-kitty agent context update
+
+# Or handle during feature workflow via slash commands
+# which automatically manage agent context
 ```
 
-Add to case statement:
-```bash
-case "$AGENT_TYPE" in
-  # ... existing cases ...
-  windsurf) update_agent_file "$WINDSURF_FILE" "Windsurf" ;;
-  "") 
-    # ... existing checks ...
-    [ -f "$WINDSURF_FILE" ] && update_agent_file "$WINDSURF_FILE" "Windsurf";
-    # Update default creation condition
-    ;;
-esac
-```
+For adding new agent support, the key integration points are:
 
-##### PowerShell script (`scripts/powershell/update-agent-context.ps1`):
+1. **Add agent to AGENT_DIRS** in `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py`
+2. **Update init command** to generate commands for the new agent
+3. **Create command templates** if agent needs custom format (optional)
 
-Add file variable:
-```powershell
-$windsurfFile = Join-Path $repoRoot '.windsurf/rules/specify-rules.md'
-```
-
-Add to switch statement:
-```powershell
-switch ($AgentType) {
-    # ... existing cases ...
-    'windsurf' { Update-AgentFile $windsurfFile 'Windsurf' }
-    '' {
-        foreach ($pair in @(
-            # ... existing pairs ...
-            @{file=$windsurfFile; name='Windsurf'}
-        )) {
-            if (Test-Path $pair.file) { Update-AgentFile $pair.file $pair.name }
-        }
-        # Update default creation condition
-    }
-}
-```
+Most agents use the same command template format from `.kittify/templates/command-templates/`.
 
 #### 6. Update CLI Tool Checks (Optional)
 

@@ -4,7 +4,7 @@ This guide will help you get started with Spec-Driven Development using Spec Kit
 
 > Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). All commands and examples have been updated to use the spec-kitty branding while honoring the upstream license.
 
-> NEW: All automation scripts now provide both Bash (`.sh`) and PowerShell (`.ps1`) variants. The `spec-kitty` CLI auto-selects based on OS unless you pass `--script sh|ps`.
+> **Update (v0.10.0+):** All automation now uses cross-platform Python CLI commands (`spec-kitty agent`). Bash/PowerShell scripts were removed in favor of Python-only implementation. See [MIGRATION-v0.10.0.md](../MIGRATION-v0.10.0.md).
 
 ## 📖 New User? Start Here
 
@@ -65,21 +65,16 @@ spec-kitty upgrade --dry-run    # Preview changes first
 
 The upgrade command automatically migrates your project structure (e.g., directory renames, missing missions, gitignore updates). It's idempotent - safe to run multiple times.
 
-Pick script type explicitly (optional):
-```bash
-spec-kitty init <PROJECT_NAME> --script ps  # Force PowerShell
-spec-kitty init <PROJECT_NAME> --script sh  # Force POSIX shell
-```
+### Optional: Local Development Setup
 
-### Optional: Automated Sandbox Setup
-
-If you frequently spin up disposable sandboxes, run the helper script from the repo root. It installs the local CLI build, points `SPEC_KITTY_TEMPLATE_ROOT` at this checkout, and initializes the project in one go:
+For development on spec-kitty itself, you can use the local repository as the template source:
 
 ```bash
-scripts/bash/setup-sandbox.sh --agents claude ~/Code/new_specify
+export SPEC_KITTY_TEMPLATE_ROOT=$(git rev-parse --show-toplevel)
+spec-kitty init <PROJECT_NAME> --ai claude
 ```
 
-Add `--reset` to recreate an existing directory, `--script-type ps` for PowerShell workflows, or `--agents claude,copilot` to preload multiple assistants.
+This ensures you're testing with the latest templates from your local checkout.
 
 ### 2. Create the Spec
 
