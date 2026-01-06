@@ -19,29 +19,38 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         override_path: Optional override path (e.g., from --template-root flag)
 
     Returns:
-        Path to repository root containing templates/command-templates, or None
+        Path to repository root containing .kittify/templates/command-templates, or None
     """
     # Check override path first (from --template-root flag)
     if override_path:
         override = Path(override_path).expanduser().resolve()
+        if (override / ".kittify" / "templates" / "command-templates").exists():
+            return override
+        # Legacy fallback for old template structure
         if (override / "templates" / "command-templates").exists():
             return override
         console.print(
-            f"[yellow]--template-root set to {override}, but templates/command-templates not found there. Ignoring.[/yellow]"
+            f"[yellow]--template-root set to {override}, but .kittify/templates/command-templates not found there. Ignoring.[/yellow]"
         )
 
     # Check environment variable
     env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
     if env_root:
         root_path = Path(env_root).expanduser().resolve()
+        if (root_path / ".kittify" / "templates" / "command-templates").exists():
+            return root_path
+        # Legacy fallback for old template structure
         if (root_path / "templates" / "command-templates").exists():
             return root_path
         console.print(
-            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but templates/command-templates not found there. Ignoring.[/yellow]"
+            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but .kittify/templates/command-templates not found there. Ignoring.[/yellow]"
         )
 
     # Check package location
     candidate = Path(__file__).resolve().parents[2]
+    if (candidate / ".kittify" / "templates" / "command-templates").exists():
+        return candidate
+    # Legacy fallback for old template structure
     if (candidate / "templates" / "command-templates").exists():
         return candidate
     return None
