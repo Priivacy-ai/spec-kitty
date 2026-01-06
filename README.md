@@ -1,15 +1,39 @@
 <div align="center">
     <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/logo_small.webp" alt="Spec Kitty Logo"/>
     <h1>Spec Kitty</h1>
-    <h3><em>Real-Time AI Development Dashboard for Spec-Driven Multi-Agent Workflows</em></h3>
 </div>
 
+**The Problem**: AI agents lose context, skip requirements, and produce inconsistent code when flying blind without specifications.
+
+**The Solution**: Spec Kitty enforces spec-first development with live kanban tracking, letting you coordinate multiple AI agents on complex features while maintaining quality.
+
+**Try it now**: `pip install spec-kitty-cli && spec-kitty init myproject --ai claude`
+
+### 30-Second Example
+
+```bash
+# Install and initialize
+pip install spec-kitty-cli
+spec-kitty init myproject --ai claude
+cd myproject
+
+# Launch Claude Code and use slash commands
+claude
+# Inside Claude: "/spec-kitty.specify Add user authentication with OAuth"
+# Spec Kitty guides the AI through: Requirements → Plan → Tasks → Implementation
+# Watch live progress: http://localhost:33333
+
+# Result: Fully-specified feature with tracked progress
+```
+
 <p align="center">
-    <strong>Live kanban tracking, multi-agent orchestration, and systematic spec-driven development for Claude Code, Cursor, Windsurf, Gemini CLI, and more.</strong>
+    <strong>Live kanban dashboard + Multi-agent orchestration + Systematic spec-driven workflows</strong><br/>
+    <em>for Claude Code, Cursor, Windsurf, Gemini, and 8 more AI agents</em>
 </p>
 
 <p align="center">
-    <a href="#-get-started">Quick Start</a> •
+    <a href="#-getting-started-complete-workflow">Quick Start</a> •
+    <a href="docs/claude-code-integration.md"><strong>Claude Code Guide</strong></a> •
     <a href="#-real-time-dashboard">Live Dashboard</a> •
     <a href="#-supported-ai-agents">12 AI Agents</a> •
     <a href="https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md">Full Docs</a>
@@ -35,60 +59,34 @@
 > Fixed critical issue where wrong templates were bundled in PyPI packages (#62, #63, #64). All 12 AI agents now receive correct Python CLI slash commands.
 > **Existing projects:** Run `spec-kitty upgrade` to apply repair migration. [See CHANGELOG](CHANGELOG.md#0109---2026-01-06) for full details.
 
-<details>
-<summary><b>🔄 What's Different from GitHub Spec Kit?</b></summary>
+## 🔄 Why Fork Spec Kit?
 
-We built on Spec Kit's solid foundation and added:
+**GitHub Spec Kit** pioneered spec-driven development but stopped at spec creation. We forked to add production-grade features teams actually need:
 
-✅ **Real-time kanban dashboard** with live agent tracking
-✅ **Multi-agent orchestration** (12 agents vs Spec Kit's limited support)
-✅ **Worktree strategy** for parallel feature isolation
-✅ **Mission system** (Software Dev + Deep Research workflows)
-✅ **Enhanced automation scripts** for task lane management
-✅ **Constitution framework** for team standards
-✅ **Activity logging** and metadata tracking
-✅ **Accept/merge workflow** with quality gates
+| Feature | Spec Kit | Spec Kitty |
+|---------|----------|------------|
+| **Real-time kanban dashboard** | ❌ No visibility | ✅ Live dashboard with agent tracking |
+| **Multi-agent support** | ⚠️ Claude only | ✅ 12 agents (Claude, Cursor, Windsurf, etc.) |
+| **Parallel features** | ❌ Branch switching | ✅ Git worktrees for isolation |
+| **Quality gates** | ❌ Manual merge | ✅ Automated accept/merge workflow |
+| **Task management** | ⚠️ Manual lane tracking | ✅ Automatic kanban + history |
+| **Team standards** | ❌ None | ✅ Constitution framework |
+| **Python CLI** | ❌ Bash scripts only | ✅ Cross-platform Python |
 
-**When to use Spec Kit:** Simpler workflows, GitHub-first teams, minimal tooling
-**When to use Spec Kitty:** Multi-agent coordination, real-time visibility, parallel development
+**Use Spec Kit if**: You want minimal tooling and only use Claude
+**Use Spec Kitty if**: You need visibility, multi-agent coordination, or production quality gates
 
-See our [detailed comparison table](#-spec-kitty-vs-other-spec-driven-tools) below.
-</details>
+> Spec Kitty started as a fork to add the live dashboard. Once we saw teams coordinating 3-10 AI agents on complex features, we evolved it into a complete multi-agent orchestration platform.
 
 ---
-## 🎯 Why Spec-Kitty?
+## 🎯 Core Features
 
-Unlike traditional spec-driven tools, Spec-Kitty includes a **live kanban dashboard** that gives you real-time visibility into your AI coding workflows:
-
-- 📊 **Visual Task Tracking**: See exactly what your AI agents are working on
-- 🔄 **Real-Time Progress**: Live updates as work moves through planned → doing → review → done
-- 👥 **Multi-Agent Orchestration**: Coordinate multiple AI coding agents simultaneously  
-- 📦 **Artifact Management**: Track specifications, plans, tasks, and deliverables in one place
-- ⚡ **Zero Configuration Dashboard**: Automatically starts with `spec-kitty init`
-
-Perfect for teams using Claude Code, Cursor, Windsurf, Gemini CLI, or GitHub Copilot.
-
-> Spec Kitty combines specification-first rigor with a live kanban dashboard, agent-aware prompts, and automated lane scripts—features you will not find bundled together in other SDD toolkits.
-
-### 🎯 Perfect For
-
-| User Type | Use Case |
-|-----------|----------|
-| **Engineering Managers** | Coordinate 3-10 AI agents building features in parallel with real-time visibility |
-| **Solo Developers** | Maintain context across long AI coding sessions with systematic workflows |
-| **Tech-Forward Agencies** | Demonstrate live development progress to clients with kanban dashboard |
-| **Tech Leads** | Enforce quality gates and spec-driven processes across distributed teams |
-| **AI Researchers** | Track multi-agent experiments with reproducible workflows |
-
-### 🔥 Key Differentiators
-
-What makes Spec Kitty unique in the spec-driven development space:
-
-1. **Only SDD tool with built-in real-time kanban dashboard** - See AI agent progress live
-2. **True multi-agent orchestration** - Coordinate 12 different AI coding agents
-3. **Worktree-first approach** - Parallel feature isolation without branch switching hell
-4. **Mission system** - Switch between Software Dev and Deep Research workflows
-5. **Constitution framework** - Encode quality standards once, enforce automatically
+- 📊 **Live Kanban Dashboard** - Real-time visibility into AI agent progress (auto-starts on `localhost:33333`)
+- 👥 **12 AI Agents Supported** - Claude Code, Cursor, Windsurf, Gemini, Copilot, and more
+- 🔄 **Systematic Workflow** - Spec → Plan → Tasks → Implement → Review → Merge
+- 📦 **Git Worktrees** - Parallel feature isolation without branch switching
+- ✅ **Quality Gates** - Constitution framework + automated acceptance checks
+- 🐍 **Python CLI** - Cross-platform automation (v0.10.0+, no bash scripts)
 
 ## 📊 Real-Time Dashboard
 
