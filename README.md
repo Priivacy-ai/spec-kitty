@@ -7,22 +7,6 @@ Spec Kitty enforces spec-first development with live kanban tracking, letting yo
 
 **Try it now**: `pip install spec-kitty-cli && spec-kitty init myproject --ai claude`
 
-### 30-Second Example
-
-```bash
-# Install and initialize
-pip install spec-kitty-cli
-spec-kitty init myproject --ai claude
-cd myproject
-
-# Launch Claude Code and use slash commands
-claude
-# Inside Claude: "/spec-kitty.specify Describe your feature here..."
-# Spec Kitty guides the AI through: Specification → Plan → Tasks → Implementation
-# Watch live progress: "spec-kitty dashboard"
-
-# Result: Fully-specified feature with tracked progress
-```
 
 <p align="center">
     <strong>Live kanban dashboard + Multi-agent orchestration + Systematic spec-driven workflows</strong><br/>
