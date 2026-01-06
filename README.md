@@ -19,9 +19,9 @@ cd myproject
 
 # Launch Claude Code and use slash commands
 claude
-# Inside Claude: "/spec-kitty.specify Add user authentication with OAuth"
+# Inside Claude: "/spec-kitty.specify Describe your feature here..."
 # Spec Kitty guides the AI through: Requirements → Plan → Tasks → Implementation
-# Watch live progress: http://localhost:33333
+# Watch live progress: "spec-kitty dashboard"
 
 # Result: Fully-specified feature with tracked progress
 ```
@@ -53,7 +53,7 @@ claude
 
 </div>
 
-> **Note:** Spec Kitty is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
+> **Note:** Spec Kitty is a fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
 > **🎉 Version 0.10.9 Released - Template Bundling Fix**
 > Fixed critical issue where wrong templates were bundled in PyPI packages (#62, #63, #64). All 12 AI agents now receive correct Python CLI slash commands.
@@ -66,15 +66,16 @@ claude
 | Feature | Spec Kit | Spec Kitty |
 |---------|----------|------------|
 | **Real-time kanban dashboard** | ❌ No visibility | ✅ Live dashboard with agent tracking |
-| **Multi-agent support** | ⚠️ Claude only | ✅ 12 agents (Claude, Cursor, Windsurf, etc.) |
+| **Multi-agent init** | ⚠️ Single agent at init | ✅ Multiple agents at once (claude + codex) |
+| **Collaborative planning** | ❌ No guided discovery | ✅ LLM asks clarifying questions (plan & spec) |
+| **Mission system** | ❌ One workflow | ✅ Software-dev + research missions |
 | **Parallel features** | ❌ Branch switching | ✅ Git worktrees for isolation |
 | **Quality gates** | ❌ Manual merge | ✅ Automated accept/merge workflow |
 | **Task management** | ⚠️ Manual lane tracking | ✅ Automatic kanban + history |
-| **Team standards** | ❌ None | ✅ Constitution framework |
 | **Python CLI** | ❌ Bash scripts only | ✅ Cross-platform Python |
 
-**Use Spec Kit if**: You want minimal tooling and only use Claude
-**Use Spec Kitty if**: You need visibility, multi-agent coordination, or production quality gates
+**Use Spec Kit if**: You want minimal tooling and single-agent workflows
+**Use Spec Kitty if**: You need visibility, multi-agent coordination (e.g., Claude implements + Codex reviews), or production quality gates
 
 > Spec Kitty started as a fork to add the live dashboard. Once we saw teams coordinating 3-10 AI agents on complex features, we evolved it into a complete multi-agent orchestration platform.
 
