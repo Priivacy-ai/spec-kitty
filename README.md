@@ -3,9 +3,7 @@
     <h1>Spec Kitty</h1>
 </div>
 
-**The Problem**: AI agents lose context, skip requirements, and produce inconsistent code when flying blind without specifications.
-
-**The Solution**: Spec Kitty enforces spec-first development with live kanban tracking, letting you coordinate multiple AI agents on complex features while maintaining quality.
+Spec Kitty enforces spec-first development with live kanban tracking, letting you coordinate multiple AI agents on complex features while maintaining quality.
 
 **Try it now**: `pip install spec-kitty-cli && spec-kitty init myproject --ai claude`
 
