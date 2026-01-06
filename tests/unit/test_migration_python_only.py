@@ -259,10 +259,11 @@ def test_migration_with_missing_templates_dir(migration, tmp_path):
 
     result = migration.apply(tmp_path, dry_run=False)
 
-    # Should fail because templates dir doesn't exist
-    assert result.success is False
-    assert len(result.errors) > 0
-    assert any("Templates directory not found" in error for error in result.errors)
+    # Should succeed gracefully with message about missing templates
+    # (Behavior changed in v0.10.9 to defer to repair migration)
+    assert result.success is True
+    assert len(result.errors) == 0
+    assert any("Templates directory not found" in change for change in result.changes_made)
 
 
 def test_migration_result_structure(migration, mock_project_with_bash):

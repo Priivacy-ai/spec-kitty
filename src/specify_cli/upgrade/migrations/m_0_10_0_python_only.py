@@ -250,8 +250,15 @@ class PythonOnlyMigration(BaseMigration):
         templates_dir = project_path / ".kittify" / "templates" / "command-templates"
 
         if not templates_dir.exists():
-            errors.append("Templates directory not found: .kittify/templates/command-templates/")
-            return changes, errors
+            # Templates not in expected location - might be from old package install
+            # This is expected for projects initialized with older package versions
+            # Templates will be fixed when they upgrade to v0.10.9+ which has repair migration
+            changes.append(
+                "Templates directory not found at .kittify/templates/command-templates/. "
+                "This is expected for projects initialized with older package versions. "
+                "Run 'spec-kitty upgrade' after upgrading to v0.10.9+ to repair templates."
+            )
+            return changes, []  # No errors, defer to repair migration
 
         templates_updated = 0
         for template_path in sorted(templates_dir.glob("*.md")):

@@ -9,6 +9,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.9] - 2026-01-06
+
+### 🐛 Fixed
+
+- **CRITICAL: Wrong templates bundled in PyPI packages** (#62, #63, #64)
+  - Fixed pyproject.toml to bundle .kittify/templates/ instead of outdated /templates/
+  - Removed outdated /templates/ directory entirely to prevent confusion
+  - All PyPI installations now receive correct Python CLI templates
+  - No more bash script references in command templates
+  - Migration 0.10.0 now handles missing templates gracefully
+  - Added package bundling validation tests to prevent regression
+
+- **Template divergence eliminated**
+  - 10 of 13 command templates were outdated in /templates/
+  - implement.md was 199 lines longer in old location (277 vs 78 lines)
+  - Git hooks were missing (1 vs 3)
+  - claudeignore-template was missing
+
+- **All 12 AI agent integrations fixed**
+  - Claude Code, GitHub Copilot, Cursor, Gemini, Qwen Code, OpenCode, Windsurf,
+    GitHub Codex, Kilocode, Augment Code, Roo Cline, Amazon Q
+  - All agents now receive correct Python CLI slash commands
+
+### ✨ Added
+
+- **`spec-kitty repair` command** - Standalone command to repair broken templates
+  - Detects bash/PowerShell script references in slash commands
+  - Automatically regenerates templates from correct source
+  - Provides detailed feedback about repairs performed
+  - Can be run with `--dry-run` to preview changes
+
+- **Repair migration (0.10.9_repair_templates)** - Automatically fixes broken installations
+  - Detects projects with broken template references
+  - Regenerates all agent slash commands from correct templates
+  - Runs automatically during `spec-kitty upgrade`
+  - Verifies repair was successful
+
+- **Package bundling validation tests** - Prevents future regressions
+  - Validates correct templates are bundled in sdist and wheel
+  - Checks for bash script references before release
+  - Tests importlib.resources accessibility
+
+### 📚 Migration & Upgrade Path
+
+**For users with broken installations (issues #62, #63, #64):**
+
+1. **Upgrade spec-kitty package:**
+   ```bash
+   pip install --upgrade spec-kitty-cli
+   spec-kitty --version  # Should show 0.10.9
+   ```
+
+2. **Run upgrade to apply repair migration:**
+   ```bash
+   cd /path/to/your/project
+   spec-kitty upgrade
+   ```
+   This will automatically detect and fix broken templates.
+
+3. **Alternative: Use dedicated repair command:**
+   ```bash
+   spec-kitty repair
+   ```
+   Provides detailed feedback about what's being fixed.
+
+4. **Verify repair:**
+   ```bash
+   # Check for bash script references (should return nothing)
+   grep -r "scripts/bash" .claude/commands/
+   ```
+
+**For new projects:**
+- Automatically get correct templates from package
+- No action needed
+
+**For existing healthy projects:**
+- Run `spec-kitty upgrade` to stay current
+- No breaking changes
+
+### 🔒 Breaking Changes
+
+None - Fully backwards compatible. Existing projects will upgrade smoothly.
+
 ## [0.10.8] - 2025-12-30
 
 ### 🐛 Fixed
