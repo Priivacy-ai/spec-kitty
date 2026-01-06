@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.10] - 2026-01-06
+
+### 🐛 Fixed
+
+- **Windows UTF-8 encoding error in agent commands** (#66)
+  - Fixed `'charmap' codec can't encode characters` error on Windows
+  - `spec-kitty agent feature create-feature` now works correctly on Windows
+  - Added UTF-8 stdout/stderr reconfiguration in main() entry point
+  - Handles Unicode characters in git output and error messages
+  - Gracefully falls back for Python < 3.7
+
 ## [0.10.9] - 2026-01-06
 
 ### 🐛 Fixed

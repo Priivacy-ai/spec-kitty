@@ -149,6 +149,16 @@ register_init_command(
 register_commands(app)
 
 def main():
+    import sys
+    # Ensure UTF-8 encoding on Windows to handle Unicode characters in git output
+    # Fixes: https://github.com/Priivacy-ai/spec-kitty/issues/66
+    if sys.platform == 'win32':
+        try:
+            sys.stdout.reconfigure(encoding='utf-8')
+            sys.stderr.reconfigure(encoding='utf-8')
+        except (AttributeError, OSError):
+            # Python < 3.7 or reconfigure not available
+            pass
     app()
 
 __all__ = ["main", "app", "__version__"]
