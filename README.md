@@ -3,15 +3,9 @@
     <h1>Spec Kitty</h1>
 </div>
 
-Spec Kitty enforces spec-first development with live kanban tracking, letting you coordinate multiple AI agents on complex features while maintaining quality.
+Spec Kitty is for people using LLM agents to write code (eg. Claude Code, Codex, Cursor). It enforces spec-first development with a live kanban dashboard, letting you coordinate multiple AI agents on complex features while maintaining quality.
 
 **Try it now**: `pip install spec-kitty-cli && spec-kitty init myproject --ai claude`
-
-
-<p align="center">
-    <strong>Live kanban dashboard + Multi-agent orchestration + Systematic spec-driven workflows</strong><br/>
-    <em>for Claude Code, Cursor, Windsurf, Gemini, and 8 more AI agents</em>
-</p>
 
 <p align="center">
     <a href="#-getting-started-complete-workflow">Quick Start</a> •
