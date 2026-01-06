@@ -161,13 +161,24 @@ spec-kitty upgrade              # Upgrade to current version
 
 The upgrade command automatically migrates your project structure across versions:
 
-| Migration | Description |
-|-----------|-------------|
-| **0.2.0** | `.specify/` → `.kittify/` directory rename |
-| **0.4.8** | Add all 12 agent directories to `.gitignore` |
+| Version | Migration |
+|---------|-----------|
+| **0.10.9** | Repair broken templates with bash script references (#62, #63, #64) |
+| **0.10.8** | Move memory/ and AGENTS.md to .kittify/ |
+| **0.10.6** | Simplify implement/review templates to use workflow commands |
+| **0.10.2** | Update slash commands to Python CLI and flat structure |
+| **0.10.0** | **Remove bash scripts, migrate to Python CLI** |
+| **0.9.1** | Complete lane migration + normalize frontmatter |
+| **0.9.0** | Flatten task lanes to frontmatter-only (no directory-based lanes) |
+| **0.8.0** | Remove active-mission (missions now per-feature) |
+| **0.7.3** | Update scripts for worktree feature numbering |
+| **0.6.7** | Ensure software-dev and research missions present |
+| **0.6.5** | Rename commands/ → command-templates/ |
 | **0.5.0** | Install encoding validation git hooks |
-| **0.6.5** | `commands/` → `command-templates/` rename |
-| **0.6.7** | Ensure software-dev and research missions are present |
+| **0.4.8** | Add all 12 AI agent directories to .gitignore |
+| **0.2.0** | Rename .specify/ → .kittify/ and /specs/ → /kitty-specs/ |
+
+> Run `spec-kitty upgrade --verbose` to see which migrations apply to your project.
 
 ### Upgrade Options
 
