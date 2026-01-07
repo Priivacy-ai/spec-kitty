@@ -1,7 +1,7 @@
 [project]
 name = "spec-kitty-cli"
 version = "0.10.12"
-description = "Spec Kitty CLI, a community fork of GitHub's Spec Kit for bootstrapping Spec-Driven Development (SDD) projects."
+description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
@@ -15,9 +15,18 @@ keywords = [
     "specification",
     "spec-driven-development",
     "sdd",
+    "agentic-development",
+    "ai-coding",
+    "claude-code",
+    "ai-agents",
+    "llm-tools",
+    "code-generation",
     "feature-specs",
     "requirements",
     "planning",
+    "kanban",
+    "git-worktree",
+    "workflow-automation",
     "cli",
 ]
 classifiers = [
@@ -29,9 +38,14 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Code Generators",
     "Topic :: Software Development :: Documentation",
     "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Version Control",
+    "Topic :: Software Development :: Version Control :: Git",
     "Topic :: Utilities",
+    "Environment :: Console",
     "Typing :: Typed",
 ]
 dependencies = [
