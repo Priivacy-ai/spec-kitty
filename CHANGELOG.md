@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.11] - 2026-01-07
+
+### 🐛 Fixed
+
+- **Deprecated script references in mission templates** (#68)
+  - Fixed `.kittify/missions/software-dev/templates/task-prompt-template.md` to use `spec-kitty agent tasks move-task` instead of deprecated `python3 .kittify/scripts/tasks/tasks_cli.py`
+  - Fixed `.kittify/templates/task-prompt-template.md` with same update
+  - Fixed `.kittify/missions/software-dev/command-templates/tasks.md` to reference CLI commands
+  - Updated `.kittify/templates/POWERSHELL_SYNTAX.md` to document spec-kitty CLI instead of obsolete PowerShell scripts
+  - **Root cause**: Migration 0.10.9 fixed agent command templates but missed mission-specific templates
+  - **Impact**: Agents were executing users' local `cli.py` files instead of spec-kitty CLI on Windows
+
+### ✨ Added
+
+- **Template compliance tests** - Prevent deprecated script references
+  - `test_no_deprecated_script_references()` - Detects old `.kittify/scripts/` paths in templates
+  - `test_templates_use_spec_kitty_cli()` - Ensures templates reference spec-kitty CLI commands
+  - Tests run on all mission templates and global templates
+  - Prevents regression of issue #68
+
 ## [0.10.10] - 2026-01-06
 
 ### 🐛 Fixed

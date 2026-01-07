@@ -94,7 +94,7 @@ The script will fail if you're not in a feature worktree. This is intentional - 
      - Update `tasks.md` to reference the prompt filename
    - Keep prompts exhaustive enough that a new agent can complete the work package unaided
 
-   **IMPORTANT**: All WP files live in flat `tasks/` directory. Lane status is tracked ONLY in the `lane:` frontmatter field, NOT by directory location. Agents can change lanes by editing the `lane:` field directly or using `tasks_cli.py update`.
+   **IMPORTANT**: All WP files live in flat `tasks/` directory. Lane status is tracked ONLY in the `lane:` frontmatter field, NOT by directory location. Agents can change lanes by editing the `lane:` field directly or using `spec-kitty agent tasks move-task`.
 
 7. **Report**: Provide a concise outcome summary:
    - Path to `tasks.md`

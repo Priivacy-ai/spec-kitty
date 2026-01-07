@@ -4,7 +4,7 @@ subtasks:
   - "Txxx"
 title: "Replace with work package title"
 phase: "Phase N - Replace with phase name"
-lane: "planned"  # Edit directly or use: tasks_cli.py update <feature> <WP> <lane>
+lane: "planned"  # Edit directly or use: spec-kitty agent tasks move-task <WPID> --to <lane>
 assignee: ""      # Optional friendly name when in doing/for_review
 agent: ""         # CLI agent identifier (claude, codex, etc.)
 shell_pid: ""     # PID captured when the task moved to the current lane
@@ -101,7 +101,7 @@ history:
 To change a work package's lane, either:
 
 1. **Edit directly**: Change the `lane:` field in frontmatter
-2. **Use CLI**: `tasks_cli.py update <FEATURE> <WPID> <lane> --note "message"`
+2. **Use CLI**: `spec-kitty agent tasks move-task <WPID> --to <lane> --note "message"`
 
 The CLI command also updates the activity log automatically.
 
