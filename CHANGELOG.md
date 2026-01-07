@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.12] - 2026-01-07
+
+### 🐛 Fixed
+
+- **Upgrade migration parameter mismatch** (#68 follow-up)
+  - Fixed `m_0_10_9_repair_templates.py` migration calling `generate_agent_assets()` with wrong parameter name
+  - Changed `ai=ai_config` to `agent_key=ai_config` to match function signature
+  - Corrected parameter order to match function definition
+  - **Root cause**: Migration was using deprecated parameter name, blocking users from upgrading to 0.10.11
+  - **Impact**: Users unable to run `spec-kitty upgrade` to get template fixes from 0.10.11
+
 ## [0.10.11] - 2026-01-07
 
 ### 🐛 Fixed

@@ -129,9 +129,9 @@ class RepairTemplatesMigration(BaseMigration):
                 # Regenerate commands
                 try:
                     generate_agent_assets(
-                        project_path=project_path,
                         command_templates_dir=command_templates_dir,
-                        ai=ai_config,
+                        project_path=project_path,
+                        agent_key=ai_config,
                         script_type="sh"
                     )
                     changes.append("Regenerated all agent slash commands")
