@@ -29,7 +29,7 @@ def test_init_flow_fresh_project():
         # Verify success
         assert result.success, "Init flow should succeed"
         assert result.modified, "Should create new .gitignore"
-        assert len(result.entries_added) == 12, "Should add all 12 agents"
+        assert len(result.entries_added) == 13, "Should add all 12 agents + .kittify/.dashboard"
 
         # Verify file exists and has correct content
         gitignore_path = project_path / ".gitignore"
@@ -67,7 +67,7 @@ dist/
         # Verify success
         assert result.success, "Init flow should succeed"
         assert result.modified, "Should modify existing .gitignore"
-        assert len(result.entries_added) == 12, "Should add all 12 agents"
+        assert len(result.entries_added) == 13, "Should add all 12 agents + .kittify/.dashboard"
 
         # Verify existing content is preserved
         content = gitignore_path.read_text()
@@ -93,14 +93,14 @@ def test_init_flow_idempotency():
         result1 = manager1.protect_all_agents()
         assert result1.success
         assert result1.modified
-        assert len(result1.entries_added) == 12
+        assert len(result1.entries_added) == 13
 
         # Second init (should do nothing)
         manager2 = GitignoreManager(project_path)
         result2 = manager2.protect_all_agents()
         assert result2.success
         assert not result2.modified, "Should not modify on second run"
-        assert len(result2.entries_skipped) == 12
+        assert len(result2.entries_skipped) == 13
         assert len(result2.entries_added) == 0
 
         # Third init (still should do nothing)
@@ -145,8 +145,8 @@ node_modules/
         assert ".claude/" in result.entries_skipped
         assert ".gemini/" in result.entries_skipped
 
-        # Check that new ones were added (should be 9 - 12 total minus 3 existing)
-        assert len(result.entries_added) == 9
+        # Check that new ones were added (should be 10 - 13 total minus 3 existing)
+        assert len(result.entries_added) == 10
         assert ".cursor/" in result.entries_added
 
         # Verify no duplicates in file
