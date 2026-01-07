@@ -41,6 +41,7 @@ env/
 .codex/
 *.lock
 .worktrees/
+.kittify/.dashboard
 
 # Spec Kit-specific files
 .genreleases/

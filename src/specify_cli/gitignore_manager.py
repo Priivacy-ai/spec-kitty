@@ -188,6 +188,8 @@ class GitignoreManager:
         This is the primary method used during spec-kitty init to ensure
         comprehensive protection of all AI agent directories.
 
+        Also protects runtime files like .kittify/.dashboard.
+
         Returns:
             ProtectionResult containing details of the operation
         """
@@ -196,6 +198,9 @@ class GitignoreManager:
         try:
             # Get all agent directories
             all_directories = [agent.directory for agent in AGENT_DIRECTORIES]
+
+            # Add runtime files that should never be tracked
+            all_directories.append(".kittify/.dashboard")
 
             # Track existing entries before modification
             existing_before = set()
