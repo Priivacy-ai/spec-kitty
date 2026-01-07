@@ -36,18 +36,17 @@ git branch --show-current
 
 ---
 
-## Running Spec-Kitty Scripts (PowerShell)
+## Running Spec-Kitty Commands (PowerShell)
 
-### Script Location
+### Using the spec-kitty CLI
 
-PowerShell scripts are in: `.kittify\scripts\powershell\`
+Spec-kitty uses a Python CLI that works across all platforms:
 
-**Common scripts:**
-- `Create-NewFeature.ps1` - Create a new feature
-- `check-prerequisites.ps1` - Check environment and paths
-- `Move-TaskToLane.ps1` - Move task between lanes
-- `Set-TaskStatus.ps1` - Update task status
-- `Merge-Feature.ps1` - Merge completed feature
+**Common commands:**
+- `spec-kitty agent feature create-feature <slug>` - Create a new feature
+- `spec-kitty verify-setup` - Check environment and paths
+- `spec-kitty agent tasks move-task <WPID> --to <lane>` - Move task between lanes
+- `spec-kitty merge` - Merge completed feature
 
 ### Parameter Naming Convention
 
@@ -105,27 +104,19 @@ cd worktrees; Get-Location
 .\check-prerequisites.ps1 -Json -RequireTasks
 ```
 
-### ❌ Don't Mix Script Types
+### Path Separators in PowerShell
+
+PowerShell on Windows uses backslashes for native paths:
 
 ```powershell
-# WRONG (trying to run bash script in PowerShell):
-.\.kittify\scripts\bash\create-new-feature.sh
+# WRONG (Unix-style paths on Windows):
+cd ./.kittify/memory
 
-# CORRECT (use PowerShell script):
-.\.kittify\scripts\powershell\Create-NewFeature.ps1
+# CORRECT (Windows-style paths):
+cd .\.kittify\memory
 ```
 
-### ❌ Don't Use Forward Slashes in Paths
-
-```powershell
-# WRONG:
-cd ./.kittify/scripts/powershell
-
-# CORRECT:
-cd .\.kittify\scripts\powershell
-```
-
-Note: Git commands work with forward slashes, but PowerShell scripts expect backslashes.
+Note: Git commands work with forward slashes, but native PowerShell file operations expect backslashes. The spec-kitty CLI handles this automatically.
 
 ---
 
@@ -193,15 +184,15 @@ New-Item -ItemType Directory -Path "tasks\planned" -Force
 - You're in bash/zsh/fish terminal
 - Templates reference `.sh` files in frontmatter
 
-**Check which scripts the user chose:**
-Look at the template frontmatter:
-```yaml
-scripts:
-  sh: ".kittify/scripts/bash/script-name.sh"
-  ps: ".kittify/scripts/powershell/Script-Name.ps1"
+**Using spec-kitty commands:**
+All spec-kitty commands work the same way on PowerShell and Bash:
+```powershell
+spec-kitty agent tasks move-task WP01 --to doing
+spec-kitty verify-setup
+spec-kitty dashboard
 ```
 
-If you see `{SCRIPT}` in the template, it will be replaced with the appropriate script path based on the user's choice.
+The CLI is cross-platform and handles path differences automatically.
 
 ---
 

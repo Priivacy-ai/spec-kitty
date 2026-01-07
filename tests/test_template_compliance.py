@@ -150,3 +150,101 @@ def test_agents_md_shows_flat_structure():
     # Should not show old subdirectory structure
     assert 'tasks/planned/WP' not in content, \
         "AGENTS.md should not show old subdirectory structure"
+
+
+def test_no_deprecated_script_references():
+    """Templates must not reference deprecated .kittify/scripts/ paths.
+
+    Issue #68: Templates were referencing old bash/python scripts in .kittify/scripts/
+    instead of the spec-kitty CLI command. This caused agents to execute user's local
+    cli.py files instead of the spec-kitty entry point.
+
+    All templates must use: spec-kitty agent tasks move-task
+    NOT: python3 .kittify/scripts/tasks/tasks_cli.py
+    """
+    templates = find_mission_templates()
+    assert len(templates) > 0, "No templates found - check test setup"
+
+    violations = []
+
+    # Deprecated script patterns
+    deprecated_patterns = [
+        r'\.kittify/scripts/tasks/tasks_cli\.py',
+        r'python3?\s+\.kittify/scripts/',
+        r'python3?\s+scripts/tasks/tasks_cli\.py',
+        r'\btasks_cli\.py\s+(move|update)',  # Direct reference to tasks_cli.py commands
+    ]
+
+    for template_path in templates:
+        content = template_path.read_text(encoding='utf-8')
+        lines = content.split('\n')
+
+        for line_num, line in enumerate(lines, 1):
+            # Skip comments explaining what NOT to do
+            if 'deprecated' in line.lower() or 'old' in line.lower() or 'WRONG' in line:
+                continue
+
+            for pattern in deprecated_patterns:
+                if re.search(pattern, line):
+                    violations.append({
+                        'file': template_path.relative_to(template_path.parent.parent.parent),
+                        'line': line_num,
+                        'content': line.strip(),
+                        'pattern': pattern
+                    })
+
+    if violations:
+        msg = "\n\nDeprecated script references found (Issue #68):\n"
+        msg += "Templates must use: spec-kitty agent tasks move-task\n"
+        msg += "NOT: python3 .kittify/scripts/tasks/tasks_cli.py\n\n"
+        for v in violations:
+            msg += f"\n{v['file']}:{v['line']}\n  Pattern: {v['pattern']}\n  Line: {v['content'][:100]}\n"
+        pytest.fail(msg)
+
+
+def test_templates_use_spec_kitty_cli():
+    """Templates must use spec-kitty CLI commands, not legacy scripts.
+
+    Ensures templates instruct agents to use the correct spec-kitty command format.
+    """
+    templates = find_mission_templates()
+
+    # Find templates that mention task movement
+    task_movement_templates = []
+    for template_path in templates:
+        content = template_path.read_text(encoding='utf-8')
+        if 'move' in content.lower() and ('lane' in content.lower() or 'task' in content.lower()):
+            task_movement_templates.append(template_path)
+
+    if not task_movement_templates:
+        pytest.skip("No templates found that reference task movement")
+
+    violations = []
+
+    for template_path in task_movement_templates:
+        content = template_path.read_text(encoding='utf-8')
+
+        # Check if template uses correct spec-kitty command
+        has_correct_command = 'spec-kitty agent tasks move-task' in content
+
+        # Check for deprecated patterns (should be caught by previous test, but double-check)
+        has_deprecated = '.kittify/scripts/' in content or 'tasks_cli.py' in content
+
+        if has_deprecated and not has_correct_command:
+            violations.append({
+                'file': template_path.relative_to(template_path.parent.parent.parent),
+                'issue': 'Uses deprecated script reference without spec-kitty alternative'
+            })
+        elif has_deprecated:
+            # Has both - might be showing migration example, verify it's clearly marked
+            if 'deprecated' not in content.lower() and 'old' not in content.lower():
+                violations.append({
+                    'file': template_path.relative_to(template_path.parent.parent.parent),
+                    'issue': 'Contains deprecated reference without clear deprecation notice'
+                })
+
+    if violations:
+        msg = "\n\nTemplates with deprecated script references:\n"
+        for v in violations:
+            msg += f"\n{v['file']}\n  Issue: {v['issue']}\n"
+        pytest.fail(msg)

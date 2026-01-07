@@ -4,7 +4,7 @@ subtasks:
   - "Txxx"
 title: "Replace with work package title"
 phase: "Phase N - Replace with phase name"
-lane: "planned"  # DO NOT EDIT - use: tasks_cli.py move <feature> <WP> <lane>
+lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task <WPID> --to <lane>
 assignee: ""      # Optional friendly name when in doing/for_review
 agent: ""         # CLI agent identifier (claude, codex, etc.)
 shell_pid: ""     # PID captured when the task moved to the current lane
@@ -106,15 +106,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 **Always use the move command:**
 ```bash
-python3 .kittify/scripts/tasks/tasks_cli.py move <FEATURE> <WPID> <lane> --note "Your note"
+spec-kitty agent tasks move-task <WPID> --to <lane> --note "Your note"
 ```
 
 This command:
-1. Moves the file to the correct `tasks/<lane>/` directory
-2. Updates the `lane:` field in YAML
-3. Updates `agent` and `shell_pid` metadata
-4. Appends an entry to the Activity Log
-5. Stages the changes for commit
+1. Updates the `lane:` field in YAML
+2. Updates `agent` and `shell_pid` metadata
+3. Appends an entry to the Activity Log
+4. Stages the changes for commit
 
 You can add `--agent <name>` and `--shell-pid <pid>` flags for explicit metadata.
 
