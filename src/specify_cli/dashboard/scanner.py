@@ -156,10 +156,31 @@ def _get_artifact_info(path: Path) -> Dict[str, any]:
     }
 
 
-def get_feature_artifacts(feature_dir: Path) -> Dict[str, Dict[str, any]]:
-    """Return which artifacts exist for a feature with modification info."""
+def get_feature_artifacts(feature_dir: Path, project_dir: Optional[Path] = None) -> Dict[str, Dict[str, any]]:
+    """Return which artifacts exist for a feature with modification info.
+    
+    Note: Constitution is a project-wide artifact, not per-feature.
+    
+    Args:
+        feature_dir: Path to the feature directory
+        project_dir: Optional project root path. If not provided, will be inferred.
+    """
+    # Constitution is stored at project level, not in feature directory
+    if project_dir is None:
+        # Try to infer project_dir by navigating up from feature_dir
+        # Handle both root (kitty-specs/NNN) and worktree (.worktrees/NNN/kitty-specs/NNN) paths
+        if ".worktrees" in feature_dir.parts:
+            # Worktree path: go up to project root (before .worktrees)
+            worktrees_idx = feature_dir.parts.index(".worktrees")
+            project_dir = Path(*feature_dir.parts[:worktrees_idx])
+        else:
+            # Regular path: go up from kitty-specs/NNN-feature to project root
+            project_dir = feature_dir.parent.parent
+    
+    constitution_path = project_dir / ".kittify" / "memory" / "constitution.md"
+    
     return {
-        "constitution": _get_artifact_info(feature_dir / "constitution.md"),
+        "constitution": _get_artifact_info(constitution_path),
         "spec": _get_artifact_info(feature_dir / "spec.md"),
         "plan": _get_artifact_info(feature_dir / "plan.md"),
         "tasks": _get_artifact_info(feature_dir / "tasks.md"),
@@ -274,7 +295,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
             except json.JSONDecodeError:
                 meta_data = None
 
-        artifacts = get_feature_artifacts(feature_dir)
+        artifacts = get_feature_artifacts(feature_dir, project_dir)
         workflow = get_workflow_status(artifacts)
 
         kanban_stats = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "done": 0}
