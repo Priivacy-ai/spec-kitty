@@ -32,11 +32,10 @@ The script handles location setup automatically. You do NOT need to navigate any
 
 **What {SCRIPT} Provides**:
 When you run the creation script, it returns JSON with:
-- **BRANCH_NAME**: Your feature branch name (e.g., "001-checkout-flow")
-- **SPEC_FILE**: Absolute path to newly created spec.md
-- **FEATURE_NUM**: Feature number (e.g., "001")
-- **FRIENDLY_NAME**: Your feature title (e.g., "Checkout Upsell Flow")
-- **WORKTREE_PATH**: Absolute path to your feature worktree (e.g., `.worktrees/001-checkout-flow`)
+- **result**: "success" if creation succeeded
+- **feature**: Feature directory name (e.g., "001-checkout-flow")
+- **worktree_path**: Absolute path to your feature worktree (e.g., `.worktrees/001-checkout-flow`)
+- **feature_dir**: Absolute path to feature directory in kitty-specs (e.g., `kitty-specs/001-checkout-flow`)
 
 ---
 
@@ -139,13 +138,13 @@ Given that feature description, do this:
    - Only proceed once every discovery question has an explicit answer and the user has acknowledged the Intent Summary.
    - Empty invocation rule: stay in interview mode until you can restate the agreed-upon feature description. Do **not** call `{SCRIPT}` while the description is missing or provisional.
 
-2. When discovery is complete and the intent summary, **title**, and **mission** are confirmed, run the script `{SCRIPT}` from repo root, inserting `--feature-name "<Friendly Title>"` and `--mission "<selected-mission>"` immediately before the feature description argument. For example:
+2. When discovery is complete and the intent summary and **title** are confirmed, generate a feature slug from the title (lowercase, hyphenated, e.g., "checkout-upsell-flow"). Then run the script `{SCRIPT}` from repo root with the feature slug as the only argument:
 
-   - **All platforms**: `spec-kitty agent feature create-feature --json --feature-name "Checkout Upsell Flow" --mission "software-dev"`
+   - **All platforms**: `spec-kitty agent feature create-feature --json "checkout-upsell-flow"`
 
-   Parse its JSON output for `BRANCH_NAME`, `SPEC_FILE`, `FEATURE_NUM`, and `FRIENDLY_NAME`. All file paths must be absolute.
+   Parse its JSON output for `worktree_path`, `feature_dir`, and `feature` (feature number with name). All file paths must be absolute.
 
-   **Note**: The `--mission` flag writes the mission to the feature's `meta.json`, which downstream commands will read to use the correct templates.
+   **Note**: The mission selection is handled separately and is not part of the create-feature command.
 
    **IMPORTANT** You must only ever run this script once. The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for.
 3. Load `templates/spec-template.md` to understand required sections.
