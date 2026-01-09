@@ -19,36 +19,39 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         override_path: Optional override path (e.g., from --template-root flag)
 
     Returns:
-        Path to repository root containing .kittify/templates/command-templates, or None
+        Path to repository root containing .kittify/missions/ with mission definitions, or None
     """
     # Check override path first (from --template-root flag)
     if override_path:
         override = Path(override_path).expanduser().resolve()
-        if (override / ".kittify" / "templates" / "command-templates").exists():
+        missions_dir = override / ".kittify" / "missions"
+        if missions_dir.exists() and any(missions_dir.iterdir()):
             return override
         # Legacy fallback for old template structure
         if (override / "templates" / "command-templates").exists():
             return override
         console.print(
-            f"[yellow]--template-root set to {override}, but .kittify/templates/command-templates not found there. Ignoring.[/yellow]"
+            f"[yellow]--template-root set to {override}, but .kittify/missions/ not found there. Ignoring.[/yellow]"
         )
 
     # Check environment variable
     env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
     if env_root:
         root_path = Path(env_root).expanduser().resolve()
-        if (root_path / ".kittify" / "templates" / "command-templates").exists():
+        missions_dir = root_path / ".kittify" / "missions"
+        if missions_dir.exists() and any(missions_dir.iterdir()):
             return root_path
         # Legacy fallback for old template structure
         if (root_path / "templates" / "command-templates").exists():
             return root_path
         console.print(
-            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but .kittify/templates/command-templates not found there. Ignoring.[/yellow]"
+            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but .kittify/missions/ not found there. Ignoring.[/yellow]"
         )
 
     # Check package location
     candidate = Path(__file__).resolve().parents[2]
-    if (candidate / ".kittify" / "templates" / "command-templates").exists():
+    missions_dir = candidate / ".kittify" / "missions"
+    if missions_dir.exists() and any(missions_dir.iterdir()):
         return candidate
     # Legacy fallback for old template structure
     if (candidate / "templates" / "command-templates").exists():
@@ -56,8 +59,15 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
     return None
 
 
-def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str) -> Path:
-    """Copy the embedded .kittify assets from a local repository checkout."""
+def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str, mission_key: str = "software-dev") -> Path:
+    """Copy the embedded .kittify assets from a local repository checkout.
+    
+    Args:
+        repo_root: Root of the repository containing .kittify/
+        project_path: Target project path
+        script_type: Script type (sh or ps)
+        mission_key: Mission to use for command templates (default: software-dev)
+    """
     specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
 
@@ -117,9 +127,8 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             shutil.copytree(missions_src, missions_dest)
             break
 
-    # NOTE: Templates are copied temporarily for agent command generation
-    # They will be cleaned up after all commands are generated (see init.py)
-    return specify_root / "templates" / "command-templates"
+    # NOTE: Mission command templates are used for agent command generation
+    return specify_root / "missions" / mission_key / "command-templates"
 
 
 def copy_package_tree(resource, dest: Path) -> None:
@@ -136,8 +145,14 @@ def copy_package_tree(resource, dest: Path) -> None:
                 shutil.copyfileobj(src, dst)
 
 
-def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path:
-    """Copy the packaged .kittify assets that ship with the CLI."""
+def copy_specify_base_from_package(project_path: Path, script_type: str, mission_key: str = "software-dev") -> Path:
+    """Copy the packaged .kittify assets that ship with the CLI.
+    
+    Args:
+        project_path: Target project path
+        script_type: Script type (sh or ps)
+        mission_key: Mission to use for command templates (default: software-dev)
+    """
     data_root = files("specify_cli")
     specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
@@ -187,7 +202,7 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
             copy_package_tree(missions_resource, specify_root / "missions")
             break
 
-    return specify_root / "templates" / "command-templates"
+    return specify_root / "missions" / mission_key / "command-templates"
 
 
 __all__ = [
