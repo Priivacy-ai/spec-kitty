@@ -260,7 +260,7 @@ Or use the helper script:
 - Format: `WP01-kebab-case-slug.md`
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
 '''
-    (tasks_dir / "README.md").write_text(tasks_readme_content)
+    (tasks_dir / "README.md").write_text(tasks_readme_content, encoding='utf-8')
 
     # Create worktree .kittify directory if it doesn't exist
     worktree_kittify = worktree_path / ".kittify"
