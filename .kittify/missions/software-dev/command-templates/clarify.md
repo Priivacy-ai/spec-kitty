@@ -1,5 +1,6 @@
 ---
 description: Identify underspecified areas in the current feature spec by asking up to 5 highly targeted clarification questions and encoding answers back into the spec.
+---
 
 ## User Input
 
@@ -17,13 +18,24 @@ Note: This clarification workflow is expected to run (and be completed) BEFORE i
 
 Execution steps:
 
-1. Run `{SCRIPT}` from repo root **once** (combined `--json --paths-only` mode / `-Json -PathsOnly`). Parse minimal JSON payload fields:
-   - `FEATURE_DIR`
-   - `FEATURE_SPEC`
-   - (Optionally capture `IMPL_PLAN`, `TASKS` for future chained flows.)
-   - If JSON parsing fails, abort and instruct user to re-run `/spec-kitty.specify` or verify feature branch environment.
+1. Run the prerequisites check command from repo root **once** with combined JSON and paths-only flags:
+   
+   ```bash
+   spec-kitty agent feature check-prerequisites --json --paths-only
+   ```
+   
+   Parse the JSON payload fields:
+   - `feature_dir`: Absolute path to the feature directory
+   - `spec_file`: Absolute path to spec.md
+   - `checklists_dir`: Absolute path to checklists/ directory (if exists)
+   - `research_dir`: Absolute path to research/ directory (if exists)
+   - `tasks_dir`: Absolute path to tasks/ directory (if exists)
+   
+   If JSON parsing fails or returns an error, abort and instruct user to re-run `/spec-kitty.specify` or verify feature branch environment.
 
-2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
+   **Note**: The command automatically detects the current feature context whether you're in the main repo or a worktree.
+
+2. Load the current spec file using the `spec_file` path from the JSON output. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
 
    Functional Scope & Behavior:
    - Core user goals & success criteria
@@ -134,11 +146,11 @@ Execution steps:
    - Markdown structure valid; only allowed new headings: `## Clarifications`, `### Session YYYY-MM-DD`.
    - Terminology consistency: same canonical term used across all updated sections.
 
-7. Write the updated spec back to `FEATURE_SPEC`.
+7. Write the updated spec back to the `spec_file` path.
 
 8. Report completion (after questioning loop ends or early termination):
    - Number of questions asked & answered.
-   - Path to updated spec.
+   - Path to updated spec file.
    - Sections touched (list names).
    - Coverage summary listing each taxonomy category with a status label (Resolved / Deferred / Clear / Outstanding). Present as plain text or bullet list, not a table.
    - If any Outstanding or Deferred remain, recommend whether to proceed to `/spec-kitty.plan` or run `/spec-kitty.clarify` again later post-plan.
