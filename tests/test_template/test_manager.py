@@ -44,9 +44,12 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     (templates_src / "sample.md").write_text("content", encoding="utf-8")
     (repo_root / ".kittify" / "templates" / "AGENTS.md").write_text("agents", encoding="utf-8")
 
-    missions_src = repo_root / ".kittify" / "missions" / "default"
+    missions_src = repo_root / ".kittify" / "missions" / "software-dev"
     missions_src.mkdir(parents=True)
     (missions_src / "rules.md").write_text("rules", encoding="utf-8")
+    cmd_templates = missions_src / "command-templates"
+    cmd_templates.mkdir()
+    (cmd_templates / "sample.md").write_text("command", encoding="utf-8")
 
     project_path = tmp_path / "project"
     project_path.mkdir()
@@ -58,7 +61,8 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     assert (project_path / ".kittify" / "scripts" / "bash" / "bootstrap.sh").exists()
     assert (project_path / ".kittify" / "scripts" / "tasks" / "tasks_cli.py").exists()
     assert (project_path / ".kittify" / "templates" / "command-templates" / "sample.md").exists()
-    assert (project_path / ".kittify" / "missions" / "default" / "rules.md").exists()
+    assert (project_path / ".kittify" / "missions" / "software-dev" / "rules.md").exists()
+    assert (project_path / ".kittify" / "missions" / "software-dev" / "command-templates" / "sample.md").exists()
 
 
 def test_copy_specify_base_from_package_uses_packaged_assets(
@@ -80,9 +84,12 @@ def test_copy_specify_base_from_package_uses_packaged_assets(
     (templates_root / "sample.md").write_text("demo", encoding="utf-8")
     (fake_pkg / "templates" / "AGENTS.md").write_text("rules", encoding="utf-8")
 
-    missions_root = fake_pkg / "missions" / "default"
+    missions_root = fake_pkg / "missions" / "software-dev"
     missions_root.mkdir(parents=True)
     (missions_root / "rules.md").write_text("mission rules", encoding="utf-8")
+    cmd_templates = missions_root / "command-templates"
+    cmd_templates.mkdir()
+    (cmd_templates / "sample.md").write_text("command", encoding="utf-8")
 
     monkeypatch.setattr(manager, "files", lambda _: fake_pkg)
 
