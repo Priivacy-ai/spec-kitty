@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.13] - 2026-01-10
+
+###  Changed
+
+- **Command template consolidation** - Unified command templates into \.kittify/missions/<mission-key>/command-templates/\ for cleaner directory structure with single source of truth
+- **Mission directory structure** - Reorganized mission assets: constitution at \.kittify/missions/<mission-key>/constitution.md\, templates and command-templates in mission subdirectories
+
+###  Fixed
+
+- **Mission-aware template copying** - Template operations now respect project's configured mission via \mission_key\ parameter; migrations read mission from metadata.yaml
+- **Dashboard constitution detection** - Fixed feature-level constitution.md artifact tracking for new mission structure
+- **UTF-8 encoding in init** - Fixed encoding errors when creating README.md on Windows by explicitly using UTF-8
+- **Feature creation command syntax** - Corrected output messages to use proper spec-kitty CLI syntax
+
 ## [0.10.12] - 2026-01-07
 
 ### 🐛 Fixed
