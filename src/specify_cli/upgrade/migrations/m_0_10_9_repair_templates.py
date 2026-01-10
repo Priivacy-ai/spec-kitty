@@ -86,6 +86,22 @@ class RepairTemplatesMigration(BaseMigration):
                 copy_specify_base_from_package,
             )
 
+            # Get mission_key from metadata before copying templates
+            import yaml
+            metadata_file = project_path / ".kittify" / "metadata.yaml"
+            mission_key = "software-dev"  # default
+            ai_config = "claude"  # default
+            
+            if metadata_file.exists():
+                try:
+                    with open(metadata_file, encoding="utf-8") as f:
+                        metadata = yaml.safe_load(f)
+                        mission_key = metadata.get("mission_key", "software-dev")
+                        ai_config = metadata.get("ai", "claude")
+                except Exception:
+                    # Use defaults if we can't read metadata
+                    pass
+
             local_repo = get_local_repo_root()
             command_templates_dir = None
 
@@ -93,7 +109,7 @@ class RepairTemplatesMigration(BaseMigration):
                 # For local dev, get templates from .kittify/templates/
                 if not dry_run:
                     command_templates_dir = copy_specify_base_from_local(
-                        local_repo, project_path, "sh"
+                        local_repo, project_path, "sh", mission_key=mission_key
                     )
                     changes.append("Copied correct templates from local repo")
                 else:
@@ -102,7 +118,7 @@ class RepairTemplatesMigration(BaseMigration):
                 # For package install, use bundled templates (now fixed)
                 if not dry_run:
                     command_templates_dir = copy_specify_base_from_package(
-                        project_path, "sh"
+                        project_path, "sh", mission_key=mission_key
                     )
                     changes.append("Copied correct templates from package")
                 else:
@@ -112,19 +128,6 @@ class RepairTemplatesMigration(BaseMigration):
             if not dry_run and command_templates_dir:
                 # Import here to avoid circular dependencies
                 from specify_cli.cli.commands.init import generate_agent_assets
-                import yaml
-
-                # Get AI configuration from metadata
-                metadata_file = project_path / ".kittify" / "metadata.yaml"
-                ai_config = "claude"  # default
-                if metadata_file.exists():
-                    try:
-                        with open(metadata_file, encoding="utf-8") as f:
-                            metadata = yaml.safe_load(f)
-                            ai_config = metadata.get("ai", "claude")
-                    except Exception:
-                        # Use default if we can't read metadata
-                        pass
 
                 # Regenerate commands
                 try:
