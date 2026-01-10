@@ -143,7 +143,7 @@ Agent directories like `.claude/`, `.codex/`, `.gemini/` contain:
 
 ❌ **DO NOT commit:**
 - `.claude/`, `.codex/`, `.gemini/`, etc. - Agent runtime directories
-- `.kittify/templates/command-templates/` - These are templates, not final commands
+- `.kittify/missions/<mission-name>/command-templates/` - Source templates for slash commands
 - Any `auth.json`, `credentials.json`, or similar files
 
 ### Automatic Protection

@@ -22,20 +22,33 @@ Before running any scripts or writing to disk you **must** conduct a structured 
 
 - **User signals to reduce questioning**: If the user says "just testing", "quick prototype", "skip to next phase", "stop asking questions" - recognize this as a signal to minimize discovery and proceed with reasonable defaults.
 
-- **First response rule**:
-  - For TRIVIAL features (hello world, simple test): Ask ONE clarifying question, then if the answer confirms it's simple, proceed directly to spec generation
-  - For other features: Ask a single focused discovery question and end with `WAITING_FOR_DISCOVERY_INPUT`
+- **Batch Q&A approach**:
+  - Determine the appropriate number of questions based on feature complexity (1-2 for trivial, 2-3 for simple, 3-5 for complex, 5+ for critical)
+  - Present ALL questions together in a numbered list format
+  - For TRIVIAL features: If user description is already clear, skip questions entirely and proceed with reasonable defaults
+  - For other features: Present all discovery questions at once and end with `WAITING_FOR_DISCOVERY_INPUT`
 
-- If the user provides no initial description (empty command), stay in **Interactive Interview Mode**: keep probing with one question at a time.
+- If the user provides no initial description (empty command), stay in **Interactive Interview Mode**: present the full set of discovery questions in one batch.
 
-- **Conversational cadence**: After each user reply, decide if you have ENOUGH context for this feature's complexity level. For trivial features, 1-2 questions is sufficient. Only continue asking if truly necessary for the scope.
+- **Question presentation format**:
+  ```
+  I have [N] questions to ensure I capture all requirements:
+  
+  Q1: [First question]
+  Q2: [Second question]
+  Q3: [Third question]
+  ...
+  
+  Please answer all questions (you can respond with Q1: answer, Q2: answer, etc.)
+  ```
 
 Discovery requirements (scale to feature complexity):
 
 1. Maintain a **Discovery Questions** table internally covering questions appropriate to the feature's complexity (1-2 for trivial, up to 5+ for complex). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
-2. For trivial features, reasonable defaults are acceptable. Only probe if truly ambiguous.
-3. When you have sufficient context for the feature's scope, paraphrase into an **Intent Summary** and confirm. For trivial features, this can be very brief.
-4. If user explicitly asks to skip questions or says "just testing", acknowledge and proceed with minimal discovery.
+2. For trivial features, reasonable defaults are acceptable. Only probe if truly ambiguous - if the description is clear enough, skip questions entirely.
+3. Present all questions in a single batch rather than one at a time. Wait for user to answer all questions before proceeding.
+4. After receiving all answers, paraphrase into an **Intent Summary** and confirm. For trivial features, this can be very brief.
+5. If user explicitly asks to skip questions or says "just testing", acknowledge and proceed with minimal discovery.
 
 ## Mission Selection
 
@@ -89,8 +102,11 @@ Given that feature description, do this:
 - **Interactive Interview Mode (no arguments)**: Use the discovery interview to elicit all necessary context, synthesize the working feature description, and confirm it with the user before you generate any specification artifacts.
 
 1. **Check discovery status**:
-   - If this is your first message or discovery questions remain unanswered, stay in the one-question loop, capture the user's response, update your internal table, and end with `WAITING_FOR_DISCOVERY_INPUT`. Do **not** surface the table; keep it internal. Do **not** call the creation command yet.
-   - Only proceed once every discovery question has an explicit answer and the user has acknowledged the Intent Summary.
+   - If this is your first message and the user provided a feature description, assess the complexity level
+   - For TRIVIAL features with clear descriptions: Skip questions entirely and proceed to spec generation with reasonable defaults
+   - For all other cases: Generate and present ALL discovery questions at once in a numbered batch format
+   - Stay in question mode, capture the user's responses to all questions, update your internal table, and end with `WAITING_FOR_DISCOVERY_INPUT`. Do **not** surface the table; keep it internal. Do **not** call the creation command yet.
+   - Only proceed once ALL discovery questions have been answered and the user has acknowledged the Intent Summary.
    - Empty invocation rule: stay in interview mode until you can restate the agreed-upon feature description. Do **not** call the creation command while the description is missing or provisional.
 
 2. When discovery is complete and the intent summary, **title**, and **mission** are confirmed, run the feature creation command from repo root:

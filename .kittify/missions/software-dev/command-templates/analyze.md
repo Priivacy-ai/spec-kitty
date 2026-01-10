@@ -17,19 +17,34 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 **STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
 
-**Constitution Authority**: The project constitution (`/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/analyze`.
+**Constitution Authority**: The project constitution (`.kittify/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/analyze`.
 
 ## Execution Steps
 
 ### 1. Initialize Analysis Context
 
-Run `{SCRIPT}` once from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS. Derive absolute paths:
+Run the prerequisites check command from repo root to get feature paths:
 
-- SPEC = FEATURE_DIR/spec.md
-- PLAN = FEATURE_DIR/plan.md
-- TASKS = FEATURE_DIR/tasks.md
+```bash
+spec-kitty agent feature check-prerequisites --json --paths-only
+```
+
+Parse the JSON payload fields:
+- `feature_dir`: Absolute path to the feature directory
+- `spec_file`: Absolute path to spec.md
+- `checklists_dir`: Absolute path to checklists/ directory (if exists)
+- `research_dir`: Absolute path to research/ directory (if exists)
+- `tasks_dir`: Absolute path to tasks/ directory (if exists)
+
+Derive additional paths:
+- SPEC = `<feature_dir>/spec.md`
+- PLAN = `<feature_dir>/plan.md`
+- TASKS = `<feature_dir>/tasks.md`
+- CONSTITUTION = `.kittify/memory/constitution.md`
 
 Abort with an error message if any required file is missing (instruct the user to run missing prerequisite command).
+
+**Note**: The command automatically detects the current feature context whether you're in the main repo or a worktree.
 
 ### 2. Load Artifacts (Progressive Disclosure)
 
@@ -60,7 +75,7 @@ Load only the minimal necessary context from each artifact:
 
 **From constitution:**
 
-- Load `/memory/constitution.md` for principle validation
+- Load `.kittify/memory/constitution.md` for principle validation
 
 ### 3. Build Semantic Models
 

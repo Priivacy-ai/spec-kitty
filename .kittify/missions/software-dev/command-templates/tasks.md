@@ -34,24 +34,28 @@ The script will fail if you're not in a feature worktree. This is intentional - 
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the worktree root and capture `FEATURE_DIR` plus `AVAILABLE_DOCS`. All paths must be absolute.
+1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the worktree root and parse JSON for:
+   - `feature_dir`: Absolute path to feature directory
+   - `spec_file`: Absolute path to spec.md
+   - `tasks_file`: Absolute path to tasks.md (if exists)
+   - `tasks_dir`: Absolute path to tasks/ directory (if exists)
 
-   **CRITICAL**: The command returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
+   **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path (e.g., `C:\Users\user\project\kitty-specs\001-feature-name`).
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations. Example:
    ```
-   FEATURE_DIR = "/Users/robert/Code/new_specify/kitty-specs/001-a-simple-hello"
-   tasks.md location: FEATURE_DIR + "/tasks.md"
-   prompt location: FEATURE_DIR + "/tasks/WP01-slug.md"
+   feature_dir = "C:\\Users\\user\\project\\kitty-specs\\001-feature-name"
+   tasks.md location: feature_dir + "/tasks.md"
+   prompt location: feature_dir + "/tasks/WP01-slug.md"
    ```
 
    **DO NOT CREATE** paths like:
-   - ❌ `tasks/WP01-slug.md` (missing FEATURE_DIR prefix)
+   - ❌ `tasks/WP01-slug.md` (missing feature_dir prefix)
    - ❌ `/tasks/WP01-slug.md` (wrong root)
-   - ❌ `FEATURE_DIR/tasks/planned/WP01-slug.md` (WRONG - no subdirectories!)
+   - ❌ `feature_dir/tasks/planned/WP01-slug.md` (WRONG - no subdirectories!)
    - ❌ `WP01-slug.md` (wrong directory)
 
-2. **Load design documents** from `FEATURE_DIR` (only those present):
+2. **Load design documents** from `feature_dir` (only those present):
    - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
    - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
    - Scale your effort to the feature: simple UI tweaks deserve lighter coverage, multi-system releases require deeper decomposition.
@@ -68,7 +72,7 @@ The script will fail if you're not in a feature worktree. This is intentional - 
    - Record per-package metadata: priority, success criteria, risks, dependencies, and list of included subtasks.
 
 5. **Write `tasks.md`** using `.kittify/templates/tasks-template.md`:
-   - **Location**: Write to `FEATURE_DIR/tasks.md` (use the absolute FEATURE_DIR path from step 1)
+   - **Location**: Write to `<feature_dir>/tasks.md` (use the absolute feature_dir path from step 1)
    - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries
    - Under each work package include:
      - Summary (goal, priority, independent test)
@@ -78,14 +82,14 @@ The script will fail if you're not in a feature worktree. This is intentional - 
    - Preserve the checklist style so implementers can mark progress
 
 6. **Generate prompt files (one per work package)**:
-   - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `FEATURE_DIR/tasks/` directory, NOT in subdirectories!
-   - Correct structure: `FEATURE_DIR/tasks/WPxx-slug.md` (flat, no subdirectories)
-   - WRONG (do not create): `FEATURE_DIR/tasks/planned/`, `FEATURE_DIR/tasks/doing/`, or ANY lane subdirectories
-   - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under FEATURE_DIR
-   - Ensure `FEATURE_DIR/tasks/` exists (create as flat directory, NO subdirectories)
+   - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `<feature_dir>/tasks/` directory, NOT in subdirectories!
+   - Correct structure: `<feature_dir>/tasks/WPxx-slug.md` (flat, no subdirectories)
+   - WRONG (do not create): `<feature_dir>/tasks/planned/`, `<feature_dir>/tasks/doing/`, or ANY lane subdirectories
+   - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under feature_dir
+   - Ensure `<feature_dir>/tasks/` exists (create as flat directory, NO subdirectories)
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
-     - Full path example: `FEATURE_DIR/tasks/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
+     - Full path example: `<feature_dir>/tasks/WP01-create-html-page.md` (use ABSOLUTE path from feature_dir variable)
      - Use `.kittify/templates/task-prompt-template.md` to capture:
        - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, history entry
        - Objective, context, detailed guidance per subtask

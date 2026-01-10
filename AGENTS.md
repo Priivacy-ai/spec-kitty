@@ -221,7 +221,7 @@ For adding new agent support, the key integration points are:
 2. **Update init command** to generate commands for the new agent
 3. **Create command templates** if agent needs custom format (optional)
 
-Most agents use the same command template format from `.kittify/templates/command-templates/`.
+Most agents use the same command template format from `.kittify/missions/software-dev/command-templates/`.
 
 #### 6. Update CLI Tool Checks (Optional)
 
