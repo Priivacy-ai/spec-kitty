@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+import subprocess
 from pathlib import Path
 
 import typer
@@ -13,6 +15,340 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
+def get_main_repo_root(repo_root: Path) -> Path:
+    """Get the main repository root, even if called from a worktree.
+
+    If repo_root is a worktree, find its main repository.
+    Otherwise, return repo_root as-is.
+    """
+    git_dir = repo_root / ".git"
+
+    # If .git is a directory, we're in the main repo
+    if git_dir.is_dir():
+        return repo_root
+
+    # If .git is a file, we're in a worktree - read it to find main repo
+    if git_dir.is_file():
+        git_file_content = git_dir.read_text().strip()
+        # Format: "gitdir: /path/to/main/repo/.git/worktrees/feature-name"
+        if git_file_content.startswith("gitdir: "):
+            gitdir_path = Path(git_file_content[8:])  # Remove "gitdir: " prefix
+            # Go up from .git/worktrees/feature-name to main repo root
+            # gitdir_path points to: /main/repo/.git/worktrees/feature-name
+            # We want: /main/repo
+            if "worktrees" in gitdir_path.parts:
+                # Find the .git parent
+                main_git_dir = gitdir_path
+                while main_git_dir.name != ".git":
+                    main_git_dir = main_git_dir.parent
+                    if main_git_dir == main_git_dir.parent:
+                        # Reached root without finding .git
+                        break
+                return main_git_dir.parent
+
+    # Fallback: return as-is
+    return repo_root
+
+
+def detect_worktree_structure(repo_root: Path, feature_slug: str) -> str:
+    """Detect if feature uses legacy or workspace-per-WP model.
+
+    Returns: "legacy", "workspace-per-wp", or "none"
+
+    IMPORTANT: This function must work correctly when called from within a worktree.
+    repo_root may be a worktree directory, so we need to find the main repo first.
+    """
+    # Get the main repository root (handles case where repo_root is a worktree)
+    main_repo = get_main_repo_root(repo_root)
+    worktrees_dir = main_repo / ".worktrees"
+
+    if not worktrees_dir.exists():
+        return "none"
+
+    # Look for workspace-per-WP pattern FIRST (takes precedence per spec)
+    # Pattern: .worktrees/###-feature-WP##/
+    wp_pattern = list(worktrees_dir.glob(f"{feature_slug}-WP*"))
+    if wp_pattern:
+        return "workspace-per-wp"
+
+    # Look for legacy pattern: .worktrees/###-feature/
+    legacy_pattern = worktrees_dir / feature_slug
+    if legacy_pattern.exists() and legacy_pattern.is_dir():
+        return "legacy"
+
+    return "none"
+
+
+def extract_wp_id(worktree_path: Path) -> str | None:
+    """Extract WP ID from worktree directory name.
+
+    Example: .worktrees/010-feature-WP01/ → WP01
+    """
+    name = worktree_path.name
+    match = re.search(r'-(WP\d{2})$', name)
+    if match:
+        return match.group(1)
+    return None
+
+
+def find_wp_worktrees(repo_root: Path, feature_slug: str) -> list[tuple[Path, str, str]]:
+    """Find all WP worktrees for a feature.
+
+    Returns: List of (worktree_path, wp_id, branch_name) tuples, sorted by WP ID.
+
+    IMPORTANT: This function must work correctly when called from within a worktree.
+    """
+    # Get the main repository root (handles case where repo_root is a worktree)
+    main_repo = get_main_repo_root(repo_root)
+    worktrees_dir = main_repo / ".worktrees"
+    pattern = f"{feature_slug}-WP*"
+
+    wp_worktrees = sorted(worktrees_dir.glob(pattern))
+
+    wp_workspaces = []
+    for wt_path in wp_worktrees:
+        wp_id = extract_wp_id(wt_path)
+        if wp_id:
+            branch_name = wt_path.name  # Directory name = branch name
+            wp_workspaces.append((wt_path, wp_id, branch_name))
+
+    return wp_workspaces
+
+
+def extract_feature_slug(branch_name: str) -> str:
+    """Extract feature slug from a WP branch name.
+
+    Example: 010-workspace-per-wp-WP01 → 010-workspace-per-wp
+    """
+    match = re.match(r'(.*?)-WP\d{2}$', branch_name)
+    if match:
+        return match.group(1)
+    return branch_name  # Return as-is for legacy branches
+
+
+def validate_wp_ready_for_merge(repo_root: Path, worktree_path: Path, branch_name: str) -> tuple[bool, str]:
+    """Validate WP workspace is ready to merge."""
+    # Check 1: Branch exists in git (check from repo root)
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", branch_name],
+        cwd=str(repo_root),
+        capture_output=True,
+        check=False
+    )
+    if result.returncode != 0:
+        return False, f"Branch {branch_name} does not exist"
+
+    # Check 2: No uncommitted changes in worktree
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True
+    )
+    if result.stdout.strip():
+        return False, f"Worktree {worktree_path.name} has uncommitted changes"
+
+    return True, ""
+
+
+def merge_workspace_per_wp(
+    repo_root: Path,
+    merge_root: Path,
+    feature_slug: str,
+    current_branch: str,
+    target_branch: str,
+    strategy: str,
+    delete_branch: bool,
+    remove_worktree: bool,
+    push: bool,
+    dry_run: bool,
+    tracker: StepTracker,
+) -> None:
+    """Handle merge for workspace-per-WP features.
+
+    IMPORTANT: repo_root may be a worktree directory. All worktree detection
+    and operations use get_main_repo_root() to find the actual main repository.
+    """
+    # Get the main repository root (handles case where repo_root is a worktree)
+    main_repo = get_main_repo_root(repo_root)
+
+    # Find all WP worktrees (this function also uses get_main_repo_root internally)
+    wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
+
+    if not wp_workspaces:
+        console.print(tracker.render())
+        console.print(f"\n[yellow]Warning:[/yellow] No WP worktrees found for feature {feature_slug}")
+        console.print("Feature may already be merged or not yet implemented")
+        raise typer.Exit(1)
+
+    console.print(f"\n[cyan]Workspace-per-WP feature detected:[/cyan] {len(wp_workspaces)} work packages")
+    for wt_path, wp_id, branch in wp_workspaces:
+        console.print(f"  - {wp_id}: {branch}")
+
+    # Validate all WP workspaces are ready
+    console.print(f"\n[cyan]Validating all WP workspaces...[/cyan]")
+    errors = []
+    for wt_path, wp_id, branch in wp_workspaces:
+        is_valid, error_msg = validate_wp_ready_for_merge(main_repo, wt_path, branch)
+        if not is_valid:
+            errors.append(f"  - {wp_id}: {error_msg}")
+
+    if errors:
+        tracker.error("verify", "WP workspaces not ready")
+        console.print(tracker.render())
+        console.print(f"\n[red]Cannot merge:[/red] WP workspaces not ready")
+        for err in errors:
+            console.print(err)
+        raise typer.Exit(1)
+
+    console.print(f"[green]✓[/green] All WP workspaces validated")
+
+    # Dry run: show what would be done
+    if dry_run:
+        console.print(tracker.render())
+        console.print("\n[cyan]Dry run - would execute:[/cyan]")
+        steps = [
+            f"git checkout {target_branch}",
+            "git pull --ff-only",
+        ]
+        for wt_path, wp_id, branch in wp_workspaces:
+            if strategy == "squash":
+                steps.extend([
+                    f"git merge --squash {branch}",
+                    f"git commit -m 'Merge {wp_id} from {feature_slug}'",
+                ])
+            else:
+                steps.append(f"git merge --no-ff {branch} -m 'Merge {wp_id} from {feature_slug}'")
+
+        if push:
+            steps.append(f"git push origin {target_branch}")
+
+        if remove_worktree:
+            for wt_path, wp_id, branch in wp_workspaces:
+                steps.append(f"git worktree remove {wt_path}")
+
+        if delete_branch:
+            for wt_path, wp_id, branch in wp_workspaces:
+                steps.append(f"git branch -d {branch}")
+
+        for idx, step in enumerate(steps, start=1):
+            console.print(f"  {idx}. {step}")
+        return
+
+    # Checkout and update target branch
+    tracker.start("checkout")
+    try:
+        console.print(f"[cyan]Operating from {merge_root}[/cyan]")
+        os.chdir(merge_root)
+        _, target_status, _ = run_command(["git", "status", "--porcelain"], capture=True)
+        if target_status.strip():
+            raise RuntimeError(f"Target repository at {merge_root} has uncommitted changes.")
+        run_command(["git", "checkout", target_branch])
+        tracker.complete("checkout", f"using {merge_root}")
+    except Exception as exc:
+        tracker.error("checkout", str(exc))
+        console.print(tracker.render())
+        raise typer.Exit(1)
+
+    tracker.start("pull")
+    try:
+        run_command(["git", "pull", "--ff-only"])
+        tracker.complete("pull")
+    except Exception as exc:
+        tracker.error("pull", str(exc))
+        console.print(tracker.render())
+        console.print(f"\n[yellow]Warning:[/yellow] Could not fast-forward {target_branch}.")
+        console.print("You may need to resolve conflicts manually.")
+        raise typer.Exit(1)
+
+    # Merge all WP branches
+    tracker.start("merge")
+    try:
+        for wt_path, wp_id, branch in wp_workspaces:
+            console.print(f"[cyan]Merging {wp_id} ({branch})...[/cyan]")
+
+            if strategy == "squash":
+                run_command(["git", "merge", "--squash", branch])
+                run_command(["git", "commit", "-m", f"Merge {wp_id} from {feature_slug}"])
+            elif strategy == "rebase":
+                console.print("\n[yellow]Note:[/yellow] Rebase strategy not supported for workspace-per-WP.")
+                console.print("Use 'merge' or 'squash' strategy instead.")
+                tracker.skip("merge", "rebase not supported for workspace-per-WP")
+                console.print(tracker.render())
+                raise typer.Exit(1)
+            else:  # merge (default)
+                run_command(["git", "merge", "--no-ff", branch, "-m", f"Merge {wp_id} from {feature_slug}"])
+
+            console.print(f"[green]✓[/green] {wp_id} merged")
+
+        tracker.complete("merge", f"merged {len(wp_workspaces)} work packages")
+    except Exception as exc:
+        tracker.error("merge", str(exc))
+        console.print(tracker.render())
+        console.print(f"\n[red]Merge failed.[/red] Resolve conflicts and try again.")
+        raise typer.Exit(1)
+
+    # Push if requested
+    if push:
+        tracker.start("push")
+        try:
+            run_command(["git", "push", "origin", target_branch])
+            tracker.complete("push")
+        except Exception as exc:
+            tracker.error("push", str(exc))
+            console.print(tracker.render())
+            console.print(f"\n[yellow]Warning:[/yellow] Merge succeeded but push failed.")
+            console.print(f"Run manually: git push origin {target_branch}")
+
+    # Remove worktrees
+    if remove_worktree:
+        tracker.start("worktree")
+        failed_removals = []
+        for wt_path, wp_id, branch in wp_workspaces:
+            try:
+                run_command(["git", "worktree", "remove", str(wt_path), "--force"])
+                console.print(f"[green]✓[/green] Removed worktree: {wp_id}")
+            except Exception as exc:
+                failed_removals.append((wp_id, wt_path))
+
+        if failed_removals:
+            tracker.error("worktree", f"could not remove {len(failed_removals)} worktrees")
+            console.print(tracker.render())
+            console.print(f"\n[yellow]Warning:[/yellow] Could not remove some worktrees:")
+            for wp_id, wt_path in failed_removals:
+                console.print(f"  {wp_id}: git worktree remove {wt_path}")
+        else:
+            tracker.complete("worktree", f"removed {len(wp_workspaces)} worktrees")
+
+    # Delete branches
+    if delete_branch:
+        tracker.start("branch")
+        failed_deletions = []
+        for wt_path, wp_id, branch in wp_workspaces:
+            try:
+                run_command(["git", "branch", "-d", branch])
+                console.print(f"[green]✓[/green] Deleted branch: {branch}")
+            except Exception:
+                # Try force delete
+                try:
+                    run_command(["git", "branch", "-D", branch])
+                    console.print(f"[green]✓[/green] Force deleted branch: {branch}")
+                except Exception:
+                    failed_deletions.append((wp_id, branch))
+
+        if failed_deletions:
+            tracker.error("branch", f"could not delete {len(failed_deletions)} branches")
+            console.print(tracker.render())
+            console.print(f"\n[yellow]Warning:[/yellow] Could not delete some branches:")
+            for wp_id, branch in failed_deletions:
+                console.print(f"  {wp_id}: git branch -D {branch}")
+        else:
+            tracker.complete("branch", f"deleted {len(wp_workspaces)} branches")
+
+    console.print(tracker.render())
+    console.print(f"\n[bold green]✓ Feature {feature_slug} ({len(wp_workspaces)} WPs) successfully merged into {target_branch}[/bold green]")
+
+
 def merge(
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     delete_branch: bool = typer.Option(True, "--delete-branch/--keep-branch", help="Delete feature branch after merge"),
@@ -21,7 +357,13 @@ def merge(
     target_branch: str = typer.Option("main", "--target", help="Target branch to merge into"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
 ) -> None:
-    """Merge a completed feature branch into the target branch and clean up resources."""
+    """Merge a completed feature branch into the target branch and clean up resources.
+
+    For workspace-per-WP features (0.11.0+), merges all WP branches
+    (010-feature-WP01, 010-feature-WP02, etc.) to main in sequence.
+
+    For legacy features (0.10.x), merges single feature branch.
+    """
     show_banner()
 
     tracker = StepTracker("Feature Merge")
@@ -84,6 +426,28 @@ def merge(
         console.print(tracker.render())
         raise typer.Exit(1)
 
+    # Detect workspace structure and extract feature slug
+    feature_slug = extract_feature_slug(current_branch)
+    structure = detect_worktree_structure(repo_root, feature_slug)
+
+    # Branch to workspace-per-WP merge if detected
+    if structure == "workspace-per-wp":
+        merge_workspace_per_wp(
+            repo_root=repo_root,
+            merge_root=merge_root,
+            feature_slug=feature_slug,
+            current_branch=current_branch,
+            target_branch=target_branch,
+            strategy=strategy,
+            delete_branch=delete_branch,
+            remove_worktree=remove_worktree,
+            push=push,
+            dry_run=dry_run,
+            tracker=tracker,
+        )
+        return
+
+    # Continue with legacy merge logic for single worktree
     merge_root, feature_worktree_path = merge_root.resolve(), feature_worktree_path.resolve()
     if dry_run:
         console.print(tracker.render())

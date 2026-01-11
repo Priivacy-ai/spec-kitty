@@ -247,12 +247,12 @@ history:
 
 Use the CLI (updates frontmatter only, no file movement):
 ```bash
-spec-kitty tasks update <WPID> --lane <lane>
+spec-kitty agent tasks move-task <WPID> --to <lane>
 ```
 
-Or use the helper script:
+Example:
 ```bash
-.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <WPID> <lane>
+spec-kitty agent tasks move-task WP01 --to doing
 ```
 
 ## File Naming

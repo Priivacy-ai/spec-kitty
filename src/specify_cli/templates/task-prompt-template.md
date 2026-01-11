@@ -41,6 +41,35 @@ history:
 
 ---
 
+## ⚠️ Dependency Rebase Guidance
+
+**If this WP depends on other WPs** (check frontmatter `dependencies:` field):
+
+When a parent WP changes during review:
+1. You'll need to rebase your workspace to get latest changes
+2. Command: `cd .worktrees/{{feature_slug}}-{{work_package_id}} && git rebase {{feature_slug}}-{{base_wp_id}}`
+3. Resolve any conflicts
+4. Continue work on updated foundation
+
+**Check if rebase needed**:
+```bash
+cd .worktrees/{{feature_slug}}-{{work_package_id}}
+git log --oneline main..{{base_branch}}  # Shows commits in base not in your workspace
+```
+
+**If this WP has dependent WPs** (other WPs depend on this one):
+
+When you make changes:
+1. Notify agents working on dependent WPs
+2. They'll need to rebase their workspaces to get your changes
+3. This is a git limitation - future jj integration will auto-rebase
+
+The `spec-kitty implement` command will display warnings when:
+- You resume work and the base has changed
+- You start work and other WPs depend on you
+
+---
+
 ## Objectives & Success Criteria
 
 - Summarize the exact outcomes that mark this work package complete.

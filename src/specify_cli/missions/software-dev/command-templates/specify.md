@@ -73,6 +73,22 @@ After completing discovery and confirming the Intent Summary, determine the appr
 
 Store the final mission selection to pass to the script via `--mission "<selected-mission>"`.
 
+## Workflow (0.11.0+)
+
+**Planning happens in main repository - NO worktree created!**
+
+1. Creates `kitty-specs/###-feature/spec.md` directly in main repo
+2. Automatically commits to main branch
+3. No worktree created during specify
+
+**Worktrees created later**: Use `spec-kitty implement WP##` to create a workspace for each work package. Worktrees are created later during implement (e.g., `.worktrees/###-feature-WP##`).
+
+## Location
+
+- Work in: **Main repository** (not a worktree)
+- Creates: `kitty-specs/###-feature/spec.md`
+- Commits to: `main` branch
+
 ## Outline
 
 ### 0. Generate a Friendly Feature Title
@@ -104,13 +120,12 @@ Given that feature description, do this:
    The command returns JSON with:
    - `result`: "success" or error message
    - `feature`: Feature number and slug (e.g., "014-checkout-upsell-flow")
-   - `worktree_path`: Absolute path to the created worktree
-   - `feature_dir`: Absolute path to the feature directory inside the worktree
+   - `feature_dir`: Absolute path to the feature directory inside the main repo
 
    Parse these values for use in subsequent steps. All file paths are absolute.
 
    **IMPORTANT**: You must only ever run this command once. The JSON is provided in the terminal output - always refer to it to get the actual paths you're looking for.
-3. **Navigate to the worktree**: After feature creation, change directory to the worktree path returned by the command.
+3. **Stay in the main repository**: No worktree is created during specify.
 
 4. Load the spec template from `.kittify/templates/spec-template.md` (or `templates/spec-template.md`) to understand required sections.
 
@@ -218,7 +233,7 @@ Given that feature description, do this:
    
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-9. Report completion with worktree path, feature directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.clarify` or `/spec-kitty.plan`).
+9. Report completion with feature directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.clarify` or `/spec-kitty.plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 

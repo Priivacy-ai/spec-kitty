@@ -39,11 +39,14 @@ class FrontmatterManager:
         "work_package_id",
         "title",
         "lane",
-        "assigned_to",
-        "priority",
-        "depends_on",
-        "blocked_by",
-        "tags",
+        "dependencies",  # List of WP IDs this WP depends on (e.g., ['WP01', 'WP02'])
+        "subtasks",
+        "phase",
+        "assignee",
+        "agent",
+        "shell_pid",
+        "review_status",
+        "reviewed_by",
         "history",
     ]
 
@@ -94,6 +97,10 @@ class FrontmatterManager:
                 frontmatter = {}
         except Exception as e:
             raise FrontmatterError(f"Invalid YAML in {file_path}: {e}")
+
+        # Ensure dependencies field exists for WP files only (backward compatibility with pre-0.11.0)
+        if file_path.name.startswith("WP") and "dependencies" not in frontmatter:
+            frontmatter["dependencies"] = []
 
         # Get body (everything after closing ---)
         body = "\n".join(lines[closing_idx + 1:])
@@ -220,6 +227,36 @@ class FrontmatterManager:
 
         return normalized
 
+    def _validate_dependencies(self, dependencies: Any) -> list[str]:
+        """Validate dependencies field format.
+
+        Args:
+            dependencies: Dependencies value to validate
+
+        Returns:
+            List of validation errors (empty if valid)
+        """
+        errors = []
+
+        if not isinstance(dependencies, list):
+            errors.append(f"dependencies must be a list, got {type(dependencies).__name__}")
+            return errors
+
+        wp_pattern = re.compile(r'^WP\d{2}$')
+        seen = set()
+
+        for dep in dependencies:
+            if not isinstance(dep, str):
+                errors.append(f"Dependency must be string, got {type(dep).__name__}")
+            elif not wp_pattern.match(dep):
+                errors.append(f"Invalid WP ID format: {dep} (must be WP## like WP01, WP02)")
+            elif dep in seen:
+                errors.append(f"Duplicate dependency: {dep}")
+            else:
+                seen.add(dep)
+
+        return errors
+
     def validate(self, file_path: Path) -> list[str]:
         """Validate frontmatter consistency.
 
@@ -251,6 +288,11 @@ class FrontmatterManager:
                         f"Invalid lane value: {frontmatter['lane']} "
                         f"(must be one of: {', '.join(valid_lanes)})"
                     )
+
+            # Validate dependencies field (if present)
+            if "dependencies" in frontmatter:
+                dep_errors = self._validate_dependencies(frontmatter["dependencies"])
+                errors.extend(dep_errors)
 
         return errors
 

@@ -19,16 +19,24 @@ class TestCreateFeatureCommand:
     """Tests for create-feature command."""
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature.create_feature_worktree")
+    @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
+    @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
+    @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
     def test_creates_feature_with_json_output(
-        self, mock_create: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
+        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should create feature and output JSON format."""
         # Setup
         mock_locate.return_value = tmp_path
-        worktree_path = tmp_path / ".worktrees" / "001-test-feature"
-        feature_dir = worktree_path / "kitty-specs" / "001-test-feature"
-        mock_create.return_value = (worktree_path, feature_dir)
+        mock_is_git.return_value = True
+        mock_branch.return_value = "main"
+        mock_get_number.return_value = 1
+
+        # Create necessary directories
+        (tmp_path / ".kittify" / "templates").mkdir(parents=True)
+        (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
 
         # Execute
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
@@ -38,21 +46,32 @@ class TestCreateFeatureCommand:
         output = json.loads(result.stdout)
         assert output["result"] == "success"
         assert output["feature"] == "001-test-feature"
-        assert "worktree_path" in output
         assert "feature_dir" in output
-        mock_create.assert_called_once_with(tmp_path, "test-feature")
+
+        # Verify feature directory was created
+        feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
+        assert feature_dir.exists()
+        assert (feature_dir / "spec.md").exists()
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature.create_feature_worktree")
+    @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
+    @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
+    @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
     def test_creates_feature_with_human_output(
-        self, mock_create: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
+        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should create feature and output human-readable format."""
         # Setup
         mock_locate.return_value = tmp_path
-        worktree_path = tmp_path / ".worktrees" / "001-test-feature"
-        feature_dir = worktree_path / "kitty-specs" / "001-test-feature"
-        mock_create.return_value = (worktree_path, feature_dir)
+        mock_is_git.return_value = True
+        mock_branch.return_value = "main"
+        mock_get_number.return_value = 1
+
+        # Create necessary directories
+        (tmp_path / ".kittify" / "templates").mkdir(parents=True)
+        (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
 
         # Execute
         result = runner.invoke(app, ["create-feature", "test-feature"])
@@ -60,7 +79,6 @@ class TestCreateFeatureCommand:
         # Verify
         assert result.exit_code == 0
         assert "Feature created: 001-test-feature" in result.stdout
-        assert "Worktree:" in result.stdout
         assert "Directory:" in result.stdout
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
@@ -95,22 +113,49 @@ class TestCreateFeatureCommand:
         assert "Could not locate project root" in result.stdout
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature.create_feature_worktree")
-    def test_handles_worktree_creation_errors(
-        self, mock_create: Mock, mock_locate: Mock, tmp_path: Path
+    @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
+    @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
+    def test_handles_git_errors(
+        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
     ):
-        """Should handle errors during worktree creation."""
-        # Setup
+        """Should handle errors when not in git repo or wrong branch."""
+        # Setup: Not in git repo
         mock_locate.return_value = tmp_path
-        mock_create.side_effect = subprocess.CalledProcessError(1, "git worktree add")
+        mock_is_git.return_value = False
 
         # Execute
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
 
         # Verify
         assert result.exit_code == 1
-        output = json.loads(result.stdout)
+        # Parse only the first line (JSON output)
+        first_line = result.stdout.strip().split('\n')[0]
+        output = json.loads(first_line)
         assert "error" in output
+        assert "git" in output["error"].lower()
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
+    @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
+    def test_requires_main_branch(
+        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+    ):
+        """Should require main branch for feature creation."""
+        # Setup: On wrong branch
+        mock_locate.return_value = tmp_path
+        mock_is_git.return_value = True
+        mock_branch.return_value = "develop"
+
+        # Execute
+        result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+
+        # Verify
+        assert result.exit_code == 1
+        # Parse only the first line (JSON output)
+        first_line = result.stdout.strip().split('\n')[0]
+        output = json.loads(first_line)
+        assert "error" in output
+        assert "main" in output["error"].lower()
 
 
 class TestCheckPrerequisitesCommand:
@@ -302,8 +347,9 @@ class TestSetupPlanCommand:
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
     def test_scaffolds_plan_template_json(
-        self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_commit: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should scaffold plan template and output JSON format."""
         # Setup
@@ -333,10 +379,14 @@ class TestSetupPlanCommand:
         assert plan_file.exists()
         assert plan_file.read_text() == "# Implementation Plan Template"
 
+        # Verify commit was called
+        mock_commit.assert_called_once()
+
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
     def test_scaffolds_plan_template_human(
-        self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_commit: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should scaffold plan template and output human-readable format."""
         # Setup

@@ -10,17 +10,13 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Location Pre-flight Check (CRITICAL for AI Agents)
+## Location Check (0.11.0+)
 
-Before proceeding with planning, verify you are in the correct working directory by running the shared pre-flight validation:
+This command runs in the **main repository**, not in a worktree.
 
-```python
-```
-
-**What this validates**:
-- Current branch follows the feature pattern like `001-feature-name`
-- You're not attempting to run from `main` or any release branch
-- The validator prints clear navigation instructions if you're outside the feature worktree
+- Verify you're on `main` (or `master`) before scaffolding plan.md
+- Planning artifacts live in `kitty-specs/###-feature/`
+- The plan template is committed to the main branch after generation
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
@@ -57,7 +53,7 @@ Planning requirements (scale to complexity):
    - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user's response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run the setup command yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Setup**: Run `spec-kitty agent feature setup-plan --json` from the worktree root and parse JSON for:
+2. **Setup**: Run `spec-kitty agent feature setup-plan --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
    - `plan_file`: Absolute path to the created plan.md
    - `feature_dir`: Absolute path to the feature directory

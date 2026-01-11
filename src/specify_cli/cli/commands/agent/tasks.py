@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 from typing_extensions import Annotated
 
+from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root
 from specify_cli.tasks_support import (
     LANES,
@@ -106,6 +107,76 @@ def _output_error(json_mode: bool, error_message: str):
         console.print(f"[red]Error:[/red] {error_message}")
 
 
+def _check_dependent_warnings(
+    repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+    target_lane: str,
+    json_mode: bool
+) -> None:
+    """Display warning when WP moves to for_review and has dependents in progress.
+
+    Args:
+        repo_root: Repository root path
+        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        wp_id: Work package ID (e.g., "WP01")
+        target_lane: Target lane being moved to
+        json_mode: If True, suppress Rich console output
+    """
+    # Only warn when moving to for_review
+    if target_lane != "for_review":
+        return
+
+    # Don't show warnings in JSON mode
+    if json_mode:
+        return
+
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+
+    # Build dependency graph
+    try:
+        graph = build_dependency_graph(feature_dir)
+    except Exception:
+        # If we can't build the graph, skip warnings
+        return
+
+    # Get dependents
+    dependents = get_dependents(wp_id, graph)
+    if not dependents:
+        return  # No dependents, no warnings
+
+    # Check if any dependents are in progress
+    in_progress = []
+    for dep_id in dependents:
+        try:
+            # Find dependent WP file
+            tasks_dir = feature_dir / "tasks"
+            dep_files = list(tasks_dir.glob(f"{dep_id}-*.md"))
+            if not dep_files:
+                continue
+
+            # Read frontmatter
+            content = dep_files[0].read_text(encoding="utf-8-sig")
+            frontmatter, _, _ = split_frontmatter(content)
+            lane = extract_scalar(frontmatter, "lane") or "planned"
+
+            if lane in ["planned", "doing"]:
+                in_progress.append(dep_id)
+        except Exception:
+            # Skip if we can't read the dependent
+            continue
+
+    if in_progress:
+        console.print(f"\n[yellow]⚠️  Dependency Alert[/yellow]")
+        console.print(f"{', '.join(in_progress)} are in progress and depend on {wp_id}")
+        console.print("\nIf changes are requested during review:")
+        console.print("  1. Notify dependent WP agents")
+        console.print("  2. Dependent WPs will need manual rebase after changes")
+        for dep in in_progress:
+            console.print(f"     cd .worktrees/{feature_slug}-{dep} && git rebase {feature_slug}-{wp_id}")
+        console.print()
+
+
 @app.command(name="move-task")
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
@@ -179,6 +250,9 @@ def move_task(
             result,
             f"[green]✓[/green] Moved {task_id} from {old_lane} to {target_lane}"
         )
+
+        # Check for dependent WP warnings when moving to for_review (T083)
+        _check_dependent_warnings(repo_root, feature_slug, task_id, target_lane, json_output)
 
     except Exception as e:
         _output_error(json_output, str(e))

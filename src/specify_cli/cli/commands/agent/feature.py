@@ -18,10 +18,17 @@ from typing_extensions import Annotated
 
 from specify_cli.core.paths import locate_project_root, is_worktree_context
 from specify_cli.core.worktree import (
-    create_feature_worktree,
     get_next_feature_number,
     validate_feature_structure,
+    setup_feature_directory,
 )
+from specify_cli.core.git_ops import run_command, is_git_repo, get_current_branch
+from specify_cli.core.dependency_graph import (
+    parse_wp_dependencies,
+    detect_cycles,
+    validate_dependencies,
+)
+from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 
 app = typer.Typer(
     name="feature",
@@ -30,6 +37,66 @@ app = typer.Typer(
 )
 
 console = Console()
+
+
+def _commit_to_main(
+    file_path: Path,
+    feature_slug: str,
+    artifact_type: str,
+    repo_root: Path,
+    json_output: bool = False
+) -> None:
+    """Commit planning artifact to main branch.
+
+    Args:
+        file_path: Path to file being committed
+        feature_slug: Feature slug (e.g., "001-my-feature")
+        artifact_type: Type of artifact ("spec", "plan", "tasks")
+        repo_root: Repository root path (ensures commits go to main repo, not worktree)
+        json_output: If True, suppress Rich console output
+
+    Raises:
+        subprocess.CalledProcessError: If commit fails unexpectedly
+        typer.Exit: If not on main/master branch
+    """
+    try:
+        # Verify we're on main branch (check from repo root)
+        current_branch = get_current_branch(repo_root)
+        if current_branch not in ["main", "master"]:
+            error_msg = f"Planning artifacts must be committed to main branch (currently on: {current_branch})"
+            if not json_output:
+                console.print(f"[red]Error:[/red] {error_msg}")
+                console.print("[yellow]Switch to main branch:[/yellow] cd {repo_root} && git checkout main")
+            raise RuntimeError(error_msg)
+
+        # Add file to staging (run from repo root to ensure main repo, not worktree)
+        run_command(["git", "add", str(file_path)], check_return=True, capture=True, cwd=repo_root)
+
+        # Commit with descriptive message
+        commit_msg = f"Add {artifact_type} for feature {feature_slug}"
+        run_command(
+            ["git", "commit", "-m", commit_msg],
+            check_return=True,
+            capture=True,
+            cwd=repo_root
+        )
+
+        if not json_output:
+            console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to main")
+
+    except subprocess.CalledProcessError as e:
+        # Check if it's just "nothing to commit" (benign)
+        stderr = e.stderr if hasattr(e, 'stderr') and e.stderr else ""
+        if "nothing to commit" in stderr or "nothing added to commit" in stderr:
+            # Benign - file unchanged
+            if not json_output:
+                console.print(f"[dim]{artifact_type.capitalize()} unchanged, no commit needed[/dim]")
+        else:
+            # Actual error
+            if not json_output:
+                console.print(f"[yellow]Warning:[/yellow] Failed to commit {artifact_type}: {e}")
+                console.print(f"[yellow]You may need to commit manually:[/yellow] git add {file_path} && git commit")
+            raise
 
 
 def _find_feature_directory(repo_root: Path, cwd: Path) -> Path:
@@ -123,9 +190,10 @@ def create_feature(
     feature_slug: Annotated[str, typer.Argument(help="Feature slug (e.g., 'user-auth')")],
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
-    """Create new feature with worktree and directory structure.
+    """Create new feature directory structure in main repository.
 
     This command is designed for AI agents to call programmatically.
+    Creates feature directory in kitty-specs/ and commits to main branch.
 
     Examples:
         spec-kitty agent create-feature "new-dashboard" --json
@@ -140,19 +208,144 @@ def create_feature(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        worktree_path, feature_dir = create_feature_worktree(repo_root, feature_slug)
+        # Verify we're in a git repository
+        if not is_git_repo(repo_root):
+            error_msg = "Not in a git repository. Feature creation requires git."
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        # Verify we're on main branch (or acceptable branch)
+        current_branch = get_current_branch(repo_root)
+        if current_branch not in ["main", "master"]:
+            error_msg = f"Must be on main branch to create features (currently on: {current_branch})"
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        # Get next feature number
+        feature_number = get_next_feature_number(repo_root)
+        feature_slug_formatted = f"{feature_number:03d}-{feature_slug}"
+
+        # Create feature directory in main repo
+        feature_dir = repo_root / "kitty-specs" / feature_slug_formatted
+        feature_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create subdirectories
+        (feature_dir / "checklists").mkdir(exist_ok=True)
+        (feature_dir / "research").mkdir(exist_ok=True)
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+
+        # Create tasks/.gitkeep and README.md
+        (tasks_dir / ".gitkeep").touch()
+
+        # Create tasks/README.md (using same content from setup_feature_directory)
+        tasks_readme_content = '''# Tasks Directory
+
+This directory contains work package (WP) prompt files with lane status in frontmatter.
+
+## Directory Structure (v0.9.0+)
+
+```
+tasks/
+├── WP01-setup-infrastructure.md
+├── WP02-user-authentication.md
+├── WP03-api-endpoints.md
+└── README.md
+```
+
+All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, done) is stored in the YAML frontmatter `lane:` field.
+
+## Work Package File Format
+
+Each WP file **MUST** use YAML frontmatter:
+
+```yaml
+---
+work_package_id: "WP01"
+title: "Work Package Title"
+lane: "planned"
+subtasks:
+  - "T001"
+  - "T002"
+phase: "Phase 1 - Setup"
+assignee: ""
+agent: ""
+shell_pid: ""
+review_status: ""
+reviewed_by: ""
+history:
+  - timestamp: "2025-01-01T00:00:00Z"
+    lane: "planned"
+    agent: "system"
+    action: "Prompt generated via /spec-kitty.tasks"
+---
+
+# Work Package Prompt: WP01 – Work Package Title
+
+[Content follows...]
+```
+
+## Valid Lane Values
+
+- `planned` - Ready for implementation
+- `doing` - Currently being worked on
+- `for_review` - Awaiting review
+- `done` - Completed
+
+## Moving Between Lanes
+
+Use the CLI (updates frontmatter only, no file movement):
+```bash
+spec-kitty agent tasks move-task <WPID> --to <lane>
+```
+
+Example:
+```bash
+spec-kitty agent tasks move-task WP01 --to doing
+```
+
+## File Naming
+
+- Format: `WP01-kebab-case-slug.md`
+- Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
+'''
+        (tasks_dir / "README.md").write_text(tasks_readme_content)
+
+        # Copy spec template if it exists
+        spec_file = feature_dir / "spec.md"
+        if not spec_file.exists():
+            spec_template_candidates = [
+                repo_root / ".kittify" / "templates" / "spec-template.md",
+                repo_root / "templates" / "spec-template.md",
+            ]
+
+            for template in spec_template_candidates:
+                if template.exists():
+                    shutil.copy2(template, spec_file)
+                    break
+            else:
+                # No template found, create empty spec.md
+                spec_file.touch()
+
+        # Commit spec.md to main
+        _commit_to_main(spec_file, feature_slug_formatted, "spec", repo_root, json_output)
 
         if json_output:
             print(json.dumps({
                 "result": "success",
-                "feature": feature_dir.name,
-                "worktree_path": str(worktree_path),
+                "feature": feature_slug_formatted,
                 "feature_dir": str(feature_dir)
             }))
         else:
-            console.print(f"[green]✓[/green] Feature created: {feature_dir.name}")
-            console.print(f"   Worktree: {worktree_path}")
+            console.print(f"[green]✓[/green] Feature created: {feature_slug_formatted}")
             console.print(f"   Directory: {feature_dir}")
+            console.print(f"   Spec committed to main")
 
     except Exception as e:
         if json_output:
@@ -223,9 +416,10 @@ def check_prerequisites(
 def setup_plan(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
-    """Scaffold implementation plan template.
+    """Scaffold implementation plan template in main repository.
 
     This command is designed for AI agents to call programmatically.
+    Creates plan.md and commits to main branch.
 
     Examples:
         spec-kitty agent setup-plan --json
@@ -267,6 +461,10 @@ def setup_plan(
                 raise FileNotFoundError("Plan template not found in repository or package")
             with package_template.open("rb") as src, open(plan_file, "wb") as dst:
                 shutil.copyfileobj(src, dst)
+
+        # Commit plan.md to main
+        feature_slug = feature_dir.name
+        _commit_to_main(plan_file, feature_slug, "plan", repo_root, json_output)
 
         if json_output:
             print(json.dumps({
@@ -625,3 +823,217 @@ def merge_feature(
     except Exception as e:
         print(json.dumps({"error": str(e), "success": False}))
         sys.exit(1)
+
+
+@app.command(name="finalize-tasks")
+def finalize_tasks(
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """Parse dependencies from tasks.md and update WP frontmatter, then commit to main.
+
+    This command is designed to be called after LLM generates WP files via /spec-kitty.tasks.
+    It post-processes the generated files to add dependency information and commits everything.
+
+    Examples:
+        spec-kitty agent feature finalize-tasks --json
+    """
+    try:
+        repo_root = locate_project_root()
+        if repo_root is None:
+            error_msg = "Could not locate project root"
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        # Determine feature directory
+        cwd = Path.cwd().resolve()
+        feature_dir = _find_feature_directory(repo_root, cwd)
+
+        tasks_dir = feature_dir / "tasks"
+        if not tasks_dir.exists():
+            error_msg = f"Tasks directory not found: {tasks_dir}"
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        # Parse dependencies from tasks.md (if it exists)
+        tasks_md = feature_dir / "tasks.md"
+        wp_dependencies = {}
+        if tasks_md.exists():
+            # Read tasks.md and parse dependencies
+            tasks_content = tasks_md.read_text(encoding="utf-8")
+            wp_dependencies = _parse_dependencies_from_tasks_md(tasks_content)
+
+        # Validate dependencies (detect cycles, invalid references)
+        if wp_dependencies:
+            # Check for circular dependencies
+            cycles = detect_cycles(wp_dependencies)
+            if cycles:
+                error_msg = f"Circular dependencies detected: {cycles}"
+                if json_output:
+                    print(json.dumps({"error": error_msg, "cycles": cycles}))
+                else:
+                    console.print(f"[red]Error:[/red] Circular dependencies detected:")
+                    for cycle in cycles:
+                        console.print(f"  {' → '.join(cycle)}")
+                raise typer.Exit(1)
+
+            # Validate each WP's dependencies
+            for wp_id, deps in wp_dependencies.items():
+                is_valid, errors = validate_dependencies(wp_id, deps, wp_dependencies)
+                if not is_valid:
+                    error_msg = f"Invalid dependencies for {wp_id}: {errors}"
+                    if json_output:
+                        print(json.dumps({"error": error_msg, "wp_id": wp_id, "errors": errors}))
+                    else:
+                        console.print(f"[red]Error:[/red] Invalid dependencies for {wp_id}:")
+                        for err in errors:
+                            console.print(f"  - {err}")
+                    raise typer.Exit(1)
+
+        # Update each WP file's frontmatter with dependencies
+        wp_files = list(tasks_dir.glob("WP*.md"))
+        updated_count = 0
+
+        for wp_file in wp_files:
+            # Extract WP ID from filename
+            wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+            if not wp_id_match:
+                continue
+
+            wp_id = wp_id_match.group(1)
+
+            # Detect whether dependencies field exists in raw frontmatter
+            raw_content = wp_file.read_text(encoding="utf-8")
+            has_dependencies_line = False
+            if raw_content.startswith("---"):
+                parts = raw_content.split("---", 2)
+                if len(parts) >= 3:
+                    frontmatter_text = parts[1]
+                    has_dependencies_line = re.search(
+                        r"^\s*dependencies\s*:", frontmatter_text, re.MULTILINE
+                    ) is not None
+
+            # Read current frontmatter
+            try:
+                frontmatter, body = read_frontmatter(wp_file)
+            except Exception as e:
+                console.print(f"[yellow]Warning:[/yellow] Could not read {wp_file.name}: {e}")
+                continue
+
+            # Get dependencies for this WP (default to empty list)
+            deps = wp_dependencies.get(wp_id, [])
+
+            # Update frontmatter with dependencies
+            if not has_dependencies_line or frontmatter.get("dependencies") != deps:
+                frontmatter["dependencies"] = deps
+
+                # Write updated frontmatter
+                write_frontmatter(wp_file, frontmatter, body)
+                updated_count += 1
+
+        # Commit tasks.md and WP files to main
+        feature_slug = feature_dir.name
+        try:
+            # Add tasks.md (if present) and all WP files
+            if tasks_md.exists():
+                run_command(
+                    ["git", "add", str(tasks_md)],
+                    check_return=True,
+                    capture=True,
+                    cwd=repo_root
+                )
+            run_command(
+                ["git", "add", str(tasks_dir)],
+                check_return=True,
+                capture=True,
+                cwd=repo_root
+            )
+
+            # Commit with descriptive message
+            commit_msg = f"Add tasks for feature {feature_slug}"
+            run_command(
+                ["git", "commit", "-m", commit_msg],
+                check_return=True,
+                capture=True,
+                cwd=repo_root
+            )
+
+            if not json_output:
+                console.print(f"[green]✓[/green] Tasks committed to main")
+                console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
+
+        except subprocess.CalledProcessError as e:
+            # Check if it's just "nothing to commit"
+            stderr = e.stderr if hasattr(e, 'stderr') and e.stderr else ""
+            if "nothing to commit" in stderr or "nothing added to commit" in stderr:
+                if not json_output:
+                    console.print(f"[dim]Tasks unchanged, no commit needed[/dim]")
+            else:
+                raise
+
+        if json_output:
+            print(json.dumps({
+                "result": "success",
+                "updated_wp_count": updated_count,
+                "tasks_dir": str(tasks_dir)
+            }))
+
+    except Exception as e:
+        if json_output:
+            print(json.dumps({"error": str(e)}))
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+
+
+def _parse_dependencies_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
+    """Parse WP dependencies from tasks.md content.
+
+    Parsing strategy (priority order):
+    1. Explicit dependency markers ("Depends on WP01", "Dependencies: WP01, WP02")
+    2. Phase grouping (Phase 2 WPs depend on Phase 1 WPs)
+    3. Default to empty list if ambiguous
+
+    Returns:
+        Dict mapping WP ID to list of dependencies
+        Example: {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01", "WP02"]}
+    """
+    dependencies = {}
+
+    # Split into WP sections
+    wp_sections = re.split(r'##\s+Work Package (WP\d{2})', tasks_content)
+
+    # Process sections (they come in pairs: WP ID, then content)
+    for i in range(1, len(wp_sections), 2):
+        if i + 1 >= len(wp_sections):
+            break
+
+        wp_id = wp_sections[i]
+        section_content = wp_sections[i + 1]
+
+        # Method 1: Explicit "Depends on" or "Dependencies:"
+        explicit_deps = []
+
+        # Pattern: "Depends on WP01" or "Depends on WP01, WP02"
+        depends_matches = re.findall(r'Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)', section_content, re.IGNORECASE)
+        for match in depends_matches:
+            explicit_deps.extend(re.findall(r'WP\d{2}', match))
+
+        # Pattern: "Dependencies: WP01, WP02"
+        deps_line = re.search(r'Dependencies:\s*(.+)', section_content)
+        if deps_line:
+            explicit_deps.extend(re.findall(r'WP\d{2}', deps_line.group(1)))
+
+        if explicit_deps:
+            # Remove duplicates and sort
+            dependencies[wp_id] = sorted(list(set(explicit_deps)))
+        else:
+            # Default to empty
+            dependencies[wp_id] = []
+
+    return dependencies

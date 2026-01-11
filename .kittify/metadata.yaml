@@ -3,9 +3,9 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 0.10.8
+  version: 0.11.0
   initialized_at: '2025-12-17T21:25:39.712032'
-  last_upgraded_at: '2025-12-30T20:48:41.763875'
+  last_upgraded_at: '2026-01-08T11:52:00.000000'
 environment:
   python_version: 3.11.14
   platform: darwin
@@ -140,5 +140,9 @@ migrations:
     notes: Not applicable
   - id: 0.10.8_fix_memory_structure
     applied_at: '2025-12-30T20:48:41.763872'
+    result: skipped
+    notes: Not applicable
+  - id: 0.10.9_repair_templates
+    applied_at: '2026-01-08T10:35:30.573964'
     result: skipped
     notes: Not applicable
