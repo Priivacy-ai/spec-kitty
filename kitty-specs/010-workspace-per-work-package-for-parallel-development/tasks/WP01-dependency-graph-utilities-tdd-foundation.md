@@ -10,7 +10,7 @@ subtasks:
   - "T007"
 title: "Dependency Graph Utilities (TDD Foundation)"
 phase: "Phase 0 - Test Infrastructure"
-lane: "done"
+lane: "doing"
 dependencies: []
 assignee: ""
 agent: ""
@@ -443,3 +443,4 @@ Or edit the `lane:` field in frontmatter directly.
 - 2026-01-08T09:55:42Z – unknown – lane=for_review – Ready for review
 - 2026-01-08T09:56:04Z – agent – lane=doing – Started review via workflow command
 - 2026-01-08T09:57:02Z – unknown – lane=done – Review passed. Implementation meets all requirements: (1) All 25 tests passing with comprehensive coverage, (2) TDD approach validated - tests written first, (3) Proper type hints and docstrings throughout, (4) Uses FrontmatterManager for consistent parsing, (5) DFS cycle detection correctly implemented per spec, (6) All edge cases handled properly. Code quality is excellent, ready for merge.
+- 2026-01-11T15:25:09Z – agent – lane=doing – Started implementation via workflow command

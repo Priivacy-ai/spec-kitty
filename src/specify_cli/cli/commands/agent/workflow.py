@@ -208,12 +208,18 @@ def implement(
         review_status = extract_scalar(wp.frontmatter, "review_status")
         has_feedback = review_status == "has_feedback"
 
+        # Calculate workspace path
+        workspace_name = f"{feature_slug}-{normalized_wp_id}"
+        workspace_path = repo_root / ".worktrees" / workspace_name
+
         # Output the prompt
         print("=" * 80)
         print(f"IMPLEMENT: {normalized_wp_id}")
         print("=" * 80)
         print()
         print(f"Source: {wp.path}")
+        print()
+        print(f"Workspace: {workspace_path}")
         print()
 
         # Show next steps FIRST so agent sees them immediately
@@ -225,6 +231,12 @@ def implement(
         print()
         print(f"✗ Blocked or cannot complete:")
         print(f"  spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        print("=" * 80)
+        print()
+        print(f"📍 WORKING DIRECTORY:")
+        print(f"   cd {workspace_path}")
+        print(f"   # All implementation work happens in this workspace")
+        print(f"   # When done, return to main: cd {repo_root}")
         print("=" * 80)
         print()
 
@@ -353,12 +365,18 @@ def review(
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
 
+        # Calculate workspace path
+        workspace_name = f"{feature_slug}-{normalized_wp_id}"
+        workspace_path = repo_root / ".worktrees" / workspace_name
+
         # Output the prompt
         print("=" * 80)
         print(f"REVIEW: {normalized_wp_id}")
         print("=" * 80)
         print()
         print(f"Source: {wp.path}")
+        print()
+        print(f"Workspace: {workspace_path}")
         print()
 
         # Show next steps FIRST so agent sees them immediately
@@ -371,6 +389,13 @@ def review(
         print(f"⚠️  Changes requested:")
         print(f"  1. Add feedback to the WP file's '## Review Feedback' section")
         print(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --note \"Changes requested\"")
+        print("=" * 80)
+        print()
+        print(f"📍 WORKING DIRECTORY:")
+        print(f"   cd {workspace_path}")
+        print(f"   # Review the implementation in this workspace")
+        print(f"   # Read code, run tests, check against requirements")
+        print(f"   # When done, return to main: cd {repo_root}")
         print("=" * 80)
         print()
         print("Review the implementation against the requirements below.")

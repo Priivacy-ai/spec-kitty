@@ -2,6 +2,29 @@
 description: Generate grouped work packages with actionable subtasks and matching prompt files for the feature in one pass.
 ---
 
+# /spec-kitty.tasks - Generate Work Packages
+
+**Version**: 0.11.0+
+
+## 📍 WORKING DIRECTORY: Stay in MAIN repository
+
+**IMPORTANT**: Tasks works in the main repository. NO worktrees created.
+
+```bash
+# Run from project root (same directory as /spec-kitty.plan):
+# You should already be here if you just ran /spec-kitty.plan
+
+# Creates:
+# - kitty-specs/###-feature/tasks/WP01-*.md → In main repository
+# - kitty-specs/###-feature/tasks/WP02-*.md → In main repository
+# - Commits ALL to main branch
+# - NO worktrees created
+```
+
+**Do NOT cd anywhere**. Stay in the main repository root.
+
+**Worktrees created later**: After tasks are generated, use `spec-kitty implement WP##` to create workspace for each WP.
+
 ## User Input
 
 ```text
@@ -20,7 +43,11 @@ git branch --show-current
 ```
 
 **Expected output:** `main` (or `master`)
-**If you see a feature branch:** Switch back to the main repository before running tasks.
+**If you see a feature branch:** You're in the wrong place. Return to main:
+```bash
+cd $(git rev-parse --show-toplevel)
+git checkout main
+```
 
 Work packages are generated directly in `kitty-specs/###-feature/` and committed to main. Worktrees are created later when implementing each work package.
 

@@ -2,6 +2,26 @@
 description: Create or update the feature specification from a natural language feature description.
 ---
 
+# /spec-kitty.specify - Create Feature Specification
+
+**Version**: 0.11.0+
+
+## 📍 WORKING DIRECTORY: Stay in MAIN repository
+
+**IMPORTANT**: Specify works in the main repository. NO worktrees are created.
+
+```bash
+# Run from project root:
+cd /path/to/project/root  # Your main repository
+
+# All planning artifacts are created in main and committed:
+# - kitty-specs/###-feature/spec.md → Created in main
+# - Committed to main branch
+# - NO worktrees created
+```
+
+**Worktrees are created later** during `/spec-kitty.implement`, not during planning.
+
 ## User Input
 
 ```text

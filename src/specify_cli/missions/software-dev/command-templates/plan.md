@@ -2,6 +2,26 @@
 description: Execute the implementation planning workflow using the plan template to generate design artifacts.
 ---
 
+# /spec-kitty.plan - Create Implementation Plan
+
+**Version**: 0.11.0+
+
+## 📍 WORKING DIRECTORY: Stay in MAIN repository
+
+**IMPORTANT**: Plan works in the main repository. NO worktrees created.
+
+```bash
+# Run from project root (same directory as /spec-kitty.specify):
+# You should already be here if you just ran /spec-kitty.specify
+
+# Creates:
+# - kitty-specs/###-feature/plan.md → In main repository
+# - Commits to main branch
+# - NO worktrees created
+```
+
+**Do NOT cd anywhere**. Stay in the main repository root.
+
 ## User Input
 
 ```text
