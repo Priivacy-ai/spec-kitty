@@ -34,11 +34,42 @@ class TaskCliError(RuntimeError):
 
 
 def find_repo_root(start: Optional[Path] = None) -> Path:
-    """Walk upward until a Git or .kittify root is found."""
+    """Walk upward until a Git or .kittify root is found.
+
+    Handles git worktrees by reading the .git file to find the main repo.
+    Returns the main repository root, not the worktree directory.
+    """
     current = (start or Path.cwd()).resolve()
     for candidate in [current, *current.parents]:
-        if (candidate / ".git").exists() or (candidate / ".kittify").exists():
+        git_path = candidate / ".git"
+
+        # Check for .git file FIRST (worktree) - must check before .kittify
+        # because worktrees may have .kittify from main repo
+        if git_path.is_file():
+            # Parse .git file to find main repo
+            # Format: "gitdir: /path/to/main/repo/.git/worktrees/name"
+            try:
+                git_content = git_path.read_text().strip()
+                if git_content.startswith("gitdir: "):
+                    gitdir = git_content[8:]  # Remove "gitdir: " prefix
+                    # Navigate from .git/worktrees/name to main repo
+                    # gitdir points to: /main/repo/.git/worktrees/name
+                    # We want: /main/repo
+                    main_git_dir = Path(gitdir).parent.parent
+                    main_repo = main_git_dir.parent
+                    return main_repo
+            except (OSError, IndexError):
+                # If parsing fails, continue searching upward
+                pass
+
+        # Check for .git directory (normal repo)
+        if git_path.is_dir():
             return candidate
+
+        # Check for .kittify directory
+        if (candidate / ".kittify").exists():
+            return candidate
+
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
 
 
