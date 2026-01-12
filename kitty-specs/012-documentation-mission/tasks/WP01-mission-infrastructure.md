@@ -11,7 +11,7 @@ subtasks:
 title: "Mission Infrastructure"
 phase: "Phase 0 - Foundation"
 lane: "doing"
-assignee: ""
+assignee: "claude"
 agent: ""
 shell_pid: ""
 review_status: ""
@@ -365,3 +365,4 @@ python -c "from specify_cli.mission import list_available_missions; print(list_a
 
 - 2026-01-12T17:18:56Z – system – lane=planned – Prompt created.
 - 2026-01-12T17:44:57Z – agent – lane=doing – Started implementation via workflow command
+- 2026-01-12T18:13:42Z – unknown – lane=doing – Moved to doing

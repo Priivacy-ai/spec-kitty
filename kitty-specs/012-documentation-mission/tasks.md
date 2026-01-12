@@ -26,13 +26,13 @@
 **Prompt**: `/tasks/WP01-mission-infrastructure.md`
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/missions/documentation/` directory structure
-- [ ] T002 Create `mission.yaml` with workflow phases (discover → audit → design → generate → validate → publish)
-- [ ] T003 Define artifacts (required: spec.md, plan.md, tasks.md, gap-analysis.md; optional: divio-templates/, generator-configs/)
-- [ ] T004 Define path conventions (workspace: "docs/", deliverables: "docs/output/")
-- [ ] T005 Define validation checks (all_divio_types_valid, no_conflicting_generators, templates_populated)
-- [ ] T006 Add agent context with documentation mission instructions
-- [ ] T007 Add command customizations for specify, plan, tasks, implement, review
+- [x] T001 Create `src/specify_cli/missions/documentation/` directory structure
+- [x] T002 Create `mission.yaml` with workflow phases (discover → audit → design → generate → validate → publish)
+- [x] T003 Define artifacts (required: spec.md, plan.md, tasks.md, gap-analysis.md; optional: divio-templates/, generator-configs/)
+- [x] T004 Define path conventions (workspace: "docs/", deliverables: "docs/output/")
+- [x] T005 Define validation checks (all_divio_types_valid, no_conflicting_generators, templates_populated)
+- [x] T006 Add agent context with documentation mission instructions
+- [x] T007 Add command customizations for specify, plan, tasks, implement, review
 
 ### Implementation Notes
 1. Follow existing mission patterns from software-dev and research
