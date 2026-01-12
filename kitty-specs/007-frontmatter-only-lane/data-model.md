@@ -119,8 +119,10 @@ Legacy structured history entry (retained for backwards compatibility).
 
 ### Lane Update Flow
 
+**Note**: As of v0.11.1+, use `spec-kitty agent workflow implement/review` commands. This describes the underlying mechanism.
+
 ```
-1. User/Agent invokes: tasks_cli.py update <feature> <wp_id> <lane>
+1. User/Agent invokes: spec-kitty agent workflow implement WP## (or legacy: tasks_cli.py update)
 2. System locates WP file in flat tasks/ directory
 3. System validates new lane value
 4. System updates lane: field in frontmatter
@@ -192,7 +194,7 @@ kitty-specs/007-feature/tasks/
 
 ### Update Command
 
-**Command**: `tasks_cli.py update <feature> <wp_id> <lane> [--note "message"]`
+**Command**: `tasks_cli.py update <feature> <wp_id> <lane> [--note "message"]` (deprecated - use `spec-kitty agent workflow implement/review`)
 
 **Parameters**:
 - `feature`: Feature ID (e.g., "007-frontmatter-only-lane")
