@@ -9,18 +9,23 @@ subtasks:
   - "T027"
 title: "Windows Dashboard psutil Refactor"
 phase: "Feature - Track 2 UX Improvements"
-lane: "for_review"
+lane: "done"
 assignee: ""
-agent: ""
+agent: "claude-sonnet-4-5"
 shell_pid: ""
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "claude-sonnet-4-5"
 history:
   - timestamp: "2026-01-12T11:30:00Z"
     lane: "planned"
     agent: "system"
     shell_pid: ""
     action: "Prompt generated via /spec-kitty.tasks"
+  - timestamp: "2026-01-12T20:30:00Z"
+    lane: "done"
+    agent: "claude-sonnet-4-5"
+    shell_pid: ""
+    action: "Code review approved - psutil>=5.9.0 added, all signal calls replaced with psutil, proper exception handling, 3/3 dashboard tests passed. Fixes #71 Windows ERR_EMPTY_RESPONSE."
 ---
 
 # Work Package Prompt: WP04 – Windows Dashboard psutil Refactor
@@ -1193,3 +1198,4 @@ The CLI command also updates the activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 - 2026-01-12T10:48:58Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T10:56:09Z – unknown – lane=for_review – WP04 complete: psutil refactor for Windows dashboard. All signal.* references removed, cross-platform process management implemented. Tests pass (41/41 dashboard tests). Ready for Windows 10/11 validation.
+- 2026-01-12T11:12:14Z – agent – lane=doing – Started review via workflow command
