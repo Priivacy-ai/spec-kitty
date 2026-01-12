@@ -51,7 +51,7 @@ None required - all design artifacts complete.
 **Goal**: Move all template sources from `.kittify/` to `src/specify_cli/` and eliminate packaging contamination
 
 **Priority**: P0 - MUST complete before Track 2 constitution work
-**Status**: `planned`
+**Status**: `done`
 **Prompt**: [tasks/WP01-template-relocation-packaging.md](tasks/WP01-template-relocation-packaging.md)
 
 **Success Criteria**:
@@ -61,15 +61,15 @@ None required - all design artifacts complete.
 - Build package and verify: zero `.kittify/` or `memory/constitution.md` entries in wheel
 
 **Subtasks**:
-- [ ] T001: Audit codebase for `.kittify/` references
-- [ ] T002: Move `.kittify/templates/` → `src/specify_cli/templates/`
-- [ ] T003: Move `.kittify/missions/` → `src/specify_cli/missions/`
-- [ ] T004: Move `.kittify/scripts/` → `src/specify_cli/scripts/` (if exists)
-- [ ] T005: Update `src/specify_cli/template/manager.py` to load from `src/specify_cli/*`
-- [ ] T006: Remove `.kittify/*` force-includes from `pyproject.toml` (lines 86-89, 94-97, 109-110)
-- [ ] T007: Verify spec-kitty's own `.kittify/` still works for dogfooding
-- [ ] T008: Build wheel and inspect contents (verify no contamination)
-- [ ] T009: Test `spec-kitty init` from installed package
+- [x] T001: Audit codebase for `.kittify/` references
+- [x] T002: Move `.kittify/templates/` → `src/specify_cli/templates/`
+- [x] T003: Move `.kittify/missions/` → `src/specify_cli/missions/`
+- [x] T004: Move `.kittify/scripts/` → `src/specify_cli/scripts/` (if exists)
+- [x] T005: Update `src/specify_cli/template/manager.py` to load from `src/specify_cli/*`
+- [x] T006: Remove `.kittify/*` force-includes from `pyproject.toml` (lines 86-89, 94-97, 109-110)
+- [x] T007: Verify spec-kitty's own `.kittify/` still works for dogfooding
+- [x] T008: Build wheel and inspect contents (verify no contamination)
+- [x] T009: Test `spec-kitty init` from installed package
 
 **Risks**:
 - Breaking template loading for existing code
@@ -88,7 +88,7 @@ None required - all design artifacts complete.
 **Goal**: Fix 4 existing migrations to handle missing files gracefully + add new constitution cleanup migration
 
 **Priority**: P0 - Critical for upgrade path reliability
-**Status**: `planned`
+**Status**: `done`
 **Prompt**: [tasks/WP02-migration-repairs-graceful-handling.md](tasks/WP02-migration-repairs-graceful-handling.md)
 
 **Success Criteria**:
@@ -98,13 +98,13 @@ None required - all design artifacts complete.
 - Upgrade from 0.6.4 → 0.10.12 completes without manual intervention
 
 **Subtasks**:
-- [ ] T010: Fix `m_0_7_3_update_scripts.py` - graceful handling when bash scripts missing
-- [ ] T011: Fix `m_0_10_6_workflow_simplification.py` - copy templates before validation
-- [ ] T012: Fix `m_0_10_2_update_slash_commands.py` - explicit .toml file removal
-- [ ] T013: Fix `m_0_10_0_python_only.py` - verify explicit `.kittify/scripts/tasks/` cleanup
-- [ ] T014: Create `m_0_10_12_constitution_cleanup.py` - remove mission constitution directories
-- [ ] T015: Register new migration in migration registry
-- [ ] T016: Test migration idempotency (run twice, verify same result)
+- [x] T010: Fix `m_0_7_3_update_scripts.py` - graceful handling when bash scripts missing
+- [x] T011: Fix `m_0_10_6_workflow_simplification.py` - copy templates before validation
+- [x] T012: Fix `m_0_10_2_update_slash_commands.py` - explicit .toml file removal
+- [x] T013: Fix `m_0_10_0_python_only.py` - verify explicit `.kittify/scripts/tasks/` cleanup
+- [x] T014: Create `m_0_10_12_constitution_cleanup.py` - remove mission constitution directories
+- [x] T015: Register new migration in migration registry
+- [x] T016: Test migration idempotency (run twice, verify same result)
 
 **Risks**:
 - Breaking existing upgrade paths
@@ -121,7 +121,7 @@ None required - all design artifacts complete.
 **Goal**: Remove mission-specific constitution system entirely (code + directory structure)
 
 **Priority**: P0 - Required for architectural cleanup
-**Status**: `planned`
+**Status**: `done`
 **Prompt**: [tasks/WP03-mission-constitution-removal.md](tasks/WP03-mission-constitution-removal.md)
 
 **Success Criteria**:
@@ -132,11 +132,11 @@ None required - all design artifacts complete.
 - No code references to mission constitutions remain
 
 **Subtasks**:
-- [ ] T017: Remove `constitution_dir` property from `src/specify_cli/mission.py` (line 247-249)
-- [ ] T018: Remove constitution scanning from `src/specify_cli/manifest.py` (lines 70-74)
-- [ ] T019: Delete `src/specify_cli/missions/*/constitution/` directories (after WP01 template move)
-- [ ] T020: Update tests to remove mission constitution references
-- [ ] T021: Grep codebase for "mission.*constitution" and clean up any remaining references
+- [x] T017: Remove `constitution_dir` property from `src/specify_cli/mission.py` (line 247-249)
+- [x] T018: Remove constitution scanning from `src/specify_cli/manifest.py` (lines 70-74)
+- [x] T019: Delete `src/specify_cli/missions/*/constitution/` directories (after WP01 template move)
+- [x] T020: Update tests to remove mission constitution references
+- [x] T021: Grep codebase for "mission.*constitution" and clean up any remaining references
 
 **Risks**:
 - Breaking code that relies on mission constitutions
@@ -153,7 +153,7 @@ None required - all design artifacts complete.
 **Goal**: Replace POSIX-only signal handling with cross-platform psutil for Windows support
 
 **Priority**: P1 - Fixes Windows ERR_EMPTY_RESPONSE issue (#71)
-**Status**: `planned`
+**Status**: `done`
 **Prompt**: [tasks/WP04-windows-dashboard-psutil-refactor.md](tasks/WP04-windows-dashboard-psutil-refactor.md)
 
 **Success Criteria**:
@@ -164,12 +164,12 @@ None required - all design artifacts complete.
 - Process termination works gracefully across all platforms
 
 **Subtasks**:
-- [ ] T022: Add `psutil>=5.9.0` to `pyproject.toml` dependencies
-- [ ] T023: Replace `os.kill(pid, 0)` with `psutil.Process(pid).is_running()` (line 100)
-- [ ] T024: Replace `signal.SIGKILL` with `psutil.Process(pid).kill()` (lines 188, 289, 354, 381, 470, 499)
-- [ ] T025: Replace `signal.SIGTERM` with `psutil.Process(pid).terminate()` (line 464)
-- [ ] T026: Add proper exception handling for `psutil.NoSuchProcess` and `psutil.TimeoutExpired`
-- [ ] T027: Update imports (remove `signal`, add `psutil`)
+- [x] T022: Add `psutil>=5.9.0` to `pyproject.toml` dependencies
+- [x] T023: Replace `os.kill(pid, 0)` with `psutil.Process(pid).is_running()` (line 100)
+- [x] T024: Replace `signal.SIGKILL` with `psutil.Process(pid).kill()` (lines 188, 289, 354, 381, 470, 499)
+- [x] T025: Replace `signal.SIGTERM` with `psutil.Process(pid).terminate()` (line 464)
+- [x] T026: Add proper exception handling for `psutil.NoSuchProcess` and `psutil.TimeoutExpired`
+- [x] T027: Update imports (remove `signal`, add `psutil`)
 
 **Risks**:
 - psutil may behave differently across platforms
@@ -186,7 +186,7 @@ None required - all design artifacts complete.
 **Goal**: Replace placeholder-filling approach with phase-based interactive discovery workflow
 
 **Priority**: P1 - Improves constitution UX, makes it optional
-**Status**: `planned`
+**Status**: `done`
 **Prompt**: [tasks/WP05-constitution-command-redesign.md](tasks/WP05-constitution-command-redesign.md)
 
 **Success Criteria**:
@@ -198,12 +198,12 @@ None required - all design artifacts complete.
 - All spec-kitty commands work without constitution
 
 **Subtasks**:
-- [ ] T028: Update `src/specify_cli/templates/command-templates/constitution.md` with phase-based workflow
-- [ ] T029: Implement Phase 1 (Technical Standards) with 4 questions + skip option
-- [ ] T030: Implement Phase 2 (Code Quality) with 4 questions + skip option
-- [ ] T031: Implement Phase 3 (Tribal Knowledge) with 4 questions + skip option
-- [ ] T032: Implement Phase 4 (Governance) with 4 questions + skip option
-- [ ] T033: Add summary presentation and user confirmation before writing
+- [x] T028: Update `src/specify_cli/templates/command-templates/constitution.md` with phase-based workflow
+- [x] T029: Implement Phase 1 (Technical Standards) with 4 questions + skip option
+- [x] T030: Implement Phase 2 (Code Quality) with 4 questions + skip option
+- [x] T031: Implement Phase 3 (Tribal Knowledge) with 4 questions + skip option
+- [x] T032: Implement Phase 4 (Governance) with 4 questions + skip option
+- [x] T033: Add summary presentation and user confirmation before writing
 
 **Risks**:
 - Users may skip all phases and have no constitution
@@ -222,7 +222,7 @@ None required - all design artifacts complete.
 **Goal**: Verify all 4 feature goals work together end-to-end across platforms
 
 **Priority**: P0 - Gate for release
-**Status**: `planned`
+**Status**: `done`
 **Prompt**: [tasks/WP06-integration-testing-validation.md](tasks/WP06-integration-testing-validation.md)
 
 **Success Criteria**:
@@ -234,13 +234,13 @@ None required - all design artifacts complete.
 - Dogfooding workflow tested (dev fills constitution, builds package, verifies clean)
 
 **Subtasks**:
-- [ ] T034: Create test script for package inspection (`unzip -l dist/*.whl | grep -E ...`)
-- [ ] T035: Test upgrade path in Docker container (0.6.4 → 0.10.12)
-- [ ] T036: Test dashboard on Windows (smoke test: start, access, shutdown)
-- [ ] T037: Test constitution minimal workflow (3-5 questions, 1 page output)
-- [ ] T038: Test constitution comprehensive workflow (8-12 questions, 2-3 pages)
-- [ ] T039: Test all spec-kitty commands without constitution (specify, plan, tasks, implement)
-- [ ] T040: Test dogfooding workflow (fill constitution, build, inspect package)
+- [x] T034: Create test script for package inspection (`unzip -l dist/*.whl | grep -E ...`)
+- [x] T035: Test upgrade path in Docker container (0.6.4 → 0.10.12)
+- [x] T036: Test dashboard on Windows (smoke test: start, access, shutdown)
+- [x] T037: Test constitution minimal workflow (3-5 questions, 1 page output)
+- [x] T038: Test constitution comprehensive workflow (8-12 questions, 2-3 pages)
+- [x] T039: Test all spec-kitty commands without constitution (specify, plan, tasks, implement)
+- [x] T040: Test dogfooding workflow (fill constitution, build, inspect package)
 
 **Risks**:
 - Platform-specific issues may not surface in testing
@@ -386,12 +386,12 @@ However, all 6 work packages are recommended for a complete emergency release ad
 
 ## Progress Tracking
 
-- [ ] **WP01**: Template Relocation & Packaging
-- [ ] **WP02**: Migration Repairs & Graceful Handling
-- [ ] **WP03**: Mission Constitution Removal
-- [ ] **WP04**: Windows Dashboard psutil Refactor
-- [ ] **WP05**: Constitution Command Redesign
-- [ ] **WP06**: Integration Testing & Validation
+- [x] **WP01**: Template Relocation & Packaging
+- [x] **WP02**: Migration Repairs & Graceful Handling
+- [x] **WP03**: Mission Constitution Removal
+- [x] **WP04**: Windows Dashboard psutil Refactor
+- [x] **WP05**: Constitution Command Redesign
+- [x] **WP06**: Integration Testing & Validation
 
 **Legend**: `[ ]` planned | `[▶]` doing | `[R]` for_review | `[✓]` done
 
