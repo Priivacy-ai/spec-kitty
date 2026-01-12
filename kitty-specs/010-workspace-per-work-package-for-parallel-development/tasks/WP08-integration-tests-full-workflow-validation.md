@@ -1,30 +1,30 @@
 ---
-work_package_id: "WP08"
-subtasks:
-  - "T070"
-  - "T071"
-  - "T072"
-  - "T073"
-  - "T074"
-  - "T075"
-  - "T076"
-  - "T077"
-  - "T078"
-title: "Integration Tests (Full Workflow Validation)"
-phase: "Phase 3 - Quality & Polish"
-lane: "done"
-dependencies: ["WP01", "WP03", "WP04", "WP05", "WP06", "WP07"]
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP08
+title: Integration Tests (Full Workflow Validation)
+lane: done
 history:
-  - timestamp: "2026-01-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: team
+assignee: team
+dependencies: [WP01, WP03, WP04, WP05, WP06, WP07]
+phase: Phase 3 - Quality & Polish
+review_status: ''
+reviewed_by: ''
+shell_pid: manual
+subtasks:
+- T070
+- T071
+- T072
+- T073
+- T074
+- T075
+- T076
+- T077
+- T078
 ---
 
 # Work Package Prompt: WP08 – Integration Tests (Full Workflow Validation)

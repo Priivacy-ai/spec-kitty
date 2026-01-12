@@ -1,8 +1,20 @@
 ---
 work_package_id: WP04
 title: Planning Workflow Refactoring
-lane: "done"
+lane: done
+history:
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: team
+assignee: team
 dependencies: [WP01, WP03]
+phase: Phase 1 - Core Implementation
+review_status: ''
+reviewed_by: ''
+shell_pid: manual
 subtasks:
 - T022
 - T023
@@ -13,18 +25,6 @@ subtasks:
 - T028
 - T029
 - T030
-phase: Phase 1 - Core Implementation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
-history:
-- timestamp: '2026-01-07T00:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – Planning Workflow Refactoring

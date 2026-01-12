@@ -1,35 +1,35 @@
 ---
-work_package_id: "WP07"
-subtasks:
-  - "T049"
-  - "T050"
-  - "T051"
-  - "T052"
-  - "T053"
-  - "T054"
-  - "T055"
-  - "T056"
-  - "T057"
-  - "T058"
-title: "Migration Implementation"
-phase: "Phase 2 - Migration & Templates"
-lane: "planned"
-dependencies: ["WP02"]
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP07
+title: Migration Implementation
+lane: done
 history:
-  - timestamp: "2026-01-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
-  - timestamp: "2026-01-08T10:05:00Z"
-    agent: "claude"
-    shell_pid: ""
-    action: "CORRECTED: Changed from updating 48 agent directory files to updating 4 template source files"
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+- timestamp: '2026-01-08T10:05:00Z'
+  agent: claude
+  shell_pid: ''
+  action: 'CORRECTED: Changed from updating 48 agent directory files to updating 4 template source files'
+agent: Codex
+assignee: team
+dependencies: [WP02]
+phase: Phase 2 - Migration & Templates
+review_status: ''
+reviewed_by: ''
+shell_pid: '80475'
+subtasks:
+- T049
+- T050
+- T051
+- T052
+- T053
+- T054
+- T055
+- T056
+- T057
+- T058
 ---
 
 # Work Package Prompt: WP07 – Migration Implementation (CORRECTED)
@@ -745,3 +745,4 @@ Or edit the `lane:` field in frontmatter directly.
 - 2026-01-08T10:15:54Z – agent – lane=doing – Started review via workflow command
 - 2026-01-08T10:21:16Z – unknown – lane=done – Review passed - all tests passing, migration logic verified, templates correctly updated
 - 2026-01-11T14:56:36Z – unknown – lane=planned – Critical bug: init uses wrong template directory (.kittify/templates instead of .kittify/missions/software-dev)
+- 2026-01-12T14:38:33Z – Codex – shell_pid=80475 – lane=done – Moved to done

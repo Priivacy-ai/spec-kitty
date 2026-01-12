@@ -16,13 +16,13 @@
 **Prompt**: `tasks/WP01-dependency-graph-utilities-tdd-foundation.md`
 
 ### Included Subtasks
-- [ ] T001 Write unit tests for dependency parsing (parse_wp_dependencies)
-- [ ] T002 Write unit tests for graph building (build_dependency_graph)
-- [ ] T003 Write unit tests for cycle detection (detect_cycles) - various graph shapes
-- [ ] T004 Write unit tests for dependency validation (validate_dependencies)
-- [ ] T005 Write unit tests for dependent lookup (get_dependents)
-- [ ] T006 Implement src/specify_cli/core/dependency_graph.py module to pass tests
-- [ ] T007 Verify >90% test coverage for dependency_graph.py
+- [x] T001 Write unit tests for dependency parsing (parse_wp_dependencies)
+- [x] T002 Write unit tests for graph building (build_dependency_graph)
+- [x] T003 Write unit tests for cycle detection (detect_cycles) - various graph shapes
+- [x] T004 Write unit tests for dependency validation (validate_dependencies)
+- [x] T005 Write unit tests for dependent lookup (get_dependents)
+- [x] T006 Implement src/specify_cli/core/dependency_graph.py module to pass tests
+- [x] T007 Verify >90% test coverage for dependency_graph.py
 
 ### Implementation Notes
 1. Tests first (T001-T005) - all should FAIL initially
@@ -49,13 +49,13 @@
 **Prompt**: `tasks/WP02-migration-tests-tdd-agent-template-coverage.md`
 
 ### Included Subtasks
-- [ ] T008 Create test_workspace_per_wp_migration.py in tests/specify_cli/
-- [ ] T009 Write test for template directory existence
-- [ ] T010 Write test for specify.md template updates (no worktree creation)
-- [ ] T011 Write test for plan.md template updates (no worktree reference)
-- [ ] T012 Write test for tasks.md template updates (dependency generation)
-- [ ] T013 Write test for implement.md template existence and --base flag docs
-- [ ] T015 Run tests - verify tests FAIL (templates not yet updated)
+- [x] T008 Create test_workspace_per_wp_migration.py in tests/specify_cli/
+- [x] T009 Write test for template directory existence
+- [x] T010 Write test for specify.md template updates (no worktree creation)
+- [x] T011 Write test for plan.md template updates (no worktree reference)
+- [x] T012 Write test for tasks.md template updates (dependency generation)
+- [x] T013 Write test for implement.md template existence and --base flag docs
+- [x] T015 Run tests - verify tests FAIL (templates not yet updated)
 
 ### Implementation Notes
 - Test 4 template SOURCE files in `.kittify/missions/software-dev/command-templates/`
@@ -82,12 +82,12 @@
 **Prompt**: `tasks/WP03-frontmatter-schema-extension.md`
 
 ### Included Subtasks
-- [ ] T016 Update WP frontmatter schema in src/specify_cli/frontmatter.py
-- [ ] T017 Add dependencies field (optional, defaults to empty list)
-- [ ] T018 Update WP_FIELD_ORDER to include dependencies after lane
-- [ ] T019 Add validation: dependencies must be list of strings matching WP## pattern
-- [ ] T020 Test frontmatter parsing with dependencies field
-- [ ] T021 Test backward compatibility (WPs without dependencies field still parse)
+- [x] T016 Update WP frontmatter schema in src/specify_cli/frontmatter.py
+- [x] T017 Add dependencies field (optional, defaults to empty list)
+- [x] T018 Update WP_FIELD_ORDER to include dependencies after lane
+- [x] T019 Add validation: dependencies must be list of strings matching WP## pattern
+- [x] T020 Test frontmatter parsing with dependencies field
+- [x] T021 Test backward compatibility (WPs without dependencies field still parse)
 
 ### Implementation Notes
 - Insert dependencies field in logical location (after lane, before subtasks)
@@ -113,15 +113,15 @@
 **Prompt**: `tasks/WP04-planning-workflow-refactoring.md`
 
 ### Included Subtasks
-- [ ] T022 Modify src/specify_cli/cli/commands/agent/feature.py - remove worktree creation from create-feature
-- [ ] T023 Update feature creation to work in main repo (create kitty-specs/###-feature/ directly)
-- [ ] T024 Add git commit after spec.md creation (auto-commit to main)
-- [ ] T025 Verify plan command works in main (no worktree context required)
-- [ ] T026 Add git commit after plan.md creation
-- [ ] T027 Modify src/specify_cli/cli/commands/agent/tasks.py - parse dependencies from tasks.md
-- [ ] T028 Generate dependencies field in WP frontmatter during tasks generation
-- [ ] T029 Add git commit after tasks/*.md creation
-- [ ] T030 Write integration test for planning workflow (specify → plan → tasks, no worktrees)
+- [x] T022 Modify src/specify_cli/cli/commands/agent/feature.py - remove worktree creation from create-feature
+- [x] T023 Update feature creation to work in main repo (create kitty-specs/###-feature/ directly)
+- [x] T024 Add git commit after spec.md creation (auto-commit to main)
+- [x] T025 Verify plan command works in main (no worktree context required)
+- [x] T026 Add git commit after plan.md creation
+- [x] T027 Modify src/specify_cli/cli/commands/agent/tasks.py - parse dependencies from tasks.md
+- [x] T028 Generate dependencies field in WP frontmatter during tasks generation
+- [x] T029 Add git commit after tasks/*.md creation
+- [x] T030 Write integration test for planning workflow (specify → plan → tasks, no worktrees)
 
 ### Implementation Notes
 1. feature.py: Remove create_feature_worktree() call
@@ -148,16 +148,16 @@
 **Prompt**: `tasks/WP05-implement-command-new.md`
 
 ### Included Subtasks
-- [ ] T031 Create src/specify_cli/cli/commands/implement.py module
-- [ ] T032 Implement workspace creation logic (git worktree add with proper branching)
-- [ ] T033 Add --base WPXX parameter with validation (base workspace must exist)
-- [ ] T034 Parse WP frontmatter to get dependencies, suggest --base if missing
-- [ ] T035 Detect feature number and slug from current directory or git branch
-- [ ] T036 Create workspace naming: .worktrees/###-feature-WP##/
-- [ ] T037 Branch naming: ###-feature-WP## (for no deps) or branch from base (for deps)
-- [ ] T038 Add StepTracker progress display (detect, validate, create, setup)
-- [ ] T039 Register implement command in CLI router
-- [ ] T040 Write unit tests for implement command (mocked git operations)
+- [x] T031 Create src/specify_cli/cli/commands/implement.py module
+- [x] T032 Implement workspace creation logic (git worktree add with proper branching)
+- [x] T033 Add --base WPXX parameter with validation (base workspace must exist)
+- [x] T034 Parse WP frontmatter to get dependencies, suggest --base if missing
+- [x] T035 Detect feature number and slug from current directory or git branch
+- [x] T036 Create workspace naming: .worktrees/###-feature-WP##/
+- [x] T037 Branch naming: ###-feature-WP## (for no deps) or branch from base (for deps)
+- [x] T038 Add StepTracker progress display (detect, validate, create, setup)
+- [x] T039 Register implement command in CLI router
+- [x] T040 Write unit tests for implement command (mocked git operations)
 
 ### Implementation Notes
 - Command signature: `implement(wp_id: str, base: str = None)`
@@ -186,14 +186,14 @@
 **Prompt**: `tasks/WP06-merge-command-updates.md`
 
 ### Included Subtasks
-- [ ] T041 Update src/specify_cli/cli/commands/merge.py - detect workspace-per-WP structure
-- [ ] T042 Scan .worktrees/ for ###-feature-WP## pattern (multiple worktrees)
-- [ ] T043 Validate all WP branches exist and are ready for merge
-- [ ] T044 Merge all WP branches to main (iterate over WP01, WP02, WP03...)
-- [ ] T045 Add cleanup logic: remove all WP worktrees after merge (if --remove-worktree flag)
-- [ ] T046 Delete all WP branches after merge (if --delete-branch flag)
-- [ ] T047 Update help text to document workspace-per-WP merge behavior
-- [ ] T048 Write integration test for merge with workspace-per-WP
+- [x] T041 Update src/specify_cli/cli/commands/merge.py - detect workspace-per-WP structure
+- [x] T042 Scan .worktrees/ for ###-feature-WP## pattern (multiple worktrees)
+- [x] T043 Validate all WP branches exist and are ready for merge
+- [x] T044 Merge all WP branches to main (iterate over WP01, WP02, WP03...)
+- [x] T045 Add cleanup logic: remove all WP worktrees after merge (if --remove-worktree flag)
+- [x] T046 Delete all WP branches after merge (if --delete-branch flag)
+- [x] T047 Update help text to document workspace-per-WP merge behavior
+- [x] T048 Write integration test for merge with workspace-per-WP
 
 ### Implementation Notes
 - Detection: Check if .worktrees contains ###-feature-WP## directories (multiple)
@@ -220,16 +220,16 @@
 **Prompt**: `tasks/WP07-migration-implementation.md`
 
 ### Included Subtasks
-- [ ] T049 Create src/specify_cli/upgrade/migrations/m_0_11_0_workspace_per_wp.py
-- [ ] T050 Implement pre-upgrade validation (scan for legacy worktrees)
-- [ ] T051 Implement legacy worktree detection (.worktrees/###-feature/ pattern)
-- [ ] T052 Block upgrade if legacy worktrees found, provide clear error with cleanup guidance
-- [ ] T053 Update .kittify/missions/software-dev/command-templates/specify.md - remove worktree creation
-- [ ] T054 Update .kittify/missions/software-dev/command-templates/plan.md - remove worktree references
-- [ ] T055 Update .kittify/missions/software-dev/command-templates/tasks.md - add dependency generation
-- [ ] T056 Create .kittify/missions/software-dev/command-templates/implement.md - NEW template
-- [ ] T057 Run migration tests (WP02) - verify all tests PASS
-- [ ] T058 Add list-legacy-features utility command for pre-upgrade cleanup
+- [x] T049 Create src/specify_cli/upgrade/migrations/m_0_11_0_workspace_per_wp.py
+- [x] T050 Implement pre-upgrade validation (scan for legacy worktrees)
+- [x] T051 Implement legacy worktree detection (.worktrees/###-feature/ pattern)
+- [x] T052 Block upgrade if legacy worktrees found, provide clear error with cleanup guidance
+- [x] T053 Update .kittify/missions/software-dev/command-templates/specify.md - remove worktree creation
+- [x] T054 Update .kittify/missions/software-dev/command-templates/plan.md - remove worktree references
+- [x] T055 Update .kittify/missions/software-dev/command-templates/tasks.md - add dependency generation
+- [x] T056 Create .kittify/missions/software-dev/command-templates/implement.md - NEW template
+- [x] T057 Run migration tests (WP02) - verify all tests PASS
+- [x] T058 Add list-legacy-features utility command for pre-upgrade cleanup
 
 ### Implementation Notes
 - **CORRECTED SCOPE**: Update 4 template SOURCE files (not 48 agent files)
@@ -262,15 +262,15 @@
 **Prompt**: `tasks/WP08-integration-tests-full-workflow-validation.md`
 
 ### Included Subtasks
-- [ ] T070 Create tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py
-- [ ] T071 Write test: specify → plan → tasks in main (no worktrees created)
-- [ ] T072 Write test: implement WP01 creates workspace from main
-- [ ] T073 Write test: implement WP02 --base WP01 creates workspace from WP01 branch
-- [ ] T074 Write test: parallel implementation (WP01, WP03 simultaneously)
-- [ ] T075 Write test: dependency validation errors (missing base, circular deps)
-- [ ] T076 Write test: merge with workspace-per-WP (all WP branches merged)
-- [ ] T077 Write test: pre-upgrade validation blocks if legacy worktrees exist
-- [ ] T078 Run full integration test suite - verify all pass
+- [x] T070 Create tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py
+- [x] T071 Write test: specify → plan → tasks in main (no worktrees created)
+- [x] T072 Write test: implement WP01 creates workspace from main
+- [x] T073 Write test: implement WP02 --base WP01 creates workspace from WP01 branch
+- [x] T074 Write test: parallel implementation (WP01, WP03 simultaneously)
+- [x] T075 Write test: dependency validation errors (missing base, circular deps)
+- [x] T076 Write test: merge with workspace-per-WP (all WP branches merged)
+- [x] T077 Write test: pre-upgrade validation blocks if legacy worktrees exist
+- [x] T078 Run full integration test suite - verify all pass
 
 ### Implementation Notes
 - Use pytest tmp_path fixture for isolated test environments
@@ -302,13 +302,13 @@
 **Prompt**: `tasks/WP09-review-feedback-warning-system.md`
 
 ### Included Subtasks
-- [ ] T079 Add dependent WP detection to implement command (query dependency_graph)
-- [ ] T080 Display warning when resuming WP whose base has changed (git log comparison)
-- [ ] T081 Include rebase command in warning: cd .worktrees/###-feature-WP## && git rebase ###-feature-WPXX
-- [ ] T082 Add dependent WP warnings to review command/prompts
-- [ ] T083 Display warning when reviewing WP that has dependents in progress (lanes: planned, doing)
-- [ ] T084 Update WP prompt templates to include dependency rebase guidance
-- [ ] T085 Test warning display logic (various dependency scenarios)
+- [x] T079 Add dependent WP detection to implement command (query dependency_graph)
+- [x] T080 Display warning when resuming WP whose base has changed (git log comparison)
+- [x] T081 Include rebase command in warning: cd .worktrees/###-feature-WP## && git rebase ###-feature-WPXX
+- [x] T082 Add dependent WP warnings to review command/prompts
+- [x] T083 Display warning when reviewing WP that has dependents in progress (lanes: planned, doing)
+- [x] T084 Update WP prompt templates to include dependency rebase guidance
+- [x] T085 Test warning display logic (various dependency scenarios)
 
 ### Implementation Notes
 - Use get_dependents() from dependency_graph.py
@@ -337,14 +337,14 @@
 **Prompt**: `tasks/WP10-documentation-and-migration-guide.md`
 
 ### Included Subtasks
-- [ ] T086 Create docs/workspace-per-wp.md - explain new workflow with examples
-- [ ] T087 Create docs/upgrading-to-0-11-0.md - step-by-step migration guide
-- [ ] T088 Document pre-upgrade checklist (check for legacy worktrees, merge or delete)
-- [ ] T089 Document dependency syntax in WP frontmatter
-- [ ] T090 Update README.md with 0.11.0 breaking change notes
-- [ ] T091 Update CHANGELOG.md with 0.11.0 entry (breaking changes, new features)
-- [ ] T092 Add examples to quickstart.md (already exists, expand with real scenarios)
-- [ ] T093 Update CLAUDE.md development guidelines with workspace-per-WP patterns
+- [x] T086 Create docs/workspace-per-wp.md - explain new workflow with examples
+- [x] T087 Create docs/upgrading-to-0-11-0.md - step-by-step migration guide
+- [x] T088 Document pre-upgrade checklist (check for legacy worktrees, merge or delete)
+- [x] T089 Document dependency syntax in WP frontmatter
+- [x] T090 Update README.md with 0.11.0 breaking change notes
+- [x] T091 Update CHANGELOG.md with 0.11.0 entry (breaking changes, new features)
+- [x] T092 Add examples to quickstart.md (already exists, expand with real scenarios)
+- [x] T093 Update CLAUDE.md development guidelines with workspace-per-WP patterns
 
 ### Implementation Notes
 - Migration guide critical path: list worktrees → merge or delete → upgrade → verify

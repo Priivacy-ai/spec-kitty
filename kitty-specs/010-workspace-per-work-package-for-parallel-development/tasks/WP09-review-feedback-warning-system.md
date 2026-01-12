@@ -1,28 +1,28 @@
 ---
-work_package_id: "WP09"
-subtasks:
-  - "T079"
-  - "T080"
-  - "T081"
-  - "T082"
-  - "T083"
-  - "T084"
-  - "T085"
-title: "Review Feedback Warning System"
-phase: "Phase 3 - Quality & Polish"
-lane: "done"
-dependencies: ["WP01", "WP03", "WP05"]
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP09
+title: Review Feedback Warning System
+lane: done
 history:
-  - timestamp: "2026-01-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: team
+assignee: team
+dependencies: [WP01, WP03, WP05]
+phase: Phase 3 - Quality & Polish
+review_status: ''
+reviewed_by: ''
+shell_pid: manual
+subtasks:
+- T079
+- T080
+- T081
+- T082
+- T083
+- T084
+- T085
 ---
 
 # Work Package Prompt: WP09 – Review Feedback Warning System

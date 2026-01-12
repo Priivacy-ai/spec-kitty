@@ -1,31 +1,31 @@
 ---
-work_package_id: "WP05"
-subtasks:
-  - "T031"
-  - "T032"
-  - "T033"
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-  - "T038"
-  - "T039"
-  - "T040"
-title: "Implement Command (NEW)"
-phase: "Phase 1 - Core Implementation"
-lane: "done"
-dependencies: ["WP01", "WP03"]
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP05
+title: Implement Command (NEW)
+lane: done
 history:
-  - timestamp: "2026-01-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: team
+assignee: team
+dependencies: [WP01, WP03]
+phase: Phase 1 - Core Implementation
+review_status: ''
+reviewed_by: ''
+shell_pid: manual
+subtasks:
+- T031
+- T032
+- T033
+- T034
+- T035
+- T036
+- T037
+- T038
+- T039
+- T040
 ---
 
 # Work Package Prompt: WP05 – Implement Command (NEW)

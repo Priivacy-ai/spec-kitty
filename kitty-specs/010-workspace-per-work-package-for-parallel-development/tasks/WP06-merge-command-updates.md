@@ -1,29 +1,29 @@
 ---
-work_package_id: "WP06"
-subtasks:
-  - "T041"
-  - "T042"
-  - "T043"
-  - "T044"
-  - "T045"
-  - "T046"
-  - "T047"
-  - "T048"
-title: "Merge Command Updates"
-phase: "Phase 1 - Core Implementation"
-lane: "done"
-dependencies: []
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP06
+title: Merge Command Updates
+lane: done
 history:
-  - timestamp: "2026-01-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+agent: team
+assignee: team
+dependencies: []
+phase: Phase 1 - Core Implementation
+review_status: ''
+reviewed_by: ''
+shell_pid: manual
+subtasks:
+- T041
+- T042
+- T043
+- T044
+- T045
+- T046
+- T047
+- T048
 ---
 
 # Work Package Prompt: WP06 – Merge Command Updates
