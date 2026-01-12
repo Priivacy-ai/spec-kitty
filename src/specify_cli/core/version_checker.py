@@ -18,9 +18,25 @@ def get_cli_version() -> str:
 
     Returns:
         Version string (e.g., "0.9.0" or "0.5.0-dev")
+
+    Raises:
+        RuntimeError: If test mode is enabled but no version override is set
     """
-    # Allow tests to override CLI version
     import os
+
+    # Test mode: MUST use override, never fall back to installed version
+    # This ensures tests always use source code version, not pip-installed package
+    if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
+        override = os.environ.get("SPEC_KITTY_CLI_VERSION")
+        if not override:
+            raise RuntimeError(
+                "SPEC_KITTY_TEST_MODE=1 requires SPEC_KITTY_CLI_VERSION to be set. "
+                "This is a bug in the test fixtures. Tests must use the isolated_env "
+                "fixture to ensure proper version isolation."
+            )
+        return override
+
+    # Production mode: allow override, then try installed, then module __version__
     override_version = os.environ.get("SPEC_KITTY_CLI_VERSION")
     if override_version:
         return override_version

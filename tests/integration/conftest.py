@@ -16,26 +16,51 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture()
-def run_cli() -> Callable[[Path, str], subprocess.CompletedProcess[str]]:
-    """Return a helper that executes the Spec Kitty CLI within a project."""
+def isolated_env() -> dict[str, str]:
+    """Create isolated environment blocking host spec-kitty installation.
+
+    Ensures tests use source code exclusively via:
+    - PYTHONPATH set to source only (no inheritance)
+    - SPEC_KITTY_CLI_VERSION from pyproject.toml
+    - SPEC_KITTY_TEST_MODE=1 to enforce test behavior
+    - SPEC_KITTY_TEMPLATE_ROOT to source templates
+
+    This fixture guarantees that tests will never accidentally use a
+    pip-installed version of spec-kitty-cli from the host system.
+    """
+    env = os.environ.copy()
+
+    # Single source of truth: pyproject.toml
+    with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+        pyproject = tomllib.load(f)
+    source_version = pyproject["project"]["version"]
+
+    # Isolation settings
+    src_path = REPO_ROOT / "src"
+    env["PYTHONPATH"] = str(src_path)  # Source only, no existing PYTHONPATH
+    env["SPEC_KITTY_CLI_VERSION"] = source_version  # Override version detection
+    env["SPEC_KITTY_TEST_MODE"] = "1"  # Signal test mode (fail-fast on fixture bugs)
+    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT)  # Find bundled templates
+
+    return env
+
+
+@pytest.fixture()
+def run_cli(isolated_env: dict[str, str]) -> Callable[[Path, str], subprocess.CompletedProcess[str]]:
+    """Return a helper that executes the Spec Kitty CLI within a project.
+
+    Uses isolated_env to guarantee tests run against source code, not
+    installed packages. This prevents version mismatch errors.
+    """
 
     def _run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
-        env = os.environ.copy()
-        src_path = REPO_ROOT / "src"
-        env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
-        # Ensure CLI can resolve bundled templates when running from source checkout
-        env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
-        # Override CLI version to match source version for tests
-        with open(REPO_ROOT / "pyproject.toml", "rb") as f:
-            pyproject = tomllib.load(f)
-        env["SPEC_KITTY_CLI_VERSION"] = pyproject["project"]["version"]
         command = [sys.executable, "-m", "specify_cli.__init__", *args]
         return subprocess.run(
             command,
             cwd=str(project_path),
             capture_output=True,
             text=True,
-            env=env,
+            env=isolated_env,
         )
 
     return _run_cli

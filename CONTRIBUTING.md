@@ -34,6 +34,63 @@ These are one time installations required to be able to test your changes locall
 1. Install [Git](https://git-scm.com/downloads)
 1. Have an [AI coding agent available](README.md#-supported-ai-agents)
 
+## Running Tests
+
+Spec Kitty's test suite is designed to run against source code, not installed packages. This ensures tests verify the current code, not a previously installed version.
+
+### Quick Start
+
+```bash
+# Install dependencies (one time)
+uv sync
+
+# Run all tests
+pytest
+
+# Run specific test categories
+pytest tests/integration/        # Integration tests
+pytest tests/unit/               # Unit tests
+pytest tests/integration/test_version_isolation.py  # Isolation tests
+```
+
+### Test Isolation
+
+Tests use several mechanisms to ensure they run against source code:
+
+- **PYTHONPATH**: Points to `src/` directory
+- **SPEC_KITTY_CLI_VERSION**: Overrides version detection
+- **SPEC_KITTY_TEST_MODE**: Prevents fallback to installed package
+- **isolated_env fixture**: Provides consistent environment for all tests
+
+All integration tests use the `run_cli` fixture which handles this automatically.
+
+### Troubleshooting Version Issues
+
+If you see errors like "Version Mismatch Detected", it means you have a pip-installed version of spec-kitty-cli that doesn't match your source code version.
+
+**Solution:**
+
+```bash
+# Uninstall any installed version
+pip uninstall spec-kitty-cli -y
+
+# Run tests again
+pytest
+```
+
+This is the most common test issue and is easy to fix. The test isolation system will detect mismatches automatically.
+
+### How Test Isolation Works
+
+The test infrastructure guarantees that tests always use source code:
+
+1. **Environment Variables**: Set by `isolated_env` fixture in `tests/integration/conftest.py`
+2. **Test Mode Enforcement**: `SPEC_KITTY_TEST_MODE=1` forces CLI to use source version
+3. **Fail-Fast**: If fixtures are misconfigured, tests fail immediately with clear error
+4. **CI Verification**: GitHub Actions verify version consistency before running tests
+
+For more details, see `tests/README.md`.
+
 ## Submitting a pull request
 
 >[!NOTE]

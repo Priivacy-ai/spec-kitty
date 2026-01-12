@@ -25,12 +25,16 @@ import typer
 from rich.console import Console
 
 # Get version from package metadata
-try:
-    from importlib.metadata import version as get_version
-    __version__ = get_version("spec-kitty-cli")
-except Exception:
-    # Fallback for development/editable installs
-    __version__ = "0.5.0-dev"
+# Test mode: use environment override to ensure tests use source version
+if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
+    __version__ = os.environ.get("SPEC_KITTY_CLI_VERSION", "0.5.0-dev")
+else:
+    try:
+        from importlib.metadata import version as get_version
+        __version__ = get_version("spec-kitty-cli")
+    except Exception:
+        # Fallback for development/editable installs
+        __version__ = "0.5.0-dev"
 
 from specify_cli.mission import MissionNotFoundError
 from specify_cli.cli import StepTracker

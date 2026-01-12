@@ -43,6 +43,36 @@ jobs:
           pip install build tomli packaging pytest
           pip install -e .[test]
 
+      - name: Verify test isolation
+        run: |
+          cat > verify_isolation.py << 'EOF'
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          # Get source version from pyproject.toml
+          with open("pyproject.toml", "rb") as f:
+              source_version = tomllib.load(f)["project"]["version"]
+
+          # Try to get installed version
+          try:
+              from importlib.metadata import version
+              installed_version = version("spec-kitty-cli")
+          except Exception:
+              print(f"✅ No installed version detected (source: {source_version})")
+              sys.exit(0)
+
+          # Check if versions match
+          if installed_version == source_version:
+              print(f"✅ Version match: {source_version}")
+              sys.exit(0)
+          else:
+              print(f"❌ Version mismatch! Source: {source_version}, Installed: {installed_version}")
+              print("Tests may fail due to version inconsistency.")
+              sys.exit(1)
+          EOF
+          python verify_isolation.py
+
       - name: Run tests
         run: |
           echo "::group::Running test suite"
