@@ -1,11 +1,9 @@
 ---
-description: Create or update the project constitution from interactive or provided principle inputs, ensuring all dependent templates stay in sync.
+description: Create or update the project constitution through interactive phase-based discovery.
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
-
 *Path: [templates/commands/constitution.md](templates/commands/constitution.md)*
-
 
 ## User Input
 
@@ -19,108 +17,416 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## What This Command Does
 
-This command manages the **project constitution** - the global set of principles and governance rules that apply to ALL features in this project.
+This command creates or updates the **project constitution** through an interactive, phase-based discovery workflow.
 
-**Location**: The constitution lives at `.kittify/memory/constitution.md` (in the main repository, not feature worktrees)
+**Location**: `.kittify/memory/constitution.md` (project root, not worktrees)
+**Scope**: Project-wide principles that apply to ALL features
 
-**Scope**: This command is project-wide, not feature-specific
-- Does NOT need to be run from a worktree
-- Can be run from the main repository root
-- Creates/updates principles that all features must follow
-- Updates dependent templates to stay in sync
+**Important**: The constitution is OPTIONAL. All spec-kitty commands work without it.
 
----
-
-## Why Constitutions Matter
-
-The project constitution defines non-negotiable principles such as:
-- Code quality standards
-- Security and compliance requirements
-- Testing discipline
-- Documentation standards
-- Performance expectations
-
-All features (`/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks`) must align with these principles.
+**Constitution Purpose**:
+- Capture technical standards (languages, testing, deployment)
+- Document code quality expectations (review process, quality gates)
+- Record tribal knowledge (team conventions, lessons learned)
+- Define governance (how the constitution changes, who enforces it)
 
 ---
 
-## Workflow Context
+## Discovery Workflow
 
-**When to use**:
-- First time: Create initial project constitution with your team's core principles
-- Later: Update constitution when principles change or new ones are needed
-- Impacts: Every feature automatically validates against current constitution
+This command uses a **4-phase discovery process**:
 
-**What it affects**:
-- All spec.md files (features must comply with constitution)
-- All plan.md files (architecture must align with principles)
-- All tasks.md files (testing and quality tasks reflect constitution)
-- The `/spec-kitty.analyze` command validates constitution alignment
+1. **Phase 1: Technical Standards** (Recommended)
+   - Languages, frameworks, testing requirements
+   - Performance targets, deployment constraints
+   - ~3-4 questions, creates a lean foundation
+
+2. **Phase 2: Code Quality** (Optional)
+   - PR requirements, review checklist, quality gates
+   - Documentation standards
+   - ~3-4 questions
+
+3. **Phase 3: Tribal Knowledge** (Optional)
+   - Team conventions, lessons learned
+   - Historical decisions (optional)
+   - ~2-4 questions
+
+4. **Phase 4: Governance** (Optional)
+   - Amendment process, compliance validation
+   - Exception handling (optional)
+   - ~2-3 questions
+
+**Paths**:
+- **Minimal** (~1 page): Phase 1 only → ~3-5 questions
+- **Comprehensive** (~2-3 pages): All phases → ~8-12 questions
 
 ---
 
-## Outline
+## Execution Outline
 
-You are updating the project constitution at `/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[PROJECT_NAME]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely, and (c) propagate any amendments across dependent artifacts.
+### Step 1: Initial Choice
 
-Follow this execution flow:
+Ask the user:
+```
+Do you want to establish a project constitution?
 
-1. Load the existing constitution template at `/memory/constitution.md`.
-   - Identify every placeholder token of the form `[ALL_CAPS_IDENTIFIER]`.
-   **IMPORTANT**: The user might require less or more principles than the ones used in the template. If a number is specified, respect that - follow the general template. You will update the doc accordingly.
+A) No, skip it - I don't need a formal constitution
+B) Yes, minimal - Core technical standards only (~1 page, 3-5 questions)
+C) Yes, comprehensive - Full governance and tribal knowledge (~2-3 pages, 8-12 questions)
+```
 
-2. Collect/derive values for placeholders:
-   - If user input (conversation) supplies a value, use it.
-   - Otherwise infer from existing repo context (README, docs, prior constitution versions if embedded).
-   - For governance dates: `RATIFICATION_DATE` is the original adoption date (if unknown ask or mark TODO), `LAST_AMENDED_DATE` is today if changes are made, otherwise keep previous.
-   - `CONSTITUTION_VERSION` must increment according to semantic versioning rules:
-     * MAJOR: Backward incompatible governance/principle removals or redefinitions.
-     * MINOR: New principle/section added or materially expanded guidance.
-     * PATCH: Clarifications, wording, typo fixes, non-semantic refinements.
-   - If version bump type ambiguous, propose reasoning before finalizing.
+Handle responses:
+- **A (Skip)**: Create a minimal placeholder at `.kittify/memory/constitution.md`:
+  - Title + short note: "Constitution skipped - not required for spec-kitty usage. Run /spec-kitty.constitution anytime to create one."
+  - Exit successfully.
+- **B (Minimal)**: Continue with Phase 1 only.
+- **C (Comprehensive)**: Continue through all phases, asking whether to skip each optional phase.
 
-3. Draft the updated constitution content:
-   - Replace every placeholder with concrete text (no bracketed tokens left except intentionally retained template slots that the project has chosen not to define yet—explicitly justify any left).
-   - Preserve heading hierarchy and comments can be removed once replaced unless they still add clarifying guidance.
-   - Ensure each Principle section: succinct name line, paragraph (or bullet list) capturing non‑negotiable rules, explicit rationale if not obvious.
-   - Ensure Governance section lists amendment procedure, versioning policy, and compliance review expectations.
+### Step 2: Phase 1 - Technical Standards
 
-4. Consistency propagation checklist (convert prior checklist into active validations):
-   - Read `.kittify/templates/plan-template.md` and ensure any "Constitution Check" or rules align with updated principles.
-   - Read `.kittify/templates/spec-template.md` for scope/requirements alignment—update if constitution adds/removes mandatory sections or constraints.
-   - Read `.kittify/templates/tasks-template.md` and ensure task categorization reflects new or removed principle-driven task types (e.g., observability, versioning, testing discipline).
-   - Read each command file in `.kittify/templates/command-templates/*.md` (including this one) to verify no outdated references (agent-specific names like CLAUDE only) remain when generic guidance is required.
-   - Read any runtime guidance docs (e.g., `README.md`, `docs/quickstart.md`, or agent-specific guidance files if present). Update references to principles changed.
+Context:
+```
+Phase 1: Technical Standards
+These are the non-negotiable technical requirements that all features must follow.
+This phase is recommended for all projects.
+```
 
-5. Produce a Sync Impact Report (prepend as an HTML comment at top of the constitution file after update):
-   - Version change: old → new
-   - List of modified principles (old title → new title if renamed)
-   - Added sections
-   - Removed sections
-   - Templates requiring updates (✅ updated / ⚠ pending) with file paths
-   - Follow-up TODOs if any placeholders intentionally deferred.
+Ask one question at a time:
 
-6. Validation before final output:
-   - No remaining unexplained bracket tokens.
-   - Version line matches report.
-   - Dates ISO format YYYY-MM-DD.
-   - Principles are declarative, testable, and free of vague language ("should" → replace with MUST/SHOULD rationale where appropriate).
+**Q1: Languages and Frameworks**
+```
+What languages and frameworks are required for this project?
+Examples:
+- "Python 3.11+ with FastAPI for backend"
+- "TypeScript 4.9+ with React 18 for frontend"
+- "Rust 1.70+ with no external dependencies"
+```
 
-7. Write the completed constitution back to `/memory/constitution.md` (overwrite).
+**Q2: Testing Requirements**
+```
+What testing framework and coverage requirements?
+Examples:
+- "pytest with 80% line coverage, 100% for critical paths"
+- "Jest with 90% coverage, unit + integration tests required"
+- "cargo test, no specific coverage target but all features must have tests"
+```
 
-8. Output a final summary to the user with:
-   - New version and bump rationale.
-   - Any files flagged for manual follow-up.
-   - Suggested commit message (e.g., `docs: amend constitution to vX.Y.Z (principle additions + governance update)`).
+**Q3: Performance and Scale Targets**
+```
+What are the performance and scale expectations?
+Examples:
+- "Handle 1000 requests/second at p95 < 200ms"
+- "Support 10k concurrent users, 1M daily active users"
+- "CLI operations complete in < 2 seconds"
+- "N/A - performance not a primary concern"
+```
 
-Formatting & Style Requirements:
-- Use Markdown headings exactly as in the template (do not demote/promote levels).
-- Wrap long rationale lines to keep readability (<100 chars ideally) but do not hard enforce with awkward breaks.
-- Keep a single blank line between sections.
-- Avoid trailing whitespace.
+**Q4: Deployment and Constraints**
+```
+What are the deployment constraints or platform requirements?
+Examples:
+- "Docker-only, deployed to Kubernetes"
+- "Must run on Ubuntu 20.04 LTS without external dependencies"
+- "Cross-platform: Linux, macOS, Windows 10+"
+- "N/A - no specific deployment constraints"
+```
 
-If the user supplies partial updates (e.g., only one principle revision), still perform validation and version decision steps.
+### Step 3: Phase 2 - Code Quality (Optional)
 
-If critical info missing (e.g., ratification date truly unknown), insert `TODO(<FIELD_NAME>): explanation` and include in the Sync Impact Report under deferred items.
+Ask only if comprehensive path is selected:
+```
+Phase 2: Code Quality
+Skip this if your team uses standard practices without special requirements.
 
-Do not create a new template; always operate on the existing `/memory/constitution.md` file.
+Do you want to define code quality standards?
+A) Yes, ask questions
+B) No, skip this phase (use standard practices)
+```
+
+If yes, ask one at a time:
+
+**Q5: PR Requirements**
+```
+What are the requirements for pull requests?
+Examples:
+- "2 approvals required, 1 must be from core team"
+- "1 approval required, PR must pass CI checks"
+- "Self-merge allowed after CI passes for maintainers"
+```
+
+**Q6: Code Review Checklist**
+```
+What should reviewers check during code review?
+Examples:
+- "Tests added, docstrings updated, follows PEP 8, no security issues"
+- "Type annotations present, error handling robust, performance considered"
+- "Standard review - correctness, clarity, maintainability"
+```
+
+**Q7: Quality Gates**
+```
+What quality gates must pass before merging?
+Examples:
+- "All tests pass, coverage ≥80%, linter clean, security scan clean"
+- "Tests pass, type checking passes, manual QA approved"
+- "CI green, no merge conflicts, PR approved"
+```
+
+**Q8: Documentation Standards**
+```
+What documentation is required?
+Examples:
+- "All public APIs must have docstrings + examples"
+- "README updated for new features, ADRs for architectural decisions"
+- "Inline comments for complex logic, keep docs up to date"
+- "Minimal - code should be self-documenting"
+```
+
+### Step 4: Phase 3 - Tribal Knowledge (Optional)
+
+Ask only if comprehensive path is selected:
+```
+Phase 3: Tribal Knowledge
+Skip this for new projects or if team conventions are minimal.
+
+Do you want to capture tribal knowledge?
+A) Yes, ask questions
+B) No, skip this phase
+```
+
+If yes, ask:
+
+**Q9: Team Conventions**
+```
+What team conventions or coding styles should everyone follow?
+Examples:
+- "Use Result<T, E> for fallible operations, never unwrap() in prod"
+- "Prefer composition over inheritance, keep classes small (<200 lines)"
+- "Use feature flags for gradual rollouts, never merge half-finished features"
+```
+
+**Q10: Lessons Learned**
+```
+What past mistakes or lessons learned should guide future work?
+Examples:
+- "Always version APIs from day 1"
+- "Write integration tests first"
+- "Keep dependencies minimal - every dependency is a liability"
+- "N/A - no major lessons yet"
+```
+
+Optional follow-up:
+```
+Do you want to document historical architectural decisions?
+A) Yes
+B) No
+```
+
+**Q11: Historical Decisions** (only if yes)
+```
+Any historical architectural decisions that should guide future work?
+Examples:
+- "Chose microservices for independent scaling"
+- "Chose monorepo for atomic changes across services"
+- "Chose SQLite for simplicity over PostgreSQL"
+```
+
+### Step 5: Phase 4 - Governance (Optional)
+
+Ask only if comprehensive path is selected:
+```
+Phase 4: Governance
+Skip this to use simple defaults.
+
+Do you want to define governance process?
+A) Yes, ask questions
+B) No, skip this phase (use simple defaults)
+```
+
+If skipped, use defaults:
+- Amendment: Any team member can propose changes via PR
+- Compliance: Team validates during code review
+- Exceptions: Discuss with team, document in PR
+
+If yes, ask:
+
+**Q12: Amendment Process**
+```
+How should the constitution be amended?
+Examples:
+- "PR with 2 approvals, announce in team chat, 1 week discussion"
+- "Any maintainer can update via PR"
+- "Quarterly review, team votes on changes"
+```
+
+**Q13: Compliance Validation**
+```
+Who validates that features comply with the constitution?
+Examples:
+- "Code reviewers check compliance, block merge if violated"
+- "Team lead reviews architecture"
+- "Self-managed - developers responsible"
+```
+
+Optional follow-up:
+```
+Do you want to define exception handling?
+A) Yes
+B) No
+```
+
+**Q14: Exception Handling** (only if yes)
+```
+How should exceptions to the constitution be handled?
+Examples:
+- "Document in ADR, require 3 approvals, set sunset date"
+- "Case-by-case discussion, strong justification required"
+- "Exceptions discouraged - update constitution instead"
+```
+
+### Step 6: Summary and Confirmation
+
+Present a summary and ask for confirmation:
+```
+Constitution Summary
+====================
+
+You've completed [X] phases and answered [Y] questions.
+Here's what will be written to .kittify/memory/constitution.md:
+
+Technical Standards:
+- Languages: [Q1]
+- Testing: [Q2]
+- Performance: [Q3]
+- Deployment: [Q4]
+
+[If Phase 2 completed]
+Code Quality:
+- PR Requirements: [Q5]
+- Review Checklist: [Q6]
+- Quality Gates: [Q7]
+- Documentation: [Q8]
+
+[If Phase 3 completed]
+Tribal Knowledge:
+- Conventions: [Q9]
+- Lessons Learned: [Q10]
+- Historical Decisions: [Q11 if present]
+
+Governance: [Custom if Phase 4 completed, otherwise defaults]
+
+Estimated length: ~[50-80 lines minimal] or ~[150-200 lines comprehensive]
+
+Proceed with writing constitution?
+A) Yes, write it
+B) No, let me start over
+C) Cancel, don't create constitution
+```
+
+Handle responses:
+- **A**: Write the constitution file.
+- **B**: Restart from Step 1.
+- **C**: Exit without writing.
+
+### Step 7: Write Constitution File
+
+Generate the constitution as Markdown:
+
+```markdown
+# [PROJECT_NAME] Constitution
+
+> Auto-generated by spec-kitty constitution command
+> Created: [YYYY-MM-DD]
+> Version: 1.0.0
+
+## Purpose
+
+This constitution captures the technical standards, code quality expectations,
+tribal knowledge, and governance rules for [PROJECT_NAME]. All features and
+pull requests should align with these principles.
+
+## Technical Standards
+
+### Languages and Frameworks
+[Q1]
+
+### Testing Requirements
+[Q2]
+
+### Performance and Scale
+[Q3]
+
+### Deployment and Constraints
+[Q4]
+
+[If Phase 2 completed]
+## Code Quality
+
+### Pull Request Requirements
+[Q5]
+
+### Code Review Checklist
+[Q6]
+
+### Quality Gates
+[Q7]
+
+### Documentation Standards
+[Q8]
+
+[If Phase 3 completed]
+## Tribal Knowledge
+
+### Team Conventions
+[Q9]
+
+### Lessons Learned
+[Q10]
+
+[If Q11 present]
+### Historical Decisions
+[Q11]
+
+## Governance
+
+[If Phase 4 completed]
+### Amendment Process
+[Q12]
+
+### Compliance Validation
+[Q13]
+
+[If Q14 present]
+### Exception Handling
+[Q14]
+
+[If Phase 4 skipped, use defaults]
+### Amendment Process
+Any team member can propose amendments via pull request. Changes are discussed
+and merged following standard PR review process.
+
+### Compliance Validation
+Code reviewers validate compliance during PR review. Constitution violations
+should be flagged and addressed before merge.
+
+### Exception Handling
+Exceptions discussed case-by-case with team. Strong justification required.
+Consider updating constitution if exceptions become common.
+```
+
+### Step 8: Success Message
+
+After writing, provide:
+- Location of the file
+- Phases completed and questions answered
+- Next steps (review, share with team, run /spec-kitty.plan)
+
+---
+
+## Required Behaviors
+
+- Ask one question at a time.
+- Offer skip options and explain when to skip.
+- Keep responses concise and user-focused.
+- Ensure the constitution stays lean (1-3 pages, not 10 pages).
+- If user chooses to skip entirely, still create the minimal placeholder file and exit successfully.

@@ -345,25 +345,25 @@ class TestSetupPlanIntegration:
         assert plan_file.exists()
         assert plan_file.read_text() == "# Plan Template"
 
-    def test_errors_when_template_missing(self, git_repo: Path, monkeypatch):
-        """Should error when plan template doesn't exist."""
+    def test_falls_back_to_package_template(self, git_repo: Path, monkeypatch):
+        """Should use packaged plan template when repo templates are missing."""
         # Setup
         monkeypatch.chdir(git_repo)
         feature_dir = git_repo / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
         (feature_dir / "spec.md").write_text("# Spec")
+        plan_file = feature_dir / "plan.md"
 
-        # No template created
+        # Ensure no repo-local templates exist
+        assert not (git_repo / ".kittify" / "templates" / "plan-template.md").exists()
 
         # Execute
         result = runner.invoke(app, ["setup-plan", "--json"])
 
         # Verify
-        assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
-        output = json.loads(first_line)
-        assert "error" in output
-        assert "Plan template not found" in output["error"]
+        assert result.exit_code == 0, f"Command failed: {result.stdout}"
+        assert plan_file.exists()
+        assert plan_file.read_text().startswith("# Implementation Plan:")
 
 
 class TestEndToEndFeatureWorkflow:

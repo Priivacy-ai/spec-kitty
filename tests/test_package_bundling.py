@@ -10,7 +10,7 @@ import pytest
 def test_no_bash_script_references_in_bundled_templates():
     """Ensure bundled templates don't reference deleted bash scripts."""
     spec_kitty_root = Path(__file__).parent.parent
-    templates_dir = spec_kitty_root / ".kittify" / "templates" / "command-templates"
+    templates_dir = spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates"
 
     if not templates_dir.exists():
         pytest.skip(f"Templates directory not found: {templates_dir}")
@@ -28,8 +28,8 @@ def test_no_bash_script_references_in_bundled_templates():
     )
 
 
-def test_sdist_bundles_kittify_templates():
-    """Verify source distribution includes .kittify/templates/ not /templates/."""
+def test_sdist_bundles_templates():
+    """Verify source distribution includes templates under src/specify_cli/."""
     spec_kitty_root = Path(__file__).parent.parent
 
     # Build sdist
@@ -56,19 +56,15 @@ def test_sdist_bundles_kittify_templates():
     with tarfile.open(latest, "r:gz") as tar:
         members = tar.getnames()
 
-        # Should have .kittify/templates/
-        kittify_templates = [m for m in members if ".kittify/templates/" in m]
-        assert len(kittify_templates) > 0, ".kittify/templates/ not found in sdist"
-
-        # Should NOT have old /templates/ directory
-        old_templates = [m for m in members if
-                        "/templates/" in m and
-                        not ".kittify" in m]
-        assert len(old_templates) == 0, f"Old /templates/ found in sdist: {old_templates}"
+        # Should have templates under src/specify_cli/
+        templates = [m for m in members if "/src/specify_cli/templates/" in m]
+        assert len(templates) > 0, "specify_cli/templates/ not found in sdist"
 
         # Should have command templates
-        cmd_templates = [m for m in members if
-                        "command-templates" in m and m.endswith(".md")]
+        cmd_templates = [
+            m for m in members
+            if "command-templates" in m and m.endswith(".md")
+        ]
         assert len(cmd_templates) >= 13, f"Missing command templates: {len(cmd_templates)}"
 
         # Should have git hooks
