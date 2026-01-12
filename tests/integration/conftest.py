@@ -25,6 +25,10 @@ def run_cli() -> Callable[[Path, str], subprocess.CompletedProcess[str]]:
         env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
         # Ensure CLI can resolve bundled templates when running from source checkout
         env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
+        # Override CLI version to match source version for tests
+        with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+            pyproject = tomllib.load(f)
+        env["SPEC_KITTY_CLI_VERSION"] = pyproject["project"]["version"]
         command = [sys.executable, "-m", "specify_cli.__init__", *args]
         return subprocess.run(
             command,
@@ -48,6 +52,12 @@ def test_project(tmp_path: Path) -> Path:
         project / ".kittify",
         symlinks=True,
     )
+
+    # Copy missions from new location (src/specify_cli/missions/ -> .kittify/missions/)
+    missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
+    if missions_src.exists():
+        missions_dest = project / ".kittify" / "missions"
+        shutil.copytree(missions_src, missions_dest)
 
     (project / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
 

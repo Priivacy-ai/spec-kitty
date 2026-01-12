@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.12] - 2026-01-12
+
 ### 🔒 Security (IMPORTANT)
 
 - **Comprehensive adversarial review framework** (Feature 011 - Additional Scope)
@@ -53,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All migrations now idempotent (safe to run multiple times)
   - Upgrade path from 0.6.4 → 0.10.12 now completes without manual intervention
 
+- **Upgrade migration parameter mismatch** (#68 follow-up)
+  - Fixed `m_0_10_9_repair_templates.py` migration calling `generate_agent_assets()` with wrong parameter name
+  - Changed `ai=ai_config` to `agent_key=ai_config` to match function signature
+
 ### ♻️ Refactored
 
 - **Template source relocation** (Safe dogfooding - Critical)
@@ -91,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Truly optional**: All spec-kitty commands work without constitution
   - Replaces old placeholder-filling approach
 
-## [0.10.12] - 2026-01-07
+## [0.10.11] - 2026-01-07
 
 ### 🐛 Fixed
 

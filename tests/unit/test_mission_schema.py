@@ -21,7 +21,7 @@ from specify_cli.mission import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MISSIONS_ROOT = REPO_ROOT / ".kittify" / "missions"
+MISSIONS_ROOT = REPO_ROOT / "src" / "specify_cli" / "missions"
 
 
 def build_valid_config(**overrides: Any) -> Dict[str, Any]:

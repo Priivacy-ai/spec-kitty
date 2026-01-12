@@ -8,7 +8,7 @@ import re
 def find_mission_templates() -> list[Path]:
     """Find all command template files in missions."""
     spec_kitty_root = Path(__file__).parent.parent
-    missions_dir = spec_kitty_root / ".kittify" / "missions"
+    missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
 
     templates = []
     for mission_dir in missions_dir.iterdir():
@@ -22,7 +22,7 @@ def find_mission_templates() -> list[Path]:
                 templates.extend(mission_templates.glob("*.md"))
 
     # Also check root templates
-    root_templates = spec_kitty_root / ".kittify" / "templates"
+    root_templates = spec_kitty_root / "src" / "specify_cli" / "templates"
     if root_templates.exists():
         templates.extend(root_templates.glob("**/*.md"))
 
@@ -118,7 +118,7 @@ def test_no_phase_subdirectories_in_templates():
 def test_templates_require_flat_structure():
     """Templates must explicitly require flat tasks/ structure."""
     spec_kitty_root = Path(__file__).parent.parent
-    tasks_template = spec_kitty_root / ".kittify" / "missions" / "software-dev" / "command-templates" / "tasks.md"
+    tasks_template = spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "tasks.md"
 
     assert tasks_template.exists(), "tasks.md template not found"
 
@@ -140,7 +140,7 @@ def test_templates_require_flat_structure():
 def test_agents_md_shows_flat_structure():
     """AGENTS.md must document the flat tasks/ structure."""
     spec_kitty_root = Path(__file__).parent.parent
-    agents_md = spec_kitty_root / ".kittify" / "templates" / "AGENTS.md"
+    agents_md = spec_kitty_root / "src" / "specify_cli" / "templates" / "AGENTS.md"
 
     if not agents_md.exists():
         pytest.skip("AGENTS.md not found")
