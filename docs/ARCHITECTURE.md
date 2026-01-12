@@ -23,7 +23,7 @@
 │  • Output stream separation (stderr for logs, stdout for data)              │
 │  • Context detection (current branch, worktree location)                    │
 │  • Input validation (fail-fast with clear errors)                          │
-│  • Auto-context switching (merge/move-to-lane from main)                   │
+│  • Auto-context switching (merge/workflow transitions from main)           │
 └──────────────────────────────────────────────────────────────────────────────┘
                                       │
                          ┌────────────┴────────────┐
@@ -88,9 +88,9 @@
 - `merge-feature.sh` - Merge to main + cleanup
 
 #### Category B: Task Management (5 scripts)
-- `tasks-move-to-lane.sh` - Transition tasks between workflow states
+- `tasks-move-to-lane.sh` - Transition tasks between workflow states (deprecated - use `spec-kitty agent workflow` commands)
 - `mark-task-status.sh` - Mark task completion
-- `move-task-to-doing.sh` - Move task to doing lane
+- `move-task-to-doing.sh` - Legacy script (workflow commands now handle lane transitions)
 - `validate-task-workflow.sh` - Validate workflow state
 - `tasks-add-history-entry.sh` - Add task history
 
@@ -142,9 +142,9 @@ exec_cmd()                    # Execute with dry-run support
 - Task history tracking
 - Prompt file management
 
-These are called from bash scripts:
+These are called from bash scripts (deprecated - use workflow commands):
 ```bash
-python3 "$PY_HELPER" move "$@"  # tasks-move-to-lane.sh
+python3 "$PY_HELPER" move "$@"  # Legacy: tasks-move-to-lane.sh (now: spec-kitty agent workflow)
 python3 "$PY_HELPER" history    # tasks-add-history-entry.sh
 ```
 
@@ -272,13 +272,16 @@ fi
 
 ## Data Flow: Task Workflow
 
-```
-User runs: /spec-kitty.tasks-move-to-lane NNN-TASK doing
+**Note**: As of v0.11.1+, use `spec-kitty agent workflow implement/review` commands instead of direct lane management. This diagram shows the legacy architecture for reference.
 
-tasks-move-to-lane.sh:
+```
+User runs: spec-kitty agent tasks move-task WP01 --to doing (LEGACY)
+         OR: spec-kitty agent workflow implement WP01 (CURRENT)
+
+tasks-move-to-lane.sh (legacy):
 ├─ handle_common_flags()
 ├─ validate arguments
-├─ Call Python: python3 tasks_cli.py move NNN-TASK doing
+├─ Call Python: python3 tasks_cli.py move WP01 doing
 │
 └─ tasks_cli.py:
    ├─ Find task in tasks.md
@@ -441,7 +444,7 @@ Script Start
 │  (Auto-switch if on main)       │
 ├─────────────────────────────────┤
 │ • merge-feature.sh              │
-│ • tasks-move-to-lane.sh         │
+│ • tasks-move-to-lane.sh (legacy)│
 │ • check-prerequisites.sh        │
 │ • (others may auto-switch)      │
 └─────────────────────────────────┘

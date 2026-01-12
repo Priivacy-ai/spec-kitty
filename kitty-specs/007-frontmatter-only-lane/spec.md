@@ -25,11 +25,11 @@ An AI agent working on a feature needs to move a work package from `doing` to `f
 
 **Why this priority**: This is the core use case - lane transitions happen constantly during feature development. Must work reliably without file conflicts.
 
-**Independent Test**: Agent runs `tasks_cli.py move 007-feature WP04 for_review --note "Ready for review"` and the lane changes without any file system operations.
+spec-kitty agent workflow review WP04
 
 **Acceptance Scenarios**:
 
-1. **Given** WP04 exists in `tasks/` with `lane: "doing"`, **When** agent runs `tasks_cli.py move 007-feature WP04 for_review`, **Then** the file stays in `tasks/`, `lane:` field updates to `"for_review"`, and activity log is appended
+spec-kitty agent workflow review WP04
 2. **Given** WP04 has `lane: "doing"`, **When** agent directly edits `lane: "for_review"` in the YAML, **Then** the change is valid and the system recognizes WP04 as being in for_review lane
 3. **Given** two agents working on WP04 and WP05 simultaneously, **When** both change lanes at the same time, **Then** no file conflicts occur since files don't move
 
@@ -115,7 +115,7 @@ Users viewing the Spec Kitty dashboard see work packages organized by lane, read
 - **FR-001**: System MUST determine work package lane solely from the `lane:` YAML frontmatter field
 - **FR-002**: System MUST NOT use directory location to infer lane status
 - **FR-003**: All WP files MUST reside in a flat `tasks/` directory (no subdirectories by lane)
-- **FR-004**: The `tasks_cli.py move` command MUST update only the `lane:` frontmatter field, not move files
+- **FR-004**: Lane transition commands (workflow implement/review) MUST update only the `lane:` frontmatter field, not move files
 - **FR-005**: Direct editing of the `lane:` field MUST be valid and supported
 
 **Status Command:**

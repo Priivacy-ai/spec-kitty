@@ -199,7 +199,7 @@ Provides a structured hand-off gate for work packages with `lane: "for_review"`:
 1. **Selection**: Auto-detects first WP with `lane: "for_review"` (or accepts explicit WP ID).
 2. **Auto-move to doing**: Moves WP to `lane: "doing"` and displays full prompt with review instructions.
 3. **Deep Review**: Agent reviews prompt, supporting docs, and code changes before rendering findings.
-4. **Decision Flow**: Agent updates `lane` to "done" (approved) or "planned" (changes requested) using move-task commands, always updating frontmatter and activity logs with agent + PID data.
+4. **Decision Flow**: Agent uses workflow commands to update `lane` to "done" (approved) or "planned" (changes requested), which updates frontmatter and activity logs with agent + PID data.
 4. **Automation Hooks**: Invokes helper scripts to flip task checkboxes in `tasks.md` when review passes, keeping status in sync with the kanban board.
 
 ### The `/spec-kitty.accept` Command
@@ -223,7 +223,7 @@ The implementation command enforces a rigorous task workflow that ensures tracea
 
 Before any coding begins, `/spec-kitty.implement` requires each work package to transition through lanes with full metadata tracking:
 
-1. **Move prompt to doing lane**: `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx doing --note "Started implementation"` (PowerShell equivalent available)
+1. **Move prompt to doing lane**: Use `spec-kitty agent workflow implement WPxx` (workflow command handles this automatically)
 2. **Update frontmatter metadata**:
    ```yaml
    lane: "doing"
@@ -247,7 +247,7 @@ The agent must verify before proceeding to implementation:
 
 Spec Kitty ships with helper scripts to streamline the workflow:
 
-- `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx doing --note "Started implementation"` (and the PowerShell counterpart) – Moves prompts between lanes, updates frontmatter, and records activity in one shot using the bundled `.kittify/scripts/tasks/tasks_cli.py` helper.
+- `spec-kitty agent workflow implement WPxx` – Modern workflow command that auto-advances lanes (planned → doing → for_review)
 - `.kittify/scripts/bash/tasks-add-history-entry.sh FEATURE-SLUG WPxx --note "Resumed after dependency install"` – Appends structured history without moving lanes.
 - `.kittify/scripts/bash/tasks-list-lanes.sh FEATURE-SLUG` – Shows the current lane, agent, and assignee for every work package.
 - `.kittify/scripts/bash/tasks-rollback-move.sh FEATURE-SLUG WPxx` – Returns a prompt to its previous lane if a move was made in error.
@@ -259,7 +259,7 @@ Spec Kitty ships with helper scripts to streamline the workflow:
 After implementing the work package, the agent must:
 
 1. Add completion entry to activity log
-2. Move prompt to `for_review/` lane using `.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WPxx for_review --note "Ready for review"`
+2. Move to review: Use `spec-kitty agent workflow implement WPxx` (auto-advances to for_review when work complete)
 3. Update frontmatter: `lane: "for_review"`
 4. Add review-ready activity log entry
 5. Commit the transition
