@@ -67,6 +67,58 @@ class CompleteLaneMigration(BaseMigration):
 
     LANE_DIRS: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
 
+    # System files to ignore when determining if a directory is empty
+    # These files are created automatically by operating systems and should not
+    # prevent lane directory cleanup
+    IGNORE_FILES = frozenset({
+        ".gitkeep",      # Git placeholder
+        ".DS_Store",     # macOS Finder metadata
+        "Thumbs.db",     # Windows thumbnail cache
+        "desktop.ini",   # Windows folder settings
+        ".directory",    # KDE folder settings
+        "._*",           # macOS resource fork prefix (pattern)
+    })
+
+    @classmethod
+    def _should_ignore_file(cls, filename: str) -> bool:
+        """Check if a file should be ignored when determining if directory is empty.
+
+        Args:
+            filename: Name of the file to check
+
+        Returns:
+            True if file should be ignored (system file), False otherwise
+        """
+        # Check exact matches
+        if filename in cls.IGNORE_FILES:
+            return True
+
+        # Check pattern matches (e.g., ._* for macOS resource forks)
+        # Check for macOS resource fork files (._filename)
+        if filename.startswith("._"):
+            return True
+
+        return False
+
+    @classmethod
+    def _get_real_contents(cls, directory: Path) -> List[Path]:
+        """Get directory contents, excluding system files.
+
+        Args:
+            directory: Path to directory to check
+
+        Returns:
+            List of "real" files (excluding system files like .DS_Store)
+        """
+        if not directory.exists() or not directory.is_dir():
+            return []
+
+        return [
+            item
+            for item in directory.iterdir()
+            if not cls._should_ignore_file(item.name)
+        ]
+
     def detect(self, project_path: Path) -> bool:
         """Check if lane subdirectories exist OR worktrees have agent dirs/scripts."""
         # Part 1: Check for remaining lane subdirectories
@@ -111,10 +163,13 @@ class CompleteLaneMigration(BaseMigration):
         for lane in self.LANE_DIRS:
             lane_path = tasks_dir / lane
             if lane_path.is_dir():
-                # Check for ANY files (not just .md)
-                contents = list(lane_path.iterdir())
-                # Has content if there are files other than just .gitkeep
-                if contents and not (len(contents) == 1 and contents[0].name == ".gitkeep"):
+                # Check for real contents (ignoring system files)
+                real_contents = self._get_real_contents(lane_path)
+                if real_contents:
+                    return True
+                # Even if only system files, still need migration to remove the directory
+                # (The directory itself shouldn't exist in new format)
+                elif any(lane_path.iterdir()):
                     return True
 
         return False
@@ -276,23 +331,22 @@ class CompleteLaneMigration(BaseMigration):
             # Clean up empty lane directory
             if not dry_run:
                 if lane_dir.is_dir():
-                    contents = list(lane_dir.iterdir())
-                    # Remove if empty or only .gitkeep
-                    if not contents or (len(contents) == 1 and contents[0].name == ".gitkeep"):
-                        # Remove .gitkeep if present
-                        gitkeep = lane_dir / ".gitkeep"
-                        if gitkeep.exists():
-                            gitkeep.unlink()
+                    # Check for real contents (ignoring system files)
+                    real_contents = self._get_real_contents(lane_dir)
+                    if not real_contents:
+                        # Directory has no real files (only system files like .DS_Store or .gitkeep)
                         try:
-                            lane_dir.rmdir()
+                            # Use shutil.rmtree for more robust removal
+                            # This will remove the directory and all system files within it
+                            shutil.rmtree(lane_dir)
                             changes.append(f"  Removed: {lane}/")
                             dirs_removed += 1
                         except OSError as e:
                             warnings.append(f"  Could not remove {lane}/: {e}")
             else:
                 if lane_dir.is_dir():
-                    contents = list(lane_dir.iterdir())
-                    if not contents or (len(contents) == 1 and contents[0].name == ".gitkeep"):
+                    real_contents = self._get_real_contents(lane_dir)
+                    if not real_contents:
                         changes.append(f"  Would remove: {lane}/")
                         dirs_removed += 1
 
