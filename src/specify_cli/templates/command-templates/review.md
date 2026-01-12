@@ -41,7 +41,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - Abort with instructional message if no files are waiting for review.
 
 3. Load context for the selected task:
-   - Read the prompt file frontmatter (lane MUST be `for_review`); note `task_id`, `phase`, `agent`, `shell_pid`, and **`dependencies`** (if present).
+   - Read the prompt file frontmatter (lane MUST be `for_review`); note `task_id`, `phase`, `agent`, `shell_pid`, and `dependencies` (if present).
    - Read the body sections (Objective, Context, Implementation Guidance, etc.).
    - Consult supporting documents as referenced: constitution, plan, spec, data-model, contracts, research, quickstart, code changes.
    - Review the associated code in the repository (diffs, tests, docs) to validate the implementation.

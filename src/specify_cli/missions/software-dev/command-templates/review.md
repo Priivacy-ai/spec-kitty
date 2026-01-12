@@ -8,4 +8,7 @@ Run this command to get the work package prompt and review instructions:
 spec-kitty agent workflow review $ARGUMENTS
 ```
 
+During review, the workflow command will warn if dependent WPs are in progress
+and may need a rebase if changes are requested.
+
 If no WP ID is provided, it will automatically find the first work package with `lane: "for_review"` and move it to "doing" for you.

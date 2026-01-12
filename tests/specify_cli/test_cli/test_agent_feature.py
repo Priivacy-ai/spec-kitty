@@ -410,8 +410,9 @@ class TestSetupPlanCommand:
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.feature.files")
     def test_errors_when_template_not_found(
-        self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_files: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should return error when plan template not found."""
         # Setup
@@ -420,7 +421,12 @@ class TestSetupPlanCommand:
         feature_dir.mkdir(parents=True)
         mock_find.return_value = feature_dir
 
-        # No template created
+        # No template created and package template unavailable
+        package_templates = Mock()
+        package_template = Mock()
+        package_template.exists.return_value = False
+        package_templates.joinpath.return_value = package_template
+        mock_files.return_value = package_templates
 
         # Execute
         result = runner.invoke(app, ["setup-plan", "--json"])

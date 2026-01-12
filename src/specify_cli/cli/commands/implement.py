@@ -199,7 +199,7 @@ def check_base_branch_changed(workspace_path: Path, base_branch: str) -> bool:
             cwd=workspace_path,
             capture_output=True,
             text=True,
-            check=False
+            check=False,
         )
         if result.returncode != 0:
             # Cannot determine merge-base (branches diverged too much or other issue)
@@ -213,7 +213,7 @@ def check_base_branch_changed(workspace_path: Path, base_branch: str) -> bool:
             cwd=workspace_path,
             capture_output=True,
             text=True,
-            check=False
+            check=False,
         )
         if result.returncode != 0:
             return False
@@ -226,6 +226,29 @@ def check_base_branch_changed(workspace_path: Path, base_branch: str) -> bool:
     except Exception:
         # If git commands fail, assume no changes
         return False
+
+
+def resolve_primary_branch(repo_root: Path) -> str:
+    """Resolve the primary branch name (main or master).
+
+    Returns:
+        "main" if it exists, otherwise "master" if it exists.
+
+    Raises:
+        typer.Exit: If neither branch exists.
+    """
+    for candidate in ("main", "master"):
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", candidate],
+            cwd=repo_root,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            return candidate
+
+    console.print("[red]Error:[/red] Neither 'main' nor 'master' branch exists.")
+    raise typer.Exit(1)
 
 
 def display_rebase_warning(
@@ -395,9 +418,11 @@ def implement(
         raise typer.Exit(1)
 
     # Step 2.5: Ensure planning artifacts are committed (v0.11.0 requirement)
-    # All planning must happen in main repo and be committed BEFORE worktree creation
+    # All planning must happen in primary branch and be committed BEFORE worktree creation
     if base is None:  # Only for first WP in feature (branches from main)
         try:
+            primary_branch = resolve_primary_branch(repo_root)
+
             # Check current branch
             result = subprocess.run(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -407,13 +432,6 @@ def implement(
                 check=False
             )
             current_branch = result.stdout.strip() if result.returncode == 0 else ""
-
-            # Must be on main or master (legacy)
-            if current_branch not in ["main", "master"]:
-                console.print(f"\n[red]Error:[/red] Must be on main branch to create first workspace")
-                console.print(f"Current branch: {current_branch}")
-                console.print(f"Run: git checkout main")
-                raise typer.Exit(1)
 
             # Find planning artifacts for this feature
             feature_dir = repo_root / "kitty-specs" / feature_slug
@@ -450,7 +468,16 @@ def implement(
                     console.print(f"\n[cyan]Planning artifacts not committed:[/cyan]")
                     for f in files_to_commit:
                         console.print(f"  {f}")
-                    console.print(f"\n[cyan]Auto-committing to main...[/cyan]")
+
+                    if current_branch != primary_branch:
+                        console.print(
+                            f"\n[red]Error:[/red] Planning artifacts must be committed on {primary_branch}."
+                        )
+                        console.print(f"Current branch: {current_branch}")
+                        console.print(f"Run: git checkout {primary_branch}")
+                        raise typer.Exit(1)
+
+                    console.print(f"\n[cyan]Auto-committing to {primary_branch}...[/cyan]")
 
                     # Stage all files in feature directory
                     result = subprocess.run(
@@ -479,7 +506,7 @@ def implement(
                         console.print(result.stderr)
                         raise typer.Exit(1)
 
-                    console.print(f"[green]✓[/green] Planning artifacts committed to main")
+                    console.print(f"[green]✓[/green] Planning artifacts committed to {primary_branch}")
 
         except typer.Exit:
             raise
@@ -514,9 +541,17 @@ def implement(
 
         # Determine base branch
         if base is None:
-            # No dependencies - branch from main
-            base_branch = "main"
-            cmd = ["git", "worktree", "add", str(workspace_path), "-b", branch_name]
+            # No dependencies - branch from primary branch
+            base_branch = resolve_primary_branch(repo_root)
+            cmd = [
+                "git",
+                "worktree",
+                "add",
+                str(workspace_path),
+                "-b",
+                branch_name,
+                base_branch,
+            ]
         else:
             # Has dependencies - branch from base WP's branch
             base_branch = f"{feature_slug}-{base}"

@@ -1,6 +1,6 @@
 """Migration tests for workspace-per-WP feature (0.11.0) - CORRECTED.
 
-Tests validate that template SOURCE files in .kittify/missions/software-dev/command-templates/
+Tests validate that template SOURCE files in src/specify_cli/missions/software-dev/command-templates/
 are updated correctly for the workspace-per-WP workflow.
 
 Agent directories (.claude/, .gemini/, etc.) are GITIGNORED and generated at runtime
@@ -20,7 +20,7 @@ import pytest
 
 
 # Template source directory (committed to repo)
-TEMPLATE_DIR = Path(".kittify/missions/software-dev/command-templates")
+TEMPLATE_DIR = Path("src/specify_cli/missions/software-dev/command-templates")
 
 
 # T009: Test template directory exists

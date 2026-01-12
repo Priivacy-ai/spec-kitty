@@ -8,6 +8,7 @@ import pytest
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.frontmatter import write_frontmatter
+from specify_cli.cli.commands.agent import workflow
 
 
 def create_wp_file(
@@ -188,3 +189,24 @@ def test_in_progress_filter(tmp_path: Path) -> None:
         if dep != "WP05"  # Filter out done WPs
     ]
     assert sorted(in_progress) == ["WP02", "WP03", "WP04"]
+
+
+def test_workflow_review_warns_dependents(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Review workflow should warn when dependents are in progress."""
+    repo_root = tmp_path
+    (repo_root / ".kittify").mkdir()
+    feature_slug = "011-test"
+    tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    create_wp_file(tasks_dir / "WP01-base.md", "WP01", [], lane="for_review")
+    create_wp_file(tasks_dir / "WP02-dep.md", "WP02", ["WP01"], lane="doing")
+
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+
+    workflow.review(wp_id="WP01", feature=feature_slug)
+    output = capsys.readouterr().out
+
+    assert "Dependency Alert" in output
+    assert "WP02" in output

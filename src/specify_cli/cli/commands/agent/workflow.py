@@ -9,6 +9,7 @@ import typer
 from typing_extensions import Annotated
 
 from specify_cli.core.paths import locate_project_root
+from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.tasks_support import (
     extract_scalar,
     locate_work_package,
@@ -319,6 +320,43 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
     return None
 
 
+def _warn_dependents_in_progress(
+    repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+) -> None:
+    """Warn if dependent WPs are in progress and may need rebase."""
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    graph = build_dependency_graph(feature_dir)
+    dependents = get_dependents(wp_id, graph)
+    if not dependents:
+        return
+
+    in_progress: list[str] = []
+    for dependent_id in dependents:
+        try:
+            dependent_wp = locate_work_package(repo_root, feature_slug, dependent_id)
+        except FileNotFoundError:
+            continue
+
+        lane = extract_scalar(dependent_wp.frontmatter, "lane")
+        if lane in {"planned", "doing", "for_review"}:
+            in_progress.append(dependent_id)
+
+    if not in_progress:
+        return
+
+    dependents_list = ", ".join(sorted(in_progress))
+    print("⚠️  Dependency Alert:")
+    print(f"   {dependents_list} depend on {wp_id} and are in progress.")
+    print("   If you request changes, notify those agents to rebase.")
+    for dependent_id in sorted(in_progress):
+        workspace = f".worktrees/{feature_slug}-{dependent_id}"
+        base_branch = f"{feature_slug}-{wp_id}"
+        print(f"   Rebase command: cd {workspace} && git rebase {base_branch}")
+    print()
+
+
 @app.command(name="review")
 def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
@@ -382,6 +420,8 @@ def review(
         # Calculate workspace path
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
         workspace_path = repo_root / ".worktrees" / workspace_name
+
+        _warn_dependents_in_progress(repo_root, feature_slug, normalized_wp_id)
 
         # Output the prompt
         print("=" * 80)
