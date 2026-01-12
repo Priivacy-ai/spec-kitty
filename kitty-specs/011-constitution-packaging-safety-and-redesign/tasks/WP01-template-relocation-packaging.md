@@ -12,7 +12,7 @@ subtasks:
   - "T009"
 title: "Template Relocation & Packaging"
 phase: "Foundational - Track 1 Critical Safety"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: ""
 shell_pid: ""
@@ -692,3 +692,4 @@ The CLI command also updates the activity log automatically.
 - 2026-01-12T10:38:46Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T10:43:06Z – unknown – lane=for_review – Ready for review
 - 2026-01-12T10:43:17Z – agent – lane=doing – Started review via workflow command
+- 2026-01-12T11:45:22Z – unknown – lane=done – Adversarial review passed: All template sources moved to src/specify_cli/. manager.py updated to load from src/. pyproject.toml cleaned (no force-includes). Packaging tests confirm no contamination (5/5 PASS). Dogfooding safe. Remaining .kittify/ refs are in migration docs (acceptable).
