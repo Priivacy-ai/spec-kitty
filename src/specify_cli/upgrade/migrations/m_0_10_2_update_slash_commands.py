@@ -153,6 +153,27 @@ class UpdateSlashCommandsMigration(BaseMigration):
             changes.append("Slash commands now use Python CLI (no bash scripts)")
             changes.append("Slash commands now enforce flat tasks/ structure (feature 007)")
 
+        commands_dir = project_path / ".kittify" / "commands"
+        if commands_dir.exists():
+            toml_files = list(commands_dir.glob("*.toml"))
+            for toml_file in toml_files:
+                if dry_run:
+                    changes.append(f"Would remove legacy {toml_file.name}")
+                else:
+                    try:
+                        toml_file.unlink()
+                        changes.append(f"Removed legacy {toml_file.name}")
+                    except OSError as e:
+                        warnings.append(f"Failed to remove {toml_file.name}: {e}")
+
+            if not dry_run:
+                try:
+                    if not any(commands_dir.iterdir()):
+                        commands_dir.rmdir()
+                        changes.append("Removed empty .kittify/commands/ directory")
+                except OSError as e:
+                    warnings.append(f"Failed to remove .kittify/commands/: {e}")
+
         success = len(errors) == 0
         return MigrationResult(
             success=success,

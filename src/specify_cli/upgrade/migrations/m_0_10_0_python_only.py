@@ -125,6 +125,13 @@ class PythonOnlyMigration(BaseMigration):
         )
         changes.extend(worktree_changes)
 
+        # Step 2.5: Remove obsolete task helpers
+        tasks_changes, tasks_warnings = self._remove_tasks_helpers(
+            project_path, dry_run
+        )
+        changes.extend(tasks_changes)
+        warnings.extend(tasks_warnings)
+
         # Step 3: Update slash command templates
         template_changes, template_errors = self._update_command_templates(
             project_path, dry_run
@@ -238,6 +245,29 @@ class PythonOnlyMigration(BaseMigration):
                     changes.append(f"Removed {len(scripts_found)} scripts from worktree: {worktree.name}")
 
         return changes
+
+    def _remove_tasks_helpers(
+        self, project_path: Path, dry_run: bool
+    ) -> Tuple[List[str], List[str]]:
+        """Remove obsolete .kittify/scripts/tasks/ directory."""
+        changes: List[str] = []
+        warnings: List[str] = []
+
+        tasks_dir = project_path / ".kittify" / "scripts" / "tasks"
+        if not tasks_dir.exists():
+            return changes, warnings
+
+        if dry_run:
+            changes.append("Would remove .kittify/scripts/tasks/ (obsolete task helpers)")
+            return changes, warnings
+
+        try:
+            shutil.rmtree(tasks_dir)
+            changes.append("Removed .kittify/scripts/tasks/ (obsolete task helpers)")
+        except OSError as e:
+            warnings.append(f"Failed to remove .kittify/scripts/tasks/: {e}")
+
+        return changes, warnings
 
     def _update_command_templates(
         self, project_path: Path, dry_run: bool

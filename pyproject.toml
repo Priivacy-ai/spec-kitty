@@ -59,6 +59,7 @@ dependencies = [
     "ruamel.yaml>=0.18.0",
     "pydantic>=2.0",
     "packaging>=23.0",
+    "psutil>=5.9.0",  # Cross-platform process management for dashboard
 ]
 
 [project.urls]
@@ -82,20 +83,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/specify_cli"]
 
-[tool.hatch.build.targets.wheel.force-include]
-".kittify/templates" = "specify_cli/templates"
-"scripts" = "specify_cli/scripts"
-".kittify/memory" = "specify_cli/memory"
-".kittify/missions" = "specify_cli/missions"
-
 [tool.hatch.build.targets.sdist]
 include = [
     "src/**/*",
-    ".kittify/templates/**/*",
-    "scripts/**/*",
-    ".kittify/memory/**/*",
-    ".kittify/missions/software-dev/**/*",
-    ".kittify/missions/research/**/*",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
@@ -104,7 +94,3 @@ include = [
 exclude = [
     ".kittify/active-mission",
 ]
-
-[tool.hatch.build.targets.sdist.force-include]
-".kittify/missions/software-dev" = ".kittify/missions/software-dev"
-".kittify/missions/research" = ".kittify/missions/research"

@@ -243,11 +243,6 @@ class Mission:
         """Get the command templates directory for this mission."""
         return self.path / "command-templates"
 
-    @property
-    def constitution_dir(self) -> Path:
-        """Get the constitution directory for this mission."""
-        return self.path / "constitution"
-
     def get_template(self, template_name: str) -> Path:
         """Get path to a template file.
 

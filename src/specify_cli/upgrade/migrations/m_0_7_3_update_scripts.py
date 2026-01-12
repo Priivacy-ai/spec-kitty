@@ -42,15 +42,10 @@ class UpdateScriptsMigration(BaseMigration):
         return False
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
-        """Check if we can find the template scripts."""
-        # We need access to the template scripts from the installed package
-        import specify_cli
-
-        pkg_root = Path(specify_cli.__file__).parent
-        template_script = pkg_root / "scripts" / "bash" / "create-new-feature.sh"
-
-        if not template_script.exists():
-            return False, "Template scripts not found in installed package"
+        """Check if we can apply this migration."""
+        kittify_dir = project_path / ".kittify"
+        if not kittify_dir.exists():
+            return False, "No .kittify directory (not a spec-kitty project)"
 
         return True, ""
 
@@ -69,6 +64,25 @@ class UpdateScriptsMigration(BaseMigration):
             ("scripts/bash/create-new-feature.sh", ".kittify/scripts/bash/create-new-feature.sh"),
             ("scripts/bash/common.sh", ".kittify/scripts/bash/common.sh"),
         ]
+
+        any_scripts_found = False
+        for src_rel, _ in scripts:
+            if (pkg_root / src_rel).exists():
+                any_scripts_found = True
+                break
+
+        if not any_scripts_found:
+            warnings.append(
+                "Bash scripts not found in package (removed in later version or never existed). "
+                "If you need script updates, they may have been handled by migration 0.10.0 cleanup. "
+                "This is not an error."
+            )
+            return MigrationResult(
+                success=True,
+                changes_made=[],
+                errors=[],
+                warnings=warnings,
+            )
 
         for src_rel, dest_rel in scripts:
             src = pkg_root / src_rel

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import List
 
@@ -76,22 +77,12 @@ class WorkflowSimplificationMigration(BaseMigration):
         return False
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
-        """Check if we have mission templates to copy from."""
-        missions_dir = project_path / ".kittify" / "missions"
-        if not missions_dir.exists():
-            return False, "No missions directory found"
+        """Check if we can apply this migration."""
+        kittify_dir = project_path / ".kittify"
+        if not kittify_dir.exists():
+            return False, "No .kittify directory (not a spec-kitty project)"
 
-        # Look for software-dev mission with updated templates
-        software_dev_templates = missions_dir / "software-dev" / "command-templates"
-        if software_dev_templates.exists():
-            # Check if templates have the new workflow commands
-            implement = software_dev_templates / "implement.md"
-            if implement.exists():
-                content = implement.read_text(encoding="utf-8")
-                if "spec-kitty agent workflow implement" in content:
-                    return True, ""
-
-        return False, "Mission templates not updated with workflow commands"
+        return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Update implement and review slash commands with new workflow-based templates."""
@@ -102,13 +93,43 @@ class WorkflowSimplificationMigration(BaseMigration):
         missions_dir = project_path / ".kittify" / "missions"
         software_dev_templates = missions_dir / "software-dev" / "command-templates"
 
-        if not software_dev_templates.exists():
-            errors.append("No software-dev mission templates found")
+        # Copy updated mission templates from package first (if available)
+        try:
+            import specify_cli
+        except ImportError as exc:
+            errors.append(f"Failed to import specify_cli: {exc}")
             return MigrationResult(
                 success=False,
                 changes_made=changes,
                 errors=errors,
                 warnings=warnings,
+            )
+
+        pkg_root = Path(specify_cli.__file__).parent
+        pkg_templates = pkg_root / "missions" / "software-dev" / "command-templates"
+        if not pkg_templates.exists():
+            pkg_templates = pkg_root / ".kittify" / "missions" / "software-dev" / "command-templates"
+
+        if pkg_templates.exists():
+            if not dry_run:
+                software_dev_templates.mkdir(parents=True, exist_ok=True)
+            for template_name in ("implement.md", "review.md"):
+                src = pkg_templates / template_name
+                if not src.exists():
+                    warnings.append(f"Package template missing: {template_name}")
+                    continue
+                if dry_run:
+                    changes.append(f"Would update mission template: software-dev/{template_name}")
+                else:
+                    try:
+                        shutil.copy2(src, software_dev_templates / template_name)
+                        changes.append(f"Updated mission template: software-dev/{template_name}")
+                    except OSError as e:
+                        warnings.append(f"Failed to copy mission template {template_name}: {e}")
+        else:
+            warnings.append(
+                "Mission templates not found in package. "
+                "Slash commands may already be updated or require manual repair."
             )
 
         # Update implement.md and review.md in ALL agent directories
@@ -133,8 +154,14 @@ class WorkflowSimplificationMigration(BaseMigration):
                 if dry_run:
                     changes.append(f"Would update {agent_root}: {dest_filename}")
                 else:
-                    dest_path.write_text(source_template.read_text(encoding="utf-8"), encoding="utf-8")
-                    updated_count += 1
+                    try:
+                        dest_path.write_text(
+                            source_template.read_text(encoding="utf-8"),
+                            encoding="utf-8",
+                        )
+                        updated_count += 1
+                    except OSError as e:
+                        warnings.append(f"Failed to update {agent_root}/{dest_filename}: {e}")
 
             if updated_count > 0:
                 agent_name = agent_root.strip(".")
@@ -145,6 +172,10 @@ class WorkflowSimplificationMigration(BaseMigration):
             changes.append(f"Total: Updated {total_updated} slash command templates")
             changes.append("Templates now use 'spec-kitty agent workflow' commands")
             changes.append("Agents now see prompts directly, no file navigation needed")
+        elif not changes:
+            warnings.append(
+                "No templates were updated (already updated or mission templates missing)"
+            )
 
         success = len(errors) == 0
         return MigrationResult(

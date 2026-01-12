@@ -46,7 +46,6 @@ class FileManifest:
             "commands": [],
             "templates": [],
             "scripts": [],
-            "constitution": [],
             "mission_files": []
         }
 
@@ -66,12 +65,6 @@ class FileManifest:
         if templates_dir.exists():
             for tmpl_file in templates_dir.glob("*.md"):
                 manifest["templates"].append(str(tmpl_file.relative_to(self.kittify_dir)))
-
-        # Constitution
-        constitution_dir = self.mission_dir / "constitution"
-        if constitution_dir.exists():
-            for const_file in constitution_dir.glob("*.md"):
-                manifest["constitution"].append(str(const_file.relative_to(self.kittify_dir)))
 
         # Scripts referenced in commands
         manifest["scripts"] = self._get_referenced_scripts()

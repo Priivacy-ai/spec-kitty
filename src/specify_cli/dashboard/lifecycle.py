@@ -1,11 +1,15 @@
-"""Dashboard lifecycle and health management utilities."""
+"""Dashboard lifecycle and health management utilities.
+
+This module handles starting, stopping, and monitoring the dashboard server.
+Uses psutil for cross-platform process management (Windows, Linux, macOS).
+"""
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import secrets
-import signal
 import socket
 import time
 import urllib.error
@@ -14,7 +18,11 @@ import urllib.request
 from pathlib import Path
 from typing import Optional, Tuple
 
+import psutil
+
 from .server import find_free_port, start_dashboard
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "ensure_dashboard_running",
@@ -94,20 +102,28 @@ def _write_dashboard_file(
 def _is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID is alive.
 
-    Uses signal.SIGZERO to check existence without actually sending a signal.
+    Uses psutil.Process() which works across all platforms (Linux, macOS, Windows).
+    This replaces the POSIX-only os.kill(pid, 0) approach.
+
+    Args:
+        pid: Process ID to check
+
+    Returns:
+        True if process exists and is running, False otherwise
     """
     try:
-        os.kill(pid, 0)  # 0 doesn't kill, just checks if process exists
-        return True
-    except ProcessLookupError:
+        proc = psutil.Process(pid)
+        return proc.is_running()
+    except psutil.NoSuchProcess:
         # Process doesn't exist
         return False
-    except PermissionError:
-        # Process exists but we don't have permission to signal it (assume alive)
+    except psutil.AccessDenied:
+        # Process exists but we don't have permission to access it
+        # Consider this as "alive" since process exists
         return True
     except Exception:
-        # Assume it's alive if we can't determine
-        return True
+        # Unexpected error, assume process dead
+        return False
 
 
 def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
@@ -185,10 +201,13 @@ def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: in
                     pids = [int(pid) for pid in result.stdout.strip().split('\n') if pid.strip()]
                     for pid in pids:
                         try:
-                            os.kill(pid, signal.SIGKILL)
+                            proc = psutil.Process(pid)
+                            proc.kill()
                             killed_count += 1
-                        except (ProcessLookupError, PermissionError):
-                            pass
+                        except psutil.NoSuchProcess:
+                            pass  # Already dead
+                        except psutil.AccessDenied:
+                            pass  # Can't kill (permissions)
             except Exception:
                 # Can't use lsof or failed to kill - skip this port
                 pass
@@ -286,9 +305,10 @@ def ensure_dashboard_running(
         elif existing_pid is not None and existing_port is not None:
             # PID is alive but port not responding - kill the orphan
             try:
-                os.kill(existing_pid, signal.SIGKILL)
+                proc = psutil.Process(existing_pid)
+                proc.kill()
                 dashboard_file.unlink(missing_ok=True)
-            except (ProcessLookupError, PermissionError):
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 # Already dead or can't kill - just clean up metadata
                 dashboard_file.unlink(missing_ok=True)
         else:
@@ -351,8 +371,9 @@ def ensure_dashboard_running(
         # Clean up the failed process we just started
         if pid is not None:
             try:
-                os.kill(pid, signal.SIGKILL)
-            except (ProcessLookupError, PermissionError):
+                proc = psutil.Process(pid)
+                proc.kill()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
 
         # Cleanup orphaned dashboards and retry ONCE
@@ -378,8 +399,9 @@ def ensure_dashboard_running(
     # Still failed - clean up and raise error
     if pid is not None:
         try:
-            os.kill(pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
+            proc = psutil.Process(pid)
+            proc.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
 
     raise RuntimeError(f"Dashboard failed to start on port {port} for project {project_dir_resolved}")
@@ -461,25 +483,34 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
     # If HTTP shutdown failed but we have a PID, try killing the process
     if not ok and pid is not None:
         try:
-            os.kill(pid, signal.SIGTERM)  # Try graceful termination first
-            time.sleep(0.5)
+            proc = psutil.Process(pid)
 
-            # Check if process died
-            if _is_process_alive(pid):
-                # Still alive, force kill
-                os.kill(pid, signal.SIGKILL)
+            # Try graceful termination first (SIGTERM on POSIX, equivalent on Windows)
+            proc.terminate()
+
+            # Wait up to 3 seconds for graceful shutdown
+            try:
+                proc.wait(timeout=3.0)
+                # Process exited gracefully
+                dashboard_file.unlink(missing_ok=True)
+                return True, f"Dashboard stopped via process termination (PID {pid})."
+            except psutil.TimeoutExpired:
+                # Timeout expired, process still running, force kill
+                proc.kill()
                 time.sleep(0.2)
+                dashboard_file.unlink(missing_ok=True)
+                return True, f"Dashboard force killed after graceful termination timeout (PID {pid})."
 
-            dashboard_file.unlink(missing_ok=True)
-            return True, f"Dashboard stopped via process kill (PID {pid})."
-
-        except ProcessLookupError:
-            # Process doesn't exist anymore
+        except psutil.NoSuchProcess:
+            # Process already dead (common race condition)
             dashboard_file.unlink(missing_ok=True)
             return True, f"Dashboard was already dead (PID {pid})."
-        except PermissionError:
+        except psutil.AccessDenied:
+            # Can't access process (permissions issue)
             return False, f"Permission denied to kill dashboard process (PID {pid})."
         except Exception as e:
+            # Unexpected error
+            logger.error(f"Unexpected error stopping dashboard process {pid}: {e}")
             return False, f"Failed to kill dashboard process (PID {pid}): {e}"
 
     if not ok:
@@ -496,10 +527,15 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
     # Timeout - try killing by PID as last resort
     if pid is not None:
         try:
-            os.kill(pid, signal.SIGKILL)
+            proc = psutil.Process(pid)
+            proc.kill()
             dashboard_file.unlink(missing_ok=True)
-            return True, f"Dashboard forced stopped (SIGKILL, PID {pid}) after {timeout}s timeout."
-        except Exception:
-            pass
+            return True, f"Dashboard forced stopped (force kill, PID {pid}) after {timeout}s timeout."
+        except psutil.NoSuchProcess:
+            # Process died between health check and kill attempt
+            dashboard_file.unlink(missing_ok=True)
+            return True, f"Dashboard process ended (PID {pid})."
+        except Exception as e:
+            logger.error(f"Failed to force kill dashboard process {pid}: {e}")
 
     return False, f"Dashboard did not stop within {timeout} seconds."

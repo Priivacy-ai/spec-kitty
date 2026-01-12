@@ -19,39 +19,39 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         override_path: Optional override path (e.g., from --template-root flag)
 
     Returns:
-        Path to repository root containing .kittify/templates/command-templates, or None
+        Path to repository root containing src/specify_cli/templates/command-templates, or None
     """
     # Check override path first (from --template-root flag)
     if override_path:
         override = Path(override_path).expanduser().resolve()
-        if (override / ".kittify" / "templates" / "command-templates").exists():
+        if (override / "src" / "specify_cli" / "templates" / "command-templates").exists():
             return override
         # Legacy fallback for old template structure
-        if (override / "templates" / "command-templates").exists():
+        if (override / ".kittify" / "templates" / "command-templates").exists():
             return override
         console.print(
-            f"[yellow]--template-root set to {override}, but .kittify/templates/command-templates not found there. Ignoring.[/yellow]"
+            f"[yellow]--template-root set to {override}, but src/specify_cli/templates/command-templates not found there. Ignoring.[/yellow]"
         )
 
     # Check environment variable
     env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
     if env_root:
         root_path = Path(env_root).expanduser().resolve()
-        if (root_path / ".kittify" / "templates" / "command-templates").exists():
+        if (root_path / "src" / "specify_cli" / "templates" / "command-templates").exists():
             return root_path
         # Legacy fallback for old template structure
-        if (root_path / "templates" / "command-templates").exists():
+        if (root_path / ".kittify" / "templates" / "command-templates").exists():
             return root_path
         console.print(
-            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but .kittify/templates/command-templates not found there. Ignoring.[/yellow]"
+            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but src/specify_cli/templates/command-templates not found there. Ignoring.[/yellow]"
         )
 
     # Check package location
     candidate = Path(__file__).resolve().parents[2]
-    if (candidate / ".kittify" / "templates" / "command-templates").exists():
+    if (candidate / "src" / "specify_cli" / "templates" / "command-templates").exists():
         return candidate
     # Legacy fallback for old template structure
-    if (candidate / "templates" / "command-templates").exists():
+    if (candidate / ".kittify" / "templates" / "command-templates").exists():
         return candidate
     return None
 
@@ -69,10 +69,10 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             shutil.rmtree(memory_dest)
         shutil.copytree(memory_src, memory_dest)
 
-    # Copy from .kittify/scripts/ (not root /scripts/)
-    # The .kittify/scripts/ directory has the full implementation including
+    # Copy from src/specify_cli/scripts/ (not root /scripts/)
+    # The src/specify_cli/scripts/ directory has the full implementation including
     # worktree symlink code for shared constitution
-    scripts_src = repo_root / ".kittify" / "scripts"
+    scripts_src = repo_root / "src" / "specify_cli" / "scripts"
     if scripts_src.exists():
         scripts_dest = specify_root / "scripts"
         if scripts_dest.exists():
@@ -89,13 +89,13 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             if item.is_file():
                 shutil.copy2(item, scripts_dest / item.name)
 
-    # Copy from .kittify/templates/ (not root /templates/)
-    # The .kittify/templates/ directory contains:
+    # Copy from src/specify_cli/templates/ (not root /templates/)
+    # The src/specify_cli/templates/ directory contains:
     # - command-templates/ (agent command templates)
     # - git-hooks/ (pre-commit hooks)
     # - claudeignore-template
     # - AGENTS.md
-    templates_src = repo_root / ".kittify" / "templates"
+    templates_src = repo_root / "src" / "specify_cli" / "templates"
     if templates_src.exists():
         templates_dest = specify_root / "templates"
         if templates_dest.exists():
@@ -105,17 +105,12 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
         if agents_template.exists():
             shutil.copy2(agents_template, specify_root / "AGENTS.md")
 
-    missions_candidates = [
-        repo_root / ".kittify" / "missions",
-        repo_root / "src" / "specify_cli" / ".kittify" / "missions",
-    ]
-    for missions_src in missions_candidates:
-        if missions_src.exists():
-            missions_dest = specify_root / "missions"
-            if missions_dest.exists():
-                shutil.rmtree(missions_dest)
-            shutil.copytree(missions_src, missions_dest)
-            break
+    missions_src = repo_root / "src" / "specify_cli" / "missions"
+    if missions_src.exists():
+        missions_dest = specify_root / "missions"
+        if missions_dest.exists():
+            shutil.rmtree(missions_dest)
+        shutil.copytree(missions_src, missions_dest)
 
     # NOTE: Templates are copied temporarily for agent command generation
     # They will be cleaned up after all commands are generated (see init.py)
