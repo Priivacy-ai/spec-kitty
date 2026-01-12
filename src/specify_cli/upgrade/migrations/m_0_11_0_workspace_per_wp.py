@@ -81,8 +81,8 @@ def _resolve_template_sources() -> Optional[Dict[str, str]]:
     local_repo = get_local_repo_root()
     if local_repo:
         candidates = [
-            local_repo / ".kittify" / "missions" / MISSION_NAME / "command-templates",
-            local_repo / "src" / "specify_cli" / ".kittify" / "missions" / MISSION_NAME / "command-templates",
+            local_repo / "src" / "specify_cli" / "missions" / MISSION_NAME / "command-templates",  # 011: New location
+            local_repo / ".kittify" / "missions" / MISSION_NAME / "command-templates",  # Legacy (pre-011)
         ]
         for candidate in candidates:
             if candidate.exists():
@@ -90,16 +90,13 @@ def _resolve_template_sources() -> Optional[Dict[str, str]]:
                 if contents:
                     return contents
 
+    # 011: Templates packaged in src/specify_cli/missions/
     data_root = files("specify_cli")
-    candidates = [
-        data_root.joinpath("missions", MISSION_NAME, "command-templates"),
-        data_root.joinpath(".kittify", "missions", MISSION_NAME, "command-templates"),
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            contents = _load_template_sources(candidate)
-            if contents:
-                return contents
+    candidate = data_root.joinpath("missions", MISSION_NAME, "command-templates")
+    if candidate.exists():
+        contents = _load_template_sources(candidate)
+        if contents:
+            return contents
 
     return None
 
