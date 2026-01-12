@@ -11,15 +11,16 @@ def find_mission_templates() -> list[Path]:
     missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
 
     templates = []
-    for mission_dir in missions_dir.iterdir():
-        if mission_dir.is_dir():
-            cmd_templates = mission_dir / "command-templates"
-            if cmd_templates.exists():
-                templates.extend(cmd_templates.glob("*.md"))
+    if missions_dir.exists():
+        for mission_dir in missions_dir.iterdir():
+            if mission_dir.is_dir():
+                cmd_templates = mission_dir / "command-templates"
+                if cmd_templates.exists():
+                    templates.extend(cmd_templates.glob("*.md"))
 
-            mission_templates = mission_dir / "templates"
-            if mission_templates.exists():
-                templates.extend(mission_templates.glob("*.md"))
+                mission_templates = mission_dir / "templates"
+                if mission_templates.exists():
+                    templates.extend(mission_templates.glob("*.md"))
 
     # Also check root templates
     root_templates = spec_kitty_root / "src" / "specify_cli" / "templates"
@@ -118,7 +119,15 @@ def test_no_phase_subdirectories_in_templates():
 def test_templates_require_flat_structure():
     """Templates must explicitly require flat tasks/ structure."""
     spec_kitty_root = Path(__file__).parent.parent
-    tasks_template = spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "tasks.md"
+    tasks_template = (
+        spec_kitty_root
+        / "src"
+        / "specify_cli"
+        / "missions"
+        / "software-dev"
+        / "command-templates"
+        / "tasks.md"
+    )
 
     assert tasks_template.exists(), "tasks.md template not found"
 

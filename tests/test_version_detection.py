@@ -12,10 +12,23 @@ Solution: Use importlib.metadata.version() to read from package metadata.
 These tests detect this problem and validate the fix.
 """
 
+import os
 import pytest
 import subprocess
 import sys
 from pathlib import Path
+
+
+def run_cli_version() -> subprocess.CompletedProcess[str]:
+    repo_root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(repo_root)
+    return subprocess.run(
+        [sys.executable, "-m", "specify_cli.__init__", "--version"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
 
 
 class TestVersionReading:
@@ -47,13 +60,8 @@ class TestVersionReading:
             pytest.skip(f"Could not read package metadata: {exc}")
 
         # Run CLI command
-        result = subprocess.run(
-            ["spec-kitty", "--version"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-
+        result = run_cli_version()
+        assert result.returncode == 0, f"--version failed: {result.stderr}"
         output = result.stdout + result.stderr
 
         # Should show the package metadata version
@@ -115,13 +123,8 @@ class TestVersionConsistency:
 
     def test_version_via_cli_command(self):
         """Test version accessible via CLI --version flag."""
-        result = subprocess.run(
-            ["spec-kitty", "--version"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-
+        result = run_cli_version()
+        assert result.returncode == 0, f"--version failed: {result.stderr}"
         output = result.stdout + result.stderr
         assert "version" in output.lower(), "Output should mention version"
 
@@ -144,12 +147,8 @@ class TestVersionConsistency:
             pytest.skip("Package metadata not available")
 
         # Method 3: CLI command
-        result = subprocess.run(
-            ["spec-kitty", "--version"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        result = run_cli_version()
+        assert result.returncode == 0, f"--version failed: {result.stderr}"
         cli_output = result.stdout + result.stderr
 
         # All should agree
@@ -186,11 +185,7 @@ class TestEdgeCases:
 
     def test_cli_version_flag_exists(self):
         """Verify --version flag exists and works."""
-        result = subprocess.run(
-            ["spec-kitty", "--version"],
-            capture_output=True,
-            text=True
-        )
+        result = run_cli_version()
 
         # Should not crash
         assert result.returncode == 0, \
@@ -285,13 +280,8 @@ class TestRegressionPrevention:
         except Exception:
             pytest.skip("Package metadata not available")
 
-        result = subprocess.run(
-            ["spec-kitty", "--version"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-
+        result = run_cli_version()
+        assert result.returncode == 0, f"--version failed: {result.stderr}"
         output = result.stdout + result.stderr
 
         # CLI should show current version, not old version

@@ -1,14 +1,26 @@
 ---
 description: Execute the implementation planning workflow using the plan template to generate design artifacts.
-scripts:
-  sh: spec-kitty agent setup-plan --json
-  ps: spec-kitty agent -Json
-agent_scripts:
-  sh: spec-kitty agent update-context __AGENT__
-  ps: spec-kitty agent -AgentType __AGENT__
 ---
-*Path: [templates/commands/plan.md](templates/commands/plan.md)*
 
+# /spec-kitty.plan - Create Implementation Plan
+
+**Version**: 0.11.0+
+
+## 📍 WORKING DIRECTORY: Stay in MAIN repository
+
+**IMPORTANT**: Plan works in the main repository. NO worktrees created.
+
+```bash
+# Run from project root (same directory as /spec-kitty.specify):
+# You should already be here if you just ran /spec-kitty.specify
+
+# Creates:
+# - kitty-specs/###-feature/plan.md → In main repository
+# - Commits to main branch
+# - NO worktrees created
+```
+
+**Do NOT cd anywhere**. Stay in the main repository root.
 
 ## User Input
 
@@ -18,21 +30,15 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Location Pre-flight Check (CRITICAL for AI Agents)
+## Location Check (0.11.0+)
 
-Before proceeding with planning, verify you are in the correct working directory by running the shared pre-flight validation:
+This command runs in the **main repository**, not in a worktree.
 
-```python
-```
-
-**What this validates**:
-- Current branch follows the feature pattern like `001-feature-name`
-- You're not attempting to run from `main` or any release branch
-- The validator prints clear navigation instructions if you're outside the feature worktree
+- Verify you're on `main` (or `master`) before scaffolding plan.md
+- Planning artifacts live in `kitty-specs/###-feature/`
+- The plan template is committed to the main branch after generation
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
-
-This is intentional - worktrees provide isolation for parallel feature development.
 
 ## Planning Interrogation (mandatory)
 
@@ -64,10 +70,13 @@ Planning requirements (scale to complexity):
 ## Outline
 
 1. **Check planning discovery status**:
-   - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user’s response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run `{SCRIPT}` yet.
+   - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user's response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run the setup command yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.
+2. **Setup**: Run `spec-kitty agent feature setup-plan --json` from the repository root and parse JSON for:
+   - `result`: "success" or error message
+   - `plan_file`: Absolute path to the created plan.md
+   - `feature_dir`: Absolute path to the feature directory
 
 3. **Load context**: Read FEATURE_SPEC and `.kittify/memory/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
 
@@ -75,18 +84,18 @@ Planning requirements (scale to complexity):
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
    - If a constitution exists, fill Constitution Check section from it and challenge any conflicts directly with the user. If no constitution exists, mark the section as skipped.
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
-   - Phase 0: Run `spec-kitty research` (or `/spec-kitty.research`) to scaffold research.md, data-model.md, and research CSV logs, then populate findings using the validated planning answers
-   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent (building on the Phase 0 outputs)
+   - Phase 0: Generate research.md (commission research to resolve every outstanding clarification)
+   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design, asking the user to resolve new gaps before proceeding
 
-5. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+5. **STOP and report**: This command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+
+   **⚠️ CRITICAL: DO NOT proceed to task generation!** The user must explicitly run `/spec-kitty.tasks` to generate work packages. Your job is COMPLETE after reporting the planning artifacts.
 
 ## Phases
 
 ### Phase 0: Outline & Research
-
-> Kick off this phase by running `spec-kitty research` to scaffold the mission-specific files listed below. Then use the checklist to enrich each artifact with the clarifications uncovered during planning.
 
 1. **Extract unknowns from Technical Context** above:
    - For each NEEDS CLARIFICATION → research task
@@ -135,3 +144,28 @@ Planning requirements (scale to complexity):
 
 - Use absolute paths
 - ERROR on gate failures or unresolved clarifications
+
+---
+
+## ⛔ MANDATORY STOP POINT
+
+**This command is COMPLETE after generating planning artifacts.**
+
+After reporting:
+- `plan.md` path
+- `research.md` path (if generated)
+- `data-model.md` path (if generated)
+- `contracts/` contents (if generated)
+- Agent context file updated
+
+**YOU MUST STOP HERE.**
+
+Do NOT:
+- ❌ Generate `tasks.md`
+- ❌ Create work package (WP) files
+- ❌ Create `tasks/` subdirectories
+- ❌ Proceed to implementation
+
+The user will run `/spec-kitty.tasks` when they are ready to generate work packages.
+
+**Next suggested command**: `/spec-kitty.tasks` (user must invoke this explicitly)

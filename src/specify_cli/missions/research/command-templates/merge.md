@@ -1,5 +1,6 @@
 ---
 description: Merge a completed feature into the main branch and clean up worktree
+---
 
 # Merge Feature Branch
 

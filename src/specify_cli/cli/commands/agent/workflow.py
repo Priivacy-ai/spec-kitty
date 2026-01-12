@@ -9,6 +9,7 @@ import typer
 from typing_extensions import Annotated
 
 from specify_cli.core.paths import locate_project_root
+from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.tasks_support import (
     extract_scalar,
     locate_work_package,
@@ -34,7 +35,17 @@ def _find_feature_slug() -> str:
     Raises:
         typer.Exit: If feature slug cannot be determined
     """
+    import re
     cwd = Path.cwd().resolve()
+
+    def _strip_wp_suffix(slug: str) -> str:
+        """Strip -WPxx suffix from feature slug if present.
+
+        Worktree branches/dirs are named {feature-slug}-WPxx,
+        so we need to extract just the feature slug.
+        """
+        # Match -WPxx at the end (case insensitive)
+        return re.sub(r'-WP\d+$', '', slug, flags=re.IGNORECASE)
 
     # Strategy 1: Check if cwd contains kitty-specs/###-feature-slug
     if "kitty-specs" in cwd.parts:
@@ -45,7 +56,7 @@ def _find_feature_slug() -> str:
                 potential_slug = parts_list[idx + 1]
                 # Validate format: ###-slug
                 if len(potential_slug) >= 3 and potential_slug[:3].isdigit():
-                    return potential_slug
+                    return _strip_wp_suffix(potential_slug)
         except (ValueError, IndexError):
             pass
 
@@ -60,12 +71,16 @@ def _find_feature_slug() -> str:
             check=True
         )
         branch_name = result.stdout.strip()
-        # Validate format: ###-slug
+        # Validate format: ###-slug (possibly with -WPxx suffix)
         if len(branch_name) >= 3 and branch_name[:3].isdigit():
-            return branch_name
+            return _strip_wp_suffix(branch_name)
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
+    print("Error: Could not auto-detect feature slug.")
+    print("  - Not in a kitty-specs/###-feature-slug directory")
+    print("  - Git branch name doesn't match ###-slug format")
+    print("  - Use --feature <slug> to specify explicitly")
     raise typer.Exit(1)
 
 
@@ -208,12 +223,18 @@ def implement(
         review_status = extract_scalar(wp.frontmatter, "review_status")
         has_feedback = review_status == "has_feedback"
 
+        # Calculate workspace path
+        workspace_name = f"{feature_slug}-{normalized_wp_id}"
+        workspace_path = repo_root / ".worktrees" / workspace_name
+
         # Output the prompt
         print("=" * 80)
         print(f"IMPLEMENT: {normalized_wp_id}")
         print("=" * 80)
         print()
         print(f"Source: {wp.path}")
+        print()
+        print(f"Workspace: {workspace_path}")
         print()
 
         # Show next steps FIRST so agent sees them immediately
@@ -225,6 +246,12 @@ def implement(
         print()
         print(f"✗ Blocked or cannot complete:")
         print(f"  spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        print("=" * 80)
+        print()
+        print(f"📍 WORKING DIRECTORY:")
+        print(f"   cd {workspace_path}")
+        print(f"   # All implementation work happens in this workspace")
+        print(f"   # When done, return to main: cd {repo_root}")
         print("=" * 80)
         print()
 
@@ -293,6 +320,43 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
     return None
 
 
+def _warn_dependents_in_progress(
+    repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+) -> None:
+    """Warn if dependent WPs are in progress and may need rebase."""
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    graph = build_dependency_graph(feature_dir)
+    dependents = get_dependents(wp_id, graph)
+    if not dependents:
+        return
+
+    in_progress: list[str] = []
+    for dependent_id in dependents:
+        try:
+            dependent_wp = locate_work_package(repo_root, feature_slug, dependent_id)
+        except FileNotFoundError:
+            continue
+
+        lane = extract_scalar(dependent_wp.frontmatter, "lane")
+        if lane in {"planned", "doing", "for_review"}:
+            in_progress.append(dependent_id)
+
+    if not in_progress:
+        return
+
+    dependents_list = ", ".join(sorted(in_progress))
+    print("⚠️  Dependency Alert:")
+    print(f"   {dependents_list} depend on {wp_id} and are in progress.")
+    print("   If you request changes, notify those agents to rebase.")
+    for dependent_id in sorted(in_progress):
+        workspace = f".worktrees/{feature_slug}-{dependent_id}"
+        base_branch = f"{feature_slug}-{wp_id}"
+        print(f"   Rebase command: cd {workspace} && git rebase {base_branch}")
+    print()
+
+
 @app.command(name="review")
 def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
@@ -353,12 +417,20 @@ def review(
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
 
+        # Calculate workspace path
+        workspace_name = f"{feature_slug}-{normalized_wp_id}"
+        workspace_path = repo_root / ".worktrees" / workspace_name
+
+        _warn_dependents_in_progress(repo_root, feature_slug, normalized_wp_id)
+
         # Output the prompt
         print("=" * 80)
         print(f"REVIEW: {normalized_wp_id}")
         print("=" * 80)
         print()
         print(f"Source: {wp.path}")
+        print()
+        print(f"Workspace: {workspace_path}")
         print()
 
         # Show next steps FIRST so agent sees them immediately
@@ -371,6 +443,13 @@ def review(
         print(f"⚠️  Changes requested:")
         print(f"  1. Add feedback to the WP file's '## Review Feedback' section")
         print(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --note \"Changes requested\"")
+        print("=" * 80)
+        print()
+        print(f"📍 WORKING DIRECTORY:")
+        print(f"   cd {workspace_path}")
+        print(f"   # Review the implementation in this workspace")
+        print(f"   # Read code, run tests, check against requirements")
+        print(f"   # When done, return to main: cd {repo_root}")
         print("=" * 80)
         print()
         print("Review the implementation against the requirements below.")

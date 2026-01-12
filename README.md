@@ -31,6 +31,38 @@ Spec Kitty is for people using LLM agents to write code (eg. Claude Code, Codex,
 
 > **Note:** Spec Kitty is a fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
+## ⚠️ Breaking Change in v0.11.0
+
+**Workspace model changed to workspace-per-work-package for parallel multi-agent development.**
+
+### What Changed
+
+- **Planning commands** (specify, plan, tasks) now work in main repository
+- **Worktrees created on-demand** during `spec-kitty implement WP##`
+- **One worktree per work package** (not per feature)
+
+### Action Required Before Upgrading
+
+**You MUST complete or delete all in-progress features before upgrading to 0.11.0.**
+
+Check for legacy worktrees:
+```bash
+spec-kitty list-legacy-features
+```
+
+See [**Upgrade Guide**](docs/upgrading-to-0-11-0.md) for step-by-step migration instructions.
+
+### New in 0.11.0
+
+- ✅ **Parallel development**: Multiple agents work on different WPs simultaneously
+- ✅ **Dependency tracking**: WP frontmatter includes `dependencies: []` field
+- ✅ **New command**: `spec-kitty implement WP##` creates workspace for work package
+- ✅ **Better isolation**: Each WP has its own worktree and branch
+
+📖 [Workspace-per-WP Documentation](docs/workspace-per-wp.md) | 📖 [Full Upgrade Guide](docs/upgrading-to-0-11-0.md)
+
+---
+
 > **🎉 Version 0.10.9 Released - Template Bundling Fix**
 > Fixed critical issue where wrong templates were bundled in PyPI packages (#62, #63, #64). All 12 AI agents now receive correct Python CLI slash commands.
 > **Existing projects:** Run `spec-kitty upgrade` to apply repair migration. [See CHANGELOG](CHANGELOG.md#0109---2026-01-06) for full details.

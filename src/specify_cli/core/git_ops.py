@@ -24,8 +24,21 @@ def run_command(
     capture: bool = False,
     shell: bool = False,
     console: ConsoleType = None,
+    cwd: Path | str | None = None,
 ) -> tuple[int, str, str]:
-    """Run a shell command and return (returncode, stdout, stderr)."""
+    """Run a shell command and return (returncode, stdout, stderr).
+
+    Args:
+        cmd: Command to run
+        check_return: If True, raise on non-zero exit
+        capture: If True, capture stdout/stderr
+        shell: If True, run through shell
+        console: Rich console for output
+        cwd: Working directory for command execution
+
+    Returns:
+        Tuple of (returncode, stdout, stderr)
+    """
     try:
         result = subprocess.run(
             cmd,
@@ -33,6 +46,7 @@ def run_command(
             capture_output=capture,
             text=True,
             shell=shell,
+            cwd=str(cwd) if cwd else None,
         )
         stdout = (result.stdout or "").strip() if capture else ""
         stderr = (result.stderr or "").strip() if capture else ""

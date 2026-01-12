@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import tarfile
 import pytest
@@ -34,7 +35,7 @@ def test_sdist_bundles_templates():
 
     # Build sdist
     result = subprocess.run(
-        ["python", "-m", "build", "--sdist", "--outdir", "/tmp"],
+        [sys.executable, "-m", "build", "--sdist", "--outdir", "/tmp"],
         cwd=spec_kitty_root,
         capture_output=True,
         text=True
@@ -77,7 +78,7 @@ def test_wheel_bundles_templates_correctly():
     spec_kitty_root = Path(__file__).parent.parent
 
     result = subprocess.run(
-        ["python", "-m", "build", "--wheel", "--outdir", "/tmp"],
+        [sys.executable, "-m", "build", "--wheel", "--outdir", "/tmp"],
         cwd=spec_kitty_root,
         capture_output=True,
         text=True
@@ -99,7 +100,7 @@ def test_wheel_bundles_templates_correctly():
 
         # Create venv
         result = subprocess.run(
-            ["python", "-m", "venv", str(venv_dir)],
+            [sys.executable, "-m", "venv", str(venv_dir)],
             capture_output=True,
             text=True
         )

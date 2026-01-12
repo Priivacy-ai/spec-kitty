@@ -1,5 +1,23 @@
 ---
 description: Validate feature readiness and guide final acceptance steps.
+---
+
+# /spec-kitty.accept - Validate Feature Readiness
+
+**Version**: 0.11.0+
+**Purpose**: Validate all work packages are complete and feature is ready to merge.
+
+## 📍 WORKING DIRECTORY: Run from MAIN repository
+
+**IMPORTANT**: Accept runs from the main repository root, NOT from a WP worktree.
+
+```bash
+# If you're in a worktree, return to main first:
+cd $(git rev-parse --show-toplevel)
+
+# Then run accept:
+spec-kitty accept
+```
 
 ## User Input
 

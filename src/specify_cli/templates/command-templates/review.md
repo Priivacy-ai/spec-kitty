@@ -41,10 +41,15 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - Abort with instructional message if no files are waiting for review.
 
 3. Load context for the selected task:
-   - Read the prompt file frontmatter (lane MUST be `for_review`); note `task_id`, `phase`, `agent`, `shell_pid`.
+   - Read the prompt file frontmatter (lane MUST be `for_review`); note `task_id`, `phase`, `agent`, `shell_pid`, and `dependencies` (if present).
    - Read the body sections (Objective, Context, Implementation Guidance, etc.).
    - Consult supporting documents as referenced: constitution, plan, spec, data-model, contracts, research, quickstart, code changes.
    - Review the associated code in the repository (diffs, tests, docs) to validate the implementation.
+   - **Workspace-per-WP checks** (v0.11.0+):
+     * If this WP has `dependencies: [WP##, ...]` in frontmatter, verify dependent WPs were completed first
+     * Check if other WPs depend on this one (check `tasks/*.md` files for `dependencies` listing this WP ID)
+     * If dependents exist AND you're requesting changes, warn: "⚠️ WP## depends on this WP. If changes are requested, they may need to rebase their branch."
+     * Verify dependency declarations match actual code dependencies (imports, function calls across WPs)
 
 4. Conduct the review with **adversarial mindset**:
 

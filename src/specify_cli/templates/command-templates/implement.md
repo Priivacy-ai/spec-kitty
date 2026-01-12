@@ -1,78 +1,166 @@
 ---
-description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
+description: Create an isolated workspace (worktree) for implementing a specific work package.
 ---
 
-## Work Package Selection
+# /spec-kitty.implement - Create Workspace for Work Package
 
-**User specified**: `$ARGUMENTS`
+**Version**: 0.11.0+
+**Purpose**: Create an isolated workspace (git worktree) for implementing a specific work package.
 
-**Your task**: Determine which WP to implement:
-- If `$ARGUMENTS` is empty → Find first WP file with `lane: "planned"` in `tasks/` directory
-- If `$ARGUMENTS` provided → Normalize it:
-  - `wp01` → `WP01`
-  - `WP01` → `WP01`
-  - `WP01-foo-bar` → `WP01`
-  - Then find: `tasks/WP01*.md`
+## CRITICAL: This is a TWO-STEP Command
 
-**Once you know which WP**, proceed to setup.
-
----
-
-## Setup (Do This First)
-
-**1. Move WP to doing lane:**
+**Step 1**: Get the WP prompt and implementation instructions
 ```bash
-spec-kitty agent tasks move-task <WPID> --to doing --note "Started implementation" --agent "codex"
+spec-kitty agent workflow implement WP##
 ```
-This updates frontmatter, captures shell PID, adds activity log, and creates a commit.
-
-**2. Get the prompt file path:**
-The WP file is at: `kitty-specs/<feature>/tasks/<WPID>-<slug>.md`
-Find the full absolute path.
-
-**3. Verify the move worked:**
-```bash
-git log -1  # Should show "Start <WPID>: Move to doing lane"
+This displays the full WP prompt with detailed requirements and shows:
+```
+WHEN YOU'RE DONE:
+================================================================================
+✓ Implementation complete and tested:
+  spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
 ```
 
----
-
-## Implementation (Do This Second)
-
-**1. READ THE PROMPT FILE** (`tasks/<WPID>-slug.md`)
-   - This is your complete implementation guide
-   - Check `review_status` in frontmatter:
-     - If `has_feedback` → Read `## Review Feedback` section first
-     - Treat action items as your TODO list
-
-**2. Read supporting docs:**
-   - `tasks.md` - Full task breakdown
-   - `plan.md` - Tech stack and architecture
-   - `spec.md` - Requirements
-   - `data-model.md`, `contracts/`, `research.md`, `quickstart.md` (if exist)
-
-**3. Implement following the prompt's guidance:**
-   - Follow subtask order
-   - Respect dependencies (sequential vs parallel `[P]`)
-   - Run tests if required
-   - Commit as you complete major milestones
-
-**4. When complete:**
+**Step 2**: Create the workspace (if needed) and implement according to the prompt
 ```bash
-spec-kitty agent tasks move-task <WPID> --to for_review --note "Ready for review"
-git add <your-changes>
-git commit -m "Complete <WPID>: <description>"
+spec-kitty implement WP##              # No dependencies (branches from main)
+spec-kitty implement WP## --base WPXX  # With dependencies (branches from base WP)
 ```
 
----
+## Completion Requirements
 
-## That's It
+**Your work is NOT complete until**:
+1. ✅ All subtasks in WP prompt are finished
+2. ✅ All tests pass (if required)
+3. ✅ Changes committed to the WP workspace
+4. ✅ **WP moved to for_review lane**: `spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"`
 
-**Simple workflow:**
-1. Find which WP (from `$ARGUMENTS` or first planned)
-2. Move it to doing
-3. Read the prompt file
-4. Do the work
-5. Move to for_review
+**The WP file location determines status**:
+- In `tasks/WP##-*.md` with `lane: "doing"` = IN PROGRESS (not done)
+- Need to move to `for_review` lane when complete
 
-**No busywork, no shell PID tracking, just implement.**
+## When to Use
+
+After `/spec-kitty.tasks` generates work packages in the main repository:
+- Planning artifacts (spec, plan, tasks) are already in main
+- Run `spec-kitty agent workflow implement WP01` to get the full prompt
+- Run `spec-kitty implement WP01` to create a workspace for the first WP
+- Run `spec-kitty implement WP02 --base WP01` if WP02 depends on WP01
+- Each WP gets its own isolated worktree in `.worktrees/###-feature-WP##/`
+
+## Workflow
+
+**Planning Phase** (main repo, no worktrees):
+```
+/spec-kitty.specify → Creates spec.md in main
+/spec-kitty.plan → Creates plan.md in main
+/spec-kitty.tasks → Creates tasks/*.md in main
+```
+
+**Implementation Phase** (creates worktrees on-demand):
+```
+spec-kitty implement WP01 → Creates .worktrees/###-feature-WP01/
+spec-kitty implement WP02 --base WP01 → Creates .worktrees/###-feature-WP02/
+```
+
+## Examples
+
+**Independent WP** (no dependencies):
+```bash
+spec-kitty implement WP01
+# Creates: .worktrees/010-workspace-per-wp-WP01/
+# Branches from: main
+# Contains: Planning artifacts (spec, plan, tasks)
+```
+
+**Dependent WP**:
+```bash
+spec-kitty implement WP02 --base WP01
+# Creates: .worktrees/010-workspace-per-wp-WP02/
+# Branches from: 010-workspace-per-wp-WP01 branch
+# Contains: Planning artifacts + WP01's code changes
+```
+
+## Validation
+
+The command validates:
+- Base workspace exists (if --base specified)
+- Suggests --base if WP has dependencies in frontmatter
+- Errors if trying to branch from a non-existent base
+
+## Parallel Development
+
+Multiple agents can implement different WPs simultaneously:
+```bash
+# Agent A
+spec-kitty implement WP01
+
+# Agent B (in parallel)
+spec-kitty implement WP03
+
+# Both work in isolated worktrees without conflicts
+```
+
+## Dependencies
+
+Work package dependencies are declared in frontmatter:
+```yaml
+dependencies: ["WP01"]  # This WP depends on WP01
+```
+
+The implement command reads this field and validates the --base flag matches.
+
+## Complete Implementation Workflow
+
+**ALWAYS follow this sequence**:
+
+```bash
+# 1. Get the full WP prompt and instructions
+spec-kitty agent workflow implement WP##
+
+# 2. Read the "WHEN YOU'RE DONE" section at the top of the prompt
+# It will show exactly what command to run when complete:
+#   spec-kitty agent tasks move-task WP## --to for_review --note "..."
+
+# 3. Create workspace (if not exists)
+spec-kitty implement WP##              # Or with --base if dependencies
+
+# 4. Navigate to workspace
+cd .worktrees/###-feature-WP##/
+
+# 5. Implement according to WP prompt
+# ... write code, run tests, commit changes ...
+
+# 6. Move to for_review (REQUIRED - not optional!)
+spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
+```
+
+**IMPORTANT**: Step 6 is MANDATORY. The WP is NOT complete until moved to `for_review` lane.
+
+## Lane Status
+
+Work packages move through lanes:
+- `planned` → Initial state after `/spec-kitty.tasks`
+- `doing` → Agent is implementing (automatically set by workflow command)
+- `for_review` → Implementation complete, waiting for review ← **YOU MUST MOVE HERE**
+- `done` → Review passed, WP complete
+
+**Check current lane**:
+```bash
+grep "^lane:" kitty-specs/###-feature/tasks/WP##-*.md
+```
+
+## Troubleshooting
+
+**Error: "Base workspace WP01 does not exist"**
+- Solution: Implement WP01 first: `spec-kitty implement WP01`
+
+**Error: "WP02 has dependencies. Use: spec-kitty implement WP02 --base WP01"**
+- Solution: Add --base flag as suggested
+
+**Warning: "Base branch has changed. Consider rebasing..."**
+- Solution: Run suggested rebase command (git limitation, fixed in future jj integration)
+
+**"I finished implementing but nothing happened"**
+- Check: Did you move to for_review? `spec-kitty agent tasks move-task WP## --to for_review`
+- The WP file must be moved to for_review lane for the workflow to continue

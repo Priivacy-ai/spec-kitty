@@ -1,32 +1,58 @@
 ---
 description: Merge a completed feature into the main branch and clean up worktree
+---
 
-# Merge Feature Branch
+# /spec-kitty.merge - Merge Feature to Main
 
-This command merges a completed feature branch into the main/target branch and handles cleanup of worktrees and branches.
+**Version**: 0.11.0+
+**Purpose**: Merge ALL completed work packages for a feature into main branch.
+
+## CRITICAL: Workspace-per-WP Model (0.11.0)
+
+In 0.11.0, each work package has its own worktree:
+- `.worktrees/###-feature-WP01/`
+- `.worktrees/###-feature-WP02/`
+- `.worktrees/###-feature-WP03/`
+
+**Merge merges ALL WP branches at once** (not incrementally one-by-one).
+
+## 📍 WORKING DIRECTORY: Run from MAIN repository
+
+**IMPORTANT**: Merge must run from the main repository root, NOT from a WP worktree.
+
+```bash
+# If you're in a worktree, return to main first:
+cd /path/to/project/root  # Use absolute path to project root
+
+# Then run merge:
+spec-kitty merge ###-feature-slug
+```
+
+**How to get project root path**: Run this from any worktree:
+```bash
+git rev-parse --show-toplevel
+```
 
 ## Prerequisites
 
 Before running this command:
 
-1. ✅ Feature must pass `/spec-kitty.accept` checks
-2. ✅ All work packages must be in `tasks/`
-3. ✅ Working directory must be clean (no uncommitted changes)
-4. ✅ You must be on the feature branch (or in its worktree)
+1. ✅ All work packages must be in `done` lane (reviewed and approved)
+2. ✅ Feature must pass `/spec-kitty.accept` checks
+3. ✅ Working directory must be clean (no uncommitted changes in main)
+4. ✅ **You must be in main repository root** (not in a worktree)
 
-## Location Pre-flight Check (CRITICAL for AI Agents)
+## Command Syntax
 
-Before merging, verify you are in the correct working directory by running the shared pre-flight validation:
-
-```python
+```bash
+spec-kitty merge ###-feature-slug [OPTIONS]
 ```
 
-**What this validates**:
-- Current branch follows the feature pattern like `001-feature-name`
-- You're not attempting to run from `main` or any release branch
-- The validator prints clear navigation instructions if you're outside the feature worktree
-
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Example**:
+```bash
+cd /tmp/spec-kitty-test/test-project  # Main repo root
+spec-kitty merge 001-cli-hello-world
+```
 
 ## What This Command Does
 

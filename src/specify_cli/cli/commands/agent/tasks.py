@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 from typing_extensions import Annotated
 
+from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root
 from specify_cli.tasks_support import (
     LANES,
@@ -106,6 +107,76 @@ def _output_error(json_mode: bool, error_message: str):
         console.print(f"[red]Error:[/red] {error_message}")
 
 
+def _check_dependent_warnings(
+    repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+    target_lane: str,
+    json_mode: bool
+) -> None:
+    """Display warning when WP moves to for_review and has dependents in progress.
+
+    Args:
+        repo_root: Repository root path
+        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        wp_id: Work package ID (e.g., "WP01")
+        target_lane: Target lane being moved to
+        json_mode: If True, suppress Rich console output
+    """
+    # Only warn when moving to for_review
+    if target_lane != "for_review":
+        return
+
+    # Don't show warnings in JSON mode
+    if json_mode:
+        return
+
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+
+    # Build dependency graph
+    try:
+        graph = build_dependency_graph(feature_dir)
+    except Exception:
+        # If we can't build the graph, skip warnings
+        return
+
+    # Get dependents
+    dependents = get_dependents(wp_id, graph)
+    if not dependents:
+        return  # No dependents, no warnings
+
+    # Check if any dependents are in progress
+    in_progress = []
+    for dep_id in dependents:
+        try:
+            # Find dependent WP file
+            tasks_dir = feature_dir / "tasks"
+            dep_files = list(tasks_dir.glob(f"{dep_id}-*.md"))
+            if not dep_files:
+                continue
+
+            # Read frontmatter
+            content = dep_files[0].read_text(encoding="utf-8-sig")
+            frontmatter, _, _ = split_frontmatter(content)
+            lane = extract_scalar(frontmatter, "lane") or "planned"
+
+            if lane in ["planned", "doing"]:
+                in_progress.append(dep_id)
+        except Exception:
+            # Skip if we can't read the dependent
+            continue
+
+    if in_progress:
+        console.print(f"\n[yellow]⚠️  Dependency Alert[/yellow]")
+        console.print(f"{', '.join(in_progress)} are in progress and depend on {wp_id}")
+        console.print("\nIf changes are requested during review:")
+        console.print("  1. Notify dependent WP agents")
+        console.print("  2. Dependent WPs will need manual rebase after changes")
+        for dep in in_progress:
+            console.print(f"     cd .worktrees/{feature_slug}-{dep} && git rebase {feature_slug}-{wp_id}")
+        console.print()
+
+
 @app.command(name="move-task")
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
@@ -179,6 +250,9 @@ def move_task(
             result,
             f"[green]✓[/green] Moved {task_id} from {old_lane} to {target_lane}"
         )
+
+        # Check for dependent WP warnings when moving to for_review (T083)
+        _check_dependent_warnings(repo_root, feature_slug, task_id, target_lane, json_output)
 
     except Exception as e:
         _output_error(json_output, str(e))
@@ -425,6 +499,125 @@ def rollback_task(
             json_output,
             result,
             f"[green]✓[/green] Rolled back {task_id} from {current_lane} to {previous_lane}"
+        )
+
+    except Exception as e:
+        _output_error(json_output, str(e))
+        raise typer.Exit(1)
+
+
+@app.command(name="finalize-tasks")
+def finalize_tasks(
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """Parse tasks.md and inject dependencies into WP frontmatter.
+
+    Scans tasks.md for "Depends on: WP##" patterns or phase groupings,
+    builds dependency graph, validates for cycles, and writes dependencies
+    field to each WP file's frontmatter.
+
+    Examples:
+        spec-kitty agent tasks finalize-tasks --json
+        spec-kitty agent tasks finalize-tasks --feature 001-my-feature
+    """
+    try:
+        # Get repo root and feature slug
+        repo_root = locate_project_root()
+        if repo_root is None:
+            _output_error(json_output, "Could not locate project root")
+            raise typer.Exit(1)
+
+        feature_slug = feature or _find_feature_slug()
+        feature_dir = repo_root / "kitty-specs" / feature_slug
+        tasks_md = feature_dir / "tasks.md"
+        tasks_dir = feature_dir / "tasks"
+
+        if not tasks_md.exists():
+            _output_error(json_output, f"tasks.md not found: {tasks_md}")
+            raise typer.Exit(1)
+
+        if not tasks_dir.exists():
+            _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
+            raise typer.Exit(1)
+
+        # Parse tasks.md for dependency patterns
+        content = tasks_md.read_text(encoding="utf-8")
+        dependencies_map: dict[str, list[str]] = {}
+
+        # Strategy 1: Look for explicit "Depends on: WP##" patterns
+        # Strategy 2: Look for phase groupings where later phases depend on earlier ones
+        # For now, implement simple pattern matching
+
+        wp_pattern = re.compile(r'WP(\d{2})')
+        depends_pattern = re.compile(r'(?:depends on|dependency:|requires):\s*(WP\d{2}(?:,\s*WP\d{2})*)', re.IGNORECASE)
+
+        current_wp = None
+        for line in content.split('\n'):
+            # Find WP headers
+            wp_match = wp_pattern.search(line)
+            if wp_match and ('##' in line or 'Work Package' in line):
+                current_wp = f"WP{wp_match.group(1)}"
+                if current_wp not in dependencies_map:
+                    dependencies_map[current_wp] = []
+
+            # Find dependency declarations for current WP
+            if current_wp:
+                dep_match = depends_pattern.search(line)
+                if dep_match:
+                    # Extract all WP IDs mentioned
+                    dep_wps = re.findall(r'WP\d{2}', dep_match.group(1))
+                    dependencies_map[current_wp].extend(dep_wps)
+                    # Remove duplicates
+                    dependencies_map[current_wp] = list(dict.fromkeys(dependencies_map[current_wp]))
+
+        # Ensure all WP files in tasks/ dir are in the map (with empty deps if not mentioned)
+        for wp_file in tasks_dir.glob("WP*.md"):
+            wp_id = wp_file.stem.split('-')[0]  # Extract WP## from WP##-title.md
+            if wp_id not in dependencies_map:
+                dependencies_map[wp_id] = []
+
+        # Update each WP file's frontmatter with dependencies
+        updated_count = 0
+        for wp_id, deps in sorted(dependencies_map.items()):
+            # Find WP file
+            wp_files = list(tasks_dir.glob(f"{wp_id}-*.md")) + list(tasks_dir.glob(f"{wp_id}.md"))
+            if not wp_files:
+                console.print(f"[yellow]Warning:[/yellow] No file found for {wp_id}")
+                continue
+
+            wp_file = wp_files[0]
+
+            # Read current content
+            content = wp_file.read_text(encoding="utf-8-sig")
+            frontmatter, body, padding = split_frontmatter(content)
+
+            # Update dependencies field
+            updated_front = set_scalar(frontmatter, "dependencies", deps)
+
+            # Rebuild and write
+            updated_doc = build_document(updated_front, body, padding)
+            wp_file.write_text(updated_doc, encoding="utf-8")
+            updated_count += 1
+
+        # Validate dependency graph for cycles
+        from specify_cli.core.dependency_graph import detect_cycles
+        cycles = detect_cycles(dependencies_map)
+        if cycles:
+            _output_error(json_output, f"Circular dependencies detected: {cycles}")
+            raise typer.Exit(1)
+
+        result = {
+            "result": "success",
+            "updated": updated_count,
+            "dependencies": dependencies_map,
+            "feature": feature_slug
+        }
+
+        _output_result(
+            json_output,
+            result,
+            f"[green]✓[/green] Updated {updated_count} WP files with dependencies"
         )
 
     except Exception as e:

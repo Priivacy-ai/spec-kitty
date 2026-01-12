@@ -39,6 +39,7 @@ from specify_cli.template import (
     generate_agent_assets,
     get_local_repo_root,
     parse_repo_slug,
+    prepare_command_templates,
 )
 
 # Module-level variables to hold injected dependencies
@@ -324,6 +325,7 @@ def init(
         project_path.mkdir(parents=True)
 
     command_templates_dir: Path | None = None
+    render_templates_dir: Path | None = None
     templates_root: Path | None = None  # Track template source for later use
     base_prepared = False
     if template_mode == "remote" and (repo_owner is None or repo_name is None):
@@ -355,7 +357,19 @@ def init(
                                 templates_root = command_templates_dir.parent
                         if command_templates_dir is None:
                             raise RuntimeError("Command templates directory was not prepared")
-                        generate_agent_assets(command_templates_dir, project_path, agent_key, selected_script)
+                        if render_templates_dir is None:
+                            mission_templates_dir = (
+                                project_path
+                                / ".kittify"
+                                / "missions"
+                                / selected_mission
+                                / "command-templates"
+                            )
+                            render_templates_dir = prepare_command_templates(
+                                command_templates_dir,
+                                mission_templates_dir,
+                            )
+                        generate_agent_assets(render_templates_dir, project_path, agent_key, selected_script)
                     except Exception as exc:
                         tracker.error(f"{agent_key}-extract", str(exc))
                         raise

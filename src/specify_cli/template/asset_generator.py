@@ -11,6 +11,29 @@ from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.template.renderer import render_template, rewrite_paths
 
 
+def prepare_command_templates(
+    base_templates_dir: Path,
+    mission_templates_dir: Path | None,
+) -> Path:
+    """Prepare command templates with mission overrides applied.
+
+    Returns a directory containing base templates, with any mission templates
+    overlaid to enhance/override the central command set.
+    """
+    if not mission_templates_dir or not mission_templates_dir.exists():
+        return base_templates_dir
+
+    merged_dir = base_templates_dir.parent / f".merged-{mission_templates_dir.parent.name}"
+    if merged_dir.exists():
+        shutil.rmtree(merged_dir)
+
+    shutil.copytree(base_templates_dir, merged_dir)
+    for template_path in mission_templates_dir.glob("*.md"):
+        shutil.copy2(template_path, merged_dir / template_path.name)
+
+    return merged_dir
+
+
 def generate_agent_assets(command_templates_dir: Path, project_path: Path, agent_key: str, script_type: str) -> None:
     """Render every command template for the selected agent."""
     config = AGENT_COMMAND_CONFIG[agent_key]
@@ -177,6 +200,7 @@ def _raise_template_discovery_error(commands_dir: Path) -> None:
 
 __all__ = [
     "generate_agent_assets",
+    "prepare_command_templates",
     "render_command_template",
     "_convert_markdown_syntax_to_format",
 ]

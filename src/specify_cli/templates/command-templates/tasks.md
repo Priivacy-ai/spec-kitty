@@ -1,11 +1,29 @@
 ---
 description: Generate grouped work packages with actionable subtasks and matching prompt files for the feature in one pass.
-scripts:
-  sh: spec-kitty agent check-prerequisites --json --include-tasks
-  ps: spec-kitty agent -Json -IncludeTasks
 ---
-*Path: [templates/commands/tasks.md](templates/commands/tasks.md)*
 
+# /spec-kitty.tasks - Generate Work Packages
+
+**Version**: 0.11.0+
+
+## 📍 WORKING DIRECTORY: Stay in MAIN repository
+
+**IMPORTANT**: Tasks works in the main repository. NO worktrees created.
+
+```bash
+# Run from project root (same directory as /spec-kitty.plan):
+# You should already be here if you just ran /spec-kitty.plan
+
+# Creates:
+# - kitty-specs/###-feature/tasks/WP01-*.md → In main repository
+# - kitty-specs/###-feature/tasks/WP02-*.md → In main repository
+# - Commits ALL to main branch
+# - NO worktrees created
+```
+
+**Do NOT cd anywhere**. Stay in the main repository root.
+
+**Worktrees created later**: After tasks are generated, use `spec-kitty implement WP##` to create workspace for each WP.
 
 ## User Input
 
@@ -15,36 +33,29 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Location Pre-flight Check (CRITICAL for AI Agents)
+## Location Check (0.11.0+)
 
-Before proceeding, verify you are in the correct working directory:
+Before proceeding, verify you are in the main repository:
 
 **Check your current branch:**
 ```bash
 git branch --show-current
 ```
 
-**Expected output:** A feature branch like `001-feature-name`
-**If you see `main`:** You are in the wrong location!
+**Expected output:** `main` (or `master`)
+**If you see a feature branch:** You're in the wrong place. Return to main:
+```bash
+cd $(git rev-parse --show-toplevel)
+git checkout main
+```
 
-**This command MUST run from a feature worktree, not the main repository.**
-
-If you're on the `main` branch:
-1. Check for available worktrees: `ls .worktrees/`
-2. Navigate to the appropriate feature worktree: `cd .worktrees/<feature-name>`
-3. Verify you're in the right place: `git branch --show-current` should show the feature branch
-4. Then re-run this command
-
-The script will fail if you're not in a feature worktree.
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
-
-This is intentional - worktrees provide isolation for parallel feature development.
+Work packages are generated directly in `kitty-specs/###-feature/` and committed to main. Worktrees are created later when implementing each work package.
 
 ## Outline
 
-1. **Setup**: Run `{SCRIPT}` from repo root and capture `FEATURE_DIR` plus `AVAILABLE_DOCS`. All paths must be absolute.
+1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `FEATURE_DIR` plus `AVAILABLE_DOCS`. All paths must be absolute.
 
-   **CRITICAL**: The script returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
+   **CRITICAL**: The command returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations. Example:
    ```
@@ -56,6 +67,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
    **DO NOT CREATE** paths like:
    - ❌ `tasks/WP01-slug.md` (missing FEATURE_DIR prefix)
    - ❌ `/tasks/WP01-slug.md` (wrong root)
+   - ❌ `FEATURE_DIR/tasks/planned/WP01-slug.md` (WRONG - no subdirectories!)
    - ❌ `WP01-slug.md` (wrong directory)
 
 2. **Load design documents** from `FEATURE_DIR` (only those present):
@@ -85,32 +97,81 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - Preserve the checklist style so implementers can mark progress
 
 6. **Generate prompt files (one per work package)**:
-   - **CRITICAL PATH RULE**: All task directories and prompt files MUST be created under `FEATURE_DIR/tasks/`, NOT in the repo root!
-   - Correct structure: `FEATURE_DIR/tasks/WPxx-slug.md`, `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/`
+   - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `FEATURE_DIR/tasks/` directory, NOT in subdirectories!
+   - Correct structure: `FEATURE_DIR/tasks/WPxx-slug.md` (flat, no subdirectories)
+   - WRONG (do not create): `FEATURE_DIR/tasks/planned/`, `FEATURE_DIR/tasks/doing/`, or ANY lane subdirectories
    - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under FEATURE_DIR
-   - Ensure `FEATURE_DIR/tasks/` exists (create `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/`, `FEATURE_DIR/tasks/` if missing)
+   - Ensure `FEATURE_DIR/tasks/` exists (create as flat directory, NO subdirectories)
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `FEATURE_DIR/tasks/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
      - Use `.kittify/templates/task-prompt-template.md` to capture:
-       - Frontmatter with `work_package_id`, `subtasks` array, `lane=planned`, history entry
+     - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
        - Objective, context, detailed guidance per subtask
        - Test strategy (only if requested)
        - Definition of Done, risks, reviewer guidance
      - Update `tasks.md` to reference the prompt filename
    - Keep prompts exhaustive enough that a new agent can complete the work package unaided
 
-7. **Report**: Provide a concise outcome summary:
+   **IMPORTANT**: All WP files live in flat `tasks/` directory. Lane status is tracked ONLY in the `lane:` frontmatter field, NOT by directory location. Agents can change lanes by editing the `lane:` field directly or using `spec-kitty agent tasks move-task`.
+
+7. **Finalize tasks with dependency parsing and commit**:
+   After generating all WP prompt files, run the finalization command to:
+   - Parse dependencies from tasks.md
+   - Update WP frontmatter with dependencies field
+   - Validate dependencies (check for cycles, invalid references)
+   - Commit all tasks to main branch
+
+   **CRITICAL**: Run this command from repo root:
+   ```bash
+   spec-kitty agent feature finalize-tasks --json
+   ```
+
+   This step is MANDATORY for workspace-per-WP features. Without it:
+   - Dependencies won't be in frontmatter
+   - Agents won't know which --base flag to use
+   - Tasks won't be committed to main
+
+8. **Report**: Provide a concise outcome summary:
    - Path to `tasks.md`
    - Work package count and per-package subtask tallies
    - Parallelization highlights
    - MVP scope recommendation (usually Work Package 1)
-  - Prompt generation stats (files written, directory structure, any skipped items with rationale)
+   - Prompt generation stats (files written, directory structure, any skipped items with rationale)
+   - Finalization status (dependencies parsed, X WP files updated, committed to main)
    - Next suggested command (e.g., `/spec-kitty.analyze` or `/spec-kitty.implement`)
 
 Context for work-package planning: {ARGS}
 
 The combination of `tasks.md` and the bundled prompt files must enable a new engineer to pick up any work package and deliver it end-to-end without further specification spelunking.
+
+## Dependency Detection (0.11.0+)
+
+**Parse dependencies from tasks.md structure**:
+
+The LLM should analyze tasks.md for dependency relationships:
+- Explicit phrases: "Depends on WP##", "Dependencies: WP##"
+- Phase grouping: Phase 2 WPs typically depend on Phase 1
+- Default to empty if unclear
+
+**Generate dependencies in WP frontmatter**:
+
+Each WP prompt file MUST include a `dependencies` field:
+```yaml
+---
+work_package_id: "WP02"
+title: "Build API"
+lane: "planned"
+dependencies: ["WP01"]  # Generated from tasks.md
+subtasks: ["T001", "T002"]
+---
+```
+
+**Include the correct implementation command**:
+- No dependencies: `spec-kitty implement WP01`
+- With dependencies: `spec-kitty implement WP02 --base WP01`
+
+The WP prompt must show the correct command so agents don't branch from the wrong base.
 
 ## Task Generation Rules
 

@@ -59,7 +59,7 @@ class TestCreateFeatureIntegration:
     """Integration tests for create-feature command."""
 
     def test_creates_feature_from_main_repo(self, git_repo: Path, monkeypatch):
-        """Should create feature worktree from main repository."""
+        """Should create feature directory in main repository."""
         # Setup
         monkeypatch.chdir(git_repo)
 
@@ -86,23 +86,13 @@ class TestCreateFeatureIntegration:
         assert output["result"] == "success"
         assert output["feature"] == "001-test-feature"
 
-        # Verify worktree was created
-        worktree_path = git_repo / ".worktrees" / "001-test-feature"
-        assert worktree_path.exists()
-        assert worktree_path.is_dir()
-
-        # Verify it's a valid git worktree
-        git_result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        assert git_result.returncode == 0
+        # Verify no worktree created (planning happens in main)
+        worktrees_dir = git_repo / ".worktrees"
+        if worktrees_dir.exists():
+            assert not list(worktrees_dir.iterdir()), "Unexpected worktrees created"
 
         # Verify feature directory structure
-        feature_dir = worktree_path / "kitty-specs" / "001-test-feature"
+        feature_dir = git_repo / "kitty-specs" / "001-test-feature"
         assert feature_dir.exists()
         assert (feature_dir / "spec.md").exists()
         assert (feature_dir / "spec.md").read_text() == "# Spec Template"
@@ -117,19 +107,8 @@ class TestCreateFeatureIntegration:
         assert "YAML frontmatter" in tasks_readme
         assert "lane:" in tasks_readme
 
-        # Verify worktree .kittify setup
-        worktree_kittify = worktree_path / ".kittify"
-        assert worktree_kittify.exists()
-
-        # Verify memory is either symlinked or copied
-        worktree_memory = worktree_kittify / "memory"
-        assert worktree_memory.exists()
-        if worktree_memory.is_symlink():
-            # Symlink should point to relative path
-            assert (worktree_memory / "constitution.md").exists()
-        else:
-            # Directory copy should exist
-            assert (worktree_memory / "constitution.md").read_text() == "# Constitution"
+        # Verify .kittify is unchanged in main repo
+        assert (git_repo / ".kittify").exists()
 
     def test_creates_feature_with_auto_incrementing_number(
         self, git_repo: Path, monkeypatch
@@ -155,38 +134,33 @@ class TestCreateFeatureIntegration:
         output2 = json.loads(result2.stdout)
         assert output2["feature"] == "002-feature-two"
 
-        # Verify both worktrees exist
-        assert (git_repo / ".worktrees" / "001-feature-one").exists()
-        assert (git_repo / ".worktrees" / "002-feature-two").exists()
+        # Verify both feature directories exist in main
+        assert (git_repo / "kitty-specs" / "001-feature-one").exists()
+        assert (git_repo / "kitty-specs" / "002-feature-two").exists()
 
     def test_creates_feature_from_existing_worktree(self, git_repo: Path, monkeypatch):
-        """Should create new feature when run from inside existing worktree."""
-        # Setup: Create first feature
+        """Should reject create-feature when run from a worktree branch."""
         monkeypatch.chdir(git_repo)
         template_dir = git_repo / ".kittify" / "templates"
         template_dir.mkdir(parents=True)
         (template_dir / "spec-template.md").write_text("# Spec")
 
-        result1 = runner.invoke(app, ["create-feature", "first-feature", "--json"])
-        assert result1.exit_code == 0
+        # Create a worktree to simulate worktree context
+        worktree_path = git_repo / ".worktrees" / "001-existing"
+        worktree_path.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            ["git", "worktree", "add", str(worktree_path), "-b", "001-existing"],
+            cwd=git_repo,
+            check=True,
+            capture_output=True,
+        )
+        monkeypatch.chdir(worktree_path)
 
-        # Change to first worktree
-        worktree1 = git_repo / ".worktrees" / "001-first-feature"
-        monkeypatch.chdir(worktree1)
-
-        # Create second feature from inside first worktree
-        result2 = runner.invoke(app, ["create-feature", "second-feature", "--json"])
-
-        # Verify
-        assert result2.exit_code == 0, f"Command failed: {result2.stdout}"
-        output2 = json.loads(result2.stdout)
-        assert output2["feature"] == "002-second-feature"
-
-        # Verify second worktree exists in main repo, not nested
-        # The worktree path should be returned in the JSON output
-        worktree2_path = Path(output2["worktree_path"])
-        assert worktree2_path.exists(), f"Worktree not found at {worktree2_path}"
-        assert worktree2_path.is_dir()
+        # Create feature from worktree should fail (must be on main/master)
+        result = runner.invoke(app, ["create-feature", "second-feature", "--json"])
+        assert result.exit_code != 0
+        error_output = result.stdout + result.stderr
+        assert "main branch" in error_output.lower()
 
 
 class TestCheckPrerequisitesIntegration:
@@ -202,9 +176,9 @@ class TestCheckPrerequisitesIntegration:
 
         runner.invoke(app, ["create-feature", "test-feature"])
 
-        # Change to worktree
-        worktree = git_repo / ".worktrees" / "001-test-feature"
-        monkeypatch.chdir(worktree)
+        # Change to feature directory (main repo)
+        feature_dir = git_repo / "kitty-specs" / "001-test-feature"
+        monkeypatch.chdir(feature_dir)
 
         # Execute
         result = runner.invoke(app, ["check-prerequisites", "--json"])
@@ -234,7 +208,7 @@ class TestCheckPrerequisitesIntegration:
         assert any("spec.md" in error for error in output["errors"])
 
     def test_validates_from_worktree_root(self, git_repo: Path, monkeypatch):
-        """Should correctly identify feature when run from worktree root."""
+        """Should correctly identify feature when run from feature directory."""
         # Setup
         monkeypatch.chdir(git_repo)
         template_dir = git_repo / ".kittify" / "templates"
@@ -245,9 +219,9 @@ class TestCheckPrerequisitesIntegration:
         runner.invoke(app, ["create-feature", "feature-one"])
         runner.invoke(app, ["create-feature", "feature-two"])
 
-        # Change to second worktree root
-        worktree2 = git_repo / ".worktrees" / "002-feature-two"
-        monkeypatch.chdir(worktree2)
+        # Change to second feature directory
+        feature_dir = git_repo / "kitty-specs" / "002-feature-two"
+        monkeypatch.chdir(feature_dir)
 
         # Execute
         result = runner.invoke(app, ["check-prerequisites", "--json"])
@@ -310,7 +284,7 @@ class TestSetupPlanIntegration:
         assert plan_file.read_text() == plan_template_content
 
     def test_scaffolds_plan_from_worktree(self, git_repo: Path, monkeypatch):
-        """Should scaffold plan when run from worktree."""
+        """Should scaffold plan when run from feature directory."""
         # Setup
         monkeypatch.chdir(git_repo)
         template_dir = git_repo / ".kittify" / "templates"
@@ -321,18 +295,11 @@ class TestSetupPlanIntegration:
         # Create feature
         runner.invoke(app, ["create-feature", "test-feature"])
 
-        # Change to worktree
-        worktree = git_repo / ".worktrees" / "001-test-feature"
-        monkeypatch.chdir(worktree)
+        # Change to feature directory
+        feature_dir = git_repo / "kitty-specs" / "001-test-feature"
+        monkeypatch.chdir(feature_dir)
 
-        # Copy templates to worktree .kittify (since setup_feature_directory doesn't do this)
-        worktree_templates = worktree / ".kittify" / "templates"
-        worktree_templates.mkdir(parents=True, exist_ok=True)
-        import shutil
-        shutil.copy2(template_dir / "plan-template.md", worktree_templates / "plan-template.md")
-
-        # Remove plan.md if it exists (it might be created by create-feature)
-        feature_dir = worktree / "kitty-specs" / "001-test-feature"
+        # Remove plan.md if it exists
         plan_file = feature_dir / "plan.md"
         if plan_file.exists():
             plan_file.unlink()
@@ -384,26 +351,16 @@ class TestEndToEndFeatureWorkflow:
         result1 = runner.invoke(app, ["create-feature", "new-feature", "--json"])
         assert result1.exit_code == 0
         output1 = json.loads(result1.stdout)
-        worktree_path = Path(output1["worktree_path"])
+        feature_dir = Path(output1["feature_dir"])
 
-        # Step 2: Check prerequisites from worktree
-        monkeypatch.chdir(worktree_path)
+        # Step 2: Check prerequisites from feature directory
+        monkeypatch.chdir(feature_dir)
         result2 = runner.invoke(app, ["check-prerequisites", "--json"])
         assert result2.exit_code == 0
         output2 = json.loads(result2.stdout)
         assert output2["valid"] is True
 
-        # Copy templates to worktree for setup-plan
-        import shutil
-        worktree_templates = worktree_path / ".kittify" / "templates"
-        worktree_templates.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(
-            git_repo / ".kittify" / "templates" / "plan-template.md",
-            worktree_templates / "plan-template.md"
-        )
-
         # Step 3: Setup plan (if not already created)
-        feature_dir = worktree_path / "kitty-specs" / "001-new-feature"
         plan_file = feature_dir / "plan.md"
         if plan_file.exists():
             plan_file.unlink()

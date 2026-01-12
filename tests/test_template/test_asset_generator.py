@@ -4,6 +4,7 @@ from pathlib import Path
 
 from specify_cli.template.asset_generator import (
     generate_agent_assets,
+    prepare_command_templates,
     render_command_template,
 )
 
@@ -17,6 +18,19 @@ scripts:
   sh: echo hi
 {agent_block}---
 Run {{SCRIPT}} {{ARGS}} {{AGENT_SCRIPT}} for __AGENT__.
+""",
+        encoding="utf-8",
+    )
+
+
+def _write_template_with_body(path: Path, body: str) -> None:
+    path.write_text(
+        f"""---
+description: Demo Template
+scripts:
+  sh: echo hi
+---
+{body}
 """,
         encoding="utf-8",
     )
@@ -68,3 +82,28 @@ def test_generate_agent_assets_creates_expected_files(tmp_path: Path) -> None:
     assert output_file.exists()
     content = output_file.read_text(encoding="utf-8")
     assert "Run echo hi $ARGUMENTS source env for codex." in content
+
+
+def test_prepare_command_templates_overlays_mission(tmp_path: Path) -> None:
+    base_dir = tmp_path / "base"
+    mission_dir = tmp_path / "missions" / "software-dev" / "command-templates"
+    base_dir.mkdir(parents=True)
+    mission_dir.mkdir(parents=True)
+
+    _write_template_with_body(base_dir / "demo.md", "Base content for __AGENT__.")
+    _write_template_with_body(base_dir / "baseonly.md", "Base-only template.")
+    _write_template_with_body(mission_dir / "demo.md", "Mission override for __AGENT__.")
+
+    merged_dir = prepare_command_templates(base_dir, mission_dir)
+
+    project_path = tmp_path / "project"
+    project_path.mkdir()
+    generate_agent_assets(merged_dir, project_path, "codex", "sh")
+
+    demo_output = project_path / ".codex" / "prompts" / "spec-kitty.demo.md"
+    base_output = project_path / ".codex" / "prompts" / "spec-kitty.baseonly.md"
+
+    assert demo_output.exists()
+    assert base_output.exists()
+    assert "Mission override for codex." in demo_output.read_text(encoding="utf-8")
+    assert "Base-only template." in base_output.read_text(encoding="utf-8")

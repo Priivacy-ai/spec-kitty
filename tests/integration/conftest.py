@@ -5,6 +5,8 @@ import shutil
 import subprocess
 import sys
 import tomllib
+from importlib.metadata import version as get_version
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import Callable
 
@@ -80,8 +82,8 @@ def test_project(tmp_path: Path) -> Path:
 
     # Copy missions from new location (src/specify_cli/missions/ -> .kittify/missions/)
     missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
-    if missions_src.exists():
-        missions_dest = project / ".kittify" / "missions"
+    missions_dest = project / ".kittify" / "missions"
+    if missions_src.exists() and not missions_dest.exists():
         shutil.copytree(missions_src, missions_dest)
 
     (project / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
@@ -98,10 +100,13 @@ def test_project(tmp_path: Path) -> Path:
         with open(metadata_file, "r", encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
-        # Get current version from pyproject.toml
-        with open(REPO_ROOT / "pyproject.toml", "rb") as f:
-            pyproject = tomllib.load(f)
-        current_version = pyproject["project"]["version"]
+        # Align project version with the CLI version used by tests.
+        try:
+            current_version = get_version("spec-kitty-cli")
+        except PackageNotFoundError:
+            with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+                pyproject = tomllib.load(f)
+            current_version = pyproject["project"]["version"] or "unknown"
 
         # Update version in nested spec_kitty.version structure
         if "spec_kitty" not in metadata:

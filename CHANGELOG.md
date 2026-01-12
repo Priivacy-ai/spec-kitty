@@ -6,8 +6,105 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [Unreleased]
+
+### 🚨 BREAKING CHANGES - Workspace Model Changed (Feature 010)
+
+**Old (0.10.x)**: One worktree per feature
+- `/spec-kitty.specify` created `.worktrees/###-feature/`
+- All WPs worked in same worktree
+- Sequential development (one agent at a time)
+
+**New (0.11.0)**: One worktree per work package
+- Planning commands (specify, plan, tasks) work in main repository (NO worktree created)
+- `spec-kitty implement WP##` creates `.worktrees/###-feature-WP##/`
+- Each WP has isolated worktree with dedicated branch
+- Enables parallel multi-agent development
+
+### ⚠️ Migration Required
+
+**You MUST complete or delete all in-progress features before upgrading to 0.11.0.**
+
+Check for legacy worktrees:
+```bash
+spec-kitty list-legacy-features
+```
+
+See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migration guide.
+
+### 🔒 Security (IMPORTANT) - Feature 011
+
+- **Comprehensive adversarial review framework**
+  - Expanded review template from 3 bullets (109 lines) to 12 scrutiny categories (505 lines)
+  - **Security scrutiny now mandatory**: 10 detailed security subsections
+  - **Mandatory verification**: 7 security grep commands must be run on EVERY review
+  - **Automatic rejection** if any security check fails
+  - **Impact**: All future features will have security-first reviews
+
+### ✨ Added
+
+**Workspace-per-WP Features (010)**:
+- **New command**: `spec-kitty implement WP## [--base WPXX]` - Create workspace for work package
+  - `--base` flag branches from another WP's branch (for dependencies)
+  - Automatically moves WP from `planned` → `doing` lane
+- **New command**: `spec-kitty agent feature finalize-tasks` - Finalize WP generation
+  - Parses dependencies from tasks.md
+  - Generates `dependencies: []` field in WP frontmatter
+  - Validates dependency graph (cycle detection, invalid references)
+- **Dependency tracking**: WP frontmatter includes `dependencies: []` field
+- **Dependency graph utilities**: `src/specify_cli/core/dependency_graph.py`
+- **Review warnings**: Alert when dependent WPs need rebase
+
+**Constitution Features (011)**:
+- **Interactive constitution command** (Phase-based discovery)
+  - 4-phase discovery workflow (Technical, Quality, Tribal Knowledge, Governance)
+  - Two paths: Minimal (Phase 1 only) or Comprehensive (all phases)
+  - Skip options for each phase
+  - Truly optional - all commands work without constitution
+
+### ♻️ Refactored - Feature 011
+
+- **Template source relocation** (Safe dogfooding - Critical)
+  - Moved ALL template sources from `.kittify/` to `src/specify_cli/`
+  - Updated template manager to load from package resources
+  - Removed `.kittify/*` force-includes from `pyproject.toml`
+  - **Impact**: Developers can now safely dogfood without packaging risk
+
+- **Mission-specific constitutions removed**
+  - Single project-level constitution model (`.kittify/memory/constitution.md`)
+  - Migration removes mission constitutions from user projects
+
+### 🐛 Fixed - Feature 011
+
+- **Windows dashboard ERR_EMPTY_RESPONSE** (#71)
+  - Replaced POSIX-only signal handling with cross-platform psutil
+  - Added `psutil>=5.9.0` dependency
+  - Dashboard now works on Windows 10/11
+
+- **Upgrade migration failures** (#70)
+  - Fixed multiple migrations to handle missing files gracefully
+  - All migrations now idempotent
+  - Upgrade path from 0.6.4 → 0.10.12 completes without intervention
+
+### 📖 Documentation - Feature 010
+
+- **New docs**: `docs/workspace-per-wp.md` - Workflow guide with examples
+- **New docs**: `docs/upgrading-to-0-11-0.md` - Migration instructions
+
+### 🎯 Why These Changes?
+
+**Feature 010 (Workspace-per-WP)**:
+- Enables parallel multi-agent development
+- Better isolation per work package
+- Explicit dependencies with validation
+- Scalability for large features (10+ WPs)
+- Foundation for future jujutsu VCS integration
+
+**Feature 011 (Constitution & Packaging Safety)**:
+- Safe dogfooding (no packaging contamination)
+- Cross-platform dashboard support
+- Optional, interactive constitution setup
+- Smooth upgrade migrations
 
 ## [0.10.13] - 2026-01-12
 
@@ -46,21 +143,11 @@ The migration will remove mission-specific constitution directories:
 
 ### 🔒 Security (IMPORTANT)
 
-- **Comprehensive adversarial review framework** (Feature 011 - Additional Scope)
+- **Comprehensive adversarial review framework**
   - Expanded review template from 3 bullets (109 lines) to 12 scrutiny categories (505 lines)
-  - **Security scrutiny now mandatory**: 10 detailed security subsections covering:
-    * SQL injection, command injection, path traversal, template injection
-    * Authentication & authorization (secure tokens, password hashing)
-    * Sensitive data handling (no secrets in logs/commits/URLs)
-    * Data validation & sanitization (never trust user input)
-    * File system security (TOCTOU, symlinks, permissions)
-    * Dependency security (versions, CVEs, minimal dependencies)
-    * Cryptography (modern algorithms, no homebrew crypto)
-    * API security (auth, rate limiting, CORS)
-    * Privilege & permissions (least privilege principle)
+  - **Security scrutiny now mandatory**: 10 detailed security subsections
   - **Mandatory verification**: 7 security grep commands must be run on EVERY review
   - **Automatic rejection** if any security check fails
-  - **Philosophy change**: Default to REJECT, only approve after actively trying to find problems
   - **Impact**: All future features will have security-first reviews
   - **Rationale**: Prevents systematic quality issues (TODOs in prod, mocked implementations, security vulnerabilities)
   - See spec footnote and commit `61d7d01` for complete rationale
@@ -112,23 +199,6 @@ The migration will remove mission-specific constitution directories:
   - **Impact**: Single project-level constitution model (`.kittify/memory/constitution.md`)
   - **Migration**: `m_0_10_12_constitution_cleanup.py` removes mission constitutions from user projects
   - Eliminates confusion about which constitution applies
-
-### ✨ Added
-
-- **Interactive constitution command** (Phase-based discovery)
-  - Completely redesigned `/spec-kitty.constitution` command
-  - **4-phase discovery workflow**:
-    1. Phase 1: Technical Standards (languages, testing, performance, deployment) - Recommended
-    2. Phase 2: Code Quality (PR requirements, review checklist, quality gates) - Optional
-    3. Phase 3: Tribal Knowledge (conventions, lessons learned, historical decisions) - Optional
-    4. Phase 4: Governance (amendment process, compliance, exceptions) - Optional with defaults
-  - **Two paths**:
-    * Minimal: Phase 1 only, 3-5 questions, ~1 page output
-    * Comprehensive: All phases, 8-12 questions, ~2-3 pages output
-  - **Skip options**: Each optional phase can be skipped with guidance
-  - **Summary & confirmation**: Shows what will be written before committing
-  - **Truly optional**: All spec-kitty commands work without constitution
-  - Replaces old placeholder-filling approach
 
 ## [0.10.11] - 2026-01-07
 
