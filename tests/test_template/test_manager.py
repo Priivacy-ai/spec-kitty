@@ -11,7 +11,7 @@ from specify_cli.template.manager import copy_specify_base_from_local, get_local
 
 def test_get_local_repo_root_prefers_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # Manager expects templates/command-templates to exist for repo root detection
-    templates_dir = tmp_path / "templates" / "command-templates"
+    templates_dir = tmp_path / "src" / "specify_cli" / "templates" / "command-templates"
     templates_dir.mkdir(parents=True)
     marker = templates_dir / "demo.md"
     marker.write_text("# demo", encoding="utf-8")
@@ -28,23 +28,23 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
-    # Manager now copies from .kittify/ directories
+    # Memory lives under .kittify, scripts/templates/missions live under src/
     memory_src = repo_root / ".kittify" / "memory"
     memory_src.mkdir(parents=True, exist_ok=True)
     (memory_src / "seed.txt").write_text("hello", encoding="utf-8")
 
-    scripts_src = repo_root / ".kittify" / "scripts"
+    scripts_src = repo_root / "src" / "specify_cli" / "scripts"
     (scripts_src / "bash").mkdir(parents=True)
     (scripts_src / "bash" / "bootstrap.sh").write_text("echo hi", encoding="utf-8")
     (scripts_src / "tasks").mkdir()
     (scripts_src / "tasks" / "tasks_cli.py").write_text("print('ok')", encoding="utf-8")
 
-    templates_src = repo_root / ".kittify" / "templates" / "command-templates"
+    templates_src = repo_root / "src" / "specify_cli" / "templates" / "command-templates"
     templates_src.mkdir(parents=True)
     (templates_src / "sample.md").write_text("content", encoding="utf-8")
-    (repo_root / ".kittify" / "templates" / "AGENTS.md").write_text("agents", encoding="utf-8")
+    (repo_root / "src" / "specify_cli" / "templates" / "AGENTS.md").write_text("agents", encoding="utf-8")
 
-    missions_src = repo_root / ".kittify" / "missions" / "default"
+    missions_src = repo_root / "src" / "specify_cli" / "missions" / "default"
     missions_src.mkdir(parents=True)
     (missions_src / "rules.md").write_text("rules", encoding="utf-8")
 

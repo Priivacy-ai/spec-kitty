@@ -26,7 +26,7 @@ def research_project_root(tmp_path: Path) -> Path:
 
     # Copy missions from current repo
     import shutil
-    src_missions = Path.cwd() / ".kittify" / "missions"
+    src_missions = Path.cwd() / "src" / "specify_cli" / "missions"
     if src_missions.exists():
         shutil.copytree(src_missions, kittify / "missions")
 
