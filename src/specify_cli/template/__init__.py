@@ -14,6 +14,7 @@ from .renderer import (
 )
 from .asset_generator import (
     generate_agent_assets,
+    prepare_command_templates,
     render_command_template,
 )
 from .github_client import (
@@ -39,6 +40,7 @@ __all__ = [
     "get_local_repo_root",
     "parse_frontmatter",
     "parse_repo_slug",
+    "prepare_command_templates",
     "render_command_template",
     "render_template",
     "rewrite_paths",

@@ -118,6 +118,19 @@ class TestBuildDependencyGraph:
         graph = build_dependency_graph(feature_dir)
         assert graph == {"WP01": []}
 
+    def test_build_graph_raises_on_mismatched_wp_id(self, tmp_path: Path):
+        """Mismatched filename WP ID vs frontmatter should raise."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        (tasks_dir / "WP02-mismatch.md").write_text(
+            "---\nwork_package_id: WP03\ndependencies: []\n---"
+        )
+
+        with pytest.raises(ValueError, match="WP ID mismatch"):
+            build_dependency_graph(feature_dir)
+
     def test_build_graph_linear_chain(self, tmp_path: Path):
         """Test graph building with linear dependency chain."""
         feature_dir = tmp_path / "kitty-specs" / "010-feature"

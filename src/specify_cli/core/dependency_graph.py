@@ -94,11 +94,12 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
 
             # Verify filename matches frontmatter (catch misnamed files)
             if frontmatter_wp_id and frontmatter_wp_id != filename_wp_id:
-                # Log warning but use frontmatter value as canonical
-                # (Frontmatter is source of truth, filename may be stale)
-                wp_id = frontmatter_wp_id
-            else:
-                wp_id = frontmatter_wp_id or filename_wp_id
+                raise ValueError(
+                    f"WP ID mismatch: filename {filename_wp_id} vs frontmatter {frontmatter_wp_id} "
+                    f"in {wp_file}"
+                )
+
+            wp_id = frontmatter_wp_id or filename_wp_id
 
         except (FrontmatterError, OSError):
             # If frontmatter read fails, skip this file
