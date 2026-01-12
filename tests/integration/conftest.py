@@ -27,6 +27,13 @@ def run_cli() -> Callable[[Path, str], subprocess.CompletedProcess[str]]:
         env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
         # Ensure CLI can resolve bundled templates when running from source checkout
         env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
+        # Override CLI version to match installed package for isolation tests
+        try:
+            env["SPEC_KITTY_CLI_VERSION"] = get_version("spec-kitty-cli")
+        except PackageNotFoundError:
+            with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+                pyproject = tomllib.load(f)
+            env["SPEC_KITTY_CLI_VERSION"] = pyproject["project"]["version"]
         command = [sys.executable, "-m", "specify_cli.__init__", *args]
         return subprocess.run(
             command,
@@ -51,6 +58,7 @@ def test_project(tmp_path: Path) -> Path:
         symlinks=True,
     )
 
+    # Copy missions from new location (src/specify_cli/missions/ -> .kittify/missions/)
     missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
     missions_dest = project / ".kittify" / "missions"
     if missions_src.exists() and not missions_dest.exists():
@@ -70,13 +78,13 @@ def test_project(tmp_path: Path) -> Path:
         with open(metadata_file, "r", encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
-        # Align project version with installed CLI version to avoid mismatch gating
+        # Align project version with the CLI version used by tests.
         try:
             current_version = get_version("spec-kitty-cli")
         except PackageNotFoundError:
             with open(REPO_ROOT / "pyproject.toml", "rb") as f:
                 pyproject = tomllib.load(f)
-            current_version = pyproject["project"]["version"]
+            current_version = pyproject["project"]["version"] or "unknown"
 
         # Update version in nested spec_kitty.version structure
         if "spec_kitty" not in metadata:

@@ -10,7 +10,7 @@ from specify_cli.template.manager import copy_specify_base_from_local, get_local
 
 
 def test_get_local_repo_root_prefers_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    # Manager expects templates/command-templates to exist for repo root detection
+    # Manager expects src/specify_cli/templates/command-templates to exist for repo root detection
     templates_dir = tmp_path / "src" / "specify_cli" / "templates" / "command-templates"
     templates_dir.mkdir(parents=True)
     marker = templates_dir / "demo.md"
@@ -28,7 +28,7 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
-    # Memory lives under .kittify, scripts/templates/missions live under src/
+    # Memory is still copied from .kittify/memory/ (project-specific content)
     memory_src = repo_root / ".kittify" / "memory"
     memory_src.mkdir(parents=True, exist_ok=True)
     (memory_src / "seed.txt").write_text("hello", encoding="utf-8")

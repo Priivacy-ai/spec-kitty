@@ -24,7 +24,7 @@ def research_project_root(tmp_path: Path) -> Path:
     kittify = project_dir / ".kittify"
     kittify.mkdir()
 
-    # Copy missions from current repo
+    # Copy missions from current repo (new location in src/)
     import shutil
     src_missions = Path.cwd() / "src" / "specify_cli" / "missions"
     if src_missions.exists():

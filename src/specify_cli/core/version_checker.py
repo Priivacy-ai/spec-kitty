@@ -19,6 +19,12 @@ def get_cli_version() -> str:
     Returns:
         Version string (e.g., "0.9.0" or "0.5.0-dev")
     """
+    # Allow tests to override CLI version
+    import os
+    override_version = os.environ.get("SPEC_KITTY_CLI_VERSION")
+    if override_version:
+        return override_version
+
     try:
         from importlib.metadata import version as get_version
         return get_version("spec-kitty-cli")

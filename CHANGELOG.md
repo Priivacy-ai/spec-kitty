@@ -139,7 +139,68 @@ The migration will remove mission-specific constitution directories:
 - `.kittify/missions/research/constitution/` → removed
 - Single project-level constitution: `.kittify/memory/constitution.md` (kept)
 
-## [0.10.12] - 2026-01-07
+## [0.10.12] - 2026-01-12
+
+### 🔒 Security (IMPORTANT)
+
+- **Comprehensive adversarial review framework**
+  - Expanded review template from 3 bullets (109 lines) to 12 scrutiny categories (505 lines)
+  - **Security scrutiny now mandatory**: 10 detailed security subsections
+  - **Mandatory verification**: 7 security grep commands must be run on EVERY review
+  - **Automatic rejection** if any security check fails
+  - **Impact**: All future features will have security-first reviews
+  - **Rationale**: Prevents systematic quality issues (TODOs in prod, mocked implementations, security vulnerabilities)
+  - See spec footnote and commit `61d7d01` for complete rationale
+
+### 🐛 Fixed
+
+- **Windows dashboard ERR_EMPTY_RESPONSE** (#71)
+  - Replaced POSIX-only signal handling with cross-platform psutil library
+  - `signal.SIGKILL` and `signal.SIGTERM` don't exist on Windows
+  - Added `psutil>=5.9.0` dependency for cross-platform process management
+  - Refactored `src/specify_cli/dashboard/lifecycle.py`:
+    * `os.kill(pid, 0)` → `psutil.Process(pid).is_running()`
+    * `signal.SIGKILL` → `psutil.Process(pid).kill()` (6 locations)
+    * `signal.SIGTERM` → `psutil.Process(pid).terminate()` with timeout
+  - Added proper exception handling (NoSuchProcess, AccessDenied, TimeoutExpired)
+  - Dashboard now starts, serves HTML, and stops cleanly on Windows 10/11
+  - All 41 dashboard tests passing
+
+- **Upgrade migration failures** (#70)
+  - Fixed `m_0_7_3_update_scripts.py` to handle missing bash scripts gracefully
+  - Fixed `m_0_10_6_workflow_simplification.py` to copy templates before validation
+  - Fixed `m_0_10_2_update_slash_commands.py` to explicitly remove legacy .toml files
+  - Fixed `m_0_10_0_python_only.py` to explicitly remove `.kittify/scripts/tasks/`
+  - Created `m_0_10_12_constitution_cleanup.py` to remove mission constitutions
+  - All migrations now idempotent (safe to run multiple times)
+  - Upgrade path from 0.6.4 → 0.10.12 now completes without manual intervention
+
+- **Upgrade migration parameter mismatch** (#68 follow-up)
+  - Fixed `m_0_10_9_repair_templates.py` migration calling `generate_agent_assets()` with wrong parameter name
+  - Changed `ai=ai_config` to `agent_key=ai_config` to match function signature
+
+### ♻️ Refactored
+
+- **Template source relocation** (Safe dogfooding - Critical)
+  - Moved ALL template sources from `.kittify/` to `src/specify_cli/`
+  - Templates: `.kittify/templates/` → `src/specify_cli/templates/`
+  - Missions: `.kittify/missions/` → `src/specify_cli/missions/`
+  - Scripts: `.kittify/scripts/` → `src/specify_cli/scripts/`
+  - Updated `src/specify_cli/template/manager.py` to load from `src/` not `.kittify/`
+  - Removed ALL `.kittify/*` force-includes from `pyproject.toml`
+  - **Impact**: Spec-kitty developers can now safely dogfood spec-kitty without risk of packaging their filled-in constitutions
+  - **Verification**: Building wheel produces ZERO `.kittify/` or `memory/constitution.md` entries
+  - Package now only contains `src/specify_cli/` (proper Python packaging)
+
+- **Mission-specific constitutions removed**
+  - Removed `mission.constitution_dir` property from `src/specify_cli/mission.py`
+  - Removed constitution scanning from `src/specify_cli/manifest.py`
+  - Deleted all `missions/*/constitution/` directories
+  - **Impact**: Single project-level constitution model (`.kittify/memory/constitution.md`)
+  - **Migration**: `m_0_10_12_constitution_cleanup.py` removes mission constitutions from user projects
+  - Eliminates confusion about which constitution applies
+
+## [0.10.11] - 2026-01-07
 
 ### 🐛 Fixed
 
