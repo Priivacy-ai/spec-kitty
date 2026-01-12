@@ -34,7 +34,17 @@ def _find_feature_slug() -> str:
     Raises:
         typer.Exit: If feature slug cannot be determined
     """
+    import re
     cwd = Path.cwd().resolve()
+
+    def _strip_wp_suffix(slug: str) -> str:
+        """Strip -WPxx suffix from feature slug if present.
+
+        Worktree branches/dirs are named {feature-slug}-WPxx,
+        so we need to extract just the feature slug.
+        """
+        # Match -WPxx at the end (case insensitive)
+        return re.sub(r'-WP\d+$', '', slug, flags=re.IGNORECASE)
 
     # Strategy 1: Check if cwd contains kitty-specs/###-feature-slug
     if "kitty-specs" in cwd.parts:
@@ -45,7 +55,7 @@ def _find_feature_slug() -> str:
                 potential_slug = parts_list[idx + 1]
                 # Validate format: ###-slug
                 if len(potential_slug) >= 3 and potential_slug[:3].isdigit():
-                    return potential_slug
+                    return _strip_wp_suffix(potential_slug)
         except (ValueError, IndexError):
             pass
 
@@ -60,12 +70,16 @@ def _find_feature_slug() -> str:
             check=True
         )
         branch_name = result.stdout.strip()
-        # Validate format: ###-slug
+        # Validate format: ###-slug (possibly with -WPxx suffix)
         if len(branch_name) >= 3 and branch_name[:3].isdigit():
-            return branch_name
+            return _strip_wp_suffix(branch_name)
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
+    print("Error: Could not auto-detect feature slug.")
+    print("  - Not in a kitty-specs/###-feature-slug directory")
+    print("  - Git branch name doesn't match ###-slug format")
+    print("  - Use --feature <slug> to specify explicitly")
     raise typer.Exit(1)
 
 

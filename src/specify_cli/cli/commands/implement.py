@@ -21,8 +21,11 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 console = Console()
 
 
-def detect_feature_context() -> tuple[str, str]:
+def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
     """Detect feature number and slug from current context.
+
+    Args:
+        feature_flag: Explicit feature slug from --feature flag (optional)
 
     Returns:
         Tuple of (feature_number, feature_slug)
@@ -31,7 +34,18 @@ def detect_feature_context() -> tuple[str, str]:
     Raises:
         typer.Exit: If feature context cannot be detected
     """
-    # Try git branch first
+    # Priority 1: Explicit --feature flag
+    if feature_flag:
+        match = re.match(r'^(\d{3})-(.+)$', feature_flag)
+        if match:
+            number = match.group(1)
+            return number, feature_flag
+        else:
+            console.print(f"[red]Error:[/red] Invalid feature format: {feature_flag}")
+            console.print("Expected format: ###-feature-name (e.g., 001-my-feature)")
+            raise typer.Exit(1)
+
+    # Priority 2: Try git branch
     result = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
         capture_output=True,
@@ -67,6 +81,36 @@ def detect_feature_context() -> tuple[str, str]:
             number = match.group(1)
             slug = part
             return number, slug
+
+    # Try scanning kitty-specs/ for features (v0.11.0 workflow)
+    try:
+        repo_root = find_repo_root()
+        kitty_specs = repo_root / "kitty-specs"
+        if kitty_specs.exists():
+            # Find all feature directories
+            features = [
+                d.name for d in kitty_specs.iterdir()
+                if d.is_dir() and re.match(r'^\d{3}-', d.name)
+            ]
+
+            if len(features) == 1:
+                # Only one feature - use it automatically
+                match = re.match(r'^(\d{3})-(.+)$', features[0])
+                if match:
+                    number = match.group(1)
+                    slug = features[0]
+                    return number, slug
+            elif len(features) > 1:
+                # Multiple features - need user to specify
+                console.print("[red]Error:[/red] Multiple features found:")
+                for f in sorted(features):
+                    console.print(f"  - {f}")
+                console.print("\nSpecify feature explicitly:")
+                console.print("  spec-kitty implement WP01 --feature 001-my-feature")
+                raise typer.Exit(1)
+    except TaskCliError:
+        # Not in a git repo, continue to generic error
+        pass
 
     # Cannot detect
     console.print("[red]Error:[/red] Cannot detect feature context")
@@ -261,6 +305,8 @@ def check_for_dependents(
 def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
     base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
+    feature: str = typer.Option(None, "--feature", help="Feature slug (e.g., 001-my-feature)"),
+    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
 ) -> None:
     """Create workspace for work package implementation.
 
@@ -273,6 +319,12 @@ def implement(
 
         # Create workspace for WP02, branching from WP01
         spec-kitty implement WP02 --base WP01
+
+        # Explicit feature specification
+        spec-kitty implement WP01 --feature 001-my-feature
+
+        # JSON output for scripting
+        spec-kitty implement WP01 --json
     """
     tracker = StepTracker(f"Implement {wp_id}")
     tracker.add("detect", "Detect feature context")
@@ -284,7 +336,7 @@ def implement(
     tracker.start("detect")
     try:
         repo_root = find_repo_root()
-        feature_number, feature_slug = detect_feature_context()
+        feature_number, feature_slug = detect_feature_context(feature)
         tracker.complete("detect", f"Feature: {feature_slug}")
     except (TaskCliError, typer.Exit) as exc:
         tracker.error("detect", str(exc) if isinstance(exc, TaskCliError) else "failed")
@@ -341,6 +393,99 @@ def implement(
             tracker.error("validate", str(exc))
             console.print(tracker.render())
         raise typer.Exit(1)
+
+    # Step 2.5: Ensure planning artifacts are committed (v0.11.0 requirement)
+    # All planning must happen in main repo and be committed BEFORE worktree creation
+    if base is None:  # Only for first WP in feature (branches from main)
+        try:
+            # Check current branch
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            current_branch = result.stdout.strip() if result.returncode == 0 else ""
+
+            # Must be on main or master (legacy)
+            if current_branch not in ["main", "master"]:
+                console.print(f"\n[red]Error:[/red] Must be on main branch to create first workspace")
+                console.print(f"Current branch: {current_branch}")
+                console.print(f"Run: git checkout main")
+                raise typer.Exit(1)
+
+            # Find planning artifacts for this feature
+            feature_dir = repo_root / "kitty-specs" / feature_slug
+            if not feature_dir.exists():
+                console.print(f"\n[red]Error:[/red] Feature directory not found: {feature_dir}")
+                console.print(f"Run /spec-kitty.specify first")
+                raise typer.Exit(1)
+
+            # Check git status for untracked/modified files in feature directory
+            result = subprocess.run(
+                ["git", "status", "--porcelain", str(feature_dir)],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+
+            if result.returncode == 0 and result.stdout.strip():
+                # Parse git status output - any file showing up needs to be committed
+                # Porcelain format: XY filename (X=staged, Y=working tree)
+                # Examples: ??(untracked), M (staged modified), MM(staged+modified), etc.
+                files_to_commit = []
+                for line in result.stdout.strip().split('\n'):
+                    if line.strip():
+                        # Get status code (first 2 chars) and filepath (rest after space)
+                        if len(line) >= 3:
+                            status = line[:2]
+                            filepath = line[3:].strip()
+                            # Any file with status means it's untracked, modified, or staged
+                            # All of these should be included in the commit
+                            files_to_commit.append(filepath)
+
+                if files_to_commit:
+                    console.print(f"\n[cyan]Planning artifacts not committed:[/cyan]")
+                    for f in files_to_commit:
+                        console.print(f"  {f}")
+                    console.print(f"\n[cyan]Auto-committing to main...[/cyan]")
+
+                    # Stage all files in feature directory
+                    result = subprocess.run(
+                        ["git", "add", str(feature_dir)],
+                        cwd=repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+                    if result.returncode != 0:
+                        console.print(f"[red]Error:[/red] Failed to stage files")
+                        console.print(result.stderr)
+                        raise typer.Exit(1)
+
+                    # Commit with descriptive message
+                    commit_msg = f"chore: Planning artifacts for {feature_slug}\n\nAuto-committed by spec-kitty before creating workspace for {wp_id}"
+                    result = subprocess.run(
+                        ["git", "commit", "-m", commit_msg],
+                        cwd=repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+                    if result.returncode != 0:
+                        console.print(f"[red]Error:[/red] Failed to commit")
+                        console.print(result.stderr)
+                        raise typer.Exit(1)
+
+                    console.print(f"[green]✓[/green] Planning artifacts committed to main")
+
+        except typer.Exit:
+            raise
+        except Exception as e:
+            console.print(f"\n[red]Error:[/red] Failed to validate planning artifacts: {e}")
+            raise typer.Exit(1)
 
     # Step 3: Create workspace
     tracker.start("create")
@@ -407,15 +552,28 @@ def implement(
         raise
 
     # Success
-    console.print(tracker.render())
-    console.print(f"\n[bold green]✓ Workspace created successfully[/bold green]")
+    if json_output:
+        # JSON output for scripting
+        import json
+        print(json.dumps({
+            "workspace_path": str(workspace_path.relative_to(repo_root)),
+            "branch": branch_name,
+            "feature": feature_slug,
+            "wp_id": wp_id,
+            "base": base or "main",
+            "status": "created"
+        }))
+    else:
+        # Human-readable output
+        console.print(tracker.render())
+        console.print(f"\n[bold green]✓ Workspace created successfully[/bold green]")
 
-    # Check for dependent WPs after creation (T079)
-    check_for_dependents(repo_root, feature_slug, wp_id)
+        # Check for dependent WPs after creation (T079)
+        check_for_dependents(repo_root, feature_slug, wp_id)
 
-    console.print(f"\nTo start working:")
-    console.print(f"  cd {workspace_path}")
-    console.print(f"  git status")
+        console.print(f"\nTo start working:")
+        console.print(f"  cd {workspace_path}")
+        console.print(f"  git status")
 
 
 __all__ = ["implement"]

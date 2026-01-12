@@ -56,6 +56,7 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
 
     Args:
         feature_dir: Path to feature directory (contains tasks/ subdirectory)
+                    OR path to tasks directory directly
 
     Returns:
         Adjacency list mapping WP ID to list of dependencies
@@ -67,7 +68,14 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
         >>> print(graph)  # {"WP01": [], "WP02": ["WP01"]}
     """
     graph = {}
-    tasks_dir = feature_dir / "tasks"
+
+    # Support both feature_dir and tasks_dir as input
+    if feature_dir.name == "tasks":
+        # Already pointing to tasks directory
+        tasks_dir = feature_dir
+    else:
+        # Pointing to feature directory, append tasks/
+        tasks_dir = feature_dir / "tasks"
 
     if not tasks_dir.exists():
         return graph

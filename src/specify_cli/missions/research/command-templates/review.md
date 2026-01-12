@@ -1,5 +1,6 @@
 ---
 description: Perform structured research review with citation validation.
+---
 
 ## User Input
 
