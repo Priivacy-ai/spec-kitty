@@ -22,6 +22,7 @@ from . import m_0_10_1_populate_slash_commands
 from . import m_0_10_2_update_slash_commands
 from . import m_0_10_6_workflow_simplification
 from . import m_0_10_8_fix_memory_structure
+from . import m_0_10_12_constitution_cleanup
 
 __all__ = [
     "m_0_2_0_specify_to_kittify",
@@ -40,4 +41,5 @@ __all__ = [
     "m_0_10_2_update_slash_commands",  # Update to Python CLI and flat structure
     "m_0_10_6_workflow_simplification",  # Simplify implement/review to use workflow commands
     "m_0_10_8_fix_memory_structure",  # Fix memory/ and AGENTS.md structure
+    "m_0_10_12_constitution_cleanup",  # Remove mission-specific constitutions
 ]

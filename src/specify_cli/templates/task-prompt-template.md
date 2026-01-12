@@ -90,8 +90,40 @@ history:
 
 ## Activity Log
 
-> Append entries when the work package changes lanes. Include timestamp, agent, shell PID, lane, and a short note.
+> **CRITICAL**: Activity log entries MUST be in chronological order (oldest first, newest last).
 
+### How to Add Activity Log Entries
+
+**When adding an entry**:
+1. Scroll to the bottom of this file (Activity Log section below "Valid lanes")
+2. **APPEND the new entry at the END** (do NOT prepend or insert in middle)
+3. Use exact format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – lane=<lane> – <action>`
+4. Timestamp MUST be current time in UTC (check with `date -u "+%Y-%m-%dT%H:%M:%SZ"`)
+5. Lane MUST match the frontmatter `lane:` field exactly
+6. Agent ID should identify who made the change (claude-sonnet-4-5, codex, etc.)
+
+**Format**:
+```
+- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – lane=<lane> – <brief action description>
+```
+
+**Example (correct chronological order)**:
+```
+- 2026-01-12T10:00:00Z – system – lane=planned – Prompt created
+- 2026-01-12T10:30:00Z – claude – lane=doing – Started implementation
+- 2026-01-12T11:00:00Z – codex – lane=for_review – Implementation complete, ready for review
+- 2026-01-12T11:30:00Z – claude – lane=done – Review passed, all tests passing  ← LATEST (at bottom)
+```
+
+**Common mistakes (DO NOT DO THIS)**:
+- ❌ Adding new entry at the top (breaks chronological order)
+- ❌ Using future timestamps (causes acceptance validation to fail)
+- ❌ Lane mismatch: frontmatter says `lane: "done"` but log entry says `lane=doing`
+- ❌ Inserting in middle instead of appending to end
+
+**Why this matters**: The acceptance system reads the LAST activity log entry as the current state. If entries are out of order, acceptance will fail even when the work is complete.
+
+**Initial entry**:
 - {{TIMESTAMP}} – system – lane=planned – Prompt created.
 
 ---
@@ -100,10 +132,10 @@ history:
 
 To change a work package's lane, either:
 
-1. **Edit directly**: Change the `lane:` field in frontmatter
+1. **Edit directly**: Change the `lane:` field in frontmatter AND append activity log entry
 2. **Use CLI**: `spec-kitty agent tasks move-task <WPID> --to <lane> --note "message"`
 
-The CLI command also updates the activity log automatically.
+The CLI command updates both frontmatter and activity log automatically (recommended).
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 

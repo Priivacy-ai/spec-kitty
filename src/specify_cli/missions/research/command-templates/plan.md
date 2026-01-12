@@ -1,14 +1,5 @@
 ---
 description: Execute the implementation planning workflow using the plan template to generate design artifacts.
-scripts:
-  sh: spec-kitty agent setup-plan --json
-  ps: spec-kitty agent -Json
-agent_scripts:
-  sh: spec-kitty agent update-context __AGENT__
-  ps: spec-kitty agent -AgentType __AGENT__
----
-*Path: [templates/commands/plan.md](templates/commands/plan.md)*
-
 
 ## User Input
 
@@ -31,8 +22,6 @@ Before proceeding with planning, verify you are in the correct working directory
 - The validator prints clear navigation instructions if you're outside the feature worktree
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
-
-This is intentional - worktrees provide isolation for parallel feature development.
 
 ## Planning Interrogation (mandatory)
 
@@ -69,14 +58,14 @@ Planning requirements (scale to complexity):
 
 2. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.
 
-3. **Load context**: Read FEATURE_SPEC and `.kittify/memory/constitution.md`. Load IMPL_PLAN template (already copied).
+3. **Load context**: Read FEATURE_SPEC and `.kittify/memory/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
 
 4. **Execute plan workflow**: Follow the structure in IMPL_PLAN template, using the validated planning answers as ground truth:
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
-   - Fill Constitution Check section from constitution and challenge any conflicts directly with the user
+   - If a constitution exists, fill Constitution Check section from it and challenge any conflicts directly with the user. If no constitution exists, mark the section as skipped.
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
-   - Phase 0: Run `spec-kitty research` (or `/spec-kitty.research`) to scaffold research.md, data-model.md, and research CSV logs, then populate findings using the validated planning answers
-   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent (building on the Phase 0 outputs)
+   - Phase 0: Generate research.md (commission research to resolve every outstanding clarification)
+   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design, asking the user to resolve new gaps before proceeding
 
@@ -85,8 +74,6 @@ Planning requirements (scale to complexity):
 ## Phases
 
 ### Phase 0: Outline & Research
-
-> Kick off this phase by running `spec-kitty research` to scaffold the mission-specific files listed below. Then use the checklist to enrich each artifact with the clarifications uncovered during planning.
 
 1. **Extract unknowns from Technical Context** above:
    - For each NEEDS CLARIFICATION → research task

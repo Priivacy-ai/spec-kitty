@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+from importlib.resources import files
 import subprocess
 import sys
 from pathlib import Path
@@ -243,9 +244,12 @@ def setup_plan(
         cwd = Path.cwd().resolve()
         feature_dir = _find_feature_directory(repo_root, cwd)
 
+        plan_file = feature_dir / "plan.md"
+
         # Find plan template
         plan_template_candidates = [
             repo_root / ".kittify" / "templates" / "plan-template.md",
+            repo_root / "src" / "specify_cli" / "templates" / "plan-template.md",
             repo_root / "templates" / "plan-template.md",
         ]
 
@@ -255,13 +259,14 @@ def setup_plan(
                 plan_template = candidate
                 break
 
-        if plan_template is None:
-            raise FileNotFoundError("Plan template not found in repository")
-
-        plan_file = feature_dir / "plan.md"
-
-        # Copy template to plan.md
-        shutil.copy2(plan_template, plan_file)
+        if plan_template is not None:
+            shutil.copy2(plan_template, plan_file)
+        else:
+            package_template = files("specify_cli").joinpath("templates", "plan-template.md")
+            if not package_template.exists():
+                raise FileNotFoundError("Plan template not found in repository or package")
+            with package_template.open("rb") as src, open(plan_file, "wb") as dst:
+                shutil.copyfileobj(src, dst)
 
         if json_output:
             print(json.dumps({

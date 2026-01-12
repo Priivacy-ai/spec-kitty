@@ -42,6 +42,8 @@ Spec Kitty supports **12 AI agents** with slash commands. When adding features t
 - Filesystem only (YAML frontmatter in markdown files) (007-frontmatter-only-lane)
 - Python 3.11+ (existing spec-kitty requirement) (008-unified-python-cli)
 - Filesystem only (no database) (008-unified-python-cli)
+- Python 3.11+ (existing spec-kitty codebase) + psutil (cross-platform process management) (011-constitution-packaging-safety-and-redesign)
+- Filesystem only (templates in src/specify_cli/, user projects in .kittify/) (011-constitution-packaging-safety-and-redesign)
 
 ## Project Structure
 ```
@@ -56,6 +58,7 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
 ## Recent Changes
+- 011-constitution-packaging-safety-and-redesign: Added psutil for cross-platform process management, relocated templates from .kittify/ to src/specify_cli/
 - 008-unified-python-cli: Added Python 3.11+ (existing spec-kitty requirement)
 - 007-frontmatter-only-lane: Added Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (console output), ruamel.yaml (frontmatter parsing), typer (CLI)
 - 005-refactor-mission-system: Added Python 3.11+ (existing spec-kitty codebase requirement)

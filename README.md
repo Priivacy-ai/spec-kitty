@@ -214,6 +214,7 @@ user experience consistency, and performance requirements.
 **What this creates:**
 - `.kittify/memory/constitution.md` - Your project's architectural DNA
 - These principles will guide all subsequent development
+- Missions do not have separate constitutions; the project constitution is the single source of truth
 
 ### Phase 4: Create Your First Feature (In Agent)
 
