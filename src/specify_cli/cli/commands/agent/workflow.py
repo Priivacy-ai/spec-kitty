@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -47,6 +48,11 @@ def _find_feature_slug() -> str:
         # Match -WPxx at the end (case insensitive)
         return re.sub(r'-WP\d+$', '', slug, flags=re.IGNORECASE)
 
+    # Strategy 0: Environment override
+    env_slug = os.getenv("SPECIFY_FEATURE", "").strip()
+    if env_slug:
+        return _strip_wp_suffix(env_slug)
+
     # Strategy 1: Check if cwd contains kitty-specs/###-feature-slug
     if "kitty-specs" in cwd.parts:
         parts_list = list(cwd.parts)
@@ -76,6 +82,23 @@ def _find_feature_slug() -> str:
             return _strip_wp_suffix(branch_name)
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
+
+    # Strategy 3: Fall back to latest feature in repo root
+    repo_root = locate_project_root(cwd)
+    if repo_root:
+        specs_dir = repo_root / "kitty-specs"
+        if specs_dir.exists():
+            feature_dirs = [
+                d.name for d in specs_dir.iterdir()
+                if d.is_dir() and re.match(r'^\d{3}-', d.name)
+            ]
+            if feature_dirs:
+                def _feature_num(name: str) -> int:
+                    try:
+                        return int(name.split("-", 1)[0])
+                    except (ValueError, IndexError):
+                        return -1
+                return max(feature_dirs, key=_feature_num)
 
     print("Error: Could not auto-detect feature slug.")
     print("  - Not in a kitty-specs/###-feature-slug directory")

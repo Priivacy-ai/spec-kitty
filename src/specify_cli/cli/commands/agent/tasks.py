@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -47,6 +48,15 @@ def _find_feature_slug() -> str:
     """
     cwd = Path.cwd().resolve()
 
+    def _strip_wp_suffix(slug: str) -> str:
+        """Strip -WPxx suffix from feature slug if present."""
+        return re.sub(r'-WP\d+$', '', slug, flags=re.IGNORECASE)
+
+    # Strategy 0: Environment override
+    env_slug = os.getenv("SPECIFY_FEATURE", "").strip()
+    if env_slug:
+        return _strip_wp_suffix(env_slug)
+
     # Strategy 1: Check if cwd contains kitty-specs/###-feature-slug
     if "kitty-specs" in cwd.parts:
         parts_list = list(cwd.parts)
@@ -56,7 +66,7 @@ def _find_feature_slug() -> str:
                 potential_slug = parts_list[idx + 1]
                 # Validate format: ###-slug
                 if len(potential_slug) >= 3 and potential_slug[:3].isdigit():
-                    return potential_slug
+                    return _strip_wp_suffix(potential_slug)
         except (ValueError, IndexError):
             pass
 
@@ -73,9 +83,26 @@ def _find_feature_slug() -> str:
         branch_name = result.stdout.strip()
         # Validate format: ###-slug
         if len(branch_name) >= 3 and branch_name[:3].isdigit():
-            return branch_name
+            return _strip_wp_suffix(branch_name)
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
+
+    # Strategy 3: Fall back to latest feature in repo root
+    repo_root = locate_project_root(cwd)
+    if repo_root:
+        specs_dir = repo_root / "kitty-specs"
+        if specs_dir.exists():
+            feature_dirs = [
+                d.name for d in specs_dir.iterdir()
+                if d.is_dir() and re.match(r'^\d{3}-', d.name)
+            ]
+            if feature_dirs:
+                def _feature_num(name: str) -> int:
+                    try:
+                        return int(name.split("-", 1)[0])
+                    except (ValueError, IndexError):
+                        return -1
+                return max(feature_dirs, key=_feature_num)
 
     raise typer.Exit(1)
 

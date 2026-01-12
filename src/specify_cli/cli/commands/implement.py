@@ -101,13 +101,18 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
                     slug = features[0]
                     return number, slug
             elif len(features) > 1:
-                # Multiple features - need user to specify
-                console.print("[red]Error:[/red] Multiple features found:")
-                for f in sorted(features):
-                    console.print(f"  - {f}")
-                console.print("\nSpecify feature explicitly:")
-                console.print("  spec-kitty implement WP01 --feature 001-my-feature")
-                raise typer.Exit(1)
+                # Multiple features - fall back to latest feature by number
+                def _feature_num(name: str) -> int:
+                    try:
+                        return int(name.split("-", 1)[0])
+                    except (ValueError, IndexError):
+                        return -1
+                latest = max(features, key=_feature_num)
+                match = re.match(r'^(\d{3})-(.+)$', latest)
+                if match:
+                    number = match.group(1)
+                    slug = latest
+                    return number, slug
     except TaskCliError:
         # Not in a git repo, continue to generic error
         pass
