@@ -46,6 +46,8 @@ Spec Kitty supports **12 AI agents** with slash commands. When adding features t
 - Filesystem only (YAML frontmatter, git worktrees) (010-workspace-per-work-package-for-parallel-development)
 - Python 3.11+ (existing spec-kitty codebase) + psutil (cross-platform process management) (011-constitution-packaging-safety-and-redesign)
 - Filesystem only (templates in src/specify_cli/, user projects in .kittify/) (011-constitution-packaging-safety-and-redesign)
+- Python 3.11+ (existing spec-kitty codebase) + subprocess (for JSDoc, Sphinx, rustdoc invocation), ruamel.yaml (YAML parsing) (012-documentation-mission)
+- Filesystem only (mission configs in YAML, Divio templates in Markdown, iteration state in JSON) (012-documentation-mission)
 
 ## Project Structure
 ```
