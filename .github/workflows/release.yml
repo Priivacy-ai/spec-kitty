@@ -40,6 +40,40 @@ jobs:
       - name: Build distributions
         run: python -m build
 
+      - name: Verify wheel contents
+        run: |
+          echo "::group::Verifying migration files in wheel"
+
+          # Count migration files in source
+          SOURCE_COUNT=$(find src/specify_cli/upgrade/migrations -name "m_*.py" -type f | wc -l | tr -d ' ')
+          echo "Source migrations count: $SOURCE_COUNT"
+
+          # Extract wheel to temp directory
+          WHEEL_FILE=$(ls dist/*.whl)
+          unzip -q "$WHEEL_FILE" -d /tmp/wheel_check
+
+          # Count migration files in wheel
+          WHEEL_COUNT=$(find /tmp/wheel_check/specify_cli/upgrade/migrations -name "m_*.py" -type f 2>/dev/null | wc -l | tr -d ' ')
+          echo "Wheel migrations count: $WHEEL_COUNT"
+
+          # List migrations in both
+          echo "Source migrations:"
+          find src/specify_cli/upgrade/migrations -name "m_*.py" -type f | sort | xargs -n1 basename
+
+          echo "Wheel migrations:"
+          find /tmp/wheel_check/specify_cli/upgrade/migrations -name "m_*.py" -type f 2>/dev/null | sort | xargs -n1 basename
+
+          # Verify counts match
+          if [ "$SOURCE_COUNT" -ne "$WHEEL_COUNT" ]; then
+            echo "::error::Migration file count mismatch! Source: $SOURCE_COUNT, Wheel: $WHEEL_COUNT"
+            echo "::error::This means some migration files are missing from the wheel package."
+            echo "::error::Check pyproject.toml [tool.hatch.build.targets.wheel] configuration."
+            exit 1
+          fi
+
+          echo "✅ Wheel contains all $SOURCE_COUNT migration files"
+          echo "::endgroup::"
+
       - name: Check distributions
         run: twine check dist/*
 

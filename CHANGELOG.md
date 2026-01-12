@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.13] - 2026-01-12
+
+### 🐛 Fixed
+
+- **CRITICAL: Missing migration in PyPI v0.10.12 package**
+  - Migration `m_0_10_12_constitution_cleanup.py` was missing from PyPI package uploaded on 2026-01-07
+  - File existed in source repository but was not included in distributed wheel
+  - Caused constitution cleanup to not run during upgrades from v0.10.11
+  - v0.10.13 includes the missing migration file
+  - Users who installed v0.10.12 should run `spec-kitty upgrade` again after upgrading to v0.10.13
+  - **Root cause**: PyPI package was built before migration file was committed to repository
+  - **Prevention**: Added migration file count verification to release workflow
+
+### ♻️ Improved
+
+- **Release workflow hardening**
+  - Added verification step to count migration files in built wheel
+  - Release now fails if migration count doesn't match source repository
+  - Prevents future packaging bugs where files are missing from distribution
+
+### 📋 Migration for v0.10.12 Users
+
+If you installed v0.10.12 from PyPI and upgraded from v0.10.11:
+```bash
+pip install --upgrade spec-kitty-cli
+spec-kitty upgrade  # Run again to apply missing migration 0.10.12
+```
+
+The migration will remove mission-specific constitution directories:
+- `.kittify/missions/software-dev/constitution/` → removed
+- `.kittify/missions/research/constitution/` → removed
+- Single project-level constitution: `.kittify/memory/constitution.md` (kept)
+
 ## [0.10.12] - 2026-01-12
 
 ### 🔒 Security (IMPORTANT)
