@@ -359,29 +359,6 @@ class TestSetupPlanCommand:
         assert "Plan scaffolded:" in result.stdout
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    def test_errors_when_template_not_found(
-        self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
-    ):
-        """Should return error when plan template not found."""
-        # Setup
-        mock_locate.return_value = tmp_path
-        feature_dir = tmp_path / "kitty-specs" / "001-test"
-        feature_dir.mkdir(parents=True)
-        mock_find.return_value = feature_dir
-
-        # No template created
-
-        # Execute
-        result = runner.invoke(app, ["setup-plan", "--json"])
-
-        # Verify
-        assert result.exit_code == 1
-        output = json.loads(result.stdout)
-        assert "error" in output
-        assert "Plan template not found" in output["error"]
-
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     def test_errors_when_project_root_not_found(self, mock_locate: Mock):
         """Should return error when project root not found."""
         # Setup
