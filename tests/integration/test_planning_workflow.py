@@ -264,7 +264,8 @@ Test work package content.
         text=True,
         check=True,
     )
-    assert branch_result.stdout.strip() == "main", "Should still be on main branch"
+    default_branch = branch_result.stdout.strip()
+    assert default_branch in ("main", "master"), f"Should still be on default branch, got: {default_branch}"
 
 
 def test_check_prerequisites_works_in_main(test_project: Path, run_cli) -> None:
