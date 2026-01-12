@@ -676,3 +676,4 @@ The CLI command also updates the activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 - 2026-01-12T10:48:42Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T10:50:38Z – unknown – lane=for_review – Ready for review
+- 2026-01-12T11:50:00Z – claude-sonnet-4-5 – lane=done – Review passed: constitution_dir removed from mission.py, constitution scanning removed from manifest.py, no mission constitution directories remain.

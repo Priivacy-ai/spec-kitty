@@ -1199,3 +1199,4 @@ The CLI command also updates the activity log automatically.
 - 2026-01-12T10:48:58Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T10:56:09Z – unknown – lane=for_review – WP04 complete: psutil refactor for Windows dashboard. All signal.* references removed, cross-platform process management implemented. Tests pass (41/41 dashboard tests). Ready for Windows 10/11 validation.
 - 2026-01-12T11:12:14Z – agent – lane=doing – Started review via workflow command
+- 2026-01-12T12:30:00Z – claude-sonnet-4-5 – lane=done – Review passed: psutil>=5.9.0 added, all signal calls replaced with psutil, proper exception handling, 41/41 dashboard tests passed. Fixes #71.
