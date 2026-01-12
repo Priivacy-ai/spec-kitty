@@ -22,7 +22,7 @@ history:
     agent: "system"
     shell_pid: ""
     action: "Prompt generated via /spec-kitty.tasks"
-  - timestamp: "2026-01-12T19:45:00Z"
+  - timestamp: "2026-01-12T11:45:00Z"
     lane: "done"
     agent: "claude-sonnet-4-5"
     shell_pid: ""
