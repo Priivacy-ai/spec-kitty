@@ -2,6 +2,18 @@
 description: Perform structured code review and kanban transitions for completed task prompt files
 ---
 
+## Pre-Review Validation (Issue #72)
+
+**BEFORE reviewing, verify subtasks are complete**:
+```bash
+# Check tasks.md for this WP's section
+grep -A 20 "## WP01" kitty-specs/###-feature/tasks.md | grep "- \[ \]"
+# If any unchecked subtasks appear, DO NOT proceed with review
+# Ask implementing agent to mark them complete first
+```
+
+**The system should have blocked moving to for_review with unchecked subtasks**, but if this check was bypassed with `--force`, reject the review immediately and request all subtasks be marked complete.
+
 Run this command to get the work package prompt and review instructions:
 
 ```bash

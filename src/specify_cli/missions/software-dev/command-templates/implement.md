@@ -30,10 +30,17 @@ spec-kitty implement WP## --base WPXX  # With dependencies (branches from base W
 ## Completion Requirements
 
 **Your work is NOT complete until**:
-1. ✅ All subtasks in WP prompt are finished
-2. ✅ All tests pass (if required)
-3. ✅ Changes committed to the WP workspace
-4. ✅ **WP moved to for_review lane**: `spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"`
+1. ✅ **Set assignee when starting**: `spec-kitty agent tasks move-task WP## --to doing --assignee <your-name>`
+2. ✅ **Mark each subtask complete after finishing it**: `spec-kitty agent tasks mark-status T001 --status done`
+3. ✅ All subtasks in WP prompt are marked `[x]` in tasks.md
+4. ✅ All tests pass (if required)
+5. ✅ Changes committed to the WP workspace
+6. ✅ **WP moved to for_review lane**: `spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"`
+
+**IMPORTANT - Two-Tier Tracking**:
+- **Work Package Level**: WP file in `tasks/WP##-*.md` with `lane:` frontmatter (updated by `move-task`)
+- **Subtask Level**: Checkboxes `- [ ]` / `- [x]` in `tasks.md` (updated by `mark-status`)
+- **Both must be complete** before moving to `for_review` - the system will block you if subtasks are unchecked
 
 **The WP file location determines status**:
 - In `tasks/WP##-*.md` with `lane: "doing"` = IN PROGRESS (not done)
@@ -61,6 +68,46 @@ After `/spec-kitty.tasks` generates work packages in the main repository:
 ```
 spec-kitty implement WP01 → Creates .worktrees/###-feature-WP01/
 spec-kitty implement WP02 --base WP01 → Creates .worktrees/###-feature-WP02/
+```
+
+## Implementation Workflow Example
+
+**Correct workflow with subtask tracking (Issue #72)**:
+```bash
+# 1. Create workspace and claim task
+spec-kitty implement WP01
+cd .worktrees/###-feature-WP01
+spec-kitty agent tasks move-task WP01 --to doing --assignee claude
+
+# 2. Implement first subtask (T001)
+# ... write code ...
+git add . && git commit -m "Implement T001"
+spec-kitty agent tasks mark-status T001 --status done
+
+# 3. Implement second subtask (T002)
+# ... write code ...
+git add . && git commit -m "Implement T002"
+spec-kitty agent tasks mark-status T002 --status done
+
+# 4. Implement remaining subtasks
+# ... repeat for T003, T004, etc. ...
+
+# 5. After ALL subtasks complete and tests pass
+spec-kitty agent tasks move-task WP01 --to for_review --note "All subtasks complete, ready for review"
+# System validates all subtasks are [x] before allowing move
+```
+
+**What NOT to do**:
+```bash
+# ❌ Moving to for_review without marking subtasks
+spec-kitty agent tasks move-task WP01 --to for_review
+# ERROR: Cannot move WP01 to for_review - unchecked subtasks:
+#   - [ ] T001 Change FK ondelete RESTRICT → CASCADE
+#   - [ ] T003 Integrate uniqueness check into create_finished_unit()
+
+# ❌ Missing --assignee when starting
+spec-kitty agent tasks move-task WP01 --to doing
+# Warning: No assignee set (will cause acceptance failure)
 ```
 
 ## Examples

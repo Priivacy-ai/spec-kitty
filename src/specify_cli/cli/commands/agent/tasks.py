@@ -107,6 +107,60 @@ def _output_error(json_mode: bool, error_message: str):
         console.print(f"[red]Error:[/red] {error_message}")
 
 
+def _check_unchecked_subtasks(
+    repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+    force: bool
+) -> list[str]:
+    """Check for unchecked subtasks in tasks.md for a given WP.
+
+    Args:
+        repo_root: Repository root path
+        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        wp_id: Work package ID (e.g., "WP01")
+        force: If True, only warn; if False, fail on unchecked tasks
+
+    Returns:
+        List of unchecked task IDs (empty if all checked or not found)
+
+    Raises:
+        typer.Exit: If unchecked tasks found and force=False
+    """
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    tasks_md = feature_dir / "tasks.md"
+
+    if not tasks_md.exists():
+        return []  # No tasks.md, can't check
+
+    content = tasks_md.read_text(encoding="utf-8")
+
+    # Find subtasks for this WP (looking for - [ ] or - [x] checkboxes under WP section)
+    lines = content.split('\n')
+    unchecked = []
+    in_wp_section = False
+
+    for line in lines:
+        # Check if we entered this WP's section
+        if re.search(rf'##.*{wp_id}\b', line):
+            in_wp_section = True
+            continue
+
+        # Check if we entered a different WP section
+        if in_wp_section and re.search(r'##.*WP\d{2}\b', line):
+            break  # Left this WP's section
+
+        # Look for unchecked tasks in this WP's section
+        if in_wp_section:
+            # Match patterns like: - [ ] T001 or - [ ] Task description
+            unchecked_match = re.match(r'-\s*\[\s*\]\s*(T\d{3}|.*)', line.strip())
+            if unchecked_match:
+                task_id = unchecked_match.group(1).split()[0] if unchecked_match.group(1) else line.strip()
+                unchecked.append(task_id)
+
+    return unchecked
+
+
 def _check_dependent_warnings(
     repo_root: Path,
     feature_slug: str,
@@ -183,15 +237,18 @@ def move_task(
     to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/done)")],
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
+    assignee: Annotated[Optional[str], typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
     note: Annotated[Optional[str], typer.Option("--note", help="History note")] = None,
+    force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks")] = False,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Move task between lanes (planned → doing → for_review → done).
 
     Examples:
-        spec-kitty agent tasks move-task WP01 --to doing --json
+        spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
         spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$
+        spec-kitty agent tasks move-task WP03 --to for_review --force  # Skip subtask validation
     """
     try:
         # Validate lane
@@ -205,12 +262,31 @@ def move_task(
 
         feature_slug = feature or _find_feature_slug()
 
+        # Validate subtasks are complete when moving to for_review or done (Issue #72)
+        if target_lane in ("for_review", "done") and not force:
+            unchecked = _check_unchecked_subtasks(repo_root, feature_slug, task_id, force)
+            if unchecked:
+                error_msg = f"Cannot move {task_id} to {target_lane} - unchecked subtasks:\n"
+                for task in unchecked:
+                    error_msg += f"  - [ ] {task}\n"
+                error_msg += f"\nMark these complete first:\n"
+                for task in unchecked[:3]:  # Show first 3 examples
+                    task_clean = task.split()[0] if ' ' in task else task
+                    error_msg += f"  spec-kitty agent tasks mark-status {task_clean} --status done\n"
+                error_msg += f"\nOr use --force to override (not recommended)"
+                _output_error(json_output, error_msg)
+                raise typer.Exit(1)
+
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, task_id)
         old_lane = wp.current_lane
 
         # Update lane in frontmatter
         updated_front = set_scalar(wp.frontmatter, "lane", target_lane)
+
+        # Update assignee if provided
+        if assignee:
+            updated_front = set_scalar(updated_front, "assignee", assignee)
 
         # Update agent if provided
         if agent:
@@ -266,7 +342,7 @@ def mark_status(
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
-    """Update task checkbox status in frontmatter.
+    """Update task checkbox status in tasks.md.
 
     Examples:
         spec-kitty agent tasks mark-status T001 --status done --json
@@ -285,10 +361,36 @@ def mark_status(
             raise typer.Exit(1)
 
         feature_slug = feature or _find_feature_slug()
+        feature_dir = repo_root / "kitty-specs" / feature_slug
+        tasks_md = feature_dir / "tasks.md"
 
-        # Note: mark-status typically updates tasks.md checklist, not WP frontmatter
-        # For now, we'll output success but note this is placeholder for checkbox update
-        # Real implementation would parse tasks.md and update checkbox
+        if not tasks_md.exists():
+            _output_error(json_output, f"tasks.md not found: {tasks_md}")
+            raise typer.Exit(1)
+
+        # Read tasks.md content
+        content = tasks_md.read_text(encoding="utf-8")
+        lines = content.split('\n')
+        updated = False
+        new_checkbox = "[x]" if status == "done" else "[ ]"
+
+        # Find and update the task checkbox
+        # Look for patterns like: - [ ] T001 or - [x] T001
+        for i, line in enumerate(lines):
+            # Match checkbox lines with this task ID
+            if re.search(rf'-\s*\[[ x]\]\s*{re.escape(task_id)}\b', line):
+                # Replace the checkbox
+                lines[i] = re.sub(r'-\s*\[[ x]\]', f'- {new_checkbox}', line)
+                updated = True
+                break
+
+        if not updated:
+            _output_error(json_output, f"Task ID '{task_id}' not found in tasks.md")
+            raise typer.Exit(1)
+
+        # Write updated content
+        updated_content = '\n'.join(lines)
+        tasks_md.write_text(updated_content, encoding="utf-8")
 
         result = {
             "result": "success",
