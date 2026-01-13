@@ -310,7 +310,7 @@
 - [x] T068 [P] Test framework detection (Sphinx, MkDocs, etc.)
 - [x] T069 [P] Test Divio type classification from frontmatter
 - [x] T070 [P] Test coverage matrix calculation
-- [ ] T071 [P] Test gap prioritization logic
+- [x] T071 [P] Test gap prioritization logic
 - [ ] T072 [P] Create `tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.py` (migration tests)
 - [ ] T073 [P] Test migration detects missing documentation mission
 - [ ] T074 [P] Test migration copies mission directory correctly
