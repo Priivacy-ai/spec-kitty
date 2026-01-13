@@ -156,6 +156,14 @@ A project uses Python for backend services and TypeScript for frontend, requirin
 - **FR-040**: Review phase MUST validate generated documentation against Divio principles (correct type characteristics, appropriate content for each type)
 - **FR-041**: System MUST generate documentation build configuration (e.g., Sphinx conf.py, JSDoc config, mkdocs.yml) appropriate for selected generators and structure
 
+#### Publish Phase
+
+- **FR-046**: System MUST support optional `release.md` artifact for documenting publish and handoff details when documentation release is in scope
+- **FR-047**: Specify phase SHOULD ask whether documentation release/publish is in scope for this effort to avoid unnecessary release work when publishing is handled elsewhere
+- **FR-048**: When publish is in scope, `release.md` template MUST guide documenting hosting configuration (platform, URLs, domains), build output, deployment steps, access credentials, and ownership
+- **FR-049**: Release template MUST include sections for monitoring, troubleshooting, and handoff checklist to ensure complete transfer of documentation ownership
+- **FR-050**: Review phase MUST validate that `release.md` (if present) reflects actual publish path and handoff steps, not placeholder content
+
 #### Mission Workflow Commands
 
 - **FR-042**: System MUST support `/spec-kitty.specify` for documentation missions with discovery questions tailored to documentation goals
@@ -173,6 +181,7 @@ A project uses Python for backend services and TypeScript for frontend, requirin
 - **Documentation Coverage Matrix**: Structured view of project documentation showing which Divio types exist for which project areas/features
 - **Generator Configuration**: Settings for automated doc tools including output format, theme, extensions, and integration with manual docs
 - **Iteration Mode**: Approach for current documentation mission run (initial, gap-filling, feature-specific) determining discovery questions and workflow focus
+- **Release Artifact**: Optional `release.md` file documenting hosting, deployment, and handoff details for documentation publish phase
 
 ## Success Criteria
 
