@@ -20,3 +20,51 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from ruamel.yaml import YAML
+
+
+class DocFramework(Enum):
+    """Supported documentation frameworks."""
+
+    SPHINX = "sphinx"
+    MKDOCS = "mkdocs"
+    DOCUSAURUS = "docusaurus"
+    JEKYLL = "jekyll"
+    HUGO = "hugo"
+    PLAIN_MARKDOWN = "plain-markdown"
+    UNKNOWN = "unknown"
+
+
+def detect_doc_framework(docs_dir: Path) -> DocFramework:
+    """Detect documentation framework from file structure.
+
+    Args:
+        docs_dir: Directory containing documentation
+
+    Returns:
+        Detected framework or UNKNOWN if cannot determine
+    """
+    # Sphinx: conf.py is definitive indicator
+    if (docs_dir / "conf.py").exists():
+        return DocFramework.SPHINX
+
+    # MkDocs: mkdocs.yml is definitive
+    if (docs_dir / "mkdocs.yml").exists():
+        return DocFramework.MKDOCS
+
+    # Docusaurus: docusaurus.config.js
+    if (docs_dir / "docusaurus.config.js").exists():
+        return DocFramework.DOCUSAURUS
+
+    # Jekyll: _config.yml
+    if (docs_dir / "_config.yml").exists():
+        return DocFramework.JEKYLL
+
+    # Hugo: config.toml or config.yaml
+    if (docs_dir / "config.toml").exists() or (docs_dir / "config.yaml").exists():
+        return DocFramework.HUGO
+
+    # Check for markdown files without framework
+    if list(docs_dir.rglob("*.md")):
+        return DocFramework.PLAIN_MARKDOWN
+
+    return DocFramework.UNKNOWN
