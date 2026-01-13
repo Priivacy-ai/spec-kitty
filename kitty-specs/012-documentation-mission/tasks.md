@@ -312,7 +312,7 @@
 - [x] T070 [P] Test coverage matrix calculation
 - [x] T071 [P] Test gap prioritization logic
 - [x] T072 [P] Create `tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.py` (migration tests)
-- [ ] T073 [P] Test migration detects missing documentation mission
+- [x] T073 [P] Test migration detects missing documentation mission
 - [ ] T074 [P] Test migration copies mission directory correctly
 - [ ] T075 [P] Test migration is idempotent
 - [ ] T076 [P] Test migration doesn't affect existing missions
