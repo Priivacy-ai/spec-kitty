@@ -344,7 +344,7 @@
 **Prompt**: `/tasks/WP10-documentation.md`
 
 ### Included Subtasks
-- [ ] T077 Create user guide for documentation missions in `docs/documentation-mission.md`
+- [x] T077 Create user guide for documentation missions in `docs/documentation-mission.md`
 - [ ] T078 Document workflow phases (discover, audit, design, generate, validate, publish)
 - [ ] T079 Document Divio documentation types with examples
 - [ ] T080 Document iteration modes (initial, gap_filling, feature_specific)
