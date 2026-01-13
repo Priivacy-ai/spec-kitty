@@ -436,3 +436,97 @@ def prioritize_gaps(
     prioritized.sort(key=lambda gap: priority_order[gap.priority])
 
     return prioritized
+
+
+def extract_public_api_from_python(source_dir: Path) -> List[str]:
+    """Extract public API elements from Python source.
+
+    Finds:
+    - Public functions (not starting with _)
+    - Public classes (not starting with _)
+
+    Args:
+        source_dir: Directory containing Python source
+
+    Returns:
+        List of API element names (e.g., ["ClassName", "function_name"])
+    """
+    import ast
+
+    api_elements = []
+
+    for py_file in source_dir.rglob("*.py"):
+        try:
+            source = py_file.read_text()
+            tree = ast.parse(source)
+
+            for node in ast.walk(tree):
+                # Extract public functions
+                if isinstance(node, ast.FunctionDef):
+                    if not node.name.startswith("_"):
+                        api_elements.append(node.name)
+
+                # Extract public classes
+                elif isinstance(node, ast.ClassDef):
+                    if not node.name.startswith("_"):
+                        api_elements.append(node.name)
+
+        except Exception:
+            # Skip files that can't be parsed
+            continue
+
+    return sorted(set(api_elements))  # Unique, sorted
+
+
+def extract_documented_api_from_sphinx(docs_dir: Path) -> List[str]:
+    """Extract documented API elements from Sphinx documentation.
+
+    Parses generated Sphinx HTML or source .rst files for documented APIs.
+
+    Args:
+        docs_dir: Directory containing Sphinx documentation
+
+    Returns:
+        List of documented API element names
+    """
+    # Look for autodoc-generated files or .rst source
+    documented = []
+
+    # Check Sphinx build output
+    build_dir = docs_dir / "_build" / "html"
+    if build_dir.exists():
+        # Parse HTML for documented classes/functions
+        for html_file in build_dir.rglob("*.html"):
+            content = html_file.read_text()
+            # Simple heuristic: look for Sphinx autodoc class/function markers
+            # Example: <dt class="sig sig-object py" id="ClassName">
+            import re
+
+            matches = re.findall(r'id="([a-zA-Z_][a-zA-Z0-9_]*)"', content)
+            documented.extend(matches)
+
+    return sorted(set(documented))  # Unique, sorted
+
+
+def detect_version_mismatch(
+    code_dir: Path, docs_dir: Path, language: str = "python"
+) -> List[str]:
+    """Detect API elements in code that are missing from documentation.
+
+    Args:
+        code_dir: Directory containing source code
+        docs_dir: Directory containing documentation
+        language: Programming language (currently only "python" supported)
+
+    Returns:
+        List of API element names present in code but missing from docs
+    """
+    if language == "python":
+        code_api = extract_public_api_from_python(code_dir)
+        docs_api = extract_documented_api_from_sphinx(docs_dir)
+    else:
+        # Other languages not yet supported
+        return []
+
+    missing = set(code_api) - set(docs_api)
+    return sorted(missing)
