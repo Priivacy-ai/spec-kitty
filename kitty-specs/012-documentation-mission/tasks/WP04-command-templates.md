@@ -9,11 +9,11 @@ subtasks:
   - "T024"
 title: "Command Templates"
 phase: "Phase 0 - Foundation"
-lane: "planned"
+lane: "done"
 assignee: ""
 agent: ""
 shell_pid: ""
-review_status: "has_feedback"
+review_status: "acknowledged"
 reviewed_by: "codex"
 dependencies:
   - "WP01"
@@ -42,7 +42,10 @@ history:
 
 > **Populated by `/spec-kitty.review`** – Reviewers add detailed feedback here when work needs changes. Implementation must address every item listed below before returning for re-review.
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+Resolved:
+
+1. Added YAML frontmatter (`description:`) and `User Input` blocks to all five documentation mission command templates, matching the software-dev/research format and preserving `$ARGUMENTS` handling.
+   - Files: `src/specify_cli/missions/documentation/command-templates/specify.md`, `src/specify_cli/missions/documentation/command-templates/plan.md`, `src/specify_cli/missions/documentation/command-templates/tasks.md`, `src/specify_cli/missions/documentation/command-templates/implement.md`, `src/specify_cli/missions/documentation/command-templates/review.md`
 
 ---
 
@@ -1704,4 +1707,16 @@ done
 ## Activity Log
 
 - 2026-01-12T17:18:56Z – system – lane=planned – Prompt created.
+- 2026-01-13T09:10:28Z – codex – lane=planned – Added frontmatter/User Input blocks to documentation mission command templates and cleared review feedback.
 - 2026-01-13T08:02:09Z – agent – lane=doing – Started implementation via workflow command
+- 2026-01-13T09:04:55Z – agent – lane=doing – Started review via workflow command
+- 2026-01-13T09:05:28Z – codex – lane=doing – Review feedback added (frontmatter and User Input blocks required)
+- 2026-01-13T09:05:56Z – unknown – lane=planned – Changes requested
+- 2026-01-13T09:08:32Z – agent – lane=doing – Started implementation via workflow command
+- 2026-01-13T09:08:50Z – unknown – lane=for_review – Auto-moved to for_review after implement workflow
+- 2026-01-13T09:08:57Z – agent – lane=doing – Started review via workflow command
+- 2026-01-13T09:08:58Z – unknown – lane=planned – Changes requested
+- 2026-01-13T09:17:30Z – agent – lane=doing – Started implementation via workflow command
+- 2026-01-13T09:17:30Z – unknown – lane=for_review – Auto-moved to for_review after implement workflow
+- 2026-01-13T09:17:33Z – agent – lane=doing – Started review via workflow command
+- 2026-01-13T09:17:33Z – unknown – lane=done – Review passed
