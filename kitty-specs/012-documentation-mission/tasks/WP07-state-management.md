@@ -10,7 +10,7 @@ subtasks:
   - "T046"
 title: "Iteration State Management"
 phase: "Phase 1 - Core Logic"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "test-agent3"
 shell_pid: ""
@@ -1013,3 +1013,4 @@ print('✓ State updates correctly')
 
 - 2026-01-12T17:18:56Z – system – lane=planned – Prompt created.
 - 2026-01-13T09:18:32Z – test-agent3 – lane=doing – Moved to doing
+- 2026-01-13T10:47:27Z – test-agent3 – lane=planned – Reset to planned (was test activity)
