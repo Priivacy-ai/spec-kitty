@@ -9,6 +9,7 @@ subtasks:
   - "T058"
   - "T059"
   - "T060"
+  - "T060A"
   - "T061"
   - "T062"
   - "T063"
@@ -521,6 +522,56 @@ history:
 - Tests command templates exist and load
 - Validates phase references (each command mentions appropriate phase)
 - Validates Divio mentions (documentation-specific)
+
+### Subtask T060A – Test Release Template Structure
+
+**Purpose**: Test that optional release-template.md has required sections for publish guidance.
+
+**Steps**:
+1. Add test for release template structure:
+   ```python
+   def test_release_template_required_sections():
+       """Test release template has required sections for publish guidance."""
+       mission = get_mission_by_name("documentation")
+       template = mission.get_template("release-template.md")
+       content = template.read_text()
+
+       # Required sections for release/publish guidance
+       assert "## Hosting Target" in content, "Missing Hosting Target section"
+       assert "## Build Output" in content, "Missing Build Output section"
+       assert "## Deployment Steps" in content, "Missing Deployment Steps section"
+       assert "## Ownership & Handoff" in content or "## Ownership & Maintenance" in content, "Missing Ownership section"
+
+       # Optional but recommended sections
+       assert "## Access" in content or "## Credentials" in content, "Missing Access/Credentials section"
+       assert "## Troubleshooting" in content, "Missing Troubleshooting section"
+   ```
+
+2. Add test for release template placeholders:
+   ```python
+   def test_release_template_has_placeholders():
+       """Test release template has guidance placeholders."""
+       mission = get_mission_by_name("documentation")
+       template = mission.get_template("release-template.md")
+       content = template.read_text()
+
+       # Should have placeholder guidance
+       assert "{" in content and "}" in content, "Missing placeholder markers"
+
+       # Key placeholders should be present
+       assert "{platform}" in content or "{hosting" in content, "Missing platform placeholder"
+       assert "{url}" in content or "{production_url}" in content, "Missing URL placeholder"
+       assert "{build_command}" in content, "Missing build command placeholder"
+   ```
+
+**Files**: `tests/specify_cli/missions/test_documentation_templates.py` (modified)
+
+**Parallel?**: Yes (independent test function)
+
+**Notes**:
+- Release template is optional, but if present should guide complete handoff
+- Tests validate structure without requiring specific formatting
+- Placeholders ensure template provides guidance, not just empty sections
 
 ### Subtask T061 – Create test_doc_generators.py
 

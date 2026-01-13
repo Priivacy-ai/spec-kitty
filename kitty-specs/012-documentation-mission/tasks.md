@@ -88,13 +88,13 @@
 **Prompt**: `/tasks/WP03-divio-templates.md`
 
 ### Included Subtasks
-- [ ] T012 [P] Create `divio/` subdirectory in `templates/`
-- [ ] T013 [P] Create `tutorial-template.md` (learning-oriented, step-by-step, beginners)
-- [ ] T014 [P] Create `howto-template.md` (goal-oriented, problem-solving, experienced users)
-- [ ] T015 [P] Create `reference-template.md` (information-oriented, technical specs, API docs)
-- [ ] T016 [P] Create `explanation-template.md` (understanding-oriented, concepts, architecture)
-- [ ] T017 Add Write the Docs guidance (accessible language, bias-free examples, heading structure)
-- [ ] T018 Add placeholders for project-specific content ({project_name}, {target_audience}, etc.)
+- [x] T012 [P] Create `divio/` subdirectory in `templates/`
+- [x] T013 [P] Create `tutorial-template.md` (learning-oriented, step-by-step, beginners)
+- [x] T014 [P] Create `howto-template.md` (goal-oriented, problem-solving, experienced users)
+- [x] T015 [P] Create `reference-template.md` (information-oriented, technical specs, API docs)
+- [x] T016 [P] Create `explanation-template.md` (understanding-oriented, concepts, architecture)
+- [x] T017 Add Write the Docs guidance (accessible language, bias-free examples, heading structure)
+- [x] T018 Add placeholders for project-specific content ({project_name}, {target_audience}, etc.)
 
 ### Implementation Notes
 1. Follow research.md findings on Divio characteristics
@@ -299,6 +299,7 @@
 - [ ] T058 [P] Test each Divio template has frontmatter with type field
 - [ ] T059 [P] Test each Divio template has required sections
 - [ ] T060 [P] Test command templates exist and reference correct phases
+- [ ] T060A [P] Test release-template.md has required sections for publish guidance
 - [ ] T061 [P] Create `tests/specify_cli/test_doc_generators.py` (generator protocol tests)
 - [ ] T062 [P] Test JSDocGenerator detects JS/TS projects correctly
 - [ ] T063 [P] Test SphinxGenerator detects Python projects correctly
@@ -477,6 +478,7 @@ This enables:
 | T058 | Test Divio frontmatter | WP09 | P1 | Yes |
 | T059 | Test Divio sections | WP09 | P1 | Yes |
 | T060 | Test command templates | WP09 | P1 | Yes |
+| T060A | Test release template structure | WP09 | P1 | Yes |
 | T061 | Create test_doc_generators.py | WP09 | P1 | Yes |
 | T062 | Test JSDoc detection | WP09 | P1 | Yes |
 | T063 | Test Sphinx detection | WP09 | P1 | Yes |
@@ -506,6 +508,6 @@ This enables:
 
 ---
 
-**Total**: 86 subtasks across 10 work packages
+**Total**: 87 subtasks across 10 work packages
 **MVP**: 25 subtasks (T001-T024 + migration T047-T052)
-**Full Feature**: All 86 subtasks
+**Full Feature**: All 87 subtasks
