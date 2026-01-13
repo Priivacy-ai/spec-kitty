@@ -5,6 +5,15 @@
 **Status**: Draft
 **Input**: User description: "I want to add a 'documentation' mission to spec kitty. I want us to research the state of the art best practices for writing software product documentation and then conceive of a set of tempaltes, commands and workflow that would let us do a documentation mission on a software project. For example, we'll dogfood this to rewrite spec kitty docs themselves. It should study https://www.writethedocs.org/index.html and make those people happy and it should know about the https://docs.divio.com/documentation-system/ four types of documentation. Additionally, it should know how generated docs of common natures operate, eg generated docs from various languages and frameworks. You recommend which ones but include JS, Python, Rust for sure."
 
+**CRITICAL INFRASTRUCTURE FIXES**: During implementation of this feature, we discovered and fixed critical issues in the workspace-per-WP workflow system (feature 010). See [INFRASTRUCTURE-FIXES.md](INFRASTRUCTURE-FIXES.md) for complete documentation of:
+- Worktree state sync (symlinks + auto-commit)
+- Workflow command improvements (end instructions, automated feedback)
+- PID tracking restoration
+- Feature slug detection fixes
+- Template propagation to all 12 agents
+
+These fixes are out of scope for the documentation mission but were necessary for continued development.
+
 ## Overview
 
 Add a new "documentation" mission type to spec-kitty that helps teams create and maintain high-quality software documentation following industry best practices. The mission integrates Write the Docs principles, the Divio documentation system's four types (tutorials, how-to guides, reference, explanation), and automated documentation generation from code for popular languages and frameworks.
