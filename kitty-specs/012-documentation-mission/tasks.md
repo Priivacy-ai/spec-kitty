@@ -347,7 +347,7 @@
 - [x] T077 Create user guide for documentation missions in `docs/documentation-mission.md`
 - [x] T078 Document workflow phases (discover, audit, design, generate, validate, publish)
 - [x] T079 Document Divio documentation types with examples
-- [ ] T080 Document iteration modes (initial, gap_filling, feature_specific)
+- [x] T080 Document iteration modes (initial, gap_filling, feature_specific)
 - [ ] T081 Document generator usage (JSDoc, Sphinx, rustdoc)
 - [ ] T082 Add troubleshooting section (common errors, solutions)
 - [ ] T083 Update `CLAUDE.md` with documentation mission patterns (already done in planning)
