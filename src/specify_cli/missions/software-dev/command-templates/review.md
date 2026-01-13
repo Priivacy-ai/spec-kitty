@@ -13,8 +13,10 @@ grep -A 20 "## WP01" kitty-specs/###-feature/tasks.md | grep "- \[ \]"
 ```
 
 **The system should have blocked moving to for_review with unchecked subtasks**, but if this check was bypassed with `--force`, reject the review immediately and request all subtasks be marked complete.
+Only mark a subtask done after you have verified the implementation. Do not mark subtasks done just to unblock a lane move.
+If the implementation is incomplete, request changes instead of marking subtasks.
 
-Run this command to get the work package prompt and review instructions:
+Run this command to get the work package prompt and review instructions, then immediately proceed with the review steps in the workspace output (do not pause for confirmation):
 
 ```bash
 spec-kitty agent workflow review $ARGUMENTS

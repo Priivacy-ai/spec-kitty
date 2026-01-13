@@ -9,7 +9,7 @@ description: Create an isolated workspace (worktree) for implementing a specific
 
 ## CRITICAL: This is a TWO-STEP Command
 
-**Step 1**: Get the WP prompt and implementation instructions
+**Step 1**: Get the WP prompt and implementation instructions (then continue immediately to Step 2; do not pause for confirmation)
 ```bash
 spec-kitty agent workflow implement WP##
 ```
@@ -18,7 +18,7 @@ This displays the full WP prompt with detailed requirements and shows:
 WHEN YOU'RE DONE:
 ================================================================================
 ✓ Implementation complete and tested:
-  spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
+  The workflow auto-moves the work package to for_review.
 ```
 
 **Step 2**: Create the workspace (if needed) and implement according to the prompt
@@ -33,17 +33,17 @@ spec-kitty implement WP## --base WPXX  # With dependencies (branches from base W
 1. ✅ All subtasks in WP prompt are finished
 2. ✅ All tests pass (if required)
 3. ✅ Changes committed to the WP workspace
-4. ✅ **WP moved to for_review lane**: `spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"`
+4. ✅ **WP moved to for_review lane** automatically by the workflow command
 
 **The WP file location determines status**:
 - In `tasks/WP##-*.md` with `lane: "doing"` = IN PROGRESS (not done)
-- Need to move to `for_review` lane when complete
+- `for_review` is set by the workflow command (no manual move needed)
 
 ## When to Use
 
 After `/spec-kitty.tasks` generates work packages in the main repository:
 - Planning artifacts (spec, plan, tasks) are already in main
-- Run `spec-kitty agent workflow implement WP01` to get the full prompt
+- Run `spec-kitty agent workflow implement WP01` to get the full prompt, then continue with workspace setup and implementation
 - Run `spec-kitty implement WP01` to create a workspace for the first WP
 - Run `spec-kitty implement WP02 --base WP01` if WP02 depends on WP01
 - Each WP gets its own isolated worktree in `.worktrees/###-feature-WP##/`
@@ -115,12 +115,11 @@ The implement command reads this field and validates the --base flag matches.
 **ALWAYS follow this sequence**:
 
 ```bash
-# 1. Get the full WP prompt and instructions
+# 1. Get the full WP prompt and instructions (then continue immediately)
 spec-kitty agent workflow implement WP##
 
 # 2. Read the "WHEN YOU'RE DONE" section at the top of the prompt
-# It will show exactly what command to run when complete:
-#   spec-kitty agent tasks move-task WP## --to for_review --note "..."
+# The workflow handles lane transitions automatically.
 
 # 3. Create workspace (if not exists)
 spec-kitty implement WP##              # Or with --base if dependencies
@@ -131,18 +130,16 @@ cd .worktrees/###-feature-WP##/
 # 5. Implement according to WP prompt
 # ... write code, run tests, commit changes ...
 
-# 6. Move to for_review (REQUIRED - not optional!)
-spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
 ```
 
-**IMPORTANT**: Step 6 is MANDATORY. The WP is NOT complete until moved to `for_review` lane.
+**IMPORTANT**: The workflow command is responsible for moving the WP to `for_review`.
 
 ## Lane Status
 
 Work packages move through lanes:
 - `planned` → Initial state after `/spec-kitty.tasks`
 - `doing` → Agent is implementing (automatically set by workflow command)
-- `for_review` → Implementation complete, waiting for review ← **YOU MUST MOVE HERE**
+- `for_review` → Implementation complete, waiting for review
 - `done` → Review passed, WP complete
 
 **Check current lane**:
@@ -162,5 +159,4 @@ grep "^lane:" kitty-specs/###-feature/tasks/WP##-*.md
 - Solution: Run suggested rebase command (git limitation, fixed in future jj integration)
 
 **"I finished implementing but nothing happened"**
-- Check: Did you move to for_review? `spec-kitty agent tasks move-task WP## --to for_review`
-- The WP file must be moved to for_review lane for the workflow to continue
+- Re-run the workflow command to ensure the lane transition is applied.
