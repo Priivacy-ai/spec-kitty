@@ -13,10 +13,10 @@ subtasks:
   - "T086"
 title: "Documentation & Agent Updates"
 phase: "Phase 2 - Polish"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: "victory-test"
-shell_pid: ""
+agent: "claude"
+shell_pid: "82623"
 review_status: ""
 reviewed_by: ""
 dependencies:
@@ -1696,3 +1696,4 @@ done
 - 2026-01-13T09:22:47Z – success-test – lane=doing – Moved to doing
 - 2026-01-13T09:23:26Z – victory-test – lane=for_review – Moved to for_review
 - 2026-01-13T10:47:28Z – victory-test – lane=planned – Reset to planned (was test activity)
+- 2026-01-13T11:36:22Z – claude – shell_pid=82623 – lane=doing – Started implementation via workflow command
