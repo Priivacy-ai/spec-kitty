@@ -11,7 +11,7 @@ subtasks:
   - "T032"
 title: "Documentation Generator Protocol"
 phase: "Phase 1 - Core Logic"
-lane: "doing"
+lane: "for_review"
 assignee: "test"
 agent: "claude"
 shell_pid: "58940"
@@ -1266,3 +1266,4 @@ print(f'✓ Sphinx config generated: {config}')
 - 2026-01-13T09:16:42Z – test-agent – lane=doing – Moved to doing
 - 2026-01-13T10:35:22Z – sparse-test – lane=planned – Moved to planned
 - 2026-01-13T10:48:30Z – claude – shell_pid=58940 – lane=doing – Started implementation via workflow command
+- 2026-01-13T10:54:28Z – claude – shell_pid=58940 – lane=for_review – Ready for review: Implemented documentation generator protocol with JSDoc, Sphinx, and rustdoc generators. All generators tested and working correctly.
