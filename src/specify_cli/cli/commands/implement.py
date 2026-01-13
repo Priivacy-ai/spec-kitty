@@ -584,36 +584,49 @@ def implement(
         # This prevents worktree state divergence and enables clean merges to main
         # Aligns with jujutsu's "partial working copy" model - status lives in main, impl in worktrees
 
-        # Get git directory path (worktrees have .git as a file pointing to actual git dir)
-        git_file = workspace_path / ".git"
-        if git_file.is_file():
-            git_content = git_file.read_text().strip()
-            if git_content.startswith("gitdir:"):
-                gitdir = Path(git_content.split(":", 1)[1].strip())
-                sparse_checkout_file = gitdir / "info" / "sparse-checkout"
+        # Get sparse-checkout file path via git (works for worktrees and standard repos)
+        sparse_checkout_result = subprocess.run(
+            ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
+            cwd=workspace_path,
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        if sparse_checkout_result.returncode != 0:
+            console.print("[yellow]Warning:[/yellow] Unable to locate sparse-checkout file; workspace created without sparse exclusions.")
+        else:
+            sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
 
-                # Enable sparse-checkout (non-cone mode for exclusion patterns)
-                subprocess.run(
-                    ["git", "config", "core.sparseCheckout", "true"],
-                    cwd=workspace_path,
-                    capture_output=True,
-                    check=False
-                )
+            # Enable sparse-checkout (explicitly disable cone mode for exclusion patterns)
+            subprocess.run(
+                ["git", "config", "core.sparseCheckout", "true"],
+                cwd=workspace_path,
+                capture_output=True,
+                check=False
+            )
+            subprocess.run(
+                ["git", "config", "core.sparseCheckoutCone", "false"],
+                cwd=workspace_path,
+                capture_output=True,
+                check=False
+            )
 
-                # Write sparse-checkout patterns
-                # Pattern: Include everything (/*), exclude kitty-specs/ (!/kitty-specs/)
-                sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-                sparse_checkout_file.write_text("/*\n!/kitty-specs/\n", encoding="utf-8")
+            # Write sparse-checkout patterns
+            # Pattern: Include everything (/*), exclude kitty-specs/ and its contents
+            sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
+            sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
 
-                # Apply sparse-checkout (updates working tree to remove kitty-specs/)
-                subprocess.run(
-                    ["git", "read-tree", "-mu", "HEAD"],
-                    cwd=workspace_path,
-                    capture_output=True,
-                    check=False
-                )
-
-                console.print(f"[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
+            # Apply sparse-checkout (updates working tree to remove kitty-specs/)
+            apply_result = subprocess.run(
+                ["git", "read-tree", "-mu", "HEAD"],
+                cwd=workspace_path,
+                capture_output=True,
+                check=False
+            )
+            if apply_result.returncode != 0:
+                console.print("[yellow]Warning:[/yellow] Failed to apply sparse-checkout patterns; kitty-specs/ may still be present.")
+            else:
+                console.print("[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
 
         tracker.complete("create", f"Workspace: {workspace_path.relative_to(repo_root)}")
 

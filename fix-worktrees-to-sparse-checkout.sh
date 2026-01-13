@@ -3,7 +3,12 @@
 
 set -e
 
-REPO_ROOT="/Users/robert/Code/spec-kitty"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "${REPO_ROOT}" ]; then
+    echo "Error: Not inside a git repository"
+    exit 1
+fi
 WORKTREES_DIR="${REPO_ROOT}/.worktrees"
 
 if [ ! -d "${WORKTREES_DIR}" ]; then
@@ -29,8 +34,13 @@ for worktree in "${WORKTREES_DIR}"/*; do
         echo "  → Removing symlink"
         rm "${kitty_specs_path}"
     elif [ -d "${kitty_specs_path}" ]; then
-        echo "  → Removing directory"
-        rm -rf "${kitty_specs_path}"
+        if [ -n "$(ls -A "${kitty_specs_path}")" ]; then
+            echo "  ⚠️  kitty-specs/ is a real directory with contents; skipping to avoid data loss"
+            echo
+            continue
+        fi
+        echo "  → Removing empty directory"
+        rmdir "${kitty_specs_path}"
     fi
 
     # Clean .gitignore
@@ -46,24 +56,32 @@ for worktree in "${WORKTREES_DIR}"/*; do
     # Configure sparse-checkout (non-cone mode for exclusion patterns)
     cd "${worktree}"
     
-    # Get git dir path
-    gitdir=$(cat .git | cut -d' ' -f2)
-    sparse_checkout_file="${gitdir}/info/sparse-checkout"
+    # Get sparse-checkout file path
+    sparse_checkout_file="$(git -C "${worktree}" rev-parse --git-path info/sparse-checkout 2>/dev/null)"
+    if [ -z "${sparse_checkout_file}" ]; then
+        echo "  ⚠️  Unable to locate sparse-checkout file; skipping"
+        echo
+        continue
+    fi
 
     echo "  → Configuring sparse-checkout"
     
-    # Init sparse-checkout (non-cone mode)
+    # Init sparse-checkout (non-cone mode for exclusion patterns)
     git config core.sparseCheckout true
+    git config core.sparseCheckoutCone false
 
     # Write patterns: include everything except kitty-specs/
     mkdir -p "$(dirname "${sparse_checkout_file}")"
     cat > "${sparse_checkout_file}" <<EOF
 /*
 !/kitty-specs/
+!/kitty-specs/**
 EOF
 
     # Apply sparse-checkout
-    git read-tree -mu HEAD >/dev/null 2>&1
+    if ! git read-tree -mu HEAD >/dev/null 2>&1; then
+        echo "  ⚠️  Failed to apply sparse-checkout patterns"
+    fi
 
     if [ ! -e "${kitty_specs_path}" ]; then
         echo "  ✓ kitty-specs/ excluded (agents read from main)"
