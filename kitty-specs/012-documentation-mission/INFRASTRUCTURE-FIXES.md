@@ -249,3 +249,176 @@ jj describe -m "chore: ..."  # Like our auto-commit
 4. `35cbba7` - PID tracking, feature slug fix, finalize
 
 **These merge to main when WP04 completes and gets accepted.**
+
+---
+
+## Critical Fix #5: Work Package Sizing Guidance
+
+### The Problem
+
+**Constrained by WP COUNT instead of SIZE**:
+- Old guidance: "Target 4-10 work packages. Do not exceed 10 work packages."
+- Agents optimized for minimum WP count → packed 20+ subtasks into each WP
+- Result: 1312-line WP prompts that overwhelmed implementing agents
+- Agents made mistakes, skipped details, cut corners to handle overwhelming context
+
+**Token-conscious agents panic**:
+- Seeing "create 10 WPs for complex feature" → agents try to minimize token usage
+- Rush through planning to save tokens
+- Write brief, vague prompts
+- Result: Poor quality planning that costs 10x more tokens during implementation rework
+
+### The Solution
+
+**Rewritten tasks.md command template** (567 lines) with SIZE-FIRST guidance:
+
+#### Part 1: Quality-Over-Speed Messaging (lines 9-23)
+
+```markdown
+## ⚠️ CRITICAL: THIS IS THE MOST IMPORTANT PLANNING WORK
+
+**You are creating the blueprint for implementation**. The quality of work packages determines:
+- How easily agents can implement the feature
+- How parallelizable the work is
+- How reviewable the code will be
+- Whether the feature succeeds or fails
+
+**QUALITY OVER SPEED**: This is NOT the time to save tokens or rush. Take your time to:
+- Understand the full scope deeply
+- Break work into clear, manageable pieces
+- Write detailed, actionable guidance
+- Think through risks and edge cases
+
+**Token usage is EXPECTED and GOOD here**. A thorough task breakdown saves 10x the effort during implementation. Do not cut corners.
+```
+
+**Impact**: Agents know this is critical work, invest appropriate effort.
+
+#### Part 2: Size-Based Guidance (lines 103-116, 217-292)
+
+**Removed**:
+- ❌ "Target 4-10 work packages"
+- ❌ "Do not exceed 10 work packages"
+
+**Added**:
+- ✅ "Target: 3-7 subtasks per WP (200-500 line prompts)"
+- ✅ "Maximum: 10 subtasks per WP (700 line prompts)"
+- ✅ "Complex feature: 80-120 subtasks → 15-20 WPs ← **Totally fine!**"
+- ✅ "Very complex: 150+ subtasks → 25-30 WPs ← **Also fine!**"
+- ✅ "Better to have 20 focused WPs than 5 overwhelming WPs"
+
+#### Part 3: Sizing Algorithm (lines 358-374)
+
+```
+For each cohesive unit of work:
+  1. List related subtasks
+  2. Count subtasks
+  3. Estimate prompt lines (subtasks × 50 lines avg)
+
+  If subtasks <= 7 AND estimated lines <= 500:
+    ✓ Good WP size - create it
+
+  Else if subtasks > 10 OR estimated lines > 700:
+    ✗ Too large - split into 2+ WPs
+
+  Else if subtasks < 3 AND can merge with related WP:
+    → Consider merging (but don't force it)
+```
+
+#### Part 4: Validation Requirements (lines 406-414)
+
+```markdown
+**CRITICAL VALIDATION**: After generating each prompt:
+1. Count lines in the prompt
+2. If >700 lines: GO BACK and split the WP
+3. If >1000 lines: **STOP - this will fail** - you MUST split it
+
+**Self-check**:
+- Subtask count: 3-7? ✓ | 8-10? ⚠️ | 11+? ❌ SPLIT
+- Estimated lines: 200-500? ✓ | 500-700? ⚠️ | 700+? ❌ SPLIT
+- Can implement in one session? ✓ | Multiple sessions needed? ❌ SPLIT
+```
+
+#### Part 5: Common Mistakes Section (lines 462-552)
+
+**MISTAKE 1**: Optimizing for WP Count
+- Bad: "I'll create exactly 5-7 WPs" → 20 subtasks per WP
+- Good: "Each WP should be 3-7 subtasks. If that means 15 WPs, fine."
+
+**MISTAKE 2**: Token Conservation During Planning
+- Bad: "Save tokens with brief prompts" → confused agents, rework
+- Good: "Invest tokens now for thorough prompts" → correct first time
+
+**MISTAKE 3**: Mixing Unrelated Concerns
+- Bad: "WP03: Misc Backend Work (12 subtasks)"
+- Good: Split by concern (User Mgmt, Infrastructure, Admin)
+
+**MISTAKE 4**: Insufficient Detail
+- Bad: 20 lines per subtask ("Create endpoint, add validation, test it")
+- Good: 60 lines per subtask (specific steps, files, validation criteria, edge cases)
+
+### Benefits
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| WP count constraint | "4-10 WPs max" | "No limit - optimize for size" |
+| Subtasks per WP | 15-25 (too many) | 3-7 (ideal), max 10 |
+| Prompt size | 1000-1500 lines | 200-500 lines (ideal), max 700 |
+| Agent panic | High (big job, save tokens) | Low (quality emphasized) |
+| Quality messaging | None | Prominent at top |
+| Validation | None | Required (check sizes) |
+| Examples | Minimal | Extensive (good vs bad) |
+| Complex feature WP count | 5-7 (forced) | 15-20 (appropriate) |
+
+### Expected Outcomes
+
+**For simple features** (10-15 subtasks):
+- Before: 2-3 WPs of 5-7 subtasks each ✓ (Already worked)
+- After: 2-4 WPs of 3-5 subtasks each ✓ (Similar, slightly better)
+
+**For medium features** (30-50 subtasks):
+- Before: 5-7 WPs of 6-10 subtasks each (prompts: 400-700 lines) ⚠️ (Borderline)
+- After: 6-10 WPs of 4-6 subtasks each (prompts: 250-400 lines) ✓ (Much better)
+
+**For complex features** (80-120 subtasks):
+- Before: 8-10 WPs of 10-15 subtasks each (prompts: 700-1100 lines) ❌ (Broken - like feature 012!)
+- After: 15-20 WPs of 5-7 subtasks each (prompts: 300-450 lines) ✓ (Manageable)
+
+### Files Modified
+
+- `src/specify_cli/missions/software-dev/command-templates/tasks.md` (rewritten: 567 lines)
+- `src/specify_cli/templates/command-templates/tasks.md` (copied from software-dev)
+
+### Commits
+
+- (Pending) - fix: Rewrite WP sizing guidance to optimize for size, not count
+
+### Migration
+
+**Not needed** - templates are used directly during `/spec-kitty.tasks` execution. Next time an agent runs the command, they'll see the updated guidance.
+
+The migration system handles OTHER command templates (review, implement) but NOT the tasks command template (it's read inline during execution).
+
+### Testing
+
+**Test by running /spec-kitty.tasks on a new feature**:
+- Agent should see: "⚠️ CRITICAL: THIS IS THE MOST IMPORTANT PLANNING WORK"
+- Agent should see: "QUALITY OVER SPEED: This is NOT the time to save tokens"
+- Agent should follow: 3-7 subtasks per WP guideline
+- Agent should validate: Prompt sizes and split if >700 lines
+- Agent should report: Size distribution in final summary
+
+### Real-World Example
+
+**Feature 012 (this feature)**:
+- 86 total subtasks across 10 WPs
+- Average: 8.6 subtasks per WP ← **Too high!**
+- Some WPs had 10+ subtasks → 1000+ line prompts
+
+**With new guidance, feature 012 would have been**:
+- 86 subtasks across 15-17 WPs
+- Average: 5-6 subtasks per WP ✓
+- All prompts: 300-500 lines ✓
+- Easier implementation, better parallelization
+
+**Lesson**: Current feature 012 proves the old guidance was broken. New guidance fixes it for future features.
