@@ -24,41 +24,90 @@ While implementing feature 012 (documentation mission), we discovered **WP03 (Di
 
 ## Critical Fix #1: Worktree State Sync (Jujutsu-Aligned)
 
+**UPDATED 2026-01-13**: Switched from symlinks to **git sparse-checkout** (proper solution).
+
 ### The Problem
 
 Each worktree branch contained a copy of `kitty-specs/###-feature/tasks/*.md`. Status updates were local - other worktrees never saw them.
 
 ### The Solution
 
-**Symlink + Auto-Commit Pattern**:
+**Git Sparse-Checkout** (Native Git Feature):
 
-1. **Symlink kitty-specs/ to main** (implement.py:583-633)
-2. **Exclude from feature branches** (.gitignore + git rm --cached)
-3. **Auto-commit changes to main** (tasks.py, workflow.py)
-4. **Helper script** for existing worktrees (fix-worktree-symlinks.sh)
+1. **Use sparse-checkout to exclude kitty-specs/** (implement.py:583-616)
+   ```python
+   # Enable sparse-checkout for worktree
+   git config core.sparseCheckout true
+
+   # Write pattern to .git/info/sparse-checkout
+   /*           # Include everything at root level
+   !/kitty-specs/   # Exclude kitty-specs/ directory
+
+   # Apply (removes kitty-specs/ from working tree)
+   git read-tree -mu HEAD
+   ```
+
+2. **Auto-commit changes to main** (tasks.py, workflow.py)
+   - move-task: Commits WP file changes to main
+   - mark-status: Commits tasks.md changes to main
+   - workflow implement/review: Commits when claiming WPs
+
+3. **Helper script** for existing worktrees (fix-worktrees-to-sparse-checkout.sh)
 
 ### Result
 
 ```
-Main:     kitty-specs/ (directory) → Single source of truth
-WP01-04:  kitty-specs/ (SYMLINK)   → Instant sync to all
+Main branch:
+  kitty-specs/ (directory) → Single source of truth, fully tracked
 
-Agent updates WP → Symlink write → Auto-commit → All see it (0ms latency)
+Worktree branches:
+  kitty-specs/ (NOT PRESENT) → Excluded via sparse-checkout
+  Agents read from: /main/kitty-specs/ (absolute paths)
+  Agents write to: /main/kitty-specs/ (auto-commits to main)
+
+Benefits:
+  - Clean merges (git knows kitty-specs/ isn't in worktree)
+  - Native git (not a hack)
+  - Jujutsu-aligned (partial working copies)
 ```
+
+### Why Sparse-Checkout > Symlinks
+
+| Aspect | Symlinks (Initial) | Sparse-Checkout (Final) |
+|--------|-------------------|-------------------------|
+| Merge conflicts | Yes (180+ conflicts) | No (git understands) |
+| Native git | No (filesystem trick) | Yes (designed for this) |
+| Complexity | High (symlink+gitignore+git rm) | Low (one pattern file) |
+| Correctness | Workaround | Proper solution |
+| Jujutsu migration | Need to rewrite | Direct mapping to jj sparse |
+
+**Decision point**: After merging WP01 caused 180 conflicts, switched to sparse-checkout. This is the **superior long-term solution**.
 
 ### Jujutsu Alignment
 
-| Jujutsu | Our Solution |
-|---------|--------------|
+| Jujutsu | Sparse-Checkout Solution |
+|---------|--------------------------|
+| Partial working copies | Sparse-checkout |
 | Commit graph (centralized status) | Main branch (centralized status) |
-| Working copy query | Symlink to main |
-| Auto-tracking | Auto-commit |
+| Query from any working copy | Read from main (absolute paths) |
+| Auto-tracking | Auto-commit to main |
 | Local-only | Local-only |
 
-**Migration path**: Swap symlinks for jj working copy API. Same mental model.
+**Migration path**: Replace sparse-checkout with jj's sparse support. Same mental model, native jj feature.
 
-### Files: implement.py (+30), tasks.py (+70), workflow.py (+40), fix-worktree-symlinks.sh (+70)
-### Commits: 38292a7, 3c69d5b, 35cbba7
+### Files Modified
+
+- `src/specify_cli/cli/commands/implement.py` (~30 lines)
+- `src/specify_cli/cli/commands/agent/tasks.py` (~70 lines for auto-commit)
+- `src/specify_cli/cli/commands/agent/workflow.py` (~40 lines for auto-commit)
+- `fix-worktrees-to-sparse-checkout.sh` (+95 lines, conversion script)
+
+### Commits
+
+- `38292a7` - Initial symlink solution (replaced)
+- `3c69d5b` - Auto-commit implementation (kept)
+- `35cbba7` - PID tracking + finalize (kept)
+- (Pending) - Switch from symlinks to sparse-checkout
 
 ---
 

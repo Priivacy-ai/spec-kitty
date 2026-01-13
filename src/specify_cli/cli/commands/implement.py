@@ -580,57 +580,40 @@ def implement(
             console.print(f"Error: {result.stderr}")
             raise typer.Exit(1)
 
-        # CRITICAL: Create symlink to main's kitty-specs/ for instant status sync
-        # This prevents worktree state divergence (Issue: WP files out of sync across worktrees)
-        # Aligns with jujutsu's "query commit graph" model - single source of truth for status
-        import shutil
-        worktree_kitty_specs = workspace_path / "kitty-specs"
-        main_kitty_specs = repo_root / "kitty-specs"
+        # CRITICAL: Use sparse-checkout to exclude kitty-specs/ from this worktree
+        # This prevents worktree state divergence and enables clean merges to main
+        # Aligns with jujutsu's "partial working copy" model - status lives in main, impl in worktrees
 
-        if worktree_kitty_specs.exists() and not worktree_kitty_specs.is_symlink():
-            # Remove the copied directory
-            shutil.rmtree(worktree_kitty_specs)
+        # Get git directory path (worktrees have .git as a file pointing to actual git dir)
+        git_file = workspace_path / ".git"
+        if git_file.is_file():
+            git_content = git_file.read_text().strip()
+            if git_content.startswith("gitdir:"):
+                gitdir = Path(git_content.split(":", 1)[1].strip())
+                sparse_checkout_file = gitdir / "info" / "sparse-checkout"
 
-        if not worktree_kitty_specs.exists():
-            # Create symlink to main's kitty-specs/
-            worktree_kitty_specs.symlink_to(main_kitty_specs)
-            console.print(f"[cyan]→ Linked kitty-specs/ to main (instant status sync)[/cyan]")
+                # Enable sparse-checkout (non-cone mode for exclusion patterns)
+                subprocess.run(
+                    ["git", "config", "core.sparseCheckout", "true"],
+                    cwd=workspace_path,
+                    capture_output=True,
+                    check=False
+                )
 
-        # FIX A: Exclude kitty-specs/ from git tracking in this branch
-        # This prevents confusion and ensures clean merges to main
-        # Status is managed in main branch, implementation code in feature branches
+                # Write sparse-checkout patterns
+                # Pattern: Include everything (/*), exclude kitty-specs/ (!/kitty-specs/)
+                sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
+                sparse_checkout_file.write_text("/*\n!/kitty-specs/\n", encoding="utf-8")
 
-        # Step 1: Add to .gitignore
-        worktree_gitignore = workspace_path / ".gitignore"
-        exclude_content = ""
-        if worktree_gitignore.exists():
-            exclude_content = worktree_gitignore.read_text(encoding="utf-8")
+                # Apply sparse-checkout (updates working tree to remove kitty-specs/)
+                subprocess.run(
+                    ["git", "read-tree", "-mu", "HEAD"],
+                    cwd=workspace_path,
+                    capture_output=True,
+                    check=False
+                )
 
-        if "kitty-specs" not in exclude_content:
-            with worktree_gitignore.open('a', encoding="utf-8") as f:
-                f.write("\n# Ignore kitty-specs symlink (status managed in main branch)\n")
-                f.write("kitty-specs\n")
-
-        # Step 2: Remove from git index if tracked (prevents deleted file spam)
-        # This removes kitty-specs/ from the branch without deleting the symlink
-        result = subprocess.run(
-            ["git", "rm", "-r", "--cached", "--ignore-unmatch", "kitty-specs/"],
-            cwd=workspace_path,
-            capture_output=True,
-            text=True,
-            check=False
-        )
-
-        # Step 3: Commit the .gitignore and index change
-        subprocess.run(["git", "add", ".gitignore"], cwd=workspace_path, check=False)
-        subprocess.run(
-            ["git", "commit", "-m", "chore: Exclude kitty-specs (status managed in main)"],
-            cwd=workspace_path,
-            capture_output=True,
-            check=False
-        )
-
-        console.print(f"[cyan]→ Excluded kitty-specs/ from feature branch (status managed in main)[/cyan]")
+                console.print(f"[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
 
         tracker.complete("create", f"Workspace: {workspace_path.relative_to(repo_root)}")
 
