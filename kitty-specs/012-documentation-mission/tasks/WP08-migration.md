@@ -9,10 +9,10 @@ subtasks:
   - "T052"
 title: "Mission Installation Migration"
 phase: "Phase 1 - Integration"
-lane: "for_review"
+lane: "doing"
 assignee: ""
 agent: "claude"
-shell_pid: "59296"
+shell_pid: "69618"
 review_status: ""
 reviewed_by: ""
 dependencies:
@@ -883,3 +883,4 @@ pytest tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.
 - 2026-01-13T10:47:28Z – pid-final-test – shell_pid=45599 – lane=planned – Reset to planned (was test activity)
 - 2026-01-13T10:48:54Z – claude – shell_pid=59296 – lane=doing – Started implementation via workflow command
 - 2026-01-13T10:54:43Z – claude – shell_pid=59296 – lane=for_review – Ready for review: Documentation mission migration implemented with comprehensive tests. All subtasks (T047-T052) complete. Migration includes detect(), can_apply(), apply() methods with idempotency, existing mission preservation, and full test coverage (19 tests passing).
+- 2026-01-13T11:08:49Z – claude – shell_pid=69618 – lane=doing – Started review via workflow command
