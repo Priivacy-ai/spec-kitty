@@ -258,7 +258,7 @@
 **Prompt**: `/tasks/WP08-migration.md`
 
 ### Included Subtasks
-- [ ] T047 Create `src/specify_cli/upgrade/migrations/m_0_12_0_documentation_mission.py`
+- [x] T047 Create `src/specify_cli/upgrade/migrations/m_0_12_0_documentation_mission.py`
 - [ ] T048 Implement detect() to check if documentation mission exists in .kittify/missions/
 - [ ] T049 Implement apply() to copy documentation mission from src/specify_cli/missions/ to .kittify/missions/
 - [ ] T050 Test migration doesn't affect existing missions (software-dev, research)
