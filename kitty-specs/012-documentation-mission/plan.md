@@ -186,7 +186,7 @@ See [data-model.md](data-model.md) for entity definitions including:
 - domain: "other" (documentation is a new domain)
 - workflow phases: discover → audit → design → generate → validate → publish
 - required artifacts: spec.md, plan.md, tasks.md, gap-analysis.md (if gap-filling mode)
-- optional artifacts: divio-templates/, generator-configs/, audit-report.md
+- optional artifacts: divio-templates/, generator-configs/, audit-report.md, release.md
 - validation checks: all_divio_types_valid, no_conflicting_generators, templates_populated
 
 **Template hierarchy**:
@@ -306,6 +306,7 @@ All success criteria are addressable by the planned design.
 1. **Complete Phase 0 Research** → Generate research.md with generator integration findings
 2. **Complete Phase 1 Design** → Generate data-model.md with entity definitions
 3. **Generate quickstart** → Create quickstart.md for contributors
+4. **Prepare release guidance (optional)** → Create release.md when publish is in scope
 4. **Update agent context** → Add documentation mission to all 12 agent directories
 5. **Report completion** → User runs `/spec-kitty.tasks` to generate work packages
 

@@ -409,6 +409,7 @@ Custom phases for documentation mission: discover → audit → design → gener
    - Prepare for hosting platform
    - Generate final builds
    - Create deployment artifacts
+   - Capture optional release.md (publish handoff, deployment notes)
 
 **Workflow configuration**:
 ```yaml

@@ -139,10 +139,11 @@ history:
      optional:
        - divio-templates/
        - generator-configs/
-       - audit-report.md
-       - research.md
-       - data-model.md
-       - quickstart.md
+      - audit-report.md
+      - research.md
+      - data-model.md
+      - quickstart.md
+      - release.md
    ```
 
 **Files**: `src/specify_cli/missions/documentation/mission.yaml`
@@ -326,7 +327,7 @@ history:
 - [ ] Mission appears in `list_available_missions()` output
 - [ ] Workflow phases are correctly defined (6 phases)
 - [ ] Required artifacts include spec.md, plan.md, tasks.md, gap-analysis.md
-- [ ] Optional artifacts include divio-templates/, generator-configs/, audit-report.md
+- [ ] Optional artifacts include divio-templates/, generator-configs/, audit-report.md, release.md
 - [ ] Path conventions defined (workspace, deliverables, documentation)
 - [ ] Validation checks defined (4 checks)
 - [ ] Agent context includes Write the Docs and Divio principles

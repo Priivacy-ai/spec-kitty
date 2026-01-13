@@ -28,7 +28,7 @@
 ### Included Subtasks
 - [x] T001 Create `src/specify_cli/missions/documentation/` directory structure
 - [x] T002 Create `mission.yaml` with workflow phases (discover → audit → design → generate → validate → publish)
-- [x] T003 Define artifacts (required: spec.md, plan.md, tasks.md, gap-analysis.md; optional: divio-templates/, generator-configs/)
+- [x] T003 Define artifacts (required: spec.md, plan.md, tasks.md, gap-analysis.md; optional: divio-templates/, generator-configs/, release.md)
 - [x] T004 Define path conventions (workspace: "docs/", deliverables: "docs/output/")
 - [x] T005 Define validation checks (all_divio_types_valid, no_conflicting_generators, templates_populated)
 - [x] T006 Add agent context with documentation mission instructions

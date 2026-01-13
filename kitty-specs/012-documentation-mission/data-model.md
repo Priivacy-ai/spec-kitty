@@ -590,6 +590,7 @@ Documentation Generator (Python Protocol)
 | Generator Configs (templates) | `src/specify_cli/missions/documentation/templates/generators/*` | Various |
 | Feature Metadata | `kitty-specs/{feature}/meta.json` | JSON |
 | Gap Analysis | `kitty-specs/{feature}/gap-analysis.md` | Markdown |
+| Release Guidance | `kitty-specs/{feature}/release.md` | Markdown |
 | Documentation Artifacts | `kitty-specs/{feature}/docs/*` or project `docs/` | Markdown/HTML |
 
 ## Validation Rules Summary

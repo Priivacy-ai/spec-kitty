@@ -13,8 +13,8 @@ lane: "planned"
 assignee: ""
 agent: ""
 shell_pid: ""
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "codex"
 dependencies:
   - "WP01"
 history:
@@ -605,7 +605,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 
 5. **Report completion**:
    - Plan file path
-   - Artifacts generated (research.md, data-model.md, gap-analysis.md, quickstart.md)
+   - Artifacts generated (research.md, data-model.md, gap-analysis.md, quickstart.md, release.md when publish is in scope)
    - Next command: `/spec-kitty.tasks`
 
 ---
@@ -1704,3 +1704,4 @@ done
 ## Activity Log
 
 - 2026-01-12T17:18:56Z – system – lane=planned – Prompt created.
+- 2026-01-13T08:02:09Z – agent – lane=doing – Started implementation via workflow command

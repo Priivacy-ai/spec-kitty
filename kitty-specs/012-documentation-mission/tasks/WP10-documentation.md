@@ -337,7 +337,7 @@ AGENT_DIRS = [
    - Deploy to hosting platform (Read the Docs, GitHub Pages, etc.)
    - Update documentation links in README
 
-   **Outputs**: Published documentation site
+   **Outputs**: Published documentation site, release.md (optional publish guidance)
 
    **Note**: Publishing is often handled outside spec-kitty (via CI/CD or manual deployment). This phase is for preparation only.
    ```
@@ -1583,7 +1583,7 @@ AGENT_DIRS = [
   - [ ] Design phase explained with structure planning
   - [ ] Generate phase explained with template and generator usage
   - [ ] Validate phase explained with quality checks
-  - [ ] Publish phase explained with deployment guidance
+- [ ] Publish phase explained with deployment guidance (including release.md when in scope)
 - [ ] T079: Divio types documented:
   - [ ] Tutorial characteristics and when to use
   - [ ] How-to characteristics and when to use

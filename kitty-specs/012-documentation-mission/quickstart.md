@@ -105,7 +105,7 @@ discover → audit → design → generate → validate → publish
 - **design**: Plan doc structure, configure generators
 - **generate**: Create docs from templates + generators
 - **validate**: Quality checks (Divio adherence, accessibility)
-- **publish**: Prepare for hosting
+- **publish**: Prepare for hosting and handoff (release.md when in scope)
 
 ### Iteration Modes
 
@@ -415,6 +415,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh  # Rust
 - **Implementation Plan**: [plan.md](plan.md) - Technical design
 - **Research**: [research.md](research.md) - Generator integration patterns
 - **Data Model**: [data-model.md](data-model.md) - Entity definitions
+- **Release Guidance**: [release.md](release.md) - Optional publish and handoff notes
 
 ## 💡 Pro Tips
 

@@ -282,6 +282,7 @@ history:
 
        # Should include divio-templates, generator-configs, etc.
        assert "divio-templates/" in optional or "research.md" in optional
+       assert "release.md" in optional
    ```
 
 3. Add test for path conventions:
