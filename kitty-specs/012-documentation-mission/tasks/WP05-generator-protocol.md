@@ -11,12 +11,12 @@ subtasks:
   - "T032"
 title: "Documentation Generator Protocol"
 phase: "Phase 1 - Core Logic"
-lane: "doing"
+lane: "planned"
 assignee: "test"
 agent: "claude"
 shell_pid: "65572"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 dependencies:
   - "WP01"
 history:
@@ -42,11 +42,55 @@ history:
 
 ## Review Feedback
 
-> **Populated by `/spec-kitty.review`** – Reviewers add detailed feedback here when work needs changes. Implementation must address every item listed below before returning for re-review.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-13
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+**Issue 1: Missing directory creation in configure() methods**
 
----
+All three generators (JSDocGenerator, SphinxGenerator, RustdocGenerator) fail to create the output directory before writing configuration files. This causes `FileNotFoundError` when the directory doesn't exist.
+
+**How to fix:**
+Add `output_dir.mkdir(parents=True, exist_ok=True)` before writing config files in each `configure()` method:
+
+In JSDocGenerator.configure() (line ~209):
+```python
+config_file = output_dir / "jsdoc.json"
+output_dir.mkdir(parents=True, exist_ok=True)  # Add this line
+try:
+    config_file.write_text(json.dumps(config, indent=2))
+```
+
+In SphinxGenerator.configure() (line ~383):
+```python
+config_file = output_dir / "conf.py"
+output_dir.mkdir(parents=True, exist_ok=True)  # Add this line
+try:
+    config_file.write_text(config_content)
+```
+
+In RustdocGenerator.configure() (line ~539):
+```python
+instructions_file = output_dir / "rustdoc-config.md"
+output_dir.mkdir(parents=True, exist_ok=True)  # Add this line
+try:
+    instructions_file.write_text(instructions)
+```
+
+**Why this matters:**
+- Users will encounter errors when running configure() on fresh directories
+- This is a common use case (creating new documentation directories)
+- The error is not user-friendly (raw Python exception instead of GeneratorError)
+
+**Otherwise the implementation is excellent:**
+- ✓ All generators implement DocGenerator protocol correctly
+- ✓ Detection logic is sound and comprehensive
+- ✓ Subprocess invocation with proper error handling
+- ✓ Graceful degradation with helpful error messages
+- ✓ Configuration templates created (T032)
+- ✓ Cross-platform code using Path objects
+- ✓ GeneratorResult provides clear success/failure reporting
+
 
 ## ⚠️ Dependency Rebase Guidance
 
@@ -1268,3 +1312,4 @@ print(f'✓ Sphinx config generated: {config}')
 - 2026-01-13T10:48:30Z – claude – shell_pid=58940 – lane=doing – Started implementation via workflow command
 - 2026-01-13T10:54:28Z – claude – shell_pid=58940 – lane=for_review – Ready for review: Implemented documentation generator protocol with JSDoc, Sphinx, and rustdoc generators. All generators tested and working correctly.
 - 2026-01-13T10:58:38Z – claude – shell_pid=65572 – lane=doing – Started review via workflow command
+- 2026-01-13T10:59:48Z – claude – shell_pid=65572 – lane=planned – Moved to planned
