@@ -306,7 +306,7 @@
 - [x] T064 [P] Test RustdocGenerator detects Rust projects correctly
 - [x] T065 [P] Test generator graceful degradation when tool missing
 - [x] T066 [@pytest.mark.integration] Test end-to-end generator invocation (requires tools installed)
-- [ ] T067 [P] Create `tests/specify_cli/test_gap_analysis.py` (gap detection tests)
+- [x] T067 [P] Create `tests/specify_cli/test_gap_analysis.py` (gap detection tests)
 - [ ] T068 [P] Test framework detection (Sphinx, MkDocs, etc.)
 - [ ] T069 [P] Test Divio type classification from frontmatter
 - [ ] T070 [P] Test coverage matrix calculation
