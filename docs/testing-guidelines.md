@@ -152,10 +152,12 @@ def dashboard(tmp_path):
 
 When approving tasks during code review, it's critical to record the **reviewer's** identity, not the implementer's:
 
-**Problem:** Using generic `tasks-move-to-lane.sh` for approvals records the wrong agent:
-- Inherits implementer's `agent` and `shell_pid` from frontmatter
-- Activity log shows implementer approved their own work
-- No audit trail of who actually reviewed the code
+**Historical Problem:** Using generic lane commands for approvals could record the wrong agent identity.
+
+**Modern Solution:** The `spec-kitty agent workflow review` command properly handles reviewer identity:
+- Records reviewer's agent ID in frontmatter
+- Activity log captures who performed the review
+- Clear audit trail of implementer vs reviewer
 
 **Solution:** Use the dedicated `approve` command:
 

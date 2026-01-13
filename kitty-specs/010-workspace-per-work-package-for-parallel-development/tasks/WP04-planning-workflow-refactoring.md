@@ -60,7 +60,7 @@ spec-kitty implement WP04 --base WP03
    - `_commit_to_main` uses `run_command` without a `cwd`, so if the command is executed from a worktree the commit can land on the worktree branch, not main. See `src/specify_cli/cli/commands/agent/feature.py#L35`. Please either enforce running in main for plan/tasks or pass `cwd=repo_root` when committing.
 
 4) **Tasks README still references deprecated lane commands**
-   - `src/specify_cli/cli/commands/agent/feature.py#L281` writes `tasks/README.md` with `spec-kitty tasks update` and `.kittify/scripts/bash/tasks-move-to-lane.sh`. These are deprecated; should point to `spec-kitty agent tasks move-task`.
+   - `src/specify_cli/cli/commands/agent/feature.py#L281` writes `tasks/README.md` with deprecated commands. Should point to modern `spec-kitty agent workflow implement/review` commands.
 
 ### Re-review findings (still unresolved)
 
@@ -612,7 +612,7 @@ pytest tests/specify_cli/test_integration/test_planning_workflow.py -v
 
 Move this WP between lanes using:
 ```bash
-spec-kitty agent tasks move-task WP04 --to <lane>
+spec-kitty agent workflow implement WP04
 ```
 
 Or edit the `lane:` field in frontmatter directly.

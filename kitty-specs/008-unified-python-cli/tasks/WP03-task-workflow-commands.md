@@ -29,8 +29,8 @@ history:
 **Goal**: Migrate task management bash scripts to Python agent commands, converting 850 lines of argparse CLI to Typer.
 
 **Success Criteria**:
-- All 6 task commands implemented: `move-task`, `mark-status`, `list-tasks`, `add-history`, `rollback-task`, `validate-workflow`
-- `spec-kitty agent move-task WP01 --to doing --json` moves task and returns JSON
+- All 6 task commands implemented: `move-task`, `mark-status`, `list-tasks`, `add-history`, `rollback-task`, `validate-workflow` (note: `move-task` later evolved to `workflow implement/review` in v0.11.1)
+- `spec-kitty agent move-task WP01 --to doing --json` moves task and returns JSON (historical - now `spec-kitty agent workflow implement WP01`)
 - Full task workflow works: planned → doing → for_review → done
 - All existing `tasks_support.py` functionality preserved
 - 90%+ test coverage for `tasks.py`
@@ -99,10 +99,10 @@ Document key functions to preserve in migration notes.
 
 ### T036-T041 – Implement 6 task commands
 
-Implement each command following this pattern:
+Implement each command following this pattern (historical example - `move-task` later evolved to `workflow` subcommands):
 
 ```python
-@app.command(name="move-task")
+@app.command(name="move-task")  # Historical: later superseded by workflow implement/review
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane")],
@@ -146,7 +146,7 @@ def move_task(
 ```
 
 **Commands to implement**:
-- **T036**: `move-task` - Move between lanes
+- **T036**: `move-task` - Move between lanes (historical - later evolved to `workflow implement/review`)
 - **T037**: `mark-status` - Update checkbox status
 - **T038**: `list-tasks` - List tasks by lane with filtering
 - **T039**: `add-history` - Append history entry
@@ -195,6 +195,7 @@ from specify_cli.cli.commands.agent.tasks import app
 
 runner = CliRunner()
 
+# Historical test for original move-task command (later evolved to workflow commands)
 def test_move_task_json(mock_worktree, tmp_task_file):
     result = runner.invoke(app, ["move-task", "WP01", "--to", "doing", "--json"])
     assert result.exit_code == 0
@@ -206,28 +207,30 @@ def test_move_task_json(mock_worktree, tmp_task_file):
 
 ### T050 – Integration test: Full task workflow
 
-Create end-to-end test of complete workflow:
+Create end-to-end test of complete workflow (historical test for original move-task command):
 
 ```python
 def test_full_task_workflow(tmp_repo):
     # Create task in planned
     create_task(tmp_repo, "WP01")
-    
+
     # Move planned → doing
     result = run_cmd(["move-task", "WP01", "--to", "doing"])
     assert result["new_lane"] == "doing"
-    
+
     # Move doing → for_review
     result = run_cmd(["move-task", "WP01", "--to", "for_review"])
     assert result["new_lane"] == "for_review"
-    
+
     # Move for_review → done
     result = run_cmd(["move-task", "WP01", "--to", "done"])
     assert result["new_lane"] == "done"
-    
+
     # Verify history has 4 entries
     metadata = read_task_metadata(tmp_repo, "WP01")
     assert len(metadata["history"]) == 4
+
+# Note: These tests were later updated to test workflow implement/review commands
 ```
 
 ---

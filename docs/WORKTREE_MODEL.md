@@ -201,7 +201,7 @@ $ /spec-kitty.merge
 These scripts auto-detect and switch context:
 
 - `merge-feature.sh` - If you run from main, switches to latest worktree
-- `tasks-move-to-lane.sh` - If you run from main, switches to latest worktree
+- `tasks-move-to-lane.sh` (legacy) - If you run from main, switches to latest worktree (now use `spec-kitty agent workflow` commands)
 - `check-prerequisites.sh` - If you run from main, switches to latest worktree
 
 ### Manual Context Switching

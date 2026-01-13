@@ -58,11 +58,11 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 
 ## Dashboard Integration
 
-- Lane transitions triggered by `.kittify/scripts/bash/tasks-move-to-lane.sh` surface instantly on the kanban dashboard.
+- Lane transitions triggered by workflow commands (`spec-kitty agent workflow implement/review`) surface instantly on the kanban dashboard.
 - Each lane move records `agent`, `assignee`, and `shell_pid` in prompt frontmatter—Claude should add an ISO 8601 entry to the **Activity Log** summarizing what changed.
-- When Claude finishes a work package, use the helper script to move it to `for_review` so the dashboard and reviewers stay in sync:
+- When Claude finishes a work package, use the workflow command to move it to `for_review` so the dashboard and reviewers stay in sync:
   ```bash
-  .kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WP02 for_review --note "Ready for review"
+  spec-kitty agent workflow review WP02
   ```
 
 ## Recommended Automation
@@ -78,7 +78,7 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 |---------|-------|-----|
 | Claude asks for missing context | Prompt not in `doing` lane yet | Move prompt to `doing` so scripts inject metadata |
 | Claude edits unexpected files | Prompt instructions unclear | Refine `tasks.md` and regenerate prompt |
-| Dashboard shows stale lane | Prompt moved manually | Always use `.kittify/scripts/.../tasks-move-to-lane.sh` |
+| Dashboard shows stale lane | Prompt moved manually | Always use `spec-kitty agent workflow` commands for lane transitions |
 | Claude session interrupted | CLI lost connection | Resume using the prompt transcript stored under `.claude/history/` |
 
 ## Merge and Cleanup

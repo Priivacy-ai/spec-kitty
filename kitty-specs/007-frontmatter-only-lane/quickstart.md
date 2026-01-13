@@ -15,7 +15,7 @@ This feature refactors Spec Kitty's lane management from directory-based to fron
 
 | Old Command | New Command | Notes |
 |-------------|-------------|-------|
-| `tasks_cli.py move <feature> <wp> <lane>` | `tasks_cli.py update <feature> <wp> <lane>` | No file movement, frontmatter only |
+| `tasks_cli.py move <feature> <wp> <lane>` | `tasks_cli.py update <feature> <wp> <lane>` (deprecated) | No file movement, frontmatter only (now use `spec-kitty agent workflow`) |
 | `tasks_cli.py list <feature>` | `tasks_cli.py list <feature>` | Now scans flat directory |
 | `tasks_cli.py status [feature]` | `tasks_cli.py status [feature]` | Groups by frontmatter lane |
 
@@ -54,7 +54,7 @@ To change a work package's lane:
 
 **Option 1**: Use the update command
 ```bash
-python scripts/tasks/tasks_cli.py update 007-feature WP01 for_review --note "Ready for review"
+spec-kitty agent workflow review WP01
 ```
 
 **Option 2**: Edit frontmatter directly

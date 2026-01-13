@@ -12,9 +12,9 @@ Use this recipe when multiple agents implement a roadmap in parallel and leaders
 
 2. **Snapshot lane counts** – Dashboard shows items in `planned`, `doing`, `for_review`, `done` with live updates. Take screenshots for hourly reports.
 
-3. **Move prompts via helper scripts** – Always use `.kittify/scripts/bash/tasks-move-to-lane.sh` so the dashboard stays synchronized:
+3. **Move prompts via workflow commands** – Always use `spec-kitty agent workflow implement/review` so the dashboard stays synchronized:
    ```bash
-   .kittify/scripts/bash/tasks-move-to-lane.sh 001-systematic-recognizer-enhancement WP01 doing
+   spec-kitty agent workflow implement WP01
    ```
 
 4. **Record activity logs** – Agents append ISO 8601 entries to the prompt's "Activity Log" section for auditability:
