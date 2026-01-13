@@ -424,7 +424,8 @@ def move_task(
         updated_doc = build_document(updated_front, updated_body, wp.padding)
         wp.path.write_text(updated_doc, encoding="utf-8")
 
-        # FIX B: Auto-commit to main branch (wp.path is symlinked to main's kitty-specs/)
+        # FIX B: Auto-commit to main branch (worktrees use sparse-checkout, don't have kitty-specs/)
+        # Agents read/write to main's kitty-specs/ directly (absolute paths)
         # This enables instant status sync across all worktrees (jujutsu-aligned)
         if auto_commit:
             import subprocess
@@ -432,15 +433,14 @@ def move_task(
             # Get the ACTUAL main repo root (not worktree path)
             main_repo_root = _get_main_repo_root(repo_root)
 
-            # Commit to main (file is in main via symlink)
+            # Commit to main (file is always in main, worktrees excluded via sparse-checkout)
             commit_msg = f"chore: Move {task_id} to {target_lane}"
             if agent_name != "unknown":
                 commit_msg += f" [{agent_name}]"
 
             try:
-                # Resolve symlink to get the actual file path in main repo
-                # wp.path might be: /worktrees/WP04/kitty-specs/... (via symlink)
-                # We need: /main/kitty-specs/... (actual file)
+                # wp.path already points to main's kitty-specs/ (absolute path)
+                # Worktrees use sparse-checkout to exclude kitty-specs/, so path is always to main
                 actual_file_path = wp.path.resolve()
 
                 # Commit the specific WP file directly (bypasses staging area)
@@ -549,7 +549,7 @@ def mark_status(
         updated_content = '\n'.join(lines)
         tasks_md.write_text(updated_content, encoding="utf-8")
 
-        # Auto-commit to main branch (tasks.md is symlinked to main's kitty-specs/)
+        # Auto-commit to main branch (worktrees use sparse-checkout, tasks.md always in main)
         if auto_commit:
             import subprocess
 
@@ -559,7 +559,8 @@ def mark_status(
             commit_msg = f"chore: Mark {task_id} as {status}"
 
             try:
-                # Resolve symlink to get the actual file path in main repo
+                # tasks_md already points to main's kitty-specs/tasks.md (absolute path)
+                # Worktrees excluded kitty-specs/ via sparse-checkout
                 actual_tasks_path = tasks_md.resolve()
 
                 # Commit the specific tasks.md file directly (bypasses staging area)

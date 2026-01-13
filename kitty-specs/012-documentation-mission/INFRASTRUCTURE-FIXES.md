@@ -241,15 +241,17 @@ spec-kitty agent tasks move-task WP03 --to done
 
 ## Future: When We Add Jujutsu
 
-**Remove** (~100 lines):
-- Symlink creation
+**Remove** (~60 lines):
+- Sparse-checkout configuration code
 - Auto-commit code
-- .gitignore exclusion
 
-**Replace with** (~50 lines):
+**Replace with** (~40 lines):
 ```python
-jj describe -m "chore: ..."  # Like our auto-commit
-# jj handles working copy sync automatically
+# jj sparse set to exclude kitty-specs/ from working copies
+jj sparse set --clear --add '!kitty-specs/**'
+
+# jj describe for status changes (like our auto-commit)
+jj describe -m "chore: Move {task_id} to {lane} [{agent}]"
 ```
 
 **Keep** (~400 lines):
@@ -259,7 +261,7 @@ jj describe -m "chore: ..."  # Like our auto-commit
 - Feedback automation
 - Workflow output
 
-**Effort**: 2-3 hours, mental model unchanged
+**Effort**: 1-2 hours (sparse-checkout → jj sparse is direct mapping)
 
 ---
 
@@ -270,8 +272,9 @@ jj describe -m "chore: ..."  # Like our auto-commit
 3. **Manual editing fails**: Automate everything
 4. **Track ownership**: Required --agent prevents confusion
 5. **Template propagation matters**: Update all 12 agents, not just 3
-6. **Symlinks work for status**: Jujutsu-aligned, zero latency
-7. **Document out-of-scope fixes**: Future developers need this context
+6. **Use native git features**: Sparse-checkout > symlinks (no merge conflicts)
+7. **Test merge early**: 180 conflicts revealed symlink approach was wrong
+8. **Document out-of-scope fixes**: Future developers need this context
 
 ---
 
@@ -279,25 +282,32 @@ jj describe -m "chore: ..."  # Like our auto-commit
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| implement.py | Symlink + exclude | +30 |
+| implement.py | Sparse-checkout configuration | +33 |
 | tasks.py | Auto-commit + feedback + slug | +150 |
 | workflow.py | PID + auto-commit + visual | +80 |
 | m_0_11_2_improved_workflow_templates.py | Migration | +185 |
 | review.md, implement.md | Templates | Rewritten |
-| fix-worktree-symlinks.sh | Helper | +70 |
+| fix-worktrees-to-sparse-checkout.sh | Conversion helper | +95 |
 
-**Total**: ~540 lines of infrastructure
+**Total**: ~543 lines of infrastructure
 
 ---
 
 ## Commits on Branch 012-documentation-mission-WP04
 
 1. `28d1422` - Workflow command state corruption fixes
-2. `38292a7` - Symlink kitty-specs/ solution  
+2. `38292a7` - Symlink kitty-specs/ solution (initial approach, later replaced)
 3. `3c69d5b` - Complete state sync with auto-commit
 4. `35cbba7` - PID tracking, feature slug fix, finalize
+5. `6c79e3d` - WP sizing guidance rewrite
 
-**These merge to main when WP04 completes and gets accepted.**
+**Commits on Main After Merge**:
+
+1. `7061c67` - Merged WP01 (cherry-picked src/ only, avoided symlink conflicts)
+2. `3f0fc49` - Merged WP02
+3. `2f7aebd` - Merged WP03
+4. `e57d02f` - Merged WP04 (all infrastructure fixes)
+5. `d0c158f` - Switched from symlinks to sparse-checkout (proper solution)
 
 ---
 
