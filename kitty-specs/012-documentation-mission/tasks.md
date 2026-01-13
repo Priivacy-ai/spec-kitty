@@ -229,7 +229,7 @@
 - [x] T041 Store iteration_mode (initial, gap_filling, feature_specific)
 - [x] T042 Store divio_types_selected list
 - [x] T043 Store generators_configured list with config paths
-- [ ] T044 Store last_audit_date and coverage_percentage
+- [x] T044 Store last_audit_date and coverage_percentage
 - [ ] T045 Implement state read/write functions in mission logic
 - [ ] T046 Handle state migration from previous versions (if field missing)
 
