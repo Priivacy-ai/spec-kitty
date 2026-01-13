@@ -60,3 +60,6 @@ sdd-*/
 .github/
 .roo/
 .amazonq/
+
+# Ignore kitty-specs symlink (status managed in main branch)
+kitty-specs/
