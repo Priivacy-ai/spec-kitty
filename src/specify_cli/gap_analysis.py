@@ -235,3 +235,106 @@ def classify_divio_type(content: str) -> Tuple[DivioType, float]:
     confidence = 0.7 if divio_type != DivioType.UNCLASSIFIED else 0.0
 
     return (divio_type, confidence)
+
+
+@dataclass
+class CoverageMatrix:
+    """Documentation coverage matrix showing Divio type coverage by project area.
+
+    The matrix shows which project areas (features, modules, components) have
+    documentation for each Divio type (tutorial, how-to, reference, explanation).
+    """
+
+    project_areas: List[str] = field(default_factory=list)  # e.g., ["auth", "api", "cli"]
+    divio_types: List[str] = field(
+        default_factory=lambda: ["tutorial", "how-to", "reference", "explanation"]
+    )
+
+    # Maps (area, type) to doc file path (None if missing)
+    cells: Dict[Tuple[str, str], Optional[Path]] = field(default_factory=dict)
+
+    def get_coverage_for_area(self, area: str) -> Dict[str, Optional[Path]]:
+        """Get all Divio type coverage for one project area.
+
+        Args:
+            area: Project area name
+
+        Returns:
+            Dict mapping Divio type to doc file path (or None if missing)
+        """
+        return {dtype: self.cells.get((area, dtype)) for dtype in self.divio_types}
+
+    def get_coverage_for_type(self, divio_type: str) -> Dict[str, Optional[Path]]:
+        """Get all project area coverage for one Divio type.
+
+        Args:
+            divio_type: Divio type name
+
+        Returns:
+            Dict mapping project area to doc file path (or None if missing)
+        """
+        return {
+            area: self.cells.get((area, divio_type)) for area in self.project_areas
+        }
+
+    def get_gaps(self) -> List[Tuple[str, str]]:
+        """Return list of (area, type) tuples with missing documentation.
+
+        Returns:
+            List of (area, divio_type) tuples where documentation is missing
+        """
+        gaps = []
+        for area in self.project_areas:
+            for dtype in self.divio_types:
+                if self.cells.get((area, dtype)) is None:
+                    gaps.append((area, dtype))
+        return gaps
+
+    def get_coverage_percentage(self) -> float:
+        """Calculate percentage of cells with documentation.
+
+        Returns:
+            Coverage percentage (0.0 to 1.0)
+        """
+        total_cells = len(self.project_areas) * len(self.divio_types)
+        if total_cells == 0:
+            return 0.0
+
+        filled_cells = sum(1 for path in self.cells.values() if path is not None)
+
+        return filled_cells / total_cells
+
+    def to_markdown_table(self) -> str:
+        """Generate Markdown table representation of coverage.
+
+        Returns:
+            Markdown table showing coverage matrix
+        """
+        if not self.project_areas:
+            return "No project areas identified."
+
+        # Build table header
+        header = "| Area | " + " | ".join(self.divio_types) + " |"
+        separator = "|" + "|".join(["---"] * (len(self.divio_types) + 1)) + "|"
+
+        # Build table rows
+        rows = []
+        for area in self.project_areas:
+            cells = []
+            for dtype in self.divio_types:
+                doc_path = self.cells.get((area, dtype))
+                if doc_path:
+                    cells.append("✓")
+                else:
+                    cells.append("✗")
+            row = f"| {area} | " + " | ".join(cells) + " |"
+            rows.append(row)
+
+        # Combine
+        table_lines = [header, separator] + rows
+
+        # Add coverage percentage
+        coverage_pct = self.get_coverage_percentage() * 100
+        summary = f"\n**Coverage**: {len([c for c in self.cells.values() if c])}/{len(self.cells)} cells = {coverage_pct:.1f}%"
+
+        return "\n".join(table_lines) + summary
