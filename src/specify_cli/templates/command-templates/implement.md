@@ -11,7 +11,7 @@ description: Create an isolated workspace (worktree) for implementing a specific
 
 **Step 1**: Get the WP prompt and implementation instructions
 ```bash
-spec-kitty agent workflow implement WP##
+spec-kitty agent workflow implement WP## --agent __AGENT__
 ```
 This displays the full WP prompt with detailed requirements and shows:
 ```
@@ -43,7 +43,7 @@ spec-kitty implement WP## --base WPXX  # With dependencies (branches from base W
 
 After `/spec-kitty.tasks` generates work packages in the main repository:
 - Planning artifacts (spec, plan, tasks) are already in main
-- Run `spec-kitty agent workflow implement WP01` to get the full prompt
+- Run `spec-kitty agent workflow implement WP01 --agent __AGENT__` to get the full prompt
 - Run `spec-kitty implement WP01` to create a workspace for the first WP
 - Run `spec-kitty implement WP02 --base WP01` if WP02 depends on WP01
 - Each WP gets its own isolated worktree in `.worktrees/###-feature-WP##/`
@@ -116,7 +116,7 @@ The implement command reads this field and validates the --base flag matches.
 
 ```bash
 # 1. Get the full WP prompt and instructions
-spec-kitty agent workflow implement WP##
+spec-kitty agent workflow implement WP## --agent __AGENT__
 
 # 2. Read the "WHEN YOU'RE DONE" section at the top of the prompt
 # It will show exactly what command to run when complete:

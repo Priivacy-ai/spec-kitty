@@ -207,6 +207,7 @@ def implement(
                 print(f"  Usage: spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
                 print("  Example: spec-kitty agent workflow implement WP01 --agent claude")
                 print()
+                print("If you're using a generated agent command file, --agent is already included.")
                 print("This tracks WHO is working on the WP (prevents abandoned tasks).")
                 raise typer.Exit(1)
 
@@ -486,6 +487,7 @@ def review(
                 print(f"  Usage: spec-kitty agent workflow review {normalized_wp_id} --agent <your-name>")
                 print("  Example: spec-kitty agent workflow review WP01 --agent claude")
                 print()
+                print("If you're using a generated agent command file, --agent is already included.")
                 print("This tracks WHO is reviewing the WP (prevents abandoned reviews).")
                 raise typer.Exit(1)
 
