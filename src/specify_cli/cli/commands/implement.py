@@ -378,7 +378,20 @@ def implement(
             tracker.error("validate", "missing --base flag")
             console.print(tracker.render())
             console.print(f"\n[red]Error:[/red] {wp_id} has dependencies: {declared_deps}")
-            console.print(f"Use: spec-kitty implement {wp_id} --base {declared_deps[0]}")
+            console.print(f"\nYou MUST specify a base workspace with --base:")
+
+            # Suggest the last dependency (most likely the right one for linear/diamond patterns)
+            suggested_base = declared_deps[-1]
+            console.print(f"  spec-kitty implement {wp_id} --base {suggested_base}")
+
+            # If multiple dependencies, provide guidance
+            if len(declared_deps) > 1:
+                console.print(f"\n[yellow]Note:[/yellow] {wp_id} has multiple dependencies: {declared_deps}")
+                console.print(f"Base on the last one ({suggested_base}), then manually merge others:")
+                console.print(f"  cd .worktrees/{feature_slug}-{wp_id}")
+                for dep in declared_deps[:-1]:
+                    console.print(f"  git merge {feature_slug}-{dep}")
+
             raise typer.Exit(1)
 
         # If --base provided, validate it matches declared dependencies
