@@ -1,9 +1,0 @@
-id,date,source_id,finding,relevance,decision_impact
-E-001,2025-12-17,S-001,"stage_move() in tasks_cli.py performs shutil.move() between lane directories",Critical,D-001 rename to update
-E-002,2025-12-17,S-002,"locate_work_package() iterates lane subdirectories to find WP files",Critical,Core refactoring target
-E-003,2025-12-17,S-003,"scan_feature_kanban() builds lane_dir = tasks_dir / lane for each lane",Critical,Dashboard must read frontmatter
-E-004,2025-12-17,S-004,"detect_lane_mismatch() extracts expected lane from file path",High,Function becomes obsolete
-E-005,2025-12-17,S-005,"Existing tests assume tasks/planned/ directory structure",High,Test updates required
-E-006,2025-12-17,S-006,"User confirmed clean break preference during planning",Critical,D-002 no backwards compat
-E-007,2025-12-17,S-001,"LANES tuple defined in two places - sync issue",Medium,Consider consolidation
-E-008,2025-12-17,S-002,"WP frontmatter already includes lane: field",High,No schema changes needed
