@@ -159,7 +159,7 @@
 - [x] T028 Implement `JSDocGenerator` class (detect JS/TS files, generate jsdoc.json, invoke npx jsdoc)
 - [x] T029 Implement `SphinxGenerator` class (detect Python files, generate conf.py, invoke sphinx-build)
 - [x] T030 Implement `RustdocGenerator` class (detect Cargo.toml, invoke cargo doc)
-- [ ] T031 Add error handling for missing generators (graceful degradation)
+- [x] T031 Add error handling for missing generators (graceful degradation)
 - [ ] T032 Add generator config templates (jsdoc.json.template, sphinx-conf.py.template)
 
 ### Implementation Notes
