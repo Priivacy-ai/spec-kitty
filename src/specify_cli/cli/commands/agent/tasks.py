@@ -77,6 +77,7 @@ def _find_feature_slug() -> str:
     Raises:
         typer.Exit: If feature slug cannot be determined
     """
+    import re
     cwd = Path.cwd().resolve()
 
     # Strategy 1: Check if cwd contains kitty-specs/###-feature-slug
@@ -103,6 +104,11 @@ def _find_feature_slug() -> str:
             check=True
         )
         branch_name = result.stdout.strip()
+
+        # Strip -WPxx suffix if present (worktree branches)
+        # Pattern: 012-documentation-mission-WP04 → 012-documentation-mission
+        branch_name = re.sub(r'-WP\d+$', '', branch_name)
+
         # Validate format: ###-slug
         if len(branch_name) >= 3 and branch_name[:3].isdigit():
             return branch_name
@@ -423,12 +429,8 @@ def move_task(
         if auto_commit:
             import subprocess
 
-            # DEBUG
-            console.print(f"[magenta]DEBUG: auto_commit={auto_commit}, attempting git commit...[/magenta]")
-
             # Get the ACTUAL main repo root (not worktree path)
             main_repo_root = _get_main_repo_root(repo_root)
-            console.print(f"[magenta]DEBUG: main_repo_root={main_repo_root}[/magenta]")
 
             # Commit to main (file is in main via symlink)
             commit_msg = f"chore: Move {task_id} to {target_lane}"

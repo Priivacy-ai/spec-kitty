@@ -122,12 +122,12 @@
 **Prompt**: `/tasks/WP04-command-templates.md`
 
 ### Included Subtasks
-- [ ] T019 [P] Create `command-templates/` subdirectory
-- [ ] T020 [P] Create `specify.md` (discovery questions for iteration mode, Divio types, target audience)
-- [ ] T021 [P] Create `plan.md` (planning guidance for doc structure, generator config, gap analysis)
-- [ ] T022 [P] Create `tasks.md` (work package generation for documentation work)
-- [ ] T023 [P] Create `implement.md` (template generation, generator invocation, template population)
-- [ ] T024 [P] Create `review.md` (quality checks for Divio adherence, accessibility, completeness)
+- [x] T019 [P] Create `command-templates/` subdirectory
+- [x] T020 [P] Create `specify.md` (discovery questions for iteration mode, Divio types, target audience)
+- [x] T021 [P] Create `plan.md` (planning guidance for doc structure, generator config, gap analysis)
+- [x] T022 [P] Create `tasks.md` (work package generation for documentation work)
+- [x] T023 [P] Create `implement.md` (template generation, generator invocation, template population)
+- [x] T024 [P] Create `review.md` (quality checks for Divio adherence, accessibility, completeness)
 
 ### Implementation Notes
 1. Each command template should reference appropriate workflow phase
