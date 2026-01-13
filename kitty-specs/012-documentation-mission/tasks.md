@@ -193,7 +193,7 @@
 - [x] T034 Implement framework detection (detect_doc_framework for Sphinx, MkDocs, Docusaurus, Jekyll)
 - [x] T035 Implement Divio type classification (parse frontmatter, apply content heuristics)
 - [x] T036 Implement CoverageMatrix class (build matrix, get_gaps, get_coverage_percentage)
-- [ ] T037 Implement gap prioritization logic (high/medium/low based on user impact)
+- [x] T037 Implement gap prioritization logic (high/medium/low based on user impact)
 - [ ] T038 Implement version mismatch detection (compare code API vs documented API)
 - [ ] T039 Generate gap-analysis.md report with coverage matrix and prioritized gaps
 
