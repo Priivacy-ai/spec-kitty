@@ -199,36 +199,6 @@ class TestFullWorkflow:
         assert "Ready for review" in content
         assert "agent-1" in content
 
-    def test_rollback_workflow(self, task_repo: Path, monkeypatch):
-        """Should support rollback to previous lane."""
-        monkeypatch.chdir(task_repo)
-
-        # Move to doing
-        runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature"]
-        )
-
-        # Move to for_review
-        runner.invoke(
-            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature"]
-        )
-
-        # Rollback
-        result = runner.invoke(
-            app, ["rollback-task", "WP01", "--feature", "001-test-feature", "--json"]
-        )
-        assert result.exit_code == 0
-        output = json.loads(result.stdout)
-        assert output["new_lane"] == "doing"
-
-        # Verify back in doing lane
-        result2 = runner.invoke(
-            app, ["list-tasks", "--lane", "doing", "--feature", "001-test-feature", "--json"]
-        )
-        assert result2.exit_code == 0
-        output2 = json.loads(result2.stdout)
-        assert output2["count"] == 1
-
     def test_validation_workflow(self, task_repo: Path, monkeypatch):
         """Should validate tasks at different workflow stages."""
         monkeypatch.chdir(task_repo)
@@ -473,21 +443,6 @@ class TestErrorHandling:
         first_line = result.stdout.strip().split('\n')[0]
         output = json.loads(first_line)
         assert "error" in output
-
-    def test_rollback_with_single_history_entry(self, task_repo: Path, monkeypatch):
-        """Should error when trying to rollback with insufficient history."""
-        monkeypatch.chdir(task_repo)
-
-        # Try to rollback WP01 (only has 1 history entry)
-        result = runner.invoke(
-            app, ["rollback-task", "WP01", "--feature", "001-test-feature", "--json"]
-        )
-
-        assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
-        output = json.loads(first_line)
-        assert "error" in output
-        assert "Need at least 2 history entries" in output["error"]
 
 
 class TestHumanOutputFormats:

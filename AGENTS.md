@@ -74,9 +74,6 @@ spec-kitty agent tasks list-tasks --lane doing
 
 # Add a history entry without changing lanes
 spec-kitty agent tasks add-history WP01 --note "Progress update"
-
-# Rollback to previous lane
-spec-kitty agent tasks rollback-task WP01
 ```
 
 ---
