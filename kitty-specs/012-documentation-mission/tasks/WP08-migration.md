@@ -9,10 +9,10 @@ subtasks:
   - "T052"
 title: "Mission Installation Migration"
 phase: "Phase 1 - Integration"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: "pid-final-test"
-shell_pid: "45599"
+agent: "claude"
+shell_pid: "59296"
 review_status: ""
 reviewed_by: ""
 dependencies:
@@ -881,3 +881,4 @@ pytest tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.
 - 2026-01-13T09:37:37Z – rollback – lane=planned – Moved to planned
 - 2026-01-13T09:38:02Z – pid-final-test – shell_pid=45599 – lane=doing – Started implementation via workflow command
 - 2026-01-13T10:47:28Z – pid-final-test – shell_pid=45599 – lane=planned – Reset to planned (was test activity)
+- 2026-01-13T10:48:54Z – claude – shell_pid=59296 – lane=doing – Started implementation via workflow command
