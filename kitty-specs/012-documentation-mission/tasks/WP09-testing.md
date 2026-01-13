@@ -28,7 +28,7 @@ subtasks:
   - "T076"
 title: "Testing & Validation"
 phase: "Phase 2 - Quality"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "slug-test"
 shell_pid: ""
@@ -1720,3 +1720,4 @@ pytest tests/specify_cli/ -v -m integration
 - 2026-01-13T09:20:54Z – debug-test – lane=doing – Moved to doing
 - 2026-01-13T09:22:17Z – rollback-test – lane=planned – Moved to planned
 - 2026-01-13T09:31:17Z – slug-test – lane=doing – Moved to doing
+- 2026-01-13T10:47:28Z – slug-test – lane=planned – Reset to planned (was test activity)
