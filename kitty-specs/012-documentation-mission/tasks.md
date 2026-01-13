@@ -226,7 +226,7 @@
 
 ### Included Subtasks
 - [x] T040 Extend `meta.json` schema with `documentation_state` field
-- [ ] T041 Store iteration_mode (initial, gap_filling, feature_specific)
+- [x] T041 Store iteration_mode (initial, gap_filling, feature_specific)
 - [ ] T042 Store divio_types_selected list
 - [ ] T043 Store generators_configured list with config paths
 - [ ] T044 Store last_audit_date and coverage_percentage
