@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,6 +36,38 @@ app = typer.Typer(
 console = Console()
 
 
+def _get_main_repo_root(current_path: Path) -> Path:
+    """Get the main repository root, even if called from a worktree.
+
+    Args:
+        current_path: Current project path (might be worktree)
+
+    Returns:
+        Path to main repository root
+
+    Raises:
+        RuntimeError: If main repo cannot be found
+    """
+    # Check if we're in a worktree by reading .git file
+    git_file = current_path / ".git"
+
+    if git_file.is_file():
+        # We're in a worktree - .git is a file pointing to actual git dir
+        git_content = git_file.read_text().strip()
+        # Format: "gitdir: /path/to/.git/worktrees/worktree-name"
+        if git_content.startswith("gitdir:"):
+            gitdir = Path(git_content.split(":", 1)[1].strip())
+            # gitdir is like: /main/.git/worktrees/name
+            # Main repo .git is: /main/.git
+            # Main repo root is: /main
+            main_git_dir = gitdir.parent.parent
+            main_repo_root = main_git_dir.parent
+            return main_repo_root
+
+    # Not a worktree, current path is the main repo
+    return current_path
+
+
 def _find_feature_slug() -> str:
     """Find the current feature slug from the working directory or git branch.
 
@@ -48,15 +79,6 @@ def _find_feature_slug() -> str:
     """
     cwd = Path.cwd().resolve()
 
-    def _strip_wp_suffix(slug: str) -> str:
-        """Strip -WPxx suffix from feature slug if present."""
-        return re.sub(r'-WP\d+$', '', slug, flags=re.IGNORECASE)
-
-    # Strategy 0: Environment override
-    env_slug = os.getenv("SPECIFY_FEATURE", "").strip()
-    if env_slug:
-        return _strip_wp_suffix(env_slug)
-
     # Strategy 1: Check if cwd contains kitty-specs/###-feature-slug
     if "kitty-specs" in cwd.parts:
         parts_list = list(cwd.parts)
@@ -66,7 +88,7 @@ def _find_feature_slug() -> str:
                 potential_slug = parts_list[idx + 1]
                 # Validate format: ###-slug
                 if len(potential_slug) >= 3 and potential_slug[:3].isdigit():
-                    return _strip_wp_suffix(potential_slug)
+                    return potential_slug
         except (ValueError, IndexError):
             pass
 
@@ -83,26 +105,9 @@ def _find_feature_slug() -> str:
         branch_name = result.stdout.strip()
         # Validate format: ###-slug
         if len(branch_name) >= 3 and branch_name[:3].isdigit():
-            return _strip_wp_suffix(branch_name)
+            return branch_name
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
-
-    # Strategy 3: Fall back to latest feature in repo root
-    repo_root = locate_project_root(cwd)
-    if repo_root:
-        specs_dir = repo_root / "kitty-specs"
-        if specs_dir.exists():
-            feature_dirs = [
-                d.name for d in specs_dir.iterdir()
-                if d.is_dir() and re.match(r'^\d{3}-', d.name)
-            ]
-            if feature_dirs:
-                def _feature_num(name: str) -> int:
-                    try:
-                        return int(name.split("-", 1)[0])
-                    except (ValueError, IndexError):
-                        return -1
-                return max(feature_dirs, key=_feature_num)
 
     raise typer.Exit(1)
 
@@ -241,7 +246,7 @@ def _check_dependent_warnings(
             frontmatter, _, _ = split_frontmatter(content)
             lane = extract_scalar(frontmatter, "lane") or "planned"
 
-            if lane == "doing":
+            if lane in ["planned", "doing"]:
                 in_progress.append(dep_id)
         except Exception:
             # Skip if we can't read the dependent
@@ -267,7 +272,10 @@ def move_task(
     assignee: Annotated[Optional[str], typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
     note: Annotated[Optional[str], typer.Option("--note", help="History note")] = None,
-    force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks")] = False,
+    review_feedback_file: Annotated[Optional[Path], typer.Option("--review-feedback-file", help="Path to review feedback file (required when moving to planned from review)")] = None,
+    reviewer: Annotated[Optional[str], typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
+    force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks or missing feedback")] = False,
+    auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to main branch")] = True,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Move task between lanes (planned → doing → for_review → done).
@@ -275,7 +283,8 @@ def move_task(
     Examples:
         spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
         spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$
-        spec-kitty agent tasks move-task WP03 --to for_review --force  # Skip subtask validation
+        spec-kitty agent tasks move-task WP03 --to done --note "Review passed"
+        spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md
     """
     try:
         # Validate lane
@@ -288,6 +297,20 @@ def move_task(
             raise typer.Exit(1)
 
         feature_slug = feature or _find_feature_slug()
+
+        # Load work package first (needed for current_lane check)
+        wp = locate_work_package(repo_root, feature_slug, task_id)
+        old_lane = wp.current_lane
+
+        # Validate review feedback when moving to planned (likely from review)
+        if target_lane == "planned" and old_lane == "for_review" and not review_feedback_file and not force:
+            error_msg = f"❌ Moving {task_id} from 'for_review' to 'planned' requires review feedback.\n\n"
+            error_msg += "Please provide feedback:\n"
+            error_msg += "  1. Create feedback file: echo '**Issue**: Description' > feedback.md\n"
+            error_msg += f"  2. Run: spec-kitty agent tasks move-task {task_id} --to planned --review-feedback-file feedback.md\n\n"
+            error_msg += "OR use --force to skip feedback (not recommended)"
+            _output_error(json_output, error_msg)
+            raise typer.Exit(1)
 
         # Validate subtasks are complete when moving to for_review or done (Issue #72)
         if target_lane in ("for_review", "done") and not force:
@@ -304,10 +327,6 @@ def move_task(
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)
 
-        # Load work package
-        wp = locate_work_package(repo_root, feature_slug, task_id)
-        old_lane = wp.current_lane
-
         # Update lane in frontmatter
         updated_front = set_scalar(wp.frontmatter, "lane", target_lane)
 
@@ -323,6 +342,66 @@ def move_task(
         if shell_pid:
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
+        # Handle review feedback insertion if moving to planned with feedback
+        updated_body = wp.body
+        if review_feedback_file and review_feedback_file.exists():
+            # Read feedback content
+            feedback_content = review_feedback_file.read_text(encoding="utf-8").strip()
+
+            # Auto-detect reviewer if not provided
+            if not reviewer:
+                try:
+                    import subprocess
+                    result = subprocess.run(
+                        ["git", "config", "user.name"],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    reviewer = result.stdout.strip() or "unknown"
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    reviewer = "unknown"
+
+            # Insert feedback into "## Review Feedback" section
+            # Find the section and replace its content
+            review_section_start = updated_body.find("## Review Feedback")
+            if review_section_start != -1:
+                # Find the next section (starts with ##) or end of document
+                next_section_start = updated_body.find("\n##", review_section_start + 18)
+
+                if next_section_start == -1:
+                    # No next section, replace to end
+                    before = updated_body[:review_section_start]
+                    updated_body = before + f"## Review Feedback\n\n**Reviewed by**: {reviewer}\n**Status**: ❌ Changes Requested\n**Date**: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}\n\n{feedback_content}\n\n"
+                else:
+                    # Replace content between this section and next
+                    before = updated_body[:review_section_start]
+                    after = updated_body[next_section_start:]
+                    updated_body = before + f"## Review Feedback\n\n**Reviewed by**: {reviewer}\n**Status**: ❌ Changes Requested\n**Date**: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}\n\n{feedback_content}\n\n" + after
+
+            # Update frontmatter for review status
+            updated_front = set_scalar(updated_front, "review_status", "has_feedback")
+            updated_front = set_scalar(updated_front, "reviewed_by", reviewer)
+
+        # Update reviewed_by when moving to done (approved)
+        if target_lane == "done" and not extract_scalar(updated_front, "reviewed_by"):
+            # Auto-detect reviewer if not provided
+            if not reviewer:
+                try:
+                    import subprocess
+                    result = subprocess.run(
+                        ["git", "config", "user.name"],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    reviewer = result.stdout.strip() or "unknown"
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    reviewer = "unknown"
+
+            updated_front = set_scalar(updated_front, "reviewed_by", reviewer)
+            updated_front = set_scalar(updated_front, "review_status", "approved")
+
         # Build history entry
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         agent_name = agent or extract_scalar(updated_front, "agent") or "unknown"
@@ -333,11 +412,59 @@ def move_task(
         history_entry = f"- {timestamp} – {agent_name} – {shell_part}lane={target_lane} – {note_text}"
 
         # Add history entry to body
-        updated_body = append_activity_log(wp.body, history_entry)
+        updated_body = append_activity_log(updated_body, history_entry)
 
         # Build and write updated document
         updated_doc = build_document(updated_front, updated_body, wp.padding)
         wp.path.write_text(updated_doc, encoding="utf-8")
+
+        # FIX B: Auto-commit to main branch (wp.path is symlinked to main's kitty-specs/)
+        # This enables instant status sync across all worktrees (jujutsu-aligned)
+        if auto_commit:
+            import subprocess
+
+            # DEBUG
+            console.print(f"[magenta]DEBUG: auto_commit={auto_commit}, attempting git commit...[/magenta]")
+
+            # Get the ACTUAL main repo root (not worktree path)
+            main_repo_root = _get_main_repo_root(repo_root)
+            console.print(f"[magenta]DEBUG: main_repo_root={main_repo_root}[/magenta]")
+
+            # Commit to main (file is in main via symlink)
+            commit_msg = f"chore: Move {task_id} to {target_lane}"
+            if agent_name != "unknown":
+                commit_msg += f" [{agent_name}]"
+
+            try:
+                # Resolve symlink to get the actual file path in main repo
+                # wp.path might be: /worktrees/WP04/kitty-specs/... (via symlink)
+                # We need: /main/kitty-specs/... (actual file)
+                actual_file_path = wp.path.resolve()
+
+                # Commit the specific WP file directly (bypasses staging area)
+                # This works even if other files in main are modified
+                commit_result = subprocess.run(
+                    ["git", "commit", str(actual_file_path), "-m", commit_msg],
+                    cwd=main_repo_root,
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+
+                if commit_result.returncode == 0:
+                    if not json_output:
+                        console.print(f"[cyan]→ Committed status change to main branch[/cyan]")
+                else:
+                    # Commit failed
+                    if not json_output:
+                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit")
+                        console.print(f"  stdout: {commit_result.stdout}")
+                        console.print(f"  stderr: {commit_result.stderr}")
+
+            except Exception as e:
+                # Unexpected error
+                if not json_output:
+                    console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
 
         # Output result
         result = {
@@ -367,6 +494,7 @@ def mark_status(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., T001)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to main branch")] = True,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Update task checkbox status in tasks.md.
@@ -418,6 +546,42 @@ def mark_status(
         # Write updated content
         updated_content = '\n'.join(lines)
         tasks_md.write_text(updated_content, encoding="utf-8")
+
+        # Auto-commit to main branch (tasks.md is symlinked to main's kitty-specs/)
+        if auto_commit:
+            import subprocess
+
+            # Get the ACTUAL main repo root (not worktree path)
+            main_repo_root = _get_main_repo_root(repo_root)
+
+            commit_msg = f"chore: Mark {task_id} as {status}"
+
+            try:
+                # Resolve symlink to get the actual file path in main repo
+                actual_tasks_path = tasks_md.resolve()
+
+                # Commit the specific tasks.md file directly (bypasses staging area)
+                # This works even if other files in main are modified
+                commit_result = subprocess.run(
+                    ["git", "commit", str(actual_tasks_path), "-m", commit_msg],
+                    cwd=main_repo_root,
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+
+                if commit_result.returncode == 0:
+                    if not json_output:
+                        console.print(f"[cyan]→ Committed subtask change to main branch[/cyan]")
+                elif "nothing to commit" not in commit_result.stdout:
+                    # Real error, not just "nothing to commit"
+                    if not json_output:
+                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+
+            except Exception as e:
+                # Unexpected error
+                if not json_output:
+                    console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
 
         result = {
             "result": "success",
