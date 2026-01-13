@@ -79,26 +79,17 @@ def _find_feature_slug() -> str:
     """
     import re
     cwd = Path.cwd().resolve()
+    repo_root = locate_project_root(cwd)
 
-    # Strategy 1: Check if cwd contains kitty-specs/###-feature-slug
-    if "kitty-specs" in cwd.parts:
-        parts_list = list(cwd.parts)
-        try:
-            idx = parts_list.index("kitty-specs")
-            if idx + 1 < len(parts_list):
-                potential_slug = parts_list[idx + 1]
-                # Validate format: ###-slug
-                if len(potential_slug) >= 3 and potential_slug[:3].isdigit():
-                    return potential_slug
-        except (ValueError, IndexError):
-            pass
+    if repo_root is None:
+        raise typer.Exit(1)
 
-    # Strategy 2: Get from git branch name
+    # Strategy 1: Get from git branch name (run from project root)
     try:
         import subprocess
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=cwd,
+            cwd=repo_root,
             capture_output=True,
             text=True,
             check=True
@@ -114,6 +105,20 @@ def _find_feature_slug() -> str:
             return branch_name
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
+
+    # Strategy 2: Auto-detect highest-numbered feature in kitty-specs
+    kitty_specs_dir = repo_root / "kitty-specs"
+    if kitty_specs_dir.is_dir():
+        candidates = []
+        for path in kitty_specs_dir.iterdir():
+            if not path.is_dir():
+                continue
+            match = re.match(r"^(\d{3})-", path.name)
+            if match:
+                candidates.append((int(match.group(1)), path.name))
+        if candidates:
+            _, slug = max(candidates, key=lambda item: item[0])
+            return slug
 
     raise typer.Exit(1)
 
@@ -993,6 +998,207 @@ def validate_workflow(
                 console.print(f"\n[yellow]Warnings:[/yellow]")
                 for warning in warnings:
                     console.print(f"  [yellow]•[/yellow] {warning}")
+
+    except Exception as e:
+        _output_error(json_output, str(e))
+        raise typer.Exit(1)
+
+
+@app.command(name="status")
+def status(
+    feature: Annotated[
+        Optional[str],
+        typer.Option("--feature", "-f", help="Feature slug (e.g., 012-documentation-mission). Auto-detected if not provided.")
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output as JSON")
+    ] = False,
+):
+    """Display kanban status board for all work packages in a feature.
+
+    Shows a beautiful overview of work package statuses, progress metrics,
+    and next steps based on dependencies.
+
+    Example:
+        spec-kitty agent tasks status
+        spec-kitty agent tasks status --feature 012-documentation-mission
+        spec-kitty agent tasks status --json
+    """
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.text import Text
+    from collections import Counter
+
+    try:
+        cwd = Path.cwd().resolve()
+        repo_root = locate_project_root(cwd)
+
+        if repo_root is None:
+            raise typer.Exit(1)
+
+        # Auto-detect or use provided feature slug
+        feature_slug = feature if feature else _find_feature_slug()
+
+        # Get main repo root for correct path resolution
+        main_repo_root = _get_main_repo_root(repo_root)
+
+        # Locate feature directory
+        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+
+        if not feature_dir.exists():
+            console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
+            raise typer.Exit(1)
+
+        tasks_dir = feature_dir / "tasks"
+
+        if not tasks_dir.exists():
+            console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
+            raise typer.Exit(1)
+
+        # Collect all work packages
+        work_packages = []
+        for wp_file in sorted(tasks_dir.glob("WP*.md")):
+            front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8"))
+
+            wp_id = extract_scalar(front, "work_package_id")
+            title = extract_scalar(front, "title")
+            lane = extract_scalar(front, "lane") or "unknown"
+            phase = extract_scalar(front, "phase") or "Unknown Phase"
+
+            work_packages.append({
+                "id": wp_id,
+                "title": title,
+                "lane": lane,
+                "phase": phase,
+                "file": wp_file.name
+            })
+
+        if not work_packages:
+            console.print(f"[yellow]No work packages found in {tasks_dir}[/yellow]")
+            raise typer.Exit(0)
+
+        # JSON output
+        if json_output:
+            lane_counts = Counter(wp["lane"] for wp in work_packages)
+            result = {
+                "feature": feature_slug,
+                "total_wps": len(work_packages),
+                "by_lane": dict(lane_counts),
+                "work_packages": work_packages,
+                "progress_percentage": round(lane_counts.get("done", 0) / len(work_packages) * 100, 1)
+            }
+            print(json.dumps(result, indent=2))
+            return
+
+        # Rich table output
+        # Group by lane
+        by_lane = {"planned": [], "doing": [], "for_review": [], "done": []}
+        for wp in work_packages:
+            lane = wp["lane"]
+            if lane in by_lane:
+                by_lane[lane].append(wp)
+            else:
+                by_lane.setdefault("other", []).append(wp)
+
+        # Calculate metrics
+        total = len(work_packages)
+        done_count = len(by_lane["done"])
+        in_progress = len(by_lane["doing"]) + len(by_lane["for_review"])
+        planned_count = len(by_lane["planned"])
+        progress_pct = round((done_count / total * 100), 1) if total > 0 else 0
+
+        # Create title panel
+        title_text = Text()
+        title_text.append(f"📊 Work Package Status: ", style="bold cyan")
+        title_text.append(feature_slug, style="bold white")
+
+        console.print()
+        console.print(Panel(title_text, border_style="cyan"))
+
+        # Progress bar
+        progress_text = Text()
+        progress_text.append(f"Progress: ", style="bold")
+        progress_text.append(f"{done_count}/{total}", style="bold green")
+        progress_text.append(f" ({progress_pct}%)", style="dim")
+
+        # Create visual progress bar
+        bar_width = 40
+        filled = int(bar_width * progress_pct / 100)
+        bar = "█" * filled + "░" * (bar_width - filled)
+        progress_text.append(f"\n{bar}", style="green")
+
+        console.print(progress_text)
+        console.print()
+
+        # Kanban board table
+        table = Table(title="Kanban Board", show_header=True, header_style="bold magenta", border_style="dim")
+        table.add_column("📋 Planned", style="yellow", no_wrap=False, width=25)
+        table.add_column("🔄 Doing", style="blue", no_wrap=False, width=25)
+        table.add_column("👀 For Review", style="cyan", no_wrap=False, width=25)
+        table.add_column("✅ Done", style="green", no_wrap=False, width=25)
+
+        # Find max length for rows
+        max_rows = max(len(by_lane["planned"]), len(by_lane["doing"]),
+                       len(by_lane["for_review"]), len(by_lane["done"]))
+
+        # Add rows
+        for i in range(max_rows):
+            row = []
+            for lane in ["planned", "doing", "for_review", "done"]:
+                if i < len(by_lane[lane]):
+                    wp = by_lane[lane][i]
+                    cell = f"{wp['id']}\n{wp['title'][:22]}..." if len(wp['title']) > 22 else f"{wp['id']}\n{wp['title']}"
+                    row.append(cell)
+                else:
+                    row.append("")
+            table.add_row(*row)
+
+        # Add count row
+        table.add_row(
+            f"[bold]{len(by_lane['planned'])} WPs[/bold]",
+            f"[bold]{len(by_lane['doing'])} WPs[/bold]",
+            f"[bold]{len(by_lane['for_review'])} WPs[/bold]",
+            f"[bold]{len(by_lane['done'])} WPs[/bold]",
+            style="dim"
+        )
+
+        console.print(table)
+        console.print()
+
+        # Next steps section
+        if by_lane["for_review"]:
+            console.print("[bold cyan]👀 Ready for Review:[/bold cyan]")
+            for wp in by_lane["for_review"]:
+                console.print(f"  • {wp['id']} - {wp['title']}")
+            console.print()
+
+        if by_lane["doing"]:
+            console.print("[bold blue]🔄 In Progress:[/bold blue]")
+            for wp in by_lane["doing"]:
+                console.print(f"  • {wp['id']} - {wp['title']}")
+            console.print()
+
+        if by_lane["planned"]:
+            console.print("[bold yellow]📋 Next Up (Planned):[/bold yellow]")
+            # Show first 3 planned items
+            for wp in by_lane["planned"][:3]:
+                console.print(f"  • {wp['id']} - {wp['title']}")
+            if len(by_lane["planned"]) > 3:
+                console.print(f"  [dim]... and {len(by_lane['planned']) - 3} more[/dim]")
+            console.print()
+
+        # Summary metrics
+        summary = Table.grid(padding=(0, 2))
+        summary.add_column(style="bold")
+        summary.add_column()
+        summary.add_row("Total WPs:", str(total))
+        summary.add_row("Completed:", f"[green]{done_count}[/green] ({progress_pct}%)")
+        summary.add_row("In Progress:", f"[blue]{in_progress}[/blue]")
+        summary.add_row("Planned:", f"[yellow]{planned_count}[/yellow]")
+
+        console.print(Panel(summary, title="[bold]Summary[/bold]", border_style="dim"))
+        console.print()
 
     except Exception as e:
         _output_error(json_output, str(e))
