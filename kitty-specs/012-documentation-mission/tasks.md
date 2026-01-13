@@ -291,7 +291,7 @@
 **Prompt**: `/tasks/WP09-testing.md`
 
 ### Included Subtasks
-- [ ] T053 [P] Create `tests/specify_cli/missions/test_documentation_mission.py` (mission config loading tests)
+- [x] T053 [P] Create `tests/specify_cli/missions/test_documentation_mission.py` (mission config loading tests)
 - [ ] T054 [P] Test mission.yaml loads correctly and passes validation
 - [ ] T055 [P] Test workflow phases are correct (6 phases: discover → publish)
 - [ ] T056 [P] Test artifacts and path conventions are defined
