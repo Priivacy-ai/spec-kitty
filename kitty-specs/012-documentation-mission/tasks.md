@@ -299,7 +299,7 @@
 - [x] T058 [P] Test each Divio template has frontmatter with type field
 - [x] T059 [P] Test each Divio template has required sections
 - [x] T060 [P] Test command templates exist and reference correct phases
-- [ ] T060A [P] Test release-template.md has required sections for publish guidance
+- [x] T060A [P] Test release-template.md has required sections for publish guidance
 - [ ] T061 [P] Create `tests/specify_cli/test_doc_generators.py` (generator protocol tests)
 - [ ] T062 [P] Test JSDocGenerator detects JS/TS projects correctly
 - [ ] T063 [P] Test SphinxGenerator detects Python projects correctly
