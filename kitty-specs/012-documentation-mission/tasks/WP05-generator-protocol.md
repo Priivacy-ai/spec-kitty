@@ -11,9 +11,9 @@ subtasks:
   - "T032"
 title: "Documentation Generator Protocol"
 phase: "Phase 1 - Core Logic"
-lane: "doing"
+lane: "planned"
 assignee: "test"
-agent: "test-agent"
+agent: "sparse-test"
 shell_pid: ""
 review_status: ""
 reviewed_by: ""
@@ -1264,3 +1264,4 @@ print(f'✓ Sphinx config generated: {config}')
 
 - 2026-01-12T17:18:56Z – system – lane=planned – Prompt created.
 - 2026-01-13T09:16:42Z – test-agent – lane=doing – Moved to doing
+- 2026-01-13T10:35:22Z – sparse-test – lane=planned – Moved to planned
