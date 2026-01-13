@@ -10,9 +10,9 @@ subtasks:
   - "T039"
 title: "Gap Analysis & Coverage Matrix"
 phase: "Phase 1 - Core Logic"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
+agent: "test-agent2"
 shell_pid: ""
 review_status: ""
 reviewed_by: ""
@@ -1449,3 +1449,4 @@ if docs.exists():
 ## Activity Log
 
 - 2026-01-12T17:18:56Z – system – lane=planned – Prompt created.
+- 2026-01-13T09:17:04Z – test-agent2 – lane=doing – Moved to doing
