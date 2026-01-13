@@ -156,7 +156,7 @@
 - [x] T025 Create `src/specify_cli/doc_generators.py` module
 - [x] T026 Define `DocGenerator` Protocol with detect(), configure(), generate() methods
 - [x] T027 Define `GeneratorResult` dataclass (success, output_dir, errors, warnings, generated_files)
-- [ ] T028 Implement `JSDocGenerator` class (detect JS/TS files, generate jsdoc.json, invoke npx jsdoc)
+- [x] T028 Implement `JSDocGenerator` class (detect JS/TS files, generate jsdoc.json, invoke npx jsdoc)
 - [ ] T029 Implement `SphinxGenerator` class (detect Python files, generate conf.py, invoke sphinx-build)
 - [ ] T030 Implement `RustdocGenerator` class (detect Cargo.toml, invoke cargo doc)
 - [ ] T031 Add error handling for missing generators (graceful degradation)
