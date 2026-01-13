@@ -101,18 +101,13 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
                     slug = features[0]
                     return number, slug
             elif len(features) > 1:
-                # Multiple features - fall back to latest feature by number
-                def _feature_num(name: str) -> int:
-                    try:
-                        return int(name.split("-", 1)[0])
-                    except (ValueError, IndexError):
-                        return -1
-                latest = max(features, key=_feature_num)
-                match = re.match(r'^(\d{3})-(.+)$', latest)
-                if match:
-                    number = match.group(1)
-                    slug = latest
-                    return number, slug
+                # Multiple features - need user to specify
+                console.print("[red]Error:[/red] Multiple features found:")
+                for f in sorted(features):
+                    console.print(f"  - {f}")
+                console.print("\nSpecify feature explicitly:")
+                console.print("  spec-kitty implement WP01 --feature 001-my-feature")
+                raise typer.Exit(1)
     except TaskCliError:
         # Not in a git repo, continue to generic error
         pass
@@ -306,7 +301,7 @@ def check_for_dependents(
     if not dependents:
         return  # No dependents, no warnings needed
 
-    # Check if any dependents are in progress (lane: doing)
+    # Check if any dependents are in progress (lane: planned, doing, for_review)
     in_progress_deps = []
     for dep_id in dependents:
         try:
@@ -314,7 +309,7 @@ def check_for_dependents(
             frontmatter, _ = read_frontmatter(dep_file)
             lane = frontmatter.get("lane", "planned")
 
-            if lane == "doing":
+            if lane in ["planned", "doing", "for_review"]:
                 in_progress_deps.append(dep_id)
         except (FileNotFoundError, Exception):
             # If we can't read the dependent's metadata, skip it

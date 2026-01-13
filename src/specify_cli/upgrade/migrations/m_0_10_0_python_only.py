@@ -66,8 +66,8 @@ class PythonOnlyMigration(BaseMigration):
         r"scripts/bash/merge-feature\.sh": "spec-kitty agent feature merge",
 
         # Task workflow
-        r"\.kittify/scripts/bash/tasks-move-to-lane\.sh": "spec-kitty agent workflow implement",
-        r"scripts/bash/tasks-move-to-lane\.sh": "spec-kitty agent workflow implement",
+        r"\.kittify/scripts/bash/tasks-move-to-lane\.sh": "spec-kitty agent move-task",
+        r"scripts/bash/tasks-move-to-lane\.sh": "spec-kitty agent move-task",
         r"\.kittify/scripts/bash/tasks-list-lanes\.sh": "spec-kitty agent list-tasks",
         r"scripts/bash/tasks-list-lanes\.sh": "spec-kitty agent list-tasks",
         r"\.kittify/scripts/bash/mark-task-status\.sh": "spec-kitty agent mark-status",
@@ -78,11 +78,11 @@ class PythonOnlyMigration(BaseMigration):
         r"scripts/bash/tasks-rollback-move\.sh": "spec-kitty agent rollback-move",
         r"\.kittify/scripts/bash/validate-task-workflow\.sh": "spec-kitty agent validate-workflow",
         r"scripts/bash/validate-task-workflow\.sh": "spec-kitty agent validate-workflow",
-        r"\.kittify/scripts/bash/move-task-to-doing\.sh": "spec-kitty agent workflow implement",
-        r"scripts/bash/move-task-to-doing\.sh": "spec-kitty agent workflow implement",
+        r"\.kittify/scripts/bash/move-task-to-doing\.sh": "spec-kitty agent move-task",
+        r"scripts/bash/move-task-to-doing\.sh": "spec-kitty agent move-task",
 
         # Legacy tasks_cli.py references
-        r"tasks_cli\.py move": "spec-kitty agent workflow implement",
+        r"tasks_cli\.py move": "spec-kitty agent move-task",
         r"tasks_cli\.py list": "spec-kitty agent list-tasks",
         r"tasks_cli\.py mark": "spec-kitty agent mark-status",
         r"tasks_cli\.py history": "spec-kitty agent add-history",

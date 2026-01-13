@@ -79,21 +79,21 @@ if source_register.exists():
    - Verify implementation against the prompt’s Definition of Done and Review Guidance.
    - Run required tests or commands; capture results.
    - Document findings explicitly: bugs, regressions, missing tests, risks, or validation notes.
-   - If a lane move is blocked by unchecked subtasks, only mark a subtask done after verifying the implementation is complete. Do not mark incomplete subtasks just to unblock the move.
 
 5. Decide outcome:
   - **Needs changes**:
      * Append a new entry in the prompt’s **Activity Log** detailing feedback (include timestamp, reviewer agent, shell PID).
-     * Update frontmatter: set `review_status: "has_feedback"`, clear `assignee` if necessary, keep history entry.
+     * Update frontmatter `lane` back to `planned`, clear `assignee` if necessary, keep history entry.
      * Add/revise a `## Review Feedback` section (create if missing) summarizing action items.
-     * The workflow command will move the WP back to `planned`.
+     * Run `spec-kitty agent tasks move-task <FEATURE> <TASK_ID> planned --note "Returned for changes"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
   - **Approved**:
      * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script).
-     * Update frontmatter: set reviewer metadata (`agent`, `shell_pid`, `reviewed_by`) and `review_status` as needed.
-     * The workflow command will move the WP to `done`.
+     * Update frontmatter: set `lane=done`, set reviewer metadata (`agent`, `shell_pid`), optional `assignee` for approver.
+     * Use helper script to mark the task complete in `tasks.md` (see Step 6).
+     * Run `spec-kitty agent tasks move-task <FEATURE> <TASK_ID> done --note "Approved for release"` (PowerShell variant available) to transition the prompt into `tasks/`.
 
-6. Update `tasks.md`:
-   - Mark subtasks complete in `tasks.md` once verified.
+6. Update `tasks.md` automatically:
+   - Run `spec-kitty agent tasks mark-status --task-id <TASK_ID> --status done` (POSIX) or `spec-kitty agent tasks mark-status --task-id <TASK_ID> --status done` (PowerShell) from repo root.
    - Confirm the task entry now shows `[X]` and includes a reference to the prompt file in its notes.
 
 7. Produce a review report summarizing:

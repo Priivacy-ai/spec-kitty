@@ -245,10 +245,14 @@ history:
 
 ## Moving Between Lanes
 
-Use workflow commands (lane transitions are automatic):
+Use the CLI (updates frontmatter only, no file movement):
 ```bash
-spec-kitty agent workflow implement WP01
-spec-kitty agent workflow review WP01
+spec-kitty agent tasks move-task <WPID> --to <lane>
+```
+
+Example:
+```bash
+spec-kitty agent tasks move-task WP01 --to doing
 ```
 
 ## File Naming
