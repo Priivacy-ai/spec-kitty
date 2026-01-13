@@ -154,7 +154,7 @@
 
 ### Included Subtasks
 - [x] T025 Create `src/specify_cli/doc_generators.py` module
-- [ ] T026 Define `DocGenerator` Protocol with detect(), configure(), generate() methods
+- [x] T026 Define `DocGenerator` Protocol with detect(), configure(), generate() methods
 - [ ] T027 Define `GeneratorResult` dataclass (success, output_dir, errors, warnings, generated_files)
 - [ ] T028 Implement `JSDocGenerator` class (detect JS/TS files, generate jsdoc.json, invoke npx jsdoc)
 - [ ] T029 Implement `SphinxGenerator` class (detect Python files, generate conf.py, invoke sphinx-build)
