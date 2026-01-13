@@ -294,7 +294,7 @@
 - [x] T053 [P] Create `tests/specify_cli/missions/test_documentation_mission.py` (mission config loading tests)
 - [x] T054 [P] Test mission.yaml loads correctly and passes validation
 - [x] T055 [P] Test workflow phases are correct (6 phases: discover → publish)
-- [ ] T056 [P] Test artifacts and path conventions are defined
+- [x] T056 [P] Test artifacts and path conventions are defined
 - [ ] T057 [P] Create `tests/specify_cli/missions/test_documentation_templates.py` (template structure tests)
 - [ ] T058 [P] Test each Divio template has frontmatter with type field
 - [ ] T059 [P] Test each Divio template has required sections
