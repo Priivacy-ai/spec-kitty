@@ -351,7 +351,7 @@
 - [x] T081 Document generator usage (JSDoc, Sphinx, rustdoc)
 - [x] T082 Add troubleshooting section (common errors, solutions)
 - [x] T083 Update `CLAUDE.md` with documentation mission patterns (already done in planning)
-- [ ] T084 [P] Update all 12 agent context files (use AGENT_DIRS from m_0_9_1_complete_lane_migration.py)
+- [x] T084 [P] Update all 12 agent context files (use AGENT_DIRS from m_0_9_1_complete_lane_migration.py)
 - [ ] T085 Add example: "Run documentation mission on small Python project"
 - [ ] T086 Add example: "Gap-fill existing documentation"
 
