@@ -263,7 +263,7 @@
 - [x] T049 Implement apply() to copy documentation mission from src/specify_cli/missions/ to .kittify/missions/
 - [x] T050 Test migration doesn't affect existing missions (software-dev, research)
 - [x] T051 Test migration is idempotent (safe to run multiple times)
-- [ ] T052 Register migration in migration registry
+- [x] T052 Register migration in migration registry
 
 ### Implementation Notes
 1. Follow existing migration patterns (see m_0_9_1_complete_lane_migration.py)
