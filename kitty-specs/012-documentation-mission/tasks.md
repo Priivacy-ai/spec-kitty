@@ -190,7 +190,7 @@
 
 ### Included Subtasks
 - [x] T033 Create `src/specify_cli/gap_analysis.py` module
-- [ ] T034 Implement framework detection (detect_doc_framework for Sphinx, MkDocs, Docusaurus, Jekyll)
+- [x] T034 Implement framework detection (detect_doc_framework for Sphinx, MkDocs, Docusaurus, Jekyll)
 - [ ] T035 Implement Divio type classification (parse frontmatter, apply content heuristics)
 - [ ] T036 Implement CoverageMatrix class (build matrix, get_gaps, get_coverage_percentage)
 - [ ] T037 Implement gap prioritization logic (high/medium/low based on user impact)
