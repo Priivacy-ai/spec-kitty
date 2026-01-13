@@ -28,7 +28,7 @@ subtasks:
   - "T076"
 title: "Testing & Validation"
 phase: "Phase 2 - Quality"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "claude"
 shell_pid: "64122"
@@ -1722,3 +1722,5 @@ pytest tests/specify_cli/ -v -m integration
 - 2026-01-13T09:31:17Z – slug-test – lane=doing – Moved to doing
 - 2026-01-13T10:47:28Z – slug-test – lane=planned – Reset to planned (was test activity)
 - 2026-01-13T10:56:13Z – claude – shell_pid=64122 – lane=doing – Started implementation via workflow command
+- 2026-01-13T10:57:44Z – claude – shell_pid=64122 – lane=doing – Blocked: WP05-08 are in for_review/doing but not yet merged. doc_generators.py, gap_analysis.py, doc_state.py modules not available for testing. Need WP05-08 to complete and merge before WP09 can proceed.
+- 2026-01-13T10:57:50Z – claude – shell_pid=64122 – lane=planned – Blocked: Dependencies WP05-08 not yet merged. Returning to planned until implementation WPs complete.
