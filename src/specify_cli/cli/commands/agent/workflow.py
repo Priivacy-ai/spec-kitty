@@ -162,17 +162,19 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
 def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
     This command outputs the full work package prompt content so agents can
     immediately see what to implement, without navigating the file system.
 
+    Automatically moves WP from planned to doing lane (requires --agent to track who is working).
+
     Examples:
-        spec-kitty agent workflow implement WP01
-        spec-kitty agent workflow implement wp01
-        spec-kitty agent workflow implement WP01-add-feature
-        spec-kitty agent workflow implement  # auto-detects first planned WP
+        spec-kitty agent workflow implement WP01 --agent claude
+        spec-kitty agent workflow implement wp01 --agent codex
+        spec-kitty agent workflow implement --agent gemini  # auto-detects first planned WP
     """
     try:
         # Get repo root and feature slug
@@ -199,15 +201,29 @@ def implement(
         # Move to "doing" lane if not already there
         current_lane = extract_scalar(wp.frontmatter, "lane") or "planned"
         if current_lane != "doing":
-            from datetime import datetime, timezone
+            # Require --agent parameter to track who is working
+            if not agent:
+                print("Error: --agent parameter required when starting implementation.")
+                print(f"  Usage: spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
+                print("  Example: spec-kitty agent workflow implement WP01 --agent claude")
+                print()
+                print("This tracks WHO is working on the WP (prevents abandoned tasks).")
+                raise typer.Exit(1)
 
-            # Update lane in frontmatter
+            from datetime import datetime, timezone
+            import os
+
+            # Capture current shell PID
+            shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
+
+            # Update lane, agent, and shell_pid in frontmatter
             updated_front = set_scalar(wp.frontmatter, "lane", "doing")
+            updated_front = set_scalar(updated_front, "agent", agent)
+            updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
             # Build history entry
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            agent_name = extract_scalar(updated_front, "agent") or "agent"
-            history_entry = f"- {timestamp} – {agent_name} – lane=doing – Started implementation via workflow command"
+            history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started implementation via workflow command"
 
             # Add history entry to body
             updated_body = append_activity_log(wp.body, history_entry)
@@ -216,8 +232,40 @@ def implement(
             updated_doc = build_document(updated_front, updated_body, wp.padding)
             wp.path.write_text(updated_doc, encoding="utf-8")
 
+            # Auto-commit to main (enables instant status sync)
+            import subprocess
+
+            # Get main repo root (might be in worktree)
+            git_file = Path.cwd() / ".git"
+            if git_file.is_file():
+                git_content = git_file.read_text().strip()
+                if git_content.startswith("gitdir:"):
+                    gitdir = Path(git_content.split(":", 1)[1].strip())
+                    main_repo_root = gitdir.parent.parent.parent
+                else:
+                    main_repo_root = repo_root
+            else:
+                main_repo_root = repo_root
+
+            actual_wp_path = wp.path.resolve()
+            commit_result = subprocess.run(
+                ["git", "commit", str(actual_wp_path), "-m", f"chore: Start {normalized_wp_id} implementation [{agent}]"],
+                cwd=main_repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+
+            if commit_result.returncode == 0:
+                print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid})")
+            else:
+                # Commit failed - file might already be committed in this state
+                pass
+
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        else:
+            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow implement will not move it to doing.")
 
         # Check review status
         review_status = extract_scalar(wp.frontmatter, "review_status")
@@ -252,6 +300,10 @@ def implement(
         print(f"   cd {workspace_path}")
         print(f"   # All implementation work happens in this workspace")
         print(f"   # When done, return to main: cd {repo_root}")
+        print()
+        print("📋 STATUS TRACKING:")
+        print(f"   kitty-specs/ is symlinked to main (instant sync across worktrees)")
+        print(f"   Status changes auto-commit to main branch (visible to all agents)")
         print("=" * 80)
         print()
 
@@ -259,8 +311,36 @@ def implement(
             print("⚠️  This work package has review feedback. Check the '## Review Feedback' section below.")
             print()
 
+        # Add visual marker before long content
+        print("╔" + "=" * 78 + "╗")
+        print("║  WORK PACKAGE PROMPT BEGINS - Scroll to bottom for completion steps   ║")
+        print("╚" + "=" * 78 + "╝")
+        print()
+
         # Output full prompt content (frontmatter + body)
         print(wp.path.read_text(encoding="utf-8"))
+
+        # Add visual marker after content
+        print()
+        print("╔" + "=" * 78 + "╗")
+        print("║  WORK PACKAGE PROMPT ENDS - See completion commands below   ║")
+        print("╚" + "=" * 78 + "╝")
+        print()
+
+        # CRITICAL: Repeat completion instructions at the END
+        print("=" * 80)
+        print("🎯 IMPLEMENTATION COMPLETE? RUN THIS COMMAND:")
+        print("=" * 80)
+        print()
+        print(f"✅ Implementation complete and tested:")
+        print(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review: <summary>\"")
+        print()
+        print(f"⚠️  Blocked or cannot complete:")
+        print(f"   spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        print()
+        print("⚠️  NOTE: You MUST run the move-task command when done!")
+        print("     This transitions the WP to for_review lane for reviewer agents.")
+        print("=" * 80)
 
     except Exception as e:
         print(f"Error: {e}")
@@ -361,16 +441,19 @@ def _warn_dependents_in_progress(
 def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
 
     This command outputs the full work package prompt (including any review
     feedback from previous reviews) so agents can review the implementation.
 
+    Automatically moves WP from for_review to doing lane (requires --agent to track who is reviewing).
+
     Examples:
-        spec-kitty agent workflow review WP01
-        spec-kitty agent workflow review wp02
-        spec-kitty agent workflow review  # auto-detects first for_review WP
+        spec-kitty agent workflow review WP01 --agent claude
+        spec-kitty agent workflow review wp02 --agent codex
+        spec-kitty agent workflow review --agent gemini  # auto-detects first for_review WP
     """
     try:
         # Get repo root and feature slug
@@ -397,15 +480,29 @@ def review(
         # Move to "doing" lane if not already there
         current_lane = extract_scalar(wp.frontmatter, "lane") or "for_review"
         if current_lane != "doing":
-            from datetime import datetime, timezone
+            # Require --agent parameter to track who is reviewing
+            if not agent:
+                print("Error: --agent parameter required when starting review.")
+                print(f"  Usage: spec-kitty agent workflow review {normalized_wp_id} --agent <your-name>")
+                print("  Example: spec-kitty agent workflow review WP01 --agent claude")
+                print()
+                print("This tracks WHO is reviewing the WP (prevents abandoned reviews).")
+                raise typer.Exit(1)
 
-            # Update lane in frontmatter
+            from datetime import datetime, timezone
+            import os
+
+            # Capture current shell PID
+            shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
+
+            # Update lane, agent, and shell_pid in frontmatter
             updated_front = set_scalar(wp.frontmatter, "lane", "doing")
+            updated_front = set_scalar(updated_front, "agent", agent)
+            updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
             # Build history entry
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            agent_name = extract_scalar(updated_front, "agent") or "agent"
-            history_entry = f"- {timestamp} – {agent_name} – lane=doing – Started review via workflow command"
+            history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started review via workflow command"
 
             # Add history entry to body
             updated_body = append_activity_log(wp.body, history_entry)
@@ -414,8 +511,40 @@ def review(
             updated_doc = build_document(updated_front, updated_body, wp.padding)
             wp.path.write_text(updated_doc, encoding="utf-8")
 
+            # Auto-commit to main (enables instant status sync)
+            import subprocess
+
+            # Get main repo root (might be in worktree)
+            git_file = Path.cwd() / ".git"
+            if git_file.is_file():
+                git_content = git_file.read_text().strip()
+                if git_content.startswith("gitdir:"):
+                    gitdir = Path(git_content.split(":", 1)[1].strip())
+                    main_repo_root = gitdir.parent.parent.parent
+                else:
+                    main_repo_root = repo_root
+            else:
+                main_repo_root = repo_root
+
+            actual_wp_path = wp.path.resolve()
+            commit_result = subprocess.run(
+                ["git", "commit", str(actual_wp_path), "-m", f"chore: Start {normalized_wp_id} review [{agent}]"],
+                cwd=main_repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+
+            if commit_result.returncode == 0:
+                print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid})")
+            else:
+                # Commit failed - file might already be committed in this state
+                pass
+
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        else:
+            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to doing.")
 
         # Calculate workspace path
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
@@ -450,14 +579,53 @@ def review(
         print(f"   # Review the implementation in this workspace")
         print(f"   # Read code, run tests, check against requirements")
         print(f"   # When done, return to main: cd {repo_root}")
+        print()
+        print("📋 STATUS TRACKING:")
+        print(f"   kitty-specs/ is symlinked to main (instant sync across worktrees)")
+        print(f"   Status changes auto-commit to main branch (visible to all agents)")
         print("=" * 80)
         print()
         print("Review the implementation against the requirements below.")
         print("Check code quality, tests, documentation, and adherence to spec.")
         print()
 
+        # Add visual marker before long content
+        print("╔" + "=" * 78 + "╗")
+        print("║   WORK PACKAGE PROMPT BEGINS - Scroll to bottom for completion steps  ║")
+        print("╚" + "=" * 78 + "╝")
+        print()
+
         # Output full prompt content (frontmatter + body)
         print(wp.path.read_text(encoding="utf-8"))
+
+        # Add visual marker after content
+        print()
+        print("╔" + "=" * 78 + "╗")
+        print("║   WORK PACKAGE PROMPT ENDS - See completion commands below  ║")
+        print("╚" + "=" * 78 + "╝")
+        print()
+
+        # CRITICAL: Repeat completion instructions at the END
+        print("=" * 80)
+        print("🎯 REVIEW COMPLETE? RUN ONE OF THESE COMMANDS:")
+        print("=" * 80)
+        print()
+        print(f"✅ APPROVE (no issues found):")
+        print(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed: <summary>\"")
+        print()
+        print(f"❌ REQUEST CHANGES (issues found):")
+        print(f"   1. Write feedback:")
+        print(f"      cat > review-feedback.md <<'EOF'")
+        print(f"**Issue 1**: <description and how to fix>")
+        print(f"**Issue 2**: <description and how to fix>")
+        print(f"EOF")
+        print()
+        print(f"   2. Move to planned with feedback:")
+        print(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file review-feedback.md")
+        print()
+        print("⚠️  NOTE: You MUST run one of these commands to complete the review!")
+        print("     The Python script handles all file updates automatically.")
+        print("=" * 80)
 
     except Exception as e:
         print(f"Error: {e}")
