@@ -301,7 +301,7 @@
 - [x] T060 [P] Test command templates exist and reference correct phases
 - [x] T060A [P] Test release-template.md has required sections for publish guidance
 - [x] T061 [P] Create `tests/specify_cli/test_doc_generators.py` (generator protocol tests)
-- [ ] T062 [P] Test JSDocGenerator detects JS/TS projects correctly
+- [x] T062 [P] Test JSDocGenerator detects JS/TS projects correctly
 - [ ] T063 [P] Test SphinxGenerator detects Python projects correctly
 - [ ] T064 [P] Test RustdocGenerator detects Rust projects correctly
 - [ ] T065 [P] Test generator graceful degradation when tool missing
