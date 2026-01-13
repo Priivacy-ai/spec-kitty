@@ -402,6 +402,165 @@ spec-kitty agent tasks status --feature 012-documentation-mission
 ```
 Note: CLI output may get truncated in tool results. Use Python function for full output.
 
+## Documentation Mission Patterns (0.11.0+)
+
+**When to Use Documentation Mission**:
+- Creating comprehensive docs for a new project (initial mode)
+- Filling gaps in existing documentation (gap-filling mode)
+- Documenting a specific feature or component (feature-specific mode)
+
+### Key Concepts
+
+**Divio 4-Type System**:
+- **Tutorial**: Learning-oriented, teaches beginners step-by-step
+- **How-To**: Task-oriented, solves specific problems
+- **Reference**: Information-oriented, describes APIs (often auto-generated)
+- **Explanation**: Understanding-oriented, explains architecture and "why"
+
+**Iteration Modes**:
+- **initial**: Create docs from scratch (no gap analysis)
+- **gap_filling**: Audit existing docs, prioritize gaps, fill high-priority missing content
+- **feature_specific**: Document a specific feature/module only
+
+**Generators**:
+- **JSDoc**: JavaScript/TypeScript API reference (requires `npx`)
+- **Sphinx**: Python API reference (requires `sphinx-build`)
+- **rustdoc**: Rust API reference (requires `cargo`)
+
+### Workflow
+
+**Planning Phase**:
+```bash
+/spec-kitty.specify Create documentation [describe what you need]
+# Prompts: iteration_mode, divio_types, target_audience, generators
+/spec-kitty.plan [describe documentation structure and generators]
+/spec-kitty.tasks
+```
+
+**Implementation Phase**:
+```bash
+/spec-kitty.implement
+# Creates Divio templates, configures generators, generates API docs
+/spec-kitty.review
+/spec-kitty.accept
+```
+
+### Gap Analysis
+
+**Gap-filling mode automatically**:
+1. Detects documentation framework (Sphinx, MkDocs, Docusaurus, etc.)
+2. Classifies existing docs by Divio type (frontmatter or content heuristics)
+3. Builds coverage matrix (area × Divio type)
+4. Identifies missing cells
+5. Prioritizes gaps:
+   - **HIGH**: Missing tutorials/reference for core features (blocks users)
+   - **MEDIUM**: Missing how-tos, tutorials for advanced features
+   - **LOW**: Missing explanations (nice-to-have)
+
+**Output**: `gap-analysis.md` with coverage matrix, prioritized gaps, recommendations
+
+### Generator Configuration
+
+**Sphinx (Python)**:
+```python
+# docs/conf.py
+extensions = [
+    'sphinx.ext.autodoc',    # Generate from docstrings
+    'sphinx.ext.napoleon',   # Google/NumPy style
+    'sphinx.ext.viewcode',   # Link to source
+]
+```
+
+**JSDoc (JavaScript/TypeScript)**:
+```json
+// jsdoc.json
+{
+  "source": {"include": ["src/"]},
+  "opts": {"destination": "docs/api/javascript"}
+}
+```
+
+**rustdoc (Rust)**:
+```toml
+# Cargo.toml
+[package.metadata.docs.rs]
+all-features = true
+```
+
+### State Management
+
+Documentation state persisted in `meta.json`:
+```json
+{
+  "documentation_state": {
+    "iteration_mode": "gap_filling",
+    "divio_types_selected": ["tutorial", "how-to", "reference"],
+    "generators_configured": [
+      {
+        "name": "sphinx",
+        "language": "python",
+        "config_path": "docs/conf.py"
+      }
+    ],
+    "target_audience": "developers",
+    "last_audit_date": "2026-01-13T15:00:00Z",
+    "coverage_percentage": 0.67
+  }
+}
+```
+
+### Common Patterns
+
+**Initial project documentation**:
+- Include all 4 Divio types
+- Configure generator for primary language
+- Create comprehensive suite (tutorial → reference → explanations)
+
+**Gap-filling existing docs**:
+- Run audit first (detects framework, classifies docs)
+- Focus on HIGH priority gaps (tutorials, core reference)
+- Iteratively improve coverage
+
+**Feature-specific docs**:
+- Select only relevant Divio types (e.g., how-to + reference for new API)
+- Integrate with existing structure
+- Update coverage metadata
+
+### Troubleshooting
+
+**Generator not found**:
+```bash
+# Install required tools
+pip install sphinx sphinx-rtd-theme  # Python
+npm install --save-dev jsdoc docdash  # JavaScript
+curl --proto '=https' -sSf https://sh.rustup.rs | sh  # Rust
+```
+
+**Low confidence classification**:
+Add frontmatter to existing docs:
+```markdown
+---
+type: tutorial  # or how-to, reference, explanation
+---
+```
+
+**Templates not populated**:
+Replace all `[TODO: ...]` placeholders with actual content during validation phase.
+
+### Documentation
+
+**User Guide**: [docs/documentation-mission.md](docs/documentation-mission.md)
+- Complete workflow with examples
+- Generator setup instructions
+- Divio type explanations
+- Troubleshooting guide
+
+**Implementation**:
+- Mission config: `src/specify_cli/missions/documentation/mission.yaml`
+- Generators: `src/specify_cli/doc_generators.py`
+- Gap analysis: `src/specify_cli/gap_analysis.py`
+- State management: `src/specify_cli/doc_state.py`
+
 ## Other Notes
 
 Never claim something in the frontend works without Playwright proof.
