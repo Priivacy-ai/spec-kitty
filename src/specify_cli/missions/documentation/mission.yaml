@@ -33,7 +33,6 @@ artifacts:
     - research.md
     - data-model.md
     - quickstart.md
-    - release.md
 
 # Path conventions for this mission
 paths:
