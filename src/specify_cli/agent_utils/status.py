@@ -300,6 +300,11 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
     if parallel_info["ready_wps"]:
         console.print("[bold magenta]🔀 Parallelization Strategy:[/bold magenta]")
 
+        # Get latest done WP for base
+        done_wps = sorted([wp for wp in work_packages if wp["lane"] == "done"],
+                         key=lambda x: x["id"], reverse=True)
+        latest_base = done_wps[0]["id"] if done_wps else "main"
+
         for group in parallel_info["parallel_groups"]:
             if group["type"] == "parallel":
                 console.print(f"\n  [bold green]✨ Can run in PARALLEL:[/bold green]")
@@ -310,13 +315,19 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
                 # Show implementation commands
                 console.print(f"\n  [bold]Start commands:[/bold]")
                 for wp in group["wps"]:
-                    console.print(f"     spec-kitty implement {wp['id']} --base WP08 &")
+                    # Find best base for this WP
+                    wp_deps = wp.get("dependencies", [])
+                    base = wp_deps[-1] if wp_deps else latest_base
+                    console.print(f"     spec-kitty implement {wp['id']} --base {base} &")
 
             elif group["type"] == "single":
                 console.print(f"\n  [bold yellow]▶️  Ready to start:[/bold yellow]")
                 for wp in group["wps"]:
                     console.print(f"     • {wp['id']} - {wp['title']}")
-                    console.print(f"     spec-kitty implement {wp['id']} --base WP08")
+                    # Find best base for this WP
+                    wp_deps = wp.get("dependencies", [])
+                    base = wp_deps[-1] if wp_deps else latest_base
+                    console.print(f"     spec-kitty implement {wp['id']} --base {base}")
 
             elif group["type"] == "sequential":
                 console.print(f"\n  [bold blue]⏭️  Sequential (blocked by other ready WPs):[/bold blue]")
