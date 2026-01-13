@@ -348,7 +348,7 @@
 - [x] T078 Document workflow phases (discover, audit, design, generate, validate, publish)
 - [x] T079 Document Divio documentation types with examples
 - [x] T080 Document iteration modes (initial, gap_filling, feature_specific)
-- [ ] T081 Document generator usage (JSDoc, Sphinx, rustdoc)
+- [x] T081 Document generator usage (JSDoc, Sphinx, rustdoc)
 - [ ] T082 Add troubleshooting section (common errors, solutions)
 - [ ] T083 Update `CLAUDE.md` with documentation mission patterns (already done in planning)
 - [ ] T084 [P] Update all 12 agent context files (use AGENT_DIRS from m_0_9_1_complete_lane_migration.py)
