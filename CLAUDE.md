@@ -346,6 +346,62 @@ This foundation makes jj integration possible in future version.
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md) - Technical design
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md) - Entities and relationships
 
+## Agent Utilities for Work Package Status
+
+**Quick Status Check (Recommended for Agents)**
+
+When you need to check work package status, use the Python function instead of CLI commands:
+
+```python
+from specify_cli.agent_utils.status import show_kanban_status
+
+# Auto-detect feature or specify explicitly
+result = show_kanban_status("012-documentation-mission")
+```
+
+**Benefits:**
+- ✅ Full output displayed inline (no truncation like CLI commands)
+- ✅ Beautiful kanban board with progress bar
+- ✅ Intelligent parallelization analysis
+- ✅ Shows which WPs can run in parallel
+- ✅ Provides exact commands with correct --base flags
+- ✅ Returns structured dict for programmatic access
+
+**What You Get:**
+
+Visual output:
+- Kanban board (planned/doing/for_review/done lanes)
+- Progress bar (█████░░░) with percentage
+- Next steps section (what's ready for review/in progress/next)
+- **🔀 Parallelization Strategy** - shows which WPs can run in parallel
+- Summary metrics panel
+
+Structured data:
+```python
+{
+    'progress_percentage': 80.0,
+    'done_count': 8,
+    'total_wps': 10,
+    'parallelization': {
+        'ready_wps': [...],  # WPs that can start now
+        'can_parallelize': True/False,  # Multiple WPs ready?
+        'parallel_groups': [...]  # Grouping strategy
+    }
+}
+```
+
+**When to Use:**
+- Before starting work (check what's ready)
+- During implementation (track progress)
+- After completing a WP (see what's next)
+- When planning parallelization (identify opportunities)
+
+**Alternative (CLI):**
+```bash
+spec-kitty agent tasks status --feature 012-documentation-mission
+```
+Note: CLI output may get truncated in tool results. Use Python function for full output.
+
 ## Other Notes
 
 Never claim something in the frontend works without Playwright proof.
