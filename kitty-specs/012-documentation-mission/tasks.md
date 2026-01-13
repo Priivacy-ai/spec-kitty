@@ -353,7 +353,7 @@
 - [x] T083 Update `CLAUDE.md` with documentation mission patterns (already done in planning)
 - [x] T084 [P] Update all 12 agent context files (use AGENT_DIRS from m_0_9_1_complete_lane_migration.py)
 - [x] T085 Add example: "Run documentation mission on small Python project"
-- [ ] T086 Add example: "Gap-fill existing documentation"
+- [x] T086 Add example: "Gap-fill existing documentation"
 
 ### Implementation Notes
 1. Follow existing spec-kitty documentation style
