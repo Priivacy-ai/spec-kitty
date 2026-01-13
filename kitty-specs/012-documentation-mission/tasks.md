@@ -315,7 +315,7 @@
 - [x] T073 [P] Test migration detects missing documentation mission
 - [x] T074 [P] Test migration copies mission directory correctly
 - [x] T075 [P] Test migration is idempotent
-- [ ] T076 [P] Test migration doesn't affect existing missions
+- [x] T076 [P] Test migration doesn't affect existing missions
 
 ### Implementation Notes
 1. Use pytest framework consistent with existing spec-kitty tests
