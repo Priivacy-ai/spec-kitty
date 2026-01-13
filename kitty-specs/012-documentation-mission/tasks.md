@@ -297,7 +297,7 @@
 - [x] T056 [P] Test artifacts and path conventions are defined
 - [x] T057 [P] Create `tests/specify_cli/missions/test_documentation_templates.py` (template structure tests)
 - [x] T058 [P] Test each Divio template has frontmatter with type field
-- [ ] T059 [P] Test each Divio template has required sections
+- [x] T059 [P] Test each Divio template has required sections
 - [ ] T060 [P] Test command templates exist and reference correct phases
 - [ ] T060A [P] Test release-template.md has required sections for publish guidance
 - [ ] T061 [P] Create `tests/specify_cli/test_doc_generators.py` (generator protocol tests)
