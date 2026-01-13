@@ -304,7 +304,7 @@
 - [x] T062 [P] Test JSDocGenerator detects JS/TS projects correctly
 - [x] T063 [P] Test SphinxGenerator detects Python projects correctly
 - [x] T064 [P] Test RustdocGenerator detects Rust projects correctly
-- [ ] T065 [P] Test generator graceful degradation when tool missing
+- [x] T065 [P] Test generator graceful degradation when tool missing
 - [ ] T066 [@pytest.mark.integration] Test end-to-end generator invocation (requires tools installed)
 - [ ] T067 [P] Create `tests/specify_cli/test_gap_analysis.py` (gap detection tests)
 - [ ] T068 [P] Test framework detection (Sphinx, MkDocs, etc.)
