@@ -452,6 +452,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
    - All verification commands (4.10) executed and passed
 
    **Default stance: REJECT.** Only approve when you've actively tried to find problems and found none. "Looks good" is not good enough - you must prove it's good.
+   If review is blocked by unchecked subtasks, only mark a subtask done after verifying the implementation is complete. Do not mark incomplete subtasks just to unblock the move.
 
 5. Decide outcome:
   - **Needs changes**:
@@ -476,26 +477,23 @@ This is intentional - worktrees provide isolation for parallel feature developme
        - [ ] Verify [validation point 3]
        ```
      * Update frontmatter:
-       - Set `lane: "planned"`
        - Set `review_status: "has_feedback"`
        - Set `reviewed_by: <YOUR_AGENT_ID>`
        - Clear `assignee` if needed
      * Append a new entry in the prompt's **Activity Log** with timestamp, reviewer agent, shell PID, and summary of feedback.
-     * Run `spec-kitty agent move-task <FEATURE> <TASK_ID> planned --note "Code review complete: [brief summary of issues]"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
+     * The workflow command will move the WP back to `planned`.
   - **Approved**:
      * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script, e.g., `2025-11-11T13:45:00Z – claude – shell_pid=1234 – lane=done – Approved without changes`).
      * Update frontmatter:
-       - Sets `lane: "done"`
-       - Sets `review_status: "approved without changes"` (or your custom status)
+       - Set `review_status: "approved without changes"` (or your custom status)
        - Sets `reviewed_by: <YOUR_AGENT_ID>`
        - Updates `agent: <YOUR_AGENT_ID>` and `shell_pid: <YOUR_SHELL_PID>`
        - Appends Activity Log entry with reviewer's info (NOT implementer's)
        - Handles git operations (add new location, remove old location)
-     * **Alternative:** For custom review statuses, use `--review-status "approved with minor notes"` or `--target-lane "planned"` for rejected tasks.
-     * Use helper script to mark the task complete in `tasks.md` (see Step 7).
+     * The workflow command will move the WP to `done`.
 
-7. Update `tasks.md` automatically:
-   - Run `spec-kitty agent mark-status --task-id <TASK_ID> --status done` (POSIX) or `spec-kitty agent -TaskId <TASK_ID> -Status done` (PowerShell) from repo root.
+7. Update `tasks.md`:
+   - Mark subtasks complete in `tasks.md` once verified.
    - Confirm the task entry now shows `[X]` and includes a reference to the prompt file in its notes.
 
 7. Produce a review report summarizing:

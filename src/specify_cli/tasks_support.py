@@ -8,8 +8,8 @@ This file will be removed in the next release.
 See: src/specify_cli/cli/commands/agent/tasks.py
 
 Migration Guide:
-- tasks_cli.py update → spec-kitty agent tasks move-task
-- For all other operations, use the new agent tasks commands
+- tasks_cli.py update → spec-kitty agent workflow implement/review
+- For all other operations, use the new agent commands
 """
 
 from __future__ import annotations

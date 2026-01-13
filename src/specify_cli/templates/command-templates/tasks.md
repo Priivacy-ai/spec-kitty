@@ -113,7 +113,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
      - Update `tasks.md` to reference the prompt filename
    - Keep prompts exhaustive enough that a new agent can complete the work package unaided
 
-   **IMPORTANT**: All WP files live in flat `tasks/` directory. Lane status is tracked ONLY in the `lane:` frontmatter field, NOT by directory location. Agents can change lanes by editing the `lane:` field directly or using `spec-kitty agent tasks move-task`.
+   **IMPORTANT**: All WP files live in flat `tasks/` directory. Lane status is tracked ONLY in the `lane:` frontmatter field, NOT by directory location. Workflow commands handle lane transitions; manual edits are for recovery only.
 
 7. **Finalize tasks with dependency parsing and commit**:
    After generating all WP prompt files, run the finalization command to:

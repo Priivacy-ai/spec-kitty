@@ -33,19 +33,17 @@ kitty-specs/001-my-feature/tasks/
 
 ### Moving Work Packages Between Lanes
 
-**Use the Python CLI:**
+**Use the workflow commands (lane transitions are automatic):**
 ```bash
-spec-kitty agent tasks move-task WP01 --to doing --note "Started implementation"
-spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review"
-spec-kitty agent tasks move-task WP01 --to done --note "Review passed"
+spec-kitty agent workflow implement WP01
+spec-kitty agent workflow review WP01
 ```
 
-The move command:
-1. Updates `lane:` field in YAML frontmatter
-2. Records `agent` and `shell_pid` metadata
-3. Appends entry to Activity Log with timestamp
-4. Writes updated file
-5. Does NOT move the file (stays in flat tasks/ directory)
+The workflow commands:
+1. Move planned → doing → for_review during implement
+2. Move for_review → doing → planned/done during review
+3. Update frontmatter and Activity Log
+4. Keep files in the flat tasks/ directory
 
 ### Workflow Commands (Recommended for Agents)
 

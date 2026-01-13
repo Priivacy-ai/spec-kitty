@@ -165,7 +165,7 @@ cat kitty-specs/003-admin-panel/tasks/for_review/WP01-user-list.md
 # Client adds feedback (via GitHub UI or shared doc)
 
 # PM moves based on feedback
-.kittify/scripts/bash/tasks-move-to-lane.sh 003-admin-panel WP01 done --note "Client approved"
+spec-kitty agent workflow implement WP01
 ```
 
 ## Metrics to Share

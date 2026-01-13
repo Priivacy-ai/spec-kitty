@@ -383,8 +383,8 @@ claude
 ```bash
 /spec-kitty.implement
 # After implementation:
-spec-kitty agent tasks move-task WP01 --lane done --skip-review
-# Directly to done (for trivial changes)
+spec-kitty agent workflow review WP01
+# Review workflow moves to done when there is no feedback
 ```
 
 ### Pattern 3: Parallel Features
@@ -545,7 +545,7 @@ Encode your team's quality standards once:
    - Keeps main clean and deployable
 
 3. **Manually edit lane metadata**
-   - Use slash commands to move tasks
+   - Use workflow commands to advance lanes
    - Preserves history and dashboard accuracy
 
 4. **Ignore dashboard warnings**

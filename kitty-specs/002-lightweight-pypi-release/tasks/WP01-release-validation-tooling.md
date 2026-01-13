@@ -192,5 +192,5 @@ $ python scripts/release/validate_release.py --mode branch
 1. Capture your shell PID: `echo $$`.
 2. Update frontmatter (`lane`, `assignee`, `agent`, `shell_pid`).
 3. Append an entry to the **Activity Log** with timestamp, agent, lane, PID, and note.
-4. Use `.kittify/scripts/bash/tasks-move-to-lane.sh 002-lightweight-pypi-release WP01 <lane>` to automate metadata updates.
+spec-kitty agent workflow implement WP01
 5. Commit or stage changes to preserve audit history.

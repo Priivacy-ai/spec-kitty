@@ -131,7 +131,7 @@ echo "3. Generating tasks..."
 
 # Phase 4: Implement
 echo "4. Moving task..."
-spec-kitty agent move-task WP01 --to doing --json
+spec-kitty agent workflow implement WP01
 
 # Phase 5: Review
 echo "5. Validating workflow..."

@@ -771,7 +771,8 @@ The `spec-kitty agent` namespace provides programmatic access to all workflow au
 - `spec-kitty agent feature merge` – Merge feature branch and cleanup
 
 **Task Workflow:**
-- `spec-kitty agent tasks move-task <id> --to <lane>` – Move task between kanban lanes (updates frontmatter)
+- `spec-kitty agent workflow implement <id>` – Move planned → doing → for_review automatically
+- `spec-kitty agent workflow review <id>` – Move for_review → doing → planned/done automatically
 - `spec-kitty agent tasks list-tasks` – List all tasks grouped by lane
 - `spec-kitty agent tasks mark-status <id> --status <status>` – Mark task status
 - `spec-kitty agent tasks add-history <id> --note <message>` – Add activity log entry
@@ -789,8 +790,8 @@ spec-kitty agent feature create-feature "Payment Flow" --json
 # Display WP prompt and auto-move to doing
 spec-kitty agent workflow implement WP01
 
-# Move task to for_review lane
-spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review"
+# Run workflow to advance lanes
+spec-kitty agent workflow implement WP01
 
 # Validate workflow
 spec-kitty agent tasks validate-workflow WP01 --json
@@ -1040,7 +1041,8 @@ The merge command:
 
 All task workflow commands are available through the `spec-kitty agent` CLI:
 
-- `spec-kitty agent tasks move-task WP01 --to doing` – moves a work-package between lanes, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry
+- `spec-kitty agent workflow implement WP01` – auto-advances planned → doing → for_review
+- `spec-kitty agent workflow review WP01` – auto-advances for_review → doing → planned/done
 - `spec-kitty agent tasks validate-workflow WP01` – validates that the work-package has correct metadata
 - `spec-kitty agent tasks list-tasks` – lists all tasks grouped by lane
 - `spec-kitty agent tasks mark-status WP01 --status done` – marks a task with a specific status

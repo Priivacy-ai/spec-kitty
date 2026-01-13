@@ -173,6 +173,9 @@ class TestMarkStatus:
         """Should mark status as done with JSON output."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
+        tasks_dir = tmp_path / "kitty-specs" / "008-test"
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        (tasks_dir / "tasks.md").write_text("- [ ] T001 Initial task\n", encoding="utf-8")
 
         # Execute
         result = runner.invoke(
@@ -209,6 +212,9 @@ class TestMarkStatus:
         """Should mark status as pending."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
+        tasks_dir = tmp_path / "kitty-specs" / "008-test"
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        (tasks_dir / "tasks.md").write_text("- [x] T002 Initial task\n", encoding="utf-8")
 
         # Execute
         result = runner.invoke(
@@ -727,14 +733,16 @@ class TestFindFeatureSlug:
         assert slug == "008-test-feature"
 
     @patch("subprocess.run")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks.Path.cwd")
-    def test_find_raises_on_failure(self, mock_cwd: Mock, mock_subprocess: Mock):
+    def test_find_raises_on_failure(self, mock_cwd: Mock, mock_repo: Mock, mock_subprocess: Mock):
         """Should raise typer.Exit when slug cannot be determined."""
         from specify_cli.cli.commands.agent.tasks import _find_feature_slug
         import subprocess
         from click.exceptions import Exit
 
         mock_cwd.return_value = Path("/repo")
+        mock_repo.return_value = None
         mock_subprocess.side_effect = subprocess.CalledProcessError(1, "git")
 
         with pytest.raises(Exit):

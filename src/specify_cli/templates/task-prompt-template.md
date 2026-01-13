@@ -4,7 +4,7 @@ subtasks:
   - "Txxx"
 title: "Replace with work package title"
 phase: "Phase N - Replace with phase name"
-lane: "planned"  # Edit directly or use: spec-kitty agent tasks move-task <WPID> --to <lane>
+lane: "planned"  # Updated by workflow commands; avoid manual edits unless recovering state
 assignee: ""      # Optional friendly name when in doing/for_review
 agent: ""         # CLI agent identifier (claude, codex, etc.)
 shell_pid: ""     # PID captured when the task moved to the current lane
@@ -159,12 +159,9 @@ The `spec-kitty implement` command will display warnings when:
 
 ### Updating Lane Status
 
-To change a work package's lane, either:
-
-1. **Edit directly**: Change the `lane:` field in frontmatter AND append activity log entry
-2. **Use CLI**: `spec-kitty agent tasks move-task <WPID> --to <lane> --note "message"`
-
-The CLI command updates both frontmatter and activity log automatically (recommended).
+Workflow commands handle lane transitions. If you must recover state manually:
+1. Change the `lane:` field in frontmatter.
+2. Append an activity log entry at the end.
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 

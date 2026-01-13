@@ -684,7 +684,7 @@ echo "✓ ALL CHECKS PASSED"
 To change this work package's lane, either:
 
 1. **Edit directly**: Change the `lane:` field in frontmatter
-2. **Use CLI**: `spec-kitty agent tasks move-task WP01 --to <lane> --note "message"`
+spec-kitty agent workflow implement WP01
 
 The CLI command also updates the activity log automatically.
 

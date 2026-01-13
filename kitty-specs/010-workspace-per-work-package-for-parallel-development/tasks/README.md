@@ -53,14 +53,10 @@ history:
 
 ## Moving Between Lanes
 
-Use the CLI (updates frontmatter only, no file movement):
+Workflow commands handle lane transitions automatically:
 ```bash
-spec-kitty tasks update <WPID> --lane <lane>
-```
-
-Or use the helper script:
-```bash
-.kittify/scripts/bash/tasks-move-to-lane.sh <FEATURE> <WPID> <lane>
+spec-kitty agent workflow implement <WPID>
+spec-kitty agent workflow review <WPID>
 ```
 
 ## File Naming

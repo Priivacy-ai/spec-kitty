@@ -219,9 +219,9 @@ def implement(
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
 
-        # Move to "doing" lane if not already there
+        # Move to "doing" lane only from planned (avoid undoing review/complete lanes)
         current_lane = extract_scalar(wp.frontmatter, "lane") or "planned"
-        if current_lane != "doing":
+        if current_lane == "planned":
             from datetime import datetime, timezone
 
             # Update lane in frontmatter
@@ -241,6 +241,8 @@ def implement(
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        elif current_lane in {"for_review", "done"}:
+            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow implement will not move it to doing.")
 
         # Check review status
         review_status = extract_scalar(wp.frontmatter, "review_status")
@@ -264,11 +266,11 @@ def implement(
         print("=" * 80)
         print("WHEN YOU'RE DONE:")
         print("=" * 80)
-        print(f"✓ Implementation complete and tested:")
-        print(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
+        print("✓ Implementation complete and tested:")
+        print("  This workflow will auto-move the work package to for_review.")
         print()
-        print(f"✗ Blocked or cannot complete:")
-        print(f"  spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        print("✗ Blocked or cannot complete:")
+        print("  Record the block in the Activity Log before re-running the workflow.")
         print("=" * 80)
         print()
         print(f"📍 WORKING DIRECTORY:")
@@ -285,6 +287,17 @@ def implement(
         # Output full prompt content (frontmatter + body)
         print(wp.path.read_text(encoding="utf-8"))
 
+        # Auto-move to for_review after displaying the prompt
+        from specify_cli.cli.commands.agent.tasks import move_task
+        move_task(
+            normalized_wp_id,
+            to="for_review",
+            feature=feature_slug,
+            note="Auto-moved to for_review after implement workflow"
+        )
+
+    except typer.Exit:
+        raise
     except Exception as e:
         print(f"Error: {e}")
         raise typer.Exit(1)
@@ -363,7 +376,7 @@ def _warn_dependents_in_progress(
             continue
 
         lane = extract_scalar(dependent_wp.frontmatter, "lane")
-        if lane in {"planned", "doing", "for_review"}:
+        if lane == "doing":
             in_progress.append(dependent_id)
 
     if not in_progress:
@@ -417,9 +430,9 @@ def review(
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
 
-        # Move to "doing" lane if not already there
-        current_lane = extract_scalar(wp.frontmatter, "lane") or "for_review"
-        if current_lane != "doing":
+        # Move to "doing" lane only from for_review
+        current_lane = extract_scalar(wp.frontmatter, "lane") or "planned"
+        if current_lane == "for_review":
             from datetime import datetime, timezone
 
             # Update lane in frontmatter
@@ -439,6 +452,9 @@ def review(
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        elif current_lane not in {"doing"}:
+            print(f"Error: {normalized_wp_id} is in lane '{current_lane}'. Only for_review WPs can be reviewed.")
+            raise typer.Exit(1)
 
         # Calculate workspace path
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
@@ -460,12 +476,12 @@ def review(
         print("=" * 80)
         print("WHEN YOU'RE DONE:")
         print("=" * 80)
-        print(f"✓ Review passed, no issues:")
-        print(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
+        print("✓ Review passed, no issues:")
+        print("  This workflow will auto-move the work package to done.")
         print()
-        print(f"⚠️  Changes requested:")
-        print(f"  1. Add feedback to the WP file's '## Review Feedback' section")
-        print(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --note \"Changes requested\"")
+        print("⚠️  Changes requested:")
+        print("  Add feedback in the WP file's '## Review Feedback' section.")
+        print("  The workflow will auto-move the work package back to planned.")
         print("=" * 80)
         print()
         print(f"📍 WORKING DIRECTORY:")
@@ -482,6 +498,19 @@ def review(
         # Output full prompt content (frontmatter + body)
         print(wp.path.read_text(encoding="utf-8"))
 
+        # Auto-move to planned or done after displaying the prompt
+        target_lane = "planned" if extract_scalar(wp.frontmatter, "review_status") == "has_feedback" else "done"
+        note = "Changes requested" if target_lane == "planned" else "Review passed"
+        from specify_cli.cli.commands.agent.tasks import move_task
+        move_task(
+            normalized_wp_id,
+            to=target_lane,
+            feature=feature_slug,
+            note=note
+        )
+
+    except typer.Exit:
+        raise
     except Exception as e:
         print(f"Error: {e}")
         raise typer.Exit(1)

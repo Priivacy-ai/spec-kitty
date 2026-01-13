@@ -3,16 +3,14 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 import tomllib
-from importlib.metadata import version as get_version
-from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import Callable
 
 import pytest
 import yaml
 
+from tests.test_isolation_helpers import get_installed_version, get_venv_python
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -31,6 +29,7 @@ def isolated_env() -> dict[str, str]:
     pip-installed version of spec-kitty-cli from the host system.
     """
     env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
 
     # Single source of truth: pyproject.toml
     with open(REPO_ROOT / "pyproject.toml", "rb") as f:
@@ -56,7 +55,7 @@ def run_cli(isolated_env: dict[str, str]) -> Callable[[Path, str], subprocess.Co
     """
 
     def _run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
-        command = [sys.executable, "-m", "specify_cli.__init__", *args]
+        command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
         return subprocess.run(
             command,
             cwd=str(project_path),
@@ -101,9 +100,8 @@ def test_project(tmp_path: Path) -> Path:
             metadata = yaml.safe_load(f) or {}
 
         # Align project version with the CLI version used by tests.
-        try:
-            current_version = get_version("spec-kitty-cli")
-        except PackageNotFoundError:
+        current_version = get_installed_version()
+        if current_version is None:
             with open(REPO_ROOT / "pyproject.toml", "rb") as f:
                 pyproject = tomllib.load(f)
             current_version = pyproject["project"]["version"] or "unknown"

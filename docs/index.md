@@ -443,8 +443,9 @@ The merge command:
 - `spec-kitty agent workflow implement [WP01]` – Auto-detects first WP with `lane: "planned"`, moves to "doing", displays full prompt with instructions
 - `spec-kitty agent workflow review [WP01]` – Auto-detects first WP with `lane: "for_review"`, moves to "doing", displays prompt with review guidance
 
-**Manual Lane Management:**
-- `spec-kitty agent tasks move-task WP01 --to doing --note "Started"` – Updates lane in frontmatter, records metadata (agent, shell PID), appends Activity Log entry
+**Lane Management (automatic via workflows):**
+- `spec-kitty agent workflow implement WP01` – Moves planned → doing → for_review automatically
+- `spec-kitty agent workflow review WP01` – Moves for_review → doing → planned/done automatically
 - `spec-kitty agent tasks validate-workflow WP01` – Validates WP has correct lane and required metadata
 - `spec-kitty agent tasks list-tasks --lane doing` – Lists all WPs in specific lane
 

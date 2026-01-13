@@ -30,15 +30,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
     """Execute spec-kitty CLI using Python module invocation.
 
-    Uses python -m instead of shelling out to binary for better test reliability.
+    Uses venv python and python -m instead of shelling out to binary for better test reliability.
     """
+    from tests.test_isolation_helpers import get_venv_python
+
     env = os.environ.copy()
     src_path = REPO_ROOT / "src"
     env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(
         os.pathsep
     )
     env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
-    command = [sys.executable, "-m", "specify_cli.__init__", *args]
+    command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
     return subprocess.run(
         command,
         cwd=str(project_path),

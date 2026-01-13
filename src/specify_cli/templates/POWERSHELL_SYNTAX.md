@@ -45,7 +45,7 @@ Spec-kitty uses a Python CLI that works across all platforms:
 **Common commands:**
 - `spec-kitty agent feature create-feature <slug>` - Create a new feature
 - `spec-kitty verify-setup` - Check environment and paths
-- `spec-kitty agent tasks move-task <WPID> --to <lane>` - Move task between lanes
+- Workflow commands handle lane transitions automatically
 - `spec-kitty merge` - Merge completed feature
 
 ### Parameter Naming Convention
@@ -70,14 +70,10 @@ PowerShell uses **PascalCase** with leading dash:
 .\.kittify\scripts\powershell\check-prerequisites.ps1 -Json -IncludeTasks
 ```
 
-**Move task:**
+**Workflow (lane transitions are automatic):**
 ```powershell
-.\.kittify\scripts\powershell\Move-TaskToLane.ps1 `
-  -Feature "001-auth" `
-  -TaskId "WP01" `
-  -Lane "doing" `
-  -ShellPid $PID `
-  -Agent "claude"
+spec-kitty agent workflow implement WP01
+spec-kitty agent workflow review WP01
 ```
 
 ---
@@ -187,7 +183,8 @@ New-Item -ItemType Directory -Path "tasks\planned" -Force
 **Using spec-kitty commands:**
 All spec-kitty commands work the same way on PowerShell and Bash:
 ```powershell
-spec-kitty agent tasks move-task WP01 --to doing
+spec-kitty agent workflow implement WP01
+spec-kitty agent workflow review WP01
 spec-kitty verify-setup
 spec-kitty dashboard
 ```

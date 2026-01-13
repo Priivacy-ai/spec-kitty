@@ -306,7 +306,7 @@ def check_for_dependents(
     if not dependents:
         return  # No dependents, no warnings needed
 
-    # Check if any dependents are in progress (lane: planned, doing, for_review)
+    # Check if any dependents are in progress (lane: doing)
     in_progress_deps = []
     for dep_id in dependents:
         try:
@@ -314,7 +314,7 @@ def check_for_dependents(
             frontmatter, _ = read_frontmatter(dep_file)
             lane = frontmatter.get("lane", "planned")
 
-            if lane in ["planned", "doing", "for_review"]:
+            if lane == "doing":
                 in_progress_deps.append(dep_id)
         except (FileNotFoundError, Exception):
             # If we can't read the dependent's metadata, skip it

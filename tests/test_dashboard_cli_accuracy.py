@@ -24,6 +24,8 @@ from urllib.request import urlopen
 from urllib.error import URLError
 import json
 
+from tests.test_isolation_helpers import get_venv_python
+
 
 def is_dashboard_accessible(port: int, timeout: float = 2.0) -> bool:
     """Check if dashboard is accessible on the given port.
@@ -40,6 +42,24 @@ def is_dashboard_accessible(port: int, timeout: float = 2.0) -> bool:
             return response.status == 200
     except (URLError, OSError, Exception):
         return False
+
+
+def run_dashboard_cli(
+    *args: str,
+    cwd: Path,
+    timeout: float = 5,
+) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        env=env,
+    )
 
 
 def kill_dashboard_process(port: int):
@@ -122,12 +142,11 @@ class TestDashboardCLIStatusReporting:
             time.sleep(1)
 
             # Run dashboard command
-            result = subprocess.run(
-                ["spec-kitty", "dashboard", "--port", str(test_port)],
+            result = run_dashboard_cli(
+                "dashboard",
+                "--port",
+                str(test_port),
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=5
             )
 
             # Give dashboard time to start
@@ -176,12 +195,9 @@ class TestDashboardCLIStatusReporting:
             # This should cause dashboard to fail
 
             # Try to start dashboard in non-spec-kitty project
-            result = subprocess.run(
-                ["spec-kitty", "dashboard"],
+            result = run_dashboard_cli(
+                "dashboard",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=5
             )
 
             # Should report error
@@ -212,12 +228,11 @@ class TestDashboardCLIStatusReporting:
             time.sleep(1)
 
             # Run dashboard
-            result = subprocess.run(
-                ["spec-kitty", "dashboard", "--port", str(test_port)],
+            result = run_dashboard_cli(
+                "dashboard",
+                "--port",
+                str(test_port),
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=5
             )
 
             time.sleep(2)
@@ -258,12 +273,11 @@ class TestDashboardProcessLifecycle:
             time.sleep(1)
 
             # Start dashboard
-            subprocess.run(
-                ["spec-kitty", "dashboard", "--port", str(test_port)],
+            run_dashboard_cli(
+                "dashboard",
+                "--port",
+                str(test_port),
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=5
             )
 
             time.sleep(2)
@@ -304,12 +318,11 @@ class TestDashboardProcessLifecycle:
             time.sleep(1)
 
             # Start dashboard
-            subprocess.run(
-                ["spec-kitty", "dashboard", "--port", str(test_port)],
+            run_dashboard_cli(
+                "dashboard",
+                "--port",
+                str(test_port),
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=5
             )
 
             time.sleep(2)
@@ -317,12 +330,10 @@ class TestDashboardProcessLifecycle:
             # Verify it's running
             if is_dashboard_accessible(test_port):
                 # Kill it
-                kill_result = subprocess.run(
-                    ["spec-kitty", "dashboard", "--kill"],
+                kill_result = run_dashboard_cli(
+                    "dashboard",
+                    "--kill",
                     cwd=tmpdir,
-                    capture_output=True,
-                    text=True,
-                    timeout=5
                 )
 
                 time.sleep(1)
@@ -348,12 +359,9 @@ class TestDashboardErrorMessages:
 
             # Don't create .kittify (not initialized)
 
-            result = subprocess.run(
-                ["spec-kitty", "dashboard"],
+            result = run_dashboard_cli(
+                "dashboard",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=5
             )
 
             # Should fail
@@ -396,12 +404,11 @@ class TestDashboardAPIVerification:
             time.sleep(1)
 
             # Start dashboard
-            subprocess.run(
-                ["spec-kitty", "dashboard", "--port", str(test_port)],
+            run_dashboard_cli(
+                "dashboard",
+                "--port",
+                str(test_port),
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=5
             )
 
             time.sleep(2)
@@ -439,12 +446,11 @@ class TestDashboardAPIVerification:
             kill_dashboard_process(test_port)
             time.sleep(1)
 
-            subprocess.run(
-                ["spec-kitty", "dashboard", "--port", str(test_port)],
+            run_dashboard_cli(
+                "dashboard",
+                "--port",
+                str(test_port),
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=5
             )
 
             time.sleep(2)
@@ -490,12 +496,12 @@ class TestDashboardRaceConditions:
             time.sleep(1)
 
             # Run dashboard
-            result = subprocess.run(
-                ["spec-kitty", "dashboard", "--port", str(test_port)],
+            result = run_dashboard_cli(
+                "dashboard",
+                "--port",
+                str(test_port),
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=10  # Allow more time
+                timeout=10,
             )
 
             # Wait for dashboard
@@ -540,12 +546,11 @@ class TestDashboardCleanup:
             time.sleep(1)
 
             # Start dashboard
-            subprocess.run(
-                ["spec-kitty", "dashboard", "--port", str(test_port)],
+            run_dashboard_cli(
+                "dashboard",
+                "--port",
+                str(test_port),
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=5
             )
 
             time.sleep(2)
@@ -559,12 +564,10 @@ class TestDashboardCleanup:
 
             if ps_before.stdout.strip():
                 # Kill dashboard
-                subprocess.run(
-                    ["spec-kitty", "dashboard", "--kill"],
+                run_dashboard_cli(
+                    "dashboard",
+                    "--kill",
                     cwd=tmpdir,
-                    capture_output=True,
-                    text=True,
-                    timeout=5
                 )
 
                 time.sleep(2)
@@ -668,12 +671,12 @@ def test_dashboard_with_symlinked_kitty_specs():
         try:
             # Run dashboard command
             test_port = 9998
-            result = subprocess.run(
-                ["spec-kitty", "dashboard", "--port", str(test_port)],
+            result = run_dashboard_cli(
+                "dashboard",
+                "--port",
+                str(test_port),
                 cwd=test_project,
-                capture_output=True,
-                text=True,
-                timeout=30
+                timeout=30,
             )
 
             # Wait a bit for dashboard to fully start

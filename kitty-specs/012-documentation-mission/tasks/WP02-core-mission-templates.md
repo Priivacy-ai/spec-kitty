@@ -7,12 +7,12 @@ subtasks:
   - "T011"
 title: "Core Mission Templates"
 phase: "Phase 0 - Foundation"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: ""
 shell_pid: ""
-review_status: ""
-reviewed_by: ""
+review_status: "acknowledged"
+reviewed_by: "codex"
 dependencies:
   - "WP01"
 history:
@@ -40,7 +40,10 @@ history:
 
 > **Populated by `/spec-kitty.review`** – Reviewers add detailed feedback here when work needs changes. Implementation must address every item listed below before returning for re-review.
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+Please address the following before re-review:
+
+1. `src/specify_cli/missions/documentation/templates/tasks-template.md` is still the generic software-dev sample (includes "SAMPLE CONTENT BELOW. MUST BE REPLACED."). It does not define documentation-specific work packages, subtasks, or MVP scope guidance required in T010. Replace with the doc-mission content (Structure, Tutorials, How-To, Reference, Explanation, Quality Validation) and include doc-specific subtasks/examples.
+2. `src/specify_cli/missions/documentation/templates/task-prompt-template.md` is still generic and missing the documentation-specific Quality Validation Strategy and documentation-focused Definition of Done items (Divio compliance, accessibility, inclusivity, link checks, doc build). Update to match T011 requirements.
 
 ---
 
@@ -964,6 +967,13 @@ aspell check docs/**/*.md
 - {{TIMESTAMP}} – system – lane=planned – Prompt created.
 ```
 - 2026-01-12T17:53:20Z – agent – lane=doing – Started implementation via workflow command
+- 2026-01-12T18:38:18Z – unknown – lane=planned – Changes requested
+- 2026-01-12T18:40:12Z – agent – lane=doing – Started implementation via workflow command
+- 2026-01-12T18:41:39Z – unknown – lane=for_review – Ready for review
+- 2026-01-12T18:42:43Z – agent – lane=doing – Started review via workflow command
+- 2026-01-12T18:45:31Z – unknown – lane=for_review – Ready for review
+- 2026-01-13T07:46:03Z – agent – lane=doing – Started review via workflow command
+- 2026-01-13T07:46:03Z – unknown – lane=done – Review passed
 
 ## Test Strategy
 
@@ -1077,3 +1087,4 @@ for template in templates:
 ## Activity Log
 
 - 2026-01-12T17:18:56Z – system – lane=planned – Prompt created.
+- 2026-01-12T18:40:21Z – codex – lane=doing – Acknowledged review feedback and starting fixes.

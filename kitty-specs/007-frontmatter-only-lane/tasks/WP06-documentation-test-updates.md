@@ -81,7 +81,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 
    **Option 1: Use the update command** (recommended)
    ```bash
-   python scripts/tasks/tasks_cli.py update <feature> <WP> <lane> --note "message"
+   spec-kitty agent workflow implement WP##
    ```
 
    **Option 2: Edit frontmatter directly**
@@ -120,10 +120,10 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 2. Update frontmatter comment:
    ```yaml
    # Change from:
-   lane: "planned"  # DO NOT EDIT - use: tasks_cli.py move <feature> <WP> <lane>
+   spec-kitty agent workflow review WP##
 
    # To:
-   lane: "planned"  # Edit directly or use: tasks_cli.py update <feature> <WP> <lane>
+   spec-kitty agent workflow review WP##
    ```
 3. Remove/update the "Updating Metadata When Changing Lanes" section:
 
@@ -139,7 +139,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
    To change a work package's lane, either:
 
    1. **Edit directly**: Change the `lane:` field in frontmatter
-   2. **Use CLI**: `tasks_cli.py update <FEATURE> <WPID> <lane> --note "message"`
+   spec-kitty agent workflow implement <WPID>
 
    The CLI command also updates the activity log automatically.
 
@@ -182,7 +182,7 @@ Update documentation and tests to reflect the new frontmatter-only lane system:
 
    To change a WP's lane:
    ```bash
-   tasks_cli.py update <feature> <WP> <lane>
+   spec-kitty agent workflow implement WP##
    ```
 
    Or edit the `lane:` field directly in the WP file.

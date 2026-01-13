@@ -1,12 +1,53 @@
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
+import sys
+import tomllib
 from pathlib import Path
 from typing import Iterator
 
 import pytest
 
 from tests.utils import REPO_ROOT, run, run_tasks_cli, write_wp
+
+
+def _venv_python(venv_dir: Path) -> Path:
+    candidate = venv_dir / "bin" / "python"
+    if candidate.exists():
+        return candidate
+    return venv_dir / "Scripts" / "python.exe"
+
+
+def _venv_pip(venv_dir: Path) -> Path:
+    candidate = venv_dir / "bin" / "pip"
+    if candidate.exists():
+        return candidate
+    return venv_dir / "Scripts" / "pip.exe"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def test_venv() -> Path:
+    """Create and cache a test venv for isolated CLI execution."""
+    venv_dir = REPO_ROOT / ".pytest_cache" / "spec-kitty-test-venv"
+    venv_marker = venv_dir / "VERSION"
+
+    with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+        source_version = tomllib.load(f)["project"]["version"]
+
+    if venv_dir.exists() and venv_marker.exists():
+        if venv_marker.read_text(encoding="utf-8").strip() != source_version:
+            shutil.rmtree(venv_dir, ignore_errors=True)
+
+    if not venv_dir.exists():
+        subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
+        pip = _venv_pip(venv_dir)
+        subprocess.run([str(pip), "install", "-e", str(REPO_ROOT)], check=True)
+        venv_marker.write_text(source_version, encoding="utf-8")
+
+    os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)
+    return venv_dir
 
 
 @pytest.fixture()

@@ -241,7 +241,7 @@ def _check_dependent_warnings(
             frontmatter, _, _ = split_frontmatter(content)
             lane = extract_scalar(frontmatter, "lane") or "planned"
 
-            if lane in ["planned", "doing"]:
+            if lane == "doing":
                 in_progress.append(dep_id)
         except Exception:
             # Skip if we can't read the dependent
