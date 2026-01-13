@@ -231,7 +231,7 @@
 - [x] T043 Store generators_configured list with config paths
 - [x] T044 Store last_audit_date and coverage_percentage
 - [x] T045 Implement state read/write functions in mission logic
-- [ ] T046 Handle state migration from previous versions (if field missing)
+- [x] T046 Handle state migration from previous versions (if field missing)
 
 ### Implementation Notes
 1. Use JSON format consistent with existing meta.json structure
