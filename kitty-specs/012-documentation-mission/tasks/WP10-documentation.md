@@ -13,7 +13,7 @@ subtasks:
   - "T086"
 title: "Documentation & Agent Updates"
 phase: "Phase 2 - Polish"
-lane: "for_review"
+lane: "planned"
 assignee: ""
 agent: "victory-test"
 shell_pid: ""
@@ -1695,3 +1695,4 @@ done
 - 2026-01-13T09:21:59Z – explicit-feature-test – lane=doing – Moved to doing
 - 2026-01-13T09:22:47Z – success-test – lane=doing – Moved to doing
 - 2026-01-13T09:23:26Z – victory-test – lane=for_review – Moved to for_review
+- 2026-01-13T10:47:28Z – victory-test – lane=planned – Reset to planned (was test activity)
