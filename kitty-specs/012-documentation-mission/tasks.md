@@ -307,7 +307,7 @@
 - [x] T065 [P] Test generator graceful degradation when tool missing
 - [x] T066 [@pytest.mark.integration] Test end-to-end generator invocation (requires tools installed)
 - [x] T067 [P] Create `tests/specify_cli/test_gap_analysis.py` (gap detection tests)
-- [ ] T068 [P] Test framework detection (Sphinx, MkDocs, etc.)
+- [x] T068 [P] Test framework detection (Sphinx, MkDocs, etc.)
 - [ ] T069 [P] Test Divio type classification from frontmatter
 - [ ] T070 [P] Test coverage matrix calculation
 - [ ] T071 [P] Test gap prioritization logic
