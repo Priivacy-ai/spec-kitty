@@ -338,3 +338,101 @@ class CoverageMatrix:
         summary = f"\n**Coverage**: {len([c for c in self.cells.values() if c])}/{len(self.cells)} cells = {coverage_pct:.1f}%"
 
         return "\n".join(table_lines) + summary
+
+
+class GapPriority(Enum):
+    """Priority levels for documentation gaps."""
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+@dataclass
+class DocumentationGap:
+    """Represents a missing piece of documentation.
+
+    Attributes:
+        area: Project area missing documentation
+        divio_type: Which Divio type is missing
+        priority: How important this gap is (high/medium/low)
+        reason: Why this gap matters
+    """
+
+    area: str
+    divio_type: str
+    priority: GapPriority
+    reason: str
+
+    def __repr__(self) -> str:
+        return f"[{self.priority.value.upper()}] {self.area} → {self.divio_type}: {self.reason}"
+
+
+def prioritize_gaps(
+    gaps: List[Tuple[str, str]],
+    project_areas: List[str],
+    existing_docs: Dict[Path, DivioType],
+) -> List[DocumentationGap]:
+    """Assign priorities to documentation gaps based on user impact.
+
+    Prioritization rules (from research):
+    - HIGH: Missing tutorials (blocks new users)
+    - HIGH: Missing reference for core features (users can't find APIs)
+    - MEDIUM: Missing how-tos for common tasks (users struggle with problems)
+    - MEDIUM: Missing tutorials for advanced features
+    - LOW: Missing explanations (nice-to-have, not blocking)
+
+    Args:
+        gaps: List of (area, divio_type) tuples with missing docs
+        project_areas: All project areas
+        existing_docs: Map of doc paths to classified types (for context)
+
+    Returns:
+        List of DocumentationGap objects with priorities assigned
+    """
+    prioritized = []
+
+    for area, divio_type in gaps:
+        # Determine if this is a core area (heuristic: alphabetically first areas are core)
+        is_core_area = project_areas.index(area) < len(project_areas) // 2
+
+        # Prioritization logic
+        if divio_type == "tutorial":
+            if is_core_area:
+                priority = GapPriority.HIGH
+                reason = "New users need tutorials to get started with core functionality"
+            else:
+                priority = GapPriority.MEDIUM
+                reason = "Users need tutorials for advanced features"
+
+        elif divio_type == "reference":
+            if is_core_area:
+                priority = GapPriority.HIGH
+                reason = "Users need API reference to use core features"
+            else:
+                priority = GapPriority.MEDIUM
+                reason = "API reference helps users discover all capabilities"
+
+        elif divio_type == "how-to":
+            priority = GapPriority.MEDIUM
+            reason = "Users need how-tos to solve common problems and tasks"
+
+        elif divio_type == "explanation":
+            priority = GapPriority.LOW
+            reason = "Explanations aid understanding but are not blocking"
+
+        else:
+            priority = GapPriority.LOW
+            reason = "Unknown Divio type"
+
+        prioritized.append(
+            DocumentationGap(
+                area=area, divio_type=divio_type, priority=priority, reason=reason
+            )
+        )
+
+    # Sort by priority (high first)
+    priority_order = {GapPriority.HIGH: 0, GapPriority.MEDIUM: 1, GapPriority.LOW: 2}
+    prioritized.sort(key=lambda gap: priority_order[gap.priority])
+
+    return prioritized
