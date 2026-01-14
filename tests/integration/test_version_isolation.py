@@ -70,6 +70,8 @@ def test_version_checker_respects_test_mode(test_project, isolated_env):
     This test simulates what happens when CLI checks version internally,
     ensuring test mode enforcement works correctly.
     """
+    from tests.test_isolation_helpers import get_venv_python
+
     # Script that imports and calls get_cli_version()
     script = """
 import os
@@ -85,7 +87,7 @@ print(version)
 """
 
     result = subprocess.run(
-        [sys.executable, "-c", script],
+        [str(get_venv_python()), "-c", script],
         capture_output=True,
         text=True,
         env=isolated_env,
@@ -111,10 +113,13 @@ def test_test_mode_requires_version_override(test_project):
     if the fixture setup is broken.
     """
     import os
+    from tests.test_isolation_helpers import get_venv_python, REPO_ROOT
 
     env = os.environ.copy()
     env["SPEC_KITTY_TEST_MODE"] = "1"
     # Deliberately don't set SPEC_KITTY_CLI_VERSION
+    # Set PYTHONPATH to source so it can import
+    env["PYTHONPATH"] = str(REPO_ROOT / "src")
 
     script = """
 import os
@@ -131,7 +136,7 @@ except RuntimeError as e:
 """
 
     result = subprocess.run(
-        [sys.executable, "-c", script],
+        [str(get_venv_python()), "-c", script],
         capture_output=True,
         text=True,
         env=env,
@@ -218,7 +223,7 @@ def test_parallel_test_execution_isolated(tmp_path):
     This simulates pytest-xdist or multiple test runners running
     simultaneously. Each should maintain independent isolation.
     """
-    from tests.test_isolation_helpers import REPO_ROOT
+    from tests.test_isolation_helpers import REPO_ROOT, get_venv_python
 
     script = f"""
 import sys
@@ -247,7 +252,7 @@ print("PASS")
     processes = []
     for i in range(3):
         p = subprocess.Popen(
-            [sys.executable, str(script_path)],
+            [str(get_venv_python()), str(script_path)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

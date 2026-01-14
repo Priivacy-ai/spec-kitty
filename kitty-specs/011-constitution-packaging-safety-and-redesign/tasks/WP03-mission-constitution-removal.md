@@ -669,7 +669,7 @@ pytest tests/ -v
 To change this work package's lane, either:
 
 1. **Edit directly**: Change the `lane:` field in frontmatter
-2. **Use CLI**: `spec-kitty agent tasks move-task WP03 --to <lane> --note "message"`
+spec-kitty agent workflow implement WP03
 
 The CLI command also updates the activity log automatically.
 

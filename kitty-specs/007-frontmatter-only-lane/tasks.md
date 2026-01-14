@@ -48,7 +48,7 @@
 ## Work Package WP02: CLI Refactoring - Update Command (Priority: P1) 🎯 MVP
 
 **Goal**: Refactor the tasks CLI to use frontmatter-only lane management. Rename `move` to `update`, remove file movement operations.
-**Independent Test**: `tasks_cli.py update 007-feature WP01 doing` updates the `lane:` field without moving the file.
+spec-kitty agent workflow implement WP01
 **Prompt**: `tasks/WP02-cli-refactoring-update-command.md`
 
 ### Included Subtasks
@@ -262,9 +262,9 @@
    - Add: Explanation of flat tasks/ structure
    - Add: Note that `move` command is now `update`
 2. Template changes:
-   - Remove: "DO NOT EDIT - use: tasks_cli.py move" comment
+   spec-kitty agent workflow implement WP##
    - Remove: Directory-based instructions section
-   - Add: "You can edit the lane: field directly or use `tasks_cli.py update`"
+   spec-kitty agent workflow implement WP##
 3. Test updates:
    - Change directory-based assertions to frontmatter-based
    - Add tests for legacy detection

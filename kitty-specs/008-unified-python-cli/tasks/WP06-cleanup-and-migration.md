@@ -129,12 +129,12 @@ def update_template_bash_to_python(template_path: Path) -> Path:
     
     # Replace patterns:
     # .kittify/scripts/bash/create-new-feature.sh → spec-kitty agent create-feature
-    # tasks_cli.py move → spec-kitty agent move-task
-    
+    # tasks_cli.py move → spec-kitty agent move-task (historical - later became workflow commands)
+
     replacements = {
         r"\.kittify/scripts/bash/create-new-feature\.sh": "spec-kitty agent create-feature",
         r"\.kittify/scripts/bash/check-prerequisites\.sh": "spec-kitty agent check-prerequisites",
-        r"tasks_cli\.py move": "spec-kitty agent move-task",
+        r"tasks_cli\.py move": "spec-kitty agent move-task",  # Historical - later evolved to workflow implement/review
         # ... (all 24 bash scripts)
     }
     

@@ -14,8 +14,23 @@ from tempfile import TemporaryDirectory
 import subprocess
 import os
 
-from typer.testing import CliRunner
-from specify_cli import app
+from tests.test_isolation_helpers import get_venv_python
+
+
+def run_validate_encoding_cli(
+    *args: str,
+    cwd: Path,
+) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    command = [str(get_venv_python()), "-m", "specify_cli.__init__", "validate-encoding", *args]
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
 
 
 class TestValidateCleanFeature:
@@ -42,11 +57,10 @@ class TestValidateCleanFeature:
 
             # Run validate-encoding command
             # Use subprocess instead of CliRunner for proper cwd handling
-            result = subprocess.run(
-                ["spec-kitty", "validate-encoding", "--feature", "001-test-feature"],
+            result = run_validate_encoding_cli(
+                "--feature",
+                "001-test-feature",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True
             )
 
             # Should exit successfully
@@ -78,14 +92,10 @@ class TestDetectIssuesWithoutFix:
             (tmpdir / ".kittify").mkdir()
 
             # Run without --fix
-            result = subprocess.run(
-                ["spec-kitty", 
-                "validate-encoding",
-                "--feature", "001-test-feature"
-            ],
+            result = run_validate_encoding_cli(
+                "--feature",
+                "001-test-feature",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True
             )
 
             # Should exit with error code
@@ -124,15 +134,11 @@ class TestFixIssuesWithBackup:
             (tmpdir / ".kittify").mkdir()
 
             # Run with --fix
-            result = subprocess.run(
-                ["spec-kitty", 
-                "validate-encoding",
-                "--feature", "001-test-feature",
-                "--fix"
-            ],
+            result = run_validate_encoding_cli(
+                "--feature",
+                "001-test-feature",
+                "--fix",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True
             )
 
             # Should exit successfully
@@ -177,16 +183,12 @@ class TestFixWithoutBackup:
             (tmpdir / ".kittify").mkdir()
 
             # Run with --fix --no-backup
-            result = subprocess.run(
-                ["spec-kitty", 
-                "validate-encoding",
-                "--feature", "001-test-feature",
+            result = run_validate_encoding_cli(
+                "--feature",
+                "001-test-feature",
                 "--fix",
-                "--no-backup"
-            ],
+                "--no-backup",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True
             )
 
             # Should exit successfully
@@ -222,14 +224,9 @@ class TestValidateAllFeatures:
             (tmpdir / ".kittify").mkdir()
 
             # Run with --all
-            result = subprocess.run(
-                ["spec-kitty", 
-                "validate-encoding",
-                "--all"
-            ],
+            result = run_validate_encoding_cli(
+                "--all",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True
             )
 
             # Should detect issues in all features
@@ -263,15 +260,10 @@ class TestValidateAllFeatures:
             (tmpdir / ".kittify").mkdir()
 
             # Run with --all --fix
-            result = subprocess.run(
-                ["spec-kitty", 
-                "validate-encoding",
+            result = run_validate_encoding_cli(
                 "--all",
-                "--fix"
-            ],
+                "--fix",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True
             )
 
             # Should exit successfully
@@ -292,14 +284,10 @@ class TestCLIErrorHandling:
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            result = subprocess.run(
-                ["spec-kitty", 
-                "validate-encoding",
-                "--feature", "001-test"
-            ],
+            result = run_validate_encoding_cli(
+                "--feature",
+                "001-test",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True
             )
 
             # Should fail with clear message
@@ -319,14 +307,10 @@ class TestCLIErrorHandling:
             (tmpdir / "kitty-specs").mkdir()
 
             # Try to validate nonexistent feature
-            result = subprocess.run(
-                ["spec-kitty", 
-                "validate-encoding",
-                "--feature", "999-nonexistent"
-            ],
+            result = run_validate_encoding_cli(
+                "--feature",
+                "999-nonexistent",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True
             )
 
             # Should fail with clear message
@@ -358,14 +342,10 @@ class TestCLIOutputFormatting:
             (tmpdir / ".kittify").mkdir()
 
             # Run validation
-            result = subprocess.run(
-                ["spec-kitty", 
-                "validate-encoding",
-                "--feature", "001-test"
-            ],
+            result = run_validate_encoding_cli(
+                "--feature",
+                "001-test",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True
             )
 
             output = result.stdout
@@ -393,15 +373,11 @@ class TestCLIOutputFormatting:
             (tmpdir / ".kittify").mkdir()
 
             # Run with --fix
-            result = subprocess.run(
-                ["spec-kitty", 
-                "validate-encoding",
-                "--feature", "001-test",
-                "--fix"
-            ],
+            result = run_validate_encoding_cli(
+                "--feature",
+                "001-test",
+                "--fix",
                 cwd=tmpdir,
-                capture_output=True,
-                text=True
             )
 
             output = result.stdout

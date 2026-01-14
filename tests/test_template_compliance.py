@@ -168,7 +168,7 @@ def test_no_deprecated_script_references():
     instead of the spec-kitty CLI command. This caused agents to execute user's local
     cli.py files instead of the spec-kitty entry point.
 
-    All templates must use: spec-kitty agent tasks move-task
+    All templates must use workflow commands (spec-kitty agent workflow implement/review)
     NOT: python3 .kittify/scripts/tasks/tasks_cli.py
     """
     templates = find_mission_templates()
@@ -204,56 +204,30 @@ def test_no_deprecated_script_references():
 
     if violations:
         msg = "\n\nDeprecated script references found (Issue #68):\n"
-        msg += "Templates must use: spec-kitty agent tasks move-task\n"
+        msg += "Templates must use: spec-kitty agent workflow implement/review\n"
         msg += "NOT: python3 .kittify/scripts/tasks/tasks_cli.py\n\n"
         for v in violations:
             msg += f"\n{v['file']}:{v['line']}\n  Pattern: {v['pattern']}\n  Line: {v['content'][:100]}\n"
         pytest.fail(msg)
 
 
-def test_templates_use_spec_kitty_cli():
-    """Templates must use spec-kitty CLI commands, not legacy scripts.
-
-    Ensures templates instruct agents to use the correct spec-kitty command format.
-    """
+def test_templates_do_not_instruct_manual_lane_moves():
+    """Templates should not instruct manual lane moves."""
     templates = find_mission_templates()
-
-    # Find templates that mention task movement
-    task_movement_templates = []
-    for template_path in templates:
-        content = template_path.read_text(encoding='utf-8')
-        if 'move' in content.lower() and ('lane' in content.lower() or 'task' in content.lower()):
-            task_movement_templates.append(template_path)
-
-    if not task_movement_templates:
-        pytest.skip("No templates found that reference task movement")
 
     violations = []
 
-    for template_path in task_movement_templates:
+    for template_path in templates:
         content = template_path.read_text(encoding='utf-8')
 
-        # Check if template uses correct spec-kitty command
-        has_correct_command = 'spec-kitty agent tasks move-task' in content
-
-        # Check for deprecated patterns (should be caught by previous test, but double-check)
-        has_deprecated = '.kittify/scripts/' in content or 'tasks_cli.py' in content
-
-        if has_deprecated and not has_correct_command:
+        if 'spec-kitty agent tasks move-task' in content and 'deprecated' not in content.lower():
             violations.append({
                 'file': template_path.relative_to(template_path.parent.parent.parent),
-                'issue': 'Uses deprecated script reference without spec-kitty alternative'
+                'issue': 'Manual move-task instructions are no longer allowed'
             })
-        elif has_deprecated:
-            # Has both - might be showing migration example, verify it's clearly marked
-            if 'deprecated' not in content.lower() and 'old' not in content.lower():
-                violations.append({
-                    'file': template_path.relative_to(template_path.parent.parent.parent),
-                    'issue': 'Contains deprecated reference without clear deprecation notice'
-                })
 
     if violations:
-        msg = "\n\nTemplates with deprecated script references:\n"
+        msg = "\n\nTemplates with manual lane-move instructions:\n"
         for v in violations:
             msg += f"\n{v['file']}\n  Issue: {v['issue']}\n"
         pytest.fail(msg)

@@ -33,7 +33,7 @@ spec-kitty dashboard
 
 ### 2. Work Package Kanban
 - Horizontal lanes (`planned`, `doing`, `for_review`, `done`) mirror the Spec Kitty task workflow.
-- Drag-and-drop is intentionally disabled—lane transitions must flow through `.kittify/scripts/tasks-move-to-lane.sh` so the activity log remains authoritative.
+- Drag-and-drop is intentionally disabled—lane transitions must flow through workflow commands (`spec-kitty agent workflow implement/review`) so the activity log remains authoritative.
 - Hovering over a card reveals **real-time progress** statistics, recent agent activity, and checklist compliance.
 
 ### 3. Agent Telemetry
@@ -46,19 +46,19 @@ spec-kitty dashboard
 Keep the dashboard open in its own monitor window so the team can react to lane changes instantly.
 
 ### Monitor Lane Events
-Wrap the lane helper scripts (`.kittify/scripts/bash/tasks-move-to-lane.sh` and PowerShell variant) to emit notifications—each transition prints the feature slug, work package, target lane, and note, which you can forward to Slack, email, or paging tools.
+Wrap the workflow commands (`spec-kitty agent workflow implement/review`) to emit notifications—each transition prints the feature slug, work package, target lane, and note, which you can forward to Slack, email, or paging tools.
 
 ### Integrate With Command Scripts
-- `tasks-move-to-lane.sh` and PowerShell equivalents push structured events to the dashboard pipeline.
+- Workflow commands push structured events to the dashboard pipeline.
 - The **visual workflow** updates in under one second after each lane change, so agents always see fresh data.
 
 ## Troubleshooting
 
 | Symptom | Likely Cause | Fix |
 |---------|--------------|-----|
-| Dashboard shows “stopped” | Background process exited | Re-run `spec-kitty init .` to restart the service |
+| Dashboard shows "stopped" | Background process exited | Re-run `spec-kitty dashboard` to restart the service |
 | Feature missing from overview | Worktree not initialized | Run `/spec-kitty.specify` for the feature and refresh |
-| Lane counts stale | Lane scripts bypassed | Move prompts via `.kittify/scripts/tasks-move-to-lane.sh` |
+| Lane counts stale | Lane transitions bypassed | Use workflow commands (`spec-kitty agent workflow implement/review`) for all lane changes |
 
 ## Next Steps
 

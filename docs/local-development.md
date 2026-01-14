@@ -106,13 +106,14 @@ After running `spec-kitty init`, confirm that the generated project contains the
 ```bash
 ls .kittify/scripts/tasks/
 # expect tasks_cli.py plus helper modules
-ls .kittify/scripts/bash/ | grep tasks-move-to-lane
+ls .kittify/scripts/bash/ | grep tasks-move-to-lane  # Legacy scripts (deprecated)
 ```
 
-Run one of the helpers (inside a generated feature worktree) to ensure Python fallbacks resolve correctly even without an installed package:
+Run a smoke test (modern workflow commands):
 
 ```bash
-.kittify/scripts/bash/tasks-move-to-lane.sh FEATURE-SLUG WP01 planned --note "Smoke test"
+# Create a test feature and verify workflow commands work
+spec-kitty agent workflow implement WP01
 ```
 
 Have an older project that still ships the legacy `tasks_cli.py` importing `specify_cli`? Refresh it in-place with the new standalone helpers:

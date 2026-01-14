@@ -718,7 +718,7 @@ git log --oneline --graph --all  # Should show WP02 branched from WP01
 
 Move this WP between lanes using:
 ```bash
-spec-kitty agent tasks move-task WP05 --to <lane>
+spec-kitty agent workflow implement WP05
 ```
 
 Or edit the `lane:` field in frontmatter directly.

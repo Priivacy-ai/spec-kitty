@@ -118,7 +118,7 @@
 ## Work Package WP03: Task Workflow Commands (Priority: P1) 🎯 STREAM B
 
 **Goal**: Migrate task management bash scripts to Python agent commands.
-**Independent Test**: `spec-kitty agent move-task WP01 --to doing --json` moves task and returns JSON; all 6 task commands functional.
+spec-kitty agent workflow implement WP01
 **Prompt**: `kitty-specs/008-unified-python-cli/tasks/WP03-task-workflow-commands.md`
 **Phase**: Phase 3 - Task Commands (Stream B, Agent Beta, Days 5-6)
 **Stream**: Stream B (can run in parallel with WP02, WP04, WP05 after WP01 complete)
@@ -126,7 +126,7 @@
 ### Included Subtasks
 - [ ] T034 Analyze existing `src/specify_cli/tasks_support.py` (850 lines argparse CLI)
 - [ ] T035 Convert argparse structure to Typer decorators in `src/specify_cli/cli/commands/agent/tasks.py`
-- [ ] T036 Implement `move-task` command with `--to`, `--json` flags
+- [ ] T036 Implement `move-task` command with `--to`, `--json` flags (later evolved to `workflow implement/review`)
 - [ ] T037 Implement `mark-status` command for updating task checkbox status
 - [ ] T038 Implement `list-tasks` command with lane filtering and `--json` flag
 - [ ] T039 Implement `add-history` command for appending history entries
@@ -134,7 +134,7 @@
 - [ ] T041 Implement `validate-workflow` command for metadata validation
 - [ ] T042 Ensure all task commands support dual output (JSON for agents, Rich for humans)
 - [ ] T043 Preserve all existing `tasks_support.py` functionality in migration
-- [ ] T044 Unit test: `move-task` command (all lane transitions)
+- [ ] T044 Unit test: `move-task` command (all lane transitions) - later evolved to test `workflow` commands
 - [ ] T045 Unit test: `mark-status` command (checkbox state changes)
 - [ ] T046 Unit test: `list-tasks` command (filtering, JSON output)
 - [ ] T047 Unit test: `add-history` command (frontmatter updates)
@@ -422,7 +422,7 @@
 | T033 | Verify 90%+ coverage feature.py | WP02 | P1 | No |
 | T034 | Analyze existing tasks_support.py | WP03 | P1 | No |
 | T035 | Convert argparse to Typer in tasks.py | WP03 | P1 | No |
-| T036 | Implement move-task command | WP03 | P1 | No |
+spec-kitty agent workflow implement WP03
 | T037 | Implement mark-status command | WP03 | P1 | No |
 | T038 | Implement list-tasks command | WP03 | P1 | No |
 | T039 | Implement add-history command | WP03 | P1 | No |
@@ -430,7 +430,7 @@
 | T041 | Implement validate-workflow command | WP03 | P1 | No |
 | T042 | Ensure dual output for task commands | WP03 | P1 | No |
 | T043 | Preserve tasks_support.py functionality | WP03 | P1 | No |
-| T044 | Unit test: move-task command | WP03 | P1 | Yes |
+spec-kitty agent workflow implement WP03
 | T045 | Unit test: mark-status command | WP03 | P1 | Yes |
 | T046 | Unit test: list-tasks command | WP03 | P1 | Yes |
 | T047 | Unit test: add-history command | WP03 | P1 | Yes |

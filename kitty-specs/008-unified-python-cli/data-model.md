@@ -3,7 +3,7 @@
 ## AgentCommand
 - **Responsibility**: Represents a Python CLI command in the `spec-kitty agent` namespace, designed for AI agents to call programmatically.
 - **Key Fields**:
-  - `name` — command name (string, e.g., "create-feature", "move-task", "update-context")
+  - `name` — command name (string, e.g., "create-feature", "workflow", "update-context")
   - `module_path` — Python module location (e.g., "specify_cli.cli.commands.agent.feature")
   - `json_output_supported` — boolean indicating `--json` flag support
   - `help_text` — description for `spec-kitty agent --help`

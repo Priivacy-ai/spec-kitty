@@ -430,7 +430,7 @@ pytest tests/specify_cli/test_dependency_graph.py --cov=src/specify_cli/core/dep
 
 Move this WP between lanes using:
 ```bash
-spec-kitty agent tasks move-task WP01 --to <lane>
+spec-kitty agent workflow implement WP01
 ```
 
 Or edit the `lane:` field in frontmatter directly.

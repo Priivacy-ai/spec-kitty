@@ -29,17 +29,38 @@ def get_source_version() -> str:
         return tomllib.load(f)["project"]["version"]
 
 
-def get_installed_version() -> str | None:
-    """Get installed spec-kitty-cli version, if any.
+def get_venv_python() -> Path:
+    """Return the python executable for the test venv if configured."""
+    venv_dir = os.getenv("SPEC_KITTY_TEST_VENV")
+    if not venv_dir:
+        return Path(sys.executable)
 
-    Returns:
-        Version string if package is installed, None otherwise
-    """
+    venv_path = Path(venv_dir)
+    candidate = venv_path / "bin" / "python"
+    if candidate.exists():
+        return candidate
+    return venv_path / "Scripts" / "python.exe"
+
+
+def get_installed_version() -> str | None:
+    """Get installed spec-kitty-cli version from test venv if configured."""
+    python = get_venv_python()
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
     try:
-        from importlib.metadata import version
-        return version("spec-kitty-cli")
+        result = subprocess.run(
+            [str(python), "-c", "from importlib.metadata import version; print(version('spec-kitty-cli'))"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
     except Exception:
         return None
+
+    return None
 
 
 def assert_test_isolation() -> None:
@@ -92,7 +113,7 @@ def run_cli_subprocess(
     env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT)
     env["SPEC_KITTY_TEST_MODE"] = "1"
 
-    command = [sys.executable, "-m", "specify_cli.__init__", *args]
+    command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
 
     return subprocess.run(
         command,

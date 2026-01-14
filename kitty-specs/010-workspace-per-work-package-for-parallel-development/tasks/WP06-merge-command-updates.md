@@ -580,7 +580,7 @@ pytest tests/specify_cli/test_integration/test_merge_workspace_per_wp.py -v
 
 Move this WP between lanes using:
 ```bash
-spec-kitty agent tasks move-task WP06 --to <lane>
+spec-kitty agent workflow implement WP06
 ```
 
 Or edit the `lane:` field in frontmatter directly.

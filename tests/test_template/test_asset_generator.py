@@ -84,6 +84,30 @@ def test_generate_agent_assets_creates_expected_files(tmp_path: Path) -> None:
     assert "Run echo hi $ARGUMENTS source env for codex." in content
 
 
+def test_render_command_template_injects_agent_placeholder(tmp_path: Path) -> None:
+    template_path = tmp_path / "workflow.md"
+    template_path.write_text(
+        """---
+description: Workflow Example
+scripts:
+  sh: echo hi
+---
+spec-kitty agent workflow implement WP01 --agent __AGENT__
+""",
+        encoding="utf-8",
+    )
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="codex",
+        arg_format="$ARGUMENTS",
+        extension="md",
+    )
+
+    assert "spec-kitty agent workflow implement WP01 --agent codex" in output
+
+
 def test_prepare_command_templates_overlays_mission(tmp_path: Path) -> None:
     base_dir = tmp_path / "base"
     mission_dir = tmp_path / "missions" / "software-dev" / "command-templates"

@@ -21,9 +21,10 @@ Each WP file has a `lane:` field in its YAML frontmatter:
 - `for_review` - Ready for review
 - `done` - Complete
 
-To change a WP's lane:
+To change a WP's lane, use workflow commands:
 ```bash
-python3 .kittify/scripts/tasks/tasks_cli.py update <feature> <WP> <lane>
+spec-kitty agent workflow implement WP01  # For implementation: planned → doing → for_review
+spec-kitty agent workflow review WP01     # For review: for_review → done (or → planned if changes needed)
 ```
 
 Or edit the `lane:` field directly in the WP file.
@@ -40,7 +41,7 @@ subtasks:
   - "T002"
 title: "Work Package Title"
 phase: "Phase 1 - Setup"
-lane: "planned"  # Edit directly or use: tasks_cli.py update
+spec-kitty agent workflow review WP##
 assignee: ""
 agent: ""
 shell_pid: ""

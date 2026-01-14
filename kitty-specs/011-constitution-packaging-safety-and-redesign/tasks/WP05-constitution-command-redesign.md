@@ -1437,7 +1437,7 @@ spec-kitty agent feature setup-plan --json
 To change this work package's lane, either:
 
 1. **Edit directly**: Change the `lane:` field in frontmatter
-2. **Use CLI**: `spec-kitty agent tasks move-task WP05 --to <lane> --note "message"`
+spec-kitty agent workflow implement WP05
 
 The CLI command also updates the activity log automatically.
 

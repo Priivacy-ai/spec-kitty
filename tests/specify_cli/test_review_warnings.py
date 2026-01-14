@@ -182,13 +182,13 @@ def test_in_progress_filter(tmp_path: Path) -> None:
     # All dependents should be in the graph
     assert sorted(dependents) == ["WP02", "WP03", "WP04", "WP05"]
 
-    # Only WP02, WP03, WP04 should trigger warnings (planned, doing, for_review)
-    # WP05 is done, so no warning needed
+    # Only WP03 should trigger warnings (doing)
+    # Planned/for_review/done are not in progress for warnings
     in_progress = [
         dep for dep in dependents
-        if dep != "WP05"  # Filter out done WPs
+        if dep == "WP03"
     ]
-    assert sorted(in_progress) == ["WP02", "WP03", "WP04"]
+    assert sorted(in_progress) == ["WP03"]
 
 
 def test_workflow_review_warns_dependents(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

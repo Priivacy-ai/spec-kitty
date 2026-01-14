@@ -225,10 +225,12 @@ for file_path, (_, expected, actual) in mismatches.items():
 
 ### Move Workflow
 
-When using `tasks-move-to-lane.sh`, the script updates:
-- File location (moves to new directory)
-- Frontmatter `lane` field
+**Note**: This describes legacy directory-based workflow. As of v0.9.0+, files stay in flat `tasks/` directory with `lane:` in frontmatter only.
+
+When using workflow commands (`spec-kitty agent workflow implement/review`), the system updates:
+- Frontmatter `lane` field (no file movement in modern flat structure)
 - Activity log entry
+- Agent metadata
 
 If the script fails mid-execution, validation can detect and repair the inconsistency.
 
@@ -276,7 +278,7 @@ spec-kitty validate-tasks --fix
 1. **Always use move scripts** - Don't manually move files
    ```bash
    # Correct
-   tasks-move-to-lane.sh 001-feature WP01 for_review --note "Ready for review"
+   spec-kitty agent workflow review WP01
 
    # Incorrect
    mv tasks/planned/WP01.md tasks/for_review/
@@ -311,7 +313,7 @@ spec-kitty validate-tasks --fix
 ## Related Documentation
 
 - [Review Workflow](../templates/commands/review.md)
-- [Task Move Script](../scripts/bash/tasks-move-to-lane.sh)
+- [Workflow Commands](spec-workflow-automation.md) - Current workflow automation using `spec-kitty agent workflow` commands
 - [Kanban Dashboard](kanban-dashboard-guide.md)
 
 ## Future Enhancements

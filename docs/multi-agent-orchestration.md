@@ -28,9 +28,9 @@ Spec Kitty was designed for **multi-agent development orchestration**—it keeps
 - Each work package receives a structured prompt file containing scope, dependencies, and risks.
 
 ### 4. Parallel Implementation
-- Assign work packages to agents; each agent moves the prompt to `doing` using `.kittify/scripts/bash/tasks-move-to-lane.sh`.
+- Assign work packages to agents; each agent uses `spec-kitty agent workflow implement WP##` to start work.
 - Agents work inside the same worktree but edit disjoint files as defined in the prompts to avoid conflicts.
-- When finished, move prompts to `for_review` with the same helper script.
+- When finished, workflow commands automatically move prompts to `for_review`.
 
 ### 5. Review and Merge
 - Reviewers pull prompts from `for_review` and apply feedback.

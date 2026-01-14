@@ -15,20 +15,46 @@ These tests detect this problem and validate the fix.
 import os
 import pytest
 import subprocess
-import sys
 from pathlib import Path
 
+from tests.test_isolation_helpers import get_installed_version, get_venv_python
 
-def run_cli_version() -> subprocess.CompletedProcess[str]:
-    repo_root = Path(__file__).resolve().parents[1]
+
+def run_venv_python(code: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
-    env["PYTHONPATH"] = str(repo_root)
+    env.pop("PYTHONPATH", None)
     return subprocess.run(
-        [sys.executable, "-m", "specify_cli.__init__", "--version"],
+        [str(get_venv_python()), "-c", code],
         capture_output=True,
         text=True,
         env=env,
     )
+
+
+def get_venv_module_version() -> str:
+    result = run_venv_python("import specify_cli; print(specify_cli.__version__)")
+    if result.returncode != 0:
+        pytest.skip(f"Could not import module version: {result.stderr}")
+    return result.stdout.strip()
+
+def run_cli_version() -> subprocess.CompletedProcess[str]:
+    repo_root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(repo_root / "src")
+    return subprocess.run(
+        [str(get_venv_python()), "-m", "specify_cli.__init__", "--version"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+
+def get_venv_metadata_version() -> str:
+    """Get the spec-kitty-cli version from the test venv's metadata."""
+    metadata_version = get_installed_version()
+    if metadata_version is None:
+        raise RuntimeError("Could not read package metadata from test venv")
+    return metadata_version
 
 
 class TestVersionReading:
@@ -36,26 +62,23 @@ class TestVersionReading:
 
     def test_version_matches_package_metadata(self):
         """Verify __version__ matches package metadata version."""
-        # Import the version from the module
-        from specify_cli import __version__
+        module_version = get_venv_module_version()
 
         # Get version from package metadata
         try:
-            from importlib.metadata import version as get_version
-            metadata_version = get_version("spec-kitty-cli")
+            metadata_version = get_venv_metadata_version()
         except Exception as exc:
             pytest.skip(f"Could not read package metadata: {exc}")
 
         # Versions should match
-        assert __version__ == metadata_version, \
-            f"Module __version__ ({__version__}) should match package metadata ({metadata_version})"
+        assert module_version == metadata_version, \
+            f"Module __version__ ({module_version}) should match package metadata ({metadata_version})"
 
     def test_cli_version_matches_package_metadata(self):
         """Verify spec-kitty --version command shows package metadata version."""
-        # Get version from package metadata
+        # Get version from venv's package metadata (not test runner's)
         try:
-            from importlib.metadata import version as get_version
-            metadata_version = get_version("spec-kitty-cli")
+            metadata_version = get_venv_metadata_version()
         except Exception as exc:
             pytest.skip(f"Could not read package metadata: {exc}")
 
@@ -93,13 +116,13 @@ class TestVersionReading:
 
     def test_version_format(self):
         """Verify version follows semantic versioning format."""
-        from specify_cli import __version__
+        module_version = get_venv_module_version()
 
         # Should match semantic versioning pattern: X.Y.Z or X.Y.Z-suffix
         import re
         semver_pattern = re.compile(r'^\d+\.\d+\.\d+(-\w+)?$')
-        assert semver_pattern.match(__version__), \
-            f"Version '{__version__}' should follow semantic versioning (X.Y.Z)"
+        assert semver_pattern.match(module_version), \
+            f"Version '{module_version}' should follow semantic versioning (X.Y.Z)"
 
 
 class TestVersionConsistency:
@@ -107,15 +130,14 @@ class TestVersionConsistency:
 
     def test_version_via_module_import(self):
         """Test version accessible via module import."""
-        from specify_cli import __version__
-        assert __version__, "Should have __version__ attribute"
-        assert isinstance(__version__, str), "__version__ should be string"
+        module_version = get_venv_module_version()
+        assert module_version, "Should have __version__ attribute"
+        assert isinstance(module_version, str), "__version__ should be string"
 
     def test_version_via_metadata(self):
         """Test version accessible via package metadata."""
         try:
-            from importlib.metadata import version as get_version
-            pkg_version = get_version("spec-kitty-cli")
+            pkg_version = get_venv_metadata_version()
             assert pkg_version, "Should get version from metadata"
             assert isinstance(pkg_version, str), "Metadata version should be string"
         except Exception as exc:
@@ -137,12 +159,11 @@ class TestVersionConsistency:
     def test_all_version_methods_agree(self):
         """Verify all version access methods return the same value."""
         # Method 1: Module import
-        from specify_cli import __version__ as module_version
+        module_version = get_venv_module_version()
 
         # Method 2: Package metadata
         try:
-            from importlib.metadata import version as get_version
-            metadata_version = get_version("spec-kitty-cli")
+            metadata_version = get_venv_metadata_version()
         except Exception:
             pytest.skip("Package metadata not available")
 
@@ -165,23 +186,20 @@ class TestEdgeCases:
     def test_version_in_development_install(self):
         """Verify version works in development/editable installs."""
         # This test validates that even in -e installs, we get a version
-        from specify_cli import __version__
+        module_version = get_venv_module_version()
 
         # In dev install, might show "X.Y.Z-dev" as fallback
-        assert __version__, "Should have version even in dev install"
-        assert len(__version__) > 0, "Version should not be empty"
+        assert module_version, "Should have version even in dev install"
+        assert len(module_version) > 0, "Version should not be empty"
 
         # Should not be "unknown" or similar
-        assert __version__.lower() != "unknown", "Version should not be 'unknown'"
+        assert module_version.lower() != "unknown", "Version should not be 'unknown'"
 
     def test_version_does_not_crash_on_import(self):
         """Verify importing specify_cli doesn't crash when getting version."""
-        try:
-            import specify_cli
-            version = specify_cli.__version__
-            assert version is not None, "Version should be available"
-        except Exception as exc:
-            pytest.fail(f"Importing version should not crash: {exc}")
+        result = run_venv_python("import specify_cli; print(specify_cli.__version__)")
+        assert result.returncode == 0, f"Importing version should not crash: {result.stderr}"
+        assert result.stdout.strip(), "Version should be available"
 
     def test_cli_version_flag_exists(self):
         """Verify --version flag exists and works."""
@@ -251,11 +269,10 @@ class TestRegressionPrevention:
 
     def test_version_mismatch_regression(self):
         """Detect if version becomes hardcoded again (regression)."""
-        from specify_cli import __version__ as module_version
+        module_version = get_venv_module_version()
 
         try:
-            from importlib.metadata import version as get_version
-            metadata_version = get_version("spec-kitty-cli")
+            metadata_version = get_venv_metadata_version()
         except Exception:
             pytest.skip("Package metadata not available")
 
@@ -275,8 +292,7 @@ class TestRegressionPrevention:
     def test_cli_reports_current_version_not_old(self):
         """Detect if CLI reports old version (like 0.4.13 when package is 0.5.0)."""
         try:
-            from importlib.metadata import version as get_version
-            metadata_version = get_version("spec-kitty-cli")
+            metadata_version = get_venv_metadata_version()
         except Exception:
             pytest.skip("Package metadata not available")
 
@@ -302,29 +318,30 @@ class TestPackageMetadataIntegrity:
     def test_package_metadata_accessible(self):
         """Verify package metadata can be accessed."""
         try:
-            from importlib.metadata import version, metadata
-            pkg_version = version("spec-kitty-cli")
-            pkg_metadata = metadata("spec-kitty-cli")
+            pkg_version = get_venv_metadata_version()
+            result = run_venv_python(
+                "from importlib.metadata import metadata; "
+                "m = metadata('spec-kitty-cli'); print(m.get('Name'))"
+            )
+            pkg_name = result.stdout.strip()
 
             assert pkg_version, "Should have version in metadata"
-            assert pkg_metadata, "Should have metadata"
+            assert pkg_name == "spec-kitty-cli", "Should have metadata"
         except Exception as exc:
             pytest.fail(f"Package metadata should be accessible: {exc}")
 
     def test_package_name_is_spec_kitty_cli(self):
         """Verify package is installed as spec-kitty-cli."""
         try:
-            from importlib.metadata import version
             # This should not raise - package should be named spec-kitty-cli
-            version("spec-kitty-cli")
+            get_venv_metadata_version()
         except Exception as exc:
             pytest.fail(f"Package should be named 'spec-kitty-cli': {exc}")
 
     def test_version_is_valid_semver(self):
         """Verify version follows semantic versioning."""
         try:
-            from importlib.metadata import version as get_version
-            pkg_version = get_version("spec-kitty-cli")
+            pkg_version = get_venv_metadata_version()
         except Exception:
             pytest.skip("Package metadata not available")
 

@@ -16,7 +16,13 @@ from specify_cli.core.dependency_graph import (
     parse_wp_dependencies,
 )
 from specify_cli.frontmatter import read_frontmatter
-from specify_cli.tasks_support import TaskCliError, find_repo_root
+from specify_cli.tasks_support import (
+    TaskCliError,
+    find_repo_root,
+    locate_work_package,
+    set_scalar,
+    build_document,
+)
 
 console = Console()
 
@@ -173,6 +179,18 @@ def validate_workspace_path(workspace_path: Path, wp_id: str) -> bool:
         # Valid worktree exists
         console.print(f"[cyan]Workspace for {wp_id} already exists[/cyan]")
         console.print(f"Reusing: {workspace_path}")
+
+        # SECURITY CHECK: Detect symlinks to kitty-specs/ (bypass attempt)
+        kitty_specs_path = workspace_path / "kitty-specs"
+        if kitty_specs_path.is_symlink():
+            console.print()
+            console.print("[bold red]⚠️  SECURITY WARNING: kitty-specs/ is a symlink![/bold red]")
+            console.print(f"   Target: {kitty_specs_path.resolve()}")
+            console.print("   This bypasses sparse-checkout isolation and can corrupt main repo state.")
+            console.print(f"   Remove with: rm {kitty_specs_path}")
+            console.print()
+            raise typer.Exit(1)
+
         return True  # Reuse existing
 
     # Directory exists but not a worktree
@@ -378,7 +396,20 @@ def implement(
             tracker.error("validate", "missing --base flag")
             console.print(tracker.render())
             console.print(f"\n[red]Error:[/red] {wp_id} has dependencies: {declared_deps}")
-            console.print(f"Use: spec-kitty implement {wp_id} --base {declared_deps[0]}")
+            console.print(f"\nYou MUST specify a base workspace with --base:")
+
+            # Suggest the last dependency (most likely the right one for linear/diamond patterns)
+            suggested_base = declared_deps[-1]
+            console.print(f"  spec-kitty implement {wp_id} --base {suggested_base}")
+
+            # If multiple dependencies, provide guidance
+            if len(declared_deps) > 1:
+                console.print(f"\n[yellow]Note:[/yellow] {wp_id} has multiple dependencies: {declared_deps}")
+                console.print(f"Base on the last one ({suggested_base}), then manually merge others:")
+                console.print(f"  cd .worktrees/{feature_slug}-{wp_id}")
+                for dep in declared_deps[:-1]:
+                    console.print(f"  git merge {feature_slug}-{dep}")
+
             raise typer.Exit(1)
 
         # If --base provided, validate it matches declared dependencies
@@ -580,11 +611,114 @@ def implement(
             console.print(f"Error: {result.stderr}")
             raise typer.Exit(1)
 
+        # CRITICAL: Use sparse-checkout to exclude kitty-specs/ from this worktree
+        # This prevents worktree state divergence and enables clean merges to main
+        # Aligns with jujutsu's "partial working copy" model - status lives in main, impl in worktrees
+
+        # Get sparse-checkout file path via git (works for worktrees and standard repos)
+        sparse_checkout_result = subprocess.run(
+            ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
+            cwd=workspace_path,
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        if sparse_checkout_result.returncode != 0:
+            console.print("[yellow]Warning:[/yellow] Unable to locate sparse-checkout file; workspace created without sparse exclusions.")
+        else:
+            sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
+
+            # Enable sparse-checkout (explicitly disable cone mode for exclusion patterns)
+            subprocess.run(
+                ["git", "config", "core.sparseCheckout", "true"],
+                cwd=workspace_path,
+                capture_output=True,
+                check=False
+            )
+            subprocess.run(
+                ["git", "config", "core.sparseCheckoutCone", "false"],
+                cwd=workspace_path,
+                capture_output=True,
+                check=False
+            )
+
+            # Write sparse-checkout patterns
+            # Pattern: Include everything (/*), exclude kitty-specs/ and its contents
+            sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
+            sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
+
+            # Apply sparse-checkout (updates working tree to remove kitty-specs/)
+            apply_result = subprocess.run(
+                ["git", "read-tree", "-mu", "HEAD"],
+                cwd=workspace_path,
+                capture_output=True,
+                check=False
+            )
+            if apply_result.returncode != 0:
+                console.print("[yellow]Warning:[/yellow] Failed to apply sparse-checkout patterns; kitty-specs/ may still be present.")
+            else:
+                console.print("[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
+
+            # CRITICAL: Also add kitty-specs/ to .gitignore to prevent manual git add
+            # Sparse-checkout only controls checkout, NOT staging. Without .gitignore,
+            # users could manually create and commit kitty-specs/ files in worktree.
+            worktree_gitignore = workspace_path / ".gitignore"
+            gitignore_entry = "\n# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n"
+            if worktree_gitignore.exists():
+                existing_content = worktree_gitignore.read_text(encoding="utf-8")
+                if "kitty-specs/" not in existing_content:
+                    worktree_gitignore.write_text(existing_content.rstrip() + gitignore_entry, encoding="utf-8")
+            else:
+                worktree_gitignore.write_text(gitignore_entry.lstrip(), encoding="utf-8")
+
         tracker.complete("create", f"Workspace: {workspace_path.relative_to(repo_root)}")
 
     except typer.Exit:
         console.print(tracker.render())
         raise
+
+    # Step 4: Update WP lane to "doing" and auto-commit to main
+    # This enables multi-agent synchronization - all agents see the claim immediately
+    try:
+        import os
+
+        wp = locate_work_package(repo_root, feature_slug, wp_id)
+
+        # Only update if currently planned (avoid overwriting existing doing/review state)
+        current_lane = wp.lane or "planned"
+        if current_lane == "planned":
+            # Capture current shell PID for audit trail
+            shell_pid = str(os.getppid())
+
+            # Update lane and shell_pid in frontmatter
+            updated_front = set_scalar(wp.frontmatter, "lane", "doing")
+            updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
+
+            # Build and write updated document
+            updated_doc = build_document(updated_front, wp.body, wp.padding)
+            wp.path.write_text(updated_doc, encoding="utf-8")
+
+            # Auto-commit to main branch
+            commit_msg = f"chore: {wp_id} claimed for implementation"
+            commit_result = subprocess.run(
+                ["git", "commit", str(wp.path.resolve()), "-m", commit_msg],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+
+            if commit_result.returncode == 0:
+                console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to main)[/cyan]")
+            else:
+                # Commit failed - file might be unchanged or other issue
+                console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
+                if commit_result.stderr:
+                    console.print(f"  {commit_result.stderr.strip()}")
+
+    except Exception as e:
+        # Non-fatal: workspace created but lane update failed
+        console.print(f"[yellow]Warning:[/yellow] Could not update WP status: {e}")
 
     # Success
     if json_output:

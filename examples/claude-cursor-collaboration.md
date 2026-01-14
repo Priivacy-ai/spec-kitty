@@ -60,7 +60,7 @@ JWT tokens for sessions, bcrypt for password hashing.
 - **Claude** handles research prompts (`/spec-kitty.research`) or explanatory work packages
 - **Cursor** moves implementation prompts to `doing` via:
   ```bash
-  .kittify/scripts/bash/tasks-move-to-lane.sh 001-auth-system WP01 doing
+  spec-kitty agent workflow implement WP01
   ```
   Then codes inside its IDE and commits changes
 
@@ -77,7 +77,7 @@ JWT tokens for sessions, bcrypt for password hashing.
 ## Coordination Tips
 - Keep a shared log in `kitty-specs/<feature>/collaboration-notes.md`
 - Use git worktree status (`git worktree list`) to confirm both agents operate in the same branch
-- When switching ownership, run `.kittify/scripts/bash/tasks-move-to-lane.sh` to update lane and shell PID metadata
+- When switching ownership, use `spec-kitty agent workflow implement WP##` to update lane and shell PID metadata
 - Monitor the dashboard to see which agent is working on which task in real-time
 
 ## Agent Strengths

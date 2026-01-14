@@ -37,7 +37,7 @@ flowchart LR
 | `spec-kitty agent feature create-feature` | Branch + worktree creation | `/spec-kitty.specify` |
 | `spec-kitty agent feature setup-plan` | Plan template copy & metadata | `/spec-kitty.plan` |
 | `spec-kitty agent feature check-prerequisites` | Artifact verification before tasks/implementation | `/spec-kitty.tasks`, `/spec-kitty.implement` |
-| `spec-kitty agent tasks move-task` | Lane tracking and dashboard updates | Every task transition |
+| `spec-kitty agent workflow implement/review` | Lane tracking and dashboard updates | Every task transition |
 | `spec-kitty agent context update` | Refresh agent context files after plan changes | Post-plan updates |
 
 > **Note:** As of v0.10.0, all automation uses Python CLI commands. Bash scripts were removed. See [MIGRATION-v0.10.0.md](../MIGRATION-v0.10.0.md).
@@ -59,7 +59,7 @@ flowchart LR
 - **Use Git hooks:** Pre-commit hooks can invoke `spec-kitty agent tasks validate-workflow` to confirm lane metadata.
 - **Track spec debt:** Parse `spec.md` for `[NEEDS CLARIFICATION]` markers and fail CI if any remain before implementation.
 - **Auto-sync agent context:** Schedule `spec-kitty agent context update` to run after each plan update, ensuring that agents consume consistent instructions.
-- **Emit lane notifications:** Wrap `spec-kitty agent tasks move-task` so each transition posts to Slack/email and mirrors what the dashboard displays.
+- **Emit lane notifications:** Wrap `spec-kitty agent workflow implement/review` so each transition posts to Slack/email and mirrors what the dashboard displays.
 
 ## Related Resources
 

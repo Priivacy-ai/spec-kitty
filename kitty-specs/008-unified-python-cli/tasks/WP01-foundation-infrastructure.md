@@ -208,7 +208,7 @@ history:
 
 **Parallel?**: Yes (can run concurrently with T003, T005, T006)
 
-**Notes**: Stub only - no commands yet. WP03 (Stream B) will implement `move-task`, `mark-status`, etc.
+spec-kitty agent workflow implement WP03
 
 ---
 

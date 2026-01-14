@@ -771,15 +771,18 @@ The `spec-kitty agent` namespace provides programmatic access to all workflow au
 - `spec-kitty agent feature merge` – Merge feature branch and cleanup
 
 **Task Workflow:**
-- `spec-kitty agent tasks move-task <id> --to <lane>` – Move task between kanban lanes (updates frontmatter)
+- `spec-kitty agent workflow implement <id> --agent __AGENT__` – Move planned → doing → for_review automatically
+- `spec-kitty agent workflow review <id> --agent __AGENT__` – Move for_review → doing → planned/done automatically
 - `spec-kitty agent tasks list-tasks` – List all tasks grouped by lane
 - `spec-kitty agent tasks mark-status <id> --status <status>` – Mark task status
 - `spec-kitty agent tasks add-history <id> --note <message>` – Add activity log entry
 - `spec-kitty agent tasks validate-workflow <id>` – Validate task metadata
 
 **Workflow Commands:**
-- `spec-kitty agent workflow implement [WP_ID]` – Display WP prompt and auto-move to "doing" lane
-- `spec-kitty agent workflow review [WP_ID]` – Display WP prompt for review and auto-move to "doing" lane
+- `spec-kitty agent workflow implement [WP_ID] --agent __AGENT__` – Display WP prompt and auto-move to "doing" lane
+- `spec-kitty agent workflow review [WP_ID] --agent __AGENT__` – Display WP prompt for review and auto-move to "doing" lane
+
+**Note:** In generated agent command files, `__AGENT__` is replaced at init time with the agent key (e.g., `codex`, `claude`). If you run commands manually, replace `__AGENT__` with your agent name.
 
 **Example Usage:**
 ```bash
@@ -787,10 +790,10 @@ The `spec-kitty agent` namespace provides programmatic access to all workflow au
 spec-kitty agent feature create-feature "Payment Flow" --json
 
 # Display WP prompt and auto-move to doing
-spec-kitty agent workflow implement WP01
+spec-kitty agent workflow implement WP01 --agent __AGENT__
 
-# Move task to for_review lane
-spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review"
+# Run workflow to advance lanes
+spec-kitty agent workflow implement WP01 --agent __AGENT__
 
 # Validate workflow
 spec-kitty agent tasks validate-workflow WP01 --json
@@ -1040,12 +1043,13 @@ The merge command:
 
 All task workflow commands are available through the `spec-kitty agent` CLI:
 
-- `spec-kitty agent tasks move-task WP01 --to doing` – moves a work-package between lanes, updates frontmatter (lane, agent, shell PID), appends an Activity Log entry
+- `spec-kitty agent workflow implement WP01 --agent __AGENT__` – auto-advances planned → doing → for_review
+- `spec-kitty agent workflow review WP01 --agent __AGENT__` – auto-advances for_review → doing → planned/done
 - `spec-kitty agent tasks validate-workflow WP01` – validates that the work-package has correct metadata
 - `spec-kitty agent tasks list-tasks` – lists all tasks grouped by lane
 - `spec-kitty agent tasks mark-status WP01 --status done` – marks a task with a specific status
-- `spec-kitty agent workflow implement [WP01]` – displays WP prompt and auto-moves to "doing" lane
-- `spec-kitty agent workflow review [WP01]` – displays WP prompt for review and auto-moves to "doing" lane
+- `spec-kitty agent workflow implement [WP01] --agent __AGENT__` – displays WP prompt and auto-moves to "doing" lane
+- `spec-kitty agent workflow review [WP01] --agent __AGENT__` – displays WP prompt for review and auto-moves to "doing" lane
 
 Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`. All WP files live in flat `tasks/` directory with lane tracked in frontmatter (no subdirectories).
 

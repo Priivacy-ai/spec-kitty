@@ -316,9 +316,9 @@ This is a git limitation. Future jj integration will auto-rebase.
                console.print(f"     cd .worktrees/###-feature-{dep} && git rebase ###-feature-{wp_id}")
    ```
 
-2. Integrate with move-task command (src/specify_cli/cli/commands/agent/tasks.py)
+2. Integrate with workflow commands (src/specify_cli/cli/commands/agent/workflow.py)
 
-**Files**: `src/specify_cli/cli/commands/agent/tasks.py` (move-task command)
+**Files**: `src/specify_cli/cli/commands/agent/workflow.py` (implement/review commands)
 
 **Parallel?**: Can implement in parallel with T079-T081
 
@@ -426,7 +426,7 @@ def test_warning_when_dependents_in_progress(tmp_path):
 
 2. **During review (WP entering review)**:
    ```
-   spec-kitty agent tasks move-task WP01 --to for_review
+   spec-kitty agent workflow review WP01
    → Query dependents of WP01
    → Find dependents in lanes: planned, doing
    → Display warning: "WP02 in progress, will need rebase if changes requested"
@@ -451,7 +451,7 @@ def test_warning_when_dependents_in_progress(tmp_path):
 - Base change detection (git log comparison)
 - Warning display formatting
 - Integration with implement command
-- Integration with move-task command
+- Integration with workflow commands (implement/review)
 
 **Execution**:
 ```bash
@@ -464,7 +464,7 @@ pytest tests/specify_cli/test_review_warnings.py -v
 
 **Risk 1: Warning not displayed**
 - Impact: Agents work on stale code, miss parent WP changes
-- Mitigation: Multiple warning points (implement, review, move-task), prominent display with Rich formatting
+- Mitigation: Multiple warning points (implement, review, workflow commands), prominent display with Rich formatting
 
 **Risk 2: False positive warnings**
 - Impact: Warns about rebase when not needed, causes confusion
@@ -539,7 +539,7 @@ spec-kitty implement WP02
 
 Move this WP between lanes using:
 ```bash
-spec-kitty agent tasks move-task WP09 --to <lane>
+spec-kitty agent workflow implement WP09
 ```
 
 Or edit the `lane:` field in frontmatter directly.

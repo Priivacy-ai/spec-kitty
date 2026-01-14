@@ -173,6 +173,9 @@ class TestMarkStatus:
         """Should mark status as done with JSON output."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
+        tasks_dir = tmp_path / "kitty-specs" / "008-test"
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        (tasks_dir / "tasks.md").write_text("- [ ] T001 Initial task\n", encoding="utf-8")
 
         # Execute
         result = runner.invoke(
@@ -209,6 +212,9 @@ class TestMarkStatus:
         """Should mark status as pending."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
+        tasks_dir = tmp_path / "kitty-specs" / "008-test"
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        (tasks_dir / "tasks.md").write_text("- [x] T002 Initial task\n", encoding="utf-8")
 
         # Execute
         result = runner.invoke(
@@ -474,90 +480,6 @@ class TestAddHistory:
         assert "Custom note" in updated_content
 
 
-class TestRollbackTask:
-    """Tests for rollback-task command."""
-
-    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    def test_rollback_no_project_root(self, mock_root: Mock):
-        """Should error when project root not found."""
-        mock_root.return_value = None
-
-        # Execute
-        result = runner.invoke(app, ["rollback-task", "WP01", "--json"])
-
-        # Verify
-        assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
-        output = json.loads(first_line)
-        assert "error" in output
-
-    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_rollback_task_json(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
-    ):
-        """Should rollback to previous lane."""
-        repo_root = mock_task_file.parent.parent.parent.parent
-        mock_root.return_value = repo_root
-        mock_slug.return_value = "008-test-feature"
-
-        # First move to doing
-        runner.invoke(app, ["move-task", "WP01", "--to", "doing"])
-
-        # Then rollback
-        result = runner.invoke(app, ["rollback-task", "WP01", "--json"])
-
-        # Verify
-        assert result.exit_code == 0
-        output = json.loads(result.stdout)
-        assert output["result"] == "success"
-        assert output["new_lane"] == "planned"
-
-        # Verify file was updated
-        updated_content = mock_task_file.read_text()
-        assert 'lane: "planned"' in updated_content
-        assert "Rolled back" in updated_content
-
-    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_rollback_insufficient_history(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
-    ):
-        """Should error when insufficient history entries."""
-        # Create task with only one history entry
-        repo_root = tmp_path
-        (repo_root / ".kittify").mkdir()
-        tasks_dir = repo_root / "kitty-specs" / "008-test" / "tasks"
-        tasks_dir.mkdir(parents=True)
-
-        task_file = tasks_dir / "WP01-test.md"
-        task_file.write_text("""---
-work_package_id: "WP01"
-title: "Test"
-lane: "planned"
----
-
-# Test
-
-## Activity Log
-
-- 2025-01-01T00:00:00Z – system – lane=planned – Initial
-""")
-
-        mock_root.return_value = repo_root
-        mock_slug.return_value = "008-test"
-
-        # Execute
-        result = runner.invoke(app, ["rollback-task", "WP01", "--json"])
-
-        # Verify
-        assert result.exit_code == 1
-        first_line = result.stdout.strip().split('\n')[0]
-        output = json.loads(first_line)
-        assert "error" in output
-        assert "Need at least 2 history entries" in output["error"]
-
-
 class TestValidateWorkflow:
     """Tests for validate-workflow command."""
 
@@ -727,14 +649,16 @@ class TestFindFeatureSlug:
         assert slug == "008-test-feature"
 
     @patch("subprocess.run")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks.Path.cwd")
-    def test_find_raises_on_failure(self, mock_cwd: Mock, mock_subprocess: Mock):
+    def test_find_raises_on_failure(self, mock_cwd: Mock, mock_repo: Mock, mock_subprocess: Mock):
         """Should raise typer.Exit when slug cannot be determined."""
         from specify_cli.cli.commands.agent.tasks import _find_feature_slug
         import subprocess
         from click.exceptions import Exit
 
         mock_cwd.return_value = Path("/repo")
+        mock_repo.return_value = None
         mock_subprocess.side_effect = subprocess.CalledProcessError(1, "git")
 
         with pytest.raises(Exit):

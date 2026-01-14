@@ -182,7 +182,7 @@ Wave 1: Command Implementation (Parallel - Days 3-6)
 ├── Stream A: Feature Commands (Phase 2, Days 3-4)
 │   └── Implements: create-feature, check-prerequisites, setup-plan
 ├── Stream B: Task Commands (Phase 3, Days 5-6)
-│   └── Implements: move-task, mark-status, validate-workflow
+│   └── Implements: workflow implement/review, mark-status, validate-workflow
 └── Stream C: Context Commands (Phase 4, Day 7)
     └── Implements: update-context
 
@@ -226,7 +226,7 @@ Phase 7: Validation (Sequential - Day 11)
 **Stream B: Task Commands** (can start after Phase 1)
 - Owner: Agent Beta
 - Files: `src/specify_cli/cli/commands/agent/tasks.py`
-- Commands: `move-task`, `mark-status`, `list-tasks`, `add-history`, `rollback-task`, `validate-workflow`
+- Commands: `workflow implement/review`, `mark-status`, `list-tasks`, `add-history`, `rollback-task`, `validate-workflow`
 - Dependencies: Phase 1 complete, migrate `tasks_cli.py` → Typer
 - No conflicts with: Streams A, C, D (different modules)
 
@@ -383,7 +383,7 @@ Phase 7: Validation (Sequential - Day 11)
    - Move to `src/specify_cli/cli/commands/agent/tasks.py`
 
 2. Implement agent task commands:
-   - `move-task` - Move work package between lanes with `--json` flag
+   - `move-task` - Move work package between lanes with `--json` flag (later superseded by `workflow implement/review` in v0.11.1)
    - `mark-status` - Update task checkbox status with `--json` flag
    - `list-tasks` - List tasks by lane with `--json` flag
    - `add-history` - Add history entry to task with `--json` flag
@@ -391,7 +391,7 @@ Phase 7: Validation (Sequential - Day 11)
    - `validate-workflow` - Validate task metadata with `--json` flag
 
 3. Update slash command templates:
-   - `.claude/commands/spec-kitty.implement.md` - call `spec-kitty agent move-task`
+   - `.claude/commands/spec-kitty.implement.md` - call `spec-kitty agent move-task` (later updated to `workflow implement`)
    - `.claude/commands/spec-kitty.review.md` - call `spec-kitty agent validate-workflow`
 
 4. Testing:
@@ -399,7 +399,7 @@ Phase 7: Validation (Sequential - Day 11)
    - Integration test: Full task workflow (planned → doing → for_review → done)
 
 **Acceptance Criteria**:
-- ✅ `spec-kitty agent move-task WP01 --to doing --json` moves task and returns JSON
+spec-kitty agent workflow implement WP01
 - ✅ All 6 task commands functional with JSON output
 - ✅ Commands work from main repo and worktree
 - ✅ 90%+ test coverage for tasks.py

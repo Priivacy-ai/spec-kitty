@@ -109,7 +109,7 @@ subtasks:
 1. Capture your shell PID: `echo $$`.
 2. Update frontmatter (`lane`, `assignee`, `agent`, `shell_pid`).
 3. Append to the **Activity Log** with timestamp, lane, PID, and action.
-4. Use `.kittify/scripts/bash/tasks-move-to-lane.sh 002-lightweight-pypi-release WP03 <lane>` to keep history consistent.
+spec-kitty agent workflow implement WP03
 5. Commit or stage updates to preserve workflow audit trail.
 - 2025-11-02T18:04:30Z – claude-sonnet-4.5 – shell_pid=13425 – lane=doing – Started implementation
 - 2025-11-02T18:12:12Z – claude-sonnet-4.5 – shell_pid=13425 – lane=for_review – Ready for review

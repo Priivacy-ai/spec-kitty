@@ -767,7 +767,7 @@ spec-kitty implement WP06               # Independent, parallel!
 
 Move this WP between lanes using:
 ```bash
-spec-kitty agent tasks move-task WP10 --to <lane>
+spec-kitty agent workflow implement WP10
 ```
 
 Or edit the `lane:` field in frontmatter directly.

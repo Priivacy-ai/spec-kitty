@@ -16,13 +16,13 @@ All bash scripts previously in `.kittify/scripts/bash/` and `.kittify/scripts/po
 - `update-agent-context.sh` / `update-agent-context.ps1`
 - `accept-feature.sh` / `accept-feature.ps1`
 - `merge-feature.sh` / `Merge-Feature.ps1`
-- `tasks-move-to-lane.sh` / `tasks-move-to-lane.ps1`
+- `tasks-move-to-lane.sh` / `tasks-move-to-lane.ps1` (legacy; replaced by workflow commands)
 - `tasks-list-lanes.sh` / `tasks-list-lanes.ps1`
 - `mark-task-status.sh` / `Set-TaskStatus.ps1`
 - `tasks-add-history-entry.sh` / `tasks-add-history-entry.ps1`
 - `tasks-rollback-move.sh` / `tasks-rollback-move.ps1`
 - `validate-task-workflow.sh`
-- `move-task-to-doing.sh`
+- `move-task-to-doing.sh` (legacy)
 - `common.sh` / `common.ps1`
 
 ### New Python CLI Commands
@@ -37,13 +37,13 @@ All functionality is now available through `spec-kitty agent` commands:
 | `.kittify/scripts/bash/update-agent-context.sh` | `spec-kitty agent update-context` |
 | `.kittify/scripts/bash/accept-feature.sh` | `spec-kitty agent feature accept` |
 | `.kittify/scripts/bash/merge-feature.sh` | `spec-kitty agent feature merge` |
-| `.kittify/scripts/bash/tasks-move-to-lane.sh` | `spec-kitty agent move-task` |
+| `.kittify/scripts/bash/tasks-move-to-lane.sh` | `spec-kitty agent workflow implement` |
 | `.kittify/scripts/bash/tasks-list-lanes.sh` | `spec-kitty agent list-tasks` |
 | `.kittify/scripts/bash/mark-task-status.sh` | `spec-kitty agent mark-status` |
 | `.kittify/scripts/bash/tasks-add-history-entry.sh` | `spec-kitty agent add-history` |
 | `.kittify/scripts/bash/tasks-rollback-move.sh` | `spec-kitty agent rollback-move` |
 | `.kittify/scripts/bash/validate-task-workflow.sh` | `spec-kitty agent validate-workflow` |
-| `.kittify/scripts/bash/move-task-to-doing.sh` | `spec-kitty agent move-task --to doing` |
+| `.kittify/scripts/bash/move-task-to-doing.sh` | `spec-kitty agent workflow implement` |
 
 ## Automatic Migration
 
@@ -89,12 +89,12 @@ spec-kitty agent create-feature --json --feature-name "Payment Flow"
 
 **Old:**
 ```bash
-.kittify/scripts/bash/tasks-move-to-lane.sh WP01 doing --agent claude --note "Started"
+spec-kitty agent workflow implement WP01
 ```
 
 **New:**
 ```bash
-spec-kitty agent move-task WP01 --to doing --agent claude --note "Started"
+spec-kitty agent workflow implement WP01
 ```
 
 ### Example 3: Acceptance
@@ -179,9 +179,9 @@ Example of calling agent commands from a custom script:
 
 FEATURE=$(spec-kitty agent check-prerequisites --json | jq -r '.feature_slug')
 
-spec-kitty agent move-task WP01 --to doing --json
+spec-kitty agent workflow implement WP01
 # ... your custom logic ...
-spec-kitty agent move-task WP01 --to for_review --json
+spec-kitty agent workflow review WP01
 ```
 
 ## Migration Checklist

@@ -18,9 +18,9 @@ AI agents using spec-kitty slash commands (like `/spec-kitty.implement`, `/spec-
 
 **Acceptance Scenarios**:
 
-1. **Given** an AI agent is working in the main repository, **When** it executes `/spec-kitty.implement` (which calls `spec-kitty agent move-task`), **Then** the command succeeds and correctly resolves paths without requiring the agent to specify location context
+1. **Given** an AI agent is working in the main repository, **When** it executes `/spec-kitty.implement` (which calls `spec-kitty agent` commands), **Then** the command succeeds and correctly resolves paths without requiring the agent to specify location context
 2. **Given** an AI agent is working in a worktree (`.worktrees/feature-name/`), **When** it executes any `spec-kitty agent` command, **Then** the CLI automatically detects the worktree location and resolves all paths correctly
-3. **Given** an AI agent needs to move a task between lanes, **When** it calls `spec-kitty agent move-task WP01 --to doing`, **Then** the task file is moved correctly regardless of whether the agent is in main repo or worktree
+3. **Given** an AI agent needs to move a task between lanes, **When** it uses `spec-kitty agent workflow implement WP01`, **Then** the task transitions correctly regardless of whether the agent is in main repo or worktree
 4. **Given** bash scripts previously needed to be copied to worktrees, **When** the Python CLI is installed, **Then** no script copying occurs and agents can immediately use `spec-kitty agent` commands
 
 ---
@@ -119,7 +119,7 @@ Before implementation begins, a research phase validates that the proposed migra
 
 **Agent Command Coverage**:
 - **FR-022**: System MUST provide agent commands for feature management (`create-feature`, `check-prerequisites`, `setup-plan`, `accept`, `merge`)
-- **FR-023**: System MUST provide agent commands for task workflow (`move-task`, `mark-status`, `list-tasks`, `add-history`, `rollback-task`, `validate-workflow`)
+- **FR-023**: System MUST provide agent commands for task workflow (`workflow implement/review`, `mark-status`, `list-tasks`, `add-history`, `rollback-task`, `validate-workflow`)
 - **FR-024**: System MUST provide agent commands for context management (`update-context`)
 
 **Testing & Quality**:

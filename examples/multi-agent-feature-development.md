@@ -24,7 +24,7 @@ This scenario demonstrates how a lead architect can orchestrate a multi-agent te
    - Human reviewer tracks `tasks/for_review/`.
 
 5. **Run the kanban workflow**
-   Each agent moves prompts using `.kittify/scripts/bash/tasks-move-to-lane.sh` and logs progress. The dashboard shows lane health in real time.
+   spec-kitty agent workflow implement WP##
 
 6. **Review completed work**
    Human reviewer processes `for_review` prompts via `/spec-kitty.review`, providing feedback or approving work to move to `done`.

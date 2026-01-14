@@ -38,7 +38,7 @@ Refactor the tasks CLI from directory-based to frontmatter-only lane management:
 4. Ensure the `lane:` frontmatter field is the single source of truth
 
 **Success Criteria** (from spec FR-001 to FR-005):
-- `tasks_cli.py update 007-feature WP01 doing` updates `lane:` field without moving file
+spec-kitty agent workflow implement WP01
 - File stays in `tasks/` directory after lane transition
 - Activity log is appended on lane change
 - Direct editing of `lane:` field is valid and recognized by system
@@ -271,7 +271,7 @@ Refactor the tasks CLI from directory-based to frontmatter-only lane management:
 
 ## Review Guidance
 
-- Verify `tasks_cli.py update <feature> <wp> <lane>` works without moving files
+- Verify `tasks_cli.py update <feature> <wp> <lane>` works without moving files (historical - later became `spec-kitty agent workflow` commands)
 - Check that lane field updates correctly in frontmatter
 - Verify activity log is appended
 - Test with both new format (flat) and ensure legacy warning appears for old format

@@ -89,6 +89,13 @@ See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migr
   - All migrations now idempotent
   - Upgrade path from 0.6.4 → 0.10.12 completes without intervention
 
+### 🐛 Fixed - Feature 012
+
+- **`/spec-kitty.status` template instructed agents to run Python code**
+  - AI agents cannot execute arbitrary Python - they use CLI tools
+  - Updated template to use CLI command as primary method
+  - Python API now documented as alternative for Jupyter/scripts
+
 ### 📖 Documentation - Feature 010
 
 - **New docs**: `docs/workspace-per-wp.md` - Workflow guide with examples
@@ -219,9 +226,9 @@ The migration will remove mission-specific constitution directories:
 ### 🐛 Fixed
 
 - **Deprecated script references in mission templates** (#68)
-  - Fixed `.kittify/missions/software-dev/templates/task-prompt-template.md` to use `spec-kitty agent tasks move-task` instead of deprecated `python3 .kittify/scripts/tasks/tasks_cli.py`
+  - Fixed `.kittify/missions/software-dev/templates/task-prompt-template.md` to use workflow commands instead of deprecated `python3 .kittify/scripts/tasks/tasks_cli.py`
   - Fixed `.kittify/templates/task-prompt-template.md` with same update
-  - Fixed `.kittify/missions/software-dev/command-templates/tasks.md` to reference CLI commands
+  - Fixed `.kittify/missions/software-dev/command-templates/tasks.md` to reference workflow commands
   - Updated `.kittify/templates/POWERSHELL_SYNTAX.md` to document spec-kitty CLI instead of obsolete PowerShell scripts
   - **Root cause**: Migration 0.10.9 fixed agent command templates but missed mission-specific templates
   - **Impact**: Agents were executing users' local `cli.py` files instead of spec-kitty CLI on Windows
@@ -538,7 +545,7 @@ This release fundamentally changes how Spec Kitty manages work package lanes, el
   - New system: `tasks/WP01.md` with `lane: "planned"` ✅
 
 - **Command renamed: `move` → `update`**
-  - `tasks_cli.py move` command removed
+  - Legacy `tasks_cli.py move` command removed
   - Use `tasks_cli.py update <feature> <WP> <lane>` instead
   - Semantic clarity: command updates metadata, doesn't move files
   - Legacy format detection: `update` command refuses to work on old directory-based structure
@@ -661,7 +668,7 @@ This release fundamentally changes how Spec Kitty manages work package lanes, el
 - **Task lane management documentation** - Added clear instructions to AGENTS.md and task templates warning agents never to manually edit the `lane:` YAML field
   - Lane is determined by directory location, not YAML field
   - Editing `lane:` without moving the file creates a mismatch that breaks the system
-  - All templates now include YAML comment: `# DO NOT EDIT - use: tasks_cli.py move`
+  - All templates now include YAML comment: `# DO NOT EDIT - use: workflow commands` (legacy note)
   - Added "Task Lane Management Rule" section to project AGENTS.md
 
 ## [0.8.1] - 2025-12-17
@@ -865,7 +872,7 @@ This release fundamentally changes how Spec Kitty manages work package lanes, el
 ### Fixed
 
 - **PowerShell Wrapper Parameter Handling** – Windows lane transitions now work correctly:
-  - Fixed `tasks-move-to-lane.ps1` to properly parse named PowerShell parameters
+  - Fixed legacy `tasks-move-to-lane.ps1` to properly parse named PowerShell parameters
   - Translates Spec Kitty's named params (`-FeatureName`, `-TaskId`, `-TargetLane`) to `tasks_cli.py` positional args
   - Resolves `unrecognized arguments` error that broke `/spec-kitty.review` on Windows
   - Maintains backward compatibility with positional argument usage
