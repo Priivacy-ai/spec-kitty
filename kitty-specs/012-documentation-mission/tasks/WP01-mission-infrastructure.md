@@ -10,10 +10,10 @@ subtasks:
   - "T007"
 title: "Mission Infrastructure"
 phase: "Phase 0 - Foundation"
-lane: "done"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "test-agent"
+shell_pid: "70026"
 review_status: ""
 reviewed_by: ""
 history:
@@ -367,3 +367,4 @@ python -c "from specify_cli.mission import list_available_missions; print(list_a
 - 2026-01-12T17:18:56Z – system – lane=planned – Prompt created.
 - 2026-01-12T17:44:57Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T18:22:44Z – unknown – lane=done – Review passed
+- 2026-01-14T16:41:42Z – test-agent – shell_pid=70026 – lane=doing – Started implementation via workflow command
