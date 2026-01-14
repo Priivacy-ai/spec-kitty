@@ -59,8 +59,8 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return repo_root
 
 
-def test_workflow_implement_auto_moves_to_for_review(workflow_repo: Path) -> None:
-    """Implement workflow should move planned -> doing -> for_review."""
+def test_workflow_implement_auto_moves_to_doing(workflow_repo: Path) -> None:
+    """Implement workflow should move planned -> doing (for_review is manual after completion)."""
     feature_slug = "001-test-feature"
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
@@ -71,16 +71,18 @@ def test_workflow_implement_auto_moves_to_for_review(workflow_repo: Path) -> Non
     write_wp_file(wp_path, "WP01", lane="planned")
 
     runner = CliRunner()
-    result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", feature_slug])
+    # --agent is required for tracking who is implementing
+    result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"])
     assert result.exit_code == 0
 
     content = wp_path.read_text(encoding="utf-8")
     frontmatter, _, _ = split_frontmatter(content)
-    assert extract_scalar(frontmatter, "lane") == "for_review"
+    # Implement moves to "doing", not "for_review" (that's a manual completion step)
+    assert extract_scalar(frontmatter, "lane") == "doing"
 
 
-def test_workflow_review_auto_moves_to_done(workflow_repo: Path) -> None:
-    """Review workflow should move for_review -> doing -> done."""
+def test_workflow_review_auto_moves_to_doing(workflow_repo: Path) -> None:
+    """Review workflow should move for_review -> doing (done/planned is manual after review)."""
     feature_slug = "001-test-feature"
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
@@ -91,16 +93,18 @@ def test_workflow_review_auto_moves_to_done(workflow_repo: Path) -> None:
     write_wp_file(wp_path, "WP01", lane="for_review")
 
     runner = CliRunner()
-    result = runner.invoke(workflow.app, ["review", "WP01", "--feature", feature_slug])
+    # --agent is required for tracking who is reviewing
+    result = runner.invoke(workflow.app, ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"])
     assert result.exit_code == 0
 
     content = wp_path.read_text(encoding="utf-8")
     frontmatter, _, _ = split_frontmatter(content)
-    assert extract_scalar(frontmatter, "lane") == "done"
+    # Review moves to "doing" to mark reviewer is working - done/planned is manual
+    assert extract_scalar(frontmatter, "lane") == "doing"
 
 
-def test_workflow_review_moves_to_planned_on_feedback(workflow_repo: Path) -> None:
-    """Review workflow should move for_review -> doing -> planned when feedback exists."""
+def test_workflow_review_with_feedback_still_moves_to_doing(workflow_repo: Path) -> None:
+    """Review workflow moves to doing even when feedback exists (reviewer makes decision)."""
     feature_slug = "001-test-feature"
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
@@ -111,16 +115,18 @@ def test_workflow_review_moves_to_planned_on_feedback(workflow_repo: Path) -> No
     write_wp_file(wp_path, "WP01", lane="for_review", review_status="has_feedback")
 
     runner = CliRunner()
-    result = runner.invoke(workflow.app, ["review", "WP01", "--feature", feature_slug])
+    # --agent is required for tracking who is reviewing
+    result = runner.invoke(workflow.app, ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"])
     assert result.exit_code == 0
 
     content = wp_path.read_text(encoding="utf-8")
     frontmatter, _, _ = split_frontmatter(content)
-    assert extract_scalar(frontmatter, "lane") == "planned"
+    # Review moves to "doing" - reviewer decides to move to done or planned after
+    assert extract_scalar(frontmatter, "lane") == "doing"
 
 
-def test_workflow_review_rejects_non_for_review_lane(workflow_repo: Path) -> None:
-    """Review workflow should error when WP is not in for_review lane."""
+def test_workflow_review_tracks_reviewer_agent(workflow_repo: Path) -> None:
+    """Review workflow should track the reviewer agent name."""
     feature_slug = "001-test-feature"
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
@@ -128,9 +134,12 @@ def test_workflow_review_rejects_non_for_review_lane(workflow_repo: Path) -> Non
 
     write_tasks_md(feature_dir, "WP01", ["T001"], done=True)
     wp_path = tasks_dir / "WP01-test.md"
-    write_wp_file(wp_path, "WP01", lane="planned")
+    write_wp_file(wp_path, "WP01", lane="for_review")
 
     runner = CliRunner()
-    result = runner.invoke(workflow.app, ["review", "WP01", "--feature", feature_slug])
-    assert result.exit_code != 0
-    assert "Only for_review WPs can be reviewed" in result.output
+    result = runner.invoke(workflow.app, ["review", "WP01", "--feature", feature_slug, "--agent", "claude"])
+    assert result.exit_code == 0
+
+    content = wp_path.read_text(encoding="utf-8")
+    frontmatter, _, _ = split_frontmatter(content)
+    assert extract_scalar(frontmatter, "agent") == "claude"

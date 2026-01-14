@@ -328,9 +328,10 @@ def test_implement_wp_no_dependencies(tmp_path):
     )
     assert "011-test-WP01" in result.stdout
 
-    # Verify workspace contains planning artifacts (from main)
-    assert (workspace / "kitty-specs" / "011-test" / "spec.md").exists()
-    assert (workspace / "kitty-specs" / "011-test" / "tasks" / "WP01-test.md").exists()
+    # Verify sparse-checkout excludes kitty-specs from worktree
+    # (kitty-specs status is tracked in main repo only, preventing state divergence)
+    assert not (workspace / "kitty-specs").exists(), \
+        "kitty-specs should be excluded from worktree via sparse-checkout"
 
 
 # ============================================================================

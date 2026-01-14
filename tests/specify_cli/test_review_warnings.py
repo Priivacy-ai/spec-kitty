@@ -205,7 +205,8 @@ def test_workflow_review_warns_dependents(monkeypatch: pytest.MonkeyPatch, tmp_p
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
 
-    workflow.review(wp_id="WP01", feature=feature_slug)
+    # --agent is required for tracking who is reviewing
+    workflow.review(wp_id="WP01", feature=feature_slug, agent="test-reviewer")
     output = capsys.readouterr().out
 
     assert "Dependency Alert" in output
