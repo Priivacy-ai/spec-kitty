@@ -86,6 +86,13 @@ See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migr
   - All migrations now idempotent
   - Upgrade path from 0.6.4 → 0.10.12 completes without intervention
 
+### 🐛 Fixed - Feature 012
+
+- **`/spec-kitty.status` template instructed agents to run Python code**
+  - AI agents cannot execute arbitrary Python - they use CLI tools
+  - Updated template to use CLI command as primary method
+  - Python API now documented as alternative for Jupyter/scripts
+
 ### 📖 Documentation - Feature 010
 
 - **New docs**: `docs/workspace-per-wp.md` - Workflow guide with examples

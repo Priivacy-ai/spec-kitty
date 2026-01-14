@@ -3,10 +3,12 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null)"
+# Find repo root from current working directory (not script location)
+# This allows the script to be run on ANY project, not just the spec-kitty repo
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ -z "${REPO_ROOT}" ]; then
     echo "Error: Not inside a git repository"
+    echo "Run this script from within your project directory"
     exit 1
 fi
 WORKTREES_DIR="${REPO_ROOT}/.worktrees"
@@ -29,28 +31,33 @@ for worktree in "${WORKTREES_DIR}"/*; do
 
     echo "Processing: ${worktree_name}"
 
-    # Remove symlink/directory if present
+    # Remove symlink if present (will be replaced by sparse-checkout exclusion)
     if [ -L "${kitty_specs_path}" ]; then
         echo "  → Removing symlink"
         rm "${kitty_specs_path}"
     elif [ -d "${kitty_specs_path}" ]; then
         if [ -n "$(ls -A "${kitty_specs_path}")" ]; then
-            echo "  ⚠️  kitty-specs/ is a real directory with contents; skipping to avoid data loss"
-            echo
-            continue
+            echo "  → kitty-specs/ has contents (will be removed by sparse-checkout)"
+        else
+            echo "  → Removing empty directory"
+            rmdir "${kitty_specs_path}"
         fi
-        echo "  → Removing empty directory"
-        rmdir "${kitty_specs_path}"
     fi
 
-    # Clean .gitignore
+    # Keep .gitignore entry for kitty-specs/ (prevents manual git add)
+    # Sparse-checkout only controls checkout, not staging - .gitignore is needed too
     gitignore_file="${worktree}/.gitignore"
-    if [ -f "${gitignore_file}" ] && grep -q "kitty-specs" "${gitignore_file}"; then
-        echo "  → Cleaning .gitignore"
-        grep -v "kitty-specs" "${gitignore_file}" | \
-        grep -v "Ignore kitty-specs" | \
-        grep -v "status managed in main" > "${gitignore_file}.tmp"
-        mv "${gitignore_file}.tmp" "${gitignore_file}"
+    if [ -f "${gitignore_file}" ]; then
+        if ! grep -q "^kitty-specs/$" "${gitignore_file}"; then
+            echo "  → Adding kitty-specs/ to .gitignore"
+            echo "" >> "${gitignore_file}"
+            echo "# Prevent worktree-local kitty-specs/ (status managed in main repo)" >> "${gitignore_file}"
+            echo "kitty-specs/" >> "${gitignore_file}"
+        fi
+    else
+        echo "  → Creating .gitignore with kitty-specs/ entry"
+        echo "# Prevent worktree-local kitty-specs/ (status managed in main repo)" > "${gitignore_file}"
+        echo "kitty-specs/" >> "${gitignore_file}"
     fi
 
     # Configure sparse-checkout (non-cone mode for exclusion patterns)

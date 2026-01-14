@@ -350,7 +350,27 @@ This foundation makes jj integration possible in future version.
 
 **Quick Status Check (Recommended for Agents)**
 
-When you need to check work package status, use the Python function instead of CLI commands:
+Use the CLI command to check work package status:
+
+```bash
+spec-kitty agent tasks status
+spec-kitty agent tasks status --feature 012-documentation-mission
+```
+
+**What You Get:**
+- Kanban board (planned/doing/for_review/done lanes)
+- Progress bar (█████░░░) with percentage
+- Summary metrics panel
+
+**When to Use:**
+- Before starting work (check what's ready)
+- During implementation (track progress)
+- After completing a WP (see what's next)
+- When planning parallelization (identify opportunities)
+
+**Alternative (Python API):**
+
+For programmatic access in Jupyter notebooks or scripts:
 
 ```python
 from specify_cli.agent_utils.status import show_kanban_status
@@ -359,24 +379,7 @@ from specify_cli.agent_utils.status import show_kanban_status
 result = show_kanban_status("012-documentation-mission")
 ```
 
-**Benefits:**
-- ✅ Full output displayed inline (no truncation like CLI commands)
-- ✅ Beautiful kanban board with progress bar
-- ✅ Intelligent parallelization analysis
-- ✅ Shows which WPs can run in parallel
-- ✅ Provides exact commands with correct --base flags
-- ✅ Returns structured dict for programmatic access
-
-**What You Get:**
-
-Visual output:
-- Kanban board (planned/doing/for_review/done lanes)
-- Progress bar (█████░░░) with percentage
-- Next steps section (what's ready for review/in progress/next)
-- **🔀 Parallelization Strategy** - shows which WPs can run in parallel
-- Summary metrics panel
-
-Structured data:
+Returns structured data:
 ```python
 {
     'progress_percentage': 80.0,
@@ -389,18 +392,6 @@ Structured data:
     }
 }
 ```
-
-**When to Use:**
-- Before starting work (check what's ready)
-- During implementation (track progress)
-- After completing a WP (see what's next)
-- When planning parallelization (identify opportunities)
-
-**Alternative (CLI):**
-```bash
-spec-kitty agent tasks status --feature 012-documentation-mission
-```
-Note: CLI output may get truncated in tool results. Use Python function for full output.
 
 ## Documentation Mission Patterns (0.11.0+)
 

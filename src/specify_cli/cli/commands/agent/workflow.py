@@ -276,6 +276,55 @@ def implement(
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
         workspace_path = repo_root / ".worktrees" / workspace_name
 
+        # Ensure workspace exists (create if needed)
+        if not workspace_path.exists():
+            import subprocess
+
+            # Ensure .worktrees directory exists
+            worktrees_dir = repo_root / ".worktrees"
+            worktrees_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create worktree with sparse-checkout
+            branch_name = workspace_name
+            result = subprocess.run(
+                ["git", "worktree", "add", str(workspace_path), "-b", branch_name],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+
+            if result.returncode != 0:
+                print(f"Warning: Could not create workspace: {result.stderr}")
+            else:
+                # Configure sparse-checkout to exclude kitty-specs/
+                sparse_checkout_result = subprocess.run(
+                    ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
+                    cwd=workspace_path,
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                if sparse_checkout_result.returncode == 0:
+                    sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
+                    subprocess.run(["git", "config", "core.sparseCheckout", "true"], cwd=workspace_path, capture_output=True, check=False)
+                    subprocess.run(["git", "config", "core.sparseCheckoutCone", "false"], cwd=workspace_path, capture_output=True, check=False)
+                    sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
+                    sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
+                    subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
+
+                    # Add .gitignore to prevent manual kitty-specs/ additions
+                    gitignore_path = workspace_path / ".gitignore"
+                    gitignore_entry = "# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n"
+                    if gitignore_path.exists():
+                        content = gitignore_path.read_text(encoding="utf-8")
+                        if "kitty-specs/" not in content:
+                            gitignore_path.write_text(content.rstrip() + "\n" + gitignore_entry, encoding="utf-8")
+                    else:
+                        gitignore_path.write_text(gitignore_entry, encoding="utf-8")
+
+                print(f"✓ Created workspace: {workspace_path}")
+
         # Output the prompt
         print("=" * 80)
         print(f"IMPLEMENT: {normalized_wp_id}")
@@ -284,6 +333,27 @@ def implement(
         print(f"Source: {wp.path}")
         print()
         print(f"Workspace: {workspace_path}")
+        print()
+
+        # CRITICAL: WP isolation rules - must come first
+        print("╔" + "=" * 78 + "╗")
+        print("║  🚨 CRITICAL: WORK PACKAGE ISOLATION RULES                              ║")
+        print("╠" + "=" * 78 + "╣")
+        print(f"║  YOU ARE ASSIGNED TO: {normalized_wp_id:<55} ║")
+        print("║                                                                          ║")
+        print("║  ✅ DO:                                                                  ║")
+        print(f"║     • Only modify status of {normalized_wp_id:<47} ║")
+        print(f"║     • Only mark subtasks belonging to {normalized_wp_id:<36} ║")
+        print("║     • Ignore git commits and status changes from other agents           ║")
+        print("║                                                                          ║")
+        print("║  ❌ DO NOT:                                                              ║")
+        print(f"║     • Change status of any WP other than {normalized_wp_id:<34} ║")
+        print("║     • React to or investigate other WPs' status changes                 ║")
+        print(f"║     • Mark subtasks that don't belong to {normalized_wp_id:<33} ║")
+        print("║                                                                          ║")
+        print("║  WHY: Multiple agents work in parallel. Each owns exactly ONE WP.       ║")
+        print("║       Git commits from other WPs are other agents - ignore them.        ║")
+        print("╚" + "=" * 78 + "╝")
         print()
 
         # Show next steps FIRST so agent sees them immediately
@@ -305,6 +375,7 @@ def implement(
         print("📋 STATUS TRACKING:")
         print(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in main)")
         print(f"   Status changes auto-commit to main branch (visible to all agents)")
+        print(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
         print("=" * 80)
         print()
 
@@ -552,6 +623,55 @@ def review(
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
         workspace_path = repo_root / ".worktrees" / workspace_name
 
+        # Ensure workspace exists (create if needed)
+        if not workspace_path.exists():
+            import subprocess
+
+            # Ensure .worktrees directory exists
+            worktrees_dir = repo_root / ".worktrees"
+            worktrees_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create worktree with sparse-checkout
+            branch_name = workspace_name
+            result = subprocess.run(
+                ["git", "worktree", "add", str(workspace_path), "-b", branch_name],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+
+            if result.returncode != 0:
+                print(f"Warning: Could not create workspace: {result.stderr}")
+            else:
+                # Configure sparse-checkout to exclude kitty-specs/
+                sparse_checkout_result = subprocess.run(
+                    ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
+                    cwd=workspace_path,
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                if sparse_checkout_result.returncode == 0:
+                    sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
+                    subprocess.run(["git", "config", "core.sparseCheckout", "true"], cwd=workspace_path, capture_output=True, check=False)
+                    subprocess.run(["git", "config", "core.sparseCheckoutCone", "false"], cwd=workspace_path, capture_output=True, check=False)
+                    sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
+                    sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
+                    subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
+
+                    # Add .gitignore to prevent manual kitty-specs/ additions
+                    gitignore_path = workspace_path / ".gitignore"
+                    gitignore_entry = "# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n"
+                    if gitignore_path.exists():
+                        content = gitignore_path.read_text(encoding="utf-8")
+                        if "kitty-specs/" not in content:
+                            gitignore_path.write_text(content.rstrip() + "\n" + gitignore_entry, encoding="utf-8")
+                    else:
+                        gitignore_path.write_text(gitignore_entry, encoding="utf-8")
+
+                print(f"✓ Created workspace: {workspace_path}")
+
         _warn_dependents_in_progress(repo_root, feature_slug, normalized_wp_id)
 
         # Output the prompt
@@ -562,6 +682,26 @@ def review(
         print(f"Source: {wp.path}")
         print()
         print(f"Workspace: {workspace_path}")
+        print()
+
+        # CRITICAL: WP isolation rules - must come first
+        print("╔" + "=" * 78 + "╗")
+        print("║  🚨 CRITICAL: WORK PACKAGE ISOLATION RULES                              ║")
+        print("╠" + "=" * 78 + "╣")
+        print(f"║  YOU ARE REVIEWING: {normalized_wp_id:<56} ║")
+        print("║                                                                          ║")
+        print("║  ✅ DO:                                                                  ║")
+        print(f"║     • Only modify status of {normalized_wp_id:<47} ║")
+        print("║     • Ignore git commits and status changes from other agents           ║")
+        print("║                                                                          ║")
+        print("║  ❌ DO NOT:                                                              ║")
+        print(f"║     • Change status of any WP other than {normalized_wp_id:<34} ║")
+        print("║     • React to or investigate other WPs' status changes                 ║")
+        print(f"║     • Review or approve any WP other than {normalized_wp_id:<32} ║")
+        print("║                                                                          ║")
+        print("║  WHY: Multiple agents work in parallel. Each owns exactly ONE WP.       ║")
+        print("║       Git commits from other WPs are other agents - ignore them.        ║")
+        print("╚" + "=" * 78 + "╝")
         print()
 
         # Show next steps FIRST so agent sees them immediately
@@ -585,6 +725,7 @@ def review(
         print("📋 STATUS TRACKING:")
         print(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in main)")
         print(f"   Status changes auto-commit to main branch (visible to all agents)")
+        print(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
         print("=" * 80)
         print()
         print("Review the implementation against the requirements below.")

@@ -160,6 +160,9 @@ class TestImplementCommand:
             "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
         )
 
+        # Workspace path that will be "created"
+        workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
+
         with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
             mock_repo_root.return_value = tmp_path
 
@@ -167,20 +170,28 @@ class TestImplementCommand:
                 mock_detect.return_value = ("010", "010-feature")
 
                 with patch("subprocess.run") as mock_run:
-                    # Mock git commands
-                    mock_run.return_value = MagicMock(
-                        returncode=0,
-                        stdout=b"",
-                        stderr=b""
-                    )
+                    # Mock git commands with proper string output (text=True)
+                    def run_side_effect(cmd, *args, **kwargs):
+                        if "worktree" in cmd and "add" in cmd:
+                            # Simulate worktree creation
+                            workspace_path.mkdir(parents=True, exist_ok=True)
+                            return MagicMock(returncode=0, stdout="", stderr="")
+                        elif "rev-parse" in cmd and "--git-path" in cmd:
+                            # Return sparse-checkout file path
+                            sparse_path = workspace_path / ".git" / "info" / "sparse-checkout"
+                            return MagicMock(returncode=0, stdout=str(sparse_path))
+                        return MagicMock(returncode=0, stdout="", stderr="")
+
+                    mock_run.side_effect = run_side_effect
 
                     # Run implement
                     implement("WP01", base=None)
 
                     # Verify git worktree add was called
+                    # Filter specifically for worktree add command (not just any call with "worktree" in cwd)
                     worktree_calls = [
                         c for c in mock_run.call_args_list
-                        if "worktree" in str(c)
+                        if c[0][0][0:3] == ["git", "worktree", "add"]
                     ]
                     assert len(worktree_calls) > 0
 
@@ -207,6 +218,9 @@ class TestImplementCommand:
         base_workspace = tmp_path / ".worktrees" / "010-feature-WP01"
         base_workspace.mkdir(parents=True)
 
+        # Workspace path that will be "created"
+        workspace_path = tmp_path / ".worktrees" / "010-feature-WP02"
+
         with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
             mock_repo_root.return_value = tmp_path
 
@@ -214,18 +228,23 @@ class TestImplementCommand:
                 mock_detect.return_value = ("010", "010-feature")
 
                 with patch("subprocess.run") as mock_run:
-                    # Mock different git commands
+                    # Mock different git commands with proper string output
                     def run_side_effect(cmd, *args, **kwargs):
                         if "rev-parse" in cmd and "--git-dir" in cmd:
                             # Validating worktree
-                            return MagicMock(returncode=0)
+                            return MagicMock(returncode=0, stdout="")
                         elif "rev-parse" in cmd and "--verify" in cmd:
                             # Verifying base branch exists
-                            return MagicMock(returncode=0)
+                            return MagicMock(returncode=0, stdout="")
+                        elif "rev-parse" in cmd and "--git-path" in cmd:
+                            # Return sparse-checkout file path
+                            sparse_path = workspace_path / ".git" / "info" / "sparse-checkout"
+                            return MagicMock(returncode=0, stdout=str(sparse_path))
                         elif "worktree" in cmd and "add" in cmd:
-                            # Creating worktree
-                            return MagicMock(returncode=0, stdout=b"", stderr=b"")
-                        return MagicMock(returncode=0)
+                            # Creating worktree - simulate directory creation
+                            workspace_path.mkdir(parents=True, exist_ok=True)
+                            return MagicMock(returncode=0, stdout="", stderr="")
+                        return MagicMock(returncode=0, stdout="")
 
                     mock_run.side_effect = run_side_effect
 
@@ -321,6 +340,9 @@ class TestImplementCommand:
             "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
         )
 
+        # Workspace path that will be "created"
+        workspace_path = tmp_path / ".worktrees" / "010-workspace-per-wp-WP01"
+
         with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
             mock_repo_root.return_value = tmp_path
 
@@ -328,7 +350,19 @@ class TestImplementCommand:
                 mock_detect.return_value = ("010", "010-workspace-per-wp")
 
                 with patch("subprocess.run") as mock_run:
-                    mock_run.return_value = MagicMock(returncode=0, stdout=b"", stderr=b"")
+                    # Mock git commands with proper string output (text=True)
+                    def run_side_effect(cmd, *args, **kwargs):
+                        if "worktree" in cmd and "add" in cmd:
+                            # Simulate worktree creation
+                            workspace_path.mkdir(parents=True, exist_ok=True)
+                            return MagicMock(returncode=0, stdout="", stderr="")
+                        elif "rev-parse" in cmd and "--git-path" in cmd:
+                            # Return sparse-checkout file path
+                            sparse_path = workspace_path / ".git" / "info" / "sparse-checkout"
+                            return MagicMock(returncode=0, stdout=str(sparse_path))
+                        return MagicMock(returncode=0, stdout="", stderr="")
+
+                    mock_run.side_effect = run_side_effect
 
                     # Run implement
                     implement("WP01", base=None)

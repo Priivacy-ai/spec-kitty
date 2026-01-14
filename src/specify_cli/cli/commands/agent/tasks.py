@@ -107,7 +107,9 @@ def _find_feature_slug() -> str:
         pass
 
     # Strategy 2: Auto-detect highest-numbered feature in kitty-specs
-    kitty_specs_dir = repo_root / "kitty-specs"
+    # Use main repo (worktrees have kitty-specs/ sparse-checked out)
+    main_repo_root = _get_main_repo_root(repo_root)
+    kitty_specs_dir = main_repo_root / "kitty-specs"
     if kitty_specs_dir.is_dir():
         candidates = []
         for path in kitty_specs_dir.iterdir():
@@ -170,7 +172,9 @@ def _check_unchecked_subtasks(
     Raises:
         typer.Exit: If unchecked tasks found and force=False
     """
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    # Use main repo (worktrees have kitty-specs/ sparse-checked out)
+    main_repo_root = _get_main_repo_root(repo_root)
+    feature_dir = main_repo_root / "kitty-specs" / feature_slug
     tasks_md = feature_dir / "tasks.md"
 
     if not tasks_md.exists():
@@ -228,7 +232,9 @@ def _check_dependent_warnings(
     if json_mode:
         return
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    # Use main repo (worktrees have kitty-specs/ sparse-checked out)
+    main_repo_root = _get_main_repo_root(repo_root)
+    feature_dir = main_repo_root / "kitty-specs" / feature_slug
 
     # Build dependency graph
     try:
@@ -312,6 +318,22 @@ def move_task(
         # Load work package first (needed for current_lane check)
         wp = locate_work_package(repo_root, feature_slug, task_id)
         old_lane = wp.current_lane
+
+        # AGENT OWNERSHIP CHECK: Warn if agent doesn't match WP's current agent
+        # This helps prevent agents from accidentally modifying WPs they don't own
+        current_agent = extract_scalar(wp.frontmatter, "agent")
+        if current_agent and agent and current_agent != agent and not force:
+            if not json_output:
+                console.print()
+                console.print("[bold red]⚠️  AGENT OWNERSHIP WARNING[/bold red]")
+                console.print(f"   {task_id} is currently assigned to: [cyan]{current_agent}[/cyan]")
+                console.print(f"   You are trying to move it as: [yellow]{agent}[/yellow]")
+                console.print()
+                console.print("   If you are the correct agent, use --force to override.")
+                console.print("   If not, you may be modifying the wrong WP!")
+                console.print()
+            _output_error(json_output, f"Agent mismatch: {task_id} is assigned to '{current_agent}', not '{agent}'. Use --force to override.")
+            raise typer.Exit(1)
 
         # Validate review feedback when moving to planned (likely from review)
         if target_lane == "planned" and old_lane == "for_review" and not review_feedback_file and not force:
@@ -498,22 +520,39 @@ def move_task(
 
 @app.command(name="mark-status")
 def mark_status(
-    task_id: Annotated[str, typer.Argument(help="Task ID (e.g., T001)")],
+    task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to main branch")] = True,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
-    """Update task checkbox status in tasks.md.
+    """Update task checkbox status in tasks.md for one or more tasks.
+
+    Accepts MULTIPLE task IDs separated by spaces. All tasks are updated
+    in a single operation with one commit.
 
     Examples:
-        spec-kitty agent tasks mark-status T001 --status done --json
-        spec-kitty agent tasks mark-status T002 --status pending
+        # Single task:
+        spec-kitty agent tasks mark-status T001 --status done
+
+        # Multiple tasks (space-separated):
+        spec-kitty agent tasks mark-status T001 T002 T003 --status done
+
+        # Many tasks at once:
+        spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done --feature 001-my-feature
+
+        # With JSON output:
+        spec-kitty agent tasks mark-status T001 T002 --status done --json
     """
     try:
         # Validate status
         if status not in ("done", "pending"):
             _output_error(json_output, f"Invalid status '{status}'. Must be 'done' or 'pending'.")
+            raise typer.Exit(1)
+
+        # Validate we have at least one task
+        if not task_ids:
+            _output_error(json_output, "At least one task ID is required")
             raise typer.Exit(1)
 
         # Get repo root and feature slug
@@ -523,7 +562,9 @@ def mark_status(
             raise typer.Exit(1)
 
         feature_slug = feature or _find_feature_slug()
-        feature_dir = repo_root / "kitty-specs" / feature_slug
+        # Use main repo root (worktrees have kitty-specs/ sparse-checked out)
+        main_repo_root = _get_main_repo_root(repo_root)
+        feature_dir = main_repo_root / "kitty-specs" / feature_slug
         tasks_md = feature_dir / "tasks.md"
 
         if not tasks_md.exists():
@@ -533,43 +574,49 @@ def mark_status(
         # Read tasks.md content
         content = tasks_md.read_text(encoding="utf-8")
         lines = content.split('\n')
-        updated = False
         new_checkbox = "[x]" if status == "done" else "[ ]"
 
-        # Find and update the task checkbox
-        # Look for patterns like: - [ ] T001 or - [x] T001
-        for i, line in enumerate(lines):
-            # Match checkbox lines with this task ID
-            if re.search(rf'-\s*\[[ x]\]\s*{re.escape(task_id)}\b', line):
-                # Replace the checkbox
-                lines[i] = re.sub(r'-\s*\[[ x]\]', f'- {new_checkbox}', line)
-                updated = True
-                break
+        # Track which tasks were updated and which weren't found
+        updated_tasks = []
+        not_found_tasks = []
 
-        if not updated:
-            _output_error(json_output, f"Task ID '{task_id}' not found in tasks.md")
+        # Update all requested tasks in a single pass
+        for task_id in task_ids:
+            task_found = False
+            for i, line in enumerate(lines):
+                # Match checkbox lines with this task ID
+                if re.search(rf'-\s*\[[ x]\]\s*{re.escape(task_id)}\b', line):
+                    # Replace the checkbox
+                    lines[i] = re.sub(r'-\s*\[[ x]\]', f'- {new_checkbox}', line)
+                    updated_tasks.append(task_id)
+                    task_found = True
+                    break
+
+            if not task_found:
+                not_found_tasks.append(task_id)
+
+        # Fail if no tasks were updated
+        if not updated_tasks:
+            _output_error(json_output, f"No task IDs found in tasks.md: {', '.join(not_found_tasks)}")
             raise typer.Exit(1)
 
-        # Write updated content
+        # Write updated content (single write for all changes)
         updated_content = '\n'.join(lines)
         tasks_md.write_text(updated_content, encoding="utf-8")
 
-        # Auto-commit to main branch (worktrees use sparse-checkout, tasks.md always in main)
+        # Auto-commit to main branch (single commit for all tasks)
         if auto_commit:
             import subprocess
 
-            # Get the ACTUAL main repo root (not worktree path)
-            main_repo_root = _get_main_repo_root(repo_root)
-
-            commit_msg = f"chore: Mark {task_id} as {status}"
+            # Build commit message
+            if len(updated_tasks) == 1:
+                commit_msg = f"chore: Mark {updated_tasks[0]} as {status}"
+            else:
+                commit_msg = f"chore: Mark {len(updated_tasks)} subtasks as {status}"
 
             try:
-                # tasks_md already points to main's kitty-specs/tasks.md (absolute path)
-                # Worktrees excluded kitty-specs/ via sparse-checkout
                 actual_tasks_path = tasks_md.resolve()
 
-                # Commit the specific tasks.md file directly (bypasses staging area)
-                # This works even if other files in main are modified
                 commit_result = subprocess.run(
                     ["git", "commit", str(actual_tasks_path), "-m", commit_msg],
                     cwd=main_repo_root,
@@ -580,29 +627,34 @@ def mark_status(
 
                 if commit_result.returncode == 0:
                     if not json_output:
-                        console.print(f"[cyan]→ Committed subtask change to main branch[/cyan]")
+                        console.print(f"[cyan]→ Committed subtask changes to main branch[/cyan]")
                 elif "nothing to commit" not in commit_result.stdout:
-                    # Real error, not just "nothing to commit"
                     if not json_output:
                         console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
 
             except Exception as e:
-                # Unexpected error
                 if not json_output:
                     console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
 
+        # Build result
         result = {
             "result": "success",
-            "task_id": task_id,
+            "updated": updated_tasks,
+            "not_found": not_found_tasks,
             "status": status,
-            "note": "Checkbox status updated in tasks.md"
+            "count": len(updated_tasks)
         }
 
-        _output_result(
-            json_output,
-            result,
-            f"[green]✓[/green] Marked {task_id} as {status}"
-        )
+        # Output result
+        if not_found_tasks and not json_output:
+            console.print(f"[yellow]Warning:[/yellow] Not found: {', '.join(not_found_tasks)}")
+
+        if len(updated_tasks) == 1:
+            success_msg = f"[green]✓[/green] Marked {updated_tasks[0]} as {status}"
+        else:
+            success_msg = f"[green]✓[/green] Marked {len(updated_tasks)} subtasks as {status}: {', '.join(updated_tasks)}"
+
+        _output_result(json_output, result, success_msg)
 
     except Exception as e:
         _output_error(json_output, str(e))
@@ -630,8 +682,11 @@ def list_tasks(
 
         feature_slug = feature or _find_feature_slug()
 
+        # Use main repo (worktrees have kitty-specs/ sparse-checked out)
+        main_repo_root = _get_main_repo_root(repo_root)
+
         # Find all task files
-        tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+        tasks_dir = main_repo_root / "kitty-specs" / feature_slug / "tasks"
         if not tasks_dir.exists():
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
@@ -761,7 +816,9 @@ def finalize_tasks(
             raise typer.Exit(1)
 
         feature_slug = feature or _find_feature_slug()
-        feature_dir = repo_root / "kitty-specs" / feature_slug
+        # Use main repo (worktrees have kitty-specs/ sparse-checked out)
+        main_repo_root = _get_main_repo_root(repo_root)
+        feature_dir = main_repo_root / "kitty-specs" / feature_slug
         tasks_md = feature_dir / "tasks.md"
         tasks_dir = feature_dir / "tasks"
 
