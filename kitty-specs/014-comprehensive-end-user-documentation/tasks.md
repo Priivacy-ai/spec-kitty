@@ -234,7 +234,7 @@ description: "Work package task list for comprehensive end-user documentation"
 - [x] T031 [P] Create `docs/explanation/spec-driven-development.md` - philosophy and methodology
 - [x] T032 [P] Create `docs/explanation/divio-documentation.md` - why we use Divio 4-type system
 - [x] T033 [P] Migrate/update `docs/explanation/workspace-per-wp.md` - 0.11.0 model explained
-- [ ] T034 [P] Create `docs/explanation/git-worktrees.md` - git worktrees for spec-kitty users
+- [x] T034 [P] Create `docs/explanation/git-worktrees.md` - git worktrees for spec-kitty users
 - [ ] T035 [P] Create `docs/explanation/mission-system.md` - why missions exist, how they work
 - [ ] T036 [P] Create `docs/explanation/kanban-workflow.md` - planned → doing → for_review → done
 - [ ] T037 [P] Create `docs/explanation/ai-agent-architecture.md` - how slash commands work across agents
