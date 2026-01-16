@@ -5,6 +5,14 @@
 # Tutorials - Learning-oriented
 - name: Tutorials
   items:
+    - name: Getting Started
+      href: tutorials/getting-started.md
+    - name: Your First Feature
+      href: tutorials/your-first-feature.md
+    - name: Multi-Agent Workflow
+      href: tutorials/multi-agent-workflow.md
+    - name: Missions Overview
+      href: tutorials/missions-overview.md
     - name: Claude Code Integration
       href: tutorials/claude-code-integration.md
     - name: Claude Code Workflow
@@ -15,6 +23,24 @@
   items:
     - name: Install & Upgrade
       href: how-to/install-spec-kitty.md
+    - name: Create a Specification
+      href: how-to/create-specification.md
+    - name: Create a Plan
+      href: how-to/create-plan.md
+    - name: Generate Tasks
+      href: how-to/generate-tasks.md
+    - name: Implement a Work Package
+      href: how-to/implement-work-package.md
+    - name: Review Work Packages
+      href: how-to/review-work-package.md
+    - name: Accept and Merge
+      href: how-to/accept-and-merge.md
+    - name: Handle Dependencies
+      href: how-to/handle-dependencies.md
+    - name: Parallel Development
+      href: how-to/parallel-development.md
+    - name: Switch Missions
+      href: how-to/switch-missions.md
     - name: Use the Dashboard
       href: how-to/use-dashboard.md
     - name: Upgrade to 0.11.0
