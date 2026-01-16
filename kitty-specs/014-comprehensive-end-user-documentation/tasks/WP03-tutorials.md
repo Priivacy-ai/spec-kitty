@@ -7,7 +7,7 @@ subtasks:
   - "T011"
 title: "Tutorials"
 phase: "Phase 1 - Content Creation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "__AGENT__"
 shell_pid: "26746"
@@ -253,3 +253,4 @@ history:
 
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-16T16:30:42Z – __AGENT__ – shell_pid=26746 – lane=doing – Started implementation via workflow command
+- 2026-01-16T16:36:58Z – __AGENT__ – shell_pid=26746 – lane=for_review – Ready for review: added four tutorials with step-by-step workflows, troubleshooting, and cross-links.
