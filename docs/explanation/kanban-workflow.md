@@ -56,11 +56,12 @@ Work packages move through four lanes during their lifecycle:
 **Meaning**: Work package has been reviewed and accepted.
 
 **How it gets here**:
-- Reviewer approves with `/spec-kitty.accept WP01`
+- Reviewer moves WP after approval: `spec-kitty agent tasks move-task WP01 --to done`
 
 **What happens**:
 - WP branch is ready for merging
 - No further changes expected
+- Once ALL WPs are in `done`, run `/spec-kitty.accept` to validate the entire feature
 
 ## How Work Moves Between Lanes
 
@@ -78,9 +79,10 @@ Work packages move through four lanes during their lifecycle:
    └── spec-kitty agent tasks move-task WP01 --to for_review --note "Ready"
    └── lane: for_review
 
-4. Reviewer approves
-   └── /spec-kitty.accept WP01
+4. Reviewer approves and moves WP
+   └── spec-kitty agent tasks move-task WP01 --to done
    └── lane: done
+   └── (Once ALL WPs are done: /spec-kitty.accept validates entire feature)
 ```
 
 ### Review Feedback: for_review → planned (with feedback)
@@ -174,8 +176,11 @@ Commands:
 # Review a WP (opens review workflow)
 /spec-kitty.review WP01
 
-# Accept after review passes
-/spec-kitty.accept WP01
+# Move WP to done after review passes
+spec-kitty agent tasks move-task WP01 --to done
+
+# Once ALL WPs are done, validate entire feature
+/spec-kitty.accept
 ```
 
 ### Users/Orchestrators Can Move Anything
@@ -212,7 +217,7 @@ history:
   - timestamp: "2026-01-15T15:00:00Z"
     lane: "done"
     agent: "reviewer"
-    action: "Approved via /spec-kitty.accept"
+    action: "Approved and moved to done"
 ```
 
 ### Why Track Activity?

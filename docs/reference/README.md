@@ -8,11 +8,16 @@ Reference docs are:
 - Structured consistently
 - "What it is, not what to do with it"
 
-## Planned Content
+## Contents
 
-- CLI command reference (all commands, flags, options)
-- Configuration reference (all config options)
-- Frontmatter schema reference (WP metadata fields)
+- [CLI Commands](cli-commands.md) - All commands, flags, and options
+- [Slash Commands](slash-commands.md) - All `/spec-kitty.*` commands
+- [Agent Subcommands](agent-subcommands.md) - `spec-kitty agent *` commands
+- [Configuration](configuration.md) - All configuration options
+- [Environment Variables](environment-variables.md) - All environment variables
+- [File Structure](file-structure.md) - Directory layout and file purposes
+- [Missions](missions.md) - Mission types and configuration
+- [Supported Agents](supported-agents.md) - All 12 supported AI agents
 
 ## See Also
 

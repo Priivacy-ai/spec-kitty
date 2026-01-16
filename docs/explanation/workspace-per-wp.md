@@ -181,7 +181,9 @@ If review feedback requires changes, WP02 will need rebase
 
 **2. Merge completed WPs**
 ```bash
-spec-kitty merge 011-user-authentication-system
+# Run from any WP worktree for the feature
+cd .worktrees/011-user-authentication-system-WP01/
+spec-kitty merge
 ```
 Merges all completed WP branches to main, removes worktrees.
 

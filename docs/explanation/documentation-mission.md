@@ -876,12 +876,16 @@ Mission-specific commands customize behavior:
 - `/spec-kitty.implement` generates docs from templates and invokes generators
 - `/spec-kitty.review` validates Divio adherence, accessibility, completeness
 
-## Next Steps
+## Implementation Details
 
-- Explore the [mission configuration](../src/specify_cli/missions/documentation/mission.yaml)
-- Review [gap analysis implementation](../src/specify_cli/gap_analysis.py)
-- Check [generator implementations](../src/specify_cli/doc_generators.py)
-- Read [state management code](../src/specify_cli/doc_state.py)
+For contributors interested in the implementation:
+
+- **Mission configuration**: `src/specify_cli/missions/documentation/mission.yaml`
+- **Gap analysis**: `src/specify_cli/gap_analysis.py`
+- **Generator implementations**: `src/specify_cli/doc_generators.py`
+- **State management**: `src/specify_cli/doc_state.py`
+
+These files are in the Spec Kitty source repository.
 
 ## Try It
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
