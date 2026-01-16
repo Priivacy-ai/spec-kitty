@@ -58,7 +58,7 @@ description: "Work package task list for comprehensive end-user documentation"
 
 ### Included Subtasks
 - [x] T005 Rewrite `docs/index.md` as landing page with Divio navigation
-- [ ] T006 Update `docs/toc.yml` for Divio 4-type structure
+- [x] T006 Update `docs/toc.yml` for Divio 4-type structure
 - [ ] T007 Verify DocFX build with new structure
 
 ### Implementation Notes
