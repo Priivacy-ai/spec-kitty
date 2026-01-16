@@ -6,7 +6,7 @@ subtasks:
   - "T007"
 title: "Landing Page & Navigation"
 phase: "Phase 0 - Foundation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
 shell_pid: "21325"
@@ -187,3 +187,4 @@ history:
 
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-16T16:26:50Z – claude – shell_pid=21325 – lane=doing – Started implementation via workflow command
+- 2026-01-16T16:29:13Z – claude – shell_pid=21325 – lane=for_review – All subtasks complete: Landing page rewritten (108 lines), toc.yml updated with Divio structure, docfx.json configured for subdirectories. DocFX not installed locally but config is correct.
