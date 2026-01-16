@@ -78,31 +78,6 @@ Spec Kitty includes a **live dashboard** for real-time progress tracking:
   <p><em>Feature overview with completion metrics</em></p>
 </div>
 
----
 
-## Quick Start
 
-```bash
-# Install
-pip install spec-kitty-cli
-
-# Initialize a new project
-spec-kitty init my-project --ai claude
-cd my-project
-
-# Launch your AI agent and use slash commands
-/spec-kitty.specify Add user authentication with email/password
-/spec-kitty.plan
-/spec-kitty.tasks
-/spec-kitty.implement
-```
-
-**Next step:** [Getting Started Tutorial](tutorials/getting-started.md)
-
----
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/anthropics/spec-kitty/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/anthropics/spec-kitty/discussions)
-
+**Ready to start?** [Getting Started Tutorial →](tutorials/getting-started.md)
