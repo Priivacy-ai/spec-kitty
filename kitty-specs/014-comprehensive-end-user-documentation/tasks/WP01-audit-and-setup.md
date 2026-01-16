@@ -7,12 +7,12 @@ subtasks:
   - "T004"
 title: "Audit & Directory Setup"
 phase: "Phase 0 - Foundation"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "codex"
 shell_pid: "20390"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 dependencies: []
 history:
   - timestamp: "2026-01-16T16:16:58Z"
@@ -35,9 +35,25 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-16
 
----
+**Issue 1: Broken internal links after moves (must update link targets)**
+- docs/how-to/upgrade-to-0-11-0.md:132 and docs/how-to/upgrade-to-0-11-0.md:511 still reference `workspace-per-wp.md`, which moved to `docs/explanation/workspace-per-wp.md`.
+- docs/explanation/workspace-per-wp.md:557 and docs/explanation/workspace-per-wp.md:567 still reference `upgrading-to-0-11-0.md`, which moved to `docs/how-to/upgrade-to-0-11-0.md`.
+- docs/explanation/multi-agent-orchestration.md:63 and docs/explanation/multi-agent-orchestration.md:65 still reference `kanban-dashboard-guide.md` and `claude-code-workflow.md` which moved to `docs/how-to/use-dashboard.md` and `docs/tutorials/claude-code-workflow.md`.
+- docs/tutorials/claude-code-integration.md:605 and docs/tutorials/claude-code-integration.md:607 still reference `kanban-dashboard-guide.md` and `multi-agent-orchestration.md`, now in `docs/how-to/use-dashboard.md` and `docs/explanation/multi-agent-orchestration.md`.
+Please update these links to correct relative paths so the “no broken internal links” checklist item is satisfied.
+
+**Issue 2: Reference directory missing placeholder**
+- `docs/reference/` is empty with no `.gitkeep` or placeholder README. WP01 requires a placeholder in each new Divio directory.
+
+**Issue 3: Removed files not covered by audit/removal decisions**
+- The commit deletes `docs/ARCHITECTURE.md`, `docs/CONTEXT_SWITCHING_GUIDE.md`, `docs/encoding-requirements.md`, `docs/encoding-validation.md`, `docs/plan-validation-guardrail.md`, `docs/spec-workflow-automation.md`, and `docs/task-metadata-validation.md`.
+- These aren’t listed in the “Files to REMOVE” section of `kitty-specs/014-comprehensive-end-user-documentation/research.md` and were marked “Unknown/Audit” earlier.
+Please either restore them or update the audit findings to explicitly classify and justify their removal.
+
 
 ## Objectives & Success Criteria
 
@@ -148,3 +164,4 @@ history:
 - 2026-01-16T16:24:16Z – claude – shell_pid=19353 – lane=doing – Started implementation via workflow command
 - 2026-01-16T16:26:26Z – claude – shell_pid=19353 – lane=for_review – All subtasks complete: Divio structure created, outdated docs removed, salvageable content migrated. Ready for review.
 - 2026-01-16T16:27:00Z – codex – shell_pid=20390 – lane=doing – Started review via workflow command
+- 2026-01-16T16:29:21Z – codex – shell_pid=20390 – lane=planned – Moved to planned
