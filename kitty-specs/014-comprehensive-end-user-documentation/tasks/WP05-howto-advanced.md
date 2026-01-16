@@ -7,7 +7,7 @@ subtasks:
   - "T022"
 title: "How-To Guides - Advanced Workflow"
 phase: "Phase 1 - Content Creation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "__AGENT__"
 shell_pid: "25767"
@@ -264,3 +264,4 @@ history:
 
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-16T16:31:00Z – __AGENT__ – shell_pid=25767 – lane=doing – Started implementation via workflow command
+- 2026-01-16T16:34:00Z – __AGENT__ – shell_pid=25767 – lane=for_review – Ready for review: added advanced how-to guides for dependencies, missions, dashboard, and parallel development
