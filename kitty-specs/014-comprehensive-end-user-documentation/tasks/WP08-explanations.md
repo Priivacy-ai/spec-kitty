@@ -10,7 +10,7 @@ subtasks:
   - "T037"
 title: "Explanations"
 phase: "Phase 1 - Content Creation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
 shell_pid: "29947"
@@ -269,6 +269,7 @@ history:
 - **Files**: `docs/explanation/ai-agent-architecture.md`
 - **Parallel?**: Yes
 - 2026-01-16T16:31:39Z – claude – shell_pid=29947 – lane=doing – Started implementation via workflow command
+- 2026-01-16T16:38:55Z – claude – shell_pid=29947 – lane=for_review – Ready for review: All 7 explanation documents created - spec-driven-development.md, divio-documentation.md, workspace-per-wp.md (migrated), git-worktrees.md, mission-system.md, kanban-workflow.md, ai-agent-architecture.md
 
 ## Risks & Mitigations
 
