@@ -118,7 +118,7 @@ description: "Work package task list for comprehensive end-user documentation"
 - [x] T014 [P] Create `docs/how-to/create-plan.md` - /spec-kitty.plan workflow
 - [x] T015 [P] Create `docs/how-to/generate-tasks.md` - /spec-kitty.tasks workflow
 - [x] T016 [P] Create `docs/how-to/implement-work-package.md` - /spec-kitty.implement workflow
-- [ ] T017 [P] Create `docs/how-to/review-work-package.md` - /spec-kitty.review workflow
+- [x] T017 [P] Create `docs/how-to/review-work-package.md` - /spec-kitty.review workflow
 - [ ] T018 [P] Create `docs/how-to/accept-and-merge.md` - /spec-kitty.accept + /spec-kitty.merge
 
 ### Implementation Notes
