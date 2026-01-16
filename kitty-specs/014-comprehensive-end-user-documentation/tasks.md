@@ -267,7 +267,7 @@ description: "Work package task list for comprehensive end-user documentation"
 **Prompt**: `tasks/WP09-cross-references.md`
 
 ### Included Subtasks
-- [ ] T038 Add cross-references to all tutorial docs
+- [x] T038 Add cross-references to all tutorial docs
 - [ ] T039 Add cross-references to all how-to docs
 - [ ] T040 Add cross-references to all reference docs
 - [ ] T041 Add cross-references to all explanation docs
