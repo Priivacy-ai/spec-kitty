@@ -7,7 +7,7 @@ subtasks:
   - "T004"
 title: "Audit & Directory Setup"
 phase: "Phase 0 - Foundation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
 shell_pid: "19353"
@@ -146,3 +146,4 @@ history:
 
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-16T16:24:16Z – claude – shell_pid=19353 – lane=doing – Started implementation via workflow command
+- 2026-01-16T16:26:26Z – claude – shell_pid=19353 – lane=for_review – All subtasks complete: Divio structure created, outdated docs removed, salvageable content migrated. Ready for review.
