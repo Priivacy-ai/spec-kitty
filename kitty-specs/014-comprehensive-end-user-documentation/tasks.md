@@ -145,7 +145,7 @@ description: "Work package task list for comprehensive end-user documentation"
 
 ### Included Subtasks
 - [x] T019 [P] Create `docs/how-to/handle-dependencies.md` - WP dependencies and --base flag
-- [ ] T020 [P] Create `docs/how-to/switch-missions.md` - per-feature mission selection
+- [x] T020 [P] Create `docs/how-to/switch-missions.md` - per-feature mission selection
 - [ ] T021 [P] Create `docs/how-to/use-dashboard.md` - real-time kanban dashboard usage
 - [ ] T022 [P] Create `docs/how-to/parallel-development.md` - multiple agents working on multiple WPs simultaneously
 
