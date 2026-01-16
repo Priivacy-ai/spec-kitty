@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Cross-References & Links
-lane: planned
+lane: "doing"
 dependencies:
 - WP03
 subtasks:
@@ -12,8 +12,8 @@ subtasks:
 - T042
 phase: Phase 2 - Polish
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "__AGENT__"
+shell_pid: "25767"
 review_status: ''
 reviewed_by: ''
 history:
@@ -194,3 +194,4 @@ history:
 ## Activity Log
 
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
+- 2026-01-16T17:42:56Z – __AGENT__ – shell_pid=25767 – lane=doing – Started implementation via workflow command
