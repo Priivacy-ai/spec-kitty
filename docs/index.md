@@ -72,7 +72,6 @@ Spec Kitty includes a **live dashboard** for real-time progress tracking:
   <p><em>Feature overview with completion metrics</em></p>
 </div>
 
----
 
 ## Quick Start
 
@@ -91,7 +90,7 @@ cd my-project
 /spec-kitty.implement
 ```
 
-**Next step:** [Claude Code Integration Tutorial](tutorials/claude-code-integration.md)
+**Ready to start?** [Getting Started Tutorial →](tutorials/getting-started.md)
 
 ---
 
