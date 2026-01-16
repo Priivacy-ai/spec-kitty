@@ -31,7 +31,7 @@ description: "Work package task list for comprehensive end-user documentation"
 ### Included Subtasks
 - [x] T001 Audit all existing docs in `docs/` - rate accuracy, classify by Divio type
 - [x] T002 Create Divio directory structure (`tutorials/`, `how-to/`, `reference/`, `explanation/`)
-- [ ] T003 Remove outdated/out-of-scope docs (testing-guidelines.md, local-development.md, etc.)
+- [x] T003 Remove outdated/out-of-scope docs (testing-guidelines.md, local-development.md, etc.)
 - [ ] T004 Migrate salvageable content to appropriate Divio locations (preserve workspace-per-wp.md, upgrading-to-0-11-0.md)
 
 ### Implementation Notes
