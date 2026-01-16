@@ -8,7 +8,7 @@ subtasks:
   - "T030"
 title: "Reference - Configuration & Structure"
 phase: "Phase 1 - Content Creation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
 shell_pid: "29749"
@@ -274,3 +274,4 @@ history:
 
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-16T16:31:33Z – claude – shell_pid=29749 – lane=doing – Started implementation via workflow command
+- 2026-01-16T16:35:15Z – claude – shell_pid=29749 – lane=for_review – All 5 reference docs created: configuration.md, environment-variables.md, file-structure.md, missions.md, supported-agents.md
