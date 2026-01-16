@@ -7,7 +7,7 @@ subtasks:
   - "T004"
 title: "Audit & Directory Setup"
 phase: "Phase 0 - Foundation"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "codex"
 shell_pid: "20390"
@@ -39,20 +39,21 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-16
 
-**Issue 1: Broken internal links after moves (must update link targets)**
-- docs/how-to/upgrade-to-0-11-0.md:132 and docs/how-to/upgrade-to-0-11-0.md:511 still reference `workspace-per-wp.md`, which moved to `docs/explanation/workspace-per-wp.md`.
-- docs/explanation/workspace-per-wp.md:557 and docs/explanation/workspace-per-wp.md:567 still reference `upgrading-to-0-11-0.md`, which moved to `docs/how-to/upgrade-to-0-11-0.md`.
-- docs/explanation/multi-agent-orchestration.md:63 and docs/explanation/multi-agent-orchestration.md:65 still reference `kanban-dashboard-guide.md` and `claude-code-workflow.md` which moved to `docs/how-to/use-dashboard.md` and `docs/tutorials/claude-code-workflow.md`.
-- docs/tutorials/claude-code-integration.md:605 and docs/tutorials/claude-code-integration.md:607 still reference `kanban-dashboard-guide.md` and `multi-agent-orchestration.md`, now in `docs/how-to/use-dashboard.md` and `docs/explanation/multi-agent-orchestration.md`.
-Please update these links to correct relative paths so the “no broken internal links” checklist item is satisfied.
+**Issue 1: No updates since prior review**
+- The WP01 branch has no new commits since the previous review and the earlier feedback has not been addressed.
 
-**Issue 2: Reference directory missing placeholder**
-- `docs/reference/` is empty with no `.gitkeep` or placeholder README. WP01 requires a placeholder in each new Divio directory.
+**Issue 2: Broken internal links remain**
+- docs/how-to/upgrade-to-0-11-0.md:132 and docs/how-to/upgrade-to-0-11-0.md:511 still reference `workspace-per-wp.md` (now in `docs/explanation/`).
+- docs/explanation/workspace-per-wp.md:557 and docs/explanation/workspace-per-wp.md:567 still reference `upgrading-to-0-11-0.md` (now in `docs/how-to/`).
+- docs/explanation/multi-agent-orchestration.md:63 and docs/explanation/multi-agent-orchestration.md:65 still reference `kanban-dashboard-guide.md` and `claude-code-workflow.md` (now in `docs/how-to/` and `docs/tutorials/`).
+- docs/tutorials/claude-code-integration.md:605 and docs/tutorials/claude-code-integration.md:607 still reference `kanban-dashboard-guide.md` and `multi-agent-orchestration.md` (now in `docs/how-to/` and `docs/explanation/`).
 
-**Issue 3: Removed files not covered by audit/removal decisions**
-- The commit deletes `docs/ARCHITECTURE.md`, `docs/CONTEXT_SWITCHING_GUIDE.md`, `docs/encoding-requirements.md`, `docs/encoding-validation.md`, `docs/plan-validation-guardrail.md`, `docs/spec-workflow-automation.md`, and `docs/task-metadata-validation.md`.
-- These aren’t listed in the “Files to REMOVE” section of `kitty-specs/014-comprehensive-end-user-documentation/research.md` and were marked “Unknown/Audit” earlier.
-Please either restore them or update the audit findings to explicitly classify and justify their removal.
+**Issue 3: Missing placeholder in docs/reference/**
+- `docs/reference/` is empty with no `.gitkeep` or placeholder README.
+
+**Issue 4: Unaccounted deletions in audit**
+- The removal of `docs/ARCHITECTURE.md`, `docs/CONTEXT_SWITCHING_GUIDE.md`, `docs/encoding-requirements.md`, `docs/encoding-validation.md`, `docs/plan-validation-guardrail.md`, `docs/spec-workflow-automation.md`, and `docs/task-metadata-validation.md` is still not justified in `kitty-specs/014-comprehensive-end-user-documentation/research.md`.
+Please either restore these files or update the audit findings to explicitly classify and justify their removal.
 
 
 ## Objectives & Success Criteria
@@ -168,3 +169,4 @@ Please either restore them or update the audit findings to explicitly classify a
 - 2026-01-16T16:30:18Z – test-agent – shell_pid=26533 – lane=doing – Started review via workflow command
 - 2026-01-16T16:30:27Z – test-agent – shell_pid=26533 – lane=for_review – Reverting test
 - 2026-01-16T16:32:50Z – codex – shell_pid=20390 – lane=doing – Started review via workflow command
+- 2026-01-16T16:33:13Z – codex – shell_pid=20390 – lane=planned – Moved to planned
