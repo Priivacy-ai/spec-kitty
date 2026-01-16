@@ -300,7 +300,7 @@ description: "Work package task list for comprehensive end-user documentation"
 - [x] T044 Verify all links work (internal and external)
 - [x] T045 Review all docs for consistency (tone, formatting, terminology)
 - [x] T046 Update docfx.json if needed for new structure
-- [ ] T047 Final review against spec.md success criteria
+- [x] T047 Final review against spec.md success criteria
 
 ### Implementation Notes
 - Run `docfx docs/docfx.json` to build locally
