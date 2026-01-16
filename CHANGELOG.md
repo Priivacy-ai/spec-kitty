@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-01-16
+
+### 🐛 Fixed
+
+**Merge Template Improvements**:
+- Added explicit preflight validation code using `python3 -c` with `validate_worktree_location()`
+- Added clear visual "⛔ Location Pre-flight Check (CRITICAL)" section to prevent agents running merge from wrong location
+- Fixed contradictory instructions in software-dev mission merge template (was incorrectly saying "run from main")
+- Fixed empty Python code block in research mission merge template that confused agents
+- Added workspace-per-WP model (0.11.0+) documentation vs legacy pattern in worktree strategy section
+
+**Documentation Accuracy** (Feature 014):
+- Rewrote `multi-agent-orchestration.md` for 0.11.0+ workspace-per-WP model:
+  - Planning happens in main repo (not worktrees)
+  - Each WP gets its own worktree (not shared)
+  - Removed references to non-existent scripts
+  - Updated lane tracking to frontmatter (not directories)
+  - Added parallelization patterns and status monitoring
+- Fixed `workspace-per-wp.md` merge command syntax (runs from worktree without feature argument)
+- Fixed `documentation-mission.md` broken source links
+- Fixed `reference/README.md` - replaced outdated "Planned Content" with actual content links
+- Fixed `kanban-workflow.md` - clarified `/spec-kitty.accept` works on features, not individual WPs
+
+### 📚 Added
+
+**Comprehensive End-User Documentation** (Feature 014):
+- Complete Divio 4-type documentation suite:
+  - **Tutorials**: Getting Started, Your First Feature, Claude Code Integration, Claude Code Workflow, Multi-Agent Workflow, Missions Overview
+  - **How-To Guides**: 14 task-oriented guides covering installation, specifications, planning, implementation, review, dependencies, parallel development, dashboard usage, and migration
+  - **Reference**: CLI Commands, Slash Commands, Agent Subcommands, Configuration, Environment Variables, File Structure, Missions, Supported Agents
+  - **Explanations**: Spec-Driven Development, Divio Documentation, Workspace-per-WP, Git Worktrees, Mission System, Kanban Workflow, AI Agent Architecture, Documentation Mission, Multi-Agent Orchestration
+- Cross-references between all documentation types
+- DocFX-compatible structure with `toc.yml` navigation
+
 ## [0.11.0] - 2026-01-12
 
 ### 🚨 BREAKING CHANGES - Workspace Model Changed (Feature 010)
