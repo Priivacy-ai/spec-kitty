@@ -20,23 +20,17 @@ Works with Claude Code, Cursor, Windsurf, Gemini CLI, GitHub Copilot, and 7 othe
 
 New to Spec Kitty? Start here to learn the fundamentals.
 
-- [Getting Started](tutorials/getting-started.md) — Install and run your first feature
-- [Your First Feature](tutorials/your-first-feature.md) — Complete end-to-end workflow
-- [Multi-Agent Workflow](tutorials/multi-agent-workflow.md) — Coordinate multiple AI agents
-- [Missions Overview](tutorials/missions-overview.md) — Choose the right mission type
+- [Claude Code Integration](tutorials/claude-code-integration.md) — Setup and first run
+- [Claude Code Workflow](tutorials/claude-code-workflow.md) — End-to-end workflow walkthrough
 
 ### 🔧 How-To Guides — Task-Oriented
 
 Solve specific problems with step-by-step instructions.
 
 - [Install & Upgrade](how-to/install-spec-kitty.md) — Installation methods and upgrades
-- [Create a Specification](how-to/create-specification.md) — Write effective specs
-- [Implement a Work Package](how-to/implement-work-package.md) — Execute tasks systematically
-- [Review Work Packages](how-to/review-work-package.md) — Quality review workflow
-- [Handle Dependencies](how-to/handle-dependencies.md) — Manage WP dependencies
-- [Parallel Development](how-to/parallel-development.md) — Run multiple WPs simultaneously
 - [Use the Dashboard](how-to/use-dashboard.md) — Monitor progress in real-time
 - [Upgrade to 0.11.0](how-to/upgrade-to-0-11-0.md) — Migration guide
+- [Non-Interactive Init](how-to/non-interactive-init.md) — Run init without prompts
 
 ### 📖 Reference — Information-Oriented
 
@@ -97,7 +91,7 @@ cd my-project
 /spec-kitty.implement
 ```
 
-**Next step:** [Getting Started Tutorial](tutorials/getting-started.md)
+**Next step:** [Claude Code Integration Tutorial](tutorials/claude-code-integration.md)
 
 ---
 
@@ -105,4 +99,3 @@ cd my-project
 
 - **Issues**: [GitHub Issues](https://github.com/anthropics/spec-kitty/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/anthropics/spec-kitty/discussions)
-

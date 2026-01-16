@@ -882,3 +882,14 @@ Mission-specific commands customize behavior:
 - Review [gap analysis implementation](../src/specify_cli/gap_analysis.py)
 - Check [generator implementations](../src/specify_cli/doc_generators.py)
 - Read [state management code](../src/specify_cli/doc_state.py)
+
+## Try It
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## How-To Guides
+- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
+
+## Reference
+- [Missions](../reference/missions.md)
+- [Configuration](../reference/configuration.md)

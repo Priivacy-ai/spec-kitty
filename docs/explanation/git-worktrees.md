@@ -295,3 +295,14 @@ git checkout -b feature-WP01  # Create and switch to branch
 ---
 
 *This document explains git worktrees for understanding. For practical steps in Spec Kitty, see the how-to guides.*
+
+## Try It
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## How-To Guides
+- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
+- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+
+## Reference
+- [File Structure](../reference/file-structure.md)
+- [CLI Commands](../reference/cli-commands.md)

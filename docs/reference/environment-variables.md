@@ -163,4 +163,11 @@ spec-kitty agent tasks status
 
 - [Configuration](configuration.md) — Configuration file reference
 - [CLI Commands](cli-commands.md) — Command line reference
-- [Troubleshoot Issues](../how-to/troubleshoot.md) — Common problems and solutions
+- [Non-Interactive Init](../how-to/non-interactive-init.md) — Common automation patterns
+
+## Getting Started
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## Practical Usage
+- [Non-Interactive Init](../how-to/non-interactive-init.md)
+- [Install Spec Kitty](../how-to/install-spec-kitty.md)

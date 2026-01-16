@@ -431,3 +431,10 @@ spec-kitty agent workflow review --agent gemini
 
 **Notes**:
 - No subcommands are currently exposed in v0.11.0.
+
+## Getting Started
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## Practical Usage
+- [Use the Dashboard](../how-to/use-dashboard.md)
+- [Non-Interactive Init](../how-to/non-interactive-init.md)

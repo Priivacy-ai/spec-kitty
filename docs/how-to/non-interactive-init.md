@@ -426,3 +426,16 @@ Usage:
 ./setup-project.sh my-new-project codex
 ./setup-project.sh another-project "claude,codex,cursor"
 ```
+
+## Command Reference
+- [`spec-kitty init`](../reference/cli-commands.md#spec-kitty-init)
+- [`spec-kitty dashboard`](../reference/cli-commands.md#spec-kitty-dashboard)
+- [`spec-kitty agent`](../reference/agent-subcommands.md)
+
+## See Also
+- [Install Spec Kitty](install-spec-kitty.md)
+- [Upgrade to 0.11.0](upgrade-to-0-11-0.md)
+
+## Background
+- [AI Agent Architecture](../explanation/ai-agent-architecture.md)
+- [Workspace-per-WP Model](../explanation/workspace-per-wp.md)

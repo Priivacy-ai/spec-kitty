@@ -245,3 +245,10 @@ my-project/
 - [Configuration](configuration.md) — Configuration file formats
 - [Workspace-per-WP Model](../explanation/workspace-per-wp.md) — How worktrees work
 - [Git Worktrees](../explanation/git-worktrees.md) — Git worktrees explained
+
+## Getting Started
+- [Claude Code Integration](../tutorials/claude-code-integration.md)
+
+## Practical Usage
+- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)

@@ -251,3 +251,10 @@ If you see this file in older projects, it will be ignored. The mission in each 
 - [File Structure](file-structure.md) — Directory layout reference
 - [Environment Variables](environment-variables.md) — Runtime configuration
 - [Missions](missions.md) — Mission types and their artifacts
+
+## Getting Started
+- [Claude Code Integration](../tutorials/claude-code-integration.md)
+
+## Practical Usage
+- [Non-Interactive Init](../how-to/non-interactive-init.md)
+- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)

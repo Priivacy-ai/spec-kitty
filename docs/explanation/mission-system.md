@@ -238,3 +238,14 @@ These instructions guide AI agents to behave appropriately for the domain.
 ---
 
 *This document explains why missions exist and how they differ. For how to select and use missions, see the tutorials and how-to guides.*
+
+## Try It
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## How-To Guides
+- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [Use the Dashboard](../how-to/use-dashboard.md)
+
+## Reference
+- [Missions](../reference/missions.md)
+- [Slash Commands](../reference/slash-commands.md)

@@ -558,7 +558,7 @@ git merge ###-feature-WP02
 
 ## Migration from Legacy Model
 
-See [Upgrading to 0.11.0](upgrading-to-0-11-0.md) for detailed migration guide.
+See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration guide.
 
 **Quick checklist**:
 - [ ] Complete or delete all in-progress features (legacy worktrees)
@@ -575,9 +575,20 @@ See [Upgrading to 0.11.0](upgrading-to-0-11-0.md) for detailed migration guide.
 - [AI Agent Architecture](ai-agent-architecture.md) - How multiple agents collaborate
 
 ### Migration and Reference
-- [Upgrading to 0.11.0](../upgrading-to-0-11-0.md) - Migration guide from legacy model
+- [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) - Migration guide from legacy model
 - [CHANGELOG.md](../../CHANGELOG.md) - Full list of changes in 0.11.0
 
 ---
 
 *This document explains the "why" behind workspace-per-WP. For practical steps, see the how-to guides.*
+
+## Try It
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## How-To Guides
+- [Use the Dashboard](../how-to/use-dashboard.md)
+- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
+
+## Reference
+- [File Structure](../reference/file-structure.md)
+- [CLI Commands](../reference/cli-commands.md)

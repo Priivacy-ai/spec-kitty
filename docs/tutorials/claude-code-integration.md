@@ -602,9 +602,9 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 ## Next Steps
 
 1. **Try the Quick Start** - 5 minute hands-on experience
-2. **Review Dashboard Guide** - [kanban-dashboard-guide.md](kanban-dashboard-guide.md)
+2. **Review Dashboard Guide** - [Use the Dashboard](../how-to/use-dashboard.md)
 3. **Read Full Workflow** - [README Getting Started](#-getting-started-complete-workflow)
-4. **Explore Advanced Features** - [multi-agent-orchestration.md](multi-agent-orchestration.md)
+4. **Explore Advanced Features** - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md)
 
 ---
 
@@ -618,9 +618,9 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 - Dashboard won't open → Kill existing instance first
 
 **Documentation**:
-- [Full Spec-Driven Development Guide](../spec-driven.md)
-- [Worktree Model](WORKTREE_MODEL.md)
-- [Multi-Agent Orchestration](multi-agent-orchestration.md)
+- [Full Spec-Driven Development Guide](../explanation/spec-driven-development.md)
+- [Worktree Model](../explanation/workspace-per-wp.md)
+- [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md)
 
 ---
 
@@ -643,3 +643,18 @@ AI coding agents are pattern-matching machines. Without specs:
 **Result**: Claude Code (or any agent) stays focused, builds systematically, and you maintain oversight without micromanaging.
 
 The opinionated workflow isn't arbitrary - it's specifically designed around how AI agents work (and fail) in practice.
+
+## Related How-To Guides
+- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [Use the Dashboard](../how-to/use-dashboard.md)
+- [Non-Interactive Init](../how-to/non-interactive-init.md)
+
+## Reference
+- [CLI Commands](../reference/cli-commands.md)
+- [Slash Commands](../reference/slash-commands.md)
+- [Supported Agents](../reference/supported-agents.md)
+
+## Learn More
+- [Spec-Driven Development](../explanation/spec-driven-development.md)
+- [AI Agent Architecture](../explanation/ai-agent-architecture.md)
+- [Kanban Workflow](../explanation/kanban-workflow.md)

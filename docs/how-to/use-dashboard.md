@@ -62,6 +62,19 @@ Wrap the workflow commands (`spec-kitty agent workflow implement/review`) to emi
 
 ## Next Steps
 
-- Explore multi-agent playbooks in [`/docs/multi-agent-orchestration.md`](multi-agent-orchestration.md).
-- Walk through real-world usage scenarios in [`/examples/dashboard-driven-development.md`](../examples/dashboard-driven-development.md).
+- Explore multi-agent playbooks in [`Multi-Agent Orchestration`](../explanation/multi-agent-orchestration.md).
+- Walk through real-world usage scenarios in [`Claude Code Workflow`](../tutorials/claude-code-workflow.md).
 - Compare dashboards against other SDD tools in the updated README comparison table.
+
+## Command Reference
+- [`spec-kitty dashboard`](../reference/cli-commands.md#spec-kitty-dashboard)
+- [`/spec-kitty.dashboard`](../reference/slash-commands.md#spec-kittydashboard)
+
+## See Also
+- [Install Spec Kitty](install-spec-kitty.md)
+- [Non-Interactive Init](non-interactive-init.md)
+- [Upgrade to 0.11.0](upgrade-to-0-11-0.md)
+
+## Background
+- [Kanban Workflow](../explanation/kanban-workflow.md)
+- [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md)

@@ -224,3 +224,13 @@ Custom missions appear as options during `/spec-kitty.specify`.
 - [Configuration](configuration.md) — Mission configuration details
 - [Spec-Driven Development](../explanation/spec-driven-development.md) — The philosophy behind missions
 - [Mission System](../explanation/mission-system.md) — Why missions exist
+
+## Getting Started
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## Practical Usage
+- [Use the Dashboard](../how-to/use-dashboard.md)
+- [Non-Interactive Init](../how-to/non-interactive-init.md)
+
+## Background
+- [Mission System](../explanation/mission-system.md)
