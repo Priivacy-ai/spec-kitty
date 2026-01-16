@@ -10,10 +10,10 @@ subtasks:
   - "T037"
 title: "Explanations"
 phase: "Phase 1 - Content Creation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "29947"
 review_status: ""
 reviewed_by: ""
 dependencies: ["WP02"]
@@ -268,6 +268,7 @@ history:
   ```
 - **Files**: `docs/explanation/ai-agent-architecture.md`
 - **Parallel?**: Yes
+- 2026-01-16T16:31:39Z – claude – shell_pid=29947 – lane=doing – Started implementation via workflow command
 
 ## Risks & Mitigations
 
