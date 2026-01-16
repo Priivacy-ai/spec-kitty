@@ -6,7 +6,7 @@ subtasks:
   - "T007"
 title: "Landing Page & Navigation"
 phase: "Phase 0 - Foundation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
 shell_pid: "50553"
@@ -200,3 +200,4 @@ Please run the DocFX build and confirm it succeeds, or document any errors and f
 - 2026-01-16T16:31:53Z – codex – shell_pid=20390 – lane=doing – Started review via workflow command
 - 2026-01-16T16:32:46Z – codex – shell_pid=20390 – lane=planned – Moved to planned
 - 2026-01-16T17:42:24Z – claude – shell_pid=50553 – lane=doing – Started implementation via workflow command
+- 2026-01-16T17:44:55Z – claude – shell_pid=50553 – lane=for_review – Fixed review feedback: index.md shortened to 83 lines, DocFX build verified (0 errors, 76 warnings for expected missing files)
