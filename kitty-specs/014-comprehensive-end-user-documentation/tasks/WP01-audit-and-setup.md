@@ -7,7 +7,7 @@ subtasks:
   - "T004"
 title: "Audit & Directory Setup"
 phase: "Phase 0 - Foundation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "test-agent"
 shell_pid: "26533"
@@ -166,3 +166,4 @@ Please either restore them or update the audit findings to explicitly classify a
 - 2026-01-16T16:27:00Z – codex – shell_pid=20390 – lane=doing – Started review via workflow command
 - 2026-01-16T16:29:21Z – codex – shell_pid=20390 – lane=planned – Moved to planned
 - 2026-01-16T16:30:18Z – test-agent – shell_pid=26533 – lane=doing – Started review via workflow command
+- 2026-01-16T16:30:27Z – test-agent – shell_pid=26533 – lane=for_review – Reverting test
