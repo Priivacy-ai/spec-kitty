@@ -7,10 +7,10 @@ subtasks:
   - "T004"
 title: "Audit & Directory Setup"
 phase: "Phase 0 - Foundation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "19353"
 review_status: ""
 reviewed_by: ""
 dependencies: []
@@ -145,3 +145,4 @@ history:
 ## Activity Log
 
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
+- 2026-01-16T16:24:16Z – claude – shell_pid=19353 – lane=doing – Started implementation via workflow command
