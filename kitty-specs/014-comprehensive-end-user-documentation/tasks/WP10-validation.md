@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Validation & Polish
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 subtasks:
@@ -216,3 +216,4 @@ history:
 
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-16T17:54:09Z – claude – shell_pid=65104 – lane=doing – Started implementation via workflow command
+- 2026-01-16T17:56:36Z – claude – shell_pid=65104 – lane=for_review – Validation complete: Fixed docfx.json JSON error (0 build errors), verified link warnings are expected missing files, confirmed terminology consistency, validated against spec success criteria
