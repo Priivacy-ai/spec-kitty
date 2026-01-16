@@ -7,10 +7,10 @@ subtasks:
   - "T004"
 title: "Audit & Directory Setup"
 phase: "Phase 0 - Foundation"
-lane: "for_review"
+lane: "doing"
 assignee: ""
-agent: "test-agent"
-shell_pid: "26533"
+agent: "codex"
+shell_pid: "20390"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 dependencies: []
@@ -167,3 +167,4 @@ Please either restore them or update the audit findings to explicitly classify a
 - 2026-01-16T16:29:21Z – codex – shell_pid=20390 – lane=planned – Moved to planned
 - 2026-01-16T16:30:18Z – test-agent – shell_pid=26533 – lane=doing – Started review via workflow command
 - 2026-01-16T16:30:27Z – test-agent – shell_pid=26533 – lane=for_review – Reverting test
+- 2026-01-16T16:32:50Z – codex – shell_pid=20390 – lane=doing – Started review via workflow command
