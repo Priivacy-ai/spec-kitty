@@ -10,12 +10,12 @@ subtasks:
   - "T018"
 title: "How-To Guides - Core Workflow"
 phase: "Phase 1 - Content Creation"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "claude"
 shell_pid: "58526"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 dependencies: ["WP02"]
 history:
   - timestamp: "2026-01-16T16:16:58Z"
@@ -312,3 +312,4 @@ history:
 - 2026-01-16T16:30:49Z – __AGENT__ – shell_pid=25069 – lane=doing – Started implementation via workflow command
 - 2026-01-16T16:34:56Z – __AGENT__ – shell_pid=25069 – lane=for_review – Ready for review: add core workflow how-to guides
 - 2026-01-16T17:49:51Z – claude – shell_pid=58526 – lane=doing – Started review via workflow command
+- 2026-01-16T17:50:02Z – claude – shell_pid=58526 – lane=done – Review passed: All 7 core workflow how-to guides created
