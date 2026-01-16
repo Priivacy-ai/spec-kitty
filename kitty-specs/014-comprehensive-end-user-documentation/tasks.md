@@ -202,7 +202,7 @@ description: "Work package task list for comprehensive end-user documentation"
 **Prompt**: `tasks/WP07-reference-config.md`
 
 ### Included Subtasks
-- [ ] T026 [P] Create `docs/reference/configuration.md` - docfx.json, toc.yml, meta.json
+- [x] T026 [P] Create `docs/reference/configuration.md` - docfx.json, toc.yml, meta.json
 - [ ] T027 [P] Create `docs/reference/environment-variables.md` - SPECIFY_FEATURE, CODEX_HOME, etc.
 - [ ] T028 [P] Create `docs/reference/file-structure.md` - .kittify/, kitty-specs/, .worktrees/
 - [ ] T029 [P] Create `docs/reference/missions.md` - software-dev, research, documentation details
