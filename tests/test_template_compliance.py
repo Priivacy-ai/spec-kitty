@@ -211,8 +211,14 @@ def test_no_deprecated_script_references():
         pytest.fail(msg)
 
 
-def test_templates_do_not_instruct_manual_lane_moves():
-    """Templates should not instruct manual lane moves."""
+def test_templates_do_not_instruct_manual_lane_moves_to_doing():
+    """Templates should not instruct manual moves to 'doing' lane.
+
+    The 'spec-kitty agent workflow implement' command auto-moves WPs to 'doing'.
+    Templates should not instruct agents to manually move-task --to doing.
+
+    However, move-task --to for_review is allowed (completion step after implementation).
+    """
     templates = find_mission_templates()
 
     violations = []
@@ -220,14 +226,17 @@ def test_templates_do_not_instruct_manual_lane_moves():
     for template_path in templates:
         content = template_path.read_text(encoding='utf-8')
 
-        if 'spec-kitty agent tasks move-task' in content and 'deprecated' not in content.lower():
+        # Only flag move-task to "doing" since workflow implement handles that automatically
+        # move-task to "for_review" is allowed (completion step after implementation)
+        if 'move-task' in content and '--to doing' in content and 'deprecated' not in content.lower():
             violations.append({
                 'file': template_path.relative_to(template_path.parent.parent.parent),
-                'issue': 'Manual move-task instructions are no longer allowed'
+                'issue': 'Manual move-task --to doing is deprecated (use workflow implement instead)'
             })
 
     if violations:
-        msg = "\n\nTemplates with manual lane-move instructions:\n"
+        msg = "\n\nTemplates with deprecated manual 'doing' lane moves:\n"
+        msg += "Use 'spec-kitty agent workflow implement' instead of manual move-task --to doing\n"
         for v in violations:
             msg += f"\n{v['file']}\n  Issue: {v['issue']}\n"
         pytest.fail(msg)

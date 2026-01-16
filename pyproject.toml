@@ -82,6 +82,15 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/specify_cli"]
+# Include all non-Python files (templates, configs, etc.)
+artifacts = [
+    "src/specify_cli/**/*.md",
+    "src/specify_cli/**/*.yaml",
+    "src/specify_cli/**/*.yml",
+    "src/specify_cli/**/*.json",
+    "src/specify_cli/**/*.csv",
+    "src/specify_cli/**/*.template",
+]
 
 [tool.hatch.build.targets.sdist]
 include = [

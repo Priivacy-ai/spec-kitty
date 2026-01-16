@@ -328,9 +328,10 @@ def test_implement_wp_no_dependencies(tmp_path):
     )
     assert "011-test-WP01" in result.stdout
 
-    # Verify workspace contains planning artifacts (from main)
-    assert (workspace / "kitty-specs" / "011-test" / "spec.md").exists()
-    assert (workspace / "kitty-specs" / "011-test" / "tasks" / "WP01-test.md").exists()
+    # Verify sparse-checkout excludes kitty-specs from worktree
+    # (kitty-specs status is tracked in main repo only, preventing state divergence)
+    assert not (workspace / "kitty-specs").exists(), \
+        "kitty-specs should be excluded from worktree via sparse-checkout"
 
 
 # ============================================================================
@@ -746,9 +747,16 @@ def test_merge_workspace_per_wp_preparation(tmp_path):
     assert "011-test-WP02" in result.stdout
     assert "011-test-WP03" in result.stdout
 
-    # Test merge feasibility: merge WP01 to main (no conflicts expected)
+    # Test merge feasibility: merge WP01 to default branch (no conflicts expected)
+    # Get the default branch name (could be 'main' or 'master')
+    branch_result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=repo, capture_output=True, text=True, check=True
+    )
+    default_branch = branch_result.stdout.strip()
+
     subprocess.run(
-        ["git", "checkout", "main"], cwd=repo, check=True, capture_output=True
+        ["git", "checkout", default_branch], cwd=repo, check=True, capture_output=True
     )
     result = subprocess.run(
         ["git", "merge", "--no-ff", "011-test-WP01", "-m", "Merge WP01"],

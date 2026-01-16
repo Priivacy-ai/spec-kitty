@@ -29,13 +29,14 @@ def mock_task_file(tmp_path: Path) -> Path:
     tasks_dir.mkdir(parents=True)
 
     # Create task file
+    # NOTE: agent is empty to allow tests to set it without ownership conflict
     task_file = tasks_dir / "WP01-test-task.md"
     task_content = """---
 work_package_id: "WP01"
 title: "Test Task"
 lane: "planned"
-agent: "claude"
-shell_pid: "12345"
+agent: ""
+shell_pid: ""
 ---
 
 # Work Package: WP01 - Test Task
@@ -623,27 +624,38 @@ No activity log section.
 class TestFindFeatureSlug:
     """Tests for _find_feature_slug helper."""
 
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks.Path.cwd")
-    def test_find_from_cwd_with_kitty_specs(self, mock_cwd: Mock):
+    def test_find_from_cwd_with_kitty_specs(self, mock_cwd: Mock, mock_root: Mock, tmp_path: Path):
         """Should extract feature slug from cwd containing kitty-specs."""
         from specify_cli.cli.commands.agent.tasks import _find_feature_slug
 
+        # Setup: cwd is in kitty-specs/feature-slug directory
         mock_cwd.return_value = Path("/repo/.worktrees/008-test/kitty-specs/008-test-feature")
+        mock_root.return_value = tmp_path
+
+        # Create kitty-specs directory in mock repo root
+        (tmp_path / "kitty-specs" / "008-test-feature").mkdir(parents=True)
 
         slug = _find_feature_slug()
         assert slug == "008-test-feature"
 
     @patch("subprocess.run")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks.Path.cwd")
-    def test_find_from_git_branch(self, mock_cwd: Mock, mock_subprocess: Mock):
+    def test_find_from_git_branch(self, mock_cwd: Mock, mock_root: Mock, mock_subprocess: Mock, tmp_path: Path):
         """Should extract feature slug from git branch name."""
         from specify_cli.cli.commands.agent.tasks import _find_feature_slug
 
         mock_cwd.return_value = Path("/repo")
+        mock_root.return_value = tmp_path
         mock_subprocess.return_value = Mock(
             returncode=0,
             stdout="008-test-feature\n"
         )
+
+        # Create kitty-specs directory to validate the slug
+        (tmp_path / "kitty-specs" / "008-test-feature").mkdir(parents=True)
 
         slug = _find_feature_slug()
         assert slug == "008-test-feature"

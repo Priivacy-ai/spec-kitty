@@ -87,7 +87,7 @@ def test_project(tmp_path: Path) -> Path:
 
     (project / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
 
-    subprocess.run(["git", "init"], cwd=project, check=True)
+    subprocess.run(["git", "init", "-b", "main"], cwd=project, check=True)
     subprocess.run(["git", "config", "user.email", "ci@example.com"], cwd=project, check=True)
     subprocess.run(["git", "config", "user.name", "Spec Kitty CI"], cwd=project, check=True)
     subprocess.run(["git", "add", "."], cwd=project, check=True)

@@ -349,9 +349,16 @@ class TestWorkspacePerWpMergeIntegration:
 
     def test_merge_workflow_success(self, workspace_per_wp_repo: Path):
         """Test full merge workflow with workspace-per-WP (manual git ops for comparison)."""
-        # Switch to main
+        # Switch to default branch
+        # Get the default branch name
+        branch_result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=workspace_per_wp_repo, capture_output=True, text=True, check=True
+        )
+        default_branch = branch_result.stdout.strip()
+
         subprocess.run(
-            ["git", "checkout", "main"],
+            ["git", "checkout", default_branch],
             cwd=workspace_per_wp_repo,
             check=True,
             capture_output=True,
@@ -407,8 +414,15 @@ class TestWorkspacePerWpMergeIntegration:
     def test_cleanup_deletes_branches(self, workspace_per_wp_repo: Path):
         """Test that branch cleanup deletes all WP branches."""
         # First merge the branches so they can be deleted
+        # Get the default branch name
+        branch_result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=workspace_per_wp_repo, capture_output=True, text=True, check=True
+        )
+        default_branch = branch_result.stdout.strip()
+
         subprocess.run(
-            ["git", "checkout", "main"],
+            ["git", "checkout", default_branch],
             cwd=workspace_per_wp_repo,
             check=True,
             capture_output=True,

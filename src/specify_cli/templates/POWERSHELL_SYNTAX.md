@@ -45,7 +45,9 @@ Spec-kitty uses a Python CLI that works across all platforms:
 **Common commands:**
 - `spec-kitty agent feature create-feature <slug>` - Create a new feature
 - `spec-kitty verify-setup` - Check environment and paths
-- `spec-kitty agent tasks move-task <WPID> --to <lane>` - Move task between lanes
+- `spec-kitty agent workflow implement <WPID> --agent <name>` - Start implementing a work package
+- `spec-kitty agent workflow review <WPID> --agent <name>` - Start reviewing a work package
+- `spec-kitty agent tasks move-task <WPID> --to for_review` - Complete implementation (move to review)
 - `spec-kitty merge` - Merge completed feature
 
 ### Parameter Naming Convention
@@ -70,12 +72,16 @@ PowerShell uses **PascalCase** with leading dash:
 .\.kittify\scripts\powershell\check-prerequisites.ps1 -Json -IncludeTasks
 ```
 
-**Move task:**
+**Move task to review (after implementation):**
 ```powershell
+# Using the CLI (recommended):
+spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review"
+
+# Or using PowerShell script:
 .\.kittify\scripts\powershell\Move-TaskToLane.ps1 `
   -Feature "001-auth" `
   -TaskId "WP01" `
-  -Lane "doing" `
+  -Lane "for_review" `
   -ShellPid $PID `
   -Agent "claude"
 ```
@@ -187,7 +193,8 @@ New-Item -ItemType Directory -Path "tasks\planned" -Force
 **Using spec-kitty commands:**
 All spec-kitty commands work the same way on PowerShell and Bash:
 ```powershell
-spec-kitty agent tasks move-task WP01 --to doing
+spec-kitty agent workflow implement WP01 --agent claude  # Auto-moves to doing
+spec-kitty agent tasks move-task WP01 --to for_review    # Completion step
 spec-kitty verify-setup
 spec-kitty dashboard
 ```

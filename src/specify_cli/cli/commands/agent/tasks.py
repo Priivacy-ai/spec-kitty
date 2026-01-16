@@ -470,25 +470,38 @@ def move_task(
                 # Worktrees use sparse-checkout to exclude kitty-specs/, so path is always to main
                 actual_file_path = wp.path.resolve()
 
-                # Commit the specific WP file directly (bypasses staging area)
-                # This works even if other files in main are modified
-                commit_result = subprocess.run(
-                    ["git", "commit", str(actual_file_path), "-m", commit_msg],
+                # Stage the file first, then commit
+                add_result = subprocess.run(
+                    ["git", "add", str(actual_file_path)],
                     cwd=main_repo_root,
                     capture_output=True,
                     text=True,
                     check=False
                 )
 
-                if commit_result.returncode == 0:
+                if add_result.returncode != 0:
                     if not json_output:
-                        console.print(f"[cyan]→ Committed status change to main branch[/cyan]")
+                        console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
                 else:
-                    # Commit failed
-                    if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit")
-                        console.print(f"  stdout: {commit_result.stdout}")
-                        console.print(f"  stderr: {commit_result.stderr}")
+                    # Commit the staged file
+                    commit_result = subprocess.run(
+                        ["git", "commit", "-m", commit_msg],
+                        cwd=main_repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+
+                    if commit_result.returncode == 0:
+                        if not json_output:
+                            console.print(f"[cyan]→ Committed status change to main branch[/cyan]")
+                    elif "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
+                        # File wasn't actually changed, that's OK
+                        pass
+                    else:
+                        # Commit failed
+                        if not json_output:
+                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
 
             except Exception as e:
                 # Unexpected error
@@ -617,20 +630,34 @@ def mark_status(
             try:
                 actual_tasks_path = tasks_md.resolve()
 
-                commit_result = subprocess.run(
-                    ["git", "commit", str(actual_tasks_path), "-m", commit_msg],
+                # Stage the file first, then commit
+                add_result = subprocess.run(
+                    ["git", "add", str(actual_tasks_path)],
                     cwd=main_repo_root,
                     capture_output=True,
                     text=True,
                     check=False
                 )
 
-                if commit_result.returncode == 0:
+                if add_result.returncode != 0:
                     if not json_output:
-                        console.print(f"[cyan]→ Committed subtask changes to main branch[/cyan]")
-                elif "nothing to commit" not in commit_result.stdout:
-                    if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+                        console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
+                else:
+                    # Commit the staged file
+                    commit_result = subprocess.run(
+                        ["git", "commit", "-m", commit_msg],
+                        cwd=main_repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+
+                    if commit_result.returncode == 0:
+                        if not json_output:
+                            console.print(f"[cyan]→ Committed subtask changes to main branch[/cyan]")
+                    elif "nothing to commit" not in commit_result.stdout and "nothing to commit" not in commit_result.stderr:
+                        if not json_output:
+                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
 
             except Exception as e:
                 if not json_output:
