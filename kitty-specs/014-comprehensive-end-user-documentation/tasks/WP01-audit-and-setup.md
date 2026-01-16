@@ -7,10 +7,10 @@ subtasks:
   - "T004"
 title: "Audit & Directory Setup"
 phase: "Phase 0 - Foundation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: "codex"
-shell_pid: "20390"
+agent: "claude"
+shell_pid: "49814"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 dependencies: []
@@ -170,3 +170,4 @@ Please either restore these files or update the audit findings to explicitly cla
 - 2026-01-16T16:30:27Z – test-agent – shell_pid=26533 – lane=for_review – Reverting test
 - 2026-01-16T16:32:50Z – codex – shell_pid=20390 – lane=doing – Started review via workflow command
 - 2026-01-16T16:33:13Z – codex – shell_pid=20390 – lane=planned – Moved to planned
+- 2026-01-16T17:41:39Z – claude – shell_pid=49814 – lane=doing – Started implementation via workflow command
