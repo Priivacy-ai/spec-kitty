@@ -7,7 +7,7 @@ subtasks:
   - "T011"
 title: "Tutorials"
 phase: "Phase 1 - Content Creation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "__AGENT__"
 shell_pid: "26746"
@@ -257,3 +257,4 @@ history:
 - 2026-01-16T17:42:21Z – __AGENT__ – shell_pid=26746 – lane=doing – Resume: added tutorials to toc navigation.
 - 2026-01-16T17:42:24Z – __AGENT__ – shell_pid=26746 – lane=for_review – Ready for review: added tutorials to toc navigation.
 - 2026-01-16T17:43:31Z – __AGENT__ – shell_pid=26746 – lane=doing – Resume: added tutorials links to docs index.
+- 2026-01-16T17:43:34Z – __AGENT__ – shell_pid=26746 – lane=for_review – Ready for review: added tutorial links to docs index and toc.
