@@ -7,10 +7,10 @@ subtasks:
   - "T004"
 title: "Audit & Directory Setup"
 phase: "Phase 0 - Foundation"
-lane: "for_review"
+lane: "doing"
 assignee: ""
 agent: "claude"
-shell_pid: "49814"
+shell_pid: "57334"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 dependencies: []
@@ -172,3 +172,4 @@ Please either restore these files or update the audit findings to explicitly cla
 - 2026-01-16T16:33:13Z – codex – shell_pid=20390 – lane=planned – Moved to planned
 - 2026-01-16T17:41:39Z – claude – shell_pid=49814 – lane=doing – Started implementation via workflow command
 - 2026-01-16T17:44:51Z – claude – shell_pid=49814 – lane=for_review – Review feedback addressed: Fixed all broken links (upgrade-to-0-11-0.md, workspace-per-wp.md, multi-agent-orchestration.md, claude-code-integration.md), added docs/reference/README.md placeholder, updated research.md with deletion justifications
+- 2026-01-16T17:48:32Z – claude – shell_pid=57334 – lane=doing – Started review via workflow command
