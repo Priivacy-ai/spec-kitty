@@ -175,7 +175,7 @@ description: "Work package task list for comprehensive end-user documentation"
 **Prompt**: `tasks/WP06-reference-commands.md`
 
 ### Included Subtasks
-- [ ] T023 Create `docs/reference/cli-commands.md` - all spec-kitty CLI commands
+- [x] T023 Create `docs/reference/cli-commands.md` - all spec-kitty CLI commands
 - [ ] T024 Create `docs/reference/slash-commands.md` - all 14 /spec-kitty.* slash commands
 - [ ] T025 Create `docs/reference/agent-subcommands.md` - spec-kitty agent * commands
 
