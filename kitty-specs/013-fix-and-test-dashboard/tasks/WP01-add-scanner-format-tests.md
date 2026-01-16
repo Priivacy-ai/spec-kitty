@@ -10,10 +10,10 @@ subtasks:
   - "T007"
 title: "Add Scanner Format Tests"
 phase: "Phase 1 - Test Coverage"
-lane: "for_review"
+lane: "doing"
 assignee: ""
 agent: "claude"
-shell_pid: "85594"
+shell_pid: "89648"
 review_status: "approved"
 reviewed_by: "Robert Douglass"
 history:
@@ -236,3 +236,4 @@ To change this work package's lane, either:
 - 2026-01-16T13:53:17Z – claude – shell_pid=85594 – lane=done – Review passed: mission.yaml and directory structure match requirements
 - 2026-01-16T13:56:29Z – claude – shell_pid=85594 – lane=done – Testing auto-commit fix
 - 2026-01-16T13:58:24Z – claude – shell_pid=85594 – lane=for_review – Testing without gitignore
+- 2026-01-16T14:06:57Z – claude – shell_pid=89648 – lane=doing – Started review via workflow command
