@@ -237,7 +237,7 @@ description: "Work package task list for comprehensive end-user documentation"
 - [x] T034 [P] Create `docs/explanation/git-worktrees.md` - git worktrees for spec-kitty users
 - [x] T035 [P] Create `docs/explanation/mission-system.md` - why missions exist, how they work
 - [x] T036 [P] Create `docs/explanation/kanban-workflow.md` - planned → doing → for_review → done
-- [ ] T037 [P] Create `docs/explanation/ai-agent-architecture.md` - how slash commands work across agents
+- [x] T037 [P] Create `docs/explanation/ai-agent-architecture.md` - how slash commands work across agents
 
 ### Implementation Notes
 - git-worktrees.md is critical for understanding parallel development
