@@ -96,5 +96,20 @@ Once Claude (and any partner agents) finish the feature:
 ## Beyond Claude
 
 - Mix Claude with Cursor or Gemini by generating commands for multiple agents during `spec-kitty init`.
-- Keep the multi-agent orchestration playbook handy: [`multi-agent-orchestration.md`](multi-agent-orchestration.md).
-- Review the scenario [`../examples/claude-cursor-collaboration.md`](../examples/claude-cursor-collaboration.md) for a dual-agent workflow.
+- Keep the multi-agent orchestration playbook handy: [`Multi-Agent Orchestration`](../explanation/multi-agent-orchestration.md).
+- Review the dashboard monitoring workflow in [`Use the Dashboard`](../how-to/use-dashboard.md).
+
+## Related How-To Guides
+- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [Non-Interactive Init](../how-to/non-interactive-init.md)
+- [Use the Dashboard](../how-to/use-dashboard.md)
+
+## Reference
+- [CLI Commands](../reference/cli-commands.md)
+- [Slash Commands](../reference/slash-commands.md)
+- [Agent Subcommands](../reference/agent-subcommands.md)
+
+## Learn More
+- [Spec-Driven Development](../explanation/spec-driven-development.md)
+- [Mission System](../explanation/mission-system.md)
+- [Kanban Workflow](../explanation/kanban-workflow.md)

@@ -580,3 +580,14 @@ See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration
 ---
 
 *This document explains the "why" behind workspace-per-WP. For practical steps, see the how-to guides.*
+
+## Try It
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## How-To Guides
+- [Use the Dashboard](../how-to/use-dashboard.md)
+- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
+
+## Reference
+- [File Structure](../reference/file-structure.md)
+- [CLI Commands](../reference/cli-commands.md)

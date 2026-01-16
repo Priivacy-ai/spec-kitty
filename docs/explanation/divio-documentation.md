@@ -189,7 +189,7 @@ Run `spec-kitty init`. This command accepts the following flags:
 # Getting Started
 
 Run `spec-kitty init` to set up your project.
-For all available options, see the [CLI Reference](../reference/cli.md#init).
+For all available options, see the [CLI Reference](../reference/cli-commands.md#spec-kitty-init).
 ```
 
 ### Wrong Type for User State
@@ -230,3 +230,14 @@ For background on why conflicts occur, see [Git Worktrees Explained](../explanat
 ---
 
 *This document explains why we use Divio. For how to write documentation, see the tutorials and how-to guides.*
+
+## Try It
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## How-To Guides
+- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [Use the Dashboard](../how-to/use-dashboard.md)
+
+## Reference
+- [Configuration](../reference/configuration.md)
+- [File Structure](../reference/file-structure.md)

@@ -1,36 +1,28 @@
-# Home page
+# Home
 - name: Home
   href: index.md
 
-# Getting started section
-- name: Getting Started
+# Tutorials - Learning-oriented
+- name: Tutorials
   items:
-    - name: Installation
-      href: installation.md
-    - name: Quick Start
-      href: quickstart.md
-
-# Development workflows
-- name: Development
-  items:
-    - name: Local Development
-      href: local-development.md
-    - name: Kanban Dashboard Guide
-      href: kanban-dashboard-guide.md
-    - name: Multi-Agent Orchestration
-      href: multi-agent-orchestration.md
+    - name: Claude Code Integration
+      href: tutorials/claude-code-integration.md
     - name: Claude Code Workflow
-      href: claude-code-workflow.md
-    - name: Spec Workflow Automation
-      href: spec-workflow-automation.md
+      href: tutorials/claude-code-workflow.md
 
-# Release management
-- name: Releases
+# How-To Guides - Task-oriented
+- name: How-To Guides
   items:
-    - name: Release Readiness Checklist
-      href: releases/readiness-checklist.md
+    - name: Install & Upgrade
+      href: how-to/install-spec-kitty.md
+    - name: Use the Dashboard
+      href: how-to/use-dashboard.md
+    - name: Upgrade to 0.11.0
+      href: how-to/upgrade-to-0-11-0.md
+    - name: Non-Interactive Init
+      href: how-to/non-interactive-init.md
 
-# Reference
+# Reference - Information-oriented
 - name: Reference
   items:
     - name: CLI Commands
@@ -39,3 +31,35 @@
       href: reference/slash-commands.md
     - name: Agent Subcommands
       href: reference/agent-subcommands.md
+    - name: Configuration
+      href: reference/configuration.md
+    - name: Environment Variables
+      href: reference/environment-variables.md
+    - name: File Structure
+      href: reference/file-structure.md
+    - name: Missions
+      href: reference/missions.md
+    - name: Supported Agents
+      href: reference/supported-agents.md
+
+# Explanations - Understanding-oriented
+- name: Explanations
+  items:
+    - name: Spec-Driven Development
+      href: explanation/spec-driven-development.md
+    - name: Divio Documentation System
+      href: explanation/divio-documentation.md
+    - name: Workspace-per-WP Model
+      href: explanation/workspace-per-wp.md
+    - name: Git Worktrees
+      href: explanation/git-worktrees.md
+    - name: Mission System
+      href: explanation/mission-system.md
+    - name: Kanban Workflow
+      href: explanation/kanban-workflow.md
+    - name: AI Agent Architecture
+      href: explanation/ai-agent-architecture.md
+    - name: Documentation Mission
+      href: explanation/documentation-mission.md
+    - name: Multi-Agent Orchestration
+      href: explanation/multi-agent-orchestration.md

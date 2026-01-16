@@ -1,67 +1,80 @@
 ---
-title: Kanban Dashboard Guide
-description: Deep dive into Spec Kitty’s Kanban dashboard for AI development tracking and real-time progress visibility.
+title: How to Use the Spec Kitty Dashboard
+description: Start, view, and manage the real-time kanban dashboard for Spec Kitty work packages.
 ---
 
-# Kanban Dashboard Guide
+# How to Use the Spec Kitty Dashboard
 
-Spec Kitty ships with a real-time **AI development kanban dashboard** that keeps every agent, reviewer, and stakeholder aligned. This guide explains how to activate the dashboard, what the key visual workflow widgets show, and how to use the telemetry to keep features moving without bottlenecks.
+The dashboard provides live, project-wide visibility into work packages, lanes, and agent activity. It launches during `spec-kitty init` and can be opened anytime.
 
-## Why the Dashboard Matters
-
-- **Instant visibility** on every work package, task, and lane—no more guessing who has the next action.
-- **Agent coordination** built in; human teammates and AI assistants see precisely where they are needed.
-- **Automated alerts** for stalled work so you can rebalance agents before deadlines slip.
-
-## Activating the Dashboard
+## Starting the Dashboard
 
 ```bash
-spec-kitty init .
 spec-kitty dashboard
+# or
+/spec-kitty.dashboard
 ```
 
-1. Run `spec-kitty init` (or re-run in an existing project) to start the dashboard service.
-2. Launch the viewer with `spec-kitty dashboard`; you can also open the URL recorded in `.kittify/.dashboard`.
-3. Keep the process running while agents work—the UI updates live as prompts move across lanes.
+If the dashboard isn't already running, Spec Kitty starts it in the background and opens a browser tab.
 
-## Core Dashboard Areas
+## Dashboard URL
 
-### 1. Feature Overview
-- Shows all active feature branches and their associated worktrees.
-- Each card links directly to the `kitty-specs/<feature>/` artifacts.
-- Use the filter bar to focus on a specific mission or priority lane.
+Spec Kitty records the active dashboard URL in `.kittify/.dashboard`. If the browser doesn't open automatically, copy the URL from that file.
 
-### 2. Work Package Kanban
-- Horizontal lanes (`planned`, `doing`, `for_review`, `done`) mirror the Spec Kitty task workflow.
-- Drag-and-drop is intentionally disabled—lane transitions must flow through workflow commands (`spec-kitty agent workflow implement/review`) so the activity log remains authoritative.
-- Hovering over a card reveals **real-time progress** statistics, recent agent activity, and checklist compliance.
+## Dashboard Views
 
-### 3. Agent Telemetry
-- The “Agents” panel highlights what each AI assistant or human is currently executing.
-- Use this view to spot idle agents and assign parallel work packages quickly.
+### Kanban Board
 
-## Real-Time Progress Techniques
+The kanban board mirrors the lane workflow (`planned -> doing -> for_review -> done`).
 
-### Pin the Dashboard During Sprints
-Keep the dashboard open in its own monitor window so the team can react to lane changes instantly.
+![Spec Kitty Dashboard - Kanban Board View](../assets/images/dashboard-kanban.png)
 
-### Monitor Lane Events
-Wrap the workflow commands (`spec-kitty agent workflow implement/review`) to emit notifications—each transition prints the feature slug, work package, target lane, and note, which you can forward to Slack, email, or paging tools.
+### Feature Overview
 
-### Integrate With Command Scripts
-- Workflow commands push structured events to the dashboard pipeline.
-- The **visual workflow** updates in under one second after each lane change, so agents always see fresh data.
+The overview summarizes feature progress, artifacts, and worktrees.
 
-## Troubleshooting
+![Spec Kitty Dashboard - Feature Overview](../assets/images/dashboard-overview.png)
 
-| Symptom | Likely Cause | Fix |
-|---------|--------------|-----|
-| Dashboard shows "stopped" | Background process exited | Re-run `spec-kitty dashboard` to restart the service |
-| Feature missing from overview | Worktree not initialized | Run `/spec-kitty.specify` for the feature and refresh |
-| Lane counts stale | Lane transitions bypassed | Use workflow commands (`spec-kitty agent workflow implement/review`) for all lane changes |
+## Custom Port
 
-## Next Steps
+If you need a specific port, pass `--port`:
 
-- Explore multi-agent playbooks in [`/docs/multi-agent-orchestration.md`](multi-agent-orchestration.md).
-- Walk through real-world usage scenarios in [`/examples/dashboard-driven-development.md`](../examples/dashboard-driven-development.md).
-- Compare dashboards against other SDD tools in the updated README comparison table.
+```bash
+spec-kitty dashboard --port 8080
+```
+
+If the port is taken, Spec Kitty finds the next available port.
+
+## Stopping the Dashboard
+
+```bash
+spec-kitty dashboard --kill
+```
+
+This stops the background process and clears the `.kittify/.dashboard` metadata.
+
+## Dashboard Auto-Start
+
+`spec-kitty init` starts the dashboard automatically for each project. You can re-run `spec-kitty init .` if the dashboard metadata is missing or stale.
+
+---
+
+## Command Reference
+
+- [CLI Commands](../reference/cli-commands.md) - Dashboard commands
+- [Slash Commands](../reference/slash-commands.md) - `/spec-kitty.dashboard`
+
+## See Also
+
+- [Parallel Development](parallel-development.md) - Monitor multi-agent work
+- [Review a Work Package](review-work-package.md) - Track review status
+
+## Background
+
+- [Kanban Workflow](../explanation/kanban-workflow.md) - Lane system explained
+- [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) - Agent coordination
+
+## Getting Started
+
+- [Your First Feature](../tutorials/your-first-feature.md) - See dashboard in action
+- [Claude Code Integration](../tutorials/claude-code-integration.md) - Dashboard with Claude

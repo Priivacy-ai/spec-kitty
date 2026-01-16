@@ -360,3 +360,12 @@ spec-kitty implement WP01 --json
 | `--help` | Show this message and exit |
 
 **See Also**: `docs/reference/agent-subcommands.md`
+
+## Getting Started
+- [Claude Code Integration](../tutorials/claude-code-integration.md)
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## Practical Usage
+- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [Use the Dashboard](../how-to/use-dashboard.md)
+- [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)

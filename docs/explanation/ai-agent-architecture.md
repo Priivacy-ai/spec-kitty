@@ -256,3 +256,15 @@ The command file provides all instructions; the agent executes them.
 ---
 
 *This document explains the multi-agent architecture. For how to use specific agents, see the tutorials and how-to guides.*
+
+## Try It
+- [Claude Code Integration](../tutorials/claude-code-integration.md)
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## How-To Guides
+- [Non-Interactive Init](../how-to/non-interactive-init.md)
+- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+
+## Reference
+- [Supported Agents](../reference/supported-agents.md)
+- [Agent Subcommands](../reference/agent-subcommands.md)

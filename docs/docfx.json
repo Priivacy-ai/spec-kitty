@@ -4,6 +4,10 @@
       {
         "files": [
           "*.md",
+          "tutorials/*.md",
+          "how-to/*.md",
+          "reference/*.md",
+          "explanation/*.md",
           "toc.yml"
         ]
       },

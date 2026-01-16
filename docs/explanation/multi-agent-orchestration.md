@@ -60,6 +60,17 @@ Spec Kitty was designed for **multi-agent development orchestration**—it keeps
 
 ## Next Steps
 
-- Study the **dashboard workflow** in [`use-dashboard.md`](../how-to/use-dashboard.md).
-- Try the real-world scenario [`../examples/multi-agent-feature-development.md`](../examples/multi-agent-feature-development.md).
-- Dive into Claude-specific orchestration in [`claude-code-workflow.md`](../tutorials/claude-code-workflow.md).
+- Study the **dashboard workflow** in [`Use the Dashboard`](../how-to/use-dashboard.md).
+- Walk through a complete scenario in [`Claude Code Workflow`](../tutorials/claude-code-workflow.md).
+- Dive into Claude-specific orchestration in [`Claude Code Workflow`](../tutorials/claude-code-workflow.md).
+
+## Try It
+- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+
+## How-To Guides
+- [Use the Dashboard](../how-to/use-dashboard.md)
+- [Non-Interactive Init](../how-to/non-interactive-init.md)
+
+## Reference
+- [Agent Subcommands](../reference/agent-subcommands.md)
+- [CLI Commands](../reference/cli-commands.md)
