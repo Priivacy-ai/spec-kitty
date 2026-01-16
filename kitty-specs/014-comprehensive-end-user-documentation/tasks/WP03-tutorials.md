@@ -7,12 +7,12 @@ subtasks:
   - "T011"
 title: "Tutorials"
 phase: "Phase 1 - Content Creation"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "claude"
 shell_pid: "58186"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 dependencies: ["WP02"]
 history:
   - timestamp: "2026-01-16T16:16:58Z"
@@ -259,3 +259,4 @@ history:
 - 2026-01-16T17:43:31Z – __AGENT__ – shell_pid=26746 – lane=doing – Resume: added tutorials links to docs index.
 - 2026-01-16T17:43:34Z – __AGENT__ – shell_pid=26746 – lane=for_review – Ready for review: added tutorial links to docs index and toc.
 - 2026-01-16T17:49:30Z – claude – shell_pid=58186 – lane=doing – Started review via workflow command
+- 2026-01-16T17:49:41Z – claude – shell_pid=58186 – lane=done – Review passed: All 4 tutorials created (getting-started, your-first-feature, missions-overview, multi-agent-workflow)
