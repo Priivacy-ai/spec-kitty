@@ -271,7 +271,7 @@ description: "Work package task list for comprehensive end-user documentation"
 - [x] T039 Add cross-references to all how-to docs
 - [x] T040 Add cross-references to all reference docs
 - [x] T041 Add cross-references to all explanation docs
-- [ ] T042 Verify all internal links work
+- [x] T042 Verify all internal links work
 
 ### Implementation Notes
 - Each tutorial should link to related how-tos and reference
