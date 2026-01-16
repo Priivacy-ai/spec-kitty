@@ -231,7 +231,7 @@ description: "Work package task list for comprehensive end-user documentation"
 **Prompt**: `tasks/WP08-explanations.md`
 
 ### Included Subtasks
-- [ ] T031 [P] Create `docs/explanation/spec-driven-development.md` - philosophy and methodology
+- [x] T031 [P] Create `docs/explanation/spec-driven-development.md` - philosophy and methodology
 - [ ] T032 [P] Create `docs/explanation/divio-documentation.md` - why we use Divio 4-type system
 - [ ] T033 [P] Migrate/update `docs/explanation/workspace-per-wp.md` - 0.11.0 model explained
 - [ ] T034 [P] Create `docs/explanation/git-worktrees.md` - git worktrees for spec-kitty users
