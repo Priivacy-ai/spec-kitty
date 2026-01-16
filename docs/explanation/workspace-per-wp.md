@@ -1,10 +1,14 @@
-# Workspace-per-Work-Package (v0.11.0+)
+# Workspace-per-Work-Package Explained
+
+*This document explains the "why" behind the workspace-per-work-package model. For step-by-step instructions, see the [how-to guides](../how-to/). For an introduction, see the [tutorials](../tutorial/).*
 
 ## Overview
 
 Spec Kitty 0.11.0 introduces the workspace-per-work-package model to enable parallel multi-agent development. Instead of creating one worktree per feature where all work packages share the same workspace, each work package now gets its own isolated worktree.
 
 **Key Change**: One git worktree per work package (instead of one per feature)
+
+For background on how git worktrees work, see [Git Worktrees Explained](git-worktrees.md).
 
 ## Benefits
 
@@ -564,6 +568,16 @@ See [Upgrading to 0.11.0](upgrading-to-0-11-0.md) for detailed migration guide.
 
 ## See Also
 
-- [Upgrading to 0.11.0](upgrading-to-0-11-0.md) - Migration guide
-- [CHANGELOG.md](../CHANGELOG.md) - Full list of changes in 0.11.0
-- [CLAUDE.md](../CLAUDE.md) - Development guidelines for contributors
+### Related Explanations
+- [Git Worktrees Explained](git-worktrees.md) - Background on the underlying technology
+- [Spec-Driven Development](spec-driven-development.md) - The methodology that enables this workflow
+- [Kanban Workflow](kanban-workflow.md) - How work moves through lanes
+- [AI Agent Architecture](ai-agent-architecture.md) - How multiple agents collaborate
+
+### Migration and Reference
+- [Upgrading to 0.11.0](../upgrading-to-0-11-0.md) - Migration guide from legacy model
+- [CHANGELOG.md](../../CHANGELOG.md) - Full list of changes in 0.11.0
+
+---
+
+*This document explains the "why" behind workspace-per-WP. For practical steps, see the how-to guides.*
