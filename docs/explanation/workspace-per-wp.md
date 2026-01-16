@@ -554,7 +554,7 @@ git merge ###-feature-WP02
 
 ## Migration from Legacy Model
 
-See [Upgrading to 0.11.0](upgrading-to-0-11-0.md) for detailed migration guide.
+See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration guide.
 
 **Quick checklist**:
 - [ ] Complete or delete all in-progress features (legacy worktrees)
@@ -564,6 +564,6 @@ See [Upgrading to 0.11.0](upgrading-to-0-11-0.md) for detailed migration guide.
 
 ## See Also
 
-- [Upgrading to 0.11.0](upgrading-to-0-11-0.md) - Migration guide
+- [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) - Migration guide
 - [CHANGELOG.md](../CHANGELOG.md) - Full list of changes in 0.11.0
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines for contributors

@@ -129,7 +129,7 @@ Review what changed in 0.11.0:
 - Dependency tracking in WP frontmatter
 - All 12 agent templates updated
 
-See [Workspace-per-WP documentation](workspace-per-wp.md) for details.
+See [Workspace-per-WP documentation](../explanation/workspace-per-wp.md) for details.
 
 ### ☐ Step 7: Upgrade
 
@@ -508,7 +508,7 @@ After upgrading, you'll benefit from:
 
 ## Getting Help
 
-- **Documentation**: [Workspace-per-WP guide](workspace-per-wp.md)
+- **Documentation**: [Workspace-per-WP guide](../explanation/workspace-per-wp.md)
 - **Issues**: https://github.com/anthropics/spec-kitty/issues
 - **Changelog**: [CHANGELOG.md](../CHANGELOG.md)
 

@@ -602,9 +602,9 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 ## Next Steps
 
 1. **Try the Quick Start** - 5 minute hands-on experience
-2. **Review Dashboard Guide** - [kanban-dashboard-guide.md](kanban-dashboard-guide.md)
+2. **Review Dashboard Guide** - [use-dashboard.md](../how-to/use-dashboard.md)
 3. **Read Full Workflow** - [README Getting Started](#-getting-started-complete-workflow)
-4. **Explore Advanced Features** - [multi-agent-orchestration.md](multi-agent-orchestration.md)
+4. **Explore Advanced Features** - [multi-agent-orchestration.md](../explanation/multi-agent-orchestration.md)
 
 ---
 
@@ -618,9 +618,9 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 - Dashboard won't open → Kill existing instance first
 
 **Documentation**:
-- [Full Spec-Driven Development Guide](../spec-driven.md)
-- [Worktree Model](WORKTREE_MODEL.md)
-- [Multi-Agent Orchestration](multi-agent-orchestration.md)
+- [Spec-Driven Development](../explanation/spec-driven-development.md)
+- [Workspace-per-WP Model](../explanation/workspace-per-wp.md)
+- [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md)
 
 ---
 

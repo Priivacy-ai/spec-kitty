@@ -60,6 +60,6 @@ Spec Kitty was designed for **multi-agent development orchestration**—it keeps
 
 ## Next Steps
 
-- Study the **dashboard workflow** in [`kanban-dashboard-guide.md`](kanban-dashboard-guide.md).
+- Study the **dashboard workflow** in [`use-dashboard.md`](../how-to/use-dashboard.md).
 - Try the real-world scenario [`../examples/multi-agent-feature-development.md`](../examples/multi-agent-feature-development.md).
-- Dive into Claude-specific orchestration in [`claude-code-workflow.md`](claude-code-workflow.md).
+- Dive into Claude-specific orchestration in [`claude-code-workflow.md`](../tutorials/claude-code-workflow.md).
