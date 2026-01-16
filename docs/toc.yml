@@ -29,3 +29,13 @@
   items:
     - name: Release Readiness Checklist
       href: releases/readiness-checklist.md
+
+# Reference
+- name: Reference
+  items:
+    - name: CLI Commands
+      href: reference/cli-commands.md
+    - name: Slash Commands
+      href: reference/slash-commands.md
+    - name: Agent Subcommands
+      href: reference/agent-subcommands.md
