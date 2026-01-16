@@ -114,7 +114,7 @@ description: "Work package task list for comprehensive end-user documentation"
 
 ### Included Subtasks
 - [x] T012 [P] Create `docs/how-to/install-and-upgrade.md` - installation methods + upgrading
-- [ ] T013 [P] Create `docs/how-to/create-specification.md` - /spec-kitty.specify workflow
+- [x] T013 [P] Create `docs/how-to/create-specification.md` - /spec-kitty.specify workflow
 - [ ] T014 [P] Create `docs/how-to/create-plan.md` - /spec-kitty.plan workflow
 - [ ] T015 [P] Create `docs/how-to/generate-tasks.md` - /spec-kitty.tasks workflow
 - [ ] T016 [P] Create `docs/how-to/implement-work-package.md` - /spec-kitty.implement workflow
