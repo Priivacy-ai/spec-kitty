@@ -9,6 +9,8 @@ Use this guide to review a completed work package and update its lane.
 
 ## The Command
 
+In your agent:
+
 ```text
 /spec-kitty.review
 ```
@@ -32,13 +34,17 @@ If changes are required:
 1. Add feedback in the **Review Feedback** section of the WP file.
 2. Move the WP back to `planned` so the implementer can pick it up again.
 
+In your terminal:
+
 ```bash
 spec-kitty agent tasks move-task WP01 --to planned --note "Changes requested: <summary>"
 ```
 
 ## Passing Review
 
-When everything looks good, move the WP to `done`:
+When everything looks good, move the WP to `done`.
+
+In your terminal:
 
 ```bash
 spec-kitty agent tasks move-task WP01 --to done --note "Approved"

@@ -8,6 +8,8 @@ Run this when you are starting a brand-new feature and need a spec before planni
 
 ## The Command
 
+In your agent:
+
 ```text
 /spec-kitty.specify <description>
 ```

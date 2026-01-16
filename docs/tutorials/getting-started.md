@@ -51,9 +51,11 @@ Tip: Use `spec-kitty init --here --ai claude` to initialize the current folder.
 
 ## Step 3: Create Your First Specification
 
-Open your AI agent in this repository and run the `specify` command:
+Open your AI agent in this repository and run the `specify` command.
 
-```
+In your agent:
+
+```text
 /spec-kitty.specify Build a tiny command-line task list app.
 ```
 

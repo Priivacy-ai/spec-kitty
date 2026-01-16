@@ -9,6 +9,8 @@ Use this guide to turn a plan into work packages with `/spec-kitty.tasks`.
 
 ## The Command
 
+In your agent:
+
 ```text
 /spec-kitty.tasks
 ```
@@ -29,7 +31,9 @@ Each WP file contains:
 
 ## Finalizing Tasks
 
-After reviewing the generated WPs, finalize the task set:
+After reviewing the generated WPs, finalize the task set.
+
+In your terminal:
 
 ```bash
 spec-kitty agent feature finalize-tasks

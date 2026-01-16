@@ -25,6 +25,8 @@ This moves the WP to `lane: "doing"` and prints the full prompt plus the complet
 
 ## Step 2: Create the Workspace
 
+In your terminal:
+
 ```bash
 spec-kitty implement WP01
 ```
@@ -37,6 +39,8 @@ spec-kitty implement WP02 --base WP01
 
 ## Step 3: Work in the Worktree
 
+In your terminal:
+
 ```bash
 cd .worktrees/###-feature-WP01
 ```
@@ -45,7 +49,7 @@ Implement the prompt, run required tests, and commit your changes in the WP work
 
 ## Step 4: Mark the WP Ready for Review
 
-Use the exact command printed in the prompt. It will look like:
+Use the exact command printed in the prompt. In your terminal:
 
 ```bash
 spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: <summary>"

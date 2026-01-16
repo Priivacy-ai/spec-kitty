@@ -9,11 +9,13 @@ Use this guide to validate feature readiness and merge to `main`.
 
 ## Accept the Feature
 
+In your agent:
+
 ```text
 /spec-kitty.accept
 ```
 
-Or run the CLI command directly:
+Or in your terminal:
 
 ```bash
 spec-kitty accept
@@ -25,7 +27,7 @@ spec-kitty accept
 - Required metadata and activity logs are present
 - No unresolved `[NEEDS CLARIFICATION]` markers remain
 
-To run a read-only checklist:
+To run a read-only checklist (in your terminal):
 
 ```bash
 spec-kitty accept --mode checklist
@@ -33,11 +35,13 @@ spec-kitty accept --mode checklist
 
 ## Merge to Main
 
+In your agent:
+
 ```text
 /spec-kitty.merge --push
 ```
 
-Or via CLI:
+Or in your terminal:
 
 ```bash
 spec-kitty merge --push
@@ -51,7 +55,7 @@ spec-kitty merge --push
 
 ## Cleanup
 
-By default, merge removes the feature worktree and deletes the feature branch. Use these flags to keep them:
+By default, merge removes the feature worktree and deletes the feature branch. Use these flags to keep them (in your terminal):
 
 ```bash
 spec-kitty merge --keep-worktree --keep-branch

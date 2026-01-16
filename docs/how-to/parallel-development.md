@@ -74,8 +74,15 @@ cd .worktrees/###-feature-WP02
 
 ## Monitoring Parallel Work
 
+In your terminal:
+
 ```bash
 spec-kitty agent tasks status
+```
+
+Or in your agent:
+
+```text
 /spec-kitty.status
 ```
 

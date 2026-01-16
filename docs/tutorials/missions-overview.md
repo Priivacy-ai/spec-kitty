@@ -52,9 +52,11 @@ spec-kitty init my-research-project --mission research --ai claude
 cd my-research-project
 ```
 
-Run a research workflow:
+Run a research workflow.
 
-```
+In your agent:
+
+```text
 /spec-kitty.research Compare three task queue options for a Python service.
 ```
 

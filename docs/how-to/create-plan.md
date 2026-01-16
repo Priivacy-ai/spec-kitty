@@ -9,6 +9,8 @@ Use this guide to turn a finished spec into a technical plan with `/spec-kitty.p
 
 ## The Command
 
+In your agent:
+
 ```text
 /spec-kitty.plan
 ```

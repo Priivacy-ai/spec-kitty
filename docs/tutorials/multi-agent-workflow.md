@@ -27,9 +27,11 @@ Dependencies are declared in each WP frontmatter.
 
 ### Setup
 
-Generate work packages for your feature:
+Generate work packages for your feature.
 
-```
+In your agent:
+
+```text
 /spec-kitty.tasks
 ```
 
