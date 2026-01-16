@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Cross-References & Links
-lane: "planned"
+lane: "doing"
 dependencies:
 - WP03
 subtasks:
@@ -13,7 +13,7 @@ subtasks:
 phase: Phase 2 - Polish
 assignee: ''
 agent: "__AGENT__"
-shell_pid: "25767"
+shell_pid: "26746"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -268,3 +268,4 @@ The current state cannot be approved because validation was performed on incompl
 - 2026-01-16T18:06:26Z – __AGENT__ – shell_pid=25767 – lane=doing – Started review via workflow command
 - 2026-01-16T18:07:41Z – __AGENT__ – shell_pid=25767 – lane=planned – Changes requested: restore toc/index coverage for existing docs
 - 2026-01-16T18:07:49Z – __AGENT__ – shell_pid=25767 – lane=planned – Moved to planned
+- 2026-01-16T18:07:59Z – __AGENT__ – shell_pid=26746 – lane=doing – Started implementation via workflow command
