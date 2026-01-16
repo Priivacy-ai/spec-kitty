@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Cross-References & Links
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP03
 subtasks:
@@ -269,3 +269,4 @@ The current state cannot be approved because validation was performed on incompl
 - 2026-01-16T18:07:41Z – __AGENT__ – shell_pid=25767 – lane=planned – Changes requested: restore toc/index coverage for existing docs
 - 2026-01-16T18:07:49Z – __AGENT__ – shell_pid=25767 – lane=planned – Moved to planned
 - 2026-01-16T18:07:59Z – __AGENT__ – shell_pid=26746 – lane=doing – Started implementation via workflow command
+- 2026-01-16T18:14:43Z – __AGENT__ – shell_pid=26746 – lane=for_review – Ready for review: rebased WP10 onto WP09 and reran DocFX (warnings only).
