@@ -233,7 +233,7 @@ description: "Work package task list for comprehensive end-user documentation"
 ### Included Subtasks
 - [x] T031 [P] Create `docs/explanation/spec-driven-development.md` - philosophy and methodology
 - [x] T032 [P] Create `docs/explanation/divio-documentation.md` - why we use Divio 4-type system
-- [ ] T033 [P] Migrate/update `docs/explanation/workspace-per-wp.md` - 0.11.0 model explained
+- [x] T033 [P] Migrate/update `docs/explanation/workspace-per-wp.md` - 0.11.0 model explained
 - [ ] T034 [P] Create `docs/explanation/git-worktrees.md` - git worktrees for spec-kitty users
 - [ ] T035 [P] Create `docs/explanation/mission-system.md` - why missions exist, how they work
 - [ ] T036 [P] Create `docs/explanation/kanban-workflow.md` - planned → doing → for_review → done
