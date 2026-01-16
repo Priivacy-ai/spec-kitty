@@ -84,10 +84,10 @@ description: "Work package task list for comprehensive end-user documentation"
 **Prompt**: `tasks/WP03-tutorials.md`
 
 ### Included Subtasks
-- [ ] T008 [P] Create `docs/tutorials/getting-started.md` - installation + first spec (30 min tutorial)
-- [ ] T009 [P] Create `docs/tutorials/your-first-feature.md` - complete 0.11.0 workflow walkthrough
-- [ ] T010 [P] Create `docs/tutorials/missions-overview.md` - understanding software-dev, research, documentation
-- [ ] T011 [P] Create `docs/tutorials/multi-agent-workflow.md` - coordinating multiple AI agents on parallel WPs
+- [x] T008 [P] Create `docs/tutorials/getting-started.md` - installation + first spec (30 min tutorial)
+- [x] T009 [P] Create `docs/tutorials/your-first-feature.md` - complete 0.11.0 workflow walkthrough
+- [x] T010 [P] Create `docs/tutorials/missions-overview.md` - understanding software-dev, research, documentation
+- [x] T011 [P] Create `docs/tutorials/multi-agent-workflow.md` - coordinating multiple AI agents on parallel WPs
 
 ### Implementation Notes
 - Tutorials are learning-oriented, step-by-step
