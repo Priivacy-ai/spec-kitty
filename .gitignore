@@ -60,4 +60,5 @@ sdd-*/
 .github/
 .roo/
 .amazonq/
-
+# Prevent worktree-local kitty-specs/ (status managed in main repo)
+kitty-specs/
