@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Main pre-commit hook that orchestrates all pre-commit checks
+#
+# This hook runs all individual check scripts in the git-hooks directory.
+# Individual checks can be bypassed with --no-verify, but this should be
+# used sparingly and only when you're certain the commit is safe.
+
+set -e
+
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Run encoding check if it exists
+if [ -x "$HOOKS_DIR/pre-commit-encoding-check" ]; then
+    "$HOOKS_DIR/pre-commit-encoding-check" || exit 1
+fi
+
+# Run agent directory check if it exists
+if [ -x "$HOOKS_DIR/pre-commit-agent-check" ]; then
+    "$HOOKS_DIR/pre-commit-agent-check" || exit 1
+fi
+
+exit 0

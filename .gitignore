@@ -20,12 +20,14 @@ wheels/
 .installed.cfg
 *.egg
 
+
 # Virtual environments
 venv/
 ENV/
 env/
 .venv
 .uv-tools/
+.pytest_cache
 
 # IDE
 .vscode/

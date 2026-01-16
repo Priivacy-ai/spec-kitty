@@ -313,3 +313,4 @@ history:
 - 2026-01-16T16:34:56Z – __AGENT__ – shell_pid=25069 – lane=for_review – Ready for review: add core workflow how-to guides
 - 2026-01-16T17:49:51Z – claude – shell_pid=58526 – lane=doing – Started review via workflow command
 - 2026-01-16T17:50:02Z – claude – shell_pid=58526 – lane=done – Review passed: All 7 core workflow how-to guides created
+- 2026-01-16T18:07:00Z – claude – shell_pid=58526 – lane=done – Added how-to links to docs index/README and updated toc

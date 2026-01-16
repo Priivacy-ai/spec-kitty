@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Pre-commit hook to prevent committing agent directories
+#
+# Agent directories (.claude/, .codex/, etc.) may contain:
+# - Authentication tokens and API keys
+# - User-specific credentials (auth.json)
+# - Session data and conversation history
+#
+# These should NEVER be committed to version control.
+
+AGENT_DIRS=(".claude" ".codex" ".gemini" ".cursor" ".qwen" ".opencode"
+            ".windsurf" ".kilocode" ".augment" ".roo" ".amazonq" ".github/copilot")
+
+STAGED_AGENT_FILES=$(git diff --cached --name-only --diff-filter=ACM |
+                      grep -E "^\.(claude|codex|gemini|cursor|qwen|opencode|windsurf|kilocode|augment|roo|amazonq)/|^\.github/copilot/" || true)
+
+if [ -n "$STAGED_AGENT_FILES" ]; then
+    echo "❌ COMMIT BLOCKED: Agent directory files detected"
+    echo ""
+    echo "The following agent directory files are staged:"
+    echo "$STAGED_AGENT_FILES" | sed 's/^/  /'
+    echo ""
+    echo "These directories should NEVER be committed:"
+    for dir in "${AGENT_DIRS[@]}"; do
+        echo "  - $dir/ (may contain auth tokens and credentials)"
+    done
+    echo ""
+    echo "To fix:"
+    echo "  1. Unstage these files: git reset HEAD <file>"
+    echo "  2. Ensure .gitignore includes all agent directories"
+    echo "  3. Run: git status to verify"
+    echo ""
+    echo "To bypass this check (NOT recommended): git commit --no-verify"
+    exit 1
+fi
+
+exit 0

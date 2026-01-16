@@ -20,14 +20,12 @@
           "../SUPPORT.md"
         ],
         "dest": "."
-      }
     ],
     "resource": [
       {
         "files": [
           "assets/**"
         ]
-      }
     ],
     "overwrite": [
       {
@@ -69,6 +67,4 @@
       "_additionalCss": [
         "assets/css/custom.css"
       ]
-    }
   }
-}

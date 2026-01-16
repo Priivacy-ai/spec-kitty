@@ -77,6 +77,24 @@ def _find_feature_slug() -> str:
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
+    # Strategy 3: Scan kitty-specs/ and pick lexically most recent feature
+    try:
+        repo_root = locate_project_root()
+        if repo_root:
+            kitty_specs_dir = repo_root / "kitty-specs"
+            if kitty_specs_dir.exists():
+                # Find all feature directories matching ###-* pattern
+                feature_dirs = [
+                    d.name for d in kitty_specs_dir.iterdir()
+                    if d.is_dir() and len(d.name) >= 3 and d.name[:3].isdigit()
+                ]
+                if feature_dirs:
+                    # Sort and pick the lexically most recent (highest number)
+                    feature_dirs.sort()
+                    return feature_dirs[-1]
+    except Exception:
+        pass
+
     print("Error: Could not auto-detect feature slug.")
     print("  - Not in a kitty-specs/###-feature-slug directory")
     print("  - Git branch name doesn't match ###-slug format")
