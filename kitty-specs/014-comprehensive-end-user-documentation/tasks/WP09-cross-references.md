@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Cross-References & Links
-lane: "for_review"
+lane: "doing"
 dependencies:
 - WP03
 subtasks:
@@ -13,7 +13,7 @@ subtasks:
 phase: Phase 2 - Polish
 assignee: ''
 agent: "__AGENT__"
-shell_pid: "25767"
+shell_pid: "28468"
 review_status: ''
 reviewed_by: ''
 history:
@@ -196,3 +196,4 @@ history:
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-16T17:42:56Z – __AGENT__ – shell_pid=25767 – lane=doing – Started implementation via workflow command
 - 2026-01-16T17:55:04Z – __AGENT__ – shell_pid=25767 – lane=for_review – Ready for review: added cross-references across tutorials/how-to/reference/explanations, fixed broken links, updated toc/index, verified internal links
+- 2026-01-16T18:00:42Z – __AGENT__ – shell_pid=28468 – lane=doing – Started review via workflow command
