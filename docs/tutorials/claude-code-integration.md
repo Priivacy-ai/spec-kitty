@@ -603,7 +603,7 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 
 1. **Try the Quick Start** - 5 minute hands-on experience
 2. **Review Dashboard Guide** - [Use the Dashboard](../how-to/use-dashboard.md)
-3. **Read Full Workflow** - [README Getting Started](#-getting-started-complete-workflow)
+3. **Read Full Workflow** - [Getting Started Tutorial](getting-started.md)
 4. **Explore Advanced Features** - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md)
 
 ---
@@ -618,8 +618,8 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 - Dashboard won't open → Kill existing instance first
 
 **Documentation**:
-- [Full Spec-Driven Development Guide](../explanation/spec-driven-development.md)
-- [Worktree Model](../explanation/workspace-per-wp.md)
+- [Spec-Driven Development](../explanation/spec-driven-development.md)
+- [Workspace-per-WP Model](../explanation/workspace-per-wp.md)
 - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md)
 
 ---

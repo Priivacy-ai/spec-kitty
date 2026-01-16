@@ -1,6 +1,6 @@
 # Workspace-per-Work-Package Explained
 
-*This document explains the "why" behind the workspace-per-work-package model. For step-by-step instructions, see the [how-to guides](../how-to/). For an introduction, see the [tutorials](../tutorial/).*
+*This document explains the "why" behind the workspace-per-work-package model. For step-by-step instructions, see the [how-to guides](../how-to/use-dashboard.md). For an introduction, see the [tutorials](../tutorials/claude-code-workflow.md).*
 
 ## Overview
 
@@ -573,21 +573,21 @@ See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration
 - [Spec-Driven Development](spec-driven-development.md) - The methodology that enables this workflow
 - [Kanban Workflow](kanban-workflow.md) - How work moves through lanes
 - [AI Agent Architecture](ai-agent-architecture.md) - How multiple agents collaborate
+- [Mission System](mission-system.md) - How missions shape artifacts
 
 ### Migration and Reference
-- [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) - Migration guide from legacy model
-
----
-
-*This document explains the "why" behind workspace-per-WP. For practical steps, see the how-to guides.*
+- [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) - Migration guide
 
 ## Try It
-- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+- [Your First Feature](../tutorials/your-first-feature.md)
+- [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md)
 
 ## How-To Guides
-- [Use the Dashboard](../how-to/use-dashboard.md)
+- [Implement a Work Package](../how-to/implement-work-package.md)
+- [Handle Dependencies](../how-to/handle-dependencies.md)
+- [Parallel Development](../how-to/parallel-development.md)
 - [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
 
 ## Reference
-- [File Structure](../reference/file-structure.md)
 - [CLI Commands](../reference/cli-commands.md)
+- [File Structure](../reference/file-structure.md)

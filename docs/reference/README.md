@@ -16,6 +16,6 @@ Reference docs are:
 
 ## See Also
 
-- [Tutorials](../tutorials/) - Learning-oriented guides
-- [How-To Guides](../how-to/) - Task-oriented instructions
-- [Explanations](../explanation/) - Understanding-oriented background
+- [Claude Code Integration Tutorial](../tutorials/claude-code-integration.md) - Learning-oriented guide
+- [Use the Dashboard](../how-to/use-dashboard.md) - Task-oriented instructions
+- [Spec-Driven Development](../explanation/spec-driven-development.md) - Understanding-oriented background

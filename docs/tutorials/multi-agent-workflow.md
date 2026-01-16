@@ -69,7 +69,7 @@ OK Created workspace: .worktrees/###-feature-WP02
 
 ## Git Worktrees, Briefly
 
-Each work package is a Git worktree on its own branch. This keeps changes isolated and lets agents work in parallel without merge conflicts. For details, see [Workspace-per-WP](../workspace-per-wp.md) and [Worktree Model](../WORKTREE_MODEL.md).
+Each work package is a Git worktree on its own branch. This keeps changes isolated and lets agents work in parallel without merge conflicts. For details, see [Workspace-per-WP](../explanation/workspace-per-wp.md) and [Git Worktrees](../explanation/git-worktrees.md).
 
 ## Tips for Coordinating Agents
 
