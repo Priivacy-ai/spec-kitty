@@ -6,12 +6,12 @@ subtasks:
   - "T025"
 title: "Reference - Commands"
 phase: "Phase 1 - Content Creation"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "claude"
 shell_pid: "58964"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 dependencies: ["WP02"]
 history:
   - timestamp: "2026-01-16T16:16:58Z"
@@ -238,3 +238,4 @@ history:
 - 2026-01-16T16:31:20Z – __AGENT__ – shell_pid=28468 – lane=doing – Started implementation via workflow command
 - 2026-01-16T16:39:28Z – __AGENT__ – shell_pid=28468 – lane=for_review – Ready for review: added CLI, slash, and agent command reference docs
 - 2026-01-16T17:50:21Z – claude – shell_pid=58964 – lane=doing – Started review via workflow command
+- 2026-01-16T17:50:30Z – claude – shell_pid=58964 – lane=done – Review passed: All 3 command reference docs created (CLI, slash, agent subcommands)
