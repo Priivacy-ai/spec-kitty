@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Cross-References & Links
-lane: "doing"
+lane: "planned"
 dependencies:
 - WP03
 subtasks:
@@ -14,8 +14,8 @@ phase: Phase 2 - Polish
 assignee: ''
 agent: "__AGENT__"
 shell_pid: "25767"
-review_status: ''
-reviewed_by: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-01-16T16:16:58Z'
   lane: planned
@@ -42,9 +42,25 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-16
 
----
+**Status**: ❌ **Needs Changes**
+
+**Key Issues**:
+1. **Navigation regression**: `docs/index.md` and `docs/toc.yml` drop multiple tutorials/how-to pages that exist in the repo (e.g., `docs/tutorials/getting-started.md`, `docs/tutorials/your-first-feature.md`, and the how-to set like `docs/how-to/create-plan.md`). This reduces discoverability and conflicts with the documented structure in `docs/reference/file-structure.md` and the sample nav in `docs/reference/configuration.md`.
+2. **Inconsistent guidance**: The index “Next step” now points to Claude-specific docs, but the repo still includes general onboarding tutorials (Getting Started / Your First Feature). This creates a mismatch between the navigation/landing page and the docs set you kept in the tree.
+
+**What Was Done Well**:
+- Cross-reference sections were added consistently to the reference/explanation docs that were touched.
+- Link target updates in `docs/explanation/divio-documentation.md` look correct.
+
+**Action Items** (must complete before re-review):
+- [ ] Restore `docs/index.md` tutorial/how-to lists to include the existing general tutorials and how-to guides, or explicitly remove those docs and update all structure references accordingly.
+- [ ] Restore `docs/toc.yml` entries for the existing tutorials/how-to guides so navigation matches the actual docs set, or update `docs/reference/file-structure.md` and `docs/reference/configuration.md` if those docs are intentionally being deprecated.
+- [ ] Re-run a link check (DocFX or equivalent) after nav changes to confirm no broken internal links remain.
+
 
 ## Objectives & Success Criteria
 
@@ -203,3 +219,4 @@ history:
 - 2026-01-16T17:55:04Z – __AGENT__ – shell_pid=25767 – lane=for_review – Ready for review: added cross-references across tutorials/how-to/reference/explanations, fixed broken links, updated toc/index, verified internal links
 - 2026-01-16T18:00:42Z – __AGENT__ – shell_pid=28468 – lane=doing – Started review via workflow command
 - 2026-01-16T18:06:26Z – __AGENT__ – shell_pid=25767 – lane=doing – Started review via workflow command
+- 2026-01-16T18:07:41Z – __AGENT__ – shell_pid=25767 – lane=planned – Changes requested: restore toc/index coverage for existing docs
