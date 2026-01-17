@@ -574,6 +574,8 @@ See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration
 
 ### Related Explanations
 - [Git Worktrees Explained](git-worktrees.md) - Background on the underlying technology
+- [Jujutsu for Multi-Agent Development](jujutsu-for-multi-agent.md) - Why jj is recommended
+- [Auto-Rebase and Non-Blocking Conflicts](auto-rebase-and-conflicts.md) - How jj handles dependencies
 - [Spec-Driven Development](spec-driven-development.md) - The methodology that enables this workflow
 - [Kanban Workflow](kanban-workflow.md) - How work moves through lanes
 - [AI Agent Architecture](ai-agent-architecture.md) - How multiple agents collaborate
@@ -585,10 +587,13 @@ See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration
 ## Try It
 - [Your First Feature](../tutorials/your-first-feature.md)
 - [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md)
+- [Jujutsu Workflow](../tutorials/jujutsu-workflow.md)
 
 ## How-To Guides
 - [Implement a Work Package](../how-to/implement-work-package.md)
 - [Handle Dependencies](../how-to/handle-dependencies.md)
+- [Sync Workspaces](../how-to/sync-workspaces.md)
+- [Handle Conflicts (jj)](../how-to/handle-conflicts-jj.md)
 - [Parallel Development](../how-to/parallel-development.md)
 - [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
 

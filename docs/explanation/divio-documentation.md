@@ -220,7 +220,7 @@ For background on why conflicts occur, see [Git Worktrees Explained](../explanat
 ## Further Reading
 
 - [Divio Documentation System](https://documentation.divio.com/) - The original framework
-- [What nobody tells you about documentation](https://www.writethedocs.org/videos/eu/2017/what-nobody-tells-you-about-documentation-daniele-procida/) - Conference talk by Divio's creator
+- [What nobody tells you about documentation](https://www.youtube.com/watch?v=p0PPtdRHG6M) - Conference talk by Divio's creator
 
 ## See Also
 

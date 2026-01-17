@@ -218,7 +218,7 @@ When a new AI agent appears, Spec Kitty can add support by:
 3. **Converting templates**: Generate command files in the agent's format
 4. **Adding CLI checks**: Verify the agent's CLI tool is installed (if CLI-based)
 
-See [AGENTS.md](../../AGENTS.md) for detailed integration guide.
+See [Agent Subcommands](../reference/agent-subcommands.md) for the workflow command reference.
 
 ## Command Execution Flow
 

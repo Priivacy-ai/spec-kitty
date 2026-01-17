@@ -181,5 +181,6 @@ Sync your workspace:
 
 - [Jujutsu (jj) Workflow Tutorial](../tutorials/jujutsu-workflow.md) — Complete workflow tutorial
 - [Handle Conflicts (jj)](handle-conflicts-jj.md) — Resolving conflicts after sync
+- [Handle Dependencies](handle-dependencies.md) — Keeping dependent WPs in sync
 - [Auto-Rebase and Non-Blocking Conflicts](../explanation/auto-rebase-and-conflicts.md) — How auto-rebase works
 - [CLI Commands Reference](../reference/cli-commands.md#spec-kitty-sync) — Full command reference

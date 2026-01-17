@@ -96,5 +96,5 @@ cd my-project
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/anthropics/spec-kitty/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/anthropics/spec-kitty/discussions)
+- **Issues**: [GitHub Issues](https://github.com/Priivacy-ai/spec-kitty/issues)
+- **Discussions**: [GitHub Issues](https://github.com/Priivacy-ai/spec-kitty/issues)
