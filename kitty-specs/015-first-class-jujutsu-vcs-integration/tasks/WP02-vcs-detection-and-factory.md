@@ -7,14 +7,14 @@ subtasks:
   - "T008"
   - "T009"
 phase: "Phase 1 - Abstraction Layer"
-lane: "doing"
+lane: "planned"
 priority: "P0"
 dependencies: ["WP01"]
 assignee: ""
 agent: "__AGENT__"
 shell_pid: "38749"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-17T10:38:23Z"
     lane: "planned"
@@ -284,3 +284,15 @@ def test_get_vcs_with_explicit_git():
 - 2026-01-17T11:48:23Z – claude-code – shell_pid=40451 – lane=doing – Started implementation via workflow command
 - 2026-01-17T11:52:51Z – claude-code – shell_pid=40451 – lane=for_review – Ready for review: Detection and factory functions implemented with 29 passing tests
 - 2026-01-17T11:53:35Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
+- 2026-01-17T11:54:51Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
+
+## Review Feedback
+
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-17
+
+**Issue 1**: `_get_locked_vcs_from_feature()` scans all feature directories under `kitty-specs/` and returns the first `meta.json` with a `vcs` field, even when the provided `path` is not inside that feature. This can cause `get_vcs()` to incorrectly lock to an unrelated feature when called from the repo root or other paths. Update the logic to only read `meta.json` for the feature that actually contains `path` (or the feature indicated by the worktree name), and return `None` when `path` is not inside a feature.
+
+**Issue 2**: Tests do not verify the required “locked VCS” behavior. The current meta.json tests accept either backend, so they won't fail even if the lock isn't respected. Add a test where `path` is inside a specific feature directory (or worktree path) and assert that `get_vcs()` returns the locked backend (and mismatched explicit backend raises `VCSBackendMismatchError`).
+
