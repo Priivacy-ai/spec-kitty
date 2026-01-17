@@ -7,7 +7,7 @@ subtasks:
   - "T008"
   - "T009"
 phase: "Phase 1 - Abstraction Layer"
-lane: "doing"
+lane: "for_review"
 priority: "P0"
 dependencies: ["WP01"]
 assignee: ""
@@ -286,6 +286,7 @@ def test_get_vcs_with_explicit_git():
 - 2026-01-17T11:53:35Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
 - 2026-01-17T11:54:51Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
 - 2026-01-17T11:55:22Z – claude-opus – shell_pid=42463 – lane=doing – Started implementation via workflow command
+- 2026-01-17T11:58:03Z – claude-opus – shell_pid=42463 – lane=for_review – Ready for review: Fixed _get_locked_vcs_from_feature() to only read meta.json for containing feature, added 6 new tests for locked VCS behavior
 
 ## Review Feedback
 
