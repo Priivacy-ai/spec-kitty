@@ -1,8 +1,6 @@
 """Tests for manifest script filtering to prevent false positives."""
 
-from pathlib import Path
-import tempfile
-import shutil
+import platform
 from specify_cli.manifest import FileManifest
 
 
@@ -76,7 +74,6 @@ sh: .kittify/scripts/helper.sh
     scripts = manifest._get_referenced_scripts()
     
     # Verify actual scripts are included (platform-specific)
-    import platform
     if platform.system() == 'Windows':
         assert "scripts/setup.ps1" in scripts
     else:
@@ -200,7 +197,6 @@ ps: spec-kitty agent --json
     scripts = manifest._get_referenced_scripts()
     
     # Verify only real script is included
-    import platform
     if platform.system() == 'Windows':
         assert "scripts/real-script.ps1" in scripts
         assert len(scripts) == 1

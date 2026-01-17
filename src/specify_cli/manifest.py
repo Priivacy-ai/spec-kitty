@@ -130,21 +130,18 @@ class FileManifest:
                                     
                                 # Skip absolute paths and commands without .kittify prefix
                                 # Only include scripts that are in .kittify/scripts/
-                                if not script_path.startswith('.kittify/scripts/'):
-                                    # Try to normalize paths that start with .kittify/
-                                    if script_path.startswith('.kittify/'):
-                                        # Remove .kittify/ prefix for storage
-                                        script_path = script_path.replace('.kittify/', '', 1)
-                                        # Must be in scripts/ subdirectory
-                                        if not script_path.startswith('scripts/'):
-                                            continue
-                                        scripts.add(script_path)
-                                    # Otherwise skip it (not a .kittify script)
+                                if not script_path.startswith('.kittify/'):
+                                    # Not a .kittify-managed script
                                     continue
-                                else:
-                                    # Remove .kittify/ prefix for storage
-                                    script_path = script_path.replace('.kittify/', '', 1)
-                                    scripts.add(script_path)
+                                
+                                # Remove .kittify/ prefix for storage
+                                script_path = script_path.replace('.kittify/', '', 1)
+                                
+                                # Must be in scripts/ subdirectory
+                                if not script_path.startswith('scripts/'):
+                                    continue
+                                
+                                scripts.add(script_path)
 
         return sorted(list(scripts))
 
