@@ -1,20 +1,27 @@
 """
-Git VCS Implementation (Stub)
-=============================
+Git VCS Implementation
+======================
 
-This is a stub implementation for GitVCS that will be fully implemented in WP03.
-It provides the minimal implementation needed for get_vcs() factory to work.
+Full implementation of GitVCS that wraps git CLI commands.
+Implements VCSProtocol for workspace management, sync operations,
+conflict detection, and commit operations.
 """
 
 from __future__ import annotations
 
+import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
+from .exceptions import VCSConflictError, VCSSyncError
 from .types import (
     ChangeInfo,
     ConflictInfo,
+    ConflictType,
     GIT_CAPABILITIES,
+    OperationInfo,
     SyncResult,
+    SyncStatus,
     VCSBackend,
     VCSCapabilities,
     WorkspaceCreateResult,
@@ -26,7 +33,8 @@ class GitVCS:
     """
     Git VCS implementation.
 
-    This is a stub that will be fully implemented in WP03.
+    Implements VCSProtocol for git repositories, wrapping git CLI commands
+    for workspace management, synchronization, conflict detection, and commits.
     """
 
     @property
@@ -39,51 +47,610 @@ class GitVCS:
         """Return capabilities of this backend."""
         return GIT_CAPABILITIES
 
-    # Workspace operations - stubs
+    # =========================================================================
+    # Workspace Operations
+    # =========================================================================
+
     def create_workspace(
         self,
         workspace_path: Path,
         workspace_name: str,
         base_branch: str | None = None,
         base_commit: str | None = None,
+        repo_root: Path | None = None,
     ) -> WorkspaceCreateResult:
-        """Create a new workspace. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.create_workspace not yet implemented")
+        """
+        Create a new git worktree for a work package.
+
+        Args:
+            workspace_path: Where to create the workspace
+            workspace_name: Name for the workspace branch (e.g., "015-feature-WP01")
+            base_branch: Branch to base on (for --base flag)
+            base_commit: Specific commit to base on (alternative to branch)
+            repo_root: Root of the git repository (auto-detected if not provided)
+
+        Returns:
+            WorkspaceCreateResult with workspace info or error
+        """
+        try:
+            # Ensure parent directory exists
+            workspace_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Find repo root to run git commands from
+            if repo_root is None:
+                repo_root = self.get_repo_root(workspace_path.parent)
+                if repo_root is None:
+                    return WorkspaceCreateResult(
+                        success=False,
+                        workspace=None,
+                        error="Could not find git repository root",
+                    )
+
+            # Build the git worktree add command
+            cmd = ["git", "worktree", "add"]
+
+            # Determine the base point for the new branch
+            if base_commit:
+                # Branch from specific commit
+                cmd.extend(["-b", workspace_name, str(workspace_path), base_commit])
+            elif base_branch:
+                # Branch from specified branch
+                cmd.extend(["-b", workspace_name, str(workspace_path), base_branch])
+            else:
+                # Default: branch from current HEAD
+                cmd.extend(["-b", workspace_name, str(workspace_path)])
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=str(repo_root),
+            )
+
+            if result.returncode != 0:
+                return WorkspaceCreateResult(
+                    success=False,
+                    workspace=None,
+                    error=result.stderr.strip() or "Failed to create worktree",
+                )
+
+            # Get workspace info for the newly created workspace
+            workspace_info = self.get_workspace_info(workspace_path)
+
+            return WorkspaceCreateResult(
+                success=True,
+                workspace=workspace_info,
+                error=None,
+            )
+
+        except subprocess.TimeoutExpired:
+            return WorkspaceCreateResult(
+                success=False,
+                workspace=None,
+                error="Worktree creation timed out",
+            )
+        except OSError as e:
+            return WorkspaceCreateResult(
+                success=False,
+                workspace=None,
+                error=f"OS error: {e}",
+            )
 
     def remove_workspace(self, workspace_path: Path) -> bool:
-        """Remove a workspace. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.remove_workspace not yet implemented")
+        """
+        Remove a git worktree.
+
+        Args:
+            workspace_path: Path to the workspace to remove
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Find repo root to run git commands from
+            repo_root = self.get_repo_root(workspace_path)
+            if repo_root is None:
+                # Try parent directory if workspace_path is the worktree itself
+                repo_root = self.get_repo_root(workspace_path.parent)
+            if repo_root is None:
+                return False
+
+            result = subprocess.run(
+                ["git", "worktree", "remove", str(workspace_path), "--force"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(repo_root),
+            )
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, OSError):
+            return False
 
     def get_workspace_info(self, workspace_path: Path) -> WorkspaceInfo | None:
-        """Get workspace info. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.get_workspace_info not yet implemented")
+        """
+        Get information about a workspace.
+
+        Args:
+            workspace_path: Path to the workspace
+
+        Returns:
+            WorkspaceInfo or None if not a valid workspace
+        """
+        workspace_path = workspace_path.resolve()
+
+        if not workspace_path.exists():
+            return None
+
+        # Check if it's a worktree
+        git_dir = workspace_path / ".git"
+        if not git_dir.exists():
+            return None
+
+        try:
+            # Get current branch
+            branch_result = subprocess.run(
+                ["git", "-C", str(workspace_path), "rev-parse", "--abbrev-ref", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            current_branch = (
+                branch_result.stdout.strip() if branch_result.returncode == 0 else None
+            )
+            if current_branch == "HEAD":
+                current_branch = None  # Detached HEAD
+
+            # Get current commit
+            commit_result = subprocess.run(
+                ["git", "-C", str(workspace_path), "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            current_commit = (
+                commit_result.stdout.strip() if commit_result.returncode == 0 else ""
+            )
+
+            # Check for uncommitted changes
+            status_result = subprocess.run(
+                ["git", "-C", str(workspace_path), "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            has_uncommitted = bool(status_result.stdout.strip())
+
+            # Check for conflicts
+            has_conflicts = self.has_conflicts(workspace_path)
+
+            # Derive workspace name from path
+            workspace_name = workspace_path.name
+
+            # Try to determine base branch from tracking
+            base_branch = self._get_tracking_branch(workspace_path)
+
+            return WorkspaceInfo(
+                name=workspace_name,
+                path=workspace_path,
+                backend=VCSBackend.GIT,
+                is_colocated=False,
+                current_branch=current_branch,
+                current_change_id=None,  # Git doesn't have change IDs
+                current_commit_id=current_commit,
+                base_branch=base_branch,
+                base_commit_id=None,  # Would need to track this separately
+                is_stale=self.is_workspace_stale(workspace_path),
+                has_conflicts=has_conflicts,
+                has_uncommitted=has_uncommitted,
+            )
+
+        except (subprocess.TimeoutExpired, OSError):
+            return None
 
     def list_workspaces(self, repo_root: Path) -> list[WorkspaceInfo]:
-        """List workspaces. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.list_workspaces not yet implemented")
+        """
+        List all worktrees for a repository.
 
-    # Sync operations - stubs
+        Args:
+            repo_root: Root of the repository
+
+        Returns:
+            List of WorkspaceInfo for all worktrees
+        """
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0:
+                return []
+
+            workspaces = []
+            lines = result.stdout.strip().split("\n")
+            current_path = None
+
+            for line in lines:
+                if line.startswith("worktree "):
+                    current_path = Path(line[9:])
+                elif line == "" and current_path:
+                    # End of entry
+                    info = self.get_workspace_info(current_path)
+                    if info:
+                        workspaces.append(info)
+                    current_path = None
+
+            # Don't forget the last entry
+            if current_path:
+                info = self.get_workspace_info(current_path)
+                if info:
+                    workspaces.append(info)
+
+            return workspaces
+
+        except (subprocess.TimeoutExpired, OSError):
+            return []
+
+    # =========================================================================
+    # Sync Operations
+    # =========================================================================
+
     def sync_workspace(self, workspace_path: Path) -> SyncResult:
-        """Sync workspace. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.sync_workspace not yet implemented")
+        """
+        Synchronize workspace with upstream changes.
+
+        For git, this fetches and attempts to rebase. Conflicts will
+        block the operation (unlike jj where conflicts are stored).
+
+        Args:
+            workspace_path: Path to the workspace to sync
+
+        Returns:
+            SyncResult with status, conflicts, and changes integrated
+        """
+        try:
+            # 1. Fetch latest
+            fetch_result = subprocess.run(
+                ["git", "-C", str(workspace_path), "fetch", "--all"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+
+            if fetch_result.returncode != 0:
+                return SyncResult(
+                    status=SyncStatus.FAILED,
+                    conflicts=[],
+                    files_updated=0,
+                    files_added=0,
+                    files_deleted=0,
+                    changes_integrated=[],
+                    message=f"Fetch failed: {fetch_result.stderr.strip()}",
+                )
+
+            # 2. Get the base branch to rebase onto
+            base_branch = self._get_tracking_branch(workspace_path)
+            if not base_branch:
+                # Try to find upstream
+                base_branch = self._get_upstream_branch(workspace_path)
+
+            if not base_branch:
+                return SyncResult(
+                    status=SyncStatus.UP_TO_DATE,
+                    conflicts=[],
+                    files_updated=0,
+                    files_added=0,
+                    files_deleted=0,
+                    changes_integrated=[],
+                    message="No upstream branch configured",
+                )
+
+            # 3. Check if already up to date
+            merge_base_result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(workspace_path),
+                    "merge-base",
+                    "HEAD",
+                    base_branch,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            head_result = subprocess.run(
+                ["git", "-C", str(workspace_path), "rev-parse", base_branch],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if (
+                merge_base_result.returncode == 0
+                and head_result.returncode == 0
+                and merge_base_result.stdout.strip() == head_result.stdout.strip()
+            ):
+                return SyncResult(
+                    status=SyncStatus.UP_TO_DATE,
+                    conflicts=[],
+                    files_updated=0,
+                    files_added=0,
+                    files_deleted=0,
+                    changes_integrated=[],
+                    message="Already up to date",
+                )
+
+            # 4. Get commits that will be integrated
+            changes_to_integrate = self._get_commits_between(
+                workspace_path, "HEAD", base_branch
+            )
+
+            # 5. Try rebase
+            rebase_result = subprocess.run(
+                ["git", "-C", str(workspace_path), "rebase", base_branch],
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+
+            if rebase_result.returncode != 0:
+                # Check for conflicts
+                conflicts = self.detect_conflicts(workspace_path)
+                if conflicts:
+                    return SyncResult(
+                        status=SyncStatus.CONFLICTS,
+                        conflicts=conflicts,
+                        files_updated=0,
+                        files_added=0,
+                        files_deleted=0,
+                        changes_integrated=changes_to_integrate,
+                        message="Rebase has conflicts that must be resolved",
+                    )
+                else:
+                    # Abort the failed rebase
+                    subprocess.run(
+                        ["git", "-C", str(workspace_path), "rebase", "--abort"],
+                        capture_output=True,
+                        timeout=30,
+                    )
+                    return SyncResult(
+                        status=SyncStatus.FAILED,
+                        conflicts=[],
+                        files_updated=0,
+                        files_added=0,
+                        files_deleted=0,
+                        changes_integrated=[],
+                        message=f"Rebase failed: {rebase_result.stderr.strip()}",
+                    )
+
+            # 6. Count changed files from rebase output
+            files_updated, files_added, files_deleted = self._parse_rebase_stats(
+                rebase_result.stdout + rebase_result.stderr
+            )
+
+            return SyncResult(
+                status=SyncStatus.SYNCED,
+                conflicts=[],
+                files_updated=files_updated,
+                files_added=files_added,
+                files_deleted=files_deleted,
+                changes_integrated=changes_to_integrate,
+                message="Successfully rebased onto upstream",
+            )
+
+        except subprocess.TimeoutExpired:
+            raise VCSSyncError("Sync operation timed out")
+        except OSError as e:
+            raise VCSSyncError(f"OS error during sync: {e}")
 
     def is_workspace_stale(self, workspace_path: Path) -> bool:
-        """Check if stale. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.is_workspace_stale not yet implemented")
+        """
+        Check if workspace needs sync (base has changed).
 
-    # Conflict operations - stubs
+        Args:
+            workspace_path: Path to the workspace
+
+        Returns:
+            True if sync is needed, False if up-to-date
+        """
+        try:
+            # Get the tracking branch
+            base_branch = self._get_tracking_branch(workspace_path)
+            if not base_branch:
+                return False
+
+            # Compare HEAD with upstream
+            result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(workspace_path),
+                    "rev-list",
+                    "--count",
+                    f"HEAD..{base_branch}",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0:
+                return False
+
+            # If there are commits in upstream not in HEAD, we're stale
+            count = int(result.stdout.strip()) if result.stdout.strip() else 0
+            return count > 0
+
+        except (subprocess.TimeoutExpired, OSError, ValueError):
+            return False
+
+    # =========================================================================
+    # Conflict Operations
+    # =========================================================================
+
     def detect_conflicts(self, workspace_path: Path) -> list[ConflictInfo]:
-        """Detect conflicts. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.detect_conflicts not yet implemented")
+        """
+        Detect conflicts in a workspace.
+
+        Args:
+            workspace_path: Path to the workspace
+
+        Returns:
+            List of ConflictInfo for all conflicted files
+        """
+        try:
+            # Get list of conflicted files
+            result = subprocess.run(
+                ["git", "-C", str(workspace_path), "diff", "--name-only", "--diff-filter=U"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0 or not result.stdout.strip():
+                # Also check git status for unmerged paths
+                status_result = subprocess.run(
+                    ["git", "-C", str(workspace_path), "status", "--porcelain"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+
+                conflicts = []
+                for line in status_result.stdout.strip().split("\n"):
+                    if line and line[:2] in ("UU", "AA", "DD", "AU", "UA", "DU", "UD"):
+                        file_path = Path(line[3:].strip())
+                        conflict_type = self._status_to_conflict_type(line[:2])
+                        full_path = workspace_path / file_path
+
+                        line_ranges = None
+                        if full_path.exists() and conflict_type == ConflictType.CONTENT:
+                            line_ranges = self._parse_conflict_markers(full_path)
+
+                        conflicts.append(
+                            ConflictInfo(
+                                file_path=file_path,
+                                conflict_type=conflict_type,
+                                line_ranges=line_ranges,
+                                sides=2,
+                                is_resolved=False,
+                                our_content=None,
+                                their_content=None,
+                                base_content=None,
+                            )
+                        )
+                return conflicts
+
+            conflicts = []
+            for line in result.stdout.strip().split("\n"):
+                if not line:
+                    continue
+
+                file_path = Path(line.strip())
+                full_path = workspace_path / file_path
+
+                # Parse conflict markers to get line ranges
+                line_ranges = None
+                if full_path.exists():
+                    line_ranges = self._parse_conflict_markers(full_path)
+
+                conflicts.append(
+                    ConflictInfo(
+                        file_path=file_path,
+                        conflict_type=ConflictType.CONTENT,
+                        line_ranges=line_ranges,
+                        sides=2,
+                        is_resolved=False,
+                        our_content=None,  # Could extract from markers
+                        their_content=None,
+                        base_content=None,
+                    )
+                )
+
+            return conflicts
+
+        except (subprocess.TimeoutExpired, OSError):
+            return []
 
     def has_conflicts(self, workspace_path: Path) -> bool:
-        """Check for conflicts. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.has_conflicts not yet implemented")
+        """
+        Check if workspace has any unresolved conflicts.
 
-    # Commit operations - stubs
+        Args:
+            workspace_path: Path to the workspace
+
+        Returns:
+            True if conflicts exist, False otherwise
+        """
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(workspace_path), "diff", "--name-only", "--diff-filter=U"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode == 0 and result.stdout.strip():
+                return True
+
+            # Also check git status
+            status_result = subprocess.run(
+                ["git", "-C", str(workspace_path), "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            for line in status_result.stdout.strip().split("\n"):
+                if line and line[:2] in ("UU", "AA", "DD", "AU", "UA", "DU", "UD"):
+                    return True
+
+            return False
+
+        except (subprocess.TimeoutExpired, OSError):
+            return False
+
+    # =========================================================================
+    # Commit/Change Operations
+    # =========================================================================
+
     def get_current_change(self, workspace_path: Path) -> ChangeInfo | None:
-        """Get current change. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.get_current_change not yet implemented")
+        """
+        Get info about current working copy commit/change.
+
+        Args:
+            workspace_path: Path to the workspace
+
+        Returns:
+            ChangeInfo for current HEAD, None if invalid
+        """
+        try:
+            result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(workspace_path),
+                    "log",
+                    "-1",
+                    "--format=%H|%an|%ae|%at|%s|%P|%B",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0 or not result.stdout.strip():
+                return None
+
+            return self._parse_log_line(result.stdout.strip())
+
+        except (subprocess.TimeoutExpired, OSError):
+            return None
 
     def get_changes(
         self,
@@ -91,8 +658,53 @@ class GitVCS:
         revision_range: str | None = None,
         limit: int | None = None,
     ) -> list[ChangeInfo]:
-        """Get changes. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.get_changes not yet implemented")
+        """
+        Get list of changes/commits.
+
+        Args:
+            repo_path: Repository path
+            revision_range: Git revision range (e.g., "main..HEAD")
+            limit: Maximum number to return
+
+        Returns:
+            List of ChangeInfo
+        """
+        try:
+            cmd = [
+                "git",
+                "-C",
+                str(repo_path),
+                "log",
+                "--format=%H|%an|%ae|%at|%s|%P",
+            ]
+
+            if limit:
+                cmd.append(f"-{limit}")
+
+            if revision_range:
+                cmd.append(revision_range)
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+            if result.returncode != 0:
+                return []
+
+            changes = []
+            for line in result.stdout.strip().split("\n"):
+                if line:
+                    change = self._parse_log_line_short(line)
+                    if change:
+                        changes.append(change)
+
+            return changes
+
+        except (subprocess.TimeoutExpired, OSError):
+            return []
 
     def commit(
         self,
@@ -100,18 +712,428 @@ class GitVCS:
         message: str,
         paths: list[Path] | None = None,
     ) -> ChangeInfo | None:
-        """Commit changes. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.commit not yet implemented")
+        """
+        Create a commit with current changes.
 
-    # Repository operations - stubs
+        Args:
+            workspace_path: Workspace to commit in
+            message: Commit message
+            paths: Specific paths to commit (None = all)
+
+        Returns:
+            ChangeInfo for new commit, None if nothing to commit
+        """
+        try:
+            # Stage files
+            if paths:
+                for path in paths:
+                    subprocess.run(
+                        ["git", "-C", str(workspace_path), "add", str(path)],
+                        capture_output=True,
+                        timeout=30,
+                    )
+            else:
+                subprocess.run(
+                    ["git", "-C", str(workspace_path), "add", "-A"],
+                    capture_output=True,
+                    timeout=30,
+                )
+
+            # Check if there are staged changes
+            status_result = subprocess.run(
+                ["git", "-C", str(workspace_path), "diff", "--cached", "--quiet"],
+                capture_output=True,
+                timeout=30,
+            )
+
+            if status_result.returncode == 0:
+                # No changes to commit
+                return None
+
+            # Commit
+            commit_result = subprocess.run(
+                ["git", "-C", str(workspace_path), "commit", "-m", message],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+            if commit_result.returncode != 0:
+                return None
+
+            # Return info about the new commit
+            return self.get_current_change(workspace_path)
+
+        except (subprocess.TimeoutExpired, OSError):
+            return None
+
+    # =========================================================================
+    # Repository Operations
+    # =========================================================================
+
     def init_repo(self, path: Path, colocate: bool = True) -> bool:
-        """Init repo. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.init_repo not yet implemented")
+        """
+        Initialize a new git repository.
+
+        Args:
+            path: Where to initialize
+            colocate: Ignored for git (only relevant for jj)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            result = subprocess.run(
+                ["git", "init"],
+                cwd=str(path),
+                capture_output=True,
+                timeout=30,
+            )
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, OSError):
+            return False
 
     def is_repo(self, path: Path) -> bool:
-        """Check if repo. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.is_repo not yet implemented")
+        """
+        Check if path is inside a git repository.
+
+        Args:
+            path: Path to check
+
+        Returns:
+            True if valid git repository
+        """
+        if not path.exists():
+            return False
+
+        # Check for .git directory or file (worktree)
+        git_dir = path / ".git"
+        if git_dir.exists():
+            return True
+
+        # Also check if we're inside a repo
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--is-inside-work-tree"],
+                cwd=str(path),
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            return result.returncode == 0 and result.stdout.strip() == "true"
+        except (subprocess.TimeoutExpired, OSError):
+            return False
 
     def get_repo_root(self, path: Path) -> Path | None:
-        """Get repo root. Stub - to be implemented in WP03."""
-        raise NotImplementedError("GitVCS.get_repo_root not yet implemented")
+        """
+        Get root directory of repository containing path.
+
+        Args:
+            path: Path within the repository
+
+        Returns:
+            Repository root or None if not in a repo
+        """
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--show-toplevel"],
+                cwd=str(path),
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if result.returncode == 0 and result.stdout.strip():
+                return Path(result.stdout.strip())
+            return None
+
+        except (subprocess.TimeoutExpired, OSError):
+            return None
+
+    # =========================================================================
+    # Private Helper Methods
+    # =========================================================================
+
+    def _get_tracking_branch(self, workspace_path: Path) -> str | None:
+        """Get the tracking branch for the current branch."""
+        try:
+            result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(workspace_path),
+                    "rev-parse",
+                    "--abbrev-ref",
+                    "--symbolic-full-name",
+                    "@{u}",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+            return None
+        except (subprocess.TimeoutExpired, OSError):
+            return None
+
+    def _get_upstream_branch(self, workspace_path: Path) -> str | None:
+        """Try to find the upstream branch (origin/main or origin/master)."""
+        for branch in ["origin/main", "origin/master", "main", "master"]:
+            try:
+                result = subprocess.run(
+                    [
+                        "git",
+                        "-C",
+                        str(workspace_path),
+                        "rev-parse",
+                        "--verify",
+                        branch,
+                    ],
+                    capture_output=True,
+                    timeout=10,
+                )
+                if result.returncode == 0:
+                    return branch
+            except (subprocess.TimeoutExpired, OSError):
+                continue
+        return None
+
+    def _get_commits_between(
+        self, workspace_path: Path, from_ref: str, to_ref: str
+    ) -> list[ChangeInfo]:
+        """Get commits between two refs."""
+        return self.get_changes(workspace_path, f"{from_ref}..{to_ref}")
+
+    def _parse_rebase_stats(self, output: str) -> tuple[int, int, int]:
+        """Parse rebase output for file statistics."""
+        # Git rebase doesn't give detailed stats in machine-readable format
+        # We could parse "Successfully rebased and updated refs/heads/..."
+        # For now, return zeros
+        return (0, 0, 0)
+
+    def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
+        """Find line ranges with conflict markers."""
+        ranges = []
+        in_conflict = False
+        start_line = 0
+
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                for i, line in enumerate(f, 1):
+                    if line.startswith("<<<<<<<"):
+                        in_conflict = True
+                        start_line = i
+                    elif line.startswith(">>>>>>>") and in_conflict:
+                        ranges.append((start_line, i))
+                        in_conflict = False
+        except OSError:
+            pass
+
+        return ranges
+
+    def _status_to_conflict_type(self, status: str) -> ConflictType:
+        """Convert git status code to ConflictType."""
+        if status == "UU":
+            return ConflictType.CONTENT
+        elif status == "AA":
+            return ConflictType.ADD_ADD
+        elif status == "DD":
+            return ConflictType.MODIFY_DELETE
+        elif status in ("AU", "UA"):
+            return ConflictType.MODIFY_DELETE
+        elif status in ("DU", "UD"):
+            return ConflictType.MODIFY_DELETE
+        return ConflictType.CONTENT
+
+    def _parse_log_line(self, line: str) -> ChangeInfo | None:
+        """Parse a git log line with full body."""
+        try:
+            parts = line.split("|", 6)
+            if len(parts) < 6:
+                return None
+
+            commit_id = parts[0]
+            author = parts[1]
+            author_email = parts[2]
+            timestamp = datetime.fromtimestamp(int(parts[3]), tz=timezone.utc)
+            message = parts[4]
+            parents = parts[5].split() if parts[5] else []
+            message_full = parts[6] if len(parts) > 6 else message
+
+            return ChangeInfo(
+                change_id=None,  # Git doesn't have change IDs
+                commit_id=commit_id,
+                message=message,
+                message_full=message_full,
+                author=author,
+                author_email=author_email,
+                timestamp=timestamp,
+                parents=parents,
+                is_merge=len(parents) > 1,
+                is_conflicted=False,
+                is_empty=False,
+            )
+        except (ValueError, IndexError):
+            return None
+
+    def _parse_log_line_short(self, line: str) -> ChangeInfo | None:
+        """Parse a git log line without full body."""
+        try:
+            parts = line.split("|", 5)
+            if len(parts) < 5:
+                return None
+
+            commit_id = parts[0]
+            author = parts[1]
+            author_email = parts[2]
+            timestamp = datetime.fromtimestamp(int(parts[3]), tz=timezone.utc)
+            message = parts[4]
+            parents = parts[5].split() if len(parts) > 5 and parts[5] else []
+
+            return ChangeInfo(
+                change_id=None,
+                commit_id=commit_id,
+                message=message,
+                message_full=message,
+                author=author,
+                author_email=author_email,
+                timestamp=timestamp,
+                parents=parents,
+                is_merge=len(parents) > 1,
+                is_conflicted=False,
+                is_empty=False,
+            )
+        except (ValueError, IndexError):
+            return None
+
+
+# =============================================================================
+# Git-Specific Standalone Functions
+# =============================================================================
+
+
+def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
+    """
+    Get git reflog as operation history.
+
+    git-specific: Less powerful than jj operation log, but provides
+    some visibility into repository history.
+
+    Args:
+        repo_path: Repository path
+        limit: Maximum number of entries to return
+
+    Returns:
+        List of OperationInfo from reflog
+    """
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_path),
+                "reflog",
+                f"-{limit}",
+                "--format=%H|%gD|%gs|%ci",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if result.returncode != 0:
+            return []
+
+        operations = []
+        for i, line in enumerate(result.stdout.strip().split("\n")):
+            if not line:
+                continue
+            try:
+                parts = line.split("|", 3)
+                if len(parts) < 4:
+                    continue
+
+                commit_id = parts[0]
+                ref = parts[1]
+                description = parts[2]
+                timestamp_str = parts[3]
+
+                # Parse timestamp
+                try:
+                    timestamp = datetime.fromisoformat(
+                        timestamp_str.replace(" ", "T").replace(" ", "")
+                    )
+                except ValueError:
+                    timestamp = datetime.now(timezone.utc)
+
+                operations.append(
+                    OperationInfo(
+                        operation_id=f"reflog-{i}",
+                        timestamp=timestamp,
+                        description=description,
+                        heads=[commit_id],
+                        working_copy_commit=commit_id,
+                        is_undoable=False,  # Git reflog entries aren't truly undoable
+                        parent_operation=f"reflog-{i+1}" if i < limit - 1 else None,
+                    )
+                )
+            except (ValueError, IndexError):
+                continue
+
+        return operations
+
+    except (subprocess.TimeoutExpired, OSError):
+        return []
+
+
+def git_stash(workspace_path: Path, message: str | None = None) -> bool:
+    """
+    Stash working directory changes.
+
+    git-specific: jj doesn't need stash (working copy always committed).
+
+    Args:
+        workspace_path: Workspace path
+        message: Optional stash message
+
+    Returns:
+        True if successful
+    """
+    try:
+        cmd = ["git", "-C", str(workspace_path), "stash", "push"]
+        if message:
+            cmd.extend(["-m", message])
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            timeout=30,
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+
+
+def git_stash_pop(workspace_path: Path) -> bool:
+    """
+    Pop stashed changes.
+
+    git-specific: jj doesn't need stash.
+
+    Args:
+        workspace_path: Workspace path
+
+    Returns:
+        True if successful
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(workspace_path), "stash", "pop"],
+            capture_output=True,
+            timeout=30,
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, OSError):
+        return False
