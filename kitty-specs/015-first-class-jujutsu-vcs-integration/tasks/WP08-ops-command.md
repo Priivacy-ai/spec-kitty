@@ -9,12 +9,12 @@ subtasks:
   - "T049"
   - "T050"
 phase: "Phase 2 - Command Updates"
-lane: "for_review"
+lane: "doing"
 priority: "P3"
 dependencies: ["WP03", "WP04"]
 assignee: ""
 agent: "__AGENT__"
-shell_pid: "27357"
+shell_pid: "28708"
 review_status: ""
 reviewed_by: ""
 history:
@@ -334,3 +334,4 @@ history:
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T13:09:21Z – __AGENT__ – shell_pid=27357 – lane=doing – Started implementation via workflow command
 - 2026-01-17T13:18:11Z – __AGENT__ – shell_pid=27357 – lane=for_review – Ready for review: ops command with log, undo, restore subcommands. 19 tests passing.
+- 2026-01-17T13:18:51Z – __AGENT__ – shell_pid=28708 – lane=doing – Started review via workflow command
