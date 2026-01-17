@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +19,27 @@ from specify_cli.tasks_support import (
     append_activity_log,
     build_document,
 )
+
+
+def _write_prompt_to_file(
+    command_type: str,
+    wp_id: str,
+    content: str,
+) -> Path:
+    """Write full prompt content to a temp file for agents with output limits.
+
+    Args:
+        command_type: "implement" or "review"
+        wp_id: Work package ID (e.g., "WP01")
+        content: Full prompt content to write
+
+    Returns:
+        Path to the written file
+    """
+    # Use a predictable path in /tmp so agents can find it
+    prompt_file = Path(tempfile.gettempdir()) / f"spec-kitty-{command_type}-{wp_id}.md"
+    prompt_file.write_text(content, encoding="utf-8")
+    return prompt_file
 
 app = typer.Typer(
     name="workflow",
@@ -343,94 +365,108 @@ def implement(
 
                 print(f"✓ Created workspace: {workspace_path}")
 
-        # Output the prompt
-        print("=" * 80)
-        print(f"IMPLEMENT: {normalized_wp_id}")
-        print("=" * 80)
-        print()
-        print(f"Source: {wp.path}")
-        print()
-        print(f"Workspace: {workspace_path}")
-        print()
+        # Build full prompt content for file
+        lines = []
+        lines.append("=" * 80)
+        lines.append(f"IMPLEMENT: {normalized_wp_id}")
+        lines.append("=" * 80)
+        lines.append("")
+        lines.append(f"Source: {wp.path}")
+        lines.append("")
+        lines.append(f"Workspace: {workspace_path}")
+        lines.append("")
 
-        # CRITICAL: WP isolation rules - must come first
-        print("╔" + "=" * 78 + "╗")
-        print("║  🚨 CRITICAL: WORK PACKAGE ISOLATION RULES                              ║")
-        print("╠" + "=" * 78 + "╣")
-        print(f"║  YOU ARE ASSIGNED TO: {normalized_wp_id:<55} ║")
-        print("║                                                                          ║")
-        print("║  ✅ DO:                                                                  ║")
-        print(f"║     • Only modify status of {normalized_wp_id:<47} ║")
-        print(f"║     • Only mark subtasks belonging to {normalized_wp_id:<36} ║")
-        print("║     • Ignore git commits and status changes from other agents           ║")
-        print("║                                                                          ║")
-        print("║  ❌ DO NOT:                                                              ║")
-        print(f"║     • Change status of any WP other than {normalized_wp_id:<34} ║")
-        print("║     • React to or investigate other WPs' status changes                 ║")
-        print(f"║     • Mark subtasks that don't belong to {normalized_wp_id:<33} ║")
-        print("║                                                                          ║")
-        print("║  WHY: Multiple agents work in parallel. Each owns exactly ONE WP.       ║")
-        print("║       Git commits from other WPs are other agents - ignore them.        ║")
-        print("╚" + "=" * 78 + "╝")
-        print()
+        # CRITICAL: WP isolation rules
+        lines.append("╔" + "=" * 78 + "╗")
+        lines.append("║  🚨 CRITICAL: WORK PACKAGE ISOLATION RULES                              ║")
+        lines.append("╠" + "=" * 78 + "╣")
+        lines.append(f"║  YOU ARE ASSIGNED TO: {normalized_wp_id:<55} ║")
+        lines.append("║                                                                          ║")
+        lines.append("║  ✅ DO:                                                                  ║")
+        lines.append(f"║     • Only modify status of {normalized_wp_id:<47} ║")
+        lines.append(f"║     • Only mark subtasks belonging to {normalized_wp_id:<36} ║")
+        lines.append("║     • Ignore git commits and status changes from other agents           ║")
+        lines.append("║                                                                          ║")
+        lines.append("║  ❌ DO NOT:                                                              ║")
+        lines.append(f"║     • Change status of any WP other than {normalized_wp_id:<34} ║")
+        lines.append("║     • React to or investigate other WPs' status changes                 ║")
+        lines.append(f"║     • Mark subtasks that don't belong to {normalized_wp_id:<33} ║")
+        lines.append("║                                                                          ║")
+        lines.append("║  WHY: Multiple agents work in parallel. Each owns exactly ONE WP.       ║")
+        lines.append("║       Git commits from other WPs are other agents - ignore them.        ║")
+        lines.append("╚" + "=" * 78 + "╝")
+        lines.append("")
 
-        # Show next steps FIRST so agent sees them immediately
-        print("=" * 80)
-        print("WHEN YOU'RE DONE:")
-        print("=" * 80)
-        print(f"✓ Implementation complete and tested:")
-        print(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
-        print()
-        print(f"✗ Blocked or cannot complete:")
-        print(f"  spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
-        print("=" * 80)
-        print()
-        print(f"📍 WORKING DIRECTORY:")
-        print(f"   cd {workspace_path}")
-        print(f"   # All implementation work happens in this workspace")
-        print(f"   # When done, return to main: cd {repo_root}")
-        print()
-        print("📋 STATUS TRACKING:")
-        print(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in main)")
-        print(f"   Status changes auto-commit to main branch (visible to all agents)")
-        print(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
-        print("=" * 80)
-        print()
+        # Next steps
+        lines.append("=" * 80)
+        lines.append("WHEN YOU'RE DONE:")
+        lines.append("=" * 80)
+        lines.append(f"✓ Implementation complete and tested:")
+        lines.append(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
+        lines.append("")
+        lines.append(f"✗ Blocked or cannot complete:")
+        lines.append(f"  spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        lines.append("=" * 80)
+        lines.append("")
+        lines.append(f"📍 WORKING DIRECTORY:")
+        lines.append(f"   cd {workspace_path}")
+        lines.append(f"   # All implementation work happens in this workspace")
+        lines.append(f"   # When done, return to main: cd {repo_root}")
+        lines.append("")
+        lines.append("📋 STATUS TRACKING:")
+        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in main)")
+        lines.append(f"   Status changes auto-commit to main branch (visible to all agents)")
+        lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
+        lines.append("=" * 80)
+        lines.append("")
 
         if has_feedback:
-            print("⚠️  This work package has review feedback. Check the '## Review Feedback' section below.")
-            print()
+            lines.append("⚠️  This work package has review feedback. Check the '## Review Feedback' section below.")
+            lines.append("")
 
-        # Add visual marker before long content
-        print("╔" + "=" * 78 + "╗")
-        print("║  WORK PACKAGE PROMPT BEGINS - Scroll to bottom for completion steps   ║")
-        print("╚" + "=" * 78 + "╝")
-        print()
+        # WP content marker and content
+        lines.append("╔" + "=" * 78 + "╗")
+        lines.append("║  WORK PACKAGE PROMPT BEGINS                                            ║")
+        lines.append("╚" + "=" * 78 + "╝")
+        lines.append("")
+        lines.append(wp.path.read_text(encoding="utf-8"))
+        lines.append("")
+        lines.append("╔" + "=" * 78 + "╗")
+        lines.append("║  WORK PACKAGE PROMPT ENDS                                              ║")
+        lines.append("╚" + "=" * 78 + "╝")
+        lines.append("")
 
-        # Output full prompt content (frontmatter + body)
-        print(wp.path.read_text(encoding="utf-8"))
+        # Completion instructions at end
+        lines.append("=" * 80)
+        lines.append("🎯 IMPLEMENTATION COMPLETE? RUN THIS COMMAND:")
+        lines.append("=" * 80)
+        lines.append("")
+        lines.append(f"✅ Implementation complete and tested:")
+        lines.append(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review: <summary>\"")
+        lines.append("")
+        lines.append(f"⚠️  Blocked or cannot complete:")
+        lines.append(f"   spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        lines.append("")
+        lines.append("⚠️  NOTE: You MUST run the move-task command when done!")
+        lines.append("     This transitions the WP to for_review lane for reviewer agents.")
+        lines.append("=" * 80)
 
-        # Add visual marker after content
-        print()
-        print("╔" + "=" * 78 + "╗")
-        print("║  WORK PACKAGE PROMPT ENDS - See completion commands below   ║")
-        print("╚" + "=" * 78 + "╝")
-        print()
+        # Write full prompt to file
+        full_content = "\n".join(lines)
+        prompt_file = _write_prompt_to_file("implement", normalized_wp_id, full_content)
 
-        # CRITICAL: Repeat completion instructions at the END
-        print("=" * 80)
-        print("🎯 IMPLEMENTATION COMPLETE? RUN THIS COMMAND:")
-        print("=" * 80)
+        # Output concise summary (fits in truncated output)
         print()
-        print(f"✅ Implementation complete and tested:")
-        print(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review: <summary>\"")
+        print(f"📄 Full prompt written to: {prompt_file}")
+        print(f"   Read it with: cat {prompt_file}")
         print()
-        print(f"⚠️  Blocked or cannot complete:")
-        print(f"   spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        print(f"📍 Workspace: cd {workspace_path}")
+        if has_feedback:
+            print(f"⚠️  Has review feedback - check prompt file")
         print()
-        print("⚠️  NOTE: You MUST run the move-task command when done!")
-        print("     This transitions the WP to for_review lane for reviewer agents.")
-        print("=" * 80)
+        print("When done:")
+        print(f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
+        print(f"  ❌ spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
 
     except Exception as e:
         print(f"Error: {e}")
@@ -488,43 +524,6 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
                 return wp_id
 
     return None
-
-
-def _warn_dependents_in_progress(
-    repo_root: Path,
-    feature_slug: str,
-    wp_id: str,
-) -> None:
-    """Warn if dependent WPs are in progress and may need rebase."""
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    graph = build_dependency_graph(feature_dir)
-    dependents = get_dependents(wp_id, graph)
-    if not dependents:
-        return
-
-    in_progress: list[str] = []
-    for dependent_id in dependents:
-        try:
-            dependent_wp = locate_work_package(repo_root, feature_slug, dependent_id)
-        except FileNotFoundError:
-            continue
-
-        lane = extract_scalar(dependent_wp.frontmatter, "lane")
-        if lane in {"planned", "doing", "for_review"}:
-            in_progress.append(dependent_id)
-
-    if not in_progress:
-        return
-
-    dependents_list = ", ".join(sorted(in_progress))
-    print("⚠️  Dependency Alert:")
-    print(f"   {dependents_list} depend on {wp_id} and are in progress.")
-    print("   If you request changes, notify those agents to rebase.")
-    for dependent_id in sorted(in_progress):
-        workspace = f".worktrees/{feature_slug}-{dependent_id}"
-        base_branch = f"{feature_slug}-{wp_id}"
-        print(f"   Rebase command: cd {workspace} && git rebase {base_branch}")
-    print()
 
 
 @app.command(name="review")
@@ -690,103 +689,142 @@ def review(
 
                 print(f"✓ Created workspace: {workspace_path}")
 
-        _warn_dependents_in_progress(repo_root, feature_slug, normalized_wp_id)
+        # Capture dependency warning for both file and summary
+        dependents_warning = []
+        feature_dir = repo_root / "kitty-specs" / feature_slug
+        graph = build_dependency_graph(feature_dir)
+        dependents = get_dependents(normalized_wp_id, graph)
+        if dependents:
+            in_progress: list[str] = []
+            for dependent_id in dependents:
+                try:
+                    dependent_wp = locate_work_package(repo_root, feature_slug, dependent_id)
+                except FileNotFoundError:
+                    continue
+                lane = extract_scalar(dependent_wp.frontmatter, "lane")
+                if lane in {"planned", "doing", "for_review"}:
+                    in_progress.append(dependent_id)
+            if in_progress:
+                dependents_list = ", ".join(sorted(in_progress))
+                dependents_warning.append(f"⚠️  Dependency Alert: {dependents_list} depend on {normalized_wp_id}")
+                dependents_warning.append("   If you request changes, notify those agents to rebase.")
 
-        # Output the prompt
-        print("=" * 80)
-        print(f"REVIEW: {normalized_wp_id}")
-        print("=" * 80)
-        print()
-        print(f"Source: {wp.path}")
-        print()
-        print(f"Workspace: {workspace_path}")
-        print()
+        # Build full prompt content for file
+        lines = []
+        lines.append("=" * 80)
+        lines.append(f"REVIEW: {normalized_wp_id}")
+        lines.append("=" * 80)
+        lines.append("")
+        lines.append(f"Source: {wp.path}")
+        lines.append("")
+        lines.append(f"Workspace: {workspace_path}")
+        lines.append("")
 
-        # CRITICAL: WP isolation rules - must come first
-        print("╔" + "=" * 78 + "╗")
-        print("║  🚨 CRITICAL: WORK PACKAGE ISOLATION RULES                              ║")
-        print("╠" + "=" * 78 + "╣")
-        print(f"║  YOU ARE REVIEWING: {normalized_wp_id:<56} ║")
-        print("║                                                                          ║")
-        print("║  ✅ DO:                                                                  ║")
-        print(f"║     • Only modify status of {normalized_wp_id:<47} ║")
-        print("║     • Ignore git commits and status changes from other agents           ║")
-        print("║                                                                          ║")
-        print("║  ❌ DO NOT:                                                              ║")
-        print(f"║     • Change status of any WP other than {normalized_wp_id:<34} ║")
-        print("║     • React to or investigate other WPs' status changes                 ║")
-        print(f"║     • Review or approve any WP other than {normalized_wp_id:<32} ║")
-        print("║                                                                          ║")
-        print("║  WHY: Multiple agents work in parallel. Each owns exactly ONE WP.       ║")
-        print("║       Git commits from other WPs are other agents - ignore them.        ║")
-        print("╚" + "=" * 78 + "╝")
-        print()
+        # Add dependency warning to file
+        if dependents_warning:
+            lines.extend(dependents_warning)
+            lines.append("")
 
-        # Show next steps FIRST so agent sees them immediately
-        print("=" * 80)
-        print("WHEN YOU'RE DONE:")
-        print("=" * 80)
-        print(f"✓ Review passed, no issues:")
-        print(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
-        print()
-        print(f"⚠️  Changes requested:")
-        print(f"  1. Add feedback to the WP file's '## Review Feedback' section")
-        print(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --note \"Changes requested\"")
-        print("=" * 80)
-        print()
-        print(f"📍 WORKING DIRECTORY:")
-        print(f"   cd {workspace_path}")
-        print(f"   # Review the implementation in this workspace")
-        print(f"   # Read code, run tests, check against requirements")
-        print(f"   # When done, return to main: cd {repo_root}")
-        print()
-        print("📋 STATUS TRACKING:")
-        print(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in main)")
-        print(f"   Status changes auto-commit to main branch (visible to all agents)")
-        print(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
-        print("=" * 80)
-        print()
-        print("Review the implementation against the requirements below.")
-        print("Check code quality, tests, documentation, and adherence to spec.")
-        print()
+        # CRITICAL: WP isolation rules
+        lines.append("╔" + "=" * 78 + "╗")
+        lines.append("║  🚨 CRITICAL: WORK PACKAGE ISOLATION RULES                              ║")
+        lines.append("╠" + "=" * 78 + "╣")
+        lines.append(f"║  YOU ARE REVIEWING: {normalized_wp_id:<56} ║")
+        lines.append("║                                                                          ║")
+        lines.append("║  ✅ DO:                                                                  ║")
+        lines.append(f"║     • Only modify status of {normalized_wp_id:<47} ║")
+        lines.append("║     • Ignore git commits and status changes from other agents           ║")
+        lines.append("║                                                                          ║")
+        lines.append("║  ❌ DO NOT:                                                              ║")
+        lines.append(f"║     • Change status of any WP other than {normalized_wp_id:<34} ║")
+        lines.append("║     • React to or investigate other WPs' status changes                 ║")
+        lines.append(f"║     • Review or approve any WP other than {normalized_wp_id:<32} ║")
+        lines.append("║                                                                          ║")
+        lines.append("║  WHY: Multiple agents work in parallel. Each owns exactly ONE WP.       ║")
+        lines.append("║       Git commits from other WPs are other agents - ignore them.        ║")
+        lines.append("╚" + "=" * 78 + "╝")
+        lines.append("")
 
-        # Add visual marker before long content
-        print("╔" + "=" * 78 + "╗")
-        print("║   WORK PACKAGE PROMPT BEGINS - Scroll to bottom for completion steps  ║")
-        print("╚" + "=" * 78 + "╝")
-        print()
+        # Next steps
+        lines.append("=" * 80)
+        lines.append("WHEN YOU'RE DONE:")
+        lines.append("=" * 80)
+        lines.append(f"✓ Review passed, no issues:")
+        lines.append(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
+        lines.append("")
+        lines.append(f"⚠️  Changes requested:")
+        lines.append(f"  1. Add feedback to the WP file's '## Review Feedback' section")
+        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --note \"Changes requested\"")
+        lines.append("=" * 80)
+        lines.append("")
+        lines.append(f"📍 WORKING DIRECTORY:")
+        lines.append(f"   cd {workspace_path}")
+        lines.append(f"   # Review the implementation in this workspace")
+        lines.append(f"   # Read code, run tests, check against requirements")
+        lines.append(f"   # When done, return to main: cd {repo_root}")
+        lines.append("")
+        lines.append("📋 STATUS TRACKING:")
+        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in main)")
+        lines.append(f"   Status changes auto-commit to main branch (visible to all agents)")
+        lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
+        lines.append("=" * 80)
+        lines.append("")
+        lines.append("Review the implementation against the requirements below.")
+        lines.append("Check code quality, tests, documentation, and adherence to spec.")
+        lines.append("")
 
-        # Output full prompt content (frontmatter + body)
-        print(wp.path.read_text(encoding="utf-8"))
+        # WP content marker and content
+        lines.append("╔" + "=" * 78 + "╗")
+        lines.append("║  WORK PACKAGE PROMPT BEGINS                                            ║")
+        lines.append("╚" + "=" * 78 + "╝")
+        lines.append("")
+        lines.append(wp.path.read_text(encoding="utf-8"))
+        lines.append("")
+        lines.append("╔" + "=" * 78 + "╗")
+        lines.append("║  WORK PACKAGE PROMPT ENDS                                              ║")
+        lines.append("╚" + "=" * 78 + "╝")
+        lines.append("")
 
-        # Add visual marker after content
-        print()
-        print("╔" + "=" * 78 + "╗")
-        print("║   WORK PACKAGE PROMPT ENDS - See completion commands below  ║")
-        print("╚" + "=" * 78 + "╝")
-        print()
+        # Completion instructions at end
+        lines.append("=" * 80)
+        lines.append("🎯 REVIEW COMPLETE? RUN ONE OF THESE COMMANDS:")
+        lines.append("=" * 80)
+        lines.append("")
+        lines.append(f"✅ APPROVE (no issues found):")
+        lines.append(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed: <summary>\"")
+        lines.append("")
+        lines.append(f"❌ REQUEST CHANGES (issues found):")
+        lines.append(f"   1. Write feedback:")
+        lines.append(f"      cat > review-feedback.md <<'EOF'")
+        lines.append(f"**Issue 1**: <description and how to fix>")
+        lines.append(f"**Issue 2**: <description and how to fix>")
+        lines.append(f"EOF")
+        lines.append("")
+        lines.append(f"   2. Move to planned with feedback:")
+        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file review-feedback.md")
+        lines.append("")
+        lines.append("⚠️  NOTE: You MUST run one of these commands to complete the review!")
+        lines.append("     The Python script handles all file updates automatically.")
+        lines.append("=" * 80)
 
-        # CRITICAL: Repeat completion instructions at the END
-        print("=" * 80)
-        print("🎯 REVIEW COMPLETE? RUN ONE OF THESE COMMANDS:")
-        print("=" * 80)
+        # Write full prompt to file
+        full_content = "\n".join(lines)
+        prompt_file = _write_prompt_to_file("review", normalized_wp_id, full_content)
+
+        # Output concise summary (fits in truncated output)
         print()
-        print(f"✅ APPROVE (no issues found):")
-        print(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed: <summary>\"")
+        if dependents_warning:
+            for line in dependents_warning:
+                print(line)
+            print()
+        print(f"📄 Full review prompt written to: {prompt_file}")
+        print(f"   Read it with: cat {prompt_file}")
         print()
-        print(f"❌ REQUEST CHANGES (issues found):")
-        print(f"   1. Write feedback:")
-        print(f"      cat > review-feedback.md <<'EOF'")
-        print(f"**Issue 1**: <description and how to fix>")
-        print(f"**Issue 2**: <description and how to fix>")
-        print(f"EOF")
+        print(f"📍 Workspace: cd {workspace_path}")
         print()
-        print(f"   2. Move to planned with feedback:")
-        print(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file review-feedback.md")
-        print()
-        print("⚠️  NOTE: You MUST run one of these commands to complete the review!")
-        print("     The Python script handles all file updates automatically.")
-        print("=" * 80)
+        print("When done:")
+        print(f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
+        print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file feedback.md")
 
     except Exception as e:
         print(f"Error: {e}")

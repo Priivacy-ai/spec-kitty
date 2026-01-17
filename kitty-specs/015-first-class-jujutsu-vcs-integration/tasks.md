@@ -24,11 +24,11 @@
 **Requirements**: FR-001
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/core/vcs/` package directory structure
-- [ ] T002 [P] Implement `src/specify_cli/core/vcs/types.py` with all enums and dataclasses (VCSBackend, SyncStatus, ConflictType, VCSCapabilities, ChangeInfo, ConflictInfo, SyncResult, WorkspaceInfo, OperationInfo, WorkspaceCreateResult)
-- [ ] T003 [P] Implement `src/specify_cli/core/vcs/protocol.py` with VCSProtocol definition
-- [ ] T004 [P] Implement `src/specify_cli/core/vcs/exceptions.py` with VCSError hierarchy
-- [ ] T005 Create `src/specify_cli/core/vcs/__init__.py` with public API exports
+- [x] T001 Create `src/specify_cli/core/vcs/` package directory structure
+- [x] T002 [P] Implement `src/specify_cli/core/vcs/types.py` with all enums and dataclasses (VCSBackend, SyncStatus, ConflictType, VCSCapabilities, ChangeInfo, ConflictInfo, SyncResult, WorkspaceInfo, OperationInfo, WorkspaceCreateResult)
+- [x] T003 [P] Implement `src/specify_cli/core/vcs/protocol.py` with VCSProtocol definition
+- [x] T004 [P] Implement `src/specify_cli/core/vcs/exceptions.py` with VCSError hierarchy
+- [x] T005 Create `src/specify_cli/core/vcs/__init__.py` with public API exports
 
 ### Implementation Notes
 1. Create package structure first (T001)
