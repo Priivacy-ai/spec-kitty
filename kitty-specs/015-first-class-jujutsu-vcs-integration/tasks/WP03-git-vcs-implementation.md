@@ -11,14 +11,14 @@ subtasks:
   - "T016"
   - "T017"
 phase: "Phase 1 - Abstraction Layer"
-lane: "doing"
+lane: "planned"
 priority: "P1"
 dependencies: ["WP01", "WP02"]
 assignee: ""
 agent: "__AGENT__"
 shell_pid: "38749"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-17T10:38:23Z"
     lane: "planned"
@@ -349,3 +349,17 @@ def test_create_workspace(self, tmp_path):
 - 2026-01-17T11:54:03Z – claude-code – shell_pid=41909 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:01:50Z – claude-code – shell_pid=41909 – lane=for_review – Ready for review: Full GitVCS implementation with all VCSProtocol methods, 36 tests passing
 - 2026-01-17T12:02:18Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
+- 2026-01-17T12:04:09Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
+
+## Review Feedback
+
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-17
+
+**Issue 1**: `create_workspace()` does not apply the sparse-checkout exclusions required for worktree isolation (kitty-specs/ exclusion). The WP explicitly calls this out and points to existing implement logic. Add the sparse-checkout setup (or call the existing worktree/implement helpers) so new worktrees mirror the current behavior.
+
+**Issue 2**: GitVCS reimplements CLI calls directly instead of wrapping existing git/worktree operations. The WP requires wrapping `git_ops.py`/`worktree.py` to preserve existing behavior (including Windows symlink handling and other flags). Refactor to use those helpers rather than ad-hoc subprocess calls.
+
+**Issue 3**: SyncResult statistics are always zero because `_parse_rebase_stats()` is a stub. The success criteria include capturing rebase output correctly, so either parse `git rebase` output or compute the file counts via `git diff --name-status` around the rebase.
+
