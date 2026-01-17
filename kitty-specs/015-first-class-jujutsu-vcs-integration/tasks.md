@@ -165,7 +165,7 @@
 
 ### Included Subtasks
 - [x] T026 Update `src/specify_cli/cli/commands/init.py` to import VCS detection
-- [ ] T027 Add VCS detection to init workflow
+- [x] T027 Add VCS detection to init workflow
 - [ ] T028 Implement info message recommending jj installation when not present
 - [ ] T029 Store VCS preference in `.kittify/config.yaml`
 - [ ] T030 Add `--vcs=git|jj` flag to init command
