@@ -308,7 +308,7 @@
 - [x] T055 [P] Create `tests/specify_cli/core/vcs/test_abstraction.py` with parametrized parity tests
 - [x] T056 [P] Update CLAUDE.md with jj workflow documentation
 - [x] T057 [P] Add conflict gate checks to review/accept commands
-- [ ] T058 Final integration testing and edge case verification
+- [x] T058 Final integration testing and edge case verification
 
 ### Implementation Notes
 1. Merge command: Use VCS abstraction for branch operations
