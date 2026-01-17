@@ -57,7 +57,7 @@
 **Requirements**: FR-002, FR-003, FR-004
 
 ### Included Subtasks
-- [ ] T006 Implement `src/specify_cli/core/vcs/detection.py` with tool detection functions (is_jj_available, is_git_available, get_jj_version, get_git_version, detect_available_backends)
+- [x] T006 Implement `src/specify_cli/core/vcs/detection.py` with tool detection functions (is_jj_available, is_git_available, get_jj_version, get_git_version, detect_available_backends)
 - [ ] T007 Implement `get_vcs()` factory function in detection.py
 - [ ] T008 Add detection exports to `__init__.py`
 - [ ] T009 Create `tests/specify_cli/core/vcs/test_detection.py` with detection tests
