@@ -36,9 +36,8 @@ You'll see output like:
 
 ```
 Sync Workspace
-├── ● Fetch upstream changes
-├── ● Auto-rebase local changes
-└── ● Update workspace state
+├── ● Update workspace state
+└── ● Rebase local changes on upstream
 
 ✓ Synced successfully
   Rebased 3 commits onto new upstream
@@ -93,9 +92,8 @@ spec-kitty sync --verbose
 ```
 
 Output includes:
-- Which commits were fetched
 - Rebase operations performed
-- Any conflicts detected
+- Any conflicts detected or stored conflicts (jj)
 
 ---
 
@@ -111,8 +109,7 @@ spec-kitty sync --repair
 
 This attempts to:
 1. Reset the workspace to a known good state
-2. Re-fetch upstream changes
-3. Apply your commits on top
+2. Rebase your commits on top of the upstream base
 
 ---
 
@@ -144,13 +141,19 @@ git add <resolved-files>
 git rebase --continue
 ```
 
-### "Failed to fetch: network error"
+### "Failed to update base: branch not found"
 
-Check your network connection and try again:
+The base branch may have been deleted or renamed. Check available branches:
 
 ```bash
-spec-kitty sync --verbose
+# With git
+git branch -a
+
+# With jj
+jj branch list
 ```
+
+If the base branch is missing, you may need to recreate it or use `--repair`.
 
 ### "Workspace not found"
 
