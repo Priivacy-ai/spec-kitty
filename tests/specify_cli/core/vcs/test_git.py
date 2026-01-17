@@ -163,6 +163,39 @@ class TestWorkspaceOperations:
         assert workspace_path.exists()
         assert (workspace_path / ".git").exists()
 
+    def test_create_workspace_with_sparse_exclude(self, git_repo, git_vcs):
+        """create_workspace should apply sparse-checkout exclusions when specified."""
+        # First, create a directory to exclude
+        kitty_specs = git_repo / "kitty-specs" / "001-feature"
+        kitty_specs.mkdir(parents=True)
+        (kitty_specs / "spec.md").write_text("# Test spec")
+        subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Add kitty-specs"],
+            cwd=git_repo,
+            capture_output=True,
+        )
+
+        workspace_path = git_repo / ".worktrees" / "test-sparse-WP01"
+
+        result = git_vcs.create_workspace(
+            workspace_path,
+            "test-sparse-WP01",
+            repo_root=git_repo,
+            sparse_exclude=["kitty-specs/"],
+        )
+
+        assert result.success is True, f"Failed: {result.error}"
+        assert workspace_path.exists()
+        # kitty-specs should NOT exist in the worktree
+        assert not (workspace_path / "kitty-specs").exists()
+        # But README.md should still exist
+        assert (workspace_path / "README.md").exists()
+        # .gitignore should contain kitty-specs/
+        gitignore = workspace_path / ".gitignore"
+        assert gitignore.exists()
+        assert "kitty-specs/" in gitignore.read_text()
+
     def test_create_workspace_with_base_branch(self, git_repo, git_vcs):
         """create_workspace should support branching from a base branch."""
         # First, get the current branch name (main or master)
@@ -566,6 +599,65 @@ class TestGitSpecificFunctions:
         # Git returns success even with nothing to stash (with a message)
         # So this might be True or False depending on git version
         assert isinstance(result, bool)
+
+
+# =============================================================================
+# Rebase Stats Tests
+# =============================================================================
+
+
+class TestRebaseStats:
+    """Tests for _parse_rebase_stats functionality."""
+
+    def test_parse_rebase_stats_with_changes(self, git_repo, git_vcs):
+        """_parse_rebase_stats should correctly count file changes."""
+        # Get initial commit
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
+        )
+        initial_commit = result.stdout.strip()
+
+        # Make some changes (adds, modifies, deletes)
+        (git_repo / "new_file.txt").write_text("new content")
+        (git_repo / "README.md").write_text("modified content")
+        subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Add and modify files"],
+            cwd=git_repo,
+            capture_output=True,
+        )
+
+        # Get the stats
+        updated, added, deleted = git_vcs._parse_rebase_stats(
+            git_repo, initial_commit, "HEAD"
+        )
+
+        # Should have 1 add, 1 modify, 0 deletes
+        assert added == 1
+        assert updated == 1
+        assert deleted == 0
+
+    def test_parse_rebase_stats_empty_when_no_changes(self, git_repo, git_vcs):
+        """_parse_rebase_stats should return zeros when no changes."""
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
+        )
+        current_commit = result.stdout.strip()
+
+        # Compare HEAD with itself - no changes
+        updated, added, deleted = git_vcs._parse_rebase_stats(
+            git_repo, current_commit, current_commit
+        )
+
+        assert updated == 0
+        assert added == 0
+        assert deleted == 0
 
 
 # =============================================================================

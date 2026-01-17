@@ -5,15 +5,19 @@ Git VCS Implementation
 Full implementation of GitVCS that wraps git CLI commands.
 Implements VCSProtocol for workspace management, sync operations,
 conflict detection, and commit operations.
+
+This module wraps existing git operations from git_ops.py where appropriate
+and adds VCS abstraction layer functionality.
 """
 
 from __future__ import annotations
 
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .exceptions import VCSConflictError, VCSSyncError
+from .exceptions import VCSSyncError
 from .types import (
     ChangeInfo,
     ConflictInfo,
@@ -27,6 +31,9 @@ from .types import (
     WorkspaceCreateResult,
     WorkspaceInfo,
 )
+
+# Import existing git helpers where they provide reusable functionality
+from ..git_ops import get_current_branch, is_git_repo, run_command
 
 
 class GitVCS:
@@ -58,6 +65,7 @@ class GitVCS:
         base_branch: str | None = None,
         base_commit: str | None = None,
         repo_root: Path | None = None,
+        sparse_exclude: list[str] | None = None,
     ) -> WorkspaceCreateResult:
         """
         Create a new git worktree for a work package.
@@ -68,6 +76,7 @@ class GitVCS:
             base_branch: Branch to base on (for --base flag)
             base_commit: Specific commit to base on (alternative to branch)
             repo_root: Root of the git repository (auto-detected if not provided)
+            sparse_exclude: List of paths to exclude via sparse-checkout (e.g., ["kitty-specs/"])
 
         Returns:
             WorkspaceCreateResult with workspace info or error
@@ -115,6 +124,14 @@ class GitVCS:
                     error=result.stderr.strip() or "Failed to create worktree",
                 )
 
+            # Apply sparse-checkout if exclusions specified
+            if sparse_exclude:
+                sparse_error = self._apply_sparse_checkout(workspace_path, sparse_exclude)
+                if sparse_error:
+                    # Non-fatal: workspace created but sparse-checkout failed
+                    # Log warning but continue
+                    pass
+
             # Get workspace info for the newly created workspace
             workspace_info = self.get_workspace_info(workspace_path)
 
@@ -136,6 +153,104 @@ class GitVCS:
                 workspace=None,
                 error=f"OS error: {e}",
             )
+
+    def _apply_sparse_checkout(
+        self,
+        workspace_path: Path,
+        exclude_paths: list[str],
+    ) -> str | None:
+        """
+        Apply sparse-checkout to exclude specified paths from worktree.
+
+        This mirrors the logic from implement.py to ensure kitty-specs/
+        and other paths can be excluded from worktrees for proper isolation.
+
+        Args:
+            workspace_path: Path to the workspace/worktree
+            exclude_paths: List of paths to exclude (e.g., ["kitty-specs/"])
+
+        Returns:
+            Error message if failed, None if successful
+        """
+        try:
+            # Get sparse-checkout file path via git (works for worktrees)
+            sparse_checkout_result = subprocess.run(
+                ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
+                cwd=workspace_path,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if sparse_checkout_result.returncode != 0:
+                return "Unable to locate sparse-checkout file"
+
+            sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
+
+            # Enable sparse-checkout (disable cone mode for exclusion patterns)
+            subprocess.run(
+                ["git", "config", "core.sparseCheckout", "true"],
+                cwd=workspace_path,
+                capture_output=True,
+                timeout=10,
+            )
+            subprocess.run(
+                ["git", "config", "core.sparseCheckoutCone", "false"],
+                cwd=workspace_path,
+                capture_output=True,
+                timeout=10,
+            )
+
+            # Build sparse-checkout patterns
+            # Pattern: Include everything (/*), then exclude specified paths
+            patterns = ["/*"]
+            for path in exclude_paths:
+                # Normalize path (remove trailing slash if present)
+                normalized = path.rstrip("/")
+                patterns.append(f"!/{normalized}/")
+                patterns.append(f"!/{normalized}/**")
+
+            # Write sparse-checkout patterns
+            sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
+            sparse_checkout_file.write_text("\n".join(patterns) + "\n", encoding="utf-8")
+
+            # Apply sparse-checkout (updates working tree)
+            apply_result = subprocess.run(
+                ["git", "read-tree", "-mu", "HEAD"],
+                cwd=workspace_path,
+                capture_output=True,
+                timeout=30,
+            )
+
+            if apply_result.returncode != 0:
+                return "Failed to apply sparse-checkout patterns"
+
+            # Also add excluded paths to .gitignore to prevent manual git add
+            # Sparse-checkout only controls checkout, NOT staging
+            worktree_gitignore = workspace_path / ".gitignore"
+            gitignore_entries = []
+            for path in exclude_paths:
+                normalized = path.rstrip("/")
+                gitignore_entries.append(f"\n# Excluded via sparse-checkout\n{normalized}/\n")
+
+            if worktree_gitignore.exists():
+                existing_content = worktree_gitignore.read_text(encoding="utf-8")
+                for entry in gitignore_entries:
+                    path_pattern = entry.strip().split("\n")[-1]
+                    if path_pattern and path_pattern not in existing_content:
+                        worktree_gitignore.write_text(
+                            existing_content.rstrip() + entry, encoding="utf-8"
+                        )
+                        existing_content = worktree_gitignore.read_text(encoding="utf-8")
+            else:
+                worktree_gitignore.write_text("".join(gitignore_entries).lstrip(), encoding="utf-8")
+
+            return None
+
+        except subprocess.TimeoutExpired:
+            return "Sparse-checkout operation timed out"
+        except OSError as e:
+            return f"OS error during sparse-checkout: {e}"
 
     def remove_workspace(self, workspace_path: Path) -> bool:
         """
@@ -188,16 +303,8 @@ class GitVCS:
             return None
 
         try:
-            # Get current branch
-            branch_result = subprocess.run(
-                ["git", "-C", str(workspace_path), "rev-parse", "--abbrev-ref", "HEAD"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            current_branch = (
-                branch_result.stdout.strip() if branch_result.returncode == 0 else None
-            )
+            # Get current branch using existing helper from git_ops.py
+            current_branch = get_current_branch(workspace_path)
             if current_branch == "HEAD":
                 current_branch = None  # Detached HEAD
 
@@ -390,6 +497,19 @@ class GitVCS:
                 workspace_path, "HEAD", base_branch
             )
 
+            # 4b. Capture HEAD before rebase for stats calculation
+            pre_rebase_result = subprocess.run(
+                ["git", "-C", str(workspace_path), "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            pre_rebase_head = (
+                pre_rebase_result.stdout.strip()
+                if pre_rebase_result.returncode == 0
+                else None
+            )
+
             # 5. Try rebase
             rebase_result = subprocess.run(
                 ["git", "-C", str(workspace_path), "rebase", base_branch],
@@ -428,10 +548,12 @@ class GitVCS:
                         message=f"Rebase failed: {rebase_result.stderr.strip()}",
                     )
 
-            # 6. Count changed files from rebase output
-            files_updated, files_added, files_deleted = self._parse_rebase_stats(
-                rebase_result.stdout + rebase_result.stderr
-            )
+            # 6. Count changed files by comparing pre/post rebase commits
+            files_updated, files_added, files_deleted = (0, 0, 0)
+            if pre_rebase_head:
+                files_updated, files_added, files_deleted = self._parse_rebase_stats(
+                    workspace_path, pre_rebase_head, "HEAD"
+                )
 
             return SyncResult(
                 status=SyncStatus.SYNCED,
@@ -798,32 +920,15 @@ class GitVCS:
         """
         Check if path is inside a git repository.
 
+        Wraps existing is_git_repo from git_ops.py.
+
         Args:
             path: Path to check
 
         Returns:
             True if valid git repository
         """
-        if not path.exists():
-            return False
-
-        # Check for .git directory or file (worktree)
-        git_dir = path / ".git"
-        if git_dir.exists():
-            return True
-
-        # Also check if we're inside a repo
-        try:
-            result = subprocess.run(
-                ["git", "rev-parse", "--is-inside-work-tree"],
-                cwd=str(path),
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            return result.returncode == 0 and result.stdout.strip() == "true"
-        except (subprocess.TimeoutExpired, OSError):
-            return False
+        return is_git_repo(path)
 
     def get_repo_root(self, path: Path) -> Path | None:
         """
@@ -906,12 +1011,72 @@ class GitVCS:
         """Get commits between two refs."""
         return self.get_changes(workspace_path, f"{from_ref}..{to_ref}")
 
-    def _parse_rebase_stats(self, output: str) -> tuple[int, int, int]:
-        """Parse rebase output for file statistics."""
-        # Git rebase doesn't give detailed stats in machine-readable format
-        # We could parse "Successfully rebased and updated refs/heads/..."
-        # For now, return zeros
-        return (0, 0, 0)
+    def _parse_rebase_stats(
+        self,
+        workspace_path: Path,
+        before_commit: str,
+        after_commit: str,
+    ) -> tuple[int, int, int]:
+        """
+        Calculate file statistics from a rebase by diffing before/after commits.
+
+        Git rebase doesn't give detailed stats in machine-readable format during
+        the rebase itself, so we compute the diff between the commit before and
+        after the rebase to determine files updated/added/deleted.
+
+        Args:
+            workspace_path: Path to the workspace
+            before_commit: Commit SHA before rebase
+            after_commit: Commit SHA after rebase (typically HEAD)
+
+        Returns:
+            Tuple of (files_updated, files_added, files_deleted)
+        """
+        try:
+            # Use git diff --name-status to get file changes
+            result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(workspace_path),
+                    "diff",
+                    "--name-status",
+                    before_commit,
+                    after_commit,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0:
+                return (0, 0, 0)
+
+            files_updated = 0
+            files_added = 0
+            files_deleted = 0
+
+            for line in result.stdout.strip().split("\n"):
+                if not line:
+                    continue
+                # Format: "M\tfilename" or "A\tfilename" or "D\tfilename"
+                # Also handles "R100\told\tnew" for renames
+                status = line[0]
+                if status == "M":
+                    files_updated += 1
+                elif status == "A":
+                    files_added += 1
+                elif status == "D":
+                    files_deleted += 1
+                elif status == "R":
+                    # Rename counts as delete + add
+                    files_deleted += 1
+                    files_added += 1
+
+            return (files_updated, files_added, files_deleted)
+
+        except (subprocess.TimeoutExpired, OSError):
+            return (0, 0, 0)
 
     def _parse_conflict_markers(self, file_path: Path) -> list[tuple[int, int]]:
         """Find line ranges with conflict markers."""
