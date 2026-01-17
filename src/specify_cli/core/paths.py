@@ -150,9 +150,111 @@ def check_broken_symlink(path: Path) -> bool:
     return path.is_symlink() and not path.exists()
 
 
+def get_main_repo_root(current_path: Path) -> Path:
+    """
+    Get the main repository root, even if called from a worktree.
+
+    When in a worktree, .git is a file pointing to the main repo's .git directory.
+    This function follows that pointer to find the main repo root.
+
+    Args:
+        current_path: Current repo root (may be worktree or main repo)
+
+    Returns:
+        Path to the main repository root (resolves worktree pointers)
+
+    Examples:
+        >>> # From main repo - returns same path
+        >>> get_main_repo_root(Path("/repo"))
+        Path('/repo')
+
+        >>> # From worktree - returns main repo
+        >>> get_main_repo_root(Path("/repo/.worktrees/feature-001"))
+        Path('/repo')
+    """
+    git_file = current_path / ".git"
+
+    if git_file.is_file():
+        try:
+            git_content = git_file.read_text().strip()
+            if git_content.startswith("gitdir:"):
+                gitdir = Path(git_content.split(":", 1)[1].strip())
+                # Navigate: .git/worktrees/name -> .git -> main repo root
+                main_git_dir = gitdir.parent.parent
+                main_repo_root = main_git_dir.parent
+                return main_repo_root
+        except (OSError, ValueError):
+            pass
+
+    return current_path
+
+
+def find_feature_slug(repo_root: Path) -> Optional[str]:
+    """
+    Auto-detect feature slug from git branch or highest-numbered feature in kitty-specs.
+
+    Detection strategies (in order):
+    1. Git branch name matching pattern ###-slug (strips -WPxx suffix)
+    2. Highest-numbered directory in kitty-specs/
+
+    Args:
+        repo_root: Repository root path (can be worktree or main repo)
+
+    Returns:
+        Feature slug (e.g., "016-jujutsu-vcs-documentation") or None if not found
+
+    Examples:
+        >>> find_feature_slug(Path("/repo"))
+        '016-jujutsu-vcs-documentation'
+    """
+    import re
+
+    # Get main repo root for kitty-specs access
+    main_repo_root = get_main_repo_root(repo_root)
+
+    # Strategy 1: Get from git branch name
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        branch_name = result.stdout.strip()
+
+        # Strip -WPxx suffix if present (worktree branches)
+        branch_name = re.sub(r'-WP\d+$', '', branch_name)
+
+        # Validate format: ###-slug
+        if len(branch_name) >= 3 and branch_name[:3].isdigit():
+            return branch_name
+
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    # Strategy 2: Auto-detect highest-numbered feature in kitty-specs
+    kitty_specs_dir = main_repo_root / "kitty-specs"
+    if kitty_specs_dir.is_dir():
+        candidates = []
+        for path in kitty_specs_dir.iterdir():
+            if not path.is_dir():
+                continue
+            match = re.match(r"^(\d{3})-", path.name)
+            if match:
+                candidates.append((int(match.group(1)), path.name))
+        if candidates:
+            _, slug = max(candidates, key=lambda item: item[0])
+            return slug
+
+    return None
+
+
 __all__ = [
     "locate_project_root",
     "is_worktree_context",
     "resolve_with_context",
     "check_broken_symlink",
+    "get_main_repo_root",
+    "find_feature_slug",
 ]

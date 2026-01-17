@@ -45,12 +45,20 @@ Spec Kitty is for people using LLM agents to write code (eg. Claude Code, Codex,
 
 **You MUST complete or delete all in-progress features before upgrading to 0.11.0.**
 
-Check for legacy worktrees:
+Check for legacy worktrees (choose one method):
+
 ```bash
+# Method 1: After upgrading spec-kitty-cli to 0.11.0
+pip install --upgrade spec-kitty-cli
 spec-kitty list-legacy-features
+
+# Method 2: Manual check (works on any version)
+ls -la .worktrees/ 2>/dev/null || echo "No worktrees found"
 ```
 
-See [**Upgrade Guide**](docs/upgrading-to-0-11-0.md) for step-by-step migration instructions.
+If you have existing worktrees, complete or delete them before running `spec-kitty upgrade`.
+
+See [**Upgrade Guide**](docs/how-to/upgrade-to-0-11-0.md) for step-by-step migration instructions.
 
 ### New in 0.11.0
 
@@ -59,7 +67,7 @@ See [**Upgrade Guide**](docs/upgrading-to-0-11-0.md) for step-by-step migration 
 - ✅ **New command**: `spec-kitty implement WP##` creates workspace for work package
 - ✅ **Better isolation**: Each WP has its own worktree and branch
 
-📖 [Workspace-per-WP Documentation](docs/workspace-per-wp.md) | 📖 [Full Upgrade Guide](docs/upgrading-to-0-11-0.md)
+📖 [Workspace-per-WP Documentation](docs/explanation/workspace-per-wp.md) | 📖 [Full Upgrade Guide](docs/how-to/upgrade-to-0-11-0.md)
 
 ---
 

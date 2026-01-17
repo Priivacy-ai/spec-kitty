@@ -15,7 +15,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.paths import locate_project_root, get_main_repo_root, find_feature_slug
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
 console = Console()
@@ -48,13 +48,13 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
 
         # Auto-detect feature if not provided
         if not feature_slug:
-            feature_slug = _auto_detect_feature(repo_root)
+            feature_slug = find_feature_slug(repo_root)
             if not feature_slug:
                 console.print("[red]Error:[/red] Could not auto-detect feature")
                 return {"error": "Could not auto-detect feature"}
 
         # Get main repo root for correct path resolution
-        main_repo_root = _get_main_repo_root(repo_root)
+        main_repo_root = get_main_repo_root(repo_root)
 
         # Locate feature directory
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
@@ -354,64 +354,3 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
 
     console.print(Panel(summary, title="[bold]Summary[/bold]", border_style="dim"))
     console.print()
-
-
-def _get_main_repo_root(current_path: Path) -> Path:
-    """Get the main repository root, even if called from a worktree."""
-    git_file = current_path / ".git"
-
-    if git_file.is_file():
-        git_content = git_file.read_text().strip()
-        if git_content.startswith("gitdir:"):
-            gitdir = Path(git_content.split(":", 1)[1].strip())
-            main_git_dir = gitdir.parent.parent
-            main_repo_root = main_git_dir.parent
-            return main_repo_root
-
-    return current_path
-
-
-def _auto_detect_feature(repo_root: Path) -> Optional[str]:
-    """Auto-detect feature slug from git branch or highest-numbered feature in kitty-specs."""
-    import re
-    import subprocess
-
-    # Get main repo root for kitty-specs access
-    main_repo_root = _get_main_repo_root(repo_root)
-
-    # Strategy 1: Get from git branch name
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        branch_name = result.stdout.strip()
-
-        # Strip -WPxx suffix if present (worktree branches)
-        branch_name = re.sub(r'-WP\d+$', '', branch_name)
-
-        # Validate format: ###-slug
-        if len(branch_name) >= 3 and branch_name[:3].isdigit():
-            return branch_name
-
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-
-    # Strategy 2: Auto-detect highest-numbered feature in kitty-specs
-    kitty_specs_dir = main_repo_root / "kitty-specs"
-    if kitty_specs_dir.is_dir():
-        candidates = []
-        for path in kitty_specs_dir.iterdir():
-            if not path.is_dir():
-                continue
-            match = re.match(r"^(\d{3})-", path.name)
-            if match:
-                candidates.append((int(match.group(1)), path.name))
-        if candidates:
-            _, slug = max(candidates, key=lambda item: item[0])
-            return slug
-
-    return None

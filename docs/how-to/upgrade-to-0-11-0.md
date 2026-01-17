@@ -38,10 +38,13 @@ Look for directories matching pattern `###-feature` (without `-WP##` suffix).
 - `009-jujutsu-vcs/` ← Legacy (0.10.x)
 - `010-workspace-per-wp-WP01/` ← New (0.11.0+, this is OK)
 
-**Or use the utility command**:
+**Or use the utility command (after upgrading spec-kitty-cli)**:
 ```bash
-spec-kitty list-legacy-features
+pip install --upgrade spec-kitty-cli  # Get 0.11.0 first
+spec-kitty list-legacy-features       # Then check for legacy worktrees
 ```
+
+> **Note**: The `list-legacy-features` command is new in 0.11.0. If you're on 0.10.x, use `ls .worktrees/` to manually check for legacy worktrees before running `spec-kitty upgrade`.
 
 ### ☐ Step 2: Decide What to Do With Each Feature
 
@@ -100,13 +103,15 @@ After completing or deleting all features:
 ```bash
 ls .worktrees/
 # Should be empty OR only show ###-feature-WP## patterns (new format)
-
-# Verify with utility
-spec-kitty list-legacy-features
-# Should show: "No legacy worktrees detected"
 ```
 
-If you still see legacy worktrees, go back to Step 3 and handle them.
+If you still see legacy worktrees (directories without `-WP##` suffix), go back to Step 3 and handle them.
+
+> **After upgrading spec-kitty-cli to 0.11.0**, you can also verify with:
+> ```bash
+> spec-kitty list-legacy-features
+> # Should show: "No legacy worktrees detected"
+> ```
 
 ### ☐ Step 5: Backup (Optional but Recommended)
 
@@ -514,11 +519,12 @@ After upgrading, you'll benefit from:
 ## Summary
 
 **Before upgrading to 0.11.0**:
-1. ✅ List legacy worktrees: `spec-kitty list-legacy-features`
+1. ✅ Check for legacy worktrees: `ls .worktrees/` (look for directories without `-WP##` suffix)
 2. ✅ Complete or delete each legacy feature
-3. ✅ Verify clean state: `ls .worktrees/` (should be empty)
-4. ✅ Upgrade: `pip install --upgrade spec-kitty-cli`
-5. ✅ Test with dummy feature to verify new workflow
+3. ✅ Verify clean state: `ls .worktrees/` (should be empty or only new format)
+4. ✅ Upgrade CLI: `pip install --upgrade spec-kitty-cli`
+5. ✅ Upgrade project: `spec-kitty upgrade` (in your project directory)
+6. ✅ Test with dummy feature to verify new workflow
 
 **After upgrading**:
 - Planning commands work in main (no worktree created)

@@ -9,7 +9,7 @@ from typing import Optional
 import typer
 from typing_extensions import Annotated
 
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.paths import locate_project_root, find_feature_slug
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.tasks_support import (
     extract_scalar,
@@ -57,71 +57,22 @@ def _find_feature_slug() -> str:
     Raises:
         typer.Exit: If feature slug cannot be determined
     """
-    import re
     cwd = Path.cwd().resolve()
+    repo_root = locate_project_root(cwd)
 
-    def _strip_wp_suffix(slug: str) -> str:
-        """Strip -WPxx suffix from feature slug if present.
+    if repo_root is None:
+        print("Error: Not in a spec-kitty project.")
+        raise typer.Exit(1)
 
-        Worktree branches/dirs are named {feature-slug}-WPxx,
-        so we need to extract just the feature slug.
-        """
-        # Match -WPxx at the end (case insensitive)
-        return re.sub(r'-WP\d+$', '', slug, flags=re.IGNORECASE)
+    slug = find_feature_slug(repo_root)
+    if slug is None:
+        print("Error: Could not auto-detect feature slug.")
+        print("  - Not in a kitty-specs/###-feature-slug directory")
+        print("  - Git branch name doesn't match ###-slug format")
+        print("  - Use --feature <slug> to specify explicitly")
+        raise typer.Exit(1)
 
-    # Strategy 1: Check if cwd contains kitty-specs/###-feature-slug
-    if "kitty-specs" in cwd.parts:
-        parts_list = list(cwd.parts)
-        try:
-            idx = parts_list.index("kitty-specs")
-            if idx + 1 < len(parts_list):
-                potential_slug = parts_list[idx + 1]
-                # Validate format: ###-slug
-                if len(potential_slug) >= 3 and potential_slug[:3].isdigit():
-                    return _strip_wp_suffix(potential_slug)
-        except (ValueError, IndexError):
-            pass
-
-    # Strategy 2: Get from git branch name
-    try:
-        import subprocess
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        branch_name = result.stdout.strip()
-        # Validate format: ###-slug (possibly with -WPxx suffix)
-        if len(branch_name) >= 3 and branch_name[:3].isdigit():
-            return _strip_wp_suffix(branch_name)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-
-    # Strategy 3: Scan kitty-specs/ and pick lexically most recent feature
-    try:
-        repo_root = locate_project_root()
-        if repo_root:
-            kitty_specs_dir = repo_root / "kitty-specs"
-            if kitty_specs_dir.exists():
-                # Find all feature directories matching ###-* pattern
-                feature_dirs = [
-                    d.name for d in kitty_specs_dir.iterdir()
-                    if d.is_dir() and len(d.name) >= 3 and d.name[:3].isdigit()
-                ]
-                if feature_dirs:
-                    # Sort and pick the lexically most recent (highest number)
-                    feature_dirs.sort()
-                    return feature_dirs[-1]
-    except Exception:
-        pass
-
-    print("Error: Could not auto-detect feature slug.")
-    print("  - Not in a kitty-specs/###-feature-slug directory")
-    print("  - Git branch name doesn't match ###-slug format")
-    print("  - Use --feature <slug> to specify explicitly")
-    raise typer.Exit(1)
+    return slug
 
 
 def _normalize_wp_id(wp_arg: str) -> str:

@@ -13,7 +13,7 @@ from rich.console import Console
 from typing_extensions import Annotated
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.paths import locate_project_root, get_main_repo_root, find_feature_slug
 from specify_cli.tasks_support import (
     LANES,
     WorkPackage,
@@ -36,38 +36,6 @@ app = typer.Typer(
 console = Console()
 
 
-def _get_main_repo_root(current_path: Path) -> Path:
-    """Get the main repository root, even if called from a worktree.
-
-    Args:
-        current_path: Current project path (might be worktree)
-
-    Returns:
-        Path to main repository root
-
-    Raises:
-        RuntimeError: If main repo cannot be found
-    """
-    # Check if we're in a worktree by reading .git file
-    git_file = current_path / ".git"
-
-    if git_file.is_file():
-        # We're in a worktree - .git is a file pointing to actual git dir
-        git_content = git_file.read_text().strip()
-        # Format: "gitdir: /path/to/.git/worktrees/worktree-name"
-        if git_content.startswith("gitdir:"):
-            gitdir = Path(git_content.split(":", 1)[1].strip())
-            # gitdir is like: /main/.git/worktrees/name
-            # Main repo .git is: /main/.git
-            # Main repo root is: /main
-            main_git_dir = gitdir.parent.parent
-            main_repo_root = main_git_dir.parent
-            return main_repo_root
-
-    # Not a worktree, current path is the main repo
-    return current_path
-
-
 def _find_feature_slug() -> str:
     """Find the current feature slug from the working directory or git branch.
 
@@ -77,52 +45,17 @@ def _find_feature_slug() -> str:
     Raises:
         typer.Exit: If feature slug cannot be determined
     """
-    import re
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)
 
     if repo_root is None:
         raise typer.Exit(1)
 
-    # Strategy 1: Get from git branch name (run from project root)
-    try:
-        import subprocess
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        branch_name = result.stdout.strip()
+    slug = find_feature_slug(repo_root)
+    if slug is None:
+        raise typer.Exit(1)
 
-        # Strip -WPxx suffix if present (worktree branches)
-        # Pattern: 012-documentation-mission-WP04 → 012-documentation-mission
-        branch_name = re.sub(r'-WP\d+$', '', branch_name)
-
-        # Validate format: ###-slug
-        if len(branch_name) >= 3 and branch_name[:3].isdigit():
-            return branch_name
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-
-    # Strategy 2: Auto-detect highest-numbered feature in kitty-specs
-    # Use main repo (worktrees have kitty-specs/ sparse-checked out)
-    main_repo_root = _get_main_repo_root(repo_root)
-    kitty_specs_dir = main_repo_root / "kitty-specs"
-    if kitty_specs_dir.is_dir():
-        candidates = []
-        for path in kitty_specs_dir.iterdir():
-            if not path.is_dir():
-                continue
-            match = re.match(r"^(\d{3})-", path.name)
-            if match:
-                candidates.append((int(match.group(1)), path.name))
-        if candidates:
-            _, slug = max(candidates, key=lambda item: item[0])
-            return slug
-
-    raise typer.Exit(1)
+    return slug
 
 
 def _output_result(json_mode: bool, data: dict, success_message: str = None):
@@ -173,7 +106,7 @@ def _check_unchecked_subtasks(
         typer.Exit: If unchecked tasks found and force=False
     """
     # Use main repo (worktrees have kitty-specs/ sparse-checked out)
-    main_repo_root = _get_main_repo_root(repo_root)
+    main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / feature_slug
     tasks_md = feature_dir / "tasks.md"
 
@@ -233,7 +166,7 @@ def _check_dependent_warnings(
         return
 
     # Use main repo (worktrees have kitty-specs/ sparse-checked out)
-    main_repo_root = _get_main_repo_root(repo_root)
+    main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / feature_slug
 
     # Build dependency graph
@@ -458,7 +391,7 @@ def move_task(
             import subprocess
 
             # Get the ACTUAL main repo root (not worktree path)
-            main_repo_root = _get_main_repo_root(repo_root)
+            main_repo_root = get_main_repo_root(repo_root)
 
             # Commit to main (file is always in main, worktrees excluded via sparse-checkout)
             commit_msg = f"chore: Move {task_id} to {target_lane}"
@@ -576,7 +509,7 @@ def mark_status(
 
         feature_slug = feature or _find_feature_slug()
         # Use main repo root (worktrees have kitty-specs/ sparse-checked out)
-        main_repo_root = _get_main_repo_root(repo_root)
+        main_repo_root = get_main_repo_root(repo_root)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
         tasks_md = feature_dir / "tasks.md"
 
@@ -710,7 +643,7 @@ def list_tasks(
         feature_slug = feature or _find_feature_slug()
 
         # Use main repo (worktrees have kitty-specs/ sparse-checked out)
-        main_repo_root = _get_main_repo_root(repo_root)
+        main_repo_root = get_main_repo_root(repo_root)
 
         # Find all task files
         tasks_dir = main_repo_root / "kitty-specs" / feature_slug / "tasks"
@@ -844,7 +777,7 @@ def finalize_tasks(
 
         feature_slug = feature or _find_feature_slug()
         # Use main repo (worktrees have kitty-specs/ sparse-checked out)
-        main_repo_root = _get_main_repo_root(repo_root)
+        main_repo_root = get_main_repo_root(repo_root)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
         tasks_md = feature_dir / "tasks.md"
         tasks_dir = feature_dir / "tasks"
@@ -1056,7 +989,7 @@ def status(
         feature_slug = feature if feature else _find_feature_slug()
 
         # Get main repo root for correct path resolution
-        main_repo_root = _get_main_repo_root(repo_root)
+        main_repo_root = get_main_repo_root(repo_root)
 
         # Locate feature directory
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
