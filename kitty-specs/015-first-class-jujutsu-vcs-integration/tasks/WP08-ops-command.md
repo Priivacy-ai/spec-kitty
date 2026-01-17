@@ -9,12 +9,12 @@ subtasks:
   - "T049"
   - "T050"
 phase: "Phase 2 - Command Updates"
-lane: "planned"
+lane: "doing"
 priority: "P3"
 dependencies: ["WP03", "WP04"]
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "__AGENT__"
+shell_pid: "27357"
 review_status: ""
 reviewed_by: ""
 history:
@@ -332,3 +332,4 @@ history:
 ## Activity Log
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
+- 2026-01-17T13:09:21Z – __AGENT__ – shell_pid=27357 – lane=doing – Started implementation via workflow command
