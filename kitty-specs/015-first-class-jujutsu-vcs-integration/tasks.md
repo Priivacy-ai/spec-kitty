@@ -201,7 +201,7 @@
 - [x] T033 Modify workspace creation to use `vcs.create_workspace()` instead of direct git commands
 - [x] T034 Add VCS selection to meta.json during feature creation (lock VCS choice)
 - [x] T035 Implement `--base` flag handling for both VCS backends
-- [ ] T036 Update sparse-checkout logic for jj workspaces (if applicable)
+- [x] T036 Update sparse-checkout logic for jj workspaces (if applicable)
 - [ ] T037 Add stale workspace detection using `vcs.is_workspace_stale()`
 - [ ] T038 Update implement command tests with parametrized VCS backend
 
