@@ -133,7 +133,7 @@
 - [x] T022 Implement commit/change operations using `jj log`, `jj describe`, `jj new`
 - [x] T023 Implement repository operations using `jj git init --colocate`
 - [x] T024 [P] Implement jj-specific standalone functions (jj_get_operation_log, jj_undo_operation, jj_get_change_by_id)
-- [ ] T025 Create `tests/specify_cli/core/vcs/test_jujutsu.py` with jj-specific tests (@pytest.mark.jj)
+- [x] T025 Create `tests/specify_cli/core/vcs/test_jujutsu.py` with jj-specific tests (@pytest.mark.jj)
 
 ### Implementation Notes
 1. All tests require real jj installation (no mocking)
