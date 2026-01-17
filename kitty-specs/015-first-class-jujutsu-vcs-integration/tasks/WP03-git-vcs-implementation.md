@@ -11,12 +11,12 @@ subtasks:
   - "T016"
   - "T017"
 phase: "Phase 1 - Abstraction Layer"
-lane: "for_review"
+lane: "doing"
 priority: "P1"
 dependencies: ["WP01", "WP02"]
 assignee: ""
-agent: "claude-opus"
-shell_pid: "67058"
+agent: "__AGENT__"
+shell_pid: "38749"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -352,6 +352,7 @@ def test_create_workspace(self, tmp_path):
 - 2026-01-17T12:04:09Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
 - 2026-01-17T12:08:24Z – claude-opus – shell_pid=67058 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:15:04Z – claude-opus – shell_pid=67058 – lane=for_review – Fixed all 3 review issues: sparse-checkout in create_workspace, wrapped git_ops.py helpers, implemented _parse_rebase_stats. 68 VCS tests passing.
+- 2026-01-17T12:17:58Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
 
 ## Review Feedback
 
