@@ -89,7 +89,7 @@
 **Requirements**: FR-001, FR-010, FR-013
 
 ### Included Subtasks
-- [ ] T010 Create `src/specify_cli/core/vcs/git.py` with GitVCS class skeleton
+- [x] T010 Create `src/specify_cli/core/vcs/git.py` with GitVCS class skeleton
 - [ ] T011 Implement workspace operations (create_workspace, remove_workspace, get_workspace_info, list_workspaces) wrapping existing git_ops/worktree
 - [ ] T012 Implement sync operations (sync_workspace, is_workspace_stale)
 - [ ] T013 Implement conflict operations (detect_conflicts, has_conflicts) with git conflict marker parsing
