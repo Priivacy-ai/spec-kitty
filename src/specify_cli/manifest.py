@@ -3,6 +3,7 @@ Manifest system for spec-kitty file verification.
 This module generates and checks expected files based on the active mission.
 """
 
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 import yaml
@@ -72,7 +73,11 @@ class FileManifest:
         return manifest
 
     def _get_referenced_scripts(self) -> List[str]:
-        """Extract script references from command files, filtered by platform."""
+        """Extract script references from command files, filtered by platform.
+        
+        Only includes actual script files in .kittify/scripts/ directory.
+        Excludes CLI commands (spec-kitty, git, etc.) and system executables.
+        """
         import platform
         scripts = set()
 
@@ -86,6 +91,14 @@ class FileManifest:
         # Determine which script type to look for based on platform
         is_windows = platform.system() == 'Windows'
         script_key = 'ps:' if is_windows else 'sh:'
+        
+        # Known CLI commands to exclude (not script files)
+        cli_commands = {
+            'spec-kitty', 'git', 'python', 'python3', 'pip', 'pip3',
+            'node', 'npm', 'npx', 'yarn', 'pnpm', 'poetry',
+            'docker', 'kubectl', 'terraform', 'ansible',
+            'curl', 'wget', 'jq', 'sed', 'awk', 'grep'
+        }
 
         # Parse command files for script references
         for cmd_file in commands_dir.glob("*.md"):
@@ -111,8 +124,29 @@ class FileManifest:
                             script_parts = script_line.split()
                             if script_parts:
                                 script_path = script_parts[0]
-                                if script_path.startswith('.kittify/'):
-                                    script_path = script_path.replace('.kittify/', '')
+                                
+                                # Normalize path separators for cross-platform compatibility
+                                script_path = script_path.replace('\\', '/')
+                                
+                                # Check if this is a .kittify-managed script first
+                                # Only include scripts that are in .kittify/scripts/
+                                if not script_path.startswith('.kittify/'):
+                                    # Not a .kittify path - could be a CLI command
+                                    # Skip CLI commands and system executables
+                                    # Use basename to handle path prefixes like ./spec-kitty or /usr/bin/git
+                                    script_basename = os.path.basename(script_path)
+                                    if script_basename in cli_commands:
+                                        continue
+                                    # Any other non-.kittify path is also skipped
+                                    continue
+                                
+                                # Remove .kittify/ prefix for storage
+                                script_path = script_path.replace('.kittify/', '', 1)
+                                
+                                # Must be in scripts/ subdirectory
+                                if not script_path.startswith('scripts/'):
+                                    continue
+                                
                                 scripts.add(script_path)
 
         return sorted(list(scripts))
