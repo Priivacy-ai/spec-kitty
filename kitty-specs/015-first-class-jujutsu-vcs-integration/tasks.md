@@ -237,7 +237,7 @@
 - [x] T041 Add conflict reporting with file paths and line ranges
 - [x] T042 Add `--repair` flag for workspace recovery
 - [x] T043 Register sync command in CLI
-- [ ] T044 Create `tests/specify_cli/cli/commands/test_sync.py` with parametrized tests
+- [x] T044 Create `tests/specify_cli/cli/commands/test_sync.py` with parametrized tests
 
 ### Implementation Notes
 1. Detect current workspace context (which feature, which WP)
