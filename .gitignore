@@ -63,5 +63,3 @@ sdd-*/
 .roo/
 .amazonq/
 .pytest_cache/
-# Prevent worktree-local kitty-specs/ (status managed in main repo)
-kitty-specs/
