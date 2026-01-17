@@ -272,7 +272,7 @@
 - [x] T047 Implement `ops undo` subcommand using jj_undo_operation
 - [x] T048 Add capability checking (warn if backend doesn't support full undo)
 - [x] T049 Register ops command in CLI
-- [ ] T050 Create `tests/specify_cli/cli/commands/test_ops.py`
+- [x] T050 Create `tests/specify_cli/cli/commands/test_ops.py`
 
 ### Implementation Notes
 1. ops command has subcommands: log, undo
