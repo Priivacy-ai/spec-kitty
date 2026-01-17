@@ -10,8 +10,10 @@ from . import dashboard as dashboard_module
 from . import implement as implement_module
 from . import merge as merge_module
 from . import mission as mission_module
+from . import ops as ops_module
 from . import repair as repair_module
 from . import research as research_module
+from . import sync as sync_module
 from . import upgrade as upgrade_module
 from . import validate_encoding as validate_encoding_module
 from . import validate_tasks as validate_tasks_module
@@ -26,8 +28,10 @@ def register_commands(app: typer.Typer) -> None:
     app.command()(implement_module.implement)
     app.command()(merge_module.merge)
     app.add_typer(mission_module.app, name="mission")
+    app.add_typer(ops_module.app, name="ops")
     app.add_typer(repair_module.app, name="repair", help="Repair broken templates")
     app.command()(research_module.research)
+    app.command()(sync_module.sync)
     app.command()(upgrade_module.upgrade)
     app.command(name="list-legacy-features")(upgrade_module.list_legacy_features)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)

@@ -1,8 +1,11 @@
 """Worktree management utilities for spec-kitty feature development.
 
-This module provides functions for creating and managing git worktrees
-for parallel feature development. All functions are location-aware and
-work correctly whether called from main repository or existing worktree.
+This module provides functions for creating and managing workspaces (git worktrees
+or jj workspaces) for parallel feature development. Uses the VCS abstraction layer
+to support both git and jujutsu backends.
+
+All functions are location-aware and work correctly whether called from main
+repository or existing worktree/workspace.
 """
 
 from __future__ import annotations
@@ -10,10 +13,12 @@ from __future__ import annotations
 import platform
 import shutil
 import subprocess
+import warnings
 from pathlib import Path
 from typing import Optional, Tuple
 
 from .paths import locate_project_root
+from .vcs import VCSBackend, get_vcs
 
 
 def get_next_feature_number(repo_root: Path) -> int:
@@ -68,10 +73,11 @@ def create_feature_worktree(
     feature_slug: str,
     feature_number: Optional[int] = None
 ) -> Tuple[Path, Path]:
-    """Create git worktree for feature development.
+    """Create workspace (git worktree or jj workspace) for feature development.
 
-    Creates a new git worktree with a feature branch and sets up the
-    feature directory structure.
+    Creates a new workspace with a feature branch and sets up the
+    feature directory structure. Uses VCS abstraction to support both
+    git and jujutsu backends.
 
     Args:
         repo_root: Repository root path
@@ -82,7 +88,7 @@ def create_feature_worktree(
         Tuple of (worktree_path, feature_dir)
 
     Raises:
-        subprocess.CalledProcessError: If git worktree creation fails
+        RuntimeError: If workspace creation fails
         FileExistsError: If worktree path already exists
 
     Examples:
@@ -106,17 +112,11 @@ def create_feature_worktree(
 
     # Check if worktree already exists
     if worktree_path.exists():
-        # Check if it's a valid git worktree
+        # Check if it's a valid workspace
         try:
-            result = subprocess.run(
-                ["git", "rev-parse", "--show-toplevel"],
-                cwd=worktree_path,
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            if result.returncode == 0:
-                # Valid worktree exists, reuse it
+            vcs = get_vcs(worktree_path)
+            if vcs.is_repo(worktree_path):
+                # Valid workspace exists, reuse it
                 feature_dir = worktree_path / "kitty-specs" / branch_name
                 return (worktree_path, feature_dir)
         except Exception:
@@ -124,22 +124,38 @@ def create_feature_worktree(
 
         raise FileExistsError(f"Worktree path already exists: {worktree_path}")
 
-    # Git command: git worktree add <path> -b <branch>
+    # Get VCS implementation and create workspace
     try:
-        subprocess.run(
-            ["git", "worktree", "add", str(worktree_path), "-b", branch_name],
-            cwd=repo_root,
-            check=True,
-            capture_output=True,
-            text=True
+        vcs = get_vcs(repo_root)
+        result = vcs.create_workspace(
+            workspace_path=worktree_path,
+            workspace_name=branch_name,
+            repo_root=repo_root,
         )
-    except subprocess.CalledProcessError as e:
-        raise subprocess.CalledProcessError(
-            e.returncode,
-            e.cmd,
-            output=e.output,
-            stderr=f"Failed to create git worktree: {e.stderr}"
+
+        if not result.success:
+            raise RuntimeError(f"Failed to create workspace: {result.error}")
+
+    except Exception as e:
+        # If VCS abstraction fails, fall back to direct git command with warning
+        warnings.warn(
+            "VCS abstraction failed, falling back to direct git commands. "
+            "See: kitty-specs/015-first-class-jujutsu-vcs-integration/",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        try:
+            subprocess.run(
+                ["git", "worktree", "add", str(worktree_path), "-b", branch_name],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+        except subprocess.CalledProcessError as git_error:
+            raise RuntimeError(
+                f"Failed to create workspace: {git_error.stderr}"
+            ) from git_error
 
     # Create feature directory structure
     feature_dir = worktree_path / "kitty-specs" / branch_name

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
@@ -14,6 +16,11 @@ from specify_cli.core.dependency_graph import (
     build_dependency_graph,
     get_dependents,
     parse_wp_dependencies,
+)
+from specify_cli.core.vcs import (
+    get_vcs,
+    VCSBackend,
+    VCSLockError,
 )
 from specify_cli.frontmatter import read_frontmatter
 from specify_cli.tasks_support import (
@@ -343,6 +350,63 @@ def check_for_dependents(
         console.print()
 
 
+def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
+    """Ensure VCS is selected and locked in meta.json.
+
+    On first workspace creation for a feature, this function:
+    1. Detects available VCS (prefers jj if available)
+    2. Stores the selection in meta.json
+    3. Returns the selected backend
+
+    If VCS is already locked, returns the locked backend.
+
+    Args:
+        feature_dir: Path to the feature directory (kitty-specs/###-feature/)
+        repo_root: Repository root path (for VCS detection)
+
+    Returns:
+        The VCS backend to use for this feature
+
+    Raises:
+        typer.Exit: If meta.json is missing or malformed
+    """
+    meta_path = feature_dir / "meta.json"
+
+    if not meta_path.exists():
+        console.print(f"[red]Error:[/red] meta.json not found in {feature_dir}")
+        console.print("Run /spec-kitty.specify first to create feature structure")
+        raise typer.Exit(1)
+
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        console.print(f"[red]Error:[/red] Invalid JSON in meta.json: {e}")
+        raise typer.Exit(1)
+
+    # Check if VCS is already locked
+    if "vcs" in meta:
+        backend_str = meta["vcs"]
+        try:
+            return VCSBackend(backend_str)
+        except ValueError:
+            console.print(f"[yellow]Warning:[/yellow] Unknown VCS '{backend_str}' in meta.json, defaulting to git")
+            return VCSBackend.GIT
+
+    # VCS not yet locked - detect and lock it
+    vcs = get_vcs(repo_root)
+    backend = vcs.backend
+
+    # Store VCS selection in meta.json
+    meta["vcs"] = backend.value
+    meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Write updated meta.json
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+
+    console.print(f"[cyan]→ VCS locked to {backend.value} in meta.json[/cyan]")
+    return backend
+
+
 def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
     base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
@@ -571,123 +635,111 @@ def implement(
         workspace_path = repo_root / ".worktrees" / workspace_name
         branch_name = workspace_name  # Same as workspace dir name
 
-        # Check if workspace already exists
-        if validate_workspace_path(workspace_path, wp_id):
+        # Ensure VCS is locked in meta.json and get the backend to use
+        # (do this early so we can use VCS for all operations)
+        feature_dir = repo_root / "kitty-specs" / feature_slug
+        vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
+
+        # Get VCS implementation
+        vcs = get_vcs(repo_root, backend=vcs_backend)
+
+        # Check if workspace already exists using VCS abstraction
+        workspace_info = vcs.get_workspace_info(workspace_path)
+        if workspace_info is not None:
             # Workspace exists and is valid, reuse it
             tracker.complete("create", f"Reused: {workspace_path}")
             console.print(tracker.render())
 
-            # Check if base branch has changed since workspace was created (T080)
-            if base:
-                base_branch = f"{feature_slug}-{base}"
-                if check_base_branch_changed(workspace_path, base_branch):
+            # Use VCS abstraction for stale detection
+            if workspace_info.is_stale:
+                if base:
+                    base_branch = f"{feature_slug}-{base}"
                     display_rebase_warning(workspace_path, wp_id, base_branch, feature_slug)
+                else:
+                    # No explicit base, but workspace is stale (base changed)
+                    console.print(f"\n[yellow]⚠️  Workspace is stale (base has changed)[/yellow]")
+                    if vcs_backend == VCSBackend.JUJUTSU:
+                        console.print("Run [bold]jj workspace update-stale[/bold] to sync")
+                    else:
+                        console.print(f"Consider rebasing if needed")
 
             # Check for dependent WPs (T079)
             check_for_dependents(repo_root, feature_slug, wp_id)
 
             return
 
+        # Validate workspace path doesn't exist as a non-workspace directory
+        if workspace_path.exists():
+            console.print(f"[red]Error:[/red] Directory exists but is not a valid workspace")
+            console.print(f"Path: {workspace_path}")
+            console.print(f"Remove manually: rm -rf {workspace_path}")
+            raise typer.Exit(1)
+
         # Determine base branch
         if base is None:
             # No dependencies - branch from primary branch
             base_branch = resolve_primary_branch(repo_root)
-            cmd = [
-                "git",
-                "worktree",
-                "add",
-                str(workspace_path),
-                "-b",
-                branch_name,
-                base_branch,
-            ]
         else:
             # Has dependencies - branch from base WP's branch
             base_branch = f"{feature_slug}-{base}"
 
-            # Validate base branch exists in git
-            result = subprocess.run(
-                ["git", "rev-parse", "--verify", base_branch],
-                capture_output=True,
-                check=False
-            )
-            if result.returncode != 0:
-                tracker.error("create", f"base branch {base_branch} not found")
+            # Validate base branch/workspace exists
+            base_workspace_path = repo_root / ".worktrees" / f"{feature_slug}-{base}"
+            base_workspace_info = vcs.get_workspace_info(base_workspace_path)
+            if base_workspace_info is None:
+                tracker.error("create", f"base workspace {base} not found")
                 console.print(tracker.render())
-                console.print(f"[red]Error:[/red] Base branch {base_branch} does not exist")
+                console.print(f"[red]Error:[/red] Base workspace {base} does not exist")
+                console.print(f"Implement {base} first: spec-kitty implement {base}")
                 raise typer.Exit(1)
 
-            cmd = ["git", "worktree", "add", str(workspace_path), "-b", branch_name, base_branch]
+            # Use the base workspace's current branch for git, or the revision for jj
+            if vcs_backend == VCSBackend.GIT:
+                if base_workspace_info.current_branch:
+                    base_branch = base_workspace_info.current_branch
+                # For git, verify the branch exists
+                result = subprocess.run(
+                    ["git", "rev-parse", "--verify", base_branch],
+                    cwd=repo_root,
+                    capture_output=True,
+                    check=False
+                )
+                if result.returncode != 0:
+                    tracker.error("create", f"base branch {base_branch} not found")
+                    console.print(tracker.render())
+                    console.print(f"[red]Error:[/red] Base branch {base_branch} does not exist")
+                    raise typer.Exit(1)
 
-        # Execute git command
-        result = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True, check=False)
-        if result.returncode != 0:
-            tracker.error("create", "git worktree creation failed")
+        # Create workspace using VCS abstraction
+        # For git: sparse_exclude excludes kitty-specs/ from worktree
+        # For jj: no sparse-checkout needed (jj has different isolation model)
+        if vcs_backend == VCSBackend.GIT:
+            create_result = vcs.create_workspace(
+                workspace_path=workspace_path,
+                workspace_name=workspace_name,
+                base_branch=base_branch,
+                repo_root=repo_root,
+                sparse_exclude=["kitty-specs/"],
+            )
+        else:
+            # jj workspace creation
+            create_result = vcs.create_workspace(
+                workspace_path=workspace_path,
+                workspace_name=workspace_name,
+                base_branch=base_branch,
+                repo_root=repo_root,
+            )
+
+        if not create_result.success:
+            tracker.error("create", "workspace creation failed")
             console.print(tracker.render())
-            console.print(f"\n[red]Error:[/red] Git worktree creation failed")
-            console.print(f"Command: {' '.join(cmd)}")
-            console.print(f"Error: {result.stderr}")
+            console.print(f"\n[red]Error:[/red] Failed to create workspace")
+            console.print(f"Error: {create_result.error}")
             raise typer.Exit(1)
 
-        # CRITICAL: Use sparse-checkout to exclude kitty-specs/ from this worktree
-        # This prevents worktree state divergence and enables clean merges to main
-        # Aligns with jujutsu's "partial working copy" model - status lives in main, impl in worktrees
-
-        # Get sparse-checkout file path via git (works for worktrees and standard repos)
-        sparse_checkout_result = subprocess.run(
-            ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
-            cwd=workspace_path,
-            capture_output=True,
-            text=True,
-            check=False
-        )
-        if sparse_checkout_result.returncode != 0:
-            console.print("[yellow]Warning:[/yellow] Unable to locate sparse-checkout file; workspace created without sparse exclusions.")
-        else:
-            sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
-
-            # Enable sparse-checkout (explicitly disable cone mode for exclusion patterns)
-            subprocess.run(
-                ["git", "config", "core.sparseCheckout", "true"],
-                cwd=workspace_path,
-                capture_output=True,
-                check=False
-            )
-            subprocess.run(
-                ["git", "config", "core.sparseCheckoutCone", "false"],
-                cwd=workspace_path,
-                capture_output=True,
-                check=False
-            )
-
-            # Write sparse-checkout patterns
-            # Pattern: Include everything (/*), exclude kitty-specs/ and its contents
-            sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-            sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
-
-            # Apply sparse-checkout (updates working tree to remove kitty-specs/)
-            apply_result = subprocess.run(
-                ["git", "read-tree", "-mu", "HEAD"],
-                cwd=workspace_path,
-                capture_output=True,
-                check=False
-            )
-            if apply_result.returncode != 0:
-                console.print("[yellow]Warning:[/yellow] Failed to apply sparse-checkout patterns; kitty-specs/ may still be present.")
-            else:
-                console.print("[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
-
-            # CRITICAL: Also add kitty-specs/ to .gitignore to prevent manual git add
-            # Sparse-checkout only controls checkout, NOT staging. Without .gitignore,
-            # users could manually create and commit kitty-specs/ files in worktree.
-            worktree_gitignore = workspace_path / ".gitignore"
-            gitignore_entry = "\n# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n"
-            if worktree_gitignore.exists():
-                existing_content = worktree_gitignore.read_text(encoding="utf-8")
-                if "kitty-specs/" not in existing_content:
-                    worktree_gitignore.write_text(existing_content.rstrip() + gitignore_entry, encoding="utf-8")
-            else:
-                worktree_gitignore.write_text(gitignore_entry.lstrip(), encoding="utf-8")
+        # For git, confirm sparse-checkout was applied
+        if vcs_backend == VCSBackend.GIT:
+            console.print("[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
 
         tracker.complete("create", f"Workspace: {workspace_path.relative_to(repo_root)}")
 

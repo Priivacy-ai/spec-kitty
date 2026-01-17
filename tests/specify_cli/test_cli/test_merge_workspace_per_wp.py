@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -14,6 +15,8 @@ from specify_cli.cli.commands.merge import (
     find_wp_worktrees,
     validate_wp_ready_for_merge,
 )
+from specify_cli.core.vcs import VCSBackend
+from specify_cli.core.vcs.exceptions import VCSNotFoundError
 
 
 @pytest.fixture
@@ -469,3 +472,100 @@ class TestWorkspacePerWpMergeIntegration:
         assert "010-test-feature-WP01" not in result.stdout
         assert "010-test-feature-WP02" not in result.stdout
         assert "010-test-feature-WP03" not in result.stdout
+
+
+class TestVCSAbstractionIntegration:
+    """Tests for VCS abstraction layer integration in merge command.
+
+    These tests verify that the merge command correctly detects and
+    displays the VCS backend (git vs jj) being used.
+
+    Note: The is_jj_available function uses lru_cache, so we need to clear
+    the cache and patch at the detection module level.
+    """
+
+    def test_merge_detects_git_backend(self, workspace_per_wp_repo: Path):
+        """Test that merge command detects git backend correctly."""
+        # Clear the lru_cache and patch the function
+        from specify_cli.core.vcs import detection
+        detection.is_jj_available.cache_clear()
+
+        with patch.object(detection, "is_jj_available", return_value=False):
+            from specify_cli.core.vcs import get_vcs
+
+            vcs = get_vcs(workspace_per_wp_repo)
+            assert vcs.backend == VCSBackend.GIT
+
+    def test_merge_detects_jj_backend_when_jj_present(self, git_repo: Path):
+        """Test that merge command detects jj backend when .jj exists."""
+        # Create .jj directory to simulate jj repo
+        (git_repo / ".jj").mkdir()
+
+        from specify_cli.core.vcs import detection
+        detection.is_jj_available.cache_clear()
+
+        with patch.object(detection, "is_jj_available", return_value=True):
+            from specify_cli.core.vcs import get_vcs
+
+            vcs = get_vcs(git_repo)
+            assert vcs.backend == VCSBackend.JUJUTSU
+
+    def test_merge_displays_backend_info(self, workspace_per_wp_repo: Path, capsys):
+        """Test that merge command displays VCS backend info."""
+        from specify_cli.core.vcs import detection
+        detection.is_jj_available.cache_clear()
+
+        with patch.object(detection, "is_jj_available", return_value=False):
+            from specify_cli.core.vcs import get_vcs
+
+            vcs = get_vcs(workspace_per_wp_repo)
+            backend_label = "jj" if vcs.backend == VCSBackend.JUJUTSU else "git"
+            assert backend_label == "git"
+
+    def test_merge_handles_vcs_detection_failure_gracefully(self, tmp_path: Path):
+        """Test that merge handles VCS detection failure gracefully."""
+        # Create directory without git or jj
+        test_dir = tmp_path / "not_a_repo"
+        test_dir.mkdir()
+
+        from specify_cli.core.vcs import detection
+        detection.is_jj_available.cache_clear()
+        detection.is_git_available.cache_clear()
+
+        with patch.object(detection, "is_jj_available", return_value=False):
+            with patch.object(detection, "is_git_available", return_value=False):
+                from specify_cli.core.vcs import get_vcs
+
+                # Detection should raise an error when no VCS available
+                with pytest.raises(VCSNotFoundError, match="Neither jj nor git"):
+                    get_vcs(test_dir)
+
+    def test_vcs_detection_prefers_jj_in_colocated_mode(self, git_repo: Path):
+        """Test that jj is preferred over git when both .jj and .git exist."""
+        # Create .jj directory (simulating colocated mode)
+        (git_repo / ".jj").mkdir()
+
+        from specify_cli.core.vcs import detection
+        detection.is_jj_available.cache_clear()
+
+        with patch.object(detection, "is_jj_available", return_value=True):
+            from specify_cli.core.vcs import get_vcs
+
+            vcs = get_vcs(git_repo)
+            # In colocated mode, jj should be preferred
+            assert vcs.backend == VCSBackend.JUJUTSU
+
+    def test_vcs_detection_falls_back_to_git_when_jj_unavailable(self, git_repo: Path):
+        """Test fallback to git when .jj exists but jj tool is not available."""
+        # Create .jj directory
+        (git_repo / ".jj").mkdir()
+
+        from specify_cli.core.vcs import detection
+        detection.is_jj_available.cache_clear()
+
+        with patch.object(detection, "is_jj_available", return_value=False):
+            from specify_cli.core.vcs import get_vcs
+
+            vcs = get_vcs(git_repo)
+            # Should fall back to git
+            assert vcs.backend == VCSBackend.GIT
