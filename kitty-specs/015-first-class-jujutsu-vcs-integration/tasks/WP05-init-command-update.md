@@ -9,12 +9,12 @@ subtasks:
   - "T030"
   - "T031"
 phase: "Phase 2 - Command Updates"
-lane: "for_review"
+lane: "doing"
 priority: "P1"
 dependencies: ["WP02"]
 assignee: ""
-agent: "claude-code"
-shell_pid: "72657"
+agent: "__AGENT__"
+shell_pid: "90012"
 review_status: ""
 reviewed_by: ""
 history:
@@ -271,3 +271,4 @@ def test_init_creates_vcs_config(tmp_path):
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T12:12:57Z – claude-code – shell_pid=72657 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:21:39Z – claude-code – shell_pid=72657 – lane=for_review – Ready for review: VCS detection and --vcs flag added to init command with 6 tests (822 total tests pass)
+- 2026-01-17T12:27:34Z – __AGENT__ – shell_pid=90012 – lane=doing – Started review via workflow command
