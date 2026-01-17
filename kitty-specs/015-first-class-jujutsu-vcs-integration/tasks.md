@@ -127,7 +127,7 @@
 
 ### Included Subtasks
 - [x] T018 Create `src/specify_cli/core/vcs/jujutsu.py` with JujutsuVCS class skeleton
-- [ ] T019 Implement workspace operations using `jj workspace add/forget/list`
+- [x] T019 Implement workspace operations using `jj workspace add/forget/list`
 - [ ] T020 Implement sync operations using `jj workspace update-stale`
 - [ ] T021 Implement conflict operations using `jj status` parsing (conflicts stored, not blocking)
 - [ ] T022 Implement commit/change operations using `jj log`, `jj describe`, `jj new`
