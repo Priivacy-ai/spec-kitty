@@ -48,6 +48,8 @@ Spec Kitty supports **12 AI agents** with slash commands. When adding features t
 - Filesystem only (templates in src/specify_cli/, user projects in .kittify/) (011-constitution-packaging-safety-and-redesign)
 - Python 3.11+ (existing spec-kitty codebase) + subprocess (for JSDoc, Sphinx, rustdoc invocation), ruamel.yaml (YAML parsing) (012-documentation-mission)
 - Filesystem only (mission configs in YAML, Divio templates in Markdown, iteration state in JSON) (012-documentation-mission)
+- Python 3.11+ (existing spec-kitty codebase) + subprocess (for jj/git CLI invocation), typing (Protocol), dataclasses (015-first-class-jujutsu-vcs-integration)
+- Filesystem only (meta.json, YAML frontmatter, git/jj repositories) (015-first-class-jujutsu-vcs-integration)
 
 ## Project Structure
 ```
@@ -62,6 +64,7 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
 ## Recent Changes
+- 015-first-class-jujutsu-vcs-integration: Adding VCS abstraction layer (Protocol-based), jj as first-class citizen alongside git, new vcs/ subpackage
 - 011-constitution-packaging-safety-and-redesign: Added psutil for cross-platform process management, relocated templates from .kittify/ to src/specify_cli/
 - 010-workspace-per-work-package-for-parallel-development: Added workspace-per-WP model, dependency graph utilities, breaking change to 0.11.0
 - 008-unified-python-cli: Added Python 3.11+ (existing spec-kitty requirement)
@@ -325,14 +328,23 @@ git merge ###-feature-WP02  # Manual merge second dependency
 - Use `spec-kitty list-legacy-features` to identify
 - Follow [upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md)
 
-### Future: jj Integration
+### jj Integration (Feature 015 - In Development)
 
-Workspace-per-WP enables future jujutsu VCS integration:
+Workspace-per-WP enables jujutsu VCS integration (now being implemented in feature 015):
 - Automatic rebasing of dependent workspaces when parent changes
 - No manual rebase needed for review feedback
 - Multi-parent merges handled automatically
+- Non-blocking conflicts (conflicts stored, not blocking)
+- Operation log with full undo capability
 
-This foundation makes jj integration possible in future version.
+**Key architecture decisions:**
+- VCS abstraction layer with Protocol-based interface
+- New `src/specify_cli/core/vcs/` subpackage
+- jj preferred when available, git as fallback
+- Per-feature VCS selection (stored in meta.json)
+- Colocated mode (both .jj/ and .git/) when both tools available
+
+See `kitty-specs/015-first-class-jujutsu-vcs-integration/` for full specification and plan.
 
 ### Documentation
 
