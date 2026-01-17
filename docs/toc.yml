@@ -13,6 +13,8 @@
       href: tutorials/multi-agent-workflow.md
     - name: Missions Overview
       href: tutorials/missions-overview.md
+    - name: Jujutsu (jj) Workflow
+      href: tutorials/jujutsu-workflow.md
     - name: Claude Code Integration
       href: tutorials/claude-code-integration.md
     - name: Claude Code Workflow
@@ -37,6 +39,12 @@
       href: how-to/accept-and-merge.md
     - name: Handle Dependencies
       href: how-to/handle-dependencies.md
+    - name: Sync Workspaces
+      href: how-to/sync-workspaces.md
+    - name: Handle Conflicts (jj)
+      href: how-to/handle-conflicts-jj.md
+    - name: Use Operation History
+      href: how-to/use-operation-history.md
     - name: Parallel Development
       href: how-to/parallel-development.md
     - name: Switch Missions
@@ -79,6 +87,10 @@
       href: explanation/workspace-per-wp.md
     - name: Git Worktrees
       href: explanation/git-worktrees.md
+    - name: Jujutsu for Multi-Agent Development
+      href: explanation/jujutsu-for-multi-agent.md
+    - name: Auto-Rebase and Non-Blocking Conflicts
+      href: explanation/auto-rebase-and-conflicts.md
     - name: Mission System
       href: explanation/mission-system.md
     - name: Kanban Workflow
