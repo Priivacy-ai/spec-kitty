@@ -11,7 +11,7 @@ subtasks:
   - "T016"
   - "T017"
 phase: "Phase 1 - Abstraction Layer"
-lane: "doing"
+lane: "planned"
 priority: "P1"
 dependencies: ["WP01", "WP02"]
 assignee: ""
@@ -353,6 +353,7 @@ def test_create_workspace(self, tmp_path):
 - 2026-01-17T12:08:24Z – claude-opus – shell_pid=67058 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:15:04Z – claude-opus – shell_pid=67058 – lane=for_review – Fixed all 3 review issues: sparse-checkout in create_workspace, wrapped git_ops.py helpers, implemented _parse_rebase_stats. 68 VCS tests passing.
 - 2026-01-17T12:17:58Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
+- 2026-01-17T12:19:45Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
 
 ## Review Feedback
 
@@ -360,9 +361,5 @@ def test_create_workspace(self, tmp_path):
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-17
 
-**Issue 1**: `create_workspace()` does not apply the sparse-checkout exclusions required for worktree isolation (kitty-specs/ exclusion). The WP explicitly calls this out and points to existing implement logic. Add the sparse-checkout setup (or call the existing worktree/implement helpers) so new worktrees mirror the current behavior.
-
-**Issue 2**: GitVCS reimplements CLI calls directly instead of wrapping existing git/worktree operations. The WP requires wrapping `git_ops.py`/`worktree.py` to preserve existing behavior (including Windows symlink handling and other flags). Refactor to use those helpers rather than ad-hoc subprocess calls.
-
-**Issue 3**: SyncResult statistics are always zero because `_parse_rebase_stats()` is a stub. The success criteria include capturing rebase output correctly, so either parse `git rebase` output or compute the file counts via `git diff --name-status` around the rebase.
+**Issue 1**: `create_workspace()` only applies sparse-checkout when `sparse_exclude` is explicitly passed, but the protocol signature doesn’t expose this argument and the requirements call for always excluding `kitty-specs/`. Apply sparse-checkout by default (e.g., default to `["kitty-specs/"]` or unconditionally apply it) to preserve existing worktree isolation behavior.
 
