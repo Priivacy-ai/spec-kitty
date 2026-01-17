@@ -11,14 +11,14 @@ subtasks:
   - "T057"
   - "T058"
 phase: "Phase 3 - Migration"
-lane: "doing"
+lane: "planned"
 priority: "P3"
 dependencies: ["WP05", "WP06", "WP07", "WP08"]
 assignee: ""
 agent: "__AGENT__"
 shell_pid: "35958"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-17T10:38:23Z"
     lane: "planned"
@@ -418,3 +418,4 @@ history:
 - 2026-01-17T13:19:13Z – __AGENT__ – shell_pid=28786 – lane=doing – Started implementation via workflow command
 - 2026-01-17T13:34:12Z – __AGENT__ – shell_pid=28786 – lane=for_review – Moved to for_review
 - 2026-01-17T13:37:34Z – __AGENT__ – shell_pid=35958 – lane=doing – Started review via workflow command
+- 2026-01-17T13:40:41Z – __AGENT__ – shell_pid=35958 – lane=planned – Moved to planned
