@@ -488,7 +488,7 @@ spec-kitty --version  # Should show 0.10.12
 **Note**: Features planned in 0.11.0 format (artifacts in main) will need re-planning if you rollback to 0.10.12 (worktree model).
 
 **Report the issue**:
-Please report bugs at: https://github.com/anthropics/spec-kitty/issues
+Please report bugs at: https://github.com/Priivacy-ai/spec-kitty/issues
 
 Include:
 - Error message
@@ -509,7 +509,7 @@ After upgrading, you'll benefit from:
 ## Getting Help
 
 - **Documentation**: [Workspace-per-WP guide](../explanation/workspace-per-wp.md)
-- **Issues**: https://github.com/anthropics/spec-kitty/issues
+- **Issues**: https://github.com/Priivacy-ai/spec-kitty/issues
 
 ## Summary
 

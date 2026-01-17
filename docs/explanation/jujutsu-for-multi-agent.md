@@ -127,11 +127,12 @@ If your work packages rarely have dependencies, or you typically work on one pac
 
 ### VCS Detection
 
-Spec Kitty automatically detects your VCS:
+Spec Kitty detects your VCS based on CLI flags, feature locks, and tool availability. See [VCS Detection Order](../reference/configuration.md#vcs-detection-order) for the full algorithm.
 
-1. If `.jj/` exists → Use jujutsu backend
-2. If `.git/` exists → Use git backend
-3. Neither → Error
+In most cases:
+- New features use jj if installed (preferred for multi-agent workflows)
+- Existing features use their locked VCS from `meta.json`
+- `--vcs git` or `--vcs jj` overrides auto-detection (and errors if it conflicts)
 
 ### Colocated Mode
 
@@ -152,9 +153,9 @@ Spec Kitty commands work the same regardless of backend:
 
 ```bash
 # Same command, different implementations
-spec-kitty sync              # jj: auto-rebase, git: pull --rebase
+spec-kitty sync              # jj: update-stale + auto-rebase, git: rebase base branch
 spec-kitty ops log           # jj: operation log, git: reflog
-spec-kitty ops undo          # jj: safe undo, git: reset
+spec-kitty ops undo          # jj only (not supported for git)
 ```
 
 ## The Multi-Agent Difference

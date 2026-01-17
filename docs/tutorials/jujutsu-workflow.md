@@ -17,6 +17,10 @@ Learn how to use Spec Kitty with Jujutsu (jj) for better multi-agent parallel de
 
 Before starting this tutorial, ensure you have:
 
+### 0. Completed Getting Started
+
+Follow [Getting Started](getting-started.md) if you're new to Spec Kitty.
+
 ### 1. Jujutsu (jj) Installed
 
 ```bash
@@ -24,7 +28,7 @@ jj --version
 # Expected: jj 0.20.0 or higher
 ```
 
-If not installed, see the [jj installation guide](https://martinvonz.github.io/jj/latest/install/).
+If not installed, see the [jj documentation](https://martinvonz.github.io/jj/).
 
 ### 2. Spec Kitty Installed
 
