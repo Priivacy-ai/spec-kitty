@@ -91,7 +91,7 @@ After completing discovery and confirming the Intent Summary, determine the appr
 
 5. **Handle --mission flag**: If the user provides `--mission <key>` in their command, skip inference and use the specified mission directly.
 
-Store the final mission selection to pass to the script via `--mission "<selected-mission>"`.
+Store the final mission selection in your notes and include it in the spec output. Do not pass a `--mission` flag to feature creation.
 
 ## Workflow (0.11.0+)
 
@@ -115,7 +115,7 @@ Store the final mission selection to pass to the script via `--mission "<selecte
 
 - Summarize the agreed intent into a short, descriptive title (aim for ≤7 words; avoid filler like "feature" or "thing").
 - Read that title back during the Intent Summary and revise it if the user requests changes.
-- You will pass this confirmed title to the feature creation script via `--feature-name "<Friendly Title>"` so downstream tooling surfaces it consistently.
+- Use the confirmed title to derive the kebab-case feature slug for the create-feature command.
 
 The text the user typed after `/spec-kitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
