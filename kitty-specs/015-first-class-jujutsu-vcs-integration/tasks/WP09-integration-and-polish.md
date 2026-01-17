@@ -11,7 +11,7 @@ subtasks:
   - "T057"
   - "T058"
 phase: "Phase 3 - Migration"
-lane: "doing"
+lane: "for_review"
 priority: "P3"
 dependencies: ["WP05", "WP06", "WP07", "WP08"]
 assignee: ""
@@ -416,3 +416,4 @@ history:
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T13:19:13Z – __AGENT__ – shell_pid=28786 – lane=doing – Started implementation via workflow command
+- 2026-01-17T13:34:12Z – __AGENT__ – shell_pid=28786 – lane=for_review – Moved to for_review
