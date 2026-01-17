@@ -203,7 +203,7 @@
 - [x] T035 Implement `--base` flag handling for both VCS backends
 - [x] T036 Update sparse-checkout logic for jj workspaces (if applicable)
 - [x] T037 Add stale workspace detection using `vcs.is_workspace_stale()`
-- [ ] T038 Update implement command tests with parametrized VCS backend
+- [x] T038 Update implement command tests with parametrized VCS backend
 
 ### Implementation Notes
 1. Read VCS from meta.json; default to project preference if not set
