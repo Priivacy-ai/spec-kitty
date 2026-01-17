@@ -233,7 +233,7 @@
 
 ### Included Subtasks
 - [x] T039 Create `src/specify_cli/cli/commands/sync.py` with sync command structure
-- [ ] T040 Implement sync workflow using `vcs.sync_workspace()`
+- [x] T040 Implement sync workflow using `vcs.sync_workspace()`
 - [ ] T041 Add conflict reporting with file paths and line ranges
 - [ ] T042 Add `--repair` flag for workspace recovery
 - [ ] T043 Register sync command in CLI
