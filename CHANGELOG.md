@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-01-17
+
+### 🐛 Fixed
+
+**Manifest Script Detection**:
+- Fixed `FileManifest._get_referenced_scripts()` to filter out CLI commands (`spec-kitty`, `git`, etc.) that were incorrectly flagged as missing script files
+- Script detection now only includes files from `.kittify/scripts/` directory, preventing false positives from command templates
+- Added comprehensive filtering for system commands (Python, Node.js, Docker, etc.)
+
 ## [0.11.1] - 2026-01-16
 
 ### 🐛 Fixed
