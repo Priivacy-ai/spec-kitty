@@ -39,6 +39,10 @@ If not installed, see [Install Spec Kitty](../how-to/install-spec-kitty.md).
 
 This tutorial uses Claude Code, but any [supported agent](../reference/supported-agents.md) works.
 
+### 4. Terminal Access
+
+You will need a terminal such as macOS Terminal, Windows PowerShell, or a Linux shell.
+
 ---
 
 ## Step 1: Initialize Your Project
@@ -93,6 +97,8 @@ spec-kitty init my-git-project --ai claude --vcs git
 ## Step 2: Create a Feature and Workspace
 
 Now let's create a feature and implement it using jj workspaces.
+
+Jujutsu uses native workspaces (not git worktrees). Spec Kitty still places them under `.worktrees/` for consistency across VCS choices.
 
 ### 2.1 Start Your Feature
 
@@ -264,7 +270,7 @@ class User:
 ```bash
 # Edit the file to resolve conflicts
 # Then let jj know it's resolved
-jj squash
+jj resolve
 ```
 
 ### 4.3 Check Conflict Status
@@ -287,11 +293,74 @@ ghi789  fetch   7 minutes ago  Clean
 
 ---
 
-## Step 5: Use Operation History
+## Step 5: Complete and Merge
+
+When your work is ready, complete the review cycle and merge.
+
+### 5.1 Request Review
+
+From your workspace:
+
+```
+/spec-kitty.review
+```
+
+This:
+- Validates your implementation against requirements
+- Runs any defined tests
+- Moves the work package to `for_review` lane
+
+### 5.2 Accept the Work Package
+
+After review approval:
+
+```
+/spec-kitty.accept
+```
+
+This:
+- Validates all checklist items are complete
+- Records acceptance in the work package history
+- Moves to `done` lane
+
+### 5.3 Merge to Main
+
+Finally, merge your completed work:
+
+```bash
+spec-kitty merge --push
+```
+
+```
+Merge Feature
+├── ● Validate all WPs complete
+├── ● Merge 001-user-profile-WP01 → main
+├── ● Clean up workspace
+└── ● Push to origin
+
+✓ Feature 001-user-profile merged successfully
+```
+
+### 5.4 jj Advantage: Stable Change IDs
+
+Throughout this process, jj maintains **stable Change IDs**. Even after multiple rebases, your changes have the same identity:
+
+```
+Change ID: xyz123abc
+  ↳ Commit abc001 (initial)
+  ↳ Commit def002 (after rebase 1)
+  ↳ Commit ghi003 (after rebase 2)  ← Same Change ID!
+```
+
+This makes tracking work across multiple agents and rebases much easier.
+
+---
+
+## Step 6: Use Operation History
 
 One of jj's most powerful features is its operation log with full undo capability.
 
-### 5.1 View Operation History
+### 6.1 View Operation History
 
 See what operations have been performed:
 
@@ -310,7 +379,7 @@ ghi789    fetch    10 minutes ago Clean
 jkl012    commit   15 minutes ago Clean
 ```
 
-### 5.2 Undo an Operation
+### 6.2 Undo an Operation
 
 Made a mistake? Undo the last operation:
 
@@ -327,7 +396,7 @@ Undo Operation
   Repository restored to state before rebase
 ```
 
-### 5.3 Restore to a Specific Point
+### 6.3 Restore to a Specific Point
 
 Jump back to any previous operation:
 
@@ -347,69 +416,6 @@ Restore Operation
 > **Important**: The `ops undo` and `ops restore` commands are **jj only**. Git users see the operation log (via reflog) but cannot undo operations through Spec Kitty.
 
 **See Also**: [Use Operation History](../how-to/use-operation-history.md) for advanced recovery scenarios.
-
----
-
-## Step 6: Complete and Merge
-
-When your work is ready, complete the review cycle and merge.
-
-### 6.1 Request Review
-
-From your workspace:
-
-```
-/spec-kitty.review
-```
-
-This:
-- Validates your implementation against requirements
-- Runs any defined tests
-- Moves the work package to `for_review` lane
-
-### 6.2 Accept the Work Package
-
-After review approval:
-
-```
-/spec-kitty.accept
-```
-
-This:
-- Validates all checklist items are complete
-- Records acceptance in the work package history
-- Moves to `done` lane
-
-### 6.3 Merge to Main
-
-Finally, merge your completed work:
-
-```bash
-spec-kitty merge --push
-```
-
-```
-Merge Feature
-├── ● Validate all WPs complete
-├── ● Merge 001-user-profile-WP01 → main
-├── ● Clean up workspace
-└── ● Push to origin
-
-✓ Feature 001-user-profile merged successfully
-```
-
-### 6.4 jj Advantage: Stable Change IDs
-
-Throughout this process, jj maintains **stable Change IDs**. Even after multiple rebases, your changes have the same identity:
-
-```
-Change ID: xyz123abc
-  ↳ Commit abc001 (initial)
-  ↳ Commit def002 (after rebase 1)
-  ↳ Commit ghi003 (after rebase 2)  ← Same Change ID!
-```
-
-This makes tracking work across multiple agents and rebases much easier.
 
 ---
 
