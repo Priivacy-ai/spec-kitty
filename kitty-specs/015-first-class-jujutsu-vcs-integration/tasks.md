@@ -199,7 +199,7 @@
 ### Included Subtasks
 - [x] T032 Update `src/specify_cli/cli/commands/implement.py` to import VCS abstraction
 - [x] T033 Modify workspace creation to use `vcs.create_workspace()` instead of direct git commands
-- [ ] T034 Add VCS selection to meta.json during feature creation (lock VCS choice)
+- [x] T034 Add VCS selection to meta.json during feature creation (lock VCS choice)
 - [ ] T035 Implement `--base` flag handling for both VCS backends
 - [ ] T036 Update sparse-checkout logic for jj workspaces (if applicable)
 - [ ] T037 Add stale workspace detection using `vcs.is_workspace_stale()`
