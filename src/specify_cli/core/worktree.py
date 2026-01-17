@@ -112,15 +112,24 @@ def create_feature_worktree(
 
     # Check if worktree already exists
     if worktree_path.exists():
-        # Check if it's a valid workspace
+        # Check if it's a valid workspace using VCS abstraction
+        is_valid_workspace = False
         try:
             vcs = get_vcs(worktree_path)
-            if vcs.is_repo(worktree_path):
-                # Valid workspace exists, reuse it
-                feature_dir = worktree_path / "kitty-specs" / branch_name
-                return (worktree_path, feature_dir)
+            is_valid_workspace = vcs.is_repo(worktree_path)
         except Exception:
             pass
+
+        # If VCS says no (or failed), fall back to simple git check
+        # A valid git worktree has .git as a file (pointing to main repo)
+        # or as a directory (standalone repo)
+        if not is_valid_workspace:
+            git_marker = worktree_path / ".git"
+            is_valid_workspace = git_marker.exists()
+
+        if is_valid_workspace:
+            feature_dir = worktree_path / "kitty-specs" / branch_name
+            return (worktree_path, feature_dir)
 
         raise FileExistsError(f"Worktree path already exists: {worktree_path}")
 

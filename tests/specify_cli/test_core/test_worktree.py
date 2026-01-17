@@ -232,9 +232,10 @@ class TestCreateFeatureWorktree:
         assert feature_dir1 == feature_dir2
 
     def test_raises_error_on_git_failure(self, tmp_path: Path):
-        """Should raise subprocess.CalledProcessError when git command fails."""
-        # Setup: Not a git repo - git worktree add will fail
-        with pytest.raises(subprocess.CalledProcessError):
+        """Should raise RuntimeError when workspace creation fails."""
+        # Setup: Not a git repo - workspace creation will fail
+        # Note: RuntimeError wraps the underlying subprocess or VCS error
+        with pytest.raises(RuntimeError, match="Failed to create workspace"):
             create_feature_worktree(tmp_path, "test-feature", feature_number=1)
 
 
