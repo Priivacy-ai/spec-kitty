@@ -163,65 +163,75 @@ def detect_available_backends() -> list[VCSBackend]:
 
 def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
     """
-    Read VCS from feature meta.json if exists.
+    Read VCS from feature meta.json if path is inside that feature.
 
     Args:
         path: A path that might be within a feature directory.
 
     Returns:
-        The locked VCSBackend if found, None otherwise.
+        The locked VCSBackend if path is inside a feature with locked VCS, None otherwise.
+
+    Note:
+        Only returns a locked VCS if `path` is actually inside the feature directory
+        (either in kitty-specs/###-feature/ or in a worktree for that feature).
+        Does NOT return VCS for unrelated features.
     """
-    # Search for kitty-specs/###-feature/meta.json by walking up
     current = path.resolve()
 
-    # Also check if path itself contains kitty-specs
+    # Strategy 1: Check if path is directly inside kitty-specs/###-feature/
+    # e.g., /repo/kitty-specs/015-feature/tasks/WP01.md
     for parent in [current, *current.parents]:
-        # Check for kitty-specs directory
-        kitty_specs = parent / "kitty-specs"
-        if kitty_specs.is_dir():
-            # Search feature directories in kitty-specs
-            for feature_dir in kitty_specs.iterdir():
-                if feature_dir.is_dir():
-                    meta_path = feature_dir / "meta.json"
-                    if meta_path.is_file():
-                        try:
-                            meta = json.loads(meta_path.read_text())
-                            if "vcs" in meta:
-                                vcs_value = meta["vcs"]
-                                return VCSBackend(vcs_value)
-                        except (json.JSONDecodeError, ValueError, OSError):
-                            continue
-            break
+        if parent.parent and parent.parent.name == "kitty-specs":
+            # parent is a feature directory like kitty-specs/015-feature/
+            meta_path = parent / "meta.json"
+            if meta_path.is_file():
+                try:
+                    meta = json.loads(meta_path.read_text())
+                    if "vcs" in meta:
+                        return VCSBackend(meta["vcs"])
+                except (json.JSONDecodeError, ValueError, OSError):
+                    pass
+            # Path is in a feature dir but no valid meta.json
+            return None
 
-    # Check if we're in a worktree that might have feature info in path
-    # e.g., .worktrees/015-feature-WP01/
+    # Strategy 2: Check if we're in a worktree for a feature
+    # e.g., .worktrees/015-feature-name-WP01/src/file.py
     if ".worktrees" in str(current):
-        # Try to find meta.json in the main repo's kitty-specs
-        for parent in current.parents:
-            if parent.name == ".worktrees":
-                main_repo = parent.parent
-                kitty_specs = main_repo / "kitty-specs"
-                if kitty_specs.is_dir():
-                    # Extract feature number from worktree name
-                    worktree_name = current.name
-                    # Pattern: ###-feature-name-WP##
-                    match = re.match(r"(\d{3})-", worktree_name)
-                    if match:
-                        feature_num = match.group(1)
-                        for feature_dir in kitty_specs.iterdir():
-                            if feature_dir.is_dir() and feature_dir.name.startswith(
-                                f"{feature_num}-"
-                            ):
-                                meta_path = feature_dir / "meta.json"
-                                if meta_path.is_file():
-                                    try:
-                                        meta = json.loads(meta_path.read_text())
-                                        if "vcs" in meta:
-                                            return VCSBackend(meta["vcs"])
-                                    except (json.JSONDecodeError, ValueError, OSError):
-                                        pass
+        # Find the worktree root (direct child of .worktrees/)
+        worktree_root = None
+        for parent in [current, *current.parents]:
+            if parent.parent and parent.parent.name == ".worktrees":
+                worktree_root = parent
                 break
 
+        if worktree_root:
+            # Extract feature number from worktree name
+            # Pattern: ###-feature-name-WP##
+            worktree_name = worktree_root.name
+            match = re.match(r"(\d{3})-", worktree_name)
+            if match:
+                feature_num = match.group(1)
+                # Find main repo (parent of .worktrees)
+                main_repo = worktree_root.parent.parent
+                kitty_specs = main_repo / "kitty-specs"
+                if kitty_specs.is_dir():
+                    # Find the specific feature directory matching feature_num
+                    for feature_dir in kitty_specs.iterdir():
+                        if feature_dir.is_dir() and feature_dir.name.startswith(
+                            f"{feature_num}-"
+                        ):
+                            meta_path = feature_dir / "meta.json"
+                            if meta_path.is_file():
+                                try:
+                                    meta = json.loads(meta_path.read_text())
+                                    if "vcs" in meta:
+                                        return VCSBackend(meta["vcs"])
+                                except (json.JSONDecodeError, ValueError, OSError):
+                                    pass
+                            # Found feature dir but no valid meta.json
+                            return None
+
+    # Path is not inside any feature
     return None
 
 
