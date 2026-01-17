@@ -9,12 +9,12 @@ subtasks:
   - "T030"
   - "T031"
 phase: "Phase 2 - Command Updates"
-lane: "planned"
+lane: "doing"
 priority: "P1"
 dependencies: ["WP02"]
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-code"
+shell_pid: "72657"
 review_status: ""
 reviewed_by: ""
 history:
@@ -269,3 +269,4 @@ def test_init_creates_vcs_config(tmp_path):
 ## Activity Log
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
+- 2026-01-17T12:12:57Z – claude-code – shell_pid=72657 – lane=doing – Started implementation via workflow command
