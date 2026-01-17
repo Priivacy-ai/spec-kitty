@@ -8,14 +8,14 @@ subtasks:
   - "T004"
   - "T005"
 phase: "Phase 1 - Abstraction Layer"
-lane: "doing"
+lane: "planned"
 priority: "P0"
 dependencies: []
 assignee: ""
 agent: "__AGENT__"
 shell_pid: "24045"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-17T10:38:23Z"
     lane: "planned"
@@ -218,5 +218,13 @@ history:
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T10:54:05Z – claude-code – shell_pid=32403 – lane=doing – Started implementation via workflow command
-- 2026-01-17T10:57:13Z – claude-code – shell_pid=32403 – lane=for_review – Ready for review: VCS types, protocol, and exceptions implemented with full test coverage
-- 2026-01-17T11:14:32Z – __AGENT__ – shell_pid=24045 – lane=doing – Started review via workflow command
+- 2026-01-17T11:44:35Z – __AGENT__ – shell_pid=24045 – lane=planned – Moved to planned
+
+## Review Feedback
+
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-17
+
+**Issue 1**: `VCSCapabilities` includes an extra `supports_operation_undo` field in `src/specify_cli/core/vcs/types.py`, but this field is not in `data-model.md` or `contracts/vcs-protocol.py`. This breaks the “match spec exactly” requirement and forces extra constructor args. Remove the field and its usage in `GIT_CAPABILITIES`/`JJ_CAPABILITIES`, or update the spec/contract if the field is truly required.
+
