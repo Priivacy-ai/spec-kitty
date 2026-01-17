@@ -15,7 +15,9 @@ For background on how git worktrees work, see [Git Worktrees Explained](git-work
 - **Parallel development**: Multiple agents work on different WPs simultaneously without conflicts
 - **Isolation**: Each WP has its own workspace with separate git branch
 - **Scalability**: Features with 10+ WPs can have multiple agents working in parallel
-- **Foundation for future jj integration**: Workspace-per-WP enables future automatic rebase capabilities with jujutsu VCS
+- **jj integration (0.12.0+)**: With [jujutsu (jj)](https://martinvonz.github.io/jj/), workspaces auto-rebase when dependencies change and conflicts are non-blocking
+
+> **Recommended**: Install jj for the best multi-agent experience. See [Jujutsu Workflow Tutorial](../tutorials/jujutsu-workflow.md).
 
 ## Workflow Comparison
 
@@ -341,7 +343,7 @@ git merge ###-feature-WP02  # Manually merge second dependency
 dependencies: ["WP02", "WP03"]
 ```
 
-**Note**: Git limitation requires manual merge of second dependency. Future jj integration will automate this.
+**Note**: Git limitation requires manual merge of second dependency. With jj, this is handled automatically via auto-rebase. See [Jujutsu for Multi-Agent Development](jujutsu-for-multi-agent.md).
 
 ### Pattern 4: Independent Modules
 

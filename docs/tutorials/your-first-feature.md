@@ -7,6 +7,8 @@ This tutorial walks you through the entire Spec Kitty workflow from specificatio
 **Time**: ~2 hours
 **Prerequisites**: Completed [Getting Started](getting-started.md)
 
+> **Note**: This tutorial works with both git and jj backends. Spec Kitty abstracts the VCS operations, so the workflow is the same. For jj-specific features like auto-rebase and non-blocking conflicts, see [Jujutsu Workflow Tutorial](jujutsu-workflow.md).
+
 ## Overview
 
 Workflow path:
