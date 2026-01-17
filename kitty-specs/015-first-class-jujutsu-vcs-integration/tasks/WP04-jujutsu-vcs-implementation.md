@@ -11,12 +11,12 @@ subtasks:
   - "T024"
   - "T025"
 phase: "Phase 1 - Abstraction Layer"
-lane: "for_review"
+lane: "doing"
 priority: "P1"
 dependencies: ["WP01", "WP02"]
 assignee: ""
-agent: "__AGENT__"
-shell_pid: "38749"
+agent: "claude-code"
+shell_pid: "84083"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -425,6 +425,7 @@ def test_sync_with_conflict_succeeds(tmp_path):
 - 2026-01-17T12:13:26Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
 - 2026-01-17T12:14:28Z – __AGENT__ – shell_pid=38749 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:15:19Z – __AGENT__ – shell_pid=38749 – lane=for_review – Ready for review: jj init for non-colocated, tests updated
+- 2026-01-17T12:22:09Z – claude-code – shell_pid=84083 – lane=doing – Started review via workflow command
 
 ## Review Feedback
 
