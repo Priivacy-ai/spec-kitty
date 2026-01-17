@@ -96,7 +96,7 @@
 - [x] T014 Implement commit/change operations (get_current_change, get_changes, commit)
 - [x] T015 Implement repository operations (init_repo, is_repo, get_repo_root)
 - [x] T016 [P] Implement git-specific standalone functions (git_get_reflog, git_stash, git_stash_pop)
-- [ ] T017 Create `tests/specify_cli/core/vcs/test_git.py` with git-specific tests
+- [x] T017 Create `tests/specify_cli/core/vcs/test_git.py` with git-specific tests
 
 ### Implementation Notes
 1. Wrap existing `git_ops.py` functions where possible
