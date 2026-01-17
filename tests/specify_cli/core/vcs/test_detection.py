@@ -11,6 +11,7 @@ import pytest
 
 from specify_cli.core.vcs import (
     VCSBackend,
+    VCSBackendMismatchError,
     VCSNotFoundError,
     VCSProtocol,
     detect_available_backends,
@@ -285,38 +286,124 @@ class TestLockedVCSFromMeta:
         vcs = get_vcs(tmp_path)
         assert vcs.backend in [VCSBackend.GIT, VCSBackend.JUJUTSU]
 
-    def test_reads_locked_vcs_from_meta(self, tmp_path):
-        """Should read locked VCS from feature meta.json."""
+    def test_path_outside_feature_ignores_meta(self, tmp_path):
+        """Path outside feature should NOT use locked VCS from unrelated feature."""
         import json
 
-        # Create feature structure
-        kitty_specs = tmp_path / "kitty-specs" / "001-test-feature"
-        kitty_specs.mkdir(parents=True)
-        meta = kitty_specs / "meta.json"
+        # Create feature structure with locked VCS
+        feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
+        feature_dir.mkdir(parents=True)
+        meta = feature_dir / "meta.json"
+        meta.write_text(json.dumps({"vcs": "jj"}))  # Lock to jj
+
+        # Path is tmp_path root, NOT inside the feature
+        # Should NOT respect the locked VCS - should use auto-detect
+        vcs = get_vcs(tmp_path)
+        # Should use git (auto-detect) since path is not in feature
+        # This test passes if it doesn't incorrectly lock to jj
+        assert vcs.backend in [VCSBackend.GIT, VCSBackend.JUJUTSU]
+
+    def test_path_inside_feature_uses_locked_vcs(self, tmp_path):
+        """Path inside feature directory should use locked VCS from meta.json."""
+        import json
+
+        # Create feature structure with locked VCS
+        feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
+        feature_dir.mkdir(parents=True)
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        meta = feature_dir / "meta.json"
         meta.write_text(json.dumps({"vcs": "git"}))
 
-        # Should detect git from meta.json
-        vcs = get_vcs(tmp_path)
-        # Note: This might not work if path detection doesn't find it
-        # The actual test depends on the implementation details
-        assert vcs.backend in [VCSBackend.GIT, VCSBackend.JUJUTSU]
+        # Path is inside the feature directory
+        path_inside_feature = tasks_dir / "WP01.md"
+        path_inside_feature.touch()
+
+        vcs = get_vcs(path_inside_feature)
+        # Should use git (locked VCS) since path is inside feature
+        assert vcs.backend == VCSBackend.GIT
 
     @requires_jj
     def test_locked_vcs_overrides_prefer_jj(self, tmp_path):
-        """Locked VCS in meta.json should override prefer_jj."""
+        """Locked VCS in meta.json should override prefer_jj for paths inside feature."""
         import json
 
         # Create feature with git locked
-        kitty_specs = tmp_path / "kitty-specs" / "001-test-feature"
-        kitty_specs.mkdir(parents=True)
-        meta = kitty_specs / "meta.json"
+        feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
+        feature_dir.mkdir(parents=True)
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        meta = feature_dir / "meta.json"
         meta.write_text(json.dumps({"vcs": "git"}))
 
+        # Path inside feature
+        path_inside = tasks_dir / "WP01.md"
+        path_inside.touch()
+
         # Even with prefer_jj=True, should use git if locked
-        # This depends on path detection working correctly
-        vcs = get_vcs(tmp_path, prefer_jj=True)
-        # Since path might not be in feature context, this is informational
-        assert vcs.backend in [VCSBackend.GIT, VCSBackend.JUJUTSU]
+        vcs = get_vcs(path_inside, prefer_jj=True)
+        assert vcs.backend == VCSBackend.GIT
+
+    @requires_jj
+    def test_locked_jj_vcs_used_when_path_inside_feature(self, tmp_path):
+        """Locked jj VCS should be used when path is inside feature."""
+        import json
+
+        # Create feature with jj locked
+        feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
+        feature_dir.mkdir(parents=True)
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        meta = feature_dir / "meta.json"
+        meta.write_text(json.dumps({"vcs": "jj"}))
+
+        # Path inside feature
+        path_inside = tasks_dir / "WP01.md"
+        path_inside.touch()
+
+        # Should use jj (locked VCS)
+        vcs = get_vcs(path_inside)
+        assert vcs.backend == VCSBackend.JUJUTSU
+
+    def test_explicit_backend_mismatch_raises_error(self, tmp_path):
+        """Explicit backend that mismatches locked VCS should raise VCSBackendMismatchError."""
+        import json
+
+        # Create feature with git locked
+        feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
+        feature_dir.mkdir(parents=True)
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        meta = feature_dir / "meta.json"
+        meta.write_text(json.dumps({"vcs": "git"}))
+
+        # Path inside feature
+        path_inside = tasks_dir / "WP01.md"
+        path_inside.touch()
+
+        # Request jj but feature is locked to git - should raise
+        with pytest.raises(VCSBackendMismatchError):
+            get_vcs(path_inside, backend=VCSBackend.JUJUTSU)
+
+    def test_explicit_backend_matching_locked_works(self, tmp_path):
+        """Explicit backend that matches locked VCS should work."""
+        import json
+
+        # Create feature with git locked
+        feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
+        feature_dir.mkdir(parents=True)
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        meta = feature_dir / "meta.json"
+        meta.write_text(json.dumps({"vcs": "git"}))
+
+        # Path inside feature
+        path_inside = tasks_dir / "WP01.md"
+        path_inside.touch()
+
+        # Request git and feature is locked to git - should work
+        vcs = get_vcs(path_inside, backend=VCSBackend.GIT)
+        assert vcs.backend == VCSBackend.GIT
 
 
 # =============================================================================

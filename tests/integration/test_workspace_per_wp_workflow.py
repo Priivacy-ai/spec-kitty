@@ -80,11 +80,22 @@ def init_test_repo(tmp_path: Path) -> Path:
 
 def create_feature_in_main(repo: Path, feature_slug: str) -> Path:
     """Create feature directory in main repo (simulates /spec-kitty.specify)."""
+    import json
+
     feature_dir = repo / "kitty-specs" / feature_slug
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     # Create spec.md
     (feature_dir / "spec.md").write_text(f"# Spec for {feature_slug}")
+
+    # Create meta.json (required for VCS locking)
+    meta_content = {
+        "feature_number": feature_slug.split("-")[0],
+        "feature_slug": feature_slug,
+        "created_at": "2026-01-17T00:00:00Z",
+        "vcs": "git",  # Lock to git for tests
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta_content, indent=2))
 
     # Create tasks directory
     (feature_dir / "tasks").mkdir(exist_ok=True)
