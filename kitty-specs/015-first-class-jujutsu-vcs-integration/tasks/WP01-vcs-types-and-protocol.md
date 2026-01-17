@@ -11,7 +11,7 @@ phase: "Phase 1 - Abstraction Layer"
 lane: "done"
 priority: "P0"
 dependencies: []
-assignee: ""
+assignee: "__AGENT__"
 agent: "claude-opus"
 shell_pid: "40761"
 review_status: "has_feedback"

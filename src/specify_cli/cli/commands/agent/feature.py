@@ -199,6 +199,24 @@ def create_feature(
         spec-kitty agent create-feature "new-dashboard" --json
     """
     try:
+        # GUARD: Refuse to run from inside a worktree (must be on main branch in main repo)
+        cwd = Path.cwd().resolve()
+        if is_worktree_context(cwd):
+            error_msg = "Cannot create features from inside a worktree. Must be on main branch in main repository."
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[bold red]Error:[/bold red] {error_msg}")
+                # Find and suggest the main repo path
+                for i, part in enumerate(cwd.parts):
+                    if part == ".worktrees":
+                        main_repo = Path(*cwd.parts[:i])
+                        console.print(f"\n[cyan]Run from the main repository instead:[/cyan]")
+                        console.print(f"  cd {main_repo}")
+                        console.print(f"  spec-kitty agent create-feature {feature_slug}")
+                        break
+            raise typer.Exit(1)
+
         repo_root = locate_project_root()
         if repo_root is None:
             error_msg = "Could not locate project root. Run from within spec-kitty repository."

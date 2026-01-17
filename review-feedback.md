@@ -1,0 +1,1 @@
+**Issue 1**: `create_workspace()` only applies sparse-checkout when `sparse_exclude` is explicitly passed, but the protocol signature doesn’t expose this argument and the requirements call for always excluding `kitty-specs/`. Apply sparse-checkout by default (e.g., default to `["kitty-specs/"]` or unconditionally apply it) to preserve existing worktree isolation behavior.

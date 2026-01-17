@@ -59,11 +59,51 @@ class TaskCliError(RuntimeError):
 
 
 def find_repo_root(start: Optional[Path] = None) -> Path:
-    """Walk upward until a Git or .kittify root is found."""
+    """Find the MAIN repository root, even when inside a worktree.
+
+    This function correctly handles git worktrees by detecting when .git is a
+    file (worktree pointer) vs a directory (main repo), and following the
+    pointer back to the main repository.
+
+    Args:
+        start: Starting directory for search (defaults to cwd)
+
+    Returns:
+        Path to the main repository root
+
+    Raises:
+        TaskCliError: If repository root cannot be found
+    """
     current = (start or Path.cwd()).resolve()
+
     for candidate in [current, *current.parents]:
-        if (candidate / ".git").exists() or (candidate / ".kittify").exists():
+        git_path = candidate / ".git"
+
+        if git_path.is_file():
+            # This is a worktree! The .git file contains a pointer to the main repo.
+            # Format: "gitdir: /path/to/main/.git/worktrees/worktree-name"
+            try:
+                content = git_path.read_text().strip()
+                if content.startswith("gitdir:"):
+                    gitdir = Path(content.split(":", 1)[1].strip())
+                    # Navigate: .git/worktrees/name -> .git -> main repo root
+                    # gitdir points to .git/worktrees/xxx, so .parent.parent is .git
+                    main_git_dir = gitdir.parent.parent
+                    main_repo = main_git_dir.parent
+                    if main_repo.exists():
+                        return main_repo
+            except (OSError, ValueError):
+                # If we can't read or parse the .git file, continue searching
+                pass
+
+        elif git_path.is_dir():
+            # This is the main repo (or a regular git repo)
             return candidate
+
+        # Also check for .kittify marker (fallback for non-git scenarios)
+        if (candidate / ".kittify").exists():
+            return candidate
+
     raise TaskCliError("Unable to locate repository root (missing .git or .kittify).")
 
 

@@ -10,7 +10,7 @@ phase: "Phase 1 - Abstraction Layer"
 lane: "done"
 priority: "P0"
 dependencies: ["WP01"]
-assignee: ""
+assignee: "__AGENT__"
 agent: "__AGENT__"
 shell_pid: "38749"
 review_status: "has_feedback"

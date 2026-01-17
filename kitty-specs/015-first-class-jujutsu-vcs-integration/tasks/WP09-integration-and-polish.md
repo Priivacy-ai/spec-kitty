@@ -14,7 +14,7 @@ phase: "Phase 3 - Migration"
 lane: "done"
 priority: "P3"
 dependencies: ["WP05", "WP06", "WP07", "WP08"]
-assignee: ""
+assignee: "__AGENT__"
 agent: "__AGENT__"
 shell_pid: "9401"
 review_status: "has_feedback"

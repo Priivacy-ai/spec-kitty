@@ -10,27 +10,31 @@ from typing import Optional, Tuple
 
 def locate_project_root(start: Path | None = None) -> Optional[Path]:
     """
-    Locate the spec-kitty project root directory using three-tier resolution strategy.
+    Locate the MAIN spec-kitty project root directory, even from within worktrees.
+
+    This function correctly handles git worktrees by detecting when .git is a
+    file (worktree pointer) vs a directory (main repo), and following the
+    pointer back to the main repository.
 
     Resolution order:
     1. SPECIFY_REPO_ROOT environment variable (highest priority)
-    2. Git repository root via `git rev-parse --show-toplevel`
-    3. Walk up directory tree looking for .kittify/ marker
+    2. Walk up directory tree, detecting worktree .git files and following to main repo
+    3. Fall back to .kittify/ marker search
 
     Args:
         start: Starting directory for search (defaults to current working directory)
 
     Returns:
-        Path to project root, or None if not found
+        Path to MAIN project root (not worktree), or None if not found
 
     Examples:
         >>> # From main repo
         >>> root = locate_project_root()
         >>> assert (root / ".kittify").exists()
 
-        >>> # From worktree
+        >>> # From worktree - returns MAIN repo, not worktree
         >>> root = locate_project_root(Path(".worktrees/my-feature"))
-        >>> assert (root / ".kittify").exists()
+        >>> assert ".worktrees" not in str(root)
     """
     # Tier 1: Check environment variable (allows override for CI/CD)
     if env_root := os.getenv("SPECIFY_REPO_ROOT"):
@@ -39,28 +43,34 @@ def locate_project_root(start: Path | None = None) -> Optional[Path]:
             return env_path
         # Invalid env var - fall through to other methods
 
-    # Tier 2: Try git repository root
+    # Tier 2: Walk up directory tree, handling worktree .git files
     current = (start or Path.cwd()).resolve()
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            cwd=current,
-            timeout=5,
-            check=False
-        )
-        if result.returncode == 0:
-            git_root = Path(result.stdout.strip()).resolve()
-            if (git_root / ".kittify").is_dir():
-                return git_root
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        # Git not available or timed out - fall through to marker search
-        pass
 
-    # Tier 3: Walk up directory tree looking for .kittify/ marker
     for candidate in [current, *current.parents]:
-        # Handle broken symlinks gracefully
+        git_path = candidate / ".git"
+
+        if git_path.is_file():
+            # This is a worktree! The .git file contains a pointer to the main repo.
+            # Format: "gitdir: /path/to/main/.git/worktrees/worktree-name"
+            try:
+                content = git_path.read_text().strip()
+                if content.startswith("gitdir:"):
+                    gitdir = Path(content.split(":", 1)[1].strip())
+                    # Navigate: .git/worktrees/name -> .git -> main repo root
+                    main_git_dir = gitdir.parent.parent
+                    main_repo = main_git_dir.parent
+                    if main_repo.exists() and (main_repo / ".kittify").is_dir():
+                        return main_repo
+            except (OSError, ValueError):
+                # If we can't read or parse the .git file, continue searching
+                pass
+
+        elif git_path.is_dir():
+            # This is the main repo (or a regular git repo)
+            if (candidate / ".kittify").is_dir():
+                return candidate
+
+        # Also check for .kittify marker (fallback for non-git scenarios)
         kittify_path = candidate / ".kittify"
         if kittify_path.is_symlink() and not kittify_path.exists():
             # Broken symlink - skip this candidate

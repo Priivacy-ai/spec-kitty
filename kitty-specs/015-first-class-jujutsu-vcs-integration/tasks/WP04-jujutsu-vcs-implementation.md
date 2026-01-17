@@ -14,7 +14,7 @@ phase: "Phase 1 - Abstraction Layer"
 lane: "done"
 priority: "P1"
 dependencies: ["WP01", "WP02"]
-assignee: ""
+assignee: "__AGENT__"
 agent: "claude-code"
 shell_pid: "84083"
 review_status: "has_feedback"

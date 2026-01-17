@@ -12,7 +12,7 @@ phase: "Phase 2 - Command Updates"
 lane: "done"
 priority: "P3"
 dependencies: ["WP03", "WP04"]
-assignee: ""
+assignee: "__AGENT__"
 agent: "__AGENT__"
 shell_pid: "28708"
 review_status: "approved"

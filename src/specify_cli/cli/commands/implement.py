@@ -367,6 +367,24 @@ def implement(
         # JSON output for scripting
         spec-kitty implement WP01 --json
     """
+    # GUARD: Refuse to create worktrees from inside a worktree (prevents nesting)
+    cwd = Path.cwd().resolve()
+    if ".worktrees" in cwd.parts:
+        console.print("[bold red]Error: Cannot create worktrees from inside a worktree![/bold red]")
+        console.print(f"Current directory: {cwd}\n")
+
+        # Find and suggest the main repo path
+        for i, part in enumerate(cwd.parts):
+            if part == ".worktrees":
+                main_repo = Path(*cwd.parts[:i])
+                console.print("[cyan]Run from the main repository instead:[/cyan]")
+                console.print(f"  cd {main_repo}")
+                console.print(f"  spec-kitty implement {wp_id}" + (f" --base {base}" if base else ""))
+                break
+
+        console.print("\n[dim]This guard prevents nested worktrees which corrupt git state.[/dim]")
+        raise typer.Exit(1)
+
     tracker = StepTracker(f"Implement {wp_id}")
     tracker.add("detect", "Detect feature context")
     tracker.add("validate", "Validate dependencies")
