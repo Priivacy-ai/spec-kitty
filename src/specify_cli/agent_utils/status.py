@@ -372,10 +372,14 @@ def _get_main_repo_root(current_path: Path) -> Path:
 
 
 def _auto_detect_feature(repo_root: Path) -> Optional[str]:
-    """Auto-detect feature slug from git branch or current directory."""
+    """Auto-detect feature slug from git branch or highest-numbered feature in kitty-specs."""
     import re
     import subprocess
 
+    # Get main repo root for kitty-specs access
+    main_repo_root = _get_main_repo_root(repo_root)
+
+    # Strategy 1: Get from git branch name
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -386,12 +390,28 @@ def _auto_detect_feature(repo_root: Path) -> Optional[str]:
         )
         branch_name = result.stdout.strip()
 
-        # Strip -WPxx suffix if present
-        match = re.match(r"(\d{3}-[\w-]+)", branch_name)
-        if match:
-            return match.group(1)
+        # Strip -WPxx suffix if present (worktree branches)
+        branch_name = re.sub(r'-WP\d+$', '', branch_name)
+
+        # Validate format: ###-slug
+        if len(branch_name) >= 3 and branch_name[:3].isdigit():
+            return branch_name
 
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
+
+    # Strategy 2: Auto-detect highest-numbered feature in kitty-specs
+    kitty_specs_dir = main_repo_root / "kitty-specs"
+    if kitty_specs_dir.is_dir():
+        candidates = []
+        for path in kitty_specs_dir.iterdir():
+            if not path.is_dir():
+                continue
+            match = re.match(r"^(\d{3})-", path.name)
+            if match:
+                candidates.append((int(match.group(1)), path.name))
+        if candidates:
+            _, slug = max(candidates, key=lambda item: item[0])
+            return slug
 
     return None
