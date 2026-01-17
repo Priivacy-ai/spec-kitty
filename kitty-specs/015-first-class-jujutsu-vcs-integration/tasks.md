@@ -301,7 +301,7 @@
 **Requirements**: FR-023, FR-024
 
 ### Included Subtasks
-- [ ] T051 Update `src/specify_cli/cli/commands/merge.py` to use VCS abstraction
+- [x] T051 Update `src/specify_cli/cli/commands/merge.py` to use VCS abstraction
 - [ ] T052 Update `src/specify_cli/core/worktree.py` to use VCS abstraction (or deprecate)
 - [ ] T053 Add deprecation warnings to `src/specify_cli/core/git_ops.py`
 - [ ] T054 Update `tests/conftest.py` with jj_available fixture and jj marker
