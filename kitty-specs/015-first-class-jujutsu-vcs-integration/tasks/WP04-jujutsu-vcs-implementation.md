@@ -11,7 +11,7 @@ subtasks:
   - "T024"
   - "T025"
 phase: "Phase 1 - Abstraction Layer"
-lane: "planned"
+lane: "doing"
 priority: "P1"
 dependencies: ["WP01", "WP02"]
 assignee: ""
@@ -423,6 +423,7 @@ def test_sync_with_conflict_succeeds(tmp_path):
 - 2026-01-17T12:11:44Z – claude-code – shell_pid=65174 – lane=for_review – Full JujutsuVCS implementation with 36 passing tests. Key jj behaviors implemented: non-blocking conflicts, Change IDs, operation log with undo.
 - 2026-01-17T12:12:41Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
 - 2026-01-17T12:13:26Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
+- 2026-01-17T12:14:28Z – __AGENT__ – shell_pid=38749 – lane=doing – Started implementation via workflow command
 
 ## Review Feedback
 
