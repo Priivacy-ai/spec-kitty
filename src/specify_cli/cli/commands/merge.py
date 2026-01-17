@@ -1,10 +1,15 @@
-"""Merge command implementation."""
+"""Merge command implementation.
+
+Merges completed work packages into target branch with VCS abstraction support.
+Supports both git and jujutsu backends through the VCS abstraction layer.
+"""
 
 from __future__ import annotations
 
 import os
 import re
 import subprocess
+import warnings
 from pathlib import Path
 
 import typer
@@ -12,6 +17,7 @@ import typer
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.core.git_ops import run_command
+from specify_cli.core.vcs import VCSBackend, get_vcs
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
@@ -384,6 +390,22 @@ def merge(
         raise typer.Exit(1)
 
     check_version_compatibility(repo_root, "merge")
+
+    # Detect VCS backend
+    try:
+        vcs = get_vcs(repo_root)
+        vcs_backend = vcs.backend
+    except Exception:
+        # Fall back to git if VCS detection fails
+        vcs_backend = VCSBackend.GIT
+
+    # Show VCS backend info
+    backend_label = "jj" if vcs_backend == VCSBackend.JUJUTSU else "git"
+    console.print(f"[dim]VCS Backend: {backend_label}[/dim]")
+
+    # jj-specific merge workflow note
+    if vcs_backend == VCSBackend.JUJUTSU:
+        console.print("[dim]Note: Using git commands for merge (jj colocated mode)[/dim]")
 
     feature_worktree_path = merge_root = repo_root
     tracker.start("detect")

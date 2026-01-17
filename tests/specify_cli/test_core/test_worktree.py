@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import warnings
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
@@ -501,3 +502,132 @@ class TestValidateFeatureStructure:
         assert result["paths"]["research_dir"] == str(feature_dir / "research")
         assert result["paths"]["tasks_dir"] == str(feature_dir / "tasks")
         assert result["paths"]["feature_dir"] == str(feature_dir)
+
+
+class TestVCSAbstraction:
+    """Tests for VCS abstraction layer integration in worktree module."""
+
+    def test_create_worktree_uses_vcs_abstraction(self, tmp_path: Path):
+        """Should use VCS abstraction to create workspace."""
+        # Setup: Git repo
+        subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+        (tmp_path / "README.md").write_text("test")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "initial"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+
+        # Mock the VCS abstraction to verify it's called
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_vcs = MagicMock()
+        mock_vcs.create_workspace.return_value = mock_result
+        mock_vcs.is_repo.return_value = False
+
+        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
+            worktree_path, feature_dir = create_feature_worktree(
+                tmp_path, "test-feature", feature_number=1
+            )
+
+            # Verify VCS abstraction was called
+            mock_vcs.create_workspace.assert_called_once()
+            call_kwargs = mock_vcs.create_workspace.call_args.kwargs
+            assert call_kwargs["workspace_name"] == "001-test-feature"
+            assert call_kwargs["repo_root"] == tmp_path
+
+    def test_create_worktree_falls_back_to_git_with_warning(self, tmp_path: Path):
+        """Should fall back to direct git commands with deprecation warning when VCS fails."""
+        # Setup: Git repo
+        subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+        (tmp_path / "README.md").write_text("test")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "initial"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+
+        # Mock VCS to fail
+        with patch("specify_cli.core.worktree.get_vcs", side_effect=Exception("VCS failed")):
+            # Capture deprecation warning
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                worktree_path, feature_dir = create_feature_worktree(
+                    tmp_path, "fallback-test", feature_number=99
+                )
+
+                # Verify deprecation warning was raised
+                assert len(w) == 1
+                assert issubclass(w[0].category, DeprecationWarning)
+                assert "VCS abstraction failed" in str(w[0].message)
+                assert "falling back to direct git commands" in str(w[0].message)
+
+            # Verify worktree was still created via fallback
+            assert worktree_path.exists()
+            assert feature_dir.exists()
+
+    def test_create_worktree_raises_on_vcs_and_fallback_failure(self, tmp_path: Path):
+        """Should raise RuntimeError when VCS and git fallback both fail."""
+        # Setup: NOT a git repo - so fallback will fail too
+        # (don't run git init)
+
+        # Mock VCS to return failure result
+        mock_result = MagicMock()
+        mock_result.success = False
+        mock_result.error = "Workspace creation failed"
+        mock_vcs = MagicMock()
+        mock_vcs.create_workspace.return_value = mock_result
+        mock_vcs.is_repo.return_value = False
+
+        # VCS fails, fallback fails (not a git repo), should raise
+        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
+            with pytest.raises(RuntimeError, match="Failed to create workspace"):
+                create_feature_worktree(tmp_path, "fail-test", feature_number=88)
+
+    def test_create_worktree_detects_existing_vcs_workspace(self, tmp_path: Path):
+        """Should detect and reuse existing VCS workspace."""
+        # Setup: Pre-existing workspace directory with .git
+        worktree_path = tmp_path / ".worktrees" / "001-test-feature"
+        worktree_path.mkdir(parents=True)
+        (worktree_path / ".git").touch()  # Minimal marker
+
+        # Mock VCS to recognize it as valid repo
+        mock_vcs = MagicMock()
+        mock_vcs.is_repo.return_value = True
+
+        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
+            worktree_result, feature_dir = create_feature_worktree(
+                tmp_path, "test-feature", feature_number=1
+            )
+
+            # Should return the existing path
+            assert worktree_result == worktree_path
+            assert feature_dir == worktree_path / "kitty-specs" / "001-test-feature"
