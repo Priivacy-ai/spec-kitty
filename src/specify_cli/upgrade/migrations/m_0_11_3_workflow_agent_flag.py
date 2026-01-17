@@ -53,6 +53,11 @@ class WorkflowAgentFlagMigration(BaseMigration):
 
         def _patch_line(line: str) -> str:
             nonlocal updated
+            # Replace __AGENT__ placeholder with actual agent name
+            if "__AGENT__" in line:
+                updated = True
+                line = line.replace("__AGENT__", agent_name)
+            # Add --agent flag if missing
             if "spec-kitty agent workflow implement" in line and "--agent" not in line:
                 updated = True
                 return f"{line} --agent {agent_name}"
@@ -78,6 +83,9 @@ class WorkflowAgentFlagMigration(BaseMigration):
                     continue
                 text = path.read_text(encoding="utf-8")
                 for line in text.splitlines():
+                    # Detect __AGENT__ placeholder that needs replacement
+                    if "__AGENT__" in line:
+                        return True
                     if "spec-kitty agent workflow implement" in line and "--agent" not in line:
                         return True
                     if "spec-kitty agent workflow review" in line and "--agent" not in line:
