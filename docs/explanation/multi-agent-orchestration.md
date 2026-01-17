@@ -14,6 +14,8 @@ Spec Kitty was designed for **multi-agent development orchestration**—it keeps
 3. **Command discipline:** Slash commands enforce gated, automated steps so agents cannot skip discovery or validation.
 4. **Lane-driven coordination:** Tasks move through `planned → doing → for_review → done` via frontmatter fields, ensuring the dashboard and history stay in sync.
 
+> **Recommended**: Use [jujutsu (jj)](https://martinvonz.github.io/jj/) for multi-agent development. jj provides automatic rebasing when dependencies change and non-blocking conflicts—see [Jujutsu for Multi-Agent Development](jujutsu-for-multi-agent.md).
+
 ## Orchestration Workflow (0.11.0+)
 
 ### 1. Lead Agent Creates the Feature (in main)
@@ -197,15 +199,20 @@ Progress: ████████░░░░░░░░ 25% (1/4 done)
 
 ### Related Explanations
 - [Workspace-per-WP Model](workspace-per-wp.md) - How worktrees enable parallel development
+- [Jujutsu for Multi-Agent Development](jujutsu-for-multi-agent.md) - Why jj is recommended
+- [Auto-Rebase and Non-Blocking Conflicts](auto-rebase-and-conflicts.md) - How jj handles dependencies
+- [Git Worktrees](git-worktrees.md) - How git worktrees work
 - [Kanban Workflow](kanban-workflow.md) - How work moves through lanes
 - [AI Agent Architecture](ai-agent-architecture.md) - How agents execute commands
 
 ### Tutorials
 - [Multi-Agent Workflow Tutorial](../tutorials/multi-agent-workflow.md)
+- [Jujutsu Workflow Tutorial](../tutorials/jujutsu-workflow.md)
 
 ### How-To Guides
 - [Parallel Development](../how-to/parallel-development.md)
 - [Handle Dependencies](../how-to/handle-dependencies.md)
+- [Sync Workspaces](../how-to/sync-workspaces.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 
 ### Reference
