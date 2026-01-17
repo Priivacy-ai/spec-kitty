@@ -270,7 +270,7 @@
 - [x] T045 Create `src/specify_cli/cli/commands/ops.py` with ops command group
 - [x] T046 Implement `ops log` subcommand using jj_get_operation_log/git_get_reflog
 - [x] T047 Implement `ops undo` subcommand using jj_undo_operation
-- [ ] T048 Add capability checking (warn if backend doesn't support full undo)
+- [x] T048 Add capability checking (warn if backend doesn't support full undo)
 - [ ] T049 Register ops command in CLI
 - [ ] T050 Create `tests/specify_cli/cli/commands/test_ops.py`
 
