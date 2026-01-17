@@ -9,7 +9,7 @@ subtasks:
   - "T049"
   - "T050"
 phase: "Phase 2 - Command Updates"
-lane: "doing"
+lane: "for_review"
 priority: "P3"
 dependencies: ["WP03", "WP04"]
 assignee: ""
@@ -308,16 +308,16 @@ history:
 
 ## Definition of Done Checklist
 
-- [ ] T045: ops.py created with command structure
-- [ ] T046: ops log subcommand shows history for both backends
-- [ ] T047: ops undo subcommand works for jj
-- [ ] T048: Capability checking implemented
-- [ ] T049: ops command registered in CLI
-- [ ] T050: Parametrized tests pass
-- [ ] `spec-kitty ops log` works in git workspace
-- [ ] `spec-kitty ops log` works in jj workspace
-- [ ] `spec-kitty ops undo` works in jj workspace
-- [ ] `spec-kitty ops undo` gives helpful error in git workspace
+- [x] T045: ops.py created with command structure
+- [x] T046: ops log subcommand shows history for both backends
+- [x] T047: ops undo subcommand works for jj
+- [x] T048: Capability checking implemented
+- [x] T049: ops command registered in CLI
+- [x] T050: Parametrized tests pass
+- [x] `spec-kitty ops log` works in git workspace
+- [x] `spec-kitty ops log` works in jj workspace
+- [x] `spec-kitty ops undo` works in jj workspace
+- [x] `spec-kitty ops undo` gives helpful error in git workspace
 
 ## Review Guidance
 
@@ -333,3 +333,4 @@ history:
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T13:09:21Z – __AGENT__ – shell_pid=27357 – lane=doing – Started implementation via workflow command
+- 2026-01-17T13:18:11Z – __AGENT__ – shell_pid=27357 – lane=for_review – Ready for review: ops command with log, undo, restore subcommands. 19 tests passing.
