@@ -32,18 +32,15 @@ See recent operations:
 spec-kitty ops log
 ```
 
-Output:
+Output (format):
 
 ```
-Operation Log (last 20)
-─────────────────────────────────────────────────
-ID        Type     When           Status
-─────────────────────────────────────────────────
-abc123    rebase   2 minutes ago  Clean
-def456    commit   5 minutes ago  Clean
-ghi789    fetch    10 minutes ago Clean
-jkl012    commit   15 minutes ago Clean
-mno345    checkout 20 minutes ago Clean
+Backend: jj
+
+Operation History (jj)
+ID        Time             Description                      Undoable
+abc123    2026-01-17 14:32  Rebase 3 commits onto upstream    ✓
+def456    2026-01-17 14:27  Commit: add avatar support       ✓
 ```
 
 ### Show More Operations
@@ -63,19 +60,16 @@ spec-kitty ops log --verbose
 ```
 
 ```
-Operation Log (verbose)
-─────────────────────────────────────────────────
-ID: abc123def456789...
-Type: rebase
-Time: 2026-01-17 14:32:15
-Status: Clean
-Description: Rebase 3 commits onto upstream
+Backend: jj
 
-ID: def456ghi789012...
-Type: commit
-Time: 2026-01-17 14:27:42
-Status: Clean
-Description: Add user avatar support
+Operation History (jj)
+ID        Time             Description                      Undoable
+abc123    2026-01-17 14:32  Rebase 3 commits onto upstream    ✓
+def456    2026-01-17 14:27  Commit: add avatar support       ✓
+
+Full operation IDs:
+  abc123def456789...
+  def456ghi789012...
 ```
 
 ---
@@ -91,12 +85,10 @@ spec-kitty ops undo
 Output:
 
 ```
-Undo Operation
-├── ● Identify last operation (abc123: rebase)
-└── ● Restore previous state
+Undoing operation...
+✓ Operation undone successfully
 
-✓ Undone operation abc123
-  Repository restored to state before rebase
+Use 'spec-kitty ops log' to see the updated history.
 ```
 
 ### Undo a Specific Operation
@@ -122,12 +114,10 @@ spec-kitty ops restore ghi789
 Output:
 
 ```
-Restore Operation
-├── ● Load operation ghi789
-└── ● Restore repository state
+Restoring to operation ghi789...
+✓ Restored successfully
 
-✓ Restored to operation ghi789
-  State from: 10 minutes ago
+Use 'spec-kitty ops log' to see the updated history.
 ```
 
 ### Difference: Undo vs Restore
