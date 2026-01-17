@@ -8,7 +8,7 @@ subtasks:
   - "T004"
   - "T005"
 phase: "Phase 1 - Abstraction Layer"
-lane: "doing"
+lane: "for_review"
 priority: "P0"
 dependencies: []
 assignee: ""
@@ -220,6 +220,7 @@ history:
 - 2026-01-17T10:54:05Z – claude-code – shell_pid=32403 – lane=doing – Started implementation via workflow command
 - 2026-01-17T11:44:35Z – __AGENT__ – shell_pid=24045 – lane=planned – Moved to planned
 - 2026-01-17T11:48:03Z – __AGENT__ – shell_pid=38749 – lane=doing – Started implementation via workflow command
+- 2026-01-17T11:48:21Z – __AGENT__ – shell_pid=38749 – lane=for_review – Ready for review: align VCSCapabilities with spec
 
 ## Review Feedback
 
