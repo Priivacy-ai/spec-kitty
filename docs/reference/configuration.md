@@ -262,12 +262,15 @@ vcs:
 
 ### VCS Detection Order
 
-When `vcs.preferred` is `"auto"`, Spec Kitty detects VCS in this order:
+Spec Kitty detects VCS backend in this order:
 
-1. **Feature meta.json**: If the feature already exists, use its `vcs` field
-2. **CLI flag**: `spec-kitty init --vcs git` overrides detection
+1. **Explicit backend (CLI flag)**: `spec-kitty init --vcs git` or `--vcs jj`
+   - If a feature has a locked VCS that conflicts, **raises an error** (does not silently override)
+2. **Feature meta.json**: If the path is within a feature, use its locked `vcs` field
 3. **jj preferred**: If `jj` is installed and meets `min_version`, use jj
-4. **git fallback**: Use git if `.git/` exists or git is available
+4. **git fallback**: Use git if available
+
+> **Important**: Once a feature is created, its VCS is locked. Attempting to use a different `--vcs` flag within that feature will error with `VCSBackendMismatchError`.
 
 ### Per-Feature VCS Lock
 

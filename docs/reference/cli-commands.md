@@ -206,7 +206,9 @@ spec-kitty implement WP01 --json
 
 **Synopsis**: `spec-kitty sync [OPTIONS]`
 
-**Description**: Synchronize workspace with upstream changes. This command fetches the latest changes from the remote repository and rebases or merges them into the current workspace.
+**Description**: Synchronize workspace with upstream changes. Updates the current workspace with changes from its base branch or parent. This is equivalent to:
+- **git**: `git rebase <base-branch>`
+- **jj**: `jj workspace update-stale` + auto-rebase
 
 **Options**:
 | Flag | Description |

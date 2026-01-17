@@ -173,10 +173,10 @@ my-project/
 - Gradual migration from git to jj
 - Team members can use their preferred tool
 
-**VCS Detection Priority**:
-1. If `.jj/` exists → Use jujutsu backend
-2. If `.git/` exists → Use git backend
-3. Neither → Error (not a valid repository)
+**VCS Detection**:
+VCS backend is determined by the full detection algorithm (CLI flags, feature locks, tool availability), not simply by which directory exists. See [VCS Detection Order](configuration.md#vcs-detection-order) for details.
+
+In colocated mode, both `.jj/` and `.git/` exist simultaneously.
 
 ---
 
