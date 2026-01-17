@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+import yaml
 from rich.console import Console
 from typer import Typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
+from specify_cli.core.vcs import VCSBackend
 
 
 @pytest.fixture()
@@ -182,3 +185,246 @@ def test_init_remote_mode_downloads_for_each_agent(cli_app, monkeypatch: pytest.
     assert {repo for _, _, repo, _ in agent_calls} == {"spec-kit"}
     assert skip_flags == [True]
     monkeypatch.delenv("SPECIFY_TEMPLATE_REPO", raising=False)
+
+
+# =============================================================================
+# VCS Detection and Configuration Tests
+# =============================================================================
+
+
+def test_init_with_jj_shows_confirmation(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    """When jj is available, init should show 'jj detected' message."""
+    app, console, outputs = cli_app
+    monkeypatch.chdir(tmp_path)
+
+    def fake_local_repo(override_path=None):
+        return tmp_path / "templates"
+
+    def fake_copy(local_repo: Path, project_path: Path, script: str):
+        commands_dir = project_path / ".templates"
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        return commands_dir
+
+    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
+        pass
+
+    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
+    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+
+    # Mock jj as available
+    with patch.object(init_module, "is_jj_available", return_value=True):
+        with patch.object(init_module, "is_git_available", return_value=True):
+            runner = CliRunner()
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "jj-project",
+                    "--ai",
+                    "claude",
+                    "--script",
+                    "sh",
+                    "--no-git",
+                ],
+            )
+
+    assert result.exit_code == 0, f"Command failed: {result.output}"
+    # Check the Rich console output (not CliRunner output)
+    console_output = console.file.getvalue()
+    assert "jj detected" in console_output
+
+
+def test_init_without_jj_shows_recommendation(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    """When jj is not available, init should show recommendation message."""
+    app, console, outputs = cli_app
+    monkeypatch.chdir(tmp_path)
+
+    def fake_local_repo(override_path=None):
+        return tmp_path / "templates"
+
+    def fake_copy(local_repo: Path, project_path: Path, script: str):
+        commands_dir = project_path / ".templates"
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        return commands_dir
+
+    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
+        pass
+
+    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
+    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+
+    # Mock jj as unavailable, git as available
+    with patch.object(init_module, "is_jj_available", return_value=False):
+        with patch.object(init_module, "is_git_available", return_value=True):
+            runner = CliRunner()
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "git-project",
+                    "--ai",
+                    "claude",
+                    "--script",
+                    "sh",
+                    "--no-git",
+                ],
+            )
+
+    assert result.exit_code == 0, f"Command failed: {result.output}"
+    # Check the Rich console output (not CliRunner output)
+    console_output = console.file.getvalue()
+    assert "RECOMMENDED: Install jj" in console_output
+
+
+def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    """Init should create config.yaml with vcs section."""
+    app, console, outputs = cli_app
+    monkeypatch.chdir(tmp_path)
+
+    def fake_local_repo(override_path=None):
+        return tmp_path / "templates"
+
+    def fake_copy(local_repo: Path, project_path: Path, script: str):
+        commands_dir = project_path / ".templates"
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        return commands_dir
+
+    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
+        pass
+
+    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
+    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+
+    # Mock git as available
+    with patch.object(init_module, "is_jj_available", return_value=False):
+        with patch.object(init_module, "is_git_available", return_value=True):
+            runner = CliRunner()
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "config-project",
+                    "--ai",
+                    "claude",
+                    "--script",
+                    "sh",
+                    "--no-git",
+                ],
+            )
+
+    assert result.exit_code == 0, f"Command failed: {result.output}"
+
+    # Check config.yaml was created
+    config_file = tmp_path / "config-project" / ".kittify" / "config.yaml"
+    assert config_file.exists(), f"Config file not found at {config_file}"
+
+    config = yaml.safe_load(config_file.read_text())
+    assert "vcs" in config
+    assert config["vcs"]["preferred"] == "auto"
+    assert "jj" in config["vcs"]
+    assert config["vcs"]["jj"]["colocate"] is True
+
+
+def test_init_with_vcs_flag_git(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    """--vcs=git should explicitly select git."""
+    app, console, outputs = cli_app
+    monkeypatch.chdir(tmp_path)
+
+    def fake_local_repo(override_path=None):
+        return tmp_path / "templates"
+
+    def fake_copy(local_repo: Path, project_path: Path, script: str):
+        commands_dir = project_path / ".templates"
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        return commands_dir
+
+    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
+        pass
+
+    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
+    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+
+    # Both jj and git available, but --vcs=git specified
+    with patch.object(init_module, "is_jj_available", return_value=True):
+        with patch.object(init_module, "is_git_available", return_value=True):
+            runner = CliRunner()
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "vcs-git-project",
+                    "--ai",
+                    "claude",
+                    "--script",
+                    "sh",
+                    "--vcs",
+                    "git",
+                    "--no-git",
+                ],
+            )
+
+    assert result.exit_code == 0, f"Command failed: {result.output}"
+    # Should show git message (not jj detected) since we forced git
+    # Check the Rich console output (not CliRunner output)
+    console_output = console.file.getvalue()
+    assert "Using git" in console_output
+
+
+def test_init_with_vcs_flag_jj_unavailable(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    """--vcs=jj should error if jj is not installed."""
+    app, console, outputs = cli_app
+    monkeypatch.chdir(tmp_path)
+
+    # Mock jj as unavailable
+    with patch.object(init_module, "is_jj_available", return_value=False):
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "init",
+                "jj-missing-project",
+                "--ai",
+                "claude",
+                "--script",
+                "sh",
+                "--vcs",
+                "jj",
+                "--no-git",
+            ],
+        )
+
+    assert result.exit_code == 1
+    # Check the Rich console output (not CliRunner output)
+    console_output = console.file.getvalue()
+    assert "jj is not installed" in console_output
+
+
+def test_init_with_invalid_vcs_flag(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    """--vcs with invalid value should error."""
+    app, console, outputs = cli_app
+    monkeypatch.chdir(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "invalid-vcs-project",
+            "--ai",
+            "claude",
+            "--script",
+            "sh",
+            "--vcs",
+            "svn",
+            "--no-git",
+        ],
+    )
+
+    assert result.exit_code == 1
+    # Check the Rich console output (not CliRunner output)
+    console_output = console.file.getvalue()
+    assert "must be 'git' or 'jj'" in console_output
