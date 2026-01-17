@@ -11,7 +11,7 @@ subtasks:
   - "T016"
   - "T017"
 phase: "Phase 1 - Abstraction Layer"
-lane: "doing"
+lane: "for_review"
 priority: "P1"
 dependencies: ["WP01", "WP02"]
 assignee: ""
@@ -347,3 +347,4 @@ def test_create_workspace(self, tmp_path):
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T11:54:03Z – claude-code – shell_pid=41909 – lane=doing – Started implementation via workflow command
+- 2026-01-17T12:01:50Z – claude-code – shell_pid=41909 – lane=for_review – Ready for review: Full GitVCS implementation with all VCSProtocol methods, 36 tests passing
