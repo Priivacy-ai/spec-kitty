@@ -236,7 +236,7 @@
 - [x] T040 Implement sync workflow using `vcs.sync_workspace()`
 - [x] T041 Add conflict reporting with file paths and line ranges
 - [x] T042 Add `--repair` flag for workspace recovery
-- [ ] T043 Register sync command in CLI
+- [x] T043 Register sync command in CLI
 - [ ] T044 Create `tests/specify_cli/cli/commands/test_sync.py` with parametrized tests
 
 ### Implementation Notes
