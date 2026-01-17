@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+**Agent Workflow Output Truncation** (GitHub Codex compatibility):
+- Fixed workflow commands (`implement`, `review`) outputting 300+ lines which got truncated by agents like GitHub Codex
+- Prompts now written to temp file with concise 15-line summary to stdout
+- Added directive language (`▶▶▶ NEXT STEP: Read the full prompt file now:`) so agents automatically read the file
+- Agents no longer miss work package requirements due to output truncation
+
 ## [0.11.1] - 2026-01-16
 
 ### 🐛 Fixed
