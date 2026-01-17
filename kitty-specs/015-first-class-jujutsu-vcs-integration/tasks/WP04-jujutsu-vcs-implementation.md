@@ -11,7 +11,7 @@ subtasks:
   - "T024"
   - "T025"
 phase: "Phase 1 - Abstraction Layer"
-lane: "doing"
+lane: "done"
 priority: "P1"
 dependencies: ["WP01", "WP02"]
 assignee: ""
@@ -426,6 +426,7 @@ def test_sync_with_conflict_succeeds(tmp_path):
 - 2026-01-17T12:14:28Z – __AGENT__ – shell_pid=38749 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:15:19Z – __AGENT__ – shell_pid=38749 – lane=for_review – Ready for review: jj init for non-colocated, tests updated
 - 2026-01-17T12:22:09Z – claude-code – shell_pid=84083 – lane=doing – Started review via workflow command
+- 2026-01-17T12:25:21Z – claude-code – shell_pid=84083 – lane=done – Review passed: Both issues fixed - init_repo() now uses 'jj init' for non-colocated mode, supports_operation_undo assertion removed from tests. All 101 VCS tests pass including 36 JujutsuVCS-specific tests.
 
 ## Review Feedback
 
