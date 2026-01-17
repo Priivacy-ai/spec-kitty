@@ -11,14 +11,14 @@ subtasks:
   - "T024"
   - "T025"
 phase: "Phase 1 - Abstraction Layer"
-lane: "doing"
+lane: "planned"
 priority: "P1"
 dependencies: ["WP01", "WP02"]
 assignee: ""
 agent: "__AGENT__"
 shell_pid: "38749"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-17T10:38:23Z"
     lane: "planned"
@@ -422,3 +422,15 @@ def test_sync_with_conflict_succeeds(tmp_path):
 - 2026-01-17T12:02:33Z – claude-code – shell_pid=65174 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:11:44Z – claude-code – shell_pid=65174 – lane=for_review – Full JujutsuVCS implementation with 36 passing tests. Key jj behaviors implemented: non-blocking conflicts, Change IDs, operation log with undo.
 - 2026-01-17T12:12:41Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
+- 2026-01-17T12:13:26Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
+
+## Review Feedback
+
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-17
+
+**Issue 1**: `init_repo()` uses `jj git init` even when `colocate=False`. The spec calls for pure jj repos when colocate is false (`jj init`), so this implementation can't create non-colocated repos. Adjust to use `jj init` when `colocate=False` (and `jj git init --colocate` only when colocating).
+
+**Issue 2**: Tests assert a `supports_operation_undo` capability that no longer exists in the data model. This will fail once WP01 removed the field. Update the JJ tests to match the spec-correct `VCSCapabilities` fields and drop the `supports_operation_undo` assertion.
+
