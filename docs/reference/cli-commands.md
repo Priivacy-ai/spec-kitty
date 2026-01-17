@@ -69,11 +69,12 @@ spec-kitty init --here --ai claude
 spec-kitty init my-project --vcs git
 ```
 
-**VCS Detection Order**: When `--vcs` is not specified, Spec Kitty detects VCS in this order:
-1. `--vcs` flag value (if provided)
-2. `meta.json` setting (for existing features)
-3. jj preferred (if installed and `.jj/` exists or can be created)
-4. git fallback (if `.git/` exists or can be created)
+**VCS Detection Order**: Spec Kitty selects the VCS backend in this order:
+1. **Explicit backend (CLI flag)**: `spec-kitty init --vcs git` or `--vcs jj`
+   - If a feature has a locked VCS that conflicts, **raises an error** (does not silently override)
+2. **Feature meta.json**: If the path is within a feature, use its locked `vcs` field
+3. **jj preferred**: If `jj` is installed and meets requirements, use jj
+4. **git fallback**: Use git if available
 
 **See Also**: `docs/non-interactive-init.md`
 
