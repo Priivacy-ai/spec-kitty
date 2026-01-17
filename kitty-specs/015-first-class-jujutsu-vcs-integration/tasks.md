@@ -93,7 +93,7 @@
 - [x] T011 Implement workspace operations (create_workspace, remove_workspace, get_workspace_info, list_workspaces) wrapping existing git_ops/worktree
 - [x] T012 Implement sync operations (sync_workspace, is_workspace_stale)
 - [x] T013 Implement conflict operations (detect_conflicts, has_conflicts) with git conflict marker parsing
-- [ ] T014 Implement commit/change operations (get_current_change, get_changes, commit)
+- [x] T014 Implement commit/change operations (get_current_change, get_changes, commit)
 - [ ] T015 Implement repository operations (init_repo, is_repo, get_repo_root)
 - [ ] T016 [P] Implement git-specific standalone functions (git_get_reflog, git_stash, git_stash_pop)
 - [ ] T017 Create `tests/specify_cli/core/vcs/test_git.py` with git-specific tests
