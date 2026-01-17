@@ -232,7 +232,7 @@
 **Requirements**: FR-013, FR-014, FR-015, FR-016, FR-017, FR-018, FR-019
 
 ### Included Subtasks
-- [ ] T039 Create `src/specify_cli/cli/commands/sync.py` with sync command structure
+- [x] T039 Create `src/specify_cli/cli/commands/sync.py` with sync command structure
 - [ ] T040 Implement sync workflow using `vcs.sync_workspace()`
 - [ ] T041 Add conflict reporting with file paths and line ranges
 - [ ] T042 Add `--repair` flag for workspace recovery
