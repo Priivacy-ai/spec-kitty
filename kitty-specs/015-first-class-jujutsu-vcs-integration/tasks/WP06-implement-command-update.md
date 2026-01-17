@@ -10,7 +10,7 @@ subtasks:
   - "T037"
   - "T038"
 phase: "Phase 2 - Command Updates"
-lane: "planned"
+lane: "doing"
 priority: "P1"
 dependencies: ["WP03", "WP04"]
 assignee: ""
@@ -299,3 +299,4 @@ history:
 - 2026-01-17T12:50:08Z – __AGENT__ – shell_pid=98628 – lane=for_review – VCS abstraction integrated into implement command - all 833 tests pass
 - 2026-01-17T12:51:15Z – __AGENT__ – shell_pid=9401 – lane=doing – Started review via workflow command
 - 2026-01-17T12:54:11Z – __AGENT__ – shell_pid=9401 – lane=planned – Moved to planned
+- 2026-01-17T12:56:42Z – __AGENT__ – shell_pid=9401 – lane=doing – Started implementation via workflow command
