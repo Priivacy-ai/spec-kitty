@@ -11,7 +11,7 @@ subtasks:
   - "T024"
   - "T025"
 phase: "Phase 1 - Abstraction Layer"
-lane: "doing"
+lane: "for_review"
 priority: "P1"
 dependencies: ["WP01", "WP02"]
 assignee: ""
@@ -424,6 +424,7 @@ def test_sync_with_conflict_succeeds(tmp_path):
 - 2026-01-17T12:12:41Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
 - 2026-01-17T12:13:26Z – __AGENT__ – shell_pid=38749 – lane=planned – Moved to planned
 - 2026-01-17T12:14:28Z – __AGENT__ – shell_pid=38749 – lane=doing – Started implementation via workflow command
+- 2026-01-17T12:15:19Z – __AGENT__ – shell_pid=38749 – lane=for_review – Ready for review: jj init for non-colocated, tests updated
 
 ## Review Feedback
 
