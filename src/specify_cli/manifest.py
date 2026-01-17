@@ -3,6 +3,7 @@ Manifest system for spec-kitty file verification.
 This module generates and checks expected files based on the active mission.
 """
 
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 import yaml
@@ -124,14 +125,19 @@ class FileManifest:
                             if script_parts:
                                 script_path = script_parts[0]
                                 
-                                # Skip CLI commands and system executables
-                                if script_path in cli_commands:
-                                    continue
-                                    
-                                # Skip absolute paths and commands without .kittify prefix
+                                # Normalize path separators for cross-platform compatibility
+                                script_path = script_path.replace('\\', '/')
+                                
+                                # Check if this is a .kittify-managed script first
                                 # Only include scripts that are in .kittify/scripts/
                                 if not script_path.startswith('.kittify/'):
-                                    # Not a .kittify-managed script
+                                    # Not a .kittify path - could be a CLI command
+                                    # Skip CLI commands and system executables
+                                    # Use basename to handle path prefixes like ./spec-kitty or /usr/bin/git
+                                    script_basename = os.path.basename(script_path)
+                                    if script_basename in cli_commands:
+                                        continue
+                                    # Any other non-.kittify path is also skipped
                                     continue
                                 
                                 # Remove .kittify/ prefix for storage

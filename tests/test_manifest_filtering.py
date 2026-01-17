@@ -74,10 +74,13 @@ sh: .kittify/scripts/helper.sh
     scripts = manifest._get_referenced_scripts()
     
     # Verify actual scripts are included (platform-specific)
+    # Also verify opposite platform's script is NOT included
     if platform.system() == 'Windows':
         assert "scripts/setup.ps1" in scripts
+        assert "scripts/helper.sh" not in scripts  # Verify cross-platform exclusion
     else:
         assert "scripts/helper.sh" in scripts
+        assert "scripts/setup.ps1" not in scripts  # Verify cross-platform exclusion
     
     # Should have exactly one script (for current platform)
     assert len(scripts) == 1
@@ -196,7 +199,7 @@ ps: spec-kitty agent --json
     manifest = FileManifest(kittify_dir)
     scripts = manifest._get_referenced_scripts()
     
-    # Verify only real script is included
+    # Verify only real script is included (for current platform)
     if platform.system() == 'Windows':
         assert "scripts/real-script.ps1" in scripts
         assert len(scripts) == 1
@@ -204,5 +207,88 @@ ps: spec-kitty agent --json
         # On non-Windows, the ps: line is ignored, so no scripts
         assert len(scripts) == 0
     
-    # Verify CLI commands are excluded
+    # Verify CLI commands are always excluded regardless of platform
     assert "spec-kitty" not in scripts
+
+
+def test_filters_cli_commands_with_path_prefixes(tmp_path):
+    """Ensure CLI commands with path prefixes are filtered (./git, /usr/bin/python)."""
+    # Setup
+    kittify_dir = tmp_path / ".kittify"
+    missions_dir = kittify_dir / "missions" / "software-dev"
+    commands_dir = missions_dir / "command-templates"
+    commands_dir.mkdir(parents=True)
+    
+    # Create active-mission indicator
+    (kittify_dir / "active-mission").write_text("software-dev")
+    
+    # Create mission.yaml
+    (missions_dir / "mission.yaml").write_text("name: software-dev\n")
+    
+    # Create command template with CLI commands that have path prefixes
+    command_content = """---
+description: Test command with path-prefixed CLI commands
+ps: ./spec-kitty agent --json
+sh: /usr/bin/python3 script.py
+---
+
+# Test Command
+"""
+    (commands_dir / "test.md").write_text(command_content)
+    
+    # Test
+    manifest = FileManifest(kittify_dir)
+    scripts = manifest._get_referenced_scripts()
+    
+    # Verify path-prefixed CLI commands are filtered out
+    assert "spec-kitty" not in scripts
+    assert "python3" not in scripts
+    assert "./spec-kitty" not in scripts
+    assert "/usr/bin/python3" not in scripts
+    assert len(scripts) == 0
+
+
+def test_handles_windows_backslash_paths(tmp_path):
+    """Ensure Windows-style backslash paths are normalized and handled correctly."""
+    # Setup
+    kittify_dir = tmp_path / ".kittify"
+    missions_dir = kittify_dir / "missions" / "software-dev"
+    commands_dir = missions_dir / "command-templates"
+    commands_dir.mkdir(parents=True)
+    
+    # Create active-mission indicator
+    (kittify_dir / "active-mission").write_text("software-dev")
+    
+    # Create mission.yaml
+    (missions_dir / "mission.yaml").write_text("name: software-dev\n")
+    
+    # Create actual script files for both platforms
+    scripts_dir = kittify_dir / "scripts"
+    scripts_dir.mkdir(parents=True)
+    (scripts_dir / "helper.ps1").write_text("Write-Host 'test'")
+    (scripts_dir / "helper.sh").write_text("#!/bin/bash\necho 'test'")
+    
+    # Create command template with Windows-style backslash paths
+    # Note: Using raw string to preserve backslashes
+    command_content = """---
+description: Test command with Windows paths
+ps: .kittify\\scripts\\helper.ps1
+sh: .kittify\\scripts\\helper.sh
+---
+
+# Test Command
+"""
+    (commands_dir / "test.md").write_text(command_content)
+    
+    # Test
+    manifest = FileManifest(kittify_dir)
+    scripts = manifest._get_referenced_scripts()
+    
+    # Verify backslash paths are normalized and scripts are included
+    if platform.system() == 'Windows':
+        assert "scripts/helper.ps1" in scripts
+        assert len(scripts) == 1
+    else:
+        # On non-Windows, sh: line is used with normalized backslash path
+        assert "scripts/helper.sh" in scripts
+        assert len(scripts) == 1
