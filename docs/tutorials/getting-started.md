@@ -7,6 +7,8 @@ In this tutorial, you'll install Spec Kitty and create your first feature specif
 **Time**: ~30 minutes
 **Prerequisites**: Python 3.11+, Git, an AI coding agent (Claude Code, Cursor, Gemini CLI, etc.)
 
+> **Recommended**: Install [jujutsu (jj)](https://martinvonz.github.io/jj/) for automatic rebasing and non-blocking conflicts. Spec Kitty will use jj when available. See the [Jujutsu Workflow Tutorial](jujutsu-workflow.md) for details.
+
 ## Step 1: Install Spec Kitty
 
 Choose one install method:

@@ -13,6 +13,8 @@ Parallel development lets you move independent work packages (WPs) at the same t
 - Keep changes isolated to avoid accidental cross-contamination.
 - Use the dashboard to coordinate and rebalance work in real time.
 
+> **With jujutsu (jj)**: Parallel development is even more powerful. When a parent WP changes, dependent workspaces auto-rebase. Conflicts are non-blocking, so agents can continue working. See [Jujutsu Workflow Tutorial](../tutorials/jujutsu-workflow.md).
+
 ## Prerequisites
 
 - A feature with multiple WPs in `lane: "planned"`.

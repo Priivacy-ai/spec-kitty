@@ -57,9 +57,11 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 
 ## What Happens
 
-- A dedicated worktree is created for the WP (`.worktrees/###-feature-WP01/`)
+- A dedicated workspace is created for the WP (`.worktrees/###-feature-WP01/`)
 - The WP lane is updated to `doing`
 - Dependencies are enforced via `--base`
+
+> **Note**: Spec Kitty creates either a git worktree or jujutsu (jj) workspace depending on your project's VCS. The commands work the same way; the underlying implementation differs. With jj, you get automatic rebasing when dependencies change. See [Jujutsu Workflow](../tutorials/jujutsu-workflow.md).
 
 ## Troubleshooting
 
