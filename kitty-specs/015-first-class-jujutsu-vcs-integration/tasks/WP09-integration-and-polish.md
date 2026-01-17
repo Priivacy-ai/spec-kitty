@@ -11,7 +11,7 @@ subtasks:
   - "T057"
   - "T058"
 phase: "Phase 3 - Migration"
-lane: "doing"
+lane: "for_review"
 priority: "P3"
 dependencies: ["WP05", "WP06", "WP07", "WP08"]
 assignee: ""
@@ -420,3 +420,4 @@ history:
 - 2026-01-17T13:37:34Z – __AGENT__ – shell_pid=35958 – lane=doing – Started review via workflow command
 - 2026-01-17T13:40:41Z – __AGENT__ – shell_pid=35958 – lane=planned – Moved to planned
 - 2026-01-17T13:52:47Z – __AGENT__ – shell_pid=9401 – lane=doing – Started implementation via workflow command
+- 2026-01-17T13:58:01Z – __AGENT__ – shell_pid=9401 – lane=for_review – Ready for review: add legacy git deprecation warnings for implement/merge
