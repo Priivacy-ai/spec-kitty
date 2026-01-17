@@ -7,15 +7,19 @@ supporting both Git and Jujutsu (jj) backends.
 
 Usage:
     from specify_cli.core.vcs import (
+        get_vcs,
         VCSProtocol,
         VCSBackend,
         VCSCapabilities,
         GIT_CAPABILITIES,
         JJ_CAPABILITIES,
+        is_jj_available,
+        is_git_available,
     )
 
-The factory function `get_vcs()` and backend implementations (GitVCS, JujutsuVCS)
-will be added in WP02-WP04.
+    # Get appropriate VCS implementation
+    vcs = get_vcs(feature_path)  # Auto-detect, prefers jj
+    vcs = get_vcs(feature_path, backend=VCSBackend.GIT)  # Explicit git
 
 See kitty-specs/015-first-class-jujutsu-vcs-integration/ for full documentation.
 """
@@ -62,6 +66,16 @@ from .exceptions import (
     VCSSyncError,
 )
 
+# Detection and factory functions
+from .detection import (
+    detect_available_backends,
+    get_git_version,
+    get_jj_version,
+    get_vcs,
+    is_git_available,
+    is_jj_available,
+)
+
 __all__ = [
     # Enums
     "VCSBackend",
@@ -90,4 +104,11 @@ __all__ = [
     "VCSLockError",
     "VCSConflictError",
     "VCSSyncError",
+    # Detection and factory
+    "get_vcs",
+    "is_jj_available",
+    "is_git_available",
+    "get_jj_version",
+    "get_git_version",
+    "detect_available_backends",
 ]
