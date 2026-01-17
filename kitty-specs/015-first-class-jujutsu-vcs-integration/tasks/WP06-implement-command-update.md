@@ -10,7 +10,7 @@ subtasks:
   - "T037"
   - "T038"
 phase: "Phase 2 - Command Updates"
-lane: "doing"
+lane: "for_review"
 priority: "P1"
 dependencies: ["WP03", "WP04"]
 assignee: ""
@@ -296,3 +296,4 @@ history:
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T12:38:00Z – __AGENT__ – shell_pid=98628 – lane=doing – Started implementation via workflow command
+- 2026-01-17T12:50:08Z – __AGENT__ – shell_pid=98628 – lane=for_review – VCS abstraction integrated into implement command - all 833 tests pass
