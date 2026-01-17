@@ -130,7 +130,7 @@
 - [x] T019 Implement workspace operations using `jj workspace add/forget/list`
 - [x] T020 Implement sync operations using `jj workspace update-stale`
 - [x] T021 Implement conflict operations using `jj status` parsing (conflicts stored, not blocking)
-- [ ] T022 Implement commit/change operations using `jj log`, `jj describe`, `jj new`
+- [x] T022 Implement commit/change operations using `jj log`, `jj describe`, `jj new`
 - [ ] T023 Implement repository operations using `jj git init --colocate`
 - [ ] T024 [P] Implement jj-specific standalone functions (jj_get_operation_log, jj_undo_operation, jj_get_change_by_id)
 - [ ] T025 Create `tests/specify_cli/core/vcs/test_jujutsu.py` with jj-specific tests (@pytest.mark.jj)
