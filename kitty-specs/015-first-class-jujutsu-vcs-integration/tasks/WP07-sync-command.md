@@ -9,12 +9,12 @@ subtasks:
   - "T043"
   - "T044"
 phase: "Phase 2 - Command Updates"
-lane: "for_review"
+lane: "doing"
 priority: "P2"
 dependencies: ["WP03", "WP04"]
 assignee: ""
 agent: "__AGENT__"
-shell_pid: "10296"
+shell_pid: "16064"
 review_status: ""
 reviewed_by: ""
 history:
@@ -284,3 +284,4 @@ history:
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T12:52:45Z – __AGENT__ – shell_pid=10296 – lane=doing – Started implementation via workflow command
 - 2026-01-17T13:00:39Z – __AGENT__ – shell_pid=10296 – lane=for_review – Sync command implemented with git/jj support, conflict reporting, --repair flag, and 21 tests passing
+- 2026-01-17T13:04:21Z – __AGENT__ – shell_pid=16064 – lane=doing – Started review via workflow command
