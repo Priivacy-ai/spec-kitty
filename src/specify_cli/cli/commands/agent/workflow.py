@@ -36,7 +36,7 @@ def _write_prompt_to_file(
     Returns:
         Path to the written file
     """
-    # Use a predictable path in /tmp so agents can find it
+    # Use system temp directory (gets cleaned up automatically)
     prompt_file = Path(tempfile.gettempdir()) / f"spec-kitty-{command_type}-{wp_id}.md"
     prompt_file.write_text(content, encoding="utf-8")
     return prompt_file
@@ -455,18 +455,17 @@ def implement(
         full_content = "\n".join(lines)
         prompt_file = _write_prompt_to_file("implement", normalized_wp_id, full_content)
 
-        # Output concise summary (fits in truncated output)
-        print()
-        print(f"📄 Full prompt written to: {prompt_file}")
-        print(f"   Read it with: cat {prompt_file}")
+        # Output concise summary with directive to read the prompt
         print()
         print(f"📍 Workspace: cd {workspace_path}")
         if has_feedback:
             print(f"⚠️  Has review feedback - check prompt file")
         print()
-        print("When done:")
+        print("▶▶▶ NEXT STEP: Read the full prompt file now:")
+        print(f"    cat {prompt_file}")
+        print()
+        print("After implementation, run:")
         print(f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
-        print(f"  ❌ spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
 
     except Exception as e:
         print(f"Error: {e}")
@@ -811,18 +810,18 @@ def review(
         full_content = "\n".join(lines)
         prompt_file = _write_prompt_to_file("review", normalized_wp_id, full_content)
 
-        # Output concise summary (fits in truncated output)
+        # Output concise summary with directive to read the prompt
         print()
         if dependents_warning:
             for line in dependents_warning:
                 print(line)
             print()
-        print(f"📄 Full review prompt written to: {prompt_file}")
-        print(f"   Read it with: cat {prompt_file}")
-        print()
         print(f"📍 Workspace: cd {workspace_path}")
         print()
-        print("When done:")
+        print("▶▶▶ NEXT STEP: Read the full prompt file now:")
+        print(f"    cat {prompt_file}")
+        print()
+        print("After review, run:")
         print(f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
         print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file feedback.md")
 
