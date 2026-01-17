@@ -7,12 +7,12 @@ subtasks:
   - "T008"
   - "T009"
 phase: "Phase 1 - Abstraction Layer"
-lane: "for_review"
+lane: "doing"
 priority: "P0"
 dependencies: ["WP01"]
 assignee: ""
-agent: "claude-code"
-shell_pid: "40451"
+agent: "__AGENT__"
+shell_pid: "38749"
 review_status: ""
 reviewed_by: ""
 history:
@@ -283,3 +283,4 @@ def test_get_vcs_with_explicit_git():
 - 2026-01-17T11:32:57Z – test-debug – shell_pid=36104 – lane=planned – Resetting after test
 - 2026-01-17T11:48:23Z – claude-code – shell_pid=40451 – lane=doing – Started implementation via workflow command
 - 2026-01-17T11:52:51Z – claude-code – shell_pid=40451 – lane=for_review – Ready for review: Detection and factory functions implemented with 29 passing tests
+- 2026-01-17T11:53:35Z – __AGENT__ – shell_pid=38749 – lane=doing – Started review via workflow command
