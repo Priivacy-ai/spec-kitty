@@ -197,7 +197,7 @@
 **Requirements**: FR-006, FR-007, FR-009, FR-010, FR-011, FR-012
 
 ### Included Subtasks
-- [ ] T032 Update `src/specify_cli/cli/commands/implement.py` to import VCS abstraction
+- [x] T032 Update `src/specify_cli/cli/commands/implement.py` to import VCS abstraction
 - [ ] T033 Modify workspace creation to use `vcs.create_workspace()` instead of direct git commands
 - [ ] T034 Add VCS selection to meta.json during feature creation (lock VCS choice)
 - [ ] T035 Implement `--base` flag handling for both VCS backends
