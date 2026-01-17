@@ -61,6 +61,40 @@ By default, merge removes the feature worktree and deletes the feature branch. U
 spec-kitty merge --keep-worktree --keep-branch
 ```
 
+## Abandon a Feature (Manual Cleanup)
+
+If you decide to drop a feature without merging, remove its worktrees and branches manually.
+These steps are safe and reversible until you delete the branch and commit the cleanup.
+
+1. List worktrees to find all workspaces for the feature:
+```bash
+git worktree list
+```
+
+2. Remove each feature worktree:
+```bash
+git worktree remove .worktrees/<feature>-WP01
+git worktree remove .worktrees/<feature>-WP02
+```
+
+If a worktree has uncommitted changes you want to discard, use `--force`:
+```bash
+git worktree remove --force .worktrees/<feature>-WP01
+```
+
+3. Delete the feature branches:
+```bash
+git branch -D <feature>-WP01
+git branch -D <feature>-WP02
+```
+
+4. Remove the planning artifacts from main (spec/plan/tasks), then commit:
+```bash
+rm -rf kitty-specs/<feature>
+git add kitty-specs/
+git commit -m "Remove abandoned feature <feature>"
+```
+
 ## Troubleshooting
 
 - **Accept reports blockers**: Resolve the listed issues, then rerun `/spec-kitty.accept`.
