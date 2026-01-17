@@ -9,14 +9,14 @@ subtasks:
   - "T049"
   - "T050"
 phase: "Phase 2 - Command Updates"
-lane: "doing"
+lane: "done"
 priority: "P3"
 dependencies: ["WP03", "WP04"]
 assignee: ""
 agent: "__AGENT__"
 shell_pid: "28708"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-17T10:38:23Z"
     lane: "planned"
@@ -335,3 +335,4 @@ history:
 - 2026-01-17T13:09:21Z – __AGENT__ – shell_pid=27357 – lane=doing – Started implementation via workflow command
 - 2026-01-17T13:18:11Z – __AGENT__ – shell_pid=27357 – lane=for_review – Ready for review: ops command with log, undo, restore subcommands. 19 tests passing.
 - 2026-01-17T13:18:51Z – __AGENT__ – shell_pid=28708 – lane=doing – Started review via workflow command
+- 2026-01-17T13:21:30Z – __AGENT__ – shell_pid=28708 – lane=done – Review passed: ops command implemented with log/undo/restore subcommands, capability checking for jj-only features, helpful git alternatives, 19 tests passing
