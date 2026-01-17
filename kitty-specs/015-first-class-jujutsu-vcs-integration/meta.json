@@ -1,15 +1,29 @@
 {
-  "feature_number": "015",
-  "slug": "first-class-jujutsu-vcs-integration",
-  "friendly_name": "First-Class Jujutsu VCS Integration",
-  "mission": "software-dev",
-  "source_description": "read the unfinished feature 09 on jujutsu. we are going to fully research and complete that work so that jj is an equal first-class citizen to git, but developers can choose which to use. JJ is to be preferred, and if JJ is available, will be used by spec kitty automatically. Furthermore, when using JJ we will leverage as much JJ capability towards autocommitting and surfacing changes across worktrees in real time as possible, but you need to start by researching and then explaining in detail (for my sake) how it will work in reality",
+  "accept_commit": null,
+  "acceptance_history": [
+    {
+      "accepted_at": "2026-01-17T14:38:25Z",
+      "accepted_by": "robert",
+      "accepted_from_commit": "06212060ab7a1c8b7677b56231e543afab0d2206",
+      "branch": "main",
+      "mode": "local"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-01-17T14:38:25Z",
+  "accepted_by": "robert",
+  "accepted_from_commit": "06212060ab7a1c8b7677b56231e543afab0d2206",
   "created_at": "2026-01-17T11:15:00Z",
   "deferred_features": [
     {
-      "name": "Dashboard conflict indicators",
       "description": "Visual indicators in dashboard showing workspace conflict state (clean/stale/conflicted)",
+      "name": "Dashboard conflict indicators",
       "reason": "Scope management - CLI/core functionality first"
     }
-  ]
+  ],
+  "feature_number": "015",
+  "friendly_name": "First-Class Jujutsu VCS Integration",
+  "mission": "software-dev",
+  "slug": "first-class-jujutsu-vcs-integration",
+  "source_description": "read the unfinished feature 09 on jujutsu. we are going to fully research and complete that work so that jj is an equal first-class citizen to git, but developers can choose which to use. JJ is to be preferred, and if JJ is available, will be used by spec kitty automatically. Furthermore, when using JJ we will leverage as much JJ capability towards autocommitting and surfacing changes across worktrees in real time as possible, but you need to start by researching and then explaining in detail (for my sake) how it will work in reality"
 }
