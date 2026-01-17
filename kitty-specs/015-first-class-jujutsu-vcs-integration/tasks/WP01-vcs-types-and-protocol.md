@@ -12,8 +12,8 @@ lane: "doing"
 priority: "P0"
 dependencies: []
 assignee: ""
-agent: "claude-code"
-shell_pid: "32403"
+agent: "__AGENT__"
+shell_pid: "24045"
 review_status: ""
 reviewed_by: ""
 history:
@@ -218,3 +218,5 @@ history:
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T10:54:05Z – claude-code – shell_pid=32403 – lane=doing – Started implementation via workflow command
+- 2026-01-17T10:57:13Z – claude-code – shell_pid=32403 – lane=for_review – Ready for review: VCS types, protocol, and exceptions implemented with full test coverage
+- 2026-01-17T11:14:32Z – __AGENT__ – shell_pid=24045 – lane=doing – Started review via workflow command
