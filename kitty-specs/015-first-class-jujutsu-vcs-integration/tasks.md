@@ -302,7 +302,7 @@
 
 ### Included Subtasks
 - [x] T051 Update `src/specify_cli/cli/commands/merge.py` to use VCS abstraction
-- [ ] T052 Update `src/specify_cli/core/worktree.py` to use VCS abstraction (or deprecate)
+- [x] T052 Update `src/specify_cli/core/worktree.py` to use VCS abstraction (or deprecate)
 - [ ] T053 Add deprecation warnings to `src/specify_cli/core/git_ops.py`
 - [ ] T054 Update `tests/conftest.py` with jj_available fixture and jj marker
 - [ ] T055 [P] Create `tests/specify_cli/core/vcs/test_abstraction.py` with parametrized parity tests
