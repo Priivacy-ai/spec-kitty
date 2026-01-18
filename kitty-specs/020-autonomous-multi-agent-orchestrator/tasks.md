@@ -86,7 +86,7 @@
 
 ### Included Subtasks
 - [x] T011 [P] Implement Qwen Code invoker in `agents/qwen.py`
-- [ ] T012 [P] Implement OpenCode invoker in `agents/opencode.py`
+- [x] T012 [P] Implement OpenCode invoker in `agents/opencode.py`
 - [ ] T013 [P] Implement Kilocode invoker in `agents/kilocode.py`
 - [ ] T014 [P] Implement Augment Code invoker in `agents/augment.py`
 - [ ] T015 Implement Cursor invoker with timeout wrapper in `agents/cursor.py`
