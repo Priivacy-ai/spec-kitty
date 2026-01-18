@@ -30,6 +30,11 @@ from specify_cli.merge.forecast import (
     display_conflict_forecast,
     predict_conflicts,
 )
+from specify_cli.merge.state import (
+    MergeState,
+    clear_state,
+    save_state,
+)
 
 __all__ = [
     "execute_merge",
@@ -70,14 +75,16 @@ def execute_merge(
     push: bool = False,
     dry_run: bool = False,
     on_wp_merged: Callable[[str], None] | None = None,
+    resume_state: MergeState | None = None,
 ) -> MergeResult:
     """Execute merge for all WPs with preflight and ordering.
 
     This is the main entry point for workspace-per-WP merges, coordinating:
     1. Pre-flight validation (all worktrees clean, target not diverged)
     2. Dependency-based ordering (topological sort)
-    3. Sequential merge execution
+    3. Sequential merge execution with state persistence
     4. Cleanup (worktree removal, branch deletion)
+    5. State cleared on success
 
     Args:
         wp_workspaces: List of (worktree_path, wp_id, branch_name) tuples
@@ -93,6 +100,7 @@ def execute_merge(
         push: Whether to push to remote after merge
         dry_run: If True, show what would be done without executing
         on_wp_merged: Callback after each WP merges (for state updates)
+        resume_state: Existing MergeState to resume from (if --resume)
 
     Returns:
         MergeResult with success status and details
@@ -168,6 +176,26 @@ def execute_merge(
         result.merged_wps = [wp_id for _, wp_id, _ in ordered_workspaces]
         return result
 
+    # Initialize or use resume state
+    if resume_state:
+        state = resume_state
+        # Filter ordered_workspaces to only remaining WPs
+        remaining_set = set(state.remaining_wps)
+        ordered_workspaces = [
+            (wt_path, wp_id, branch)
+            for wt_path, wp_id, branch in ordered_workspaces
+            if wp_id in remaining_set
+        ]
+        console.print(f"[cyan]Resuming from {state.completed_wps[-1] if state.completed_wps else 'start'}[/cyan]")
+    else:
+        state = MergeState(
+            feature_slug=feature_slug,
+            target_branch=target_branch,
+            wp_order=[wp_id for _, wp_id, _ in ordered_workspaces],
+            strategy=strategy,
+        )
+        save_state(state, repo_root)
+
     # Step 5: Checkout and update target branch
     tracker.start("checkout")
     try:
@@ -197,6 +225,10 @@ def execute_merge(
     tracker.start("merge")
     try:
         for wt_path, wp_id, branch in ordered_workspaces:
+            # Set current WP and save state before merge
+            state.set_current_wp(wp_id)
+            save_state(state, repo_root)
+
             console.print(f"[cyan]Merging {wp_id} ({branch})...[/cyan]")
 
             if strategy == "squash":
@@ -207,6 +239,8 @@ def execute_merge(
                 )
                 conflict_error = _resolve_merge_conflicts(repo_root, wp_id)
                 if conflict_error:
+                    state.set_pending_conflicts(True)
+                    save_state(state, repo_root)
                     result.error = conflict_error
                     return result
                 run_command(
@@ -231,12 +265,18 @@ def execute_merge(
                 )
                 conflict_error = _resolve_merge_conflicts(repo_root, wp_id)
                 if conflict_error:
+                    state.set_pending_conflicts(True)
+                    save_state(state, repo_root)
                     result.error = conflict_error
                     return result
                 if merge_code != 0:
                     run_command(
                         ["git", "commit", "-m", f"Merge {wp_id} from {feature_slug}"]
                     )
+
+            # Mark WP complete and save state
+            state.mark_wp_complete(wp_id)
+            save_state(state, repo_root)
 
             result.merged_wps.append(wp_id)
             console.print(f"[green]\u2713[/green] {wp_id} merged")
@@ -249,6 +289,9 @@ def execute_merge(
         tracker.error("merge", str(exc))
         result.failed_wp = wp_id if "wp_id" in dir() else None
         result.error = f"Merge failed: {exc}"
+        # Save state on error for resume
+        state.set_pending_conflicts(True)
+        save_state(state, repo_root)
         return result
 
     # Step 7: Push if requested
@@ -314,6 +357,9 @@ def execute_merge(
                 console.print(f"  {wp_id}: git branch -D {branch}")
         else:
             tracker.complete("branch", f"deleted {len(ordered_workspaces)} branches")
+
+    # Clear state on successful completion
+    clear_state(repo_root)
 
     result.success = True
     return result

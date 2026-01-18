@@ -24,6 +24,13 @@ from specify_cli.merge.executor import (
 from specify_cli.merge.forecast import ConflictPrediction, is_status_file, predict_conflicts
 from specify_cli.merge.ordering import MergeOrderError, get_merge_order, has_dependency_info
 from specify_cli.merge.preflight import PreflightResult, WPStatus, run_preflight
+from specify_cli.merge.state import (
+    MergeState,
+    clear_state,
+    has_active_merge,
+    load_state,
+    save_state,
+)
 from specify_cli.merge.status_resolver import ResolutionResult, resolve_status_conflicts
 
 __all__ = [
@@ -47,4 +54,10 @@ __all__ = [
     # Status resolver
     "resolve_status_conflicts",
     "ResolutionResult",
+    # State persistence
+    "MergeState",
+    "save_state",
+    "load_state",
+    "clear_state",
+    "has_active_merge",
 ]
