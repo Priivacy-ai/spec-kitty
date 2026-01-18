@@ -10,12 +10,12 @@ subtasks:
   - "T024"
 title: "CLAUDE.md Reference Update"
 phase: "Phase 2 - Developer Documentation"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "codex"
 shell_pid: "56874"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-18T13:21:55Z"
     lane: "planned"
@@ -38,9 +38,12 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-18
 
----
+**Issue 1**: `CLAUDE.md` does not include the required "Merge & Preflight Patterns (0.11.0+)" section after "Workspace-per-Work-Package Development (0.11.0+)". None of the required subsections or examples were added. Please add the full section with merge state JSON structure, preflight details, and programmatic access examples per WP03.
+
 
 ## Objectives & Success Criteria
 
@@ -222,3 +225,4 @@ Add "Merge & Preflight Patterns" section to CLAUDE.md for developers and AI agen
 
 - 2026-01-18T13:21:55Z – system – lane=planned – Prompt created.
 - 2026-01-18T13:28:04Z – codex – shell_pid=56874 – lane=doing – Started review via workflow command
+- 2026-01-18T13:28:35Z – codex – shell_pid=56874 – lane=planned – Moved to planned
