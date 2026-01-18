@@ -25,7 +25,7 @@
 - [x] T004 Write `docs/how-to/merge-feature.md` following `accept-and-merge.md` style
 - [x] T005 Add merge strategies section (merge/squash/rebase)
 - [x] T006 Add pre-flight validation section with interpretation guidance
-- [ ] T007 Add dry-run and conflict forecasting section with example output
+- [x] T007 Add dry-run and conflict forecasting section with example output
 - [ ] T008 Add cleanup options section (--keep-branch, --keep-worktree)
 
 ### Implementation Notes
