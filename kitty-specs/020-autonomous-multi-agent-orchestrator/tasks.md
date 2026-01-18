@@ -23,7 +23,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T001 Create orchestrator package structure with `__init__.py` files
+- [x] T001 Create orchestrator package structure with `__init__.py` files
 - [ ] T002 Implement enums: OrchestrationStatus, WPStatus, FallbackStrategy
 - [ ] T003 Implement OrchestratorConfig and AgentConfig dataclasses
 - [ ] T004 Implement config.py with YAML parsing and validation
