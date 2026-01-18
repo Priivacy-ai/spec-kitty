@@ -23,7 +23,7 @@
 - [x] T002 [P] Extract pre-flight validation checks from `src/specify_cli/merge/preflight.py`
 - [x] T003 [P] Capture dry-run output example by running `spec-kitty merge --dry-run`
 - [x] T004 Write `docs/how-to/merge-feature.md` following `accept-and-merge.md` style
-- [ ] T005 Add merge strategies section (merge/squash/rebase)
+- [x] T005 Add merge strategies section (merge/squash/rebase)
 - [ ] T006 Add pre-flight validation section with interpretation guidance
 - [ ] T007 Add dry-run and conflict forecasting section with example output
 - [ ] T008 Add cleanup options section (--keep-branch, --keep-worktree)
