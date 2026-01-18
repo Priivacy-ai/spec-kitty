@@ -116,7 +116,7 @@
 **Estimated Size**: ~380 lines
 
 ### Included Subtasks
-- [ ] T017 Implement OrchestrationRun dataclass with serialization
+- [x] T017 Implement OrchestrationRun dataclass with serialization
 - [ ] T018 Implement WPExecution dataclass with status tracking
 - [ ] T019 Implement InvocationResult dataclass
 - [ ] T020 Implement state.py with save/load JSON functions
