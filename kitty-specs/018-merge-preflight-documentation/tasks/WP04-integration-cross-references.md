@@ -9,13 +9,13 @@ subtasks:
   - "T030"
 title: "Integration & Cross-References"
 phase: "Phase 3 - Polish"
-lane: "doing"
+lane: "planned"
 dependencies: ["WP01", "WP02", "WP03"]
 assignee: ""
 agent: "codex"
 shell_pid: "73212"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-18T13:21:55Z"
     lane: "planned"
@@ -38,9 +38,12 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-18
 
----
+**Issue 1**: Required guide `docs/how-to/merge-feature.md` is missing. Create the file and complete all sections per WP01 subtasks (flags, pre-flight validation, dry-run example, merge strategies, cleanup options) and ensure style matches `docs/how-to/accept-and-merge.md`.
+
 
 ## ⚠️ Dependency Rebase Guidance
 
@@ -186,3 +189,4 @@ Integrate new documentation into the site structure and add cross-references bet
 
 - 2026-01-18T13:21:55Z – system – lane=planned – Prompt created.
 - 2026-01-18T13:35:30Z – codex – shell_pid=73212 – lane=doing – Started review via workflow command
+- 2026-01-18T13:36:09Z – codex – shell_pid=73212 – lane=planned – Moved to planned
