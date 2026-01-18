@@ -11,12 +11,12 @@ subtasks:
   - "T008"
 title: "Merge Guide"
 phase: "Phase 1 - User Documentation"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "codex"
 shell_pid: "53316"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-18T13:21:55Z"
     lane: "planned"
@@ -39,9 +39,12 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-18
 
----
+**Issue 1**: Required guide `docs/how-to/merge-feature.md` is missing. Create the file and complete all sections per WP01 subtasks (flags, pre-flight validation, dry-run example, merge strategies, cleanup options) and ensure style matches `docs/how-to/accept-and-merge.md`.
+
 
 ## Objectives & Success Criteria
 
@@ -184,3 +187,4 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 
 - 2026-01-18T13:21:55Z – system – lane=planned – Prompt created.
 - 2026-01-18T13:27:09Z – codex – shell_pid=53316 – lane=doing – Started review via workflow command
+- 2026-01-18T13:27:38Z – codex – shell_pid=53316 – lane=planned – Moved to planned
