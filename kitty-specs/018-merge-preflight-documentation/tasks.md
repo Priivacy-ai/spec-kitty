@@ -26,7 +26,7 @@
 - [x] T005 Add merge strategies section (merge/squash/rebase)
 - [x] T006 Add pre-flight validation section with interpretation guidance
 - [x] T007 Add dry-run and conflict forecasting section with example output
-- [ ] T008 Add cleanup options section (--keep-branch, --keep-worktree)
+- [x] T008 Add cleanup options section (--keep-branch, --keep-worktree)
 
 ### Implementation Notes
 1. Read merge.py to extract all CLI flags and their descriptions
