@@ -95,7 +95,7 @@
 - [x] T021 Write "Merge & Preflight Patterns" section for CLAUDE.md
 - [x] T022 Add merge state persistence subsection with JSON example
 - [x] T023 Add pre-flight validation subsection with integration points
-- [ ] T024 Add programmatic access code examples
+- [x] T024 Add programmatic access code examples
 
 ### Implementation Notes
 1. Location: After "Workspace-per-Work-Package Development" section in CLAUDE.md
