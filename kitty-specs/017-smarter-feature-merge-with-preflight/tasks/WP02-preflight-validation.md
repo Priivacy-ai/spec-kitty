@@ -372,3 +372,5 @@ if current_branch == target_branch:
 - 2026-01-18T10:53:51Z – codex – shell_pid=9049 – lane=doing – Started review via workflow command
 - 2026-01-18T10:55:29Z – codex – shell_pid=9049 – lane=planned – Moved to planned
 - 2026-01-18T10:58:15Z – codex – shell_pid=9049 – lane=doing – Started implementation via workflow command
+- 2026-01-18T11:00:02Z – codex – shell_pid=9049 – lane=for_review – Ready for review: preflight ordering + missing worktree detection
+- 2026-01-18T11:01:53Z – codex – shell_pid=9049 – lane=doing – Started review via workflow command
