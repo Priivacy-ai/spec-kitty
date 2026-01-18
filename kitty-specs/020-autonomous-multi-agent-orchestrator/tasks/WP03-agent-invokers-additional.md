@@ -9,10 +9,10 @@ subtasks:
   - "T016"
 title: "Agent Invokers - Additional Agents"
 phase: "Phase 1 - Components"
-lane: "for_review"
+lane: "doing"
 assignee: ""
 agent: "claude-opus"
-shell_pid: "44333"
+shell_pid: "46825"
 review_status: ""
 reviewed_by: ""
 dependencies:
@@ -314,3 +314,4 @@ spec-kitty implement WP03 --base WP02
 - 2026-01-18T16:21:51Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-18T17:49:46Z – claude-opus – shell_pid=44333 – lane=doing – Started implementation via workflow command
 - 2026-01-18T17:52:19Z – claude-opus – shell_pid=44333 – lane=for_review – Ready for review: 5 additional invokers (Qwen, OpenCode, Kilocode, Augment, Cursor with timeout), AGENT_REGISTRY with 9 agents, get_invoker() and detect_installed_agents()
+- 2026-01-18T19:00:15Z – claude-opus – shell_pid=46825 – lane=doing – Started review via workflow command
