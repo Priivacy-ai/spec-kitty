@@ -97,21 +97,31 @@ spec-kitty merge --dry-run
 Example output:
 
 ```
+Workspace-per-WP feature detected: 4 work packages
+  - WP01: 018-merge-preflight-documentation-WP01
+  - WP02: 018-merge-preflight-documentation-WP02
+  - WP03: 018-merge-preflight-documentation-WP03
+  - WP04: 018-merge-preflight-documentation-WP04
+
+Validating all WP workspaces...
+✓ All WP workspaces validated
+Feature Merge
+
 Dry run - would execute:
   1. git checkout main
   2. git pull --ff-only
-  3. git merge --no-ff 018-merge-preflight-documentation-WP01 -m 'Merge WP01'
-  4. git merge --no-ff 018-merge-preflight-documentation-WP02 -m 'Merge WP02'
-  5. git merge --no-ff 018-merge-preflight-documentation-WP03 -m 'Merge WP03'
-  6. git merge --no-ff 018-merge-preflight-documentation-WP04 -m 'Merge WP04'
-  7. git worktree remove .worktrees/018-merge-preflight-documentation-WP01
-  8. git worktree remove .worktrees/018-merge-preflight-documentation-WP02
-  9. git worktree remove .worktrees/018-merge-preflight-documentation-WP03
- 10. git worktree remove .worktrees/018-merge-preflight-documentation-WP04
- 11. git branch -d 018-merge-preflight-documentation-WP01
- 12. git branch -d 018-merge-preflight-documentation-WP02
- 13. git branch -d 018-merge-preflight-documentation-WP03
- 14. git branch -d 018-merge-preflight-documentation-WP04
+  3. git merge --no-ff 018-merge-preflight-documentation-WP01 -m 'Merge WP01 from 018-merge-preflight-documentation'
+  4. git merge --no-ff 018-merge-preflight-documentation-WP02 -m 'Merge WP02 from 018-merge-preflight-documentation'
+  5. git merge --no-ff 018-merge-preflight-documentation-WP03 -m 'Merge WP03 from 018-merge-preflight-documentation'
+  6. git merge --no-ff 018-merge-preflight-documentation-WP04 -m 'Merge WP04 from 018-merge-preflight-documentation'
+  7. git worktree remove /var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/tmp.pgyxU5GMSp/spec-kitty-dry-run/.worktrees/018-merge-preflight-documentation-WP01
+  8. git worktree remove /var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/tmp.pgyxU5GMSp/spec-kitty-dry-run/.worktrees/018-merge-preflight-documentation-WP02
+  9. git worktree remove /var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/tmp.pgyxU5GMSp/spec-kitty-dry-run/.worktrees/018-merge-preflight-documentation-WP03
+  10. git worktree remove /var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/tmp.pgyxU5GMSp/spec-kitty-dry-run/.worktrees/018-merge-preflight-documentation-WP04
+  11. git branch -d 018-merge-preflight-documentation-WP01
+  12. git branch -d 018-merge-preflight-documentation-WP02
+  13. git branch -d 018-merge-preflight-documentation-WP03
+  14. git branch -d 018-merge-preflight-documentation-WP04
 ```
 
 ### Conflict Forecasting
@@ -262,7 +272,7 @@ spec-kitty merge --abort
 
 This removes the merge state file and lets you start fresh.
 
-For detailed troubleshooting including conflict resolution and error recovery, see [Troubleshoot Merge Issues](troubleshoot-merge.md).
+For detailed troubleshooting including conflict resolution and error recovery, see [Accept and Merge](accept-and-merge.md#troubleshooting).
 
 ---
 
@@ -284,7 +294,7 @@ Full CLI reference: [CLI Commands](../reference/cli-commands.md)
 
 ## See Also
 
-- [Troubleshoot Merge Issues](troubleshoot-merge.md) - Recovery and conflict resolution
+- [Accept and Merge](accept-and-merge.md#troubleshooting) - Recovery and conflict resolution
 - [Accept and Merge](accept-and-merge.md) - Feature validation before merge
 - [Review Work Packages](review-work-package.md) - WP review process
 
