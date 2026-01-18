@@ -182,7 +182,7 @@
 - [x] T028 Implement stdin piping for WP prompt content
 - [x] T029 Implement stdout/stderr capture to log files
 - [x] T030 Implement timeout handling with `asyncio.wait_for`
-- [ ] T031 Implement worktree creation integration
+- [x] T031 Implement worktree creation integration
 
 ### Implementation Notes
 - Use `asyncio.create_subprocess_exec` for clean process management
