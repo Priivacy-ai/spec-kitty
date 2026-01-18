@@ -18,9 +18,18 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.vcs import VCSBackend, get_vcs
+from specify_cli.merge.executor import execute_legacy_merge, execute_merge
 from specify_cli.merge.preflight import (
     display_preflight_result,
     run_preflight,
+)
+from specify_cli.merge.state import (
+    MergeState,
+    abort_git_merge,
+    clear_state,
+    detect_git_merge_state,
+    get_state_path,
+    load_state,
 )
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
@@ -367,6 +376,8 @@ def merge(
     target_branch: str = typer.Option("main", "--target", help="Target branch to merge into"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
     feature: str = typer.Option(None, "--feature", help="Feature slug when merging from main branch"),
+    resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from saved state"),
+    abort: bool = typer.Option(False, "--abort", help="Abort and clear merge state"),
 ) -> None:
     """Merge a completed feature branch into the target branch and clean up resources.
 
@@ -374,8 +385,71 @@ def merge(
     (010-feature-WP01, 010-feature-WP02, etc.) to main in sequence.
 
     For legacy features (0.10.x), merges single feature branch.
+
+    Use --resume to continue an interrupted merge from saved state.
+    Use --abort to clear merge state and abort any in-progress git merge.
     """
     show_banner()
+
+    # Handle --abort flag early (before any other processing)
+    if abort:
+        try:
+            repo_root = find_repo_root()
+        except TaskCliError as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
+
+        main_repo = get_main_repo_root(repo_root)
+        state = load_state(main_repo)
+
+        if state is None:
+            console.print("[yellow]No merge state to abort[/yellow]")
+        else:
+            clear_state(main_repo)
+            console.print(f"[green]✓[/green] Merge state cleared for {state.feature_slug}")
+            console.print(f"  Progress was: {len(state.completed_wps)}/{len(state.wp_order)} WPs complete")
+
+        # Also abort git merge if in progress
+        if abort_git_merge(main_repo):
+            console.print("[green]✓[/green] Git merge aborted")
+
+        raise typer.Exit(0)
+
+    # Handle --resume flag
+    resume_state: MergeState | None = None
+    if resume:
+        try:
+            repo_root = find_repo_root()
+        except TaskCliError as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
+
+        main_repo = get_main_repo_root(repo_root)
+        resume_state = load_state(main_repo)
+
+        if resume_state is None:
+            state_path = get_state_path(main_repo)
+            if state_path.exists():
+                clear_state(main_repo)
+                console.print("[yellow]⚠ Invalid merge state file cleared[/yellow]")
+            console.print("[red]Error:[/red] No merge state to resume")
+            console.print("Run 'spec-kitty merge --feature <slug>' to start a new merge.")
+            raise typer.Exit(1)
+
+        console.print(f"[cyan]Resuming merge of {resume_state.feature_slug}[/cyan]")
+        console.print(f"  Progress: {len(resume_state.completed_wps)}/{len(resume_state.wp_order)} WPs")
+        console.print(f"  Remaining: {', '.join(resume_state.remaining_wps)}")
+
+        # Check for pending git merge
+        if detect_git_merge_state(main_repo):
+            console.print("[yellow]⚠ Git merge in progress - resolve conflicts first[/yellow]")
+            console.print("Then run 'spec-kitty merge --resume' again.")
+            raise typer.Exit(1)
+
+        # Set feature from state and override options
+        feature = resume_state.feature_slug
+        target_branch = resume_state.target_branch
+        strategy = resume_state.strategy
 
     tracker = StepTracker("Feature Merge")
     tracker.add("detect", "Detect current feature and branch")
@@ -469,6 +543,7 @@ def merge(
                     push=push,
                     dry_run=dry_run,
                     tracker=tracker,
+                    resume_state=resume_state,
                 )
                 return
             else:
@@ -533,6 +608,7 @@ def merge(
             push=push,
             dry_run=dry_run,
             tracker=tracker,
+            resume_state=resume_state,
         )
         return
 
