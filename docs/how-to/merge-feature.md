@@ -27,7 +27,7 @@ spec-kitty merge
 Or from main branch:
 
 ```bash
-spec-kitty merge --feature 017-my-feature
+spec-kitty merge --feature 015-user-authentication
 ```
 
 ## Pre-flight Validation
@@ -60,17 +60,22 @@ Example when validation fails:
 ```
 Pre-flight Check
 
-┌─────────┬────────┬─────────────────────────────────────────┐
-│ WP      │ Status │ Issue                                   │
-├─────────┼────────┼─────────────────────────────────────────┤
-│ WP01    │ ✓      │                                         │
-│ WP02    │ ✗      │ Uncommitted changes in 017-feature-WP02 │
-│ WP03    │ ✓      │                                         │
-│ Target  │ ✓      │ Up to date                              │
-└─────────┴────────┴─────────────────────────────────────────┘
+┏━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ WP     ┃ Status ┃ Issue                                                      ┃
+┡━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ WP01   │ ✓      │                                                            │
+│ WP02   │ ✓      │                                                            │
+│ WP03   │ ✗      │ Uncommitted changes in                                     │
+│        │        │ 018-merge-preflight-documentation-WP03                     │
+│ WP04   │ ✗      │ Uncommitted changes in                                     │
+│        │        │ 018-merge-preflight-documentation-WP04                     │
+│ Target │ ✓      │ Up to date                                                 │
+└────────┴────────┴────────────────────────────────────────────────────────────┘
 
 Pre-flight failed. Fix these issues before merging:
-  1. Uncommitted changes in 017-feature-WP02
+
+  1. Uncommitted changes in 018-merge-preflight-documentation-WP03
+  2. Uncommitted changes in 018-merge-preflight-documentation-WP04
 ```
 
 ### Fixing Pre-flight Failures
@@ -95,15 +100,18 @@ Example output:
 Dry run - would execute:
   1. git checkout main
   2. git pull --ff-only
-  3. git merge --no-ff 017-feature-WP01 -m 'Merge WP01 from 017-feature'
-  4. git merge --no-ff 017-feature-WP02 -m 'Merge WP02 from 017-feature'
-  5. git merge --no-ff 017-feature-WP03 -m 'Merge WP03 from 017-feature'
-  6. git worktree remove .worktrees/017-feature-WP01
-  7. git worktree remove .worktrees/017-feature-WP02
-  8. git worktree remove .worktrees/017-feature-WP03
-  9. git branch -d 017-feature-WP01
- 10. git branch -d 017-feature-WP02
- 11. git branch -d 017-feature-WP03
+  3. git merge --no-ff 018-merge-preflight-documentation-WP01 -m 'Merge WP01'
+  4. git merge --no-ff 018-merge-preflight-documentation-WP02 -m 'Merge WP02'
+  5. git merge --no-ff 018-merge-preflight-documentation-WP03 -m 'Merge WP03'
+  6. git merge --no-ff 018-merge-preflight-documentation-WP04 -m 'Merge WP04'
+  7. git worktree remove .worktrees/018-merge-preflight-documentation-WP01
+  8. git worktree remove .worktrees/018-merge-preflight-documentation-WP02
+  9. git worktree remove .worktrees/018-merge-preflight-documentation-WP03
+ 10. git worktree remove .worktrees/018-merge-preflight-documentation-WP04
+ 11. git branch -d 018-merge-preflight-documentation-WP01
+ 12. git branch -d 018-merge-preflight-documentation-WP02
+ 13. git branch -d 018-merge-preflight-documentation-WP03
+ 14. git branch -d 018-merge-preflight-documentation-WP04
 ```
 
 ### Conflict Forecasting
@@ -116,18 +124,18 @@ Conflict Forecast
 Found 2 potential conflict(s): 1 auto-resolvable, 1 manual
 
 May require manual resolution:
-┌───────────────────────────────┬───────────────┬────────────┐
-│ File                          │ WPs           │ Confidence │
-├───────────────────────────────┼───────────────┼────────────┤
-│ src/cli/commands/merge.py     │ WP02, WP04    │ possible   │
-└───────────────────────────────┴───────────────┴────────────┘
+┌─────────────────────────────────────┬───────────┬────────────┐
+│ File                                │ WPs       │ Confidence │
+├─────────────────────────────────────┼───────────┼────────────┤
+│ docs/how-to/merge-feature.md        │ WP01, WP03│ possible   │
+└─────────────────────────────────────┴───────────┴────────────┘
 
 Auto-resolvable (status files):
-┌───────────────────────────────────────────────┬───────────┐
-│ Status File                                   │ WPs       │
-├───────────────────────────────────────────────┼───────────┤
-│ kitty-specs/017-feature/tasks/WP02-guide.md   │ WP02, WP03│
-└───────────────────────────────────────────────┴───────────┘
+┌────────────────────────────────────────────────────────────┬───────────┐
+│ Status File                                                │ WPs       │
+├────────────────────────────────────────────────────────────┼───────────┤
+│ kitty-specs/018-merge-preflight-documentation/tasks/WP01.md│ WP01, WP02│
+└────────────────────────────────────────────────────────────┴───────────┘
 
 Prepare to resolve 1 conflict(s) manually during merge.
 ```
@@ -144,7 +152,7 @@ Creates a merge commit for each WP, preserving full history:
 spec-kitty merge
 ```
 
-Each WP gets a commit message like: `Merge WP01 from 017-feature`
+Each WP gets a commit message like: `Merge WP01 from 015-user-authentication`
 
 ### Squash
 
@@ -184,6 +192,16 @@ spec-kitty merge --keep-branch
 spec-kitty merge --keep-worktree --keep-branch
 ```
 
+### Explicit Cleanup
+
+To explicitly remove worktrees and delete branches (the default behavior):
+
+```bash
+spec-kitty merge --remove-worktree --delete-branch
+```
+
+These flags are useful when you want to override a config default that keeps artifacts.
+
 ## Push After Merge
 
 Push to origin immediately after merge:
@@ -197,7 +215,7 @@ spec-kitty merge --push
 If you're on main and want to merge a feature:
 
 ```bash
-spec-kitty merge --feature 017-my-feature
+spec-kitty merge --feature 015-user-authentication
 ```
 
 This detects all WP worktrees for that feature and merges them in dependency order.
@@ -226,9 +244,25 @@ The merge command reads these dependencies and ensures:
 - WP02 merges second (depends on WP01)
 - WP03 merges last (depends on WP01 and WP02)
 
-## Troubleshooting
+## Interrupted Merge Recovery
 
-For interrupted merges, conflict resolution, and error recovery, see [Troubleshoot Merge Issues](troubleshoot-merge.md).
+If a merge is interrupted (crash, conflict, network issue), use `--resume` to continue:
+
+```bash
+spec-kitty merge --resume
+```
+
+This picks up where the merge left off, using the saved state in `.kittify/merge-state.json`.
+
+To abandon an interrupted merge and clear state:
+
+```bash
+spec-kitty merge --abort
+```
+
+This removes the merge state file and lets you start fresh.
+
+For detailed troubleshooting including conflict resolution and error recovery, see [Troubleshoot Merge Issues](troubleshoot-merge.md).
 
 ---
 
