@@ -9,7 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+**Smarter Feature Merge with Pre-flight** (Feature 017):
+- **Pre-flight validation**: Checks all WP worktrees for uncommitted changes, missing worktrees, and target branch divergence before any merge starts
+- **Conflict forecasting**: `--dry-run` predicts which files will conflict and classifies them as auto-resolvable (status files) or manual
+- **Smart merge order**: WPs merged in dependency order based on frontmatter `dependencies` field
+- **Status file auto-resolution**: Conflicts in WP prompt files (`kitty-specs/*/tasks/*.md`) automatically resolved by taking advanced lane status
+- **Merge state persistence**: Progress saved to `.kittify/merge-state.json` for recovery
+- **Resume/abort flags**: `--resume` continues interrupted merges, `--abort` clears state and starts fresh
+- **Auto-cleanup**: Worktrees and branches removed after successful merge (configurable with `--keep-worktree`, `--keep-branch`)
+
+### 📚 Documentation
+
+**Merge Preflight Documentation** (Feature 018):
+- Added `docs/how-to/merge-feature.md` - Complete merge workflow guide with pre-flight, dry-run, strategies, and cleanup options
+- Added `docs/how-to/troubleshoot-merge.md` - Comprehensive troubleshooting guide with error reference table
+- Updated CLAUDE.md with Merge & Preflight Patterns section documenting MergeState dataclass and public API
+
 ### 🐛 Fixed
+
+**Merge Resume Bug**:
+- Fixed `merge_workspace_per_wp()` missing `resume_state` parameter causing `TypeError` when using `--resume`
 
 **Agent Workflow Output Truncation** (GitHub Codex compatibility):
 - Fixed workflow commands (`implement`, `review`) outputting 300+ lines which got truncated by agents like GitHub Codex
