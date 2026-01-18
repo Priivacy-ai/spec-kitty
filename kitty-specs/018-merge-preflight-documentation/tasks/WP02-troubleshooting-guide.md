@@ -12,11 +12,11 @@ subtasks:
   - "T017"
 title: "Troubleshooting Guide"
 phase: "Phase 1 - User Documentation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "codex"
 shell_pid: "56071"
-review_status: "has_feedback"
+review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-18T13:21:55Z"
@@ -229,3 +229,4 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 - 2026-01-18T13:45:29Z – codex – shell_pid=56071 – lane=doing – Started review via workflow command
 - 2026-01-18T13:46:50Z – codex – shell_pid=56071 – lane=planned – Moved to planned
 - 2026-01-18T13:47:30Z – codex – shell_pid=56071 – lane=doing – Started implementation via workflow command
+- 2026-01-18T13:49:52Z – codex – shell_pid=56071 – lane=for_review – Ready for review
