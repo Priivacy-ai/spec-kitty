@@ -8,7 +8,7 @@ subtasks:
   - "T026"
 title: "Scheduler"
 phase: "Phase 2 - Core Logic"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude-opus"
 shell_pid: "47577"
@@ -316,3 +316,4 @@ spec-kitty implement WP05 --base WP04
 
 - 2026-01-18T16:21:51Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-18T19:04:58Z – claude-opus – shell_pid=47577 – lane=doing – Started implementation via workflow command
+- 2026-01-18T19:08:13Z – claude-opus – shell_pid=47577 – lane=for_review – Ready for review: Scheduler with dependency graph, ready WP detection, agent selection, concurrency semaphores, single-agent mode
