@@ -9,10 +9,10 @@ subtasks:
   - "T037"
 title: "Monitor"
 phase: "Phase 2 - Core Logic"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-opus"
+shell_pid: "49898"
 review_status: ""
 reviewed_by: ""
 dependencies:
@@ -389,3 +389,4 @@ spec-kitty implement WP07 --base WP06
 ## Activity Log
 
 - 2026-01-18T16:21:51Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
+- 2026-01-18T19:34:18Z – claude-opus – shell_pid=49898 – lane=doing – Started implementation via workflow command
