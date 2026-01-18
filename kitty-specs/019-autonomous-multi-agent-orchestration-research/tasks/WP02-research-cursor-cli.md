@@ -8,10 +8,10 @@ subtasks:
   - "T010"
 title: "Research Cursor CLI"
 phase: "Phase 1 - Agent Investigation"
-lane: "for_review"
+lane: "doing"
 assignee: ""
-agent: "claude"
-shell_pid: "16561"
+agent: "opencode"
+shell_pid: "21385"
 review_status: ""
 reviewed_by: ""
 dependencies: []
@@ -191,3 +191,4 @@ Reference documents:
 - 2026-01-18T14:41:27Z – system – lane=planned – Prompt created.
 - 2026-01-18T15:14:22Z – claude – shell_pid=16561 – lane=doing – Started implementation via workflow command
 - 2026-01-18T15:18:17Z – claude – shell_pid=16561 – lane=for_review – Cursor CLI fully documented. Found `cursor agent -p` with headless mode, JSON output, --force for edits. Known quirks: CLI can hang, stdin issues. Integration: Medium (workarounds needed).
+- 2026-01-18T15:25:41Z – opencode – shell_pid=21385 – lane=doing – Started implementation via workflow command
