@@ -178,7 +178,7 @@
 - [x] T027 Identify partially-capable agents (need workarounds)
 - [x] T028 Identify non-capable agents (cannot participate)
 - [x] T029 Update `research.md` with consolidated findings
-- [ ] T030 Verify quality gates: QG-001 (≥6 CLI agents), QG-002 (Cursor), QG-003 (sources), QG-004 (parallel constraints)
+- [x] T030 Verify quality gates: QG-001 (≥6 CLI agents), QG-002 (Cursor), QG-003 (sources), QG-004 (parallel constraints)
 
 ### Implementation Notes
 - Cross-reference all research files
