@@ -58,7 +58,7 @@
 - [x] T007 [P] Implement Claude Code invoker in `agents/claude.py`
 - [x] T008 [P] Implement GitHub Codex invoker in `agents/codex.py`
 - [x] T009 [P] Implement GitHub Copilot invoker in `agents/copilot.py`
-- [ ] T010 [P] Implement Google Gemini invoker in `agents/gemini.py`
+- [x] T010 [P] Implement Google Gemini invoker in `agents/gemini.py`
 
 ### Implementation Notes
 - Base protocol defines: `is_installed()`, `build_command()`, `parse_output()`
