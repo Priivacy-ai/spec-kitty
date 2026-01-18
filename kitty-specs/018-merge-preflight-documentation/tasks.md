@@ -123,7 +123,7 @@
 
 ### Included Subtasks
 - [x] T025 Update `docs/toc.yml` to add new pages in how-to section
-- [ ] T026 Add cross-references to merge-feature.md (link to troubleshoot, accept-and-merge, etc.)
+- [x] T026 Add cross-references to merge-feature.md (link to troubleshoot, accept-and-merge, etc.)
 - [ ] T027 Add cross-references to troubleshoot-merge.md (link to merge-feature, workspace-per-wp)
 - [ ] T028 Update accept-and-merge.md to link to new merge-feature.md
 - [ ] T029 Verify all command examples are copy-pasteable and functional
