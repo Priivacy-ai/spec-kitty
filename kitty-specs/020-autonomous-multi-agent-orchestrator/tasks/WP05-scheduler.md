@@ -8,12 +8,12 @@ subtasks:
   - "T026"
 title: "Scheduler"
 phase: "Phase 2 - Core Logic"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "claude-opus"
 shell_pid: "48486"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 dependencies:
   - "WP01"
   - "WP04"
@@ -318,3 +318,4 @@ spec-kitty implement WP05 --base WP04
 - 2026-01-18T19:04:58Z – claude-opus – shell_pid=47577 – lane=doing – Started implementation via workflow command
 - 2026-01-18T19:08:13Z – claude-opus – shell_pid=47577 – lane=for_review – Ready for review: Scheduler with dependency graph, ready WP detection, agent selection, concurrency semaphores, single-agent mode
 - 2026-01-18T19:08:42Z – claude-opus – shell_pid=48486 – lane=doing – Started review via workflow command
+- 2026-01-18T19:09:22Z – claude-opus – shell_pid=48486 – lane=done – Review passed: Dependency graph reading with validation (cycles, invalid refs). Ready WP detection sorted by topo order. Agent selection respects roles, priorities, concurrency limits, and cross-agent review exclusion. ConcurrencyManager with global-first semaphore acquisition. Single-agent mode with 60s review delay and auto-detection.
