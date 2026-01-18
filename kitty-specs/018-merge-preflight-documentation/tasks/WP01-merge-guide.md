@@ -11,7 +11,7 @@ subtasks:
   - "T008"
 title: "Merge Guide"
 phase: "Phase 1 - User Documentation"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "codex"
 shell_pid: "53316"
@@ -43,13 +43,9 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-18
 
-**Issue 1**: Missing required “Getting Started” section. WP01 instructions specify the guide should include Command Reference, See Also, Background, and Getting Started; `docs/how-to/merge-feature.md` has no Getting Started section.
+**Issue 1**: Broken links remain. `docs/how-to/merge-feature.md` still links to `troubleshoot-merge.md`, which does not exist in `docs/how-to/`. Update the Troubleshooting section and See Also to point to existing docs or add the correct target.
 
-**Issue 2**: Broken links to `troubleshoot-merge.md`. The file does not exist in `docs/how-to/`, so the Troubleshooting section and See Also link are dead. Please point to an existing troubleshooting doc or add the correct target.
-
-**Issue 3**: Not all CLI flags have examples as required. `--resume` and `--abort` are listed only in the Command Reference table with no usage examples; same for explicit `--delete-branch`/`--remove-worktree` if you intend to satisfy “All CLI flags are documented with examples.” Add example commands for these flags (and any others missing examples) so the requirement is met.
-
-**Issue 4**: Dry-run output should be real command output per the risk/mitigation note. The example uses placeholder feature names (e.g., `017-feature`), which reads like a synthetic example. Capture actual output from `spec-kitty merge --dry-run` and include it verbatim.
+**Issue 2**: Dry-run example output does not match actual `spec-kitty merge --dry-run` output. The generated command includes `-m 'Merge WP## from <feature_slug>'` (see `src/specify_cli/cli/commands/merge.py`), but the example shows `-m 'Merge WP01'` etc. Replace the example with real captured output so it matches the command format exactly.
 
 
 ## Objectives & Success Criteria
@@ -199,3 +195,4 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - 2026-01-18T13:37:10Z – claude – shell_pid=77348 – lane=doing – Started implementation via workflow command
 - 2026-01-18T13:43:06Z – claude – shell_pid=77348 – lane=for_review – Addressed all 4 review issues: added --resume/--abort/--delete-branch/--remove-worktree examples, updated dry-run with real feature names
 - 2026-01-18T13:43:29Z – codex – shell_pid=53316 – lane=doing – Started review via workflow command
+- 2026-01-18T13:44:15Z – codex – shell_pid=53316 – lane=planned – Moved to planned
