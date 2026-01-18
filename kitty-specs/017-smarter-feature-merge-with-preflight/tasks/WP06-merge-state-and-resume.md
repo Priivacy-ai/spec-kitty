@@ -9,10 +9,10 @@ subtasks:
   - "T020"
   - "T025"
 dependencies: ["WP03"]
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "33396"
 review_status: ""
 reviewed_by: ""
 history:
@@ -478,3 +478,4 @@ def execute_merge(
 ## Activity Log
 
 - 2026-01-18T10:37:13Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
+- 2026-01-18T11:50:03Z – claude – shell_pid=33396 – lane=doing – Started implementation via workflow command
