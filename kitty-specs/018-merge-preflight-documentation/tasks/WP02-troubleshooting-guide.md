@@ -12,12 +12,12 @@ subtasks:
   - "T017"
 title: "Troubleshooting Guide"
 phase: "Phase 1 - User Documentation"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "codex"
 shell_pid: "56071"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-18T13:21:55Z"
     lane: "planned"
@@ -40,9 +40,14 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-18
 
----
+**Issue 1**: Missing deliverable. `docs/how-to/troubleshoot-merge.md` does not exist in the WP02 worktree. Create the document in that path with the decision tree, command reference, and all required sections listed in the WP02 subtasks.
+
+**Issue 2**: Error message reference and MergeState details are not documented. Extract all user-facing errors from `src/specify_cli/cli/commands/merge.py`, `src/specify_cli/merge/executor.py`, and `src/specify_cli/merge/preflight.py`, and include them in the error message table. Document `MergeState` fields (from `src/specify_cli/merge/state.py`) with an example JSON.
+
 
 ## Objectives & Success Criteria
 
@@ -210,3 +215,4 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 
 - 2026-01-18T13:21:55Z – system – lane=planned – Prompt created.
 - 2026-01-18T13:27:52Z – codex – shell_pid=56071 – lane=doing – Started review via workflow command
+- 2026-01-18T13:28:44Z – codex – shell_pid=56071 – lane=planned – Moved to planned
