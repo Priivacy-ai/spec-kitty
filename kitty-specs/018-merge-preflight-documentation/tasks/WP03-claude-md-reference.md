@@ -10,10 +10,10 @@ subtasks:
   - "T024"
 title: "CLAUDE.md Reference Update"
 phase: "Phase 2 - Developer Documentation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: "codex"
-shell_pid: "56874"
+agent: "claude"
+shell_pid: "83798"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -230,3 +230,4 @@ Add "Merge & Preflight Patterns" section to CLAUDE.md for developers and AI agen
 - 2026-01-18T13:28:35Z – codex – shell_pid=56874 – lane=planned – Moved to planned
 - 2026-01-18T13:35:22Z – codex – shell_pid=56874 – lane=doing – Started review via workflow command
 - 2026-01-18T13:36:04Z – codex – shell_pid=56874 – lane=planned – Moved to planned
+- 2026-01-18T13:45:50Z – claude – shell_pid=83798 – lane=doing – Started implementation via workflow command
