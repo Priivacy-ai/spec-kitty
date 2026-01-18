@@ -37,6 +37,10 @@
       href: how-to/review-work-package.md
     - name: Accept and Merge
       href: how-to/accept-and-merge.md
+    - name: Merge a Feature
+      href: how-to/merge-feature.md
+    - name: Troubleshoot Merge Issues
+      href: how-to/troubleshoot-merge.md
     - name: Handle Dependencies
       href: how-to/handle-dependencies.md
     - name: Sync Workspaces

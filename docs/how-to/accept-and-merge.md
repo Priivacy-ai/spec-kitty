@@ -47,6 +47,8 @@ Or in your terminal:
 spec-kitty merge --push
 ```
 
+For detailed merge options including dry-run, strategies, and cleanup flags, see [Merge a Feature](merge-feature.md).
+
 ## Merge Strategies
 
 - **Default (merge commit)**: `spec-kitty merge`
@@ -100,6 +102,8 @@ git commit -m "Remove abandoned feature <feature>"
 - **Accept reports blockers**: Resolve the listed issues, then rerun `/spec-kitty.accept`.
 - **Merge fails**: Ensure your worktree is clean and you are on the feature branch.
 
+For detailed troubleshooting including pre-flight failures, conflict resolution, and merge recovery, see [Troubleshoot Merge Issues](troubleshoot-merge.md).
+
 ---
 
 ## Command Reference
@@ -109,6 +113,8 @@ git commit -m "Remove abandoned feature <feature>"
 
 ## See Also
 
+- [Merge a Feature](merge-feature.md) - Detailed merge workflow
+- [Troubleshoot Merge Issues](troubleshoot-merge.md) - Recovery and conflict resolution
 - [Review a Work Package](review-work-package.md) - Required before accept
 - [Upgrade to 0.11.0](upgrade-to-0-11-0.md) - Breaking changes in v0.11.0
 
