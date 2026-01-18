@@ -113,7 +113,7 @@
 **Prompt**: `tasks/WP04-research-cloud-agents.md`
 
 ### Included Subtasks
-- [ ] T015 [P] Research Google Gemini - check for `gemini` CLI, `gcloud ai` commands, API SDK
+- [x] T015 [P] Research Google Gemini - check for `gemini` CLI, `gcloud ai` commands, API SDK
 - [ ] T016 [P] Research Qwen Code - check Alibaba Cloud CLI, DashScope API, any standalone tools
 - [ ] T017 Document cloud authentication requirements for each
 - [ ] T018 Write research files: `research/03-google-gemini.md`, `research/05-qwen-code.md`
