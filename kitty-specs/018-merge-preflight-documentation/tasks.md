@@ -21,7 +21,7 @@
 ### Included Subtasks
 - [x] T001 [P] Extract CLI flags and help text from `src/specify_cli/cli/commands/merge.py`
 - [x] T002 [P] Extract pre-flight validation checks from `src/specify_cli/merge/preflight.py`
-- [ ] T003 [P] Capture dry-run output example by running `spec-kitty merge --dry-run`
+- [x] T003 [P] Capture dry-run output example by running `spec-kitty merge --dry-run`
 - [ ] T004 Write `docs/how-to/merge-feature.md` following `accept-and-merge.md` style
 - [ ] T005 Add merge strategies section (merge/squash/rebase)
 - [ ] T006 Add pre-flight validation section with interpretation guidance
