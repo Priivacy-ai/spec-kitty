@@ -119,7 +119,7 @@
 - [x] T017 Implement OrchestrationRun dataclass with serialization
 - [x] T018 Implement WPExecution dataclass with status tracking
 - [x] T019 Implement InvocationResult dataclass
-- [ ] T020 Implement state.py with save/load JSON functions
+- [x] T020 Implement state.py with save/load JSON functions
 - [ ] T021 Implement atomic writes with backup-before-modify pattern
 
 ### Implementation Notes
