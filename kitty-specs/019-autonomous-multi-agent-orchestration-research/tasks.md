@@ -172,7 +172,7 @@
 **Prompt**: `tasks/WP06-synthesize-capability-matrix.md`
 
 ### Included Subtasks
-- [ ] T024 Review all 12 agent research files for completeness
+- [x] T024 Review all 12 agent research files for completeness
 - [ ] T025 Build CLI capability matrix (agent × capability columns)
 - [ ] T026 Identify orchestration-ready agents (can participate fully)
 - [ ] T027 Identify partially-capable agents (need workarounds)
