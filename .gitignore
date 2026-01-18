@@ -63,5 +63,5 @@ sdd-*/
 .roo/
 .amazonq/
 .pytest_cache/
-# Prevent worktree-local kitty-specs/ (status managed in main repo)
-kitty-specs/
+# Note: kitty-specs/ is tracked in main repo but ignored in worktrees via .git/info/exclude
+.github/copilot/
