@@ -12,7 +12,7 @@ subtasks:
   - "T017"
 title: "Troubleshooting Guide"
 phase: "Phase 1 - User Documentation"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "claude"
 shell_pid: "93764"
@@ -231,3 +231,4 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 - 2026-01-18T13:47:30Z – codex – shell_pid=56071 – lane=doing – Started implementation via workflow command
 - 2026-01-18T13:49:52Z – codex – shell_pid=56071 – lane=for_review – Ready for review
 - 2026-01-18T13:55:37Z – claude – shell_pid=93764 – lane=doing – Started review via workflow command
+- 2026-01-18T13:56:00Z – claude – shell_pid=93764 – lane=done – Review passed: Error message reference table complete with exact strings, pre-flight remediation consistent with actual error text, all sections present
