@@ -593,8 +593,9 @@ def implement(
                     console.print(f"\n[cyan]Auto-committing to {primary_branch}...[/cyan]")
 
                     # Stage all files in feature directory
+                    # Use -f to force-add files in kitty-specs/ which is in .gitignore
                     result = subprocess.run(
-                        ["git", "add", str(feature_dir)],
+                        ["git", "add", "-f", str(feature_dir)],
                         cwd=repo_root,
                         capture_output=True,
                         text=True,

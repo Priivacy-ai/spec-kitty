@@ -404,8 +404,9 @@ def move_task(
                 actual_file_path = wp.path.resolve()
 
                 # Stage the file first, then commit
+                # Use -u to only update tracked files (bypasses .gitignore check)
                 add_result = subprocess.run(
-                    ["git", "add", str(actual_file_path)],
+                    ["git", "add", "-u", str(actual_file_path)],
                     cwd=main_repo_root,
                     capture_output=True,
                     text=True,
@@ -564,8 +565,9 @@ def mark_status(
                 actual_tasks_path = tasks_md.resolve()
 
                 # Stage the file first, then commit
+                # Use -u to only update tracked files (bypasses .gitignore check)
                 add_result = subprocess.run(
-                    ["git", "add", str(actual_tasks_path)],
+                    ["git", "add", "-u", str(actual_tasks_path)],
                     cwd=main_repo_root,
                     capture_output=True,
                     text=True,
