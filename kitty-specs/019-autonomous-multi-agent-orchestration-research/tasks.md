@@ -87,7 +87,7 @@
 - [x] T011 [P] Research GitHub Copilot - check for `gh copilot` extension, API access
 - [x] T012 [P] Research Windsurf/Codeium - check for `codeium` CLI, language server headless mode
 - [x] T013 Document any headless workarounds (API calls, extension CLIs)
-- [ ] T014 Write research files: `research/02-github-copilot.md`, `research/07-windsurf.md`
+- [x] T014 Write research files: `research/02-github-copilot.md`, `research/07-windsurf.md`
 
 ### Implementation Notes
 - Both are primarily IDE extensions, likely limited headless support
