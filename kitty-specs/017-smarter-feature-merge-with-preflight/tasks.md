@@ -111,9 +111,9 @@
 **Prompt**: `tasks/WP04-conflict-forecast.md`
 
 ### Included Subtasks
-- [ ] T007 [P] Implement `ConflictPrediction` dataclass in `merge/forecast.py`
-- [ ] T008 [P] Implement `build_file_wp_mapping()` using `git diff --name-only`
-- [ ] T009 [P] Implement `detect_status_files()` pattern matching for `kitty-specs/**/tasks/*.md`
+- [x] T007 [P] Implement `ConflictPrediction` dataclass in `merge/forecast.py`
+- [x] T008 [P] Implement `build_file_wp_mapping()` using `git diff --name-only`
+- [x] T009 [P] Implement `detect_status_files()` pattern matching for `kitty-specs/**/tasks/*.md`
 
 ### Implementation Notes
 1. For each WP branch, run `git diff --name-only <target>...<branch>` to get modified files
@@ -141,13 +141,13 @@
 **Prompt**: `tasks/WP05-status-file-auto-resolution.md`
 
 ### Included Subtasks
-- [ ] T013 [P] Implement `parse_conflict_markers()` to extract HEAD/theirs content from conflict markers
-- [ ] T014 [P] Implement `resolve_lane_conflict()` with "more done" wins logic
-- [ ] T015 [P] Implement `resolve_checkbox_conflict()` preferring `[x]` over `[ ]`
-- [ ] T016 [P] Implement `resolve_history_conflict()` merging arrays chronologically
-- [ ] T024 Integrate status resolution into executor (call after each WP merge)
-- [ ] T028 Ensure cleanup continues even if resolution fails for some files
-- [ ] T029 [P] Update slash command templates for all 12 agents with new merge features
+- [x] T013 [P] Implement `parse_conflict_markers()` to extract HEAD/theirs content from conflict markers
+- [x] T014 [P] Implement `resolve_lane_conflict()` with "more done" wins logic
+- [x] T015 [P] Implement `resolve_checkbox_conflict()` preferring `[x]` over `[ ]`
+- [x] T016 [P] Implement `resolve_history_conflict()` merging arrays chronologically
+- [x] T024 Integrate status resolution into executor (call after each WP merge)
+- [x] T028 Ensure cleanup continues even if resolution fails for some files
+- [x] T029 [P] Update slash command templates for all 12 agents with new merge features
 
 ### Implementation Notes
 1. After `git merge`, check `git diff --name-only --diff-filter=U` for conflicted files
@@ -179,11 +179,11 @@
 **Prompt**: `tasks/WP06-merge-state-and-resume.md`
 
 ### Included Subtasks
-- [ ] T017 [P] Implement `MergeState` dataclass in `merge/state.py`
-- [ ] T018 [P] Implement `save_state()` and `load_state()` for `.kittify/merge-state.json`
-- [ ] T019 Implement `--resume` flag detection and continuation logic in CLI
-- [ ] T020 Implement `clear_state()` on successful completion or `--abort`
-- [ ] T025 Integrate state persistence into executor (save after each WP)
+- [x] T017 [P] Implement `MergeState` dataclass in `merge/state.py`
+- [x] T018 [P] Implement `save_state()` and `load_state()` for `.kittify/merge-state.json`
+- [x] T019 Implement `--resume` flag detection and continuation logic in CLI
+- [x] T020 Implement `clear_state()` on successful completion or `--abort`
+- [x] T025 Integrate state persistence into executor (save after each WP)
 
 ### Implementation Notes
 1. `MergeState` fields: feature_slug, target_branch, wp_order, completed_wps, current_wp, has_pending_conflicts, strategy, timestamps
