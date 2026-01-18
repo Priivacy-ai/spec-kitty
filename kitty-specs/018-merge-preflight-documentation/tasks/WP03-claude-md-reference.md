@@ -10,7 +10,7 @@ subtasks:
   - "T024"
 title: "CLAUDE.md Reference Update"
 phase: "Phase 2 - Developer Documentation"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "codex"
 shell_pid: "56874"
@@ -42,7 +42,9 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-18
 
-**Issue 1**: `CLAUDE.md` does not include the required "Merge & Preflight Patterns (0.11.0+)" section after "Workspace-per-Work-Package Development (0.11.0+)". None of the required subsections or examples were added. Please add the full section with merge state JSON structure, preflight details, and programmatic access examples per WP03.
+**Issue 1**: Section placement is wrong. The new "Merge & Preflight Patterns (0.11.0+)" section appears later in `CLAUDE.md` (after other documentation content) instead of immediately after "Workspace-per-Work-Package Development (0.11.0+)" as required. Please move the entire section to the correct location.
+
+**Issue 2**: Code examples are not using the public exports and are not copy‑pasteable. The examples import from `specify_cli.merge.state` and `specify_cli.merge.preflight`, but the requirement says to use `__init__.py` exports. Also, the preflight example uses `Path(...)` without importing `Path`. Update examples to import from `specify_cli.merge` and include any required imports so they run as-is.
 
 
 ## Objectives & Success Criteria
@@ -227,3 +229,4 @@ Add "Merge & Preflight Patterns" section to CLAUDE.md for developers and AI agen
 - 2026-01-18T13:28:04Z – codex – shell_pid=56874 – lane=doing – Started review via workflow command
 - 2026-01-18T13:28:35Z – codex – shell_pid=56874 – lane=planned – Moved to planned
 - 2026-01-18T13:35:22Z – codex – shell_pid=56874 – lane=doing – Started review via workflow command
+- 2026-01-18T13:36:04Z – codex – shell_pid=56874 – lane=planned – Moved to planned
