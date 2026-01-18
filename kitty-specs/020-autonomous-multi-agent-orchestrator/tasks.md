@@ -54,7 +54,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T006 Implement AgentInvoker protocol in `agents/base.py`
+- [x] T006 Implement AgentInvoker protocol in `agents/base.py`
 - [ ] T007 [P] Implement Claude Code invoker in `agents/claude.py`
 - [ ] T008 [P] Implement GitHub Codex invoker in `agents/codex.py`
 - [ ] T009 [P] Implement GitHub Copilot invoker in `agents/copilot.py`
