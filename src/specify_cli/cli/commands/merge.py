@@ -18,6 +18,10 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.vcs import VCSBackend, get_vcs
+from specify_cli.merge.preflight import (
+    display_preflight_result,
+    run_preflight,
+)
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
@@ -362,6 +366,7 @@ def merge(
     push: bool = typer.Option(False, "--push", help="Push to origin after merge"),
     target_branch: str = typer.Option("main", "--target", help="Target branch to merge into"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
+    feature: str = typer.Option(None, "--feature", help="Feature slug when merging from main branch"),
 ) -> None:
     """Merge a completed feature branch into the target branch and clean up resources.
 
@@ -374,6 +379,7 @@ def merge(
 
     tracker = StepTracker("Feature Merge")
     tracker.add("detect", "Detect current feature and branch")
+    tracker.add("preflight", "Pre-flight validation")
     tracker.add("verify", "Verify merge readiness")
     tracker.add("checkout", f"Switch to {target_branch}")
     tracker.add("pull", f"Update {target_branch}")
@@ -412,10 +418,64 @@ def merge(
     try:
         _, current_branch, _ = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
         if current_branch == target_branch:
-            tracker.error("detect", f"already on {target_branch}")
-            console.print(tracker.render())
-            console.print(f"\n[red]Error:[/red] Already on {target_branch} branch. Switch to a feature branch first.")
-            raise typer.Exit(1)
+            # Check if --feature flag was provided
+            if feature:
+                # Validate feature exists by checking for worktrees
+                main_repo = get_main_repo_root(repo_root)
+                worktrees_dir = main_repo / ".worktrees"
+                wp_pattern = list(worktrees_dir.glob(f"{feature}-WP*")) if worktrees_dir.exists() else []
+
+                if not wp_pattern:
+                    tracker.error("detect", f"no WP worktrees found for {feature}")
+                    console.print(tracker.render())
+                    console.print(f"\n[red]Error:[/red] No WP worktrees found for feature '{feature}'.")
+                    console.print("Check the feature slug or create workspaces first.")
+                    raise typer.Exit(1)
+
+                # Use the provided feature slug and continue
+                feature_slug = feature
+                tracker.complete("detect", f"using --feature {feature_slug}")
+
+                # Get WP workspaces for preflight and merge
+                wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
+
+                # Run preflight checks
+                tracker.start("preflight")
+                preflight_result = run_preflight(
+                    feature_slug=feature_slug,
+                    target_branch=target_branch,
+                    repo_root=main_repo,
+                    wp_workspaces=wp_workspaces,
+                )
+                display_preflight_result(preflight_result, console)
+
+                if not preflight_result.passed:
+                    tracker.error("preflight", "validation failed")
+                    console.print(tracker.render())
+                    raise typer.Exit(1)
+                tracker.complete("preflight", "all checks passed")
+
+                # Proceed directly to workspace-per-wp merge
+                merge_workspace_per_wp(
+                    repo_root=repo_root,
+                    merge_root=merge_root,
+                    feature_slug=feature_slug,
+                    current_branch=current_branch,
+                    target_branch=target_branch,
+                    strategy=strategy,
+                    delete_branch=delete_branch,
+                    remove_worktree=remove_worktree,
+                    push=push,
+                    dry_run=dry_run,
+                    tracker=tracker,
+                )
+                return
+            else:
+                tracker.error("detect", f"already on {target_branch}")
+                console.print(tracker.render())
+                console.print(f"\n[red]Error:[/red] Already on {target_branch} branch.")
+                console.print("Use --feature <slug> to specify the feature to merge.")
+                raise typer.Exit(1)
 
         _, git_dir_output, _ = run_command(["git", "rev-parse", "--git-dir"], capture=True)
         git_dir_path = Path(git_dir_output).resolve()
@@ -454,6 +514,26 @@ def merge(
 
     # Branch to workspace-per-WP merge if detected
     if structure == "workspace-per-wp":
+        # Get main repo for preflight
+        main_repo = get_main_repo_root(repo_root)
+        wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
+
+        # Run preflight checks
+        tracker.start("preflight")
+        preflight_result = run_preflight(
+            feature_slug=feature_slug,
+            target_branch=target_branch,
+            repo_root=main_repo,
+            wp_workspaces=wp_workspaces,
+        )
+        display_preflight_result(preflight_result, console)
+
+        if not preflight_result.passed:
+            tracker.error("preflight", "validation failed")
+            console.print(tracker.render())
+            raise typer.Exit(1)
+        tracker.complete("preflight", "all checks passed")
+
         merge_workspace_per_wp(
             repo_root=repo_root,
             merge_root=merge_root,
@@ -470,6 +550,9 @@ def merge(
         return
 
     # Continue with legacy merge logic for single worktree
+    # Skip preflight for legacy merges (single worktree validation is done above in verify step)
+    tracker.skip("preflight", "legacy single-worktree merge")
+
     merge_root, feature_worktree_path = merge_root.resolve(), feature_worktree_path.resolve()
     if dry_run:
         console.print(tracker.render())
