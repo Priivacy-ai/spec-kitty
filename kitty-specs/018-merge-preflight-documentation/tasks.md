@@ -62,7 +62,7 @@
 - [x] T014 Add --abort usage section with when-to-use guidance
 - [x] T015 Add conflict resolution section (status files vs code files)
 - [x] T016 Add pre-flight failure section with each failure type and fix
-- [ ] T017 Add error message reference table
+- [x] T017 Add error message reference table
 
 ### Implementation Notes
 1. Grep for console.print with "Error" or "red" in merge code
