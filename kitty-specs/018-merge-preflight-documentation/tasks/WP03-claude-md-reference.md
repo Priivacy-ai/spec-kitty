@@ -10,7 +10,7 @@ subtasks:
   - "T024"
 title: "CLAUDE.md Reference Update"
 phase: "Phase 2 - Developer Documentation"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "claude"
 shell_pid: "94131"
@@ -235,3 +235,4 @@ Add "Merge & Preflight Patterns" section to CLAUDE.md for developers and AI agen
 - 2026-01-18T13:49:15Z – codex – shell_pid=56874 – lane=doing – Started implementation via workflow command
 - 2026-01-18T13:56:00Z – codex – shell_pid=56874 – lane=for_review – Ready for review: moved Merge & Preflight Patterns section after Workspace-per-WP
 - 2026-01-18T13:56:40Z – claude – shell_pid=94131 – lane=doing – Started review via workflow command
+- 2026-01-18T13:57:27Z – claude – shell_pid=94131 – lane=done – Review passed: Section correctly placed after Workspace-per-WP (line 440), all dataclass fields documented, code examples use public API from specify_cli.merge
