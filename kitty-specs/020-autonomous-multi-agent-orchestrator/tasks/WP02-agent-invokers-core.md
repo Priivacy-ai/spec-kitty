@@ -8,12 +8,12 @@ subtasks:
   - "T010"
 title: "Agent Invokers - Core Agents"
 phase: "Phase 1 - Components"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "claude-opus"
 shell_pid: "44441"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 dependencies:
   - "WP01"
 history:
@@ -283,3 +283,4 @@ spec-kitty implement WP02 --base WP01
 - 2026-01-18T17:44:05Z – claude-opus – shell_pid=43277 – lane=doing – Started implementation via workflow command
 - 2026-01-18T17:46:58Z – claude-opus – shell_pid=43277 – lane=for_review – Ready for review: AgentInvoker protocol, InvocationResult dataclass, and 4 core invokers (Claude, Codex, Copilot, Gemini)
 - 2026-01-18T17:49:55Z – claude-opus – shell_pid=44441 – lane=doing – Started review via workflow command
+- 2026-01-18T17:51:05Z – claude-opus – shell_pid=44441 – lane=done – Review passed: AgentInvoker protocol with all required methods, InvocationResult dataclass, BaseInvoker with common helpers, 4 invokers (Claude, Codex, Copilot, Gemini) with correct CLI flags. All imports and instantiation tested successfully.
