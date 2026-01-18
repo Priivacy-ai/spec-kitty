@@ -435,11 +435,11 @@ See `kitty-specs/015-first-class-jujutsu-vcs-integration/` for full specificatio
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md) - Technical design
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md) - Entities and relationships
 
-### Merge & Preflight Patterns (0.11.0+)
+## Merge & Preflight Patterns (0.11.0+)
 
 When merging workspace-per-WP features, spec-kitty uses a preflight validation system and persistent merge state for resumable operations.
 
-#### Merge State Persistence
+### Merge State Persistence
 
 Merge progress is saved in `.kittify/merge-state.json` to enable resuming interrupted merges:
 
@@ -475,29 +475,30 @@ Merge progress is saved in `.kittify/merge-state.json` to enable resuming interr
 - `remaining_wps` → List of WPs not yet merged
 - `progress_percent` → Completion percentage (0-100)
 
-**State functions:**
+**State functions (import from `specify_cli.merge`):**
 ```python
-from specify_cli.merge.state import (
+from specify_cli.merge import (
+    MergeState,
     save_state,      # Persist state to JSON file
     load_state,      # Load state from JSON file (returns None if missing/invalid)
     clear_state,     # Remove state file
     has_active_merge,  # Check if state exists with remaining WPs
-    get_state_path,  # Get Path to state file
 )
 ```
 
-#### Pre-flight Validation
+### Pre-flight Validation
 
 Before any merge operation, `run_preflight()` validates all WP workspaces:
 
 ```python
-from specify_cli.merge.preflight import run_preflight, PreflightResult, WPStatus
+from pathlib import Path
+from specify_cli.merge import run_preflight, PreflightResult, WPStatus
 
 result = run_preflight(
     feature_slug="017-feature",
     target_branch="main",
-    repo_root=repo_root,
-    wp_workspaces=[(wt_path, "WP01", "017-feature-WP01"), ...],
+    repo_root=Path("."),
+    wp_workspaces=[(Path(".worktrees/017-feature-WP01"), "WP01", "017-feature-WP01")],
 )
 
 if not result.passed:
@@ -505,7 +506,7 @@ if not result.passed:
         print(f"Error: {error}")
 ```
 
-**PreflightResult dataclass fields** (`src/specify_cli/merge/preflight.py`):
+**PreflightResult dataclass fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -531,11 +532,14 @@ if not result.passed:
 2. All worktrees are clean (no uncommitted changes)
 3. Target branch is not behind origin
 
-#### Programmatic Access
+### Programmatic Access
 
 **Check for active merge:**
 ```python
-from specify_cli.merge.state import load_state, has_active_merge
+from pathlib import Path
+from specify_cli.merge import load_state, has_active_merge
+
+repo_root = Path(".")
 
 if has_active_merge(repo_root):
     state = load_state(repo_root)
@@ -546,7 +550,8 @@ if has_active_merge(repo_root):
 
 **Run preflight validation:**
 ```python
-from specify_cli.merge.preflight import run_preflight
+from pathlib import Path
+from specify_cli.merge import run_preflight
 
 wp_workspaces = [
     (Path(".worktrees/017-feature-WP01"), "WP01", "017-feature-WP01"),
@@ -567,16 +572,22 @@ for status in result.wp_statuses:
 
 **Conflict forecasting (dry-run):**
 ```python
-from specify_cli.merge.forecast import predict_conflicts, ConflictPrediction
+from pathlib import Path
+from specify_cli.merge import predict_conflicts
 
-predictions = predict_conflicts(wp_workspaces, "main", repo_root)
+wp_workspaces = [
+    (Path(".worktrees/017-feature-WP01"), "WP01", "017-feature-WP01"),
+    (Path(".worktrees/017-feature-WP02"), "WP02", "017-feature-WP02"),
+]
+
+predictions = predict_conflicts(wp_workspaces, "main", Path("."))
 
 for pred in predictions:
     auto = "auto" if pred.auto_resolvable else "manual"
     print(f"{pred.file_path}: {', '.join(pred.conflicting_wps)} ({auto})")
 ```
 
-#### Common Patterns
+### Common Patterns
 
 **Resume interrupted merge:**
 ```bash
@@ -598,7 +609,7 @@ spec-kitty merge --dry-run
 spec-kitty merge --feature 017-my-feature
 ```
 
-#### Implementation Files
+### Implementation Files
 
 - `src/specify_cli/merge/state.py` - MergeState dataclass, persistence functions
 - `src/specify_cli/merge/preflight.py` - PreflightResult, WPStatus, validation checks
