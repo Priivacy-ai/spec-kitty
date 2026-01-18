@@ -11,8 +11,8 @@ subtasks:
 dependencies: ["WP03"]
 lane: "doing"
 assignee: ""
-agent: "claude"
-shell_pid: "33396"
+agent: "codex"
+shell_pid: "9049"
 review_status: ""
 reviewed_by: ""
 history:
@@ -479,3 +479,5 @@ def execute_merge(
 
 - 2026-01-18T10:37:13Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-18T11:50:03Z – claude – shell_pid=33396 – lane=doing – Started implementation via workflow command
+- 2026-01-18T11:56:54Z – claude – shell_pid=33396 – lane=for_review – Merge state persistence and resume capability implemented with tests
+- 2026-01-18T11:57:54Z – codex – shell_pid=9049 – lane=doing – Started review via workflow command
