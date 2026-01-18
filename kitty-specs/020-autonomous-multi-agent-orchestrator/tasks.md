@@ -85,7 +85,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T011 [P] Implement Qwen Code invoker in `agents/qwen.py`
+- [x] T011 [P] Implement Qwen Code invoker in `agents/qwen.py`
 - [ ] T012 [P] Implement OpenCode invoker in `agents/opencode.py`
 - [ ] T013 [P] Implement Kilocode invoker in `agents/kilocode.py`
 - [ ] T014 [P] Implement Augment Code invoker in `agents/augment.py`
