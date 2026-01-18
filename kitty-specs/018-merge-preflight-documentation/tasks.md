@@ -92,7 +92,7 @@
 - [x] T018 [P] Extract MergeState dataclass fields and methods from state.py
 - [x] T019 [P] Extract PreflightResult structure from preflight.py
 - [x] T020 [P] Extract key function signatures from merge subpackage
-- [ ] T021 Write "Merge & Preflight Patterns" section for CLAUDE.md
+- [x] T021 Write "Merge & Preflight Patterns" section for CLAUDE.md
 - [ ] T022 Add merge state persistence subsection with JSON example
 - [ ] T023 Add pre-flight validation subsection with integration points
 - [ ] T024 Add programmatic access code examples
