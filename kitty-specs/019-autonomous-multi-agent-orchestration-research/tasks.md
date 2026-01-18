@@ -207,7 +207,7 @@
 - [x] T031 Review capability matrix for config requirements
 - [x] T032 Refine AgentProfile schema with real data from research
 - [x] T033 Design OrchestratorConfig with practical defaults
-- [ ] T034 Document fallback strategies based on agent availability
+- [x] T034 Document fallback strategies based on agent availability
 - [ ] T035 Handle single-agent edge case (same agent for impl & review)
 - [ ] T036 Update `data-model.md` with concrete examples
 - [ ] T037 Create sample `.kittify/agents.yaml` config file
