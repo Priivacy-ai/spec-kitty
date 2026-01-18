@@ -435,6 +435,8 @@ See `kitty-specs/015-first-class-jujutsu-vcs-integration/` for full specificatio
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md) - Technical design
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md) - Entities and relationships
 
+
+
 ## Merge & Preflight Patterns (0.11.0+)
 
 When merging workspace-per-WP features, spec-kitty uses a preflight validation system and persistent merge state for resumable operations.
@@ -617,6 +619,7 @@ spec-kitty merge --feature 017-my-feature
 - `src/specify_cli/merge/forecast.py` - Conflict prediction for dry-run
 - `src/specify_cli/merge/status_resolver.py` - Auto-resolution for status file conflicts
 - `src/specify_cli/cli/commands/merge.py` - CLI command with --resume/--abort flags
+
 
 ## Agent Utilities for Work Package Status
 
