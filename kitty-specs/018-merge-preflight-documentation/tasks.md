@@ -126,7 +126,7 @@
 - [x] T026 Add cross-references to merge-feature.md (link to troubleshoot, accept-and-merge, etc.)
 - [x] T027 Add cross-references to troubleshoot-merge.md (link to merge-feature, workspace-per-wp)
 - [x] T028 Update accept-and-merge.md to link to new merge-feature.md
-- [ ] T029 Verify all command examples are copy-pasteable and functional
+- [x] T029 Verify all command examples are copy-pasteable and functional
 - [ ] T030 Final style consistency check across all new docs
 
 ### Implementation Notes
