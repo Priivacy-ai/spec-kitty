@@ -253,6 +253,61 @@ def validate_dependencies(
     return is_valid, errors
 
 
+def topological_sort(graph: dict[str, list[str]]) -> list[str]:
+    """Return nodes in topological order (dependencies before dependents).
+
+    Uses Kahn's algorithm:
+    1. Find all nodes with no incoming edges (no dependencies)
+    2. Remove them from graph, add to result
+    3. Repeat until graph is empty
+
+    Args:
+        graph: Adjacency list where graph[node] = [dependencies]
+               Note: This is REVERSE of typical adjacency (edges point to deps)
+
+    Returns:
+        List of node IDs in topological order
+
+    Raises:
+        ValueError: If graph contains a cycle (use detect_cycles() first)
+
+    Example:
+        >>> graph = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01", "WP02"]}
+        >>> topological_sort(graph)
+        ['WP01', 'WP02', 'WP03']
+    """
+    # Build in-degree map and reverse adjacency
+    in_degree: dict[str, int] = {node: 0 for node in graph}
+    reverse_adj: dict[str, list[str]] = {node: [] for node in graph}
+
+    for node, deps in graph.items():
+        in_degree[node] = len(deps)
+        for dep in deps:
+            if dep in reverse_adj:
+                reverse_adj[dep].append(node)
+
+    # Start with nodes that have no dependencies
+    queue = [node for node, degree in in_degree.items() if degree == 0]
+    queue.sort()  # Stable ordering for determinism
+
+    result = []
+    while queue:
+        node = queue.pop(0)
+        result.append(node)
+
+        # "Remove" this node by decrementing in-degree of dependents
+        for dependent in sorted(reverse_adj.get(node, [])):
+            in_degree[dependent] -= 1
+            if in_degree[dependent] == 0:
+                queue.append(dependent)
+                queue.sort()  # Maintain sorted order
+
+    if len(result) != len(graph):
+        raise ValueError("Graph contains a cycle - cannot topologically sort")
+
+    return result
+
+
 def get_dependents(wp_id: str, graph: dict[str, list[str]]) -> list[str]:
     """Get list of WPs that depend on this WP (inverse graph query).
 
@@ -291,5 +346,6 @@ __all__ = [
     "detect_cycles",
     "get_dependents",
     "parse_wp_dependencies",
+    "topological_sort",
     "validate_dependencies",
 ]
