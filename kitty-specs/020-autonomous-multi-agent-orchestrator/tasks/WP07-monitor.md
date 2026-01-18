@@ -9,7 +9,7 @@ subtasks:
   - "T037"
 title: "Monitor"
 phase: "Phase 2 - Core Logic"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude-opus"
 shell_pid: "49898"
@@ -390,3 +390,4 @@ spec-kitty implement WP07 --base WP06
 
 - 2026-01-18T16:21:51Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-18T19:34:18Z – claude-opus – shell_pid=49898 – lane=doing – Started implementation via workflow command
+- 2026-01-18T19:37:59Z – claude-opus – shell_pid=49898 – lane=for_review – Ready for review: Monitor implementation complete with exit code detection (T032), JSON parsing (T033), retry logic (T034), fallback strategies (T035), lane updates (T036), and human escalation (T037). All tests passed.
