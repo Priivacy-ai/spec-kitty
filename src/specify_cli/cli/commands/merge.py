@@ -182,6 +182,7 @@ def merge_workspace_per_wp(
     push: bool,
     dry_run: bool,
     tracker: StepTracker,
+    resume_state: MergeState | None = None,
 ) -> None:
     """Handle merge for workspace-per-WP features.
 
@@ -193,6 +194,16 @@ def merge_workspace_per_wp(
 
     # Find all WP worktrees (this function also uses get_main_repo_root internally)
     wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
+
+    # Filter out already-completed WPs if resuming
+    if resume_state and resume_state.completed_wps:
+        completed_set = set(resume_state.completed_wps)
+        wp_workspaces = [
+            (wt_path, wp_id, branch)
+            for wt_path, wp_id, branch in wp_workspaces
+            if wp_id not in completed_set
+        ]
+        console.print(f"[cyan]Resuming merge:[/cyan] {len(resume_state.completed_wps)} WPs already merged")
 
     if not wp_workspaces:
         console.print(tracker.render())
