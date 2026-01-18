@@ -111,9 +111,11 @@ class FileManifest:
                             script_parts = script_line.split()
                             if script_parts:
                                 script_path = script_parts[0]
-                                if script_path.startswith('.kittify/'):
-                                    script_path = script_path.replace('.kittify/', '')
-                                scripts.add(script_path)
+                                # Only include actual .kittify/scripts/ files
+                                # Skip CLI commands (spec-kitty, git, python, etc.)
+                                if script_path.startswith('.kittify/scripts/'):
+                                    script_path = script_path.replace('.kittify/', '', 1)
+                                    scripts.add(script_path)
 
         return sorted(list(scripts))
 
