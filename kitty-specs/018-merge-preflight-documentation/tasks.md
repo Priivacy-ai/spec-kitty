@@ -59,7 +59,7 @@
 - [x] T011 [P] Document status file auto-resolution from `src/specify_cli/merge/status_resolver.py`
 - [x] T012 Write `docs/how-to/troubleshoot-merge.md` with decision tree
 - [x] T013 Add --resume usage section with partial merge state examples
-- [ ] T014 Add --abort usage section with when-to-use guidance
+- [x] T014 Add --abort usage section with when-to-use guidance
 - [ ] T015 Add conflict resolution section (status files vs code files)
 - [ ] T016 Add pre-flight failure section with each failure type and fix
 - [ ] T017 Add error message reference table
