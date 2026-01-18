@@ -23,6 +23,7 @@ from specify_cli.merge.executor import (
 )
 from specify_cli.merge.ordering import MergeOrderError, get_merge_order, has_dependency_info
 from specify_cli.merge.preflight import PreflightResult, WPStatus, run_preflight
+from specify_cli.merge.status_resolver import ResolutionResult, resolve_status_conflicts
 
 __all__ = [
     # Executor
@@ -38,4 +39,7 @@ __all__ = [
     "run_preflight",
     "PreflightResult",
     "WPStatus",
+    # Status resolver
+    "resolve_status_conflicts",
+    "ResolutionResult",
 ]
