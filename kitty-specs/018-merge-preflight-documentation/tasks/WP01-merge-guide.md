@@ -11,7 +11,7 @@ subtasks:
   - "T008"
 title: "Merge Guide"
 phase: "Phase 1 - User Documentation"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "claude"
 shell_pid: "93326"
@@ -199,3 +199,4 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - 2026-01-18T13:45:04Z – codex – shell_pid=53316 – lane=doing – Started implementation via workflow command
 - 2026-01-18T13:51:33Z – codex – shell_pid=53316 – lane=for_review – Ready for review
 - 2026-01-18T13:54:43Z – claude – shell_pid=93326 – lane=doing – Started review via workflow command
+- 2026-01-18T13:55:30Z – claude – shell_pid=93326 – lane=done – Review passed: All CLI flags documented, pre-flight validation explained, dry-run example matches actual output format, style consistent with accept-and-merge.md
