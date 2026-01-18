@@ -54,7 +54,7 @@
 **Prompt**: `/tasks/WP02-troubleshooting-guide.md`
 
 ### Included Subtasks
-- [ ] T009 [P] Extract error messages from merge.py and executor.py
+- [x] T009 [P] Extract error messages from merge.py and executor.py
 - [ ] T010 [P] Document MergeState structure from `src/specify_cli/merge/state.py`
 - [ ] T011 [P] Document status file auto-resolution from `src/specify_cli/merge/status_resolver.py`
 - [ ] T012 Write `docs/how-to/troubleshoot-merge.md` with decision tree
