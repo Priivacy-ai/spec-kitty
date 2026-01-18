@@ -8,7 +8,7 @@ subtasks:
   - "T010"
 title: "Agent Invokers - Core Agents"
 phase: "Phase 1 - Components"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude-opus"
 shell_pid: "43277"
@@ -281,3 +281,4 @@ spec-kitty implement WP02 --base WP01
 
 - 2026-01-18T16:21:51Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-18T17:44:05Z – claude-opus – shell_pid=43277 – lane=doing – Started implementation via workflow command
+- 2026-01-18T17:46:58Z – claude-opus – shell_pid=43277 – lane=for_review – Ready for review: AgentInvoker protocol, InvocationResult dataclass, and 4 core invokers (Claude, Codex, Copilot, Gemini)
