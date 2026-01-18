@@ -19,7 +19,7 @@
 **Prompt**: `/tasks/WP01-merge-guide.md`
 
 ### Included Subtasks
-- [ ] T001 [P] Extract CLI flags and help text from `src/specify_cli/cli/commands/merge.py`
+- [x] T001 [P] Extract CLI flags and help text from `src/specify_cli/cli/commands/merge.py`
 - [ ] T002 [P] Extract pre-flight validation checks from `src/specify_cli/merge/preflight.py`
 - [ ] T003 [P] Capture dry-run output example by running `spec-kitty merge --dry-run`
 - [ ] T004 Write `docs/how-to/merge-feature.md` following `accept-and-merge.md` style
