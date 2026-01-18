@@ -11,10 +11,10 @@ subtasks:
   - "T028"
   - "T029"
 dependencies: ["WP03"]
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "codex"
+shell_pid: "9049"
 review_status: ""
 reviewed_by: ""
 history:
@@ -506,3 +506,4 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
 ## Activity Log
 
 - 2026-01-18T10:37:13Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
+- 2026-01-18T11:23:13Z – codex – shell_pid=9049 – lane=doing – Started implementation via workflow command
