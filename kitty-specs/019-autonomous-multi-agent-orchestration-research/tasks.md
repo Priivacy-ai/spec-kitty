@@ -85,7 +85,7 @@
 
 ### Included Subtasks
 - [x] T011 [P] Research GitHub Copilot - check for `gh copilot` extension, API access
-- [ ] T012 [P] Research Windsurf/Codeium - check for `codeium` CLI, language server headless mode
+- [x] T012 [P] Research Windsurf/Codeium - check for `codeium` CLI, language server headless mode
 - [ ] T013 Document any headless workarounds (API calls, extension CLIs)
 - [ ] T014 Write research files: `research/02-github-copilot.md`, `research/07-windsurf.md`
 
