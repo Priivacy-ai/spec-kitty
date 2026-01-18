@@ -25,6 +25,11 @@ from specify_cli.merge.preflight import (
     display_preflight_result,
     run_preflight,
 )
+from specify_cli.merge.status_resolver import get_conflicted_files, resolve_status_conflicts
+from specify_cli.merge.forecast import (
+    display_conflict_forecast,
+    predict_conflicts,
+)
 
 __all__ = [
     "execute_merge",
@@ -146,6 +151,10 @@ def execute_merge(
 
     # Step 4: Dry run - show what would be done
     if dry_run:
+        # Predict conflicts before showing dry-run steps
+        predictions = predict_conflicts(ordered_workspaces, target_branch, repo_root)
+        display_conflict_forecast(predictions, console)
+
         _show_dry_run(
             ordered_workspaces,
             target_branch,
@@ -191,7 +200,15 @@ def execute_merge(
             console.print(f"[cyan]Merging {wp_id} ({branch})...[/cyan]")
 
             if strategy == "squash":
-                run_command(["git", "merge", "--squash", branch])
+                merge_code, _, _ = run_command(
+                    ["git", "merge", "--squash", branch],
+                    check_return=False,
+                    capture=True,
+                )
+                conflict_error = _resolve_merge_conflicts(repo_root, wp_id)
+                if conflict_error:
+                    result.error = conflict_error
+                    return result
                 run_command(
                     ["git", "commit", "-m", f"Merge {wp_id} from {feature_slug}"]
                 )
@@ -200,7 +217,7 @@ def execute_merge(
                 tracker.skip("merge", "rebase not supported")
                 return result
             else:  # merge (default)
-                run_command(
+                merge_code, _, _ = run_command(
                     [
                         "git",
                         "merge",
@@ -208,8 +225,18 @@ def execute_merge(
                         branch,
                         "-m",
                         f"Merge {wp_id} from {feature_slug}",
-                    ]
+                    ],
+                    check_return=False,
+                    capture=True,
                 )
+                conflict_error = _resolve_merge_conflicts(repo_root, wp_id)
+                if conflict_error:
+                    result.error = conflict_error
+                    return result
+                if merge_code != 0:
+                    run_command(
+                        ["git", "commit", "-m", f"Merge {wp_id} from {feature_slug}"]
+                    )
 
             result.merged_wps.append(wp_id)
             console.print(f"[green]\u2713[/green] {wp_id} merged")
@@ -563,3 +590,18 @@ def _show_dry_run(
 
     for idx, step in enumerate(steps, start=1):
         console.print(f"  {idx}. {step}")
+
+
+def _resolve_merge_conflicts(repo_root: Path, wp_id: str) -> str | None:
+    """Resolve status file conflicts and return error if any remain."""
+    conflicted = get_conflicted_files(repo_root)
+    if not conflicted:
+        return None
+
+    resolve_status_conflicts(repo_root)
+    remaining = get_conflicted_files(repo_root)
+    if not remaining:
+        return None
+
+    files = "\n".join(f"  - {path.relative_to(repo_root)}" for path in remaining)
+    return f"Merge for {wp_id} has unresolved conflicts:\n{files}"
