@@ -89,7 +89,7 @@
 - [x] T012 [P] Implement OpenCode invoker in `agents/opencode.py`
 - [x] T013 [P] Implement Kilocode invoker in `agents/kilocode.py`
 - [x] T014 [P] Implement Augment Code invoker in `agents/augment.py`
-- [ ] T015 Implement Cursor invoker with timeout wrapper in `agents/cursor.py`
+- [x] T015 Implement Cursor invoker with timeout wrapper in `agents/cursor.py`
 - [ ] T016 Implement agent registry and detection in `agents/__init__.py`
 
 ### Implementation Notes
