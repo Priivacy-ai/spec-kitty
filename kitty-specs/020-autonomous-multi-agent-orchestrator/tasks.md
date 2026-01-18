@@ -150,7 +150,7 @@
 - [x] T022 Implement dependency graph reading from WP frontmatter
 - [x] T023 Implement ready WP detection (all dependencies satisfied)
 - [x] T024 Implement agent selection by role and priority
-- [ ] T025 Implement concurrency semaphores (global and per-agent)
+- [x] T025 Implement concurrency semaphores (global and per-agent)
 - [ ] T026 Implement single-agent mode handling
 
 ### Implementation Notes
