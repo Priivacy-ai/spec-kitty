@@ -57,7 +57,7 @@
 - [x] T009 [P] Extract error messages from merge.py and executor.py
 - [x] T010 [P] Document MergeState structure from `src/specify_cli/merge/state.py`
 - [x] T011 [P] Document status file auto-resolution from `src/specify_cli/merge/status_resolver.py`
-- [ ] T012 Write `docs/how-to/troubleshoot-merge.md` with decision tree
+- [x] T012 Write `docs/how-to/troubleshoot-merge.md` with decision tree
 - [ ] T013 Add --resume usage section with partial merge state examples
 - [ ] T014 Add --abort usage section with when-to-use guidance
 - [ ] T015 Add conflict resolution section (status files vs code files)
