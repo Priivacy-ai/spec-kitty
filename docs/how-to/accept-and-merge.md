@@ -53,7 +53,8 @@ For detailed merge options including dry-run, strategies, and cleanup flags, see
 
 - **Default (merge commit)**: `spec-kitty merge`
 - **Squash**: `spec-kitty merge --strategy squash`
-- **Rebase**: `spec-kitty merge --strategy rebase`
+
+Note: Rebase is not supported for workspace-per-WP features. Use `merge` or `squash` instead.
 
 ## Cleanup
 
