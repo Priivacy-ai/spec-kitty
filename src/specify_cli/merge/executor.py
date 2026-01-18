@@ -26,7 +26,12 @@ from specify_cli.merge.preflight import (
     run_preflight,
 )
 
-__all__ = ["execute_merge", "MergeResult", "MergeExecutionError"]
+__all__ = [
+    "execute_merge",
+    "execute_legacy_merge",
+    "MergeResult",
+    "MergeExecutionError",
+]
 
 
 class MergeExecutionError(Exception):
@@ -283,6 +288,189 @@ def execute_merge(
         else:
             tracker.complete("branch", f"deleted {len(ordered_workspaces)} branches")
 
+    result.success = True
+    return result
+
+
+def execute_legacy_merge(
+    current_branch: str,
+    target_branch: str,
+    strategy: str,
+    merge_root: Path,
+    feature_worktree_path: Path,
+    tracker: StepTracker,
+    push: bool = False,
+    remove_worktree: bool = True,
+    delete_branch: bool = True,
+    dry_run: bool = False,
+    in_worktree: bool = False,
+) -> MergeResult:
+    """Execute legacy single-worktree merge flow.
+
+    Args:
+        current_branch: Current feature branch name
+        target_branch: Branch to merge into
+        strategy: "merge", "squash", or "rebase"
+        merge_root: Repository root to run merge commands from
+        feature_worktree_path: Worktree path to remove (if applicable)
+        tracker: StepTracker for progress display
+        push: Whether to push to remote after merge
+        remove_worktree: Whether to remove worktree after merge
+        delete_branch: Whether to delete branch after merge
+        dry_run: If True, show what would be done without executing
+        in_worktree: Whether caller is in a worktree context
+
+    Returns:
+        MergeResult with success status and details
+    """
+    result = MergeResult(success=False)
+
+    tracker.start("verify")
+    try:
+        _, status_output, _ = run_command(["git", "status", "--porcelain"], capture=True)
+        if status_output.strip():
+            tracker.error("verify", "uncommitted changes")
+            result.error = "Working directory has uncommitted changes."
+            return result
+        tracker.complete("verify", "clean working directory")
+    except Exception as exc:
+        tracker.error("verify", str(exc))
+        result.error = str(exc)
+        return result
+
+    if dry_run:
+        console.print(tracker.render())
+        console.print("\n[cyan]Dry run - would execute:[/cyan]")
+        checkout_prefix = f"(from {merge_root}) " if in_worktree else ""
+        steps = [
+            f"{checkout_prefix}git checkout {target_branch}",
+            "git pull --ff-only",
+        ]
+        if strategy == "squash":
+            steps.extend(
+                [
+                    f"git merge --squash {current_branch}",
+                    f"git commit -m 'Merge feature {current_branch}'",
+                ]
+            )
+        elif strategy == "rebase":
+            steps.append(f"git merge --ff-only {current_branch} (after rebase)")
+        else:
+            steps.append(f"git merge --no-ff {current_branch}")
+        if push:
+            steps.append(f"git push origin {target_branch}")
+        if in_worktree and remove_worktree:
+            steps.append(f"git worktree remove {feature_worktree_path}")
+        if delete_branch:
+            steps.append(f"git branch -d {current_branch}")
+        for idx, step in enumerate(steps, start=1):
+            console.print(f"  {idx}. {step}")
+        result.success = True
+        return result
+
+    tracker.start("checkout")
+    try:
+        if in_worktree:
+            console.print(
+                f"[cyan]Detected worktree. Merge operations will run from {merge_root}[/cyan]"
+            )
+        os.chdir(merge_root)
+        _, target_status, _ = run_command(["git", "status", "--porcelain"], capture=True)
+        if target_status.strip():
+            raise MergeExecutionError(
+                f"Target repository at {merge_root} has uncommitted changes."
+            )
+        run_command(["git", "checkout", target_branch])
+        tracker.complete("checkout", f"using {merge_root}")
+    except Exception as exc:
+        tracker.error("checkout", str(exc))
+        result.error = f"Checkout failed: {exc}"
+        return result
+
+    tracker.start("pull")
+    try:
+        run_command(["git", "pull", "--ff-only"])
+        tracker.complete("pull")
+    except Exception as exc:
+        tracker.error("pull", str(exc))
+        result.error = (
+            f"Pull failed: {exc}. You may need to resolve conflicts manually."
+        )
+        return result
+
+    tracker.start("merge")
+    try:
+        if strategy == "squash":
+            run_command(["git", "merge", "--squash", current_branch])
+            run_command(["git", "commit", "-m", f"Merge feature {current_branch}"])
+            tracker.complete("merge", "squashed")
+        elif strategy == "rebase":
+            console.print(
+                "\n[yellow]Note:[/yellow] Rebase strategy requires manual intervention."
+            )
+            console.print(
+                f"Please run: git checkout {current_branch} && git rebase {target_branch}"
+            )
+            tracker.skip("merge", "requires manual rebase")
+            result.success = True
+            return result
+        else:
+            run_command(
+                ["git", "merge", "--no-ff", current_branch, "-m", f"Merge feature {current_branch}"]
+            )
+            tracker.complete("merge", "merged with merge commit")
+    except Exception as exc:
+        tracker.error("merge", str(exc))
+        result.error = f"Merge failed: {exc}"
+        return result
+
+    if push:
+        tracker.start("push")
+        try:
+            run_command(["git", "push", "origin", target_branch])
+            tracker.complete("push")
+        except Exception as exc:
+            tracker.error("push", str(exc))
+            console.print(
+                f"\n[yellow]Warning:[/yellow] Merge succeeded but push failed."
+            )
+            console.print(f"Run manually: git push origin {target_branch}")
+
+    if in_worktree and remove_worktree:
+        tracker.start("worktree")
+        try:
+            run_command(
+                ["git", "worktree", "remove", str(feature_worktree_path), "--force"]
+            )
+            tracker.complete("worktree", f"removed {feature_worktree_path}")
+        except Exception as exc:
+            tracker.error("worktree", str(exc))
+            console.print(
+                f"\n[yellow]Warning:[/yellow] Could not remove worktree."
+            )
+            console.print(f"Run manually: git worktree remove {feature_worktree_path}")
+
+    if delete_branch:
+        tracker.start("branch")
+        try:
+            run_command(["git", "branch", "-d", current_branch])
+            tracker.complete("branch", f"deleted {current_branch}")
+        except Exception as exc:
+            try:
+                run_command(["git", "branch", "-D", current_branch])
+                tracker.complete("branch", f"force deleted {current_branch}")
+            except Exception:
+                tracker.error("branch", str(exc))
+                console.print(tracker.render())
+                console.print(
+                    f"\n[yellow]Warning:[/yellow] Could not delete branch {current_branch}."
+                )
+                console.print(f"Run manually: git branch -d {current_branch}")
+
+    console.print(tracker.render())
+    console.print(
+        f"\n[bold green]✓ Feature {current_branch} successfully merged into {target_branch}[/bold green]"
+    )
     result.success = True
     return result
 

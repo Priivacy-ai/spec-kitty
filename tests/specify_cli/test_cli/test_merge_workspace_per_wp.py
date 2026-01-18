@@ -263,21 +263,22 @@ class TestWorkspacePerWpMergeIntegration:
     """Integration tests for full workspace-per-WP merge workflow.
 
     This addresses Medium Issue 3 from review feedback:
-    The integration tests must exercise merge() and merge_workspace_per_wp()
-    functions directly, not just helpers and manual git merges.
+    The integration tests must exercise execute_merge() function directly,
+    not just helpers and manual git merges.
     """
 
-    def test_merge_workspace_per_wp_function(self, workspace_per_wp_repo: Path):
-        """Test merge_workspace_per_wp() function directly with dry_run.
+    def test_execute_merge_function(self, workspace_per_wp_repo: Path):
+        """Test execute_merge() function directly with dry_run.
 
         This tests the detection, validation, and planning logic without
         actually performing the merge (since test repos have no remote).
         """
         from specify_cli.cli import StepTracker
-        from specify_cli.cli.commands.merge import merge_workspace_per_wp
+        from specify_cli.cli.commands.merge import find_wp_worktrees
+        from specify_cli.merge.executor import execute_merge
 
         tracker = StepTracker("Test Merge")
-        tracker.add("detect", "Detect feature")
+        tracker.add("preflight", "Pre-flight validation")
         tracker.add("verify", "Verify readiness")
         tracker.add("checkout", "Switch to main")
         tracker.add("pull", "Update main")
@@ -285,42 +286,49 @@ class TestWorkspacePerWpMergeIntegration:
         tracker.add("worktree", "Remove worktrees")
         tracker.add("branch", "Delete branches")
 
-        # Call merge_workspace_per_wp in dry_run mode to test detection
+        # Find WP workspaces
+        wp_workspaces = find_wp_worktrees(workspace_per_wp_repo, "010-test-feature")
+
+        # Call execute_merge in dry_run mode to test detection
         # This validates all the critical logic without needing a remote
-        merge_workspace_per_wp(
-            repo_root=workspace_per_wp_repo,
-            merge_root=workspace_per_wp_repo,
+        result = execute_merge(
+            wp_workspaces=wp_workspaces,
             feature_slug="010-test-feature",
-            current_branch="010-test-feature-WP01",
+            feature_dir=None,  # No kitty-specs in test repo
             target_branch="main",
             strategy="merge",
+            repo_root=workspace_per_wp_repo,
+            merge_root=workspace_per_wp_repo,
+            tracker=tracker,
             delete_branch=True,
             remove_worktree=True,
             push=False,
             dry_run=True,  # Use dry_run to avoid pull failures with no remote
-            tracker=tracker,
         )
 
         # In dry_run mode, nothing is actually merged, but we verified:
         # - WP worktrees are detected correctly
         # - All WPs are validated
         # - The merge plan is generated correctly
+        assert result.success is True
+        assert len(result.merged_wps) == 3
 
-    def test_merge_workspace_per_wp_from_worktree(self, workspace_per_wp_repo: Path):
-        """Test merge_workspace_per_wp() when called from within a worktree.
+    def test_execute_merge_from_worktree(self, workspace_per_wp_repo: Path):
+        """Test execute_merge() when called from within a worktree.
 
         This is the critical test for High Issue 1 - merge must work correctly
         when run from a WP worktree, not just from main repo. We use dry_run
         to test the detection logic without needing a remote.
         """
         from specify_cli.cli import StepTracker
-        from specify_cli.cli.commands.merge import merge_workspace_per_wp
+        from specify_cli.cli.commands.merge import find_wp_worktrees
+        from specify_cli.merge.executor import execute_merge
 
         # Simulate being in a worktree
         worktree_path = workspace_per_wp_repo / ".worktrees" / "010-test-feature-WP01"
 
         tracker = StepTracker("Test Merge from Worktree")
-        tracker.add("detect", "Detect feature")
+        tracker.add("preflight", "Pre-flight validation")
         tracker.add("verify", "Verify readiness")
         tracker.add("checkout", "Switch to main")
         tracker.add("pull", "Update main")
@@ -328,20 +336,24 @@ class TestWorkspacePerWpMergeIntegration:
         tracker.add("worktree", "Remove worktrees")
         tracker.add("branch", "Delete branches")
 
-        # Call merge_workspace_per_wp from worktree context
+        # Find WP workspaces (this function uses get_main_repo_root internally)
+        wp_workspaces = find_wp_worktrees(worktree_path, "010-test-feature")
+
+        # Call execute_merge from worktree context
         # This is the key test: repo_root is a worktree, not main repo
-        merge_workspace_per_wp(
-            repo_root=worktree_path,  # Pass worktree path (not main repo)
-            merge_root=workspace_per_wp_repo,
+        result = execute_merge(
+            wp_workspaces=wp_workspaces,
             feature_slug="010-test-feature",
-            current_branch="010-test-feature-WP01",
+            feature_dir=None,  # No kitty-specs in test repo
             target_branch="main",
             strategy="merge",
+            repo_root=workspace_per_wp_repo,  # Main repo for git operations
+            merge_root=workspace_per_wp_repo,
+            tracker=tracker,
             delete_branch=True,
             remove_worktree=True,
             push=False,
             dry_run=True,  # Use dry_run to avoid pull failures with no remote
-            tracker=tracker,
         )
 
         # In dry_run mode, we validated the critical behavior:
@@ -349,6 +361,8 @@ class TestWorkspacePerWpMergeIntegration:
         # - All WP worktrees are found correctly
         # - Validation passes
         # This proves High Issue 1 is fixed
+        assert result.success is True
+        assert len(result.merged_wps) == 3
 
     def test_merge_workflow_success(self, workspace_per_wp_repo: Path):
         """Test full merge workflow with workspace-per-WP (manual git ops for comparison)."""
