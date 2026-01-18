@@ -147,7 +147,7 @@
 **Estimated Size**: ~420 lines
 
 ### Included Subtasks
-- [ ] T022 Implement dependency graph reading from WP frontmatter
+- [x] T022 Implement dependency graph reading from WP frontmatter
 - [ ] T023 Implement ready WP detection (all dependencies satisfied)
 - [ ] T024 Implement agent selection by role and priority
 - [ ] T025 Implement concurrency semaphores (global and per-agent)
