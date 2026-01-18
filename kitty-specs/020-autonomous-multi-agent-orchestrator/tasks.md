@@ -120,7 +120,7 @@
 - [x] T018 Implement WPExecution dataclass with status tracking
 - [x] T019 Implement InvocationResult dataclass
 - [x] T020 Implement state.py with save/load JSON functions
-- [ ] T021 Implement atomic writes with backup-before-modify pattern
+- [x] T021 Implement atomic writes with backup-before-modify pattern
 
 ### Implementation Notes
 - Follow `merge/state.py` patterns for consistency
