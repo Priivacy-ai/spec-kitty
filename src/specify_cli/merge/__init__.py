@@ -15,4 +15,21 @@ Modules:
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from specify_cli.merge.executor import MergeExecutionError, MergeResult, execute_merge
+from specify_cli.merge.ordering import MergeOrderError, get_merge_order, has_dependency_info
+from specify_cli.merge.preflight import PreflightResult, WPStatus, run_preflight
+
+__all__ = [
+    # Executor
+    "execute_merge",
+    "MergeResult",
+    "MergeExecutionError",
+    # Ordering
+    "get_merge_order",
+    "MergeOrderError",
+    "has_dependency_info",
+    # Preflight
+    "run_preflight",
+    "PreflightResult",
+    "WPStatus",
+]
