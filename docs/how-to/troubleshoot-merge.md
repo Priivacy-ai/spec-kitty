@@ -229,19 +229,7 @@ Pre-flight failed. Fix these issues before merging:
 **Fix**: Create the missing worktree using the agent workflow command:
 
 ```bash
-spec-kitty agent workflow implement WP03 --agent claude
-```
-
-Then create the workspace:
-
-```bash
-spec-kitty implement WP03
-```
-
-If WP03 depends on other WPs:
-
-```bash
-spec-kitty implement WP03 --base WP02
+spec-kitty agent workflow implement WP03
 ```
 
 ### Target Branch Behind Origin
@@ -279,19 +267,20 @@ spec-kitty implement WP02
 
 | Error Message | Cause | Solution |
 |--------------|-------|----------|
-| `Error: Already on main branch.` | Running merge from main without --feature | Use `spec-kitty merge --feature <slug>` |
+| `Error: Already on <branch> branch.` | Running merge from target branch without --feature | Use `spec-kitty merge --feature <slug>` |
 | `Error: No WP worktrees found for feature '<slug>'.` | Feature has no worktrees or wrong slug | Check slug, run `spec-kitty agent workflow implement WP01` |
-| `Cannot merge: WP workspaces not ready` | One or more WP worktrees have uncommitted changes | Commit or stash changes in each listed worktree |
+| `Cannot merge: WP workspaces not ready` | One or more WP worktrees are not merge-ready | Fix the listed WP errors, then retry merge |
 | `Worktree <name> has uncommitted changes` | Specific worktree has unstaged/uncommitted work | `cd .worktrees/<name>` then commit or stash |
 | `Uncommitted changes in <worktree-name>` | Worktree has uncommitted changes (pre-flight) | Commit or stash changes in that worktree |
+| `Error: Working directory has uncommitted changes.` | Legacy merge run from a dirty worktree | Commit or stash changes, then retry merge |
 | `Target repository at <path> has uncommitted changes.` | Main repo has uncommitted work | Commit or stash in main repo |
-| `Working directory has uncommitted changes.` | Current directory has uncommitted changes | Commit or stash changes |
 | `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent workflow implement WP##` | Expected worktree doesn't exist | Run `spec-kitty agent workflow implement WP##` |
 | `Branch <branch> does not exist` | Git branch was deleted manually | Recreate worktree with `spec-kitty implement WP##` |
 | `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Target branch diverged from origin | Run the suggested git checkout and pull commands |
 | `Warning: Could not fast-forward <branch>.` | Fast-forward failed, conflicts likely | Resolve conflicts manually |
-| `Merge failed.` | Git merge conflict occurred | Resolve conflicts, then `spec-kitty merge --resume` |
-| `No merge state to resume` | No `.kittify/merge-state.json` exists | Start fresh with `spec-kitty merge` |
+| `Merge failed. Resolve conflicts and try again.` | Git merge conflict occurred (workspace-per-WP) | Resolve conflicts, then `spec-kitty merge --resume` |
+| `Merge failed. You may need to resolve conflicts.` | Git merge conflict occurred (legacy merge) | Resolve conflicts, then re-run merge |
+| `Error: No merge state to resume` | No `.kittify/merge-state.json` exists | Run `spec-kitty merge --feature <slug>` to start a new merge |
 | `⚠ Invalid merge state file cleared` | State file was corrupted | Start fresh with `spec-kitty merge` |
 | `⚠ Git merge in progress - resolve conflicts first` | Unresolved conflict from previous attempt | Resolve conflicts, then `spec-kitty merge --resume` |
 | `No merge state to abort` | No active merge to abort | Nothing to do, merge was already complete or never started |
