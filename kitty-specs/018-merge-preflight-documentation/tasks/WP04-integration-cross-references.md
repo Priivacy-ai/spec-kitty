@@ -9,7 +9,7 @@ subtasks:
   - "T030"
 title: "Integration & Cross-References"
 phase: "Phase 3 - Polish"
-lane: "doing"
+lane: "done"
 dependencies: ["WP01", "WP02", "WP03"]
 assignee: ""
 agent: "claude"
@@ -197,3 +197,4 @@ Integrate new documentation into the site structure and add cross-references bet
 - 2026-01-18T13:53:57Z – codex – shell_pid=73212 – lane=doing – Started review via workflow command
 - 2026-01-18T13:55:32Z – codex – shell_pid=73212 – lane=planned – Moved to planned
 - 2026-01-18T13:58:32Z – claude – shell_pid=94502 – lane=doing – Started review via workflow command
+- 2026-01-18T13:59:38Z – claude – shell_pid=94502 – lane=done – Review passed: Fixed See Also section to include workspace-per-wp.md, aligned rebase strategy documentation across all docs
