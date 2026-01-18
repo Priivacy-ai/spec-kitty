@@ -11,10 +11,10 @@ subtasks:
   - "T008"
 title: "Merge Guide"
 phase: "Phase 1 - User Documentation"
-lane: "for_review"
+lane: "doing"
 assignee: ""
-agent: "claude"
-shell_pid: "77348"
+agent: "codex"
+shell_pid: "53316"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -198,3 +198,4 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - 2026-01-18T13:36:46Z – codex – shell_pid=53316 – lane=planned – Moved to planned
 - 2026-01-18T13:37:10Z – claude – shell_pid=77348 – lane=doing – Started implementation via workflow command
 - 2026-01-18T13:43:06Z – claude – shell_pid=77348 – lane=for_review – Addressed all 4 review issues: added --resume/--abort/--delete-branch/--remove-worktree examples, updated dry-run with real feature names
+- 2026-01-18T13:43:29Z – codex – shell_pid=53316 – lane=doing – Started review via workflow command
