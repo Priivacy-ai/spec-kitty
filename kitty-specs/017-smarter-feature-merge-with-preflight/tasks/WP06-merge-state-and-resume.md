@@ -9,7 +9,7 @@ subtasks:
   - "T020"
   - "T025"
 dependencies: ["WP03"]
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "codex"
 shell_pid: "9049"
@@ -485,3 +485,4 @@ def execute_merge(
 - 2026-01-18T12:01:05Z – codex – shell_pid=9049 – lane=doing – Started implementation via workflow command
 - 2026-01-18T12:01:24Z – codex – shell_pid=9049 – lane=for_review – Ready for review: invalid state clears on resume
 - 2026-01-18T12:02:52Z – codex – shell_pid=9049 – lane=doing – Started review via workflow command
+- 2026-01-18T12:03:22Z – codex – shell_pid=9049 – lane=done – Review passed: resume clears invalid state
