@@ -26,6 +26,10 @@ from specify_cli.merge.preflight import (
     run_preflight,
 )
 from specify_cli.merge.status_resolver import get_conflicted_files, resolve_status_conflicts
+from specify_cli.merge.forecast import (
+    display_conflict_forecast,
+    predict_conflicts,
+)
 
 __all__ = [
     "execute_merge",
@@ -147,6 +151,10 @@ def execute_merge(
 
     # Step 4: Dry run - show what would be done
     if dry_run:
+        # Predict conflicts before showing dry-run steps
+        predictions = predict_conflicts(ordered_workspaces, target_branch, repo_root)
+        display_conflict_forecast(predictions, console)
+
         _show_dry_run(
             ordered_workspaces,
             target_branch,

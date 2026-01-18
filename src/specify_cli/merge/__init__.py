@@ -21,6 +21,7 @@ from specify_cli.merge.executor import (
     execute_legacy_merge,
     execute_merge,
 )
+from specify_cli.merge.forecast import ConflictPrediction, is_status_file, predict_conflicts
 from specify_cli.merge.ordering import MergeOrderError, get_merge_order, has_dependency_info
 from specify_cli.merge.preflight import PreflightResult, WPStatus, run_preflight
 from specify_cli.merge.status_resolver import ResolutionResult, resolve_status_conflicts
@@ -31,6 +32,10 @@ __all__ = [
     "execute_legacy_merge",
     "MergeResult",
     "MergeExecutionError",
+    # Forecast
+    "predict_conflicts",
+    "ConflictPrediction",
+    "is_status_file",
     # Ordering
     "get_merge_order",
     "MergeOrderError",
