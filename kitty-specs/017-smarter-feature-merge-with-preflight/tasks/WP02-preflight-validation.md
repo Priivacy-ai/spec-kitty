@@ -14,8 +14,8 @@ lane: "doing"
 assignee: ""
 agent: "codex"
 shell_pid: "9049"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-18T10:37:13Z"
     lane: "planned"
@@ -370,3 +370,5 @@ if current_branch == target_branch:
 - 2026-01-18T10:50:03Z – claude – shell_pid=10043 – lane=doing – Started implementation via workflow command
 - 2026-01-18T10:52:45Z – claude – shell_pid=10043 – lane=for_review – Ready for review: preflight validation + --feature flag
 - 2026-01-18T10:53:51Z – codex – shell_pid=9049 – lane=doing – Started review via workflow command
+- 2026-01-18T10:55:29Z – codex – shell_pid=9049 – lane=planned – Moved to planned
+- 2026-01-18T10:58:15Z – codex – shell_pid=9049 – lane=doing – Started implementation via workflow command
