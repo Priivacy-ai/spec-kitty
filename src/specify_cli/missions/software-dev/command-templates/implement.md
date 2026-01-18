@@ -2,6 +2,21 @@
 description: Create an isolated workspace (worktree) for implementing a specific work package.
 ---
 
+## ⚠️ CRITICAL: Working Directory Requirement
+
+**After running `spec-kitty implement WP##`, you MUST:**
+
+1. **Run the cd command shown in the output** - e.g., `cd .worktrees/###-feature-WP##/`
+2. **ALL file operations happen in this directory** - Read, Write, Edit tools must target files in the workspace
+3. **NEVER write deliverable files to the main repository** - This is a critical workflow error
+
+**Why this matters:**
+- Each WP has an isolated worktree with its own branch
+- Changes in main repository will NOT be seen by reviewers looking at the WP worktree
+- Writing to main instead of the workspace causes review failures and merge conflicts
+
+---
+
 **IMPORTANT**: After running the command below, you'll see a LONG work package prompt (~1000+ lines).
 
 **You MUST scroll to the BOTTOM** to see the completion command!

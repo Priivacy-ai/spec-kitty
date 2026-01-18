@@ -811,9 +811,16 @@ def implement(
         # Check for dependent WPs after creation (T079)
         check_for_dependents(repo_root, feature_slug, wp_id)
 
-        console.print(f"\nTo start working:")
-        console.print(f"  cd {workspace_path}")
-        console.print(f"  git status")
+        # CRITICAL: Explicit cd instruction to prevent writing to main
+        console.print()
+        console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
+        console.print("[bold yellow]CRITICAL: Change to workspace directory before making any changes![/bold yellow]")
+        console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
+        console.print()
+        console.print(f"  [bold]cd {workspace_path}[/bold]")
+        console.print()
+        console.print("[dim]All file edits, writes, and commits MUST happen in this directory.[/dim]")
+        console.print("[dim]Writing to main repository instead of the workspace is a critical error.[/dim]")
 
 
 __all__ = ["implement"]
