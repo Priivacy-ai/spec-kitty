@@ -180,7 +180,7 @@
 ### Included Subtasks
 - [x] T027 Implement async process spawning with `asyncio.create_subprocess_exec`
 - [x] T028 Implement stdin piping for WP prompt content
-- [ ] T029 Implement stdout/stderr capture to log files
+- [x] T029 Implement stdout/stderr capture to log files
 - [ ] T030 Implement timeout handling with `asyncio.wait_for`
 - [ ] T031 Implement worktree creation integration
 
