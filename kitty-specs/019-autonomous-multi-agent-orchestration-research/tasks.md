@@ -145,7 +145,7 @@
 - [x] T019 [P] Research Kilocode - check for CLI, API, extension command interface
 - [x] T020 [P] Research Augment Code - check for CLI, API, headless mode
 - [x] T021 [P] Research Roo Cline - check Cline project for CLI, fork differences
-- [ ] T022 Document VS Code extension command patterns if applicable
+- [x] T022 Document VS Code extension command patterns if applicable
 - [ ] T023 Write research files: `research/09-kilocode.md`, `research/10-augment-code.md`, `research/11-roo-cline.md`
 
 ### Implementation Notes
