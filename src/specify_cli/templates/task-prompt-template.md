@@ -104,14 +104,6 @@ The `spec-kitty implement` command will display warnings when:
 - List known pitfalls, performance considerations, or failure modes.
 - Provide mitigation strategies or monitoring notes.
 
-## Definition of Done Checklist
-
-- [ ] All subtasks completed and validated
-- [ ] Documentation updated (if needed)
-- [ ] Metrics/telemetry added (if applicable)
-- [ ] Observability/logging requirements satisfied
-- [ ] `tasks.md` updated with status change
-
 ## Review Guidance
 
 - Key acceptance checkpoints for `/spec-kitty.review`.

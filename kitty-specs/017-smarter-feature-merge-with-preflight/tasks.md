@@ -18,8 +18,8 @@
 **Prompt**: `tasks/WP01-merge-subpackage-setup.md`
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/merge/` directory with `__init__.py` and module stubs
-- [ ] T002 Add `topological_sort()` function to `src/specify_cli/core/dependency_graph.py`
+- [x] T001 Create `src/specify_cli/merge/` directory with `__init__.py` and module stubs
+- [x] T002 Add `topological_sort()` function to `src/specify_cli/core/dependency_graph.py`
 
 ### Implementation Notes
 - Create empty module files: `preflight.py`, `forecast.py`, `ordering.py`, `status_resolver.py`, `state.py`, `executor.py`
@@ -44,12 +44,12 @@
 **Prompt**: `tasks/WP02-preflight-validation.md`
 
 ### Included Subtasks
-- [ ] T003 [P] Implement `WPStatus` and `PreflightResult` dataclasses in `merge/preflight.py`
-- [ ] T004 [P] Implement `check_worktree_status()` for uncommitted change detection
-- [ ] T005 [P] Implement `check_target_divergence()` for fast-forward verification
-- [ ] T006 Implement `run_preflight()` orchestration and formatted output with remediation
-- [ ] T026 Update `merge.py` CLI to call preflight before any merge operation
-- [ ] T027 Add `--feature <slug>` flag for invocation from main branch
+- [x] T003 [P] Implement `WPStatus` and `PreflightResult` dataclasses in `merge/preflight.py`
+- [x] T004 [P] Implement `check_worktree_status()` for uncommitted change detection
+- [x] T005 [P] Implement `check_target_divergence()` for fast-forward verification
+- [x] T006 Implement `run_preflight()` orchestration and formatted output with remediation
+- [x] T026 Update `merge.py` CLI to call preflight before any merge operation
+- [x] T027 Add `--feature <slug>` flag for invocation from main branch
 
 ### Implementation Notes
 1. Dataclasses use `@dataclass` from dataclasses module
@@ -77,12 +77,12 @@
 **Prompt**: `tasks/WP03-smart-merge-ordering.md`
 
 ### Included Subtasks
-- [ ] T010 [P] Implement `get_merge_order()` in `merge/ordering.py` using `build_dependency_graph()` and `topological_sort()`
-- [ ] T011 [P] Add cycle detection error reporting with clear cycle path display
-- [ ] T012 [P] Implement fallback to numerical order when frontmatter lacks dependencies
-- [ ] T021 Extract core merge loop from `merge.py` into `merge/executor.py`
-- [ ] T022 Integrate preflight into executor flow
-- [ ] T023 Integrate ordering into executor (use ordered list instead of sorted glob)
+- [x] T010 [P] Implement `get_merge_order()` in `merge/ordering.py` using `build_dependency_graph()` and `topological_sort()`
+- [x] T011 [P] Add cycle detection error reporting with clear cycle path display
+- [x] T012 [P] Implement fallback to numerical order when frontmatter lacks dependencies
+- [x] T021 Extract core merge loop from `merge.py` into `merge/executor.py`
+- [x] T022 Integrate preflight into executor flow
+- [x] T023 Integrate ordering into executor (use ordered list instead of sorted glob)
 
 ### Implementation Notes
 1. `get_merge_order()` calls `build_dependency_graph()` on feature's tasks/ directory

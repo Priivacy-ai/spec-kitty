@@ -6,12 +6,12 @@ subtasks:
   - "T001"
   - "T002"
 dependencies: []
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "codex"
 shell_pid: "9049"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-18T10:37:13Z"
     lane: "planned"
@@ -202,3 +202,4 @@ def topological_sort(graph: dict[str, list[str]]) -> list[str]:
 - 2026-01-18T10:45:00Z – claude – shell_pid=8793 – lane=doing – Started implementation via workflow command
 - 2026-01-18T10:47:25Z – claude – shell_pid=8793 – lane=for_review – Ready for review: merge subpackage structure + topological_sort()
 - 2026-01-18T10:49:54Z – codex – shell_pid=9049 – lane=doing – Started review via workflow command
+- 2026-01-18T10:51:12Z – codex – shell_pid=9049 – lane=done – Review passed: merge subpackage stubs + topological_sort
