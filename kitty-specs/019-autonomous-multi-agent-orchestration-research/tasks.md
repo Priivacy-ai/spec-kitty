@@ -174,7 +174,7 @@
 ### Included Subtasks
 - [x] T024 Review all 12 agent research files for completeness
 - [x] T025 Build CLI capability matrix (agent × capability columns)
-- [ ] T026 Identify orchestration-ready agents (can participate fully)
+- [x] T026 Identify orchestration-ready agents (can participate fully)
 - [ ] T027 Identify partially-capable agents (need workarounds)
 - [ ] T028 Identify non-capable agents (cannot participate)
 - [ ] T029 Update `research.md` with consolidated findings
