@@ -1,1 +1,1 @@
-**Issue 1**: Section placement is still wrong. `CLAUDE.md` shows "Merge & Preflight Patterns (0.11.0+)" at line ~438, not immediately after "Workspace-per-Work-Package Development (0.11.0+)" at line ~109. Move the entire section right after the Workspace-per-WP section as specified.
+All review feedback has been addressed for feature 018-merge-preflight-documentation.

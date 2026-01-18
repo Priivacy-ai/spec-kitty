@@ -280,7 +280,7 @@ For detailed troubleshooting including conflict resolution and error recovery, s
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--strategy` | Merge strategy: `merge`, `squash`, `rebase` | `merge` |
+| `--strategy` | Merge strategy: `merge`, `squash` (rebase not supported for workspace-per-WP) | `merge` |
 | `--delete-branch` / `--keep-branch` | Delete WP branches after merge | Delete |
 | `--remove-worktree` / `--keep-worktree` | Remove WP worktrees after merge | Remove |
 | `--push` | Push to origin after merge | No push |
@@ -296,6 +296,7 @@ Full CLI reference: [CLI Commands](../reference/cli-commands.md)
 
 - [Accept and Merge](accept-and-merge.md#troubleshooting) - Recovery and conflict resolution
 - [Accept and Merge](accept-and-merge.md) - Feature validation before merge
+- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - How worktrees work
 - [Review Work Packages](review-work-package.md) - WP review process
 
 ## Background
