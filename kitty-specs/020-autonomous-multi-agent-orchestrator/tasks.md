@@ -213,7 +213,7 @@
 - [x] T033 Implement JSON output parsing for structured results
 - [x] T034 Implement retry logic with configurable limits
 - [x] T035 Implement fallback strategy execution (next_in_list, same_agent, fail)
-- [ ] T036 Implement lane status updates via existing commands
+- [x] T036 Implement lane status updates via existing commands
 - [ ] T037 Implement human escalation for unrecoverable failures
 
 ### Implementation Notes
