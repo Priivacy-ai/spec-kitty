@@ -25,7 +25,7 @@
 ### Included Subtasks
 - [x] T001 Create orchestrator package structure with `__init__.py` files
 - [x] T002 Implement enums: OrchestrationStatus, WPStatus, FallbackStrategy
-- [ ] T003 Implement OrchestratorConfig and AgentConfig dataclasses
+- [x] T003 Implement OrchestratorConfig and AgentConfig dataclasses
 - [ ] T004 Implement config.py with YAML parsing and validation
 - [ ] T005 Implement default config generation for installed agents
 
