@@ -127,7 +127,7 @@
 - [x] T027 Add cross-references to troubleshoot-merge.md (link to merge-feature, workspace-per-wp)
 - [x] T028 Update accept-and-merge.md to link to new merge-feature.md
 - [x] T029 Verify all command examples are copy-pasteable and functional
-- [ ] T030 Final style consistency check across all new docs
+- [x] T030 Final style consistency check across all new docs
 
 ### Implementation Notes
 1. Follow toc.yml structure for adding new entries
