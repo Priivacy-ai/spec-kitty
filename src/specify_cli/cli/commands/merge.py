@@ -440,6 +440,7 @@ def merge(
                 wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
 
                 # Run preflight checks
+                tracker.skip("verify", "handled in preflight")
                 tracker.start("preflight")
                 preflight_result = run_preflight(
                     feature_slug=feature_slug,
@@ -493,27 +494,13 @@ def merge(
         console.print(tracker.render())
         raise typer.Exit(1)
 
-    tracker.start("verify")
-    try:
-        _, status_output, _ = run_command(["git", "status", "--porcelain"], capture=True)
-        if status_output.strip():
-            tracker.error("verify", "uncommitted changes")
-            console.print(tracker.render())
-            console.print(f"\n[red]Error:[/red] Working directory has uncommitted changes.")
-            console.print("Commit or stash your changes before merging.")
-            raise typer.Exit(1)
-        tracker.complete("verify", "clean working directory")
-    except Exception as exc:
-        tracker.error("verify", str(exc))
-        console.print(tracker.render())
-        raise typer.Exit(1)
-
     # Detect workspace structure and extract feature slug
     feature_slug = extract_feature_slug(current_branch)
     structure = detect_worktree_structure(repo_root, feature_slug)
 
     # Branch to workspace-per-WP merge if detected
     if structure == "workspace-per-wp":
+        tracker.skip("verify", "handled in preflight")
         # Get main repo for preflight
         main_repo = get_main_repo_root(repo_root)
         wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
@@ -552,6 +539,20 @@ def merge(
     # Continue with legacy merge logic for single worktree
     # Skip preflight for legacy merges (single worktree validation is done above in verify step)
     tracker.skip("preflight", "legacy single-worktree merge")
+    tracker.start("verify")
+    try:
+        _, status_output, _ = run_command(["git", "status", "--porcelain"], capture=True)
+        if status_output.strip():
+            tracker.error("verify", "uncommitted changes")
+            console.print(tracker.render())
+            console.print(f"\n[red]Error:[/red] Working directory has uncommitted changes.")
+            console.print("Commit or stash your changes before merging.")
+            raise typer.Exit(1)
+        tracker.complete("verify", "clean working directory")
+    except Exception as exc:
+        tracker.error("verify", str(exc))
+        console.print(tracker.render())
+        raise typer.Exit(1)
 
     merge_root, feature_worktree_path = merge_root.resolve(), feature_worktree_path.resolve()
     if dry_run:

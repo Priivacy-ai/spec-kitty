@@ -13,6 +13,8 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
+from specify_cli.core.dependency_graph import build_dependency_graph
+
 __all__ = [
     "WPStatus",
     "PreflightResult",
@@ -150,6 +152,27 @@ def run_preflight(
         PreflightResult with all check outcomes
     """
     result = PreflightResult(passed=True)
+
+    # Check for missing worktrees based on tasks in kitty-specs
+    expected_graph = build_dependency_graph(repo_root / "kitty-specs" / feature_slug)
+    expected_wps = set(expected_graph.keys())
+    discovered_wps = {wp_id for _, wp_id, _ in wp_workspaces}
+    missing_wps = sorted(expected_wps - discovered_wps)
+    if missing_wps:
+        result.passed = False
+        for wp_id in missing_wps:
+            expected_path = repo_root / ".worktrees" / f"{feature_slug}-{wp_id}"
+            error = f"Missing worktree for {wp_id}. Expected at {expected_path.name}. Run: spec-kitty agent workflow implement {wp_id}"
+            result.wp_statuses.append(
+                WPStatus(
+                    wp_id=wp_id,
+                    worktree_path=expected_path,
+                    branch_name=f"{feature_slug}-{wp_id}",
+                    is_clean=False,
+                    error=error,
+                )
+            )
+            result.errors.append(error)
 
     # Check all worktrees
     for wt_path, wp_id, branch in wp_workspaces:
