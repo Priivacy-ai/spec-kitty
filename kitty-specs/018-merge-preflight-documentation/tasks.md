@@ -61,7 +61,7 @@
 - [x] T013 Add --resume usage section with partial merge state examples
 - [x] T014 Add --abort usage section with when-to-use guidance
 - [x] T015 Add conflict resolution section (status files vs code files)
-- [ ] T016 Add pre-flight failure section with each failure type and fix
+- [x] T016 Add pre-flight failure section with each failure type and fix
 - [ ] T017 Add error message reference table
 
 ### Implementation Notes
