@@ -9,11 +9,11 @@ subtasks:
   - "T030"
 title: "Integration & Cross-References"
 phase: "Phase 3 - Polish"
-lane: "planned"
+lane: "doing"
 dependencies: ["WP01", "WP02", "WP03"]
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "codex"
+shell_pid: "73212"
 review_status: ""
 reviewed_by: ""
 history:
@@ -185,3 +185,4 @@ Integrate new documentation into the site structure and add cross-references bet
 ## Activity Log
 
 - 2026-01-18T13:21:55Z – system – lane=planned – Prompt created.
+- 2026-01-18T13:35:30Z – codex – shell_pid=73212 – lane=doing – Started review via workflow command
