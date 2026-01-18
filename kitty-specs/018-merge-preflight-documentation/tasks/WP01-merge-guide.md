@@ -11,7 +11,7 @@ subtasks:
   - "T008"
 title: "Merge Guide"
 phase: "Phase 1 - User Documentation"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "codex"
 shell_pid: "53316"
@@ -43,7 +43,13 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-18
 
-**Issue 1**: Required guide `docs/how-to/merge-feature.md` is missing. Create the file and complete all sections per WP01 subtasks (flags, pre-flight validation, dry-run example, merge strategies, cleanup options) and ensure style matches `docs/how-to/accept-and-merge.md`.
+**Issue 1**: Missing required “Getting Started” section. WP01 instructions specify the guide should include Command Reference, See Also, Background, and Getting Started; `docs/how-to/merge-feature.md` has no Getting Started section.
+
+**Issue 2**: Broken links to `troubleshoot-merge.md`. The file does not exist in `docs/how-to/`, so the Troubleshooting section and See Also link are dead. Please point to an existing troubleshooting doc or add the correct target.
+
+**Issue 3**: Not all CLI flags have examples as required. `--resume` and `--abort` are listed only in the Command Reference table with no usage examples; same for explicit `--delete-branch`/`--remove-worktree` if you intend to satisfy “All CLI flags are documented with examples.” Add example commands for these flags (and any others missing examples) so the requirement is met.
+
+**Issue 4**: Dry-run output should be real command output per the risk/mitigation note. The example uses placeholder feature names (e.g., `017-feature`), which reads like a synthetic example. Capture actual output from `spec-kitty merge --dry-run` and include it verbatim.
 
 
 ## Objectives & Success Criteria
@@ -189,3 +195,4 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - 2026-01-18T13:27:09Z – codex – shell_pid=53316 – lane=doing – Started review via workflow command
 - 2026-01-18T13:27:38Z – codex – shell_pid=53316 – lane=planned – Moved to planned
 - 2026-01-18T13:35:10Z – codex – shell_pid=53316 – lane=doing – Started review via workflow command
+- 2026-01-18T13:36:46Z – codex – shell_pid=53316 – lane=planned – Moved to planned
