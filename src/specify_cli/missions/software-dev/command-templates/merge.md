@@ -41,6 +41,12 @@ git branch --show-current
 2. Verify you're on a feature branch: `git branch --show-current`
 3. Then run this merge command again
 
+**Exception (main branch):**
+If you are on `main` and need to merge a workspace-per-WP feature, run:
+```bash
+spec-kitty merge --feature <feature-slug>
+```
+
 ---
 
 ## Location Pre-flight Check (CRITICAL for AI Agents)
@@ -97,13 +103,17 @@ spec-kitty merge 001-cli-hello-world
 ## What This Command Does
 
 1. **Detects** your current feature branch and worktree status
-2. **Verifies** working directory is clean
-3. **Switches** to the target branch (default: `main`)
-4. **Updates** the target branch (`git pull --ff-only`)
-5. **Merges** the feature using your chosen strategy
-6. **Optionally pushes** to origin
-7. **Removes** the feature worktree (if in one)
-8. **Deletes** the feature branch
+2. **Runs** pre-flight validation across all worktrees and the target branch
+3. **Determines** merge order based on WP dependencies (workspace-per-WP)
+4. **Forecasts** conflicts during `--dry-run` and flags auto-resolvable status files
+5. **Verifies** working directory is clean (legacy single-worktree)
+6. **Switches** to the target branch (default: `main`)
+7. **Updates** the target branch (`git pull --ff-only`)
+8. **Merges** the feature using your chosen strategy
+9. **Auto-resolves** status file conflicts after each WP merge
+10. **Optionally pushes** to origin
+11. **Removes** the feature worktree (if in one)
+12. **Deletes** the feature branch
 
 ## Usage
 
@@ -139,6 +149,9 @@ spec-kitty merge --target develop
 
 # See what would happen without doing it
 spec-kitty merge --dry-run
+
+# Run merge from main for a workspace-per-WP feature
+spec-kitty merge --feature 017-feature-slug
 ```
 
 ### Common workflows
@@ -193,6 +206,8 @@ spec-kitty merge --strategy rebase
 | `--push` | Push to origin after merge | no push |
 | `--target` | Target branch to merge into | `main` |
 | `--dry-run` | Show what would be done without executing | off |
+| `--feature` | Feature slug when merging from main branch | none |
+| `--resume` | Resume an interrupted merge | off |
 
 ## Worktree Strategy
 

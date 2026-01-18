@@ -10,10 +10,10 @@ subtasks:
   - "T022"
   - "T023"
 dependencies: ["WP01", "WP02"]
-lane: "done"
+lane: "doing"
 assignee: ""
-agent: "codex"
-shell_pid: "9049"
+agent: "claude"
+shell_pid: "20739"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -327,6 +327,3 @@ def execute_merge(
 - 2026-01-18T11:15:07Z – claude – shell_pid=19436 – lane=doing – Started review via workflow command
 - 2026-01-18T11:19:29Z – claude – shell_pid=19436 – lane=planned – Moved to planned
 - 2026-01-18T11:22:49Z – claude – shell_pid=20739 – lane=doing – Started implementation via workflow command
-- 2026-01-18T11:24:57Z – claude – shell_pid=20739 – lane=for_review – Ready for review: Fixed test imports, all 26 tests pass
-- 2026-01-18T11:49:21Z – codex – shell_pid=9049 – lane=doing – Started review via workflow command
-- 2026-01-18T11:50:17Z – codex – shell_pid=9049 – lane=done – Review passed: executor + ordering wired
