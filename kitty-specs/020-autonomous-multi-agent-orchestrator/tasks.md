@@ -27,7 +27,7 @@
 - [x] T002 Implement enums: OrchestrationStatus, WPStatus, FallbackStrategy
 - [x] T003 Implement OrchestratorConfig and AgentConfig dataclasses
 - [x] T004 Implement config.py with YAML parsing and validation
-- [ ] T005 Implement default config generation for installed agents
+- [x] T005 Implement default config generation for installed agents
 
 ### Implementation Notes
 - Create `src/specify_cli/orchestrator/` package
