@@ -205,7 +205,7 @@
 
 ### Included Subtasks
 - [x] T031 Review capability matrix for config requirements
-- [ ] T032 Refine AgentProfile schema with real data from research
+- [x] T032 Refine AgentProfile schema with real data from research
 - [ ] T033 Design OrchestratorConfig with practical defaults
 - [ ] T034 Document fallback strategies based on agent availability
 - [ ] T035 Handle single-agent edge case (same agent for impl & review)
