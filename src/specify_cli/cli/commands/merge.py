@@ -21,6 +21,7 @@ from specify_cli.merge.state import (
     abort_git_merge,
     clear_state,
     detect_git_merge_state,
+    get_state_path,
     load_state,
 )
 from specify_cli.tasks_support import TaskCliError, find_repo_root
@@ -218,6 +219,10 @@ def merge(
         resume_state = load_state(main_repo)
 
         if resume_state is None:
+            state_path = get_state_path(main_repo)
+            if state_path.exists():
+                clear_state(main_repo)
+                console.print("[yellow]⚠ Invalid merge state file cleared[/yellow]")
             console.print("[red]Error:[/red] No merge state to resume")
             console.print("Run 'spec-kitty merge --feature <slug>' to start a new merge.")
             raise typer.Exit(1)
