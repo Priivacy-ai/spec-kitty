@@ -10,10 +10,10 @@ subtasks:
   - "T030"
 title: "Synthesize CLI Capability Matrix"
 phase: "Phase 2 - Synthesis"
-lane: "for_review"
+lane: "doing"
 assignee: ""
-agent: "claude"
-shell_pid: "29703"
+agent: "claude-wp06-reviewer"
+shell_pid: "30399"
 review_status: ""
 reviewed_by: ""
 dependencies:
@@ -227,3 +227,4 @@ Reference documents:
 - 2026-01-18T14:41:27Z – system – lane=planned – Prompt created.
 - 2026-01-18T15:37:04Z – claude – shell_pid=29703 – lane=doing – Started implementation via workflow command
 - 2026-01-18T16:41:00Z – claude – lane=for_review – Completed: research.md created with full capability matrix, tier classifications, and quality gate verification. All 12 research files consolidated.
+- 2026-01-18T15:41:54Z – claude-wp06-reviewer – shell_pid=30399 – lane=doing – Started review via workflow command
