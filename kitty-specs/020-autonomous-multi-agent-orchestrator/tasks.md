@@ -151,7 +151,7 @@
 - [x] T023 Implement ready WP detection (all dependencies satisfied)
 - [x] T024 Implement agent selection by role and priority
 - [x] T025 Implement concurrency semaphores (global and per-agent)
-- [ ] T026 Implement single-agent mode handling
+- [x] T026 Implement single-agent mode handling
 
 ### Implementation Notes
 - Reuse existing `core/dependency_graph.py` for graph operations
