@@ -8,10 +8,10 @@ subtasks:
   - "T010"
 title: "Agent Invokers - Core Agents"
 phase: "Phase 1 - Components"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-opus"
+shell_pid: "43277"
 review_status: ""
 reviewed_by: ""
 dependencies:
@@ -280,3 +280,4 @@ spec-kitty implement WP02 --base WP01
 ## Activity Log
 
 - 2026-01-18T16:21:51Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
+- 2026-01-18T17:44:05Z – claude-opus – shell_pid=43277 – lane=doing – Started implementation via workflow command
