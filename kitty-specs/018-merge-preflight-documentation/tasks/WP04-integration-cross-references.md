@@ -9,7 +9,7 @@ subtasks:
   - "T030"
 title: "Integration & Cross-References"
 phase: "Phase 3 - Polish"
-lane: "doing"
+lane: "planned"
 dependencies: ["WP01", "WP02", "WP03"]
 assignee: ""
 agent: "codex"
@@ -42,7 +42,9 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-18
 
-**Issue 1**: Required guide `docs/how-to/merge-feature.md` is missing. Create the file and complete all sections per WP01 subtasks (flags, pre-flight validation, dry-run example, merge strategies, cleanup options) and ensure style matches `docs/how-to/accept-and-merge.md`.
+**Issue 1**: `docs/how-to/merge-feature.md` does not meet the T026 requirement for the See Also section. It should include a direct link to `../explanation/workspace-per-wp.md` (currently only in Background). Please add the required See Also link to match the WP guidance.
+
+**Issue 2**: Merge strategy documentation is inconsistent. `docs/how-to/merge-feature.md` states rebase is not supported, but the Command Reference table lists `rebase`, and `docs/how-to/accept-and-merge.md` includes `--strategy rebase` in the Merge Strategies list. Please align these sections to avoid contradictory guidance (remove rebase or clearly mark it unsupported).
 
 
 ## ⚠️ Dependency Rebase Guidance
@@ -193,3 +195,4 @@ Integrate new documentation into the site structure and add cross-references bet
 - 2026-01-18T13:49:02Z – claude – shell_pid=88047 – lane=doing – Started implementation via workflow command
 - 2026-01-18T13:53:35Z – claude – shell_pid=88047 – lane=for_review – Addressed review feedback: merged dependent WPs to get merge-feature.md, updated toc.yml, added cross-references to accept-and-merge.md, verified command examples and style consistency
 - 2026-01-18T13:53:57Z – codex – shell_pid=73212 – lane=doing – Started review via workflow command
+- 2026-01-18T13:55:32Z – codex – shell_pid=73212 – lane=planned – Moved to planned
