@@ -435,6 +435,178 @@ See `kitty-specs/015-first-class-jujutsu-vcs-integration/` for full specificatio
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md) - Technical design
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md) - Entities and relationships
 
+### Merge & Preflight Patterns (0.11.0+)
+
+When merging workspace-per-WP features, spec-kitty uses a preflight validation system and persistent merge state for resumable operations.
+
+#### Merge State Persistence
+
+Merge progress is saved in `.kittify/merge-state.json` to enable resuming interrupted merges:
+
+```json
+{
+  "feature_slug": "017-feature-name",
+  "target_branch": "main",
+  "wp_order": ["WP01", "WP02", "WP03"],
+  "completed_wps": ["WP01"],
+  "current_wp": "WP02",
+  "has_pending_conflicts": false,
+  "strategy": "merge",
+  "started_at": "2026-01-18T10:00:00+00:00",
+  "updated_at": "2026-01-18T10:30:00+00:00"
+}
+```
+
+**MergeState dataclass fields** (`src/specify_cli/merge/state.py`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `feature_slug` | `str` | Feature identifier (e.g., "017-feature-name") |
+| `target_branch` | `str` | Branch being merged into (e.g., "main") |
+| `wp_order` | `list[str]` | Ordered list of WP IDs to merge |
+| `completed_wps` | `list[str]` | WPs that have been successfully merged |
+| `current_wp` | `str \| None` | WP currently being merged (if interrupted) |
+| `has_pending_conflicts` | `bool` | True if git merge conflicts exist |
+| `strategy` | `str` | "merge", "squash", or "rebase" |
+| `started_at` | `str` | ISO timestamp when merge began |
+| `updated_at` | `str` | ISO timestamp of last state update |
+
+**Helper properties:**
+- `remaining_wps` → List of WPs not yet merged
+- `progress_percent` → Completion percentage (0-100)
+
+**State functions:**
+```python
+from specify_cli.merge.state import (
+    save_state,      # Persist state to JSON file
+    load_state,      # Load state from JSON file (returns None if missing/invalid)
+    clear_state,     # Remove state file
+    has_active_merge,  # Check if state exists with remaining WPs
+    get_state_path,  # Get Path to state file
+)
+```
+
+#### Pre-flight Validation
+
+Before any merge operation, `run_preflight()` validates all WP workspaces:
+
+```python
+from specify_cli.merge.preflight import run_preflight, PreflightResult, WPStatus
+
+result = run_preflight(
+    feature_slug="017-feature",
+    target_branch="main",
+    repo_root=repo_root,
+    wp_workspaces=[(wt_path, "WP01", "017-feature-WP01"), ...],
+)
+
+if not result.passed:
+    for error in result.errors:
+        print(f"Error: {error}")
+```
+
+**PreflightResult dataclass fields** (`src/specify_cli/merge/preflight.py`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `passed` | `bool` | True if all checks passed |
+| `wp_statuses` | `list[WPStatus]` | Status for each WP worktree |
+| `target_diverged` | `bool` | True if target branch behind origin |
+| `target_divergence_msg` | `str \| None` | Instructions for fixing divergence |
+| `errors` | `list[str]` | List of error messages |
+| `warnings` | `list[str]` | List of warning messages |
+
+**WPStatus dataclass fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `wp_id` | `str` | Work package ID (e.g., "WP01") |
+| `worktree_path` | `Path` | Path to worktree directory |
+| `branch_name` | `str` | Git branch name |
+| `is_clean` | `bool` | True if no uncommitted changes |
+| `error` | `str \| None` | Error message if check failed |
+
+**Checks performed:**
+1. All expected WPs have worktrees (based on tasks in kitty-specs)
+2. All worktrees are clean (no uncommitted changes)
+3. Target branch is not behind origin
+
+#### Programmatic Access
+
+**Check for active merge:**
+```python
+from specify_cli.merge.state import load_state, has_active_merge
+
+if has_active_merge(repo_root):
+    state = load_state(repo_root)
+    print(f"Merge in progress: {state.feature_slug}")
+    print(f"Progress: {len(state.completed_wps)}/{len(state.wp_order)}")
+    print(f"Remaining: {', '.join(state.remaining_wps)}")
+```
+
+**Run preflight validation:**
+```python
+from specify_cli.merge.preflight import run_preflight
+
+wp_workspaces = [
+    (Path(".worktrees/017-feature-WP01"), "WP01", "017-feature-WP01"),
+    (Path(".worktrees/017-feature-WP02"), "WP02", "017-feature-WP02"),
+]
+
+result = run_preflight(
+    feature_slug="017-feature",
+    target_branch="main",
+    repo_root=Path("."),
+    wp_workspaces=wp_workspaces,
+)
+
+for status in result.wp_statuses:
+    icon = "✓" if status.is_clean else "✗"
+    print(f"{icon} {status.wp_id}: {status.error or 'clean'}")
+```
+
+**Conflict forecasting (dry-run):**
+```python
+from specify_cli.merge.forecast import predict_conflicts, ConflictPrediction
+
+predictions = predict_conflicts(wp_workspaces, "main", repo_root)
+
+for pred in predictions:
+    auto = "auto" if pred.auto_resolvable else "manual"
+    print(f"{pred.file_path}: {', '.join(pred.conflicting_wps)} ({auto})")
+```
+
+#### Common Patterns
+
+**Resume interrupted merge:**
+```bash
+spec-kitty merge --resume
+```
+
+**Abort and start fresh:**
+```bash
+spec-kitty merge --abort
+```
+
+**Preview merge with conflict forecast:**
+```bash
+spec-kitty merge --dry-run
+```
+
+**Merge from main branch:**
+```bash
+spec-kitty merge --feature 017-my-feature
+```
+
+#### Implementation Files
+
+- `src/specify_cli/merge/state.py` - MergeState dataclass, persistence functions
+- `src/specify_cli/merge/preflight.py` - PreflightResult, WPStatus, validation checks
+- `src/specify_cli/merge/executor.py` - Merge execution with state tracking
+- `src/specify_cli/merge/forecast.py` - Conflict prediction for dry-run
+- `src/specify_cli/merge/status_resolver.py` - Auto-resolution for status file conflicts
+- `src/specify_cli/cli/commands/merge.py` - CLI command with --resume/--abort flags
+
 ## Agent Utilities for Work Package Status
 
 **Quick Status Check (Recommended for Agents)**
