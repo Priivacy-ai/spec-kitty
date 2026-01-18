@@ -11,11 +11,11 @@ subtasks:
   - "T008"
 title: "Merge Guide"
 phase: "Phase 1 - User Documentation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "codex"
 shell_pid: "53316"
-review_status: "has_feedback"
+review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
 history:
   - timestamp: "2026-01-18T13:21:55Z"
@@ -197,3 +197,4 @@ Create `docs/how-to/merge-feature.md` - a comprehensive guide for users completi
 - 2026-01-18T13:43:29Z – codex – shell_pid=53316 – lane=doing – Started review via workflow command
 - 2026-01-18T13:44:15Z – codex – shell_pid=53316 – lane=planned – Moved to planned
 - 2026-01-18T13:45:04Z – codex – shell_pid=53316 – lane=doing – Started implementation via workflow command
+- 2026-01-18T13:51:33Z – codex – shell_pid=53316 – lane=for_review – Ready for review
