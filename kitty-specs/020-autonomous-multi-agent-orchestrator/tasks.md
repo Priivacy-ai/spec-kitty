@@ -210,7 +210,7 @@
 
 ### Included Subtasks
 - [x] T032 Implement exit code detection and success/failure determination
-- [ ] T033 Implement JSON output parsing for structured results
+- [x] T033 Implement JSON output parsing for structured results
 - [ ] T034 Implement retry logic with configurable limits
 - [ ] T035 Implement fallback strategy execution (next_in_list, same_agent, fail)
 - [ ] T036 Implement lane status updates via existing commands
