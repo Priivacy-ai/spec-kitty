@@ -12,7 +12,7 @@ subtasks:
   - "T017"
 title: "Troubleshooting Guide"
 phase: "Phase 1 - User Documentation"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "codex"
 shell_pid: "56071"
@@ -44,9 +44,12 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-18
 
-**Issue 1**: Missing deliverable. `docs/how-to/troubleshoot-merge.md` does not exist in the WP02 worktree. Create the document in that path with the decision tree, command reference, and all required sections listed in the WP02 subtasks.
+**Issue 1**: Error message coverage is incomplete and not exact. The “Error Message Reference” table in `docs/how-to/troubleshoot-merge.md` is missing several user-facing messages and paraphrases others, but the WP requires exact error text + cause + solution. Please add the missing messages from:
+- `src/specify_cli/cli/commands/merge.py` (e.g. “Cannot merge: WP workspaces not ready”, “Worktree <name> has uncommitted changes”, “Target repository at <path> has uncommitted changes.”, “Working directory has uncommitted changes.”, “⚠ Invalid merge state file cleared”, “⚠ Git merge in progress - resolve conflicts first”, “Warning: Could not fast-forward <branch>.”, “Note: Rebase strategy not supported for workspace-per-WP.”)
+- `src/specify_cli/merge/preflight.py` (include “Pre-flight failed. Fix these issues before merging:” as shown)
+- `src/specify_cli/cli/commands/merge.py` preflight/feature detection errors (exact strings, including the “Error:” prefix and <slug>/<branch> placeholders where shown)
 
-**Issue 2**: Error message reference and MergeState details are not documented. Extract all user-facing errors from `src/specify_cli/cli/commands/merge.py`, `src/specify_cli/merge/executor.py`, and `src/specify_cli/merge/preflight.py`, and include them in the error message table. Document `MergeState` fields (from `src/specify_cli/merge/state.py`) with an example JSON.
+**Issue 2**: Pre-flight remediation text is out of sync with actual output. The “Missing Worktree” section uses `spec-kitty implement WP##`, but the error text in `src/specify_cli/merge/preflight.py` says `Run: spec-kitty agent workflow implement WP##` and includes the expected path. Update the example to match the exact error output.
 
 
 ## Objectives & Success Criteria
@@ -217,3 +220,4 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 - 2026-01-18T13:27:52Z – codex – shell_pid=56071 – lane=doing – Started review via workflow command
 - 2026-01-18T13:28:44Z – codex – shell_pid=56071 – lane=planned – Moved to planned
 - 2026-01-18T13:35:16Z – codex – shell_pid=56071 – lane=doing – Started review via workflow command
+- 2026-01-18T13:37:09Z – codex – shell_pid=56071 – lane=planned – Moved to planned
