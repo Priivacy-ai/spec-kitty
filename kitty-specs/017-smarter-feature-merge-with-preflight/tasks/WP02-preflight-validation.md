@@ -12,8 +12,8 @@ subtasks:
 dependencies: ["WP01"]
 lane: "doing"
 assignee: ""
-agent: "claude"
-shell_pid: "10043"
+agent: "codex"
+shell_pid: "9049"
 review_status: ""
 reviewed_by: ""
 history:
@@ -368,3 +368,5 @@ if current_branch == target_branch:
 
 - 2026-01-18T10:37:13Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-18T10:50:03Z – claude – shell_pid=10043 – lane=doing – Started implementation via workflow command
+- 2026-01-18T10:52:45Z – claude – shell_pid=10043 – lane=for_review – Ready for review: preflight validation + --feature flag
+- 2026-01-18T10:53:51Z – codex – shell_pid=9049 – lane=doing – Started review via workflow command
