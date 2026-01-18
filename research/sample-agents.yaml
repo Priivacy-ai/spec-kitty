@@ -1,0 +1,367 @@
+# Spec Kitty Agent Orchestration Configuration
+#
+# This file configures which AI agents are available for autonomous
+# multi-agent orchestration workflows. Place this file at:
+#   .kittify/agents.yaml
+#
+# Documentation: See data-model.md for full schema specification
+# Generated: 2026-01-18 from WP01-WP06 research findings
+
+version: "1.0"
+
+# ============================================================================
+# GLOBAL SETTINGS
+# ============================================================================
+# These settings apply to all agent invocations unless overridden per-agent.
+
+global:
+  # Maximum time (seconds) for a single agent invocation
+  # Range: 60-3600, Default: 300 (5 minutes)
+  timeout_seconds: 300
+
+  # Number of automatic retries on transient failures (network, timeout)
+  # Set to 0 to disable retries
+  retry_count: 2
+
+  # Stay below this fraction of rate limits to avoid hitting them
+  # Range: 0.5-1.0, Default: 0.8 (80%)
+  rate_limit_buffer: 0.8
+
+  # Use git worktrees for parallel WP execution
+  # When true, each WP gets an isolated workspace
+  workspace_isolation: true
+
+# ============================================================================
+# DEFAULT AGENT PREFERENCES
+# ============================================================================
+# Ordered lists of preferred agents for each role. The orchestrator tries
+# agents in order until one succeeds or all have been tried.
+#
+# Tier 1 (Low complexity, fully ready):
+#   claude-code, github-codex, github-copilot, google-gemini,
+#   qwen-code, opencode, kilocode, augment-code
+#
+# Tier 2 (Medium complexity, workarounds needed):
+#   cursor (requires timeout wrapper)
+#
+# Tier 3 (Not suitable for orchestration):
+#   windsurf, roo-code, amazon-q
+
+defaults:
+  # Agents for implementing work packages
+  # Recommendation: Lead with most capable, fall back to alternatives
+  implementation:
+    - claude-code      # Best overall: comprehensive tools, good context
+    - github-codex     # Strong alternative: exec mode, JSON output
+    - opencode         # Multi-provider flexibility
+
+  # Agents for reviewing completed work packages
+  # Recommendation: Use different agent than implementer when possible
+  review:
+    - github-codex     # Different perspective from implementer
+    - google-gemini    # Large context window (1M tokens)
+    - claude-code      # Fallback if others unavailable
+
+# ============================================================================
+# PER-AGENT CONFIGURATION
+# ============================================================================
+# Override default settings for specific agents. Only agents listed here
+# are available for orchestration.
+
+agents:
+  # -------------------------------------------------------------------------
+  # Claude Code (Anthropic)
+  # -------------------------------------------------------------------------
+  # Gold standard CLI with -p, JSON output, --allowedTools
+  # CLI: claude -p "prompt" --output-format json
+  claude-code:
+    enabled: true
+    roles: [implementation, review]
+    priority: 100          # Highest priority
+    max_concurrent: 2      # Conservative default
+    # timeout_seconds: 300 # Uses global default
+    # custom_flags: []     # Additional CLI flags
+
+  # -------------------------------------------------------------------------
+  # GitHub Codex (OpenAI)
+  # -------------------------------------------------------------------------
+  # Full headless with exec subcommand, --full-auto
+  # CLI: codex exec "prompt" --json --full-auto
+  github-codex:
+    enabled: true
+    roles: [implementation, review]
+    priority: 90
+    max_concurrent: 3
+
+  # -------------------------------------------------------------------------
+  # Google Gemini
+  # -------------------------------------------------------------------------
+  # Native CLI with --output-format json, --yolo
+  # CLI: gemini -p "prompt" --yolo --output-format json
+  google-gemini:
+    enabled: true
+    roles: [implementation, review]
+    priority: 80
+    max_concurrent: 2
+
+  # -------------------------------------------------------------------------
+  # OpenCode
+  # -------------------------------------------------------------------------
+  # Clean run subcommand, multi-provider support
+  # CLI: opencode run "prompt" --format json
+  opencode:
+    enabled: true
+    roles: [implementation, review]
+    priority: 70
+    max_concurrent: 2
+
+  # -------------------------------------------------------------------------
+  # GitHub Copilot
+  # -------------------------------------------------------------------------
+  # Standalone CLI with -p --yolo, multi-model support
+  # CLI: copilot -p "prompt" --yolo --silent
+  # NOTE: Requires GitHub Copilot subscription
+  github-copilot:
+    enabled: false         # Enable if you have subscription
+    roles: [implementation, review]
+    priority: 95
+    max_concurrent: 3
+    custom_flags:
+      - "--model"
+      - "gpt-5.2-codex"
+
+  # -------------------------------------------------------------------------
+  # Qwen Code
+  # -------------------------------------------------------------------------
+  # Fork of Gemini CLI with identical capabilities
+  # CLI: qwen -p "prompt" --yolo --output-format json
+  qwen-code:
+    enabled: false         # Enable if preferred
+    roles: [implementation, review]
+    priority: 75
+    max_concurrent: 2
+
+  # -------------------------------------------------------------------------
+  # Kilocode
+  # -------------------------------------------------------------------------
+  # Excellent CLI with -a --yolo, parallel branch support
+  # CLI: kilocode -a --yolo -j "prompt"
+  kilocode:
+    enabled: false         # Enable if preferred
+    roles: [implementation, review]
+    priority: 65
+    max_concurrent: 3
+    custom_flags:
+      - "--parallel"       # Creates separate git branch
+
+  # -------------------------------------------------------------------------
+  # Augment Code (Auggie)
+  # -------------------------------------------------------------------------
+  # ACP mode for non-interactive operation
+  # CLI: auggie --acp "prompt"
+  augment-code:
+    enabled: false         # Enable if preferred
+    roles: [implementation, review]
+    priority: 60
+    max_concurrent: 2
+
+  # -------------------------------------------------------------------------
+  # Cursor (Tier 2 - Requires Workaround)
+  # -------------------------------------------------------------------------
+  # Has CLI but may hang after completion; needs timeout wrapper
+  # CLI: timeout 300 cursor agent -p --force --output-format json "prompt"
+  # NOTE: The orchestrator will automatically wrap with timeout
+  cursor:
+    enabled: false         # Enable with caution
+    roles: [implementation]  # Not recommended for review
+    priority: 50
+    max_concurrent: 1
+    timeout_seconds: 600   # Longer timeout due to potential hanging
+    custom_flags:
+      - "--force"
+
+# ============================================================================
+# FALLBACK BEHAVIOR
+# ============================================================================
+# Define what happens when the preferred agent is unavailable.
+
+fallback:
+  # Strategy options:
+  #   next_in_list - Try next agent in defaults list
+  #   same_agent   - Use same agent for both roles (single-agent mode)
+  #   fail         - Stop and alert user
+  #   queue        - Wait and retry later (useful for rate limits)
+  strategy: next_in_list
+
+  # Maximum agents to try before giving up
+  max_fallback_attempts: 3
+
+  # For queue strategy: how long to wait before failing
+  queue_timeout_minutes: 30
+
+# ============================================================================
+# SINGLE-AGENT MODE
+# ============================================================================
+# Configuration for when only one agent is available. This can happen when:
+# - User only has one agent installed/subscribed
+# - All other agents are unavailable (rate limited, failed, etc.)
+
+single_agent_mode:
+  # Enable options:
+  #   true  - Always use single-agent mode
+  #   false - Never use (fail if only one agent available)
+  #   auto  - Automatically enable when only one agent available
+  enabled: "auto"
+
+  # Specific agent to use (null = auto-select from enabled agents)
+  agent: null
+
+  # Delay before same agent reviews its own work
+  # Helps reduce context carryover and encourages fresh perspective
+  review_delay_seconds: 30
+
+# ============================================================================
+# EXAMPLE CONFIGURATIONS
+# ============================================================================
+# Below are commented examples for common scenarios.
+
+# -----------------------------------------------------------------------------
+# MINIMAL: Single Agent Only
+# -----------------------------------------------------------------------------
+# For users who only have Claude Code installed.
+#
+# version: "1.0"
+#
+# defaults:
+#   implementation: [claude-code]
+#   review: [claude-code]
+#
+# agents:
+#   claude-code:
+#     enabled: true
+#     roles: [implementation, review]
+#     priority: 100
+#
+# fallback:
+#   strategy: fail
+#
+# single_agent_mode:
+#   enabled: true
+#   agent: claude-code
+#   review_delay_seconds: 60  # Longer delay for self-review
+
+# -----------------------------------------------------------------------------
+# ENTERPRISE: Maximum Parallelization
+# -----------------------------------------------------------------------------
+# For enterprise users with multiple agent subscriptions.
+#
+# version: "1.0"
+#
+# global:
+#   timeout_seconds: 600
+#   retry_count: 3
+#   rate_limit_buffer: 0.7
+#   workspace_isolation: true
+#
+# defaults:
+#   implementation:
+#     - github-copilot    # Enterprise has higher limits
+#     - claude-code
+#     - github-codex
+#     - kilocode
+#   review:
+#     - google-gemini     # Large context for comprehensive review
+#     - github-codex
+#     - claude-code
+#
+# agents:
+#   github-copilot:
+#     enabled: true
+#     roles: [implementation]
+#     priority: 100
+#     max_concurrent: 5
+#     custom_flags:
+#       - "--model"
+#       - "gpt-5.2-codex"
+#
+#   claude-code:
+#     enabled: true
+#     roles: [implementation, review]
+#     priority: 95
+#     max_concurrent: 3
+#
+#   github-codex:
+#     enabled: true
+#     roles: [implementation, review]
+#     priority: 90
+#     max_concurrent: 4
+#
+#   google-gemini:
+#     enabled: true
+#     roles: [review]
+#     priority: 85
+#     max_concurrent: 2
+#
+#   kilocode:
+#     enabled: true
+#     roles: [implementation]
+#     priority: 80
+#     max_concurrent: 3
+#     custom_flags:
+#       - "--parallel"
+#
+# fallback:
+#   strategy: next_in_list
+#   max_fallback_attempts: 4
+#   queue_timeout_minutes: 60
+#
+# single_agent_mode:
+#   enabled: false
+
+# -----------------------------------------------------------------------------
+# COST-OPTIMIZED: Free Tier Agents
+# -----------------------------------------------------------------------------
+# For users minimizing costs with free-tier agents.
+#
+# version: "1.0"
+#
+# global:
+#   timeout_seconds: 300
+#   retry_count: 1          # Fewer retries to conserve quota
+#   rate_limit_buffer: 0.6  # More conservative buffer
+#
+# defaults:
+#   implementation:
+#     - opencode         # Multi-provider, can use free models
+#     - qwen-code        # Generous free tier (2000/day)
+#     - google-gemini    # 60/min, 1000/day free
+#   review:
+#     - google-gemini    # Large context in free tier
+#     - opencode
+#
+# agents:
+#   opencode:
+#     enabled: true
+#     roles: [implementation, review]
+#     priority: 100
+#     max_concurrent: 1
+#
+#   qwen-code:
+#     enabled: true
+#     roles: [implementation]
+#     priority: 90
+#     max_concurrent: 1
+#
+#   google-gemini:
+#     enabled: true
+#     roles: [review]
+#     priority: 80
+#     max_concurrent: 1
+#
+# fallback:
+#   strategy: queue        # Wait for rate limits instead of failing
+#   max_fallback_attempts: 2
+#   queue_timeout_minutes: 60
+#
+# single_agent_mode:
+#   enabled: "auto"
