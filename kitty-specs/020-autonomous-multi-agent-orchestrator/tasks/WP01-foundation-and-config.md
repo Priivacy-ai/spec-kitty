@@ -8,10 +8,10 @@ subtasks:
   - "T005"
 title: "Foundation & Config"
 phase: "Phase 0 - Foundation"
-lane: "for_review"
+lane: "doing"
 assignee: ""
 agent: "claude-opus"
-shell_pid: "42425"
+shell_pid: "43211"
 review_status: ""
 reviewed_by: ""
 dependencies: []
@@ -261,3 +261,4 @@ def load_config(config_path: Path) -> OrchestratorConfig:
 - 2026-01-18T16:21:51Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-18T17:38:27Z – claude-opus – shell_pid=42425 – lane=doing – Started implementation via workflow command
 - 2026-01-18T17:41:32Z – claude-opus – shell_pid=42425 – lane=for_review – Ready for review: Foundation package with enums, config dataclasses, YAML parsing/validation, and default config generation for 9 agents
+- 2026-01-18T17:43:57Z – claude-opus – shell_pid=43211 – lane=doing – Started review via workflow command
