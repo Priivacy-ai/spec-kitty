@@ -204,7 +204,7 @@
 **Prompt**: `tasks/WP07-design-orchestration-config.md`
 
 ### Included Subtasks
-- [ ] T031 Review capability matrix for config requirements
+- [x] T031 Review capability matrix for config requirements
 - [ ] T032 Refine AgentProfile schema with real data from research
 - [ ] T033 Design OrchestratorConfig with practical defaults
 - [ ] T034 Document fallback strategies based on agent availability
