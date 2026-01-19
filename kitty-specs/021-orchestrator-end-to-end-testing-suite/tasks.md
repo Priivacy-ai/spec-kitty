@@ -87,7 +87,7 @@
 - [x] T011 Implement `WorktreeMetadata` dataclass
 - [x] T012 Implement `TestContext` dataclass
 - [x] T013 Add `worktrees.json` schema validation with Pydantic or manual checks
-- [ ] T014 Add `state.json` schema validation (OrchestrationRun compatibility)
+- [x] T014 Add `state.json` schema validation (OrchestrationRun compatibility)
 
 ### Implementation Notes
 - Match data-model.md specifications exactly
