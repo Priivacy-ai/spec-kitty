@@ -7,10 +7,10 @@ subtasks:
   - "T009"
 title: "Test Path Selection"
 phase: "Phase 0 - Foundation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-opus"
+shell_pid: "5136"
 review_status: ""
 reviewed_by: ""
 dependencies: ["WP01"]
@@ -317,3 +317,4 @@ Implement the test path model that selects execution paths based on agent availa
 ## Activity Log
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
+- 2026-01-19T09:45:28Z – claude-opus – shell_pid=5136 – lane=doing – Started implementation via workflow command
