@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Parallel and Dependency Tests
-lane: planned
+lane: "doing"
 dependencies:
 - WP05
 subtasks:
@@ -13,8 +13,8 @@ subtasks:
 - T046
 phase: Phase 1 - Core Tests
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude-opus"
+shell_pid: "32537"
 review_status: ''
 reviewed_by: ''
 history:
@@ -897,3 +897,4 @@ Test parallel execution and dependency ordering:
 ## Activity Log
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
+- 2026-01-19T10:23:08Z – claude-opus – shell_pid=32537 – lane=doing – Started implementation via workflow command
