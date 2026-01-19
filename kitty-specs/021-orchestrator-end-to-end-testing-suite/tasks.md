@@ -244,7 +244,7 @@
 - [x] T037 Implement test: re-implementation produces new commits
 - [x] T038 Implement test: full cycle (reject → re-impl → re-review → approve)
 - [x] T039 Implement test: max review cycles exceeded marks WP failed
-- [ ] T040 Implement test: state transition history is recorded
+- [x] T040 Implement test: state transition history is recorded
 
 ### Implementation Notes
 - Start from `checkpoint_review_pending` fixture
