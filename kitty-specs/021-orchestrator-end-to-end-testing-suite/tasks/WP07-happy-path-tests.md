@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Happy Path Tests
-lane: "for_review"
+lane: "doing"
 dependencies:
 - WP05
 subtasks:
@@ -13,7 +13,7 @@ subtasks:
 phase: Phase 1 - Core Tests
 assignee: ''
 agent: "claude-opus"
-shell_pid: "24345"
+shell_pid: "37792"
 review_status: ''
 reviewed_by: ''
 history:
@@ -610,3 +610,4 @@ Implement end-to-end tests for happy path orchestration:
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
 - 2026-01-19T10:14:33Z – claude-opus – shell_pid=24345 – lane=doing – Started implementation via workflow command
 - 2026-01-19T10:27:37Z – claude-opus – shell_pid=24345 – lane=for_review – Ready for review: Added happy path e2e tests (T031-T035). 12 tests passing, 6 e2e tests skipped (require real agents).
+- 2026-01-19T10:27:56Z – claude-opus – shell_pid=37792 – lane=doing – Started review via workflow command
