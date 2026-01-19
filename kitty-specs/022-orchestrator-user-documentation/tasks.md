@@ -56,7 +56,7 @@ description: "Work package task list for orchestrator user documentation"
 **Prompt**: `tasks/WP02-reference-updates.md`
 
 ### Included Subtasks
-- [ ] T003 Update `docs/reference/cli-commands.md` (R1) - add orchestrate section with all flags
+- [x] T003 Update `docs/reference/cli-commands.md` (R1) - add orchestrate section with all flags
 - [ ] T004 Update `docs/reference/configuration.md` (R2) - add agents section to config.yaml
 
 ### Implementation Notes
