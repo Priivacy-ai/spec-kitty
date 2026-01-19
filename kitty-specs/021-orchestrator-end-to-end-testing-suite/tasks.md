@@ -301,7 +301,7 @@
 **Estimated Size**: ~380 lines
 
 ### Included Subtasks
-- [ ] T047 Implement smoke test infrastructure (base class or helper)
+- [x] T047 Implement smoke test infrastructure (base class or helper)
 - [ ] T048 Implement file touch task and `verify_smoke_result()` function
 - [ ] T049 Create parametrized smoke tests for all 7 extended agents
 - [ ] T050 Implement skip behavior for unavailable extended agents
