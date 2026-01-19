@@ -54,7 +54,7 @@
 **Estimated Size**: ~280 lines
 
 ### Included Subtasks
-- [ ] T006 Implement `TestPath` dataclass in `paths.py`
+- [x] T006 Implement `TestPath` dataclass in `paths.py`
 - [ ] T007 Implement path selection logic based on agent count
 - [ ] T008 Implement agent assignment (implementation, review, fallback)
 - [ ] T009 Add `select_test_path()` function with caching
