@@ -188,3 +188,82 @@ def get_checkpoint_with_validation(name: str) -> Path:
         warnings.warn(warning, UserWarning, stacklevel=2)
 
     return path
+
+
+def load_checkpoint(name: str, tmp_path: Path):
+    """Load a checkpoint into a TestContext.
+
+    Copies checkpoint files into tmp_path and returns a TestContext
+    object for use in tests.
+
+    Args:
+        name: Checkpoint name (e.g., 'wp_created')
+        tmp_path: Pytest tmp_path to copy files into
+
+    Returns:
+        TestContext with checkpoint data loaded
+    """
+    import shutil
+
+    from specify_cli.orchestrator.testing.fixtures import (
+        FixtureCheckpoint,
+        TestContext,
+        load_state_file,
+    )
+    from specify_cli.orchestrator.testing.paths import TestPath
+
+    checkpoint_path = get_checkpoint_path(name)
+
+    # Copy feature directory first (so we can place state.json inside it)
+    feature_dir = tmp_path / "feature"
+    shutil.copytree(checkpoint_path / "feature", feature_dir)
+
+    # Copy state.json to tmp_path (for backwards compatibility)
+    state_file = tmp_path / "state.json"
+    shutil.copy(checkpoint_path / "state.json", state_file)
+
+    # Also copy state.json to where TestContext.state_file property expects it
+    # TestContext.state_file returns feature_dir / ".orchestration-state.json"
+    expected_state_file = feature_dir / ".orchestration-state.json"
+    shutil.copy(checkpoint_path / "state.json", expected_state_file)
+
+    # Create a fake repo root with .git
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(exist_ok=True)
+    (repo_root / ".git").mkdir(exist_ok=True)
+
+    # Create checkpoint object
+    from datetime import datetime
+
+    checkpoint = FixtureCheckpoint(
+        name=name,
+        path=checkpoint_path,
+        orchestrator_version="0.12.0",  # Placeholder
+        created_at=datetime.now(),
+    )
+
+    # Load state if it exists
+    orchestration_state = None
+    if state_file.exists():
+        try:
+            orchestration_state = load_state_file(state_file)
+        except Exception:
+            pass
+
+    # Create a mock test_path (using Literal["1-agent", "2-agent", "3+-agent"])
+    mock_path = TestPath(
+        path_type="1-agent",
+        implementation_agent="mock",
+        review_agent="mock",
+        available_agents=["mock"],
+        fallback_agent=None,
+    )
+
+    return TestContext(
+        temp_dir=tmp_path,
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+        test_path=mock_path,
+        checkpoint=checkpoint,
+        orchestration_state=orchestration_state,
+    )

@@ -39,6 +39,12 @@ class StateFileError(Exception):
     pass
 
 
+class GitError(Exception):
+    """Error executing git command."""
+
+    pass
+
+
 # =============================================================================
 # FixtureCheckpoint Dataclass (T010)
 # =============================================================================
@@ -348,3 +354,331 @@ def save_state_file(path: Path, state: OrchestrationRun) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         json.dump(state.to_dict(), f, indent=2)
+
+
+# =============================================================================
+# Test Helper Functions
+# =============================================================================
+
+
+_cleanup_registry: list[Path] = []
+
+
+def register_for_cleanup(path: Path) -> None:
+    """Register a path for cleanup.
+
+    Args:
+        path: Path to register
+    """
+    _cleanup_registry.append(path)
+
+
+def cleanup_temp_dir(path: Path) -> None:
+    """Clean up a temporary directory.
+
+    Args:
+        path: Directory to remove
+    """
+    import shutil
+
+    if path.exists():
+        shutil.rmtree(path, ignore_errors=True)
+
+
+def cleanup_test_context(ctx: TestContext) -> None:
+    """Clean up a test context.
+
+    Args:
+        ctx: Context to clean up
+    """
+    cleanup_temp_dir(ctx.temp_dir)
+
+
+def copy_fixture_to_temp(checkpoint: FixtureCheckpoint) -> Path:
+    """Copy a fixture checkpoint to a temp directory.
+
+    Creates directory structure:
+        temp_dir/
+            kitty-specs/test-feature/  (copied from checkpoint.feature_dir)
+                .orchestration-state.json  (copied from checkpoint.state_file)
+            worktrees.json
+
+    Args:
+        checkpoint: Checkpoint to copy
+
+    Returns:
+        Path to temporary directory
+
+    Raises:
+        FileNotFoundError: If checkpoint is incomplete (missing required files)
+    """
+    import shutil
+    import tempfile
+
+    # Validate checkpoint has required files
+    if not checkpoint.worktrees_file.exists():
+        raise FileNotFoundError(
+            f"Checkpoint not found or incomplete: missing {checkpoint.worktrees_file}"
+        )
+
+    temp_dir = Path(tempfile.mkdtemp(prefix=f"orchestrator_test_{checkpoint.name}_"))
+
+    # Create kitty-specs/test-feature directory structure
+    feature_dest = temp_dir / "kitty-specs" / "test-feature"
+    feature_dest.parent.mkdir(parents=True, exist_ok=True)
+
+    # Copy feature directory if it exists
+    if checkpoint.feature_dir.exists():
+        shutil.copytree(checkpoint.feature_dir, feature_dest)
+
+    # Copy state file into the feature directory as .orchestration-state.json
+    if checkpoint.state_file.exists():
+        shutil.copy(checkpoint.state_file, feature_dest / ".orchestration-state.json")
+
+    # Copy worktrees file to temp dir root
+    shutil.copy(checkpoint.worktrees_file, temp_dir / "worktrees.json")
+
+    register_for_cleanup(temp_dir)
+    return temp_dir
+
+
+def init_git_repo(path: Path) -> None:
+    """Initialize a git repository at path with initial commit.
+
+    Creates a git repo, configures user, and makes an initial commit.
+    If no files exist, creates a .gitkeep file.
+
+    Args:
+        path: Directory to initialize
+
+    Raises:
+        GitError: If git command fails
+    """
+    import subprocess
+
+    path.mkdir(parents=True, exist_ok=True)
+
+    try:
+        subprocess.run(
+            ["git", "init"],
+            cwd=path,
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"],
+            cwd=path,
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=path,
+            capture_output=True,
+            check=True,
+        )
+
+        # Create a .gitkeep if no files exist (to ensure we can make a commit)
+        gitkeep = path / ".gitkeep"
+        if not gitkeep.exists():
+            gitkeep.write_text("")
+
+        # Add all files and make initial commit
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=path,
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Initial test fixture commit"],
+            cwd=path,
+            capture_output=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise GitError(f"Failed to init git repo: {e}")
+
+
+def create_worktrees_from_metadata(
+    repo_root: Path, worktrees: list[WorktreeMetadata]
+) -> None:
+    """Create git worktrees from metadata.
+
+    Args:
+        repo_root: Root of the main repository
+        worktrees: List of worktree metadata
+
+    Raises:
+        GitError: If worktree creation fails
+    """
+    import subprocess
+
+    for wt in worktrees:
+        # Use relative_path from metadata to determine worktree location
+        worktree_path = repo_root / wt.relative_path
+        worktree_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # First create the branch
+            subprocess.run(
+                ["git", "branch", wt.branch_name],
+                cwd=repo_root,
+                capture_output=True,
+            )
+            # Then create the worktree
+            subprocess.run(
+                ["git", "worktree", "add", str(worktree_path), wt.branch_name],
+                cwd=repo_root,
+                capture_output=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            raise GitError(f"Failed to create worktree for {wt.wp_id}: {e}")
+
+
+def load_orchestration_state(path: Path) -> "OrchestrationRun":
+    """Load orchestration state from a feature directory or state file.
+
+    Args:
+        path: Path to feature directory or state.json file.
+              If a directory, looks for .orchestration-state.json inside.
+
+    Returns:
+        OrchestrationRun instance
+
+    Raises:
+        StateFileError: If loading fails or state file not found
+    """
+    if path.is_dir():
+        # Assume it's a feature directory, look for state file inside
+        state_file = path / ".orchestration-state.json"
+    else:
+        state_file = path
+
+    return load_state_file(state_file)
+
+
+def load_checkpoint(
+    checkpoint: FixtureCheckpoint,
+    test_path: Any | None = None,
+) -> TestContext:
+    """Load a checkpoint into a TestContext.
+
+    Args:
+        checkpoint: Checkpoint to load from
+        test_path: Optional TestPath to use (creates mock if None)
+
+    Returns:
+        TestContext with checkpoint loaded
+
+    Raises:
+        FileNotFoundError: If checkpoint files are missing
+        StateFileError: If state.json is invalid
+    """
+    import shutil
+    import tempfile
+
+    # Validate checkpoint has required files
+    if not checkpoint.feature_dir.exists():
+        raise FileNotFoundError(f"Checkpoint feature directory missing: {checkpoint.feature_dir}")
+
+    # Create temp directory for test
+    temp_dir = Path(tempfile.mkdtemp(prefix=f"orchestrator_test_{checkpoint.name}_"))
+    register_for_cleanup(temp_dir)
+
+    # Copy files to temp_dir
+    state_file = temp_dir / "state.json"
+    feature_dir = temp_dir / "feature"
+    repo_root = temp_dir / "repo"
+
+    if checkpoint.state_file.exists():
+        shutil.copy(checkpoint.state_file, state_file)
+
+    if checkpoint.feature_dir.exists():
+        shutil.copytree(checkpoint.feature_dir, feature_dir)
+
+    # Also copy state.json to where TestContext.state_file property expects it
+    expected_state_file = feature_dir / ".orchestration-state.json"
+    if checkpoint.state_file.exists():
+        shutil.copy(checkpoint.state_file, expected_state_file)
+
+    # Initialize git repo
+    init_git_repo(repo_root)
+
+    # Load worktrees metadata if present
+    worktrees: list[WorktreeMetadata] = []
+    if checkpoint.worktrees_file.exists():
+        worktrees = load_worktrees_file(checkpoint.worktrees_file)
+        # Create the worktrees in the repo
+        if worktrees:
+            create_worktrees_from_metadata(repo_root, worktrees)
+
+    # Load state if it exists
+    orchestration_state = None
+    if state_file.exists():
+        orchestration_state = load_state_file(state_file)
+
+    # Use provided test_path or create a mock one
+    if test_path is None:
+        from specify_cli.orchestrator.testing.paths import TestPath
+
+        test_path = TestPath(
+            path_type="1-agent",
+            implementation_agent="mock",
+            review_agent="mock",
+            available_agents=["mock"],
+            fallback_agent=None,
+        )
+
+    return TestContext(
+        temp_dir=temp_dir,
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+        test_path=test_path,
+        checkpoint=checkpoint,
+        orchestration_state=orchestration_state,
+        worktrees=worktrees,
+    )
+
+
+def setup_test_repo(tmp_path: Path, feature_slug: str = "test-feature") -> TestContext:
+    """Set up a test repository with basic structure.
+
+    Args:
+        tmp_path: pytest tmp_path
+        feature_slug: Name for the test feature
+
+    Returns:
+        TestContext for the test
+    """
+    repo_root = tmp_path / "repo"
+    init_git_repo(repo_root)
+
+    # Create feature directory
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir.mkdir(parents=True)
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+
+    # Create basic files
+    (feature_dir / "spec.md").write_text("# Test Spec\n")
+    (feature_dir / "plan.md").write_text("# Test Plan\n")
+
+    # Create a mock test_path
+    from specify_cli.orchestrator.testing.paths import TestPath
+
+    mock_path = TestPath(
+        path_type="1-agent",
+        implementation_agent="mock",
+        review_agent="mock",
+        available_agents=["mock"],
+        fallback_agent=None,
+    )
+
+    return TestContext(
+        temp_dir=tmp_path,
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+        test_path=mock_path,
+    )
