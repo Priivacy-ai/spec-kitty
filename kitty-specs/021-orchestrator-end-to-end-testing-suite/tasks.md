@@ -361,7 +361,7 @@
 
 ### Included Subtasks
 - [x] T056 Update root `tests/conftest.py` with orchestrator marker registration
-- [ ] T057 Add state validation utilities (`validate_test_result()`)
+- [x] T057 Add state validation utilities (`validate_test_result()`)
 - [ ] T058 Add test output helpers (distinguish skip vs fail messages)
 - [ ] T059 Add timeout configuration via environment variables
 - [ ] T060 Validate quickstart.md scenarios work as documented
