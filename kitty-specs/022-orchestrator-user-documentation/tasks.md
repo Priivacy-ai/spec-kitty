@@ -29,7 +29,7 @@ description: "Work package task list for orchestrator user documentation"
 **Prompt**: `tasks/WP01-foundation.md`
 
 ### Included Subtasks
-- [ ] T001 Create `docs/explanation/autonomous-orchestration.md` (E1) - orchestrator architecture explanation
+- [x] T001 Create `docs/explanation/autonomous-orchestration.md` (E1) - orchestrator architecture explanation
 - [ ] T002 Create `docs/reference/orchestration-state.md` (R3) - state file structure reference
 
 ### Implementation Notes
