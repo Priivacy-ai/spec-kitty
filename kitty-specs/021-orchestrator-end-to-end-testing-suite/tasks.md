@@ -152,7 +152,7 @@
 - [x] T022 Create `checkpoint_wp_created/` fixture (WPs in planned lane)
 - [x] T023 Create `checkpoint_wp_implemented/` fixture (WP01 implemented)
 - [x] T024 Create `checkpoint_review_pending/` fixture (WP01 in review)
-- [ ] T025 Add fixture manifest in `__init__.py` for discovery
+- [x] T025 Add fixture manifest in `__init__.py` for discovery
 
 ### Implementation Notes
 - Directory structure: `tests/fixtures/orchestrator/checkpoint_<name>/`
