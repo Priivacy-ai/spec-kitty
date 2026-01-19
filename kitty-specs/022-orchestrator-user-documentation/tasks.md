@@ -57,7 +57,7 @@ description: "Work package task list for orchestrator user documentation"
 
 ### Included Subtasks
 - [x] T003 Update `docs/reference/cli-commands.md` (R1) - add orchestrate section with all flags
-- [ ] T004 Update `docs/reference/configuration.md` (R2) - add agents section to config.yaml
+- [x] T004 Update `docs/reference/configuration.md` (R2) - add agents section to config.yaml
 
 ### Implementation Notes
 - R1 must include: --feature, --status, --resume, --abort, --skip, --cleanup, --impl-agent, --review-agent
