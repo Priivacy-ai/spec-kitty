@@ -274,7 +274,7 @@
 - [x] T042 Implement test: WP waits for dependencies before starting
 - [x] T043 Implement test: circular dependency detection (pre-execution fail)
 - [x] T044 Implement test: diamond dependency pattern execution order
-- [ ] T045 Implement test: linear chain (WP01 → WP02 → WP03)
+- [x] T045 Implement test: linear chain (WP01 → WP02 → WP03)
 - [ ] T046 Implement test: fan-out pattern (WP01 → WP02, WP03, WP04)
 
 ### Implementation Notes
