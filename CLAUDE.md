@@ -225,6 +225,23 @@ if dependents:
 
 **Display during `/spec-kitty.review` if WP has downstream dependencies.**
 
+### Status Tracking Behavior (Important for Agents)
+
+**NOTE: Don't be confused by stale status in `/spec-kitty.status` output!**
+
+WP status is tracked in the **main branch** via kitty-specs files. When you run `spec-kitty agent tasks move-task WP## --to for_review`, the status is committed to main. However:
+
+1. **Your worktree may show stale status** - The kanban board reads from main, but your worktree's sparse checkout may not reflect the latest main commits immediately.
+
+2. **Other agents may move your WP** - If a reviewer agent moves your WP back to "doing" (e.g., changes requested), the board will show "doing" even though you just moved it to "for_review".
+
+3. **This is normal parallel workflow behavior** - Multiple agents work simultaneously. Status changes from other agents are expected. Focus only on YOUR assigned WP.
+
+**Don't panic if:**
+- You moved WP to "for_review" but the board shows "doing" → A reviewer may have started or requested changes
+- You see commits from other WPs → Other agents are working in parallel, ignore them
+- Status seems out of sync → The source of truth is the WP file in main branch
+
 ### Dogfooding: How This Feature Was Built
 
 This workspace-per-WP feature (010) used the NEW model:
