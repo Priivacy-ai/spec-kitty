@@ -185,3 +185,6 @@ grep "^lane:" kitty-specs/###-feature/tasks/WP##-*.md
 **"I finished implementing but nothing happened"**
 - Check: Did you move to for_review? `spec-kitty agent tasks move-task WP## --to for_review`
 - The WP file must be moved to for_review lane for the workflow to continue
+
+**"Status board shows 'doing' but I just moved to 'for_review'"**
+- This is normal! Status is tracked in main branch. A reviewer may have already moved it back to "doing" (changes requested), or there's a sync delay. Don't panic - focus on your WP.
