@@ -8,10 +8,10 @@ subtasks:
   - "T014"
 title: "Fixture Data Structures"
 phase: "Phase 0 - Foundation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-opus"
+shell_pid: "6815"
 review_status: ""
 reviewed_by: ""
 dependencies: []
@@ -410,3 +410,4 @@ Define all data structures for fixture management:
 ## Activity Log
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
+- 2026-01-19T09:47:29Z – claude-opus – shell_pid=6815 – lane=doing – Started implementation via workflow command
