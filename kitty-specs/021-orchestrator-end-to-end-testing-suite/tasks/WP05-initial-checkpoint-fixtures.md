@@ -8,10 +8,10 @@ subtasks:
   - "T025"
 title: "Initial Checkpoint Fixtures"
 phase: "Phase 1 - Fixtures"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-opus"
+shell_pid: "14802"
 review_status: ""
 reviewed_by: ""
 dependencies: ["WP03"]
@@ -454,3 +454,4 @@ Create the first set of checkpoint fixtures for testing:
 ## Activity Log
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
+- 2026-01-19T10:03:04Z – claude-opus – shell_pid=14802 – lane=doing – Started implementation via workflow command
