@@ -87,7 +87,7 @@ description: "Work package task list for orchestrator user documentation"
 - [x] T005 [P] Create `docs/how-to/run-autonomous-orchestration.md` (H1) - quick start guide
 - [x] T006 [P] Create `docs/how-to/configure-orchestration-agents.md` (H2) - agent selection setup
 - [x] T007 [P] Create `docs/how-to/monitor-orchestration.md` (H3) - status checking and dashboard
-- [ ] T008 [P] Create `docs/how-to/resume-failed-orchestration.md` (H4) - recovery after failure
+- [x] T008 [P] Create `docs/how-to/resume-failed-orchestration.md` (H4) - recovery after failure
 - [ ] T009 [P] Create `docs/how-to/override-orchestration-agents.md` (H5) - CLI flag overrides
 
 ### Implementation Notes
