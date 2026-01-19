@@ -34,6 +34,12 @@ from specify_cli.core.vcs import (
 )
 from specify_cli.dashboard import ensure_dashboard_running
 from specify_cli.gitignore_manager import GitignoreManager, ProtectionResult
+from specify_cli.orchestrator.agent_config import (
+    AgentConfig,
+    AgentSelectionConfig,
+    SelectionStrategy,
+    save_agent_config,
+)
 from .init_help import INIT_COMMAND_DOC
 from specify_cli.template import (
     GitHubClientError,
@@ -362,6 +368,65 @@ def init(
             _console.print()
             _console.print(warning_panel)
             # Continue with init instead of blocking
+
+    # ==========================================================================
+    # Agent Selection Strategy (for orchestrator)
+    # ==========================================================================
+    _console.print()
+    _console.print("[cyan]Agent Selection Strategy[/cyan]")
+    _console.print("[dim]This determines how agents are chosen for implementation and review tasks.[/dim]")
+    _console.print()
+
+    strategy_choices = {
+        "preferred": "Preferred Agents - You choose which agent implements and which reviews",
+        "random": "Random - Randomly select from available agents each time",
+    }
+    selected_strategy = select_with_arrows(
+        strategy_choices,
+        "How should agents be selected for tasks?",
+        default_key="preferred",
+    )
+
+    preferred_implementer: str | None = None
+    preferred_reviewer: str | None = None
+
+    if selected_strategy == "preferred":
+        # Ask for preferred implementer
+        agent_display_map = {key: AI_CHOICES[key] for key in selected_agents}
+
+        _console.print()
+        preferred_implementer = select_with_arrows(
+            agent_display_map,
+            "Which agent should be the preferred IMPLEMENTER?",
+            default_key=selected_agents[0],
+        )
+
+        # Ask for preferred reviewer (prefer different from implementer)
+        _console.print()
+        if len(selected_agents) > 1:
+            # Default to a different agent for review
+            default_reviewer = next((a for a in selected_agents if a != preferred_implementer), selected_agents[0])
+            preferred_reviewer = select_with_arrows(
+                agent_display_map,
+                "Which agent should be the preferred REVIEWER?",
+                default_key=default_reviewer,
+            )
+            if preferred_reviewer == preferred_implementer and len(selected_agents) > 1:
+                _console.print("[yellow]Note:[/yellow] Same agent for implementation and review (cross-review disabled)")
+        else:
+            # Only one agent - same for both
+            preferred_reviewer = preferred_implementer
+            _console.print(f"[dim]Single agent mode: {AI_CHOICES[preferred_implementer]} will do both implementation and review[/dim]")
+
+    # Build agent config to save later
+    agent_config = AgentConfig(
+        available=selected_agents,
+        selection=AgentSelectionConfig(
+            strategy=SelectionStrategy(selected_strategy),
+            preferred_implementer=preferred_implementer,
+            preferred_reviewer=preferred_reviewer,
+        ),
+    )
 
     # Determine script type (explicit or auto-detect)
     if script_type:
@@ -746,6 +811,14 @@ def init(
         except Exception as e:
             # Don't fail init if VCS config creation fails
             _console.print(f"[dim]Note: Could not save VCS config: {e}[/dim]")
+
+    # Save agent configuration to config.yaml
+    try:
+        save_agent_config(project_path, agent_config)
+        _console.print(f"[dim]Saved agent configuration ({selected_strategy} strategy)[/dim]")
+    except Exception as e:
+        # Don't fail init if agent config creation fails
+        _console.print(f"[dim]Note: Could not save agent config: {e}[/dim]")
 
     # Clean up templates directory - it's only needed during init
     # User projects should only have the generated agent commands, not the source templates

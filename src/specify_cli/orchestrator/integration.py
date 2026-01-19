@@ -55,7 +55,9 @@ from specify_cli.orchestrator.scheduler import (
     get_ready_wps,
     is_single_agent_mode,
     select_agent,
+    select_agent_from_user_config,
     select_review_agent,
+    select_review_agent_from_user_config,
     single_agent_review_delay,
     validate_wp_graph,
 )
@@ -761,6 +763,8 @@ async def process_wp(
     repo_root: Path,
     concurrency: ConcurrencyManager,
     console: Console,
+    override_impl_agent: str | None = None,
+    override_review_agent: str | None = None,
 ) -> bool:
     """Process a single WP through the implement→review state machine.
 
@@ -785,6 +789,8 @@ async def process_wp(
         repo_root: Repository root.
         concurrency: Concurrency manager.
         console: Rich console.
+        override_impl_agent: CLI override for implementation agent.
+        override_review_agent: CLI override for review agent.
 
     Returns:
         True if WP completed successfully.
@@ -807,8 +813,13 @@ async def process_wp(
                 save_state(state, repo_root)
                 return False
 
-            # Select implementation agent
-            impl_agent = select_agent(config, "implementation", state=state)
+            # Select implementation agent using user config from spec-kitty init
+            impl_agent = select_agent_from_user_config(
+                repo_root, "implementation", override_agent=override_impl_agent
+            )
+            if not impl_agent:
+                # Fall back to legacy config-based selection
+                impl_agent = select_agent(config, "implementation", state=state)
             if not impl_agent:
                 logger.error(f"No agent available for {wp_id} implementation")
                 wp.status = WPStatus.FAILED
@@ -853,8 +864,13 @@ async def process_wp(
             if is_single_agent_mode(config):
                 await single_agent_review_delay(config.single_agent_delay)
 
-            # Select review agent (different from implementation if possible)
-            review_agent = select_review_agent(config, wp.implementation_agent, state=state)
+            # Select review agent using user config (prefers different agent for cross-review)
+            review_agent = select_review_agent_from_user_config(
+                repo_root, wp.implementation_agent, override_agent=override_review_agent
+            )
+            if not review_agent:
+                # Fall back to legacy config-based selection
+                review_agent = select_review_agent(config, wp.implementation_agent, state=state)
             if not review_agent:
                 logger.warning(f"No review agent available for {wp_id}, marking as complete")
                 wp.status = WPStatus.COMPLETED
@@ -970,6 +986,8 @@ async def run_orchestration_loop(
     repo_root: Path,
     console: Console | None = None,
     live_display: bool = True,
+    override_impl_agent: str | None = None,
+    override_review_agent: str | None = None,
 ) -> None:
     """Main orchestration loop connecting all components.
 
@@ -982,6 +1000,8 @@ async def run_orchestration_loop(
         repo_root: Repository root.
         console: Rich console for output.
         live_display: Whether to show live progress display.
+        override_impl_agent: CLI override for implementation agent.
+        override_review_agent: CLI override for review agent.
     """
     if console is None:
         console = Console()
@@ -1033,6 +1053,8 @@ async def run_orchestration_loop(
                     concurrency, console, running_tasks,
                     lambda: shutdown_requested,
                     lambda: live.update(create_live_display(state)),
+                    override_impl_agent=override_impl_agent,
+                    override_review_agent=override_review_agent,
                 )
         else:
             await _orchestration_main_loop(
@@ -1040,6 +1062,8 @@ async def run_orchestration_loop(
                 concurrency, console, running_tasks,
                 lambda: shutdown_requested,
                 lambda: None,  # No display update
+                override_impl_agent=override_impl_agent,
+                override_review_agent=override_review_agent,
             )
 
     finally:
@@ -1084,6 +1108,8 @@ async def _orchestration_main_loop(
     running_tasks: dict[str, asyncio.Task],
     is_shutdown: Callable[[], bool],
     update_display: Callable[[], None],
+    override_impl_agent: str | None = None,
+    override_review_agent: str | None = None,
 ) -> None:
     """Inner orchestration loop.
 
@@ -1098,6 +1124,8 @@ async def _orchestration_main_loop(
         running_tasks: Dict tracking running asyncio tasks.
         is_shutdown: Callback to check if shutdown requested.
         update_display: Callback to update live display.
+        override_impl_agent: CLI override for implementation agent.
+        override_review_agent: CLI override for review agent.
     """
     while not is_shutdown():
         # Update display
@@ -1134,6 +1162,8 @@ async def _orchestration_main_loop(
                 process_wp(
                     wp_id, state, config, feature_dir, repo_root,
                     concurrency, console,
+                    override_impl_agent=override_impl_agent,
+                    override_review_agent=override_review_agent,
                 )
             )
             running_tasks[wp_id] = task

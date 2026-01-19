@@ -283,7 +283,12 @@ def show_status(repo_root: Path | None = None) -> None:
 # =============================================================================
 
 
-async def start_orchestration_async(feature_slug: str, repo_root: Path) -> None:
+async def start_orchestration_async(
+    feature_slug: str,
+    repo_root: Path,
+    impl_agent: str | None = None,
+    review_agent: str | None = None,
+) -> None:
     """Start new orchestration for a feature (async implementation)."""
     feature_dir = repo_root / "kitty-specs" / feature_slug
 
@@ -356,13 +361,21 @@ async def start_orchestration_async(feature_slug: str, repo_root: Path) -> None:
     ))
 
     # Run the full orchestration loop (T043)
-    await run_orchestration_loop(state, config, feature_dir, repo_root, console)
+    await run_orchestration_loop(
+        state, config, feature_dir, repo_root, console,
+        override_impl_agent=impl_agent,
+        override_review_agent=review_agent,
+    )
 
 
-def start_orchestration(feature_slug: str) -> None:
+def start_orchestration(
+    feature_slug: str,
+    impl_agent: str | None = None,
+    review_agent: str | None = None,
+) -> None:
     """Start new orchestration for a feature."""
     repo_root = get_project_root_or_exit()
-    asyncio.run(start_orchestration_async(feature_slug, repo_root))
+    asyncio.run(start_orchestration_async(feature_slug, repo_root, impl_agent, review_agent))
 
 
 # =============================================================================
@@ -370,7 +383,11 @@ def start_orchestration(feature_slug: str) -> None:
 # =============================================================================
 
 
-async def resume_orchestration_async(repo_root: Path) -> None:
+async def resume_orchestration_async(
+    repo_root: Path,
+    impl_agent: str | None = None,
+    review_agent: str | None = None,
+) -> None:
     """Resume paused orchestration (async implementation)."""
     state = load_state(repo_root)
 
@@ -403,13 +420,20 @@ async def resume_orchestration_async(repo_root: Path) -> None:
     console.print(f"Progress: {state.wps_completed}/{state.wps_total} completed")
 
     # Continue orchestration loop with full integration
-    await run_orchestration_loop(state, config, feature_dir, repo_root, console)
+    await run_orchestration_loop(
+        state, config, feature_dir, repo_root, console,
+        override_impl_agent=impl_agent,
+        override_review_agent=review_agent,
+    )
 
 
-def resume_orchestration() -> None:
+def resume_orchestration(
+    impl_agent: str | None = None,
+    review_agent: str | None = None,
+) -> None:
     """Resume paused orchestration."""
     repo_root = get_project_root_or_exit()
-    asyncio.run(resume_orchestration_async(repo_root))
+    asyncio.run(resume_orchestration_async(repo_root, impl_agent, review_agent))
 
 
 # =============================================================================
@@ -535,6 +559,18 @@ def orchestrate(
         "--cleanup",
         help="Also remove worktrees when aborting",
     ),
+    impl_agent: str = typer.Option(
+        None,
+        "--impl-agent",
+        "--implementer",
+        help="Override implementation agent (e.g., claude, codex, opencode)",
+    ),
+    review_agent: str = typer.Option(
+        None,
+        "--review-agent",
+        "--reviewer",
+        help="Override review agent (e.g., claude, codex, opencode)",
+    ),
 ) -> None:
     """Orchestrate autonomous feature implementation.
 
@@ -569,7 +605,7 @@ def orchestrate(
         detected = detect_current_feature()
         if detected:
             if typer.confirm(f"Start orchestration for {detected}?"):
-                start_orchestration(detected)
+                start_orchestration(detected, impl_agent=impl_agent, review_agent=review_agent)
                 return
         console.print("[red]Error:[/red] No feature specified.")
         console.print("Use: spec-kitty orchestrate --feature <slug>")
@@ -584,13 +620,13 @@ def orchestrate(
     if status:
         show_status()
     elif resume:
-        resume_orchestration()
+        resume_orchestration(impl_agent=impl_agent, review_agent=review_agent)
     elif abort:
         abort_orchestration(cleanup=cleanup)
     elif skip:
         skip_wp(skip)
     elif feature:
-        start_orchestration(feature)
+        start_orchestration(feature, impl_agent=impl_agent, review_agent=review_agent)
 
 
 __all__ = [

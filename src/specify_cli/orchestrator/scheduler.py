@@ -294,6 +294,48 @@ def _agent_at_limit(
     return active_count >= agent_config.max_concurrent
 
 
+def select_agent_from_user_config(
+    repo_root: Path,
+    role: str,
+    exclude_agent: str | None = None,
+    override_agent: str | None = None,
+) -> str | None:
+    """Select agent using user configuration from spec-kitty init.
+
+    This is the preferred way to select agents - uses the configuration
+    set by the user during `spec-kitty init`.
+
+    Args:
+        repo_root: Repository root for loading config
+        role: "implementation" or "review"
+        exclude_agent: Agent to exclude (for cross-review)
+        override_agent: CLI override to use specific agent
+
+    Returns:
+        Agent ID or None if no agents configured
+    """
+    from specify_cli.orchestrator.agent_config import load_agent_config
+
+    # CLI override takes precedence
+    if override_agent:
+        logger.info(f"Using CLI override agent: {override_agent}")
+        return override_agent
+
+    config = load_agent_config(repo_root)
+
+    if not config.available:
+        logger.warning("No agents configured in .kittify/config.yaml")
+        return None
+
+    if role == "implementation":
+        return config.select_implementer(exclude=exclude_agent)
+    elif role == "review":
+        return config.select_reviewer(implementer=exclude_agent)
+    else:
+        logger.warning(f"Unknown role: {role}")
+        return config.available[0] if config.available else None
+
+
 def select_agent(
     config: OrchestratorConfig,
     role: str,
@@ -301,6 +343,10 @@ def select_agent(
     state: OrchestrationRun | None = None,
 ) -> str | None:
     """Select highest-priority available agent for role.
+
+    NOTE: This is the legacy selection method using OrchestratorConfig.
+    Prefer select_agent_from_user_config() which uses the configuration
+    set during `spec-kitty init`.
 
     Args:
         config: Orchestrator configuration
@@ -356,12 +402,49 @@ def select_agent(
     return None
 
 
+def select_review_agent_from_user_config(
+    repo_root: Path,
+    implementation_agent: str,
+    override_agent: str | None = None,
+) -> str | None:
+    """Select review agent using user configuration from spec-kitty init.
+
+    Prefers a different agent than implementation for cross-review.
+
+    Args:
+        repo_root: Repository root for loading config
+        implementation_agent: Agent that did implementation
+        override_agent: CLI override to use specific agent
+
+    Returns:
+        Agent ID for review
+    """
+    from specify_cli.orchestrator.agent_config import load_agent_config
+
+    # CLI override takes precedence
+    if override_agent:
+        logger.info(f"Using CLI override review agent: {override_agent}")
+        return override_agent
+
+    config = load_agent_config(repo_root)
+
+    if not config.available:
+        logger.warning("No agents configured, using implementer for review")
+        return implementation_agent
+
+    return config.select_reviewer(implementer=implementation_agent)
+
+
 def select_review_agent(
     config: OrchestratorConfig,
     implementation_agent: str,
     state: OrchestrationRun | None = None,
 ) -> str | None:
     """Select review agent, excluding the implementation agent for cross-review.
+
+    NOTE: This is the legacy selection method using OrchestratorConfig.
+    Prefer select_review_agent_from_user_config() which uses the configuration
+    set during `spec-kitty init`.
 
     Args:
         config: Orchestrator configuration
@@ -725,7 +808,10 @@ __all__ = [
     # Ready detection (T023)
     "get_ready_wps",
     "get_blocked_wps",
-    # Agent selection (T024)
+    # Agent selection (T024) - user config based (preferred)
+    "select_agent_from_user_config",
+    "select_review_agent_from_user_config",
+    # Agent selection (T024) - legacy (for backwards compatibility)
     "select_agent",
     "select_review_agent",
     # Concurrency (T025)
