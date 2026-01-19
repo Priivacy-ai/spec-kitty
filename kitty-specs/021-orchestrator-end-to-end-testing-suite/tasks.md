@@ -304,7 +304,7 @@
 - [x] T047 Implement smoke test infrastructure (base class or helper)
 - [x] T048 Implement file touch task and `verify_smoke_result()` function
 - [x] T049 Create parametrized smoke tests for all 7 extended agents
-- [ ] T050 Implement skip behavior for unavailable extended agents
+- [x] T050 Implement skip behavior for unavailable extended agents
 - [ ] T051 Add timing validation (each test completes in <60s)
 
 ### Implementation Notes
