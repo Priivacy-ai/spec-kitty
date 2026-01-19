@@ -7,10 +7,10 @@ subtasks:
   - "T046"
 title: "Integration & Polish"
 phase: "Phase 3 - CLI & Integration"
-lane: "for_review"
+lane: "doing"
 assignee: ""
 agent: "claude-opus"
-shell_pid: "80444"
+shell_pid: "84101"
 review_status: ""
 reviewed_by: ""
 dependencies:
@@ -406,3 +406,4 @@ spec-kitty implement WP09 --base WP08
 - 2026-01-18T16:21:51Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-19T08:21:10Z – claude-opus – shell_pid=80444 – lane=doing – Started implementation via workflow command
 - 2026-01-19T08:28:54Z – claude-opus – shell_pid=80444 – lane=for_review – Ready for review: Full orchestration integration with progress display, summary report, and edge case handling
+- 2026-01-19T08:29:23Z – claude-opus – shell_pid=84101 – lane=doing – Started review via workflow command
