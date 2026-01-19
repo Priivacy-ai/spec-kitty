@@ -149,7 +149,10 @@ def get_ready_wps(
 
     A WP is ready if:
     1. All dependencies have completed successfully
-    2. WP itself is in "pending" status
+    2. WP itself is in "pending" or "rework" status
+
+    REWORK status means the WP was reviewed and rejected, needing
+    re-implementation with the review feedback.
 
     Args:
         graph: Dependency graph from build_wp_graph()
@@ -160,12 +163,15 @@ def get_ready_wps(
     """
     ready = []
 
+    # Statuses that indicate a WP can be started/restarted
+    startable_statuses = {WPStatus.PENDING, WPStatus.REWORK}
+
     for wp_id, deps in graph.items():
         # Get WP state, defaulting to pending if not tracked yet
         wp_state = state.work_packages.get(wp_id)
 
-        # Skip if not pending
-        if wp_state and wp_state.status != WPStatus.PENDING:
+        # Skip if not in a startable status
+        if wp_state and wp_state.status not in startable_statuses:
             continue
 
         # Check all dependencies completed successfully

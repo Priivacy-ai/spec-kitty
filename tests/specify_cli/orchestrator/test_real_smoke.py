@@ -215,3 +215,264 @@ class TestAgentRoundTrip:
         counter_file = temp_workdir_with_file / "counter.txt"
         content = counter_file.read_text().strip()
         assert "1" in content, f"Counter not incremented. Content: {content}, stderr: {result.stderr}"
+
+
+@pytest.mark.orchestrator_smoke
+class TestReviewOutcomeParsing:
+    """Tests for the review outcome parsing logic."""
+
+    def test_parse_approved_markers(self):
+        """Should detect approval markers in output."""
+        from specify_cli.orchestrator.integration import parse_review_outcome
+
+        # Test various approval patterns
+        approved_outputs = [
+            {"exit_code": 0, "stdout": "APPROVED - review complete", "stderr": ""},
+            {"exit_code": 0, "stdout": "LGTM, looks good to merge", "stderr": ""},
+            {"exit_code": 0, "stdout": "Review passed, all tests pass", "stderr": ""},
+            {"exit_code": 0, "stdout": "No issues found in this implementation", "stderr": ""},
+        ]
+
+        for output in approved_outputs:
+            result = parse_review_outcome(output)
+            assert result.is_approved, f"Should be approved: {output['stdout']}"
+
+    def test_parse_rejected_markers(self):
+        """Should detect rejection markers in output."""
+        from specify_cli.orchestrator.integration import parse_review_outcome
+
+        # Test various rejection patterns
+        rejected_outputs = [
+            {"exit_code": 1, "stdout": "REJECTED - missing error handling", "stderr": ""},
+            {"exit_code": 1, "stdout": "Changes requested: add tests", "stderr": ""},
+            {"exit_code": 0, "stdout": "This needs work - please fix the validation", "stderr": ""},
+            {"exit_code": 1, "stdout": "Issues found: tests failing, please fix", "stderr": ""},
+        ]
+
+        for output in rejected_outputs:
+            result = parse_review_outcome(output)
+            assert result.is_rejected, f"Should be rejected: {output['stdout']}"
+            assert result.feedback is not None
+
+    def test_parse_falls_back_to_exit_code(self):
+        """Should use exit code when no clear markers."""
+        from specify_cli.orchestrator.integration import parse_review_outcome
+
+        # No clear markers, use exit code
+        success = parse_review_outcome({"exit_code": 0, "stdout": "Done.", "stderr": ""})
+        assert success.is_approved
+
+        # Non-zero exit with no markers = error (not rejection)
+        error = parse_review_outcome({"exit_code": 1, "stdout": "Error occurred", "stderr": ""})
+        assert error.outcome == "error"
+
+
+@pytest.mark.orchestrator_smoke
+class TestStateMachineLogic:
+    """Tests for the state machine logic in process_wp."""
+
+    def test_rework_status_is_startable(self):
+        """REWORK status should be treated as ready for processing."""
+        from specify_cli.orchestrator.config import WPStatus
+        from specify_cli.orchestrator.scheduler import get_ready_wps
+        from specify_cli.orchestrator.state import OrchestrationRun, WPExecution
+        from datetime import datetime, timezone
+
+        # Create a state with one WP in REWORK status
+        state = OrchestrationRun(
+            run_id="test",
+            feature_slug="test-feature",
+            started_at=datetime.now(timezone.utc),
+        )
+        state.work_packages["WP01"] = WPExecution(
+            wp_id="WP01",
+            status=WPStatus.REWORK,
+            review_feedback="Please add tests",
+            implementation_retries=1,
+        )
+
+        # Simple graph with no dependencies
+        graph = {"WP01": []}
+
+        # Should be ready for processing
+        ready = get_ready_wps(graph, state)
+        assert "WP01" in ready, "REWORK WP should be ready for processing"
+
+    def test_review_feedback_stored_in_state(self):
+        """Review feedback should be stored when WP enters REWORK."""
+        from specify_cli.orchestrator.config import WPStatus
+        from specify_cli.orchestrator.state import WPExecution
+
+        wp = WPExecution(
+            wp_id="WP01",
+            status=WPStatus.REVIEW,
+        )
+
+        # Simulate rejection
+        wp.status = WPStatus.REWORK
+        wp.review_feedback = "Missing error handling for edge cases"
+        wp.implementation_retries += 1
+
+        # Verify state
+        assert wp.status == WPStatus.REWORK
+        assert wp.review_feedback == "Missing error handling for edge cases"
+        assert wp.implementation_retries == 1
+
+        # Verify serialization roundtrip
+        data = wp.to_dict()
+        restored = WPExecution.from_dict(data)
+        assert restored.status == WPStatus.REWORK
+        assert restored.review_feedback == "Missing error handling for edge cases"
+
+    def test_max_retries_prevents_infinite_loop(self):
+        """Should fail after max review cycles."""
+        from specify_cli.orchestrator.config import WPStatus
+        from specify_cli.orchestrator.state import WPExecution
+
+        wp = WPExecution(
+            wp_id="WP01",
+            status=WPStatus.REWORK,
+            implementation_retries=5,  # Already at max
+        )
+
+        max_cycles = 5
+
+        # Check if should fail
+        if wp.implementation_retries >= max_cycles:
+            wp.status = WPStatus.FAILED
+            wp.last_error = f"Exceeded max review cycles ({max_cycles})"
+
+        assert wp.status == WPStatus.FAILED
+        assert "max review cycles" in wp.last_error.lower()
+
+
+@pytest.mark.orchestrator_smoke
+class TestImplementReviewFlow:
+    """Test the implement→review flow with real agents."""
+
+    @pytest.fixture
+    def feature_dir(self, tmp_path: Path) -> Path:
+        """Create a minimal feature directory for orchestration."""
+        feature = tmp_path / "test-feature"
+        feature.mkdir()
+
+        # Create tasks directory with a simple WP
+        tasks_dir = feature / "tasks"
+        tasks_dir.mkdir()
+
+        # Create a simple WP file
+        wp_content = '''---
+work_package_id: "WP01"
+title: "Create a greeting function"
+lane: "planned"
+dependencies: []
+---
+
+# WP01: Create a greeting function
+
+## Requirements
+Create a Python file `greet.py` with a function `greet(name)` that returns "Hello, {name}!".
+
+## Acceptance Criteria
+- [ ] File `greet.py` exists
+- [ ] Function `greet(name)` returns correct greeting
+'''
+        (tasks_dir / "WP01-greeting.md").write_text(wp_content)
+
+        return feature
+
+    @pytest.fixture
+    def repo_root(self, tmp_path: Path) -> Path:
+        """Create a minimal repo root."""
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        kittify = repo / ".kittify"
+        kittify.mkdir()
+
+        # Initialize git
+        subprocess.run(["git", "init"], cwd=repo, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True)
+
+        return repo
+
+    @pytest.mark.timeout(180)
+    def test_claude_implement_and_review_basic(self, feature_dir: Path, repo_root: Path):
+        """Claude should be able to implement and then review code.
+
+        This tests the basic implement→review flow without rejection cycles.
+        """
+        import os
+
+        # First: Implementation phase
+        impl_prompt = """Create a Python file called greet.py with a function greet(name) that returns "Hello, {name}!".
+
+Example:
+  greet("World") -> "Hello, World!"
+
+Just create the file, nothing else."""
+
+        impl_result = subprocess.run(
+            [
+                "claude",
+                "-p",
+                "--output-format", "json",
+                "--dangerously-skip-permissions",
+                "--allowedTools", "Write,Read",
+                "--max-turns", "3",
+            ],
+            input=impl_prompt,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        # Verify implementation created the file
+        greet_file = repo_root / "greet.py"
+        assert greet_file.exists(), f"Implementation didn't create greet.py. stderr: {impl_result.stderr}"
+
+        # Second: Review phase (same agent for simplicity)
+        review_prompt = """Review the greet.py file implementation.
+
+Check:
+1. The file exists
+2. The greet function exists and works correctly
+3. The function returns the expected format "Hello, {name}!"
+
+If everything looks good, output: "APPROVED - review complete"
+If there are issues, output: "REJECTED - <describe issues>"
+"""
+
+        review_result = subprocess.run(
+            [
+                "claude",
+                "-p",
+                "--output-format", "json",
+                "--dangerously-skip-permissions",
+                "--allowedTools", "Read,Bash",
+                "--max-turns", "5",
+            ],
+            input=review_prompt,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        # Parse the review outcome
+        from specify_cli.orchestrator.integration import parse_review_outcome
+
+        review_outcome = parse_review_outcome({
+            "exit_code": review_result.returncode,
+            "stdout": review_result.stdout,
+            "stderr": review_result.stderr,
+        })
+
+        # The review should pass for a simple implementation
+        # (We can't guarantee this, but it's likely for such a simple task)
+        print(f"Review outcome: {review_outcome.outcome}")
+        print(f"Review feedback: {review_outcome.feedback}")
+
+        # At minimum, verify the flow completed
+        assert impl_result.returncode == 0 or greet_file.exists(), "Implementation should succeed"

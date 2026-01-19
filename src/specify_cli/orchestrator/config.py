@@ -37,12 +37,23 @@ class OrchestrationStatus(str, Enum):
 
 
 class WPStatus(str, Enum):
-    """Status of a work package execution."""
+    """Status of a work package execution.
+
+    State machine transitions:
+        PENDING → READY (dependencies satisfied)
+        READY → IMPLEMENTATION (agent starts)
+        IMPLEMENTATION → REVIEW (implementation completes)
+        REVIEW → COMPLETED (review approves)
+        REVIEW → REWORK (review rejects with feedback)
+        REWORK → IMPLEMENTATION (re-implementation starts)
+        Any → FAILED (max retries exceeded or unrecoverable error)
+    """
 
     PENDING = "pending"
     READY = "ready"
     IMPLEMENTATION = "implementation"
     REVIEW = "review"
+    REWORK = "rework"  # Review rejected, needs re-implementation
     COMPLETED = "completed"
     FAILED = "failed"
 

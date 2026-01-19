@@ -75,6 +75,7 @@ class WPExecution:
     review_completed: datetime | None = None
     review_exit_code: int | None = None
     review_retries: int = 0
+    review_feedback: str | None = None  # Feedback from rejected review for re-implementation
 
     # Output tracking
     log_file: Path | None = None
@@ -127,6 +128,12 @@ class WPExecution:
                 f"WP {self.wp_id}: REVIEW status requires review_started"
             )
 
+        # REWORK status requires review_feedback (rejection reason)
+        if self.status == WPStatus.REWORK and not self.review_feedback:
+            raise StateValidationError(
+                f"WP {self.wp_id}: REWORK status requires review_feedback"
+            )
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to JSON-compatible dict."""
         return {
@@ -154,6 +161,7 @@ class WPExecution:
             ),
             "review_exit_code": self.review_exit_code,
             "review_retries": self.review_retries,
+            "review_feedback": self.review_feedback,
             "log_file": str(self.log_file) if self.log_file else None,
             "worktree_path": str(self.worktree_path) if self.worktree_path else None,
             "last_error": self.last_error,
@@ -192,6 +200,7 @@ class WPExecution:
             ),
             review_exit_code=data.get("review_exit_code"),
             review_retries=data.get("review_retries", 0),
+            review_feedback=data.get("review_feedback"),
             log_file=Path(data["log_file"]) if data.get("log_file") else None,
             worktree_path=(
                 Path(data["worktree_path"]) if data.get("worktree_path") else None

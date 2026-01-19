@@ -212,6 +212,7 @@ def create_status_table(state: OrchestrationRun) -> Table:
             WPStatus.READY: "[yellow]ready[/yellow]",
             WPStatus.IMPLEMENTATION: "[blue]implementing[/blue]",
             WPStatus.REVIEW: "[magenta]reviewing[/magenta]",
+            WPStatus.REWORK: "[yellow]rework[/yellow]",
             WPStatus.COMPLETED: "[green]done[/green]",
             WPStatus.FAILED: "[red]failed[/red]",
         }
@@ -505,6 +506,22 @@ async def process_wp_implementation(
     prompt_path = prompt_files[0]
     prompt_content = prompt_path.read_text()
 
+    # If this is a re-implementation after review rejection, include the feedback
+    if wp.review_feedback and wp.implementation_retries > 0:
+        rework_header = f"""
+## ⚠️ RE-IMPLEMENTATION REQUIRED (Attempt {wp.implementation_retries + 1})
+
+The previous implementation was reviewed and **rejected**. Please address the following feedback:
+
+---
+{wp.review_feedback}
+---
+
+Fix the issues described above and ensure all requirements are met.
+"""
+        prompt_content = rework_header + "\n\n" + prompt_content
+        logger.info(f"{wp_id} re-implementation with feedback from review")
+
     # Get log path
     log_path = get_log_path(repo_root, wp_id, "implementation", datetime.now())
     wp.log_file = log_path
@@ -551,6 +568,98 @@ async def process_wp_implementation(
     return False
 
 
+class ReviewResult:
+    """Result of a review phase."""
+
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ERROR = "error"
+
+    def __init__(self, outcome: str, feedback: str | None = None):
+        self.outcome = outcome
+        self.feedback = feedback
+
+    @property
+    def is_approved(self) -> bool:
+        return self.outcome == self.APPROVED
+
+    @property
+    def is_rejected(self) -> bool:
+        return self.outcome == self.REJECTED
+
+
+def parse_review_outcome(result: dict, log_path: Path | None = None) -> ReviewResult:
+    """Parse review result to determine if approved or rejected.
+
+    Looks for rejection signals in the output:
+    - Explicit "REJECTED" or "CHANGES_REQUESTED" markers
+    - "needs work", "please fix", "issues found" phrases
+    - Non-zero exit code with feedback
+
+    Args:
+        result: Execution result dict with 'exit_code', 'stdout', 'stderr'.
+        log_path: Optional path to log file for detailed output.
+
+    Returns:
+        ReviewResult with outcome and feedback.
+    """
+    exit_code = result.get("exit_code", 1)
+    stdout = result.get("stdout", "") or ""
+    stderr = result.get("stderr", "") or ""
+    output = stdout + "\n" + stderr
+
+    # Check for explicit markers (case-insensitive)
+    output_lower = output.lower()
+
+    # Rejection patterns
+    rejection_patterns = [
+        "rejected",
+        "changes_requested",
+        "changes requested",
+        "needs rework",
+        "needs work",
+        "please fix",
+        "issues found",
+        "not approved",
+        "review failed",
+        "failing tests",
+        "tests failing",
+    ]
+
+    # Approval patterns
+    approval_patterns = [
+        "approved",
+        "lgtm",
+        "looks good",
+        "review complete",
+        "review passed",
+        "all tests pass",
+        "no issues found",
+    ]
+
+    # Check patterns
+    is_rejected = any(p in output_lower for p in rejection_patterns)
+    is_approved = any(p in output_lower for p in approval_patterns)
+
+    # If both or neither, use exit code
+    if is_rejected and not is_approved:
+        # Extract feedback - look for content after rejection marker
+        feedback = output.strip()
+        if len(feedback) > 500:
+            feedback = feedback[:500] + "..."
+        return ReviewResult(ReviewResult.REJECTED, feedback)
+
+    if is_approved and not is_rejected:
+        return ReviewResult(ReviewResult.APPROVED)
+
+    # Fall back to exit code
+    if exit_code == 0:
+        return ReviewResult(ReviewResult.APPROVED)
+
+    # Non-zero exit with no clear pattern - treat as error, not rejection
+    return ReviewResult(ReviewResult.ERROR, output.strip()[:500] if output else None)
+
+
 async def process_wp_review(
     wp_id: str,
     state: OrchestrationRun,
@@ -559,7 +668,7 @@ async def process_wp_review(
     repo_root: Path,
     agent_id: str,
     console: Console,
-) -> bool:
+) -> ReviewResult:
     """Process review phase for a single WP.
 
     Args:
@@ -572,7 +681,7 @@ async def process_wp_review(
         console: Rich console.
 
     Returns:
-        True if review succeeded.
+        ReviewResult indicating approved, rejected, or error.
     """
     wp = state.work_packages[wp_id]
     feature_slug = feature_dir.name
@@ -593,16 +702,13 @@ async def process_wp_review(
     worktree_path = get_worktree_path(feature_slug, wp_id, repo_root)
     if not worktree_path.exists():
         logger.error(f"Worktree not found for {wp_id} review")
-        wp.status = WPStatus.FAILED
         wp.last_error = "Worktree not found for review"
-        state.wps_failed += 1
-        save_state(state, repo_root)
-        return False
+        return ReviewResult(ReviewResult.ERROR, "Worktree not found")
 
     # Get invoker
     invoker = get_invoker(agent_id)
 
-    # Build review prompt
+    # Build review prompt - ask for explicit approval/rejection signal
     review_prompt = f"""Review the implementation in this workspace for work package {wp_id}.
 
 Check for:
@@ -611,9 +717,12 @@ Check for:
 - Documentation
 - Following project conventions
 
-If issues are found, fix them and commit the changes.
-When review is complete, run:
-  spec-kitty agent tasks move-task {wp_id} --to done --note "Review complete"
+IMPORTANT: At the end of your review, you MUST output one of these markers:
+- If implementation is good: "APPROVED - review complete"
+- If changes are needed: "REJECTED - <reason>" and describe what needs to be fixed
+
+If you find issues, describe them clearly so they can be addressed in re-implementation.
+Do NOT fix issues yourself during review - just identify them.
 """
 
     # Get log path
@@ -636,33 +745,12 @@ When review is complete, run:
     update_wp_progress(wp, result, "review")
     wp.review_completed = datetime.now(timezone.utc)
 
-    if is_success(result):
-        # Complete the WP
-        wp.status = WPStatus.COMPLETED
-        state.wps_completed += 1
-        await transition_wp_lane(wp, "complete_review", repo_root)
-        logger.info(f"{wp_id} review completed successfully")
-        save_state(state, repo_root)
-        return True
+    # Parse the outcome
+    review_result = parse_review_outcome(result, log_path)
+    logger.info(f"{wp_id} review outcome: {review_result.outcome}")
 
-    # Handle failure - try fallback
-    logger.warning(f"{wp_id} review failed with {agent_id}")
-    next_agent = apply_fallback(wp_id, "review", agent_id, config, state)
-
-    if next_agent:
-        # Reset and retry with fallback agent
-        wp.status = WPStatus.IMPLEMENTATION  # Back to implementation status
-        wp.review_started = None
-        wp.review_completed = None
-        save_state(state, repo_root)
-
-        return await process_wp_review(
-            wp_id, state, config, feature_dir, repo_root, next_agent, console
-        )
-
-    # No fallback - escalate to human
-    await escalate_to_human(wp_id, "review", state, repo_root, console)
-    return False
+    save_state(state, repo_root)
+    return review_result
 
 
 async def process_wp(
@@ -674,7 +762,20 @@ async def process_wp(
     concurrency: ConcurrencyManager,
     console: Console,
 ) -> bool:
-    """Process a single WP through implementation and review.
+    """Process a single WP through the implement→review state machine.
+
+    This is the core state machine loop that continues until:
+    - WP is COMPLETED (review approved)
+    - WP is FAILED (max retries exceeded or unrecoverable error)
+
+    State machine:
+        READY/PENDING/REWORK → IMPLEMENTATION → REVIEW
+                                                  ↓
+                            COMPLETED ← (approved)
+                                  or
+                            REWORK ← (rejected) → back to IMPLEMENTATION
+                                  or
+                            FAILED ← (max retries exceeded)
 
     Args:
         wp_id: Work package ID.
@@ -688,55 +789,173 @@ async def process_wp(
     Returns:
         True if WP completed successfully.
     """
-    # Select implementation agent
-    impl_agent = select_agent(config, "implementation", state=state)
-    if not impl_agent:
-        logger.error(f"No agent available for {wp_id} implementation")
-        state.work_packages[wp_id].status = WPStatus.FAILED
-        state.work_packages[wp_id].last_error = "No agent available"
+    wp = state.work_packages[wp_id]
+    max_review_cycles = config.max_retries
+
+    # State machine loop
+    while wp.status not in [WPStatus.COMPLETED, WPStatus.FAILED]:
+        logger.info(f"{wp_id} state machine: current status = {wp.status.value}")
+
+        # ===== IMPLEMENTATION PHASE =====
+        if wp.status in [WPStatus.READY, WPStatus.PENDING, WPStatus.REWORK]:
+            # Check max retries before starting
+            if wp.implementation_retries >= max_review_cycles:
+                logger.error(f"{wp_id} exceeded max review cycles ({max_review_cycles})")
+                wp.status = WPStatus.FAILED
+                wp.last_error = f"Exceeded max review cycles ({max_review_cycles})"
+                state.wps_failed += 1
+                save_state(state, repo_root)
+                return False
+
+            # Select implementation agent
+            impl_agent = select_agent(config, "implementation", state=state)
+            if not impl_agent:
+                logger.error(f"No agent available for {wp_id} implementation")
+                wp.status = WPStatus.FAILED
+                wp.last_error = "No agent available"
+                state.wps_failed += 1
+                save_state(state, repo_root)
+                return False
+
+            # Run implementation
+            async with concurrency.throttle(impl_agent):
+                impl_success = await process_wp_implementation(
+                    wp_id, state, config, feature_dir, repo_root, impl_agent, console
+                )
+
+            if not impl_success:
+                # Implementation failed (not rejection - actual error)
+                wp.status = WPStatus.FAILED
+                state.wps_failed += 1
+                save_state(state, repo_root)
+                return False
+
+            # Implementation succeeded - move to review
+            # (status is already updated by process_wp_implementation)
+            continue
+
+        # ===== REVIEW PHASE =====
+        if wp.status == WPStatus.IMPLEMENTATION:
+            # Implementation just completed, start review
+
+            # Check if review is needed (skip in single-agent mode with no review config)
+            skip_review = is_single_agent_mode(config) and not config.defaults.get("review")
+
+            if skip_review:
+                # Mark as completed without review
+                wp.status = WPStatus.COMPLETED
+                state.wps_completed += 1
+                await transition_wp_lane(wp, "complete_review", repo_root)
+                save_state(state, repo_root)
+                return True
+
+            # Single-agent delay before review
+            if is_single_agent_mode(config):
+                await single_agent_review_delay(config.single_agent_delay)
+
+            # Select review agent (different from implementation if possible)
+            review_agent = select_review_agent(config, wp.implementation_agent, state=state)
+            if not review_agent:
+                logger.warning(f"No review agent available for {wp_id}, marking as complete")
+                wp.status = WPStatus.COMPLETED
+                state.wps_completed += 1
+                save_state(state, repo_root)
+                return True
+
+            # Run review
+            async with concurrency.throttle(review_agent):
+                review_result = await process_wp_review(
+                    wp_id, state, config, feature_dir, repo_root, review_agent, console
+                )
+
+            # Handle review outcome
+            if review_result.is_approved:
+                # Review approved - WP is done!
+                wp.status = WPStatus.COMPLETED
+                state.wps_completed += 1
+                await transition_wp_lane(wp, "complete_review", repo_root)
+                logger.info(f"{wp_id} COMPLETED - review approved")
+                save_state(state, repo_root)
+                return True
+
+            elif review_result.is_rejected:
+                # Review rejected - go back to implementation
+                wp.status = WPStatus.REWORK
+                wp.review_feedback = review_result.feedback
+                wp.implementation_retries += 1
+                wp.review_retries += 1
+
+                # Clear review timestamps for next cycle
+                wp.review_started = None
+                wp.review_completed = None
+
+                logger.info(
+                    f"{wp_id} REWORK - review rejected (cycle {wp.implementation_retries}/{max_review_cycles})"
+                )
+                if review_result.feedback:
+                    logger.info(f"{wp_id} feedback: {review_result.feedback[:200]}...")
+
+                save_state(state, repo_root)
+                # Loop continues - will go back to implementation
+                continue
+
+            else:
+                # Review error (not rejection) - try fallback agent or fail
+                logger.warning(f"{wp_id} review error: {review_result.feedback}")
+                next_agent = apply_fallback(wp_id, "review", review_agent, config, state)
+
+                if next_agent:
+                    # Retry review with different agent
+                    wp.review_started = None
+                    wp.review_completed = None
+                    save_state(state, repo_root)
+
+                    async with concurrency.throttle(next_agent):
+                        review_result = await process_wp_review(
+                            wp_id, state, config, feature_dir, repo_root, next_agent, console
+                        )
+
+                    # Re-check outcome after fallback
+                    if review_result.is_approved:
+                        wp.status = WPStatus.COMPLETED
+                        state.wps_completed += 1
+                        await transition_wp_lane(wp, "complete_review", repo_root)
+                        save_state(state, repo_root)
+                        return True
+                    elif review_result.is_rejected:
+                        wp.status = WPStatus.REWORK
+                        wp.review_feedback = review_result.feedback
+                        wp.implementation_retries += 1
+                        wp.review_retries += 1
+                        wp.review_started = None
+                        wp.review_completed = None
+                        save_state(state, repo_root)
+                        continue
+
+                # No fallback or fallback also errored - escalate
+                await escalate_to_human(wp_id, "review", state, repo_root, console)
+                return False
+
+        # ===== REVIEW STATUS (already in review, resuming) =====
+        if wp.status == WPStatus.REVIEW:
+            # We're resuming a WP that was in review
+            # This shouldn't normally happen as review is synchronous
+            # Treat as needing implementation
+            wp.status = WPStatus.REWORK
+            wp.review_feedback = "Review interrupted - restarting"
+            save_state(state, repo_root)
+            continue
+
+        # Unknown status - shouldn't happen
+        logger.error(f"{wp_id} in unexpected status: {wp.status}")
+        wp.status = WPStatus.FAILED
+        wp.last_error = f"Unexpected status: {wp.status}"
         state.wps_failed += 1
         save_state(state, repo_root)
         return False
 
-    # Implementation phase
-    async with concurrency.throttle(impl_agent):
-        impl_success = await process_wp_implementation(
-            wp_id, state, config, feature_dir, repo_root, impl_agent, console
-        )
-
-    if not impl_success:
-        return False
-
-    # Check if review is needed (skip in single-agent mode with no review config)
-    skip_review = is_single_agent_mode(config) and not config.defaults.get("review")
-
-    if skip_review:
-        # Mark as completed without review
-        wp = state.work_packages[wp_id]
-        wp.status = WPStatus.COMPLETED
-        state.wps_completed += 1
-        await transition_wp_lane(wp, "complete_review", repo_root)
-        save_state(state, repo_root)
-        return True
-
-    # Single-agent delay before review
-    if is_single_agent_mode(config):
-        await single_agent_review_delay(config.single_agent_delay)
-
-    # Select review agent (different from implementation if possible)
-    review_agent = select_review_agent(config, impl_agent, state=state)
-    if not review_agent:
-        logger.warning(f"No review agent available for {wp_id}, marking as complete")
-        state.work_packages[wp_id].status = WPStatus.COMPLETED
-        state.wps_completed += 1
-        save_state(state, repo_root)
-        return True
-
-    # Review phase
-    async with concurrency.throttle(review_agent):
-        return await process_wp_review(
-            wp_id, state, config, feature_dir, repo_root, review_agent, console
-        )
+    # Should not reach here, but handle gracefully
+    return wp.status == WPStatus.COMPLETED
 
 
 # =============================================================================
