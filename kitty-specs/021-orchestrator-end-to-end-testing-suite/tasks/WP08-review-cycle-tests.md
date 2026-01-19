@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Review Cycle Tests
-lane: planned
+lane: "doing"
 dependencies:
 - WP05
 subtasks:
@@ -12,8 +12,8 @@ subtasks:
 - T040
 phase: Phase 1 - Core Tests
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude-opus"
+shell_pid: "29321"
 review_status: ''
 reviewed_by: ''
 history:
@@ -680,3 +680,4 @@ Test review rejection and re-implementation cycles:
 ## Activity Log
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
+- 2026-01-19T10:19:34Z – claude-opus – shell_pid=29321 – lane=doing – Started implementation via workflow command
