@@ -332,7 +332,7 @@
 
 ### Included Subtasks
 - [x] T052 Create `checkpoint_review_rejected/` fixture
-- [ ] T053 Create `checkpoint_review_approved/` fixture
+- [x] T053 Create `checkpoint_review_approved/` fixture
 - [ ] T054 Create `checkpoint_wp_merged/` fixture
 - [ ] T055 Add stale checkpoint detection (version mismatch warning)
 
