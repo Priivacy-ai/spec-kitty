@@ -84,7 +84,7 @@
 
 ### Included Subtasks
 - [x] T010 Implement `FixtureCheckpoint` dataclass in `fixtures.py`
-- [ ] T011 Implement `WorktreeMetadata` dataclass
+- [x] T011 Implement `WorktreeMetadata` dataclass
 - [ ] T012 Implement `TestContext` dataclass
 - [ ] T013 Add `worktrees.json` schema validation with Pydantic or manual checks
 - [ ] T014 Add `state.json` schema validation (OrchestrationRun compatibility)
