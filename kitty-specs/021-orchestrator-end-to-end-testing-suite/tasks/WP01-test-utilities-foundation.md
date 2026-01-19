@@ -8,12 +8,12 @@ subtasks:
   - "T005"
 title: "Test Utilities Foundation"
 phase: "Phase 0 - Foundation"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "claude-opus"
 shell_pid: "10866"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 dependencies: []
 history:
   - timestamp: "2026-01-19T09:30:27Z"
@@ -408,3 +408,4 @@ Create the core test utilities module with agent availability detection capabili
 - 2026-01-19T09:45:14Z – claude – shell_pid=4819 – lane=doing – Started implementation via workflow command
 - 2026-01-19T09:53:24Z – claude – shell_pid=4819 – lane=for_review – Ready for review: Testing module with AgentAvailability dataclass, check_installed(), probe_agent_auth(), and detect_all_agents() with caching. All 12 agents detected (5 core + 7 extended). All success criteria verified.
 - 2026-01-19T09:55:17Z – claude-opus – shell_pid=10866 – lane=doing – Started review via workflow command
+- 2026-01-19T09:56:35Z – claude-opus – shell_pid=10866 – lane=done – Review passed: All acceptance criteria met - module imports correctly, AgentAvailability dataclass works, 12 agents detected (5 core + 7 extended), probe timeout configurable via env var, caching works. Code quality good with proper async patterns and type hints.
