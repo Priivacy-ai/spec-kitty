@@ -114,7 +114,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T015 Implement `copy_fixture_to_temp()` - copies checkpoint to temp directory
+- [x] T015 Implement `copy_fixture_to_temp()` - copies checkpoint to temp directory
 - [ ] T016 Implement `init_git_repo()` - initializes git in temp directory
 - [ ] T017 Implement `create_worktrees_from_metadata()` - recreates worktrees
 - [ ] T018 Implement `load_orchestration_state()` - deserializes state.json
