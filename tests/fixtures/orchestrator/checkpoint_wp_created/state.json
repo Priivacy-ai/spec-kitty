@@ -1,4 +1,5 @@
 {
+  "fixture_version": "021.1",
   "run_id": "test-run-001",
   "feature_slug": "test-feature",
   "started_at": "2026-01-01T00:00:00",
