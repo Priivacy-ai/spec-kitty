@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Extended Agent Smoke Tests
-lane: "for_review"
+lane: "doing"
 dependencies:
 - WP01
 subtasks:
@@ -13,7 +13,7 @@ subtasks:
 phase: Phase 2 - Extended
 assignee: ''
 agent: "claude-opus"
-shell_pid: "18625"
+shell_pid: "32281"
 review_status: ''
 reviewed_by: ''
 history:
@@ -560,3 +560,4 @@ Basic validation that extended agents can be invoked:
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
 - 2026-01-19T10:07:26Z – claude-opus – shell_pid=18625 – lane=doing – Started implementation via workflow command
 - 2026-01-19T10:19:23Z – claude-opus – shell_pid=18625 – lane=for_review – Ready for review: Implemented smoke tests for extended agents with parametrized tests, skip behavior, and timing validation
+- 2026-01-19T10:22:44Z – claude-opus – shell_pid=32281 – lane=doing – Started review via workflow command
