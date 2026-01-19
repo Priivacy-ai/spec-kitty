@@ -364,7 +364,7 @@
 - [x] T057 Add state validation utilities (`validate_test_result()`)
 - [x] T058 Add test output helpers (distinguish skip vs fail messages)
 - [x] T059 Add timeout configuration via environment variables
-- [ ] T060 Validate quickstart.md scenarios work as documented
+- [x] T060 Validate quickstart.md scenarios work as documented
 
 ### Implementation Notes
 - Markers must be registered in root conftest for pytest collection
