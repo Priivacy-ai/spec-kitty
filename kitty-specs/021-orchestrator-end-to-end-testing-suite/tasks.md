@@ -211,7 +211,7 @@
 - [x] T031 Implement test: single WP orchestration end-to-end
 - [x] T032 Implement test: multiple parallel WPs orchestration
 - [x] T033 Implement test: state validation after orchestration
-- [ ] T034 Implement test: lane status consistency (frontmatter matches state)
+- [x] T034 Implement test: lane status consistency (frontmatter matches state)
 - [ ] T035 Implement test: commit verification in worktrees
 
 ### Implementation Notes
