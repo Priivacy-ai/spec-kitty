@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Additional Checkpoint Fixtures
-lane: "for_review"
+lane: "doing"
 dependencies:
 - WP03
 subtasks:
@@ -12,7 +12,7 @@ subtasks:
 phase: Phase 2 - Extended
 assignee: ''
 agent: "claude-opus"
-shell_pid: "48855"
+shell_pid: "58336"
 review_status: ''
 reviewed_by: ''
 history:
@@ -556,3 +556,4 @@ Complete the remaining checkpoint fixtures:
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
 - 2026-01-19T12:58:13Z – claude-opus – shell_pid=48855 – lane=doing – Started implementation via workflow command
 - 2026-01-19T13:03:27Z – claude-opus – shell_pid=48855 – lane=for_review – Ready for review: 3 new checkpoint fixtures (review_rejected, review_approved, wp_merged), staleness detection with fixture_version, 92 tests passing
+- 2026-01-19T14:32:07Z – claude-opus – shell_pid=58336 – lane=doing – Started review via workflow command
