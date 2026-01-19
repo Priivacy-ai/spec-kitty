@@ -271,7 +271,7 @@
 
 ### Included Subtasks
 - [x] T041 Implement test: independent WPs start simultaneously
-- [ ] T042 Implement test: WP waits for dependencies before starting
+- [x] T042 Implement test: WP waits for dependencies before starting
 - [ ] T043 Implement test: circular dependency detection (pre-execution fail)
 - [ ] T044 Implement test: diamond dependency pattern execution order
 - [ ] T045 Implement test: linear chain (WP01 → WP02 → WP03)
