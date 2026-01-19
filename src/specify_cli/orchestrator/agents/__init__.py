@@ -6,11 +6,13 @@ AI coding agent. Each invoker knows how to:
     - Pipe prompts via stdin or file
     - Parse output and detect success/failure
 
-Supported Agents:
+Supported Agents (WP02 - Core):
     - claude-code: Claude Code (Anthropic)
     - codex: GitHub Codex
     - copilot: GitHub Copilot
     - gemini: Google Gemini
+
+Additional agents (WP03):
     - qwen: Qwen Code
     - opencode: OpenCode
     - kilocode: Kilocode
@@ -18,5 +20,24 @@ Supported Agents:
     - cursor: Cursor (with timeout wrapper)
 """
 
-# Agent invokers will be exported here after WP02/WP03 implementation
-__all__: list[str] = []
+from specify_cli.orchestrator.agents.base import (
+    AgentInvoker,
+    BaseInvoker,
+    InvocationResult,
+)
+from specify_cli.orchestrator.agents.claude import ClaudeInvoker
+from specify_cli.orchestrator.agents.codex import CodexInvoker
+from specify_cli.orchestrator.agents.copilot import CopilotInvoker
+from specify_cli.orchestrator.agents.gemini import GeminiInvoker
+
+__all__ = [
+    # Protocol and base classes
+    "AgentInvoker",
+    "BaseInvoker",
+    "InvocationResult",
+    # Core invokers (WP02)
+    "ClaudeInvoker",
+    "CodexInvoker",
+    "CopilotInvoker",
+    "GeminiInvoker",
+]
