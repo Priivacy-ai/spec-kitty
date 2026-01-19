@@ -1,7 +1,7 @@
 ---
 work_package_id: WP12
 title: Integration and Polish
-lane: planned
+lane: "doing"
 dependencies: []
 subtasks:
 - T056
@@ -11,8 +11,8 @@ subtasks:
 - T060
 phase: Phase 3 - Polish
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude-opus"
+shell_pid: "58477"
 review_status: ''
 reviewed_by: ''
 history:
@@ -810,3 +810,4 @@ Final integration, validation utilities, and polish:
 ## Activity Log
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
+- 2026-01-19T14:32:17Z – claude-opus – shell_pid=58477 – lane=doing – Started implementation via workflow command
