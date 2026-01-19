@@ -334,7 +334,7 @@
 - [x] T052 Create `checkpoint_review_rejected/` fixture
 - [x] T053 Create `checkpoint_review_approved/` fixture
 - [x] T054 Create `checkpoint_wp_merged/` fixture
-- [ ] T055 Add stale checkpoint detection (version mismatch warning)
+- [x] T055 Add stale checkpoint detection (version mismatch warning)
 
 ### Implementation Notes
 - Follow same structure as WP05 checkpoints
