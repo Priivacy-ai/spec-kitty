@@ -8,10 +8,10 @@ subtasks:
   - "T025"
 title: "Initial Checkpoint Fixtures"
 phase: "Phase 1 - Fixtures"
-lane: "for_review"
+lane: "doing"
 assignee: ""
 agent: "claude-opus"
-shell_pid: "14802"
+shell_pid: "24127"
 review_status: ""
 reviewed_by: ""
 dependencies: ["WP03"]
@@ -456,3 +456,4 @@ Create the first set of checkpoint fixtures for testing:
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
 - 2026-01-19T10:03:04Z – claude-opus – shell_pid=14802 – lane=doing – Started implementation via workflow command
 - 2026-01-19T10:11:12Z – claude-opus – shell_pid=14802 – lane=for_review – Ready for review: Created 3 checkpoint fixtures (wp_created, wp_implemented, review_pending) with fixture manifest. 39 tests passing.
+- 2026-01-19T10:14:15Z – claude-opus – shell_pid=24127 – lane=doing – Started review via workflow command
