@@ -1,108 +1,211 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Orchestrator End-to-End Testing Suite
 
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `.kittify/templates/commands/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+**Branch**: `021-orchestrator-end-to-end-testing-suite` | **Date**: 2026-01-19 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `/kitty-specs/021-orchestrator-end-to-end-testing-suite/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Build comprehensive end-to-end testing infrastructure for the orchestrator (feature 020) with:
+- Tiered agent coverage (5 core agents with full integration tests, 7 extended agents with smoke tests)
+- Modular test paths based on agent count (1-agent, 2-agent, 3+-agent)
+- Checkpoint-based fixtures for fast test execution
+- Real agent CLI invocation (no mocks)
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python 3.11+ (matches existing spec-kitty codebase)
+**Primary Dependencies**: pytest, pytest-asyncio (for async orchestrator tests), existing orchestrator module
+**Storage**: Git-tracked fixtures in `tests/fixtures/orchestrator/`
+**Testing**: pytest with custom markers for test categories
+**Target Platform**: Local developer machines with agents installed
+**Project Type**: Single project (test infrastructure added to existing codebase)
+**Performance Goals**: Full integration suite <30 min, smoke suite <10 min
+**Constraints**: Requires real agent CLIs installed and authenticated
+**Scale/Scope**: 5 core agents, 7 extended agents, 6 test categories
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
-
-[Gates determined based on constitution file]
+*No constitution file found. Section skipped.*
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/021-orchestrator-end-to-end-testing-suite/
+├── plan.md              # This file
+├── data-model.md        # Test entities and fixture schema
+├── quickstart.md        # How to run the test suite
+└── tasks.md             # Phase 2 output (created by /spec-kitty.tasks)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
 tests/
-├── contract/
-├── integration/
-└── unit/
+├── fixtures/
+│   └── orchestrator/                    # NEW: Fixture snapshots
+│       ├── checkpoint_wp_created/
+│       │   ├── state.json               # OrchestrationRun state
+│       │   ├── feature/                 # Minimal feature structure
+│       │   │   ├── spec.md
+│       │   │   └── tasks/
+│       │   │       ├── WP01.md
+│       │   │       └── WP02.md
+│       │   └── worktrees.json           # Worktree metadata
+│       ├── checkpoint_wp_implemented/
+│       ├── checkpoint_review_pending/
+│       ├── checkpoint_review_rejected/
+│       ├── checkpoint_review_approved/
+│       └── checkpoint_wp_merged/
+│
+├── specify_cli/
+│   └── orchestrator/
+│       ├── test_integration.py          # EXISTING: Basic integration tests
+│       ├── test_e2e_happy_path.py       # NEW: Happy path tests
+│       ├── test_e2e_review_cycles.py    # NEW: Review cycle tests
+│       ├── test_e2e_parallel.py         # NEW: Parallel execution tests
+│       ├── test_e2e_smoke.py            # NEW: Extended agent smoke tests
+│       └── conftest.py                  # NEW: Fixtures and markers
+│
+└── conftest.py                          # Update: Add orchestrator markers
 
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+src/specify_cli/
+└── orchestrator/
+    └── testing/                         # NEW: Test utilities module
+        ├── __init__.py
+        ├── availability.py              # Agent detection with auth probe
+        ├── fixtures.py                  # Fixture loader/creator
+        └── paths.py                     # Test path selection (1/2/3+ agents)
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: Extend existing `tests/specify_cli/orchestrator/` with new e2e test files. Add `tests/fixtures/orchestrator/` for checkpoint snapshots. Add `src/specify_cli/orchestrator/testing/` for reusable test utilities.
+
+## Key Engineering Decisions
+
+### 1. Fixture Storage (from planning Q1)
+
+**Decision**: Git-tracked directory snapshots in `tests/fixtures/orchestrator/`
+
+**Structure per checkpoint**:
+```
+checkpoint_<name>/
+├── state.json           # Serialized OrchestrationRun
+├── feature/             # Minimal kitty-specs structure
+│   ├── spec.md
+│   ├── plan.md
+│   ├── meta.json
+│   └── tasks/
+│       ├── WP01.md      # With lane frontmatter
+│       └── WP02.md
+└── worktrees.json       # Metadata: [{wp_id, branch, path}]
+```
+
+**Loader behavior**:
+1. Copy fixture to temp directory
+2. Initialize git repo in temp dir
+3. Create worktrees from `worktrees.json` metadata
+4. Load `state.json` into OrchestrationRun object
+5. Return ready-to-use test context
+
+### 2. Auth Verification (from planning Q2)
+
+**Decision**: Lightweight API probe per agent
+
+**Implementation**:
+```python
+class AgentAvailability:
+    agent_id: str
+    is_installed: bool      # CLI binary exists
+    is_authenticated: bool  # Probe call succeeded
+    tier: Literal["core", "extended"]
+    failure_reason: str | None
+```
+
+**Probe behavior**:
+- Each agent invoker gets a `probe()` method
+- Makes minimal API call (e.g., list models, whoami)
+- Timeout: 10 seconds
+- Caches result for session duration
+
+### 3. Test Path Model (from planning Q3)
+
+**Decision**: Parameterized by agent count, not identity
+
+**Paths**:
+| Path | Agents | Tests |
+|------|--------|-------|
+| 1-agent | Single agent | Same-agent implementation and review |
+| 2-agent | Two agents | Cross-agent review (different impl vs review agent) |
+| 3+-agent | Three+ agents | Fallback scenarios (third agent used on failure) |
+
+**Runtime selection**:
+```python
+@pytest.fixture
+def available_agents() -> list[str]:
+    """Detect available agents at test start."""
+    return [a.agent_id for a in detect_all_agents() if a.is_authenticated]
+
+@pytest.fixture
+def test_path(available_agents) -> Literal["1-agent", "2-agent", "3+-agent"]:
+    """Select test path based on agent count."""
+    count = len(available_agents)
+    if count >= 3:
+        return "3+-agent"
+    elif count == 2:
+        return "2-agent"
+    return "1-agent"
+```
+
+### 4. Smoke Test Task (from planning Q4)
+
+**Decision**: File touch - agent creates empty file at specified path
+
+**Implementation**:
+```python
+SMOKE_TASK = """
+Create an empty file at: {target_path}
+Do not add any content. Just create the file.
+"""
+
+def verify_smoke_result(target_path: Path) -> bool:
+    return target_path.exists()
+```
+
+## Test Categories & Markers
+
+```python
+# In conftest.py
+pytest.mark.orchestrator_availability  # Agent detection tests
+pytest.mark.orchestrator_fixtures      # Fixture management tests
+pytest.mark.orchestrator_happy_path    # Basic orchestration flow
+pytest.mark.orchestrator_review_cycles # Review rejection/re-impl
+pytest.mark.orchestrator_parallel      # Parallel execution & deps
+pytest.mark.orchestrator_smoke         # Extended agent smoke tests
+
+# Tier markers for skip behavior
+pytest.mark.core_agent                 # Fail if agent unavailable
+pytest.mark.extended_agent             # Skip if agent unavailable
+```
+
+## Agent Tiers
+
+**Core Tier** (must be available - tests fail if missing):
+- Claude Code (`claude`)
+- GitHub Codex (`codex`)
+- GitHub Copilot (`copilot`)
+- Google Gemini (`gemini`)
+- OpenCode (`opencode`)
+
+**Extended Tier** (skip gracefully if missing):
+- Cursor (`cursor`)
+- Qwen Code (`qwen`)
+- Augment Code (`augment`)
+- Kilocode (`kilocode`)
+- Roo Cline (`roo`)
+- Windsurf (`windsurf`)
+- Amazon Q (`amazonq`)
 
 ## Complexity Tracking
 
-*Fill ONLY if Constitution Check has violations that must be justified*
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+No constitution violations to track.
