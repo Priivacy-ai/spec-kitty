@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Additional Checkpoint Fixtures
-lane: planned
+lane: "doing"
 dependencies:
 - WP03
 subtasks:
@@ -11,8 +11,8 @@ subtasks:
 - T055
 phase: Phase 2 - Extended
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude-opus"
+shell_pid: "48855"
 review_status: ''
 reviewed_by: ''
 history:
@@ -554,3 +554,4 @@ Complete the remaining checkpoint fixtures:
 ## Activity Log
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
+- 2026-01-19T12:58:13Z – claude-opus – shell_pid=48855 – lane=doing – Started implementation via workflow command
