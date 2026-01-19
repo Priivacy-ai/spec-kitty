@@ -275,7 +275,7 @@
 
 ### Included Subtasks
 - [x] T043 Implement main orchestration loop connecting all components
-- [ ] T044 Add progress display during execution (Rich console)
+- [x] T044 Add progress display during execution (Rich console)
 - [ ] T045 Add summary report on completion
 - [ ] T046 Handle edge cases: circular deps, no agents, worktree failures
 
