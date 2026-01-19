@@ -8,7 +8,7 @@ subtasks:
   - "T014"
 title: "Fixture Data Structures"
 phase: "Phase 0 - Foundation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude-opus"
 shell_pid: "6815"
@@ -411,3 +411,4 @@ Define all data structures for fixture management:
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
 - 2026-01-19T09:47:29Z – claude-opus – shell_pid=6815 – lane=doing – Started implementation via workflow command
+- 2026-01-19T09:54:50Z – claude-opus – shell_pid=6815 – lane=for_review – Ready for review: Implemented FixtureCheckpoint, WorktreeMetadata, TestContext dataclasses with JSON schema validation for worktrees.json and state.json. 40 tests passing.
