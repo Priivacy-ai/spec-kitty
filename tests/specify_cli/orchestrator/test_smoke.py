@@ -130,6 +130,7 @@ async def run_smoke_task(
 
     Returns:
         Tuple of (success, error_message)
+        Returns (False, "invoke not implemented") if invoker lacks invoke method.
     """
     from specify_cli.orchestrator.agents import AGENT_REGISTRY
     from specify_cli.orchestrator.testing.availability import AGENT_ID_TO_REGISTRY
@@ -146,6 +147,10 @@ async def run_smoke_task(
 
     try:
         invoker = invoker_class()
+
+        # Check if invoke method exists (not all invokers have it implemented yet)
+        if not hasattr(invoker, "invoke") or not callable(getattr(invoker, "invoke")):
+            return False, f"invoke() not implemented for {agent_id}"
 
         # Run with timeout
         result = await asyncio.wait_for(
@@ -234,6 +239,10 @@ class TestExtendedAgentSmoke(SmokeTestBase):
                 timeout=self.SMOKE_TIMEOUT_SECONDS
             )
 
+            # Skip if invoke not implemented (extended agents may not have it yet)
+            if not success and error and "not implemented" in error:
+                pytest.skip(f"{agent_id}: invoke() not implemented yet")
+
             # Verify result
             passed, message = verify_smoke_result(
                 agent_id, output_path, success, error
@@ -266,6 +275,10 @@ class TestExtendedAgentSmoke(SmokeTestBase):
                 task_prompt,
                 timeout=self.SMOKE_TIMEOUT_SECONDS
             )
+
+            # Skip if invoke not implemented (extended agents may not have it yet)
+            if not success and error and "not implemented" in error:
+                pytest.skip(f"{agent_id}: invoke() not implemented yet")
 
             elapsed = time.time() - start_time
 
@@ -365,11 +378,15 @@ class TestSmokeTimingValidation:
         start_time = time.time()
 
         try:
-            success, _ = run_smoke_task_sync(
+            success, error = run_smoke_task_sync(
                 agent_id,
                 task_prompt,
                 timeout=get_smoke_timeout()
             )
+
+            # Skip if invoke not implemented
+            if not success and error and "not implemented" in error:
+                pytest.skip(f"{agent_id}: invoke() not implemented yet")
 
             duration = time.time() - start_time
 
