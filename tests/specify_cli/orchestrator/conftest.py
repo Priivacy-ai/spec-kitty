@@ -115,6 +115,22 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 # =============================================================================
+# T028: Configuration Fixture
+# =============================================================================
+
+
+@pytest.fixture(scope="session")
+def orchestrator_config():
+    """Provide test configuration.
+
+    Returns:
+        OrchestratorTestConfig with values from environment
+    """
+    from tests.specify_cli.orchestrator.config import get_config
+    return get_config()
+
+
+# =============================================================================
 # T028: Agent Availability Fixtures
 # =============================================================================
 
@@ -126,17 +142,13 @@ def available_agents() -> dict[str, AgentAvailability]:
     Returns:
         Dict mapping agent_id to AgentAvailability
     """
-    from specify_cli.orchestrator.testing.availability import (
-        AgentAvailability,
-        detect_all_agents,
-    )
+    from specify_cli.orchestrator.testing.availability import detect_all_agents
 
     # Run async detection in sync context
     loop = asyncio.new_event_loop()
     try:
-        agents_list = loop.run_until_complete(detect_all_agents())
-        # Convert list to dict keyed by agent_id
-        return {a.agent_id: a for a in agents_list}
+        # detect_all_agents() returns dict[str, AgentAvailability]
+        return loop.run_until_complete(detect_all_agents())
     finally:
         loop.close()
 
@@ -277,6 +289,8 @@ def test_context_factory(
             ctx = test_context_factory("wp_created")
             # Use ctx...
     """
+    import shutil
+
     from specify_cli.orchestrator.testing.fixtures import (
         FixtureCheckpoint,
         TestContext,
@@ -303,6 +317,22 @@ def test_context_factory(
         test_dir = tmp_path / f"test_{checkpoint_name}"
         test_dir.mkdir(parents=True, exist_ok=True)
 
+        # Copy feature directory from checkpoint to test dir
+        feature_dir = test_dir / "feature"
+        if checkpoint.feature_dir.exists():
+            shutil.copytree(checkpoint.feature_dir, feature_dir)
+        else:
+            feature_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy state.json to expected location
+        state_file = feature_dir / ".orchestration-state.json"
+        if checkpoint.state_file.exists():
+            shutil.copy2(checkpoint.state_file, state_file)
+
+        # Initialize git repo for tests that need it
+        git_dir = test_dir / ".git"
+        git_dir.mkdir(parents=True, exist_ok=True)
+
         # Load worktrees metadata
         worktrees = []
         if checkpoint.worktrees_file.exists():
@@ -311,7 +341,7 @@ def test_context_factory(
         ctx = TestContext(
             temp_dir=test_dir,
             repo_root=test_dir,
-            feature_dir=test_dir / "feature",
+            feature_dir=feature_dir,
             test_path=test_path,
             checkpoint=checkpoint,
             orchestration_state=None,
