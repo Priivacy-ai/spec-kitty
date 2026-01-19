@@ -1,0 +1,52 @@
+{
+  "run_id": "test-run-001",
+  "feature_slug": "test-feature",
+  "started_at": "2026-01-01T00:00:00",
+  "completed_at": null,
+  "status": "running",
+  "config_hash": "",
+  "concurrency_limit": 5,
+  "wps_total": 2,
+  "wps_completed": 0,
+  "wps_failed": 0,
+  "parallel_peak": 1,
+  "total_agent_invocations": 2,
+  "work_packages": {
+    "WP01": {
+      "wp_id": "WP01",
+      "status": "review",
+      "implementation_agent": "claude",
+      "implementation_started": "2026-01-01T00:01:00",
+      "implementation_completed": "2026-01-01T00:05:00",
+      "implementation_exit_code": 0,
+      "implementation_retries": 0,
+      "review_agent": "codex",
+      "review_started": "2026-01-01T00:06:00",
+      "review_completed": null,
+      "review_exit_code": null,
+      "review_retries": 0,
+      "log_file": null,
+      "worktree_path": ".worktrees/test-feature-WP01",
+      "last_error": null,
+      "fallback_agents_tried": []
+    },
+    "WP02": {
+      "wp_id": "WP02",
+      "status": "pending",
+      "implementation_agent": null,
+      "implementation_started": null,
+      "implementation_completed": null,
+      "implementation_exit_code": null,
+      "implementation_retries": 0,
+      "review_agent": null,
+      "review_started": null,
+      "review_completed": null,
+      "review_exit_code": null,
+      "review_retries": 0,
+      "log_file": null,
+      "worktree_path": null,
+      "last_error": null,
+      "fallback_agents_tried": []
+    }
+  }
+}
