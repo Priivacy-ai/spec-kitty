@@ -8,12 +8,12 @@ subtasks:
   - "T042"
 title: "CLI Commands"
 phase: "Phase 3 - CLI & Integration"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "claude-opus"
 shell_pid: "85610"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 dependencies:
   - "WP05"
   - "WP06"
@@ -348,3 +348,4 @@ spec-kitty implement WP08 --base WP07
 - 2026-01-19T08:14:58Z – claude-opus – shell_pid=77685 – lane=doing – Started implementation via workflow command
 - 2026-01-19T08:19:00Z – claude-opus – shell_pid=77685 – lane=for_review – Ready for review: CLI command implementation complete with --feature (T038), --status (T039), --resume (T040), --abort (T041), and help documentation (T042). All tests passed.
 - 2026-01-19T08:32:42Z – claude-opus – shell_pid=85610 – lane=doing – Started review via workflow command
+- 2026-01-19T08:33:36Z – claude-opus – shell_pid=85610 – lane=done – Review passed: CLI command implementation complete with --feature (T038), --status with Rich display (T039), --resume (T040), --abort with --cleanup option (T041), and comprehensive help text (T042). Bonus: --skip option, auto-detect feature, signal handling for graceful shutdown. Registered in main CLI.
