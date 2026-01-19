@@ -242,7 +242,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T038 Implement `spec-kitty orchestrate --feature` command
+- [x] T038 Implement `spec-kitty orchestrate --feature` command
 - [ ] T039 Implement `spec-kitty orchestrate --status` command
 - [ ] T040 Implement `spec-kitty orchestrate --resume` command
 - [ ] T041 Implement `spec-kitty orchestrate --abort` command
