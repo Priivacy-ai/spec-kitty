@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Extended Agent Smoke Tests
-lane: "for_review"
+lane: "doing"
 dependencies:
 - WP01
 subtasks:
@@ -13,7 +13,7 @@ subtasks:
 phase: Phase 2 - Extended
 assignee: ''
 agent: "claude-opus"
-shell_pid: "44096"
+shell_pid: "48751"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -565,3 +565,4 @@ Basic validation that extended agents can be invoked:
 - 2026-01-19T12:51:52Z – claude-opus – shell_pid=44096 – lane=doing – Started implementation via workflow command
 - 2026-01-19T12:56:29Z – claude-opus – shell_pid=44096 – lane=for_review – Ready for review: Fixed smoke tests to handle missing invoke() method - tests now skip gracefully when invokers don't have invoke() implemented
 - 2026-01-19T12:57:27Z – claude-opus – shell_pid=44096 – lane=for_review – Implementation complete: 26 tests (10 passed, 16 skipped for unavailable agents)
+- 2026-01-19T12:58:02Z – claude-opus – shell_pid=48751 – lane=doing – Started review via workflow command
