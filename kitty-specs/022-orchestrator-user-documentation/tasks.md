@@ -159,7 +159,7 @@ description: "Work package task list for orchestrator user documentation"
 **Prompt**: `tasks/WP05-navigation.md`
 
 ### Included Subtasks
-- [ ] T012 Update `docs/toc.yml` (N1) - add all new documents to navigation
+- [x] T012 Update `docs/toc.yml` (N1) - add all new documents to navigation
 
 ### Implementation Notes
 - Add tutorial under Tutorials section
