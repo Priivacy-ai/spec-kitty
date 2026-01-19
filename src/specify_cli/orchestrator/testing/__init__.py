@@ -13,11 +13,16 @@ Example usage:
         detect_all_agents,
         CORE_AGENTS,
         EXTENDED_AGENTS,
+        TestPath,
+        select_test_path,
     )
 
     # Detect available agents
     agents = await detect_all_agents()
     available = [a for a in agents.values() if a.is_available]
+
+    # Select test path based on available agents
+    test_path = await select_test_path()
 """
 
 from __future__ import annotations
@@ -36,11 +41,17 @@ from specify_cli.orchestrator.testing.availability import (
     probe_agent_auth,
 )
 
-# Note: The following imports will be available after WP02-WP04 are complete
-# from specify_cli.orchestrator.testing.paths import (
-#     TestPath,
-#     select_test_path,
-# )
+# Test path selection (WP02)
+from specify_cli.orchestrator.testing.paths import (
+    TestPath,
+    assign_agents,
+    clear_test_path_cache,
+    determine_path_type,
+    select_test_path,
+    select_test_path_sync,
+)
+
+# Note: The following imports will be available after WP03-WP04 are complete
 # from specify_cli.orchestrator.testing.fixtures import (
 #     FixtureCheckpoint,
 #     WorktreeMetadata,
@@ -53,7 +64,7 @@ __all__ = [
     "CORE_AGENTS",
     "EXTENDED_AGENTS",
     "ALL_AGENTS",
-    # Availability detection
+    # Availability detection (WP01)
     "AgentAvailability",
     "detect_all_agents",
     "detect_agent",
@@ -61,9 +72,14 @@ __all__ = [
     "clear_agent_cache",
     "check_installed",
     "probe_agent_auth",
-    # Note: These will be added as WP02-WP04 complete
-    # "TestPath",
-    # "select_test_path",
+    # Test path selection (WP02)
+    "TestPath",
+    "assign_agents",
+    "clear_test_path_cache",
+    "determine_path_type",
+    "select_test_path",
+    "select_test_path_sync",
+    # Note: These will be added as WP03-WP04 complete
     # "FixtureCheckpoint",
     # "WorktreeMetadata",
     # "TestContext",
