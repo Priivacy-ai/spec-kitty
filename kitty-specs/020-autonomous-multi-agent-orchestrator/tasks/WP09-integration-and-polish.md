@@ -7,10 +7,10 @@ subtasks:
   - "T046"
 title: "Integration & Polish"
 phase: "Phase 3 - CLI & Integration"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude-opus"
+shell_pid: "80444"
 review_status: ""
 reviewed_by: ""
 dependencies:
@@ -404,3 +404,4 @@ spec-kitty implement WP09 --base WP08
 ## Activity Log
 
 - 2026-01-18T16:21:51Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
+- 2026-01-19T08:21:10Z – claude-opus – shell_pid=80444 – lane=doing – Started implementation via workflow command
