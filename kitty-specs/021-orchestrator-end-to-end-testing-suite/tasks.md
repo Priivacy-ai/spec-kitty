@@ -182,7 +182,7 @@
 - [x] T027 Register custom markers in pytest.ini or conftest
 - [x] T028 Implement `available_agents` fixture (session-scoped)
 - [x] T029 Implement `test_path` fixture (derives from available_agents)
-- [ ] T030 Implement `test_context` fixture (function-scoped, loads checkpoint)
+- [x] T030 Implement `test_context` fixture (function-scoped, loads checkpoint)
 
 ### Implementation Notes
 - Markers: `orchestrator_availability`, `orchestrator_fixtures`, `orchestrator_happy_path`, `orchestrator_review_cycles`, `orchestrator_parallel`, `orchestrator_smoke`, `core_agent`, `extended_agent`
