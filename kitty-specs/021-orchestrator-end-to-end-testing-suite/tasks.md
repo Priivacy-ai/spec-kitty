@@ -151,7 +151,7 @@
 - [x] T021 Create minimal test feature structure (spec.md, plan.md, meta.json, tasks/)
 - [x] T022 Create `checkpoint_wp_created/` fixture (WPs in planned lane)
 - [x] T023 Create `checkpoint_wp_implemented/` fixture (WP01 implemented)
-- [ ] T024 Create `checkpoint_review_pending/` fixture (WP01 in review)
+- [x] T024 Create `checkpoint_review_pending/` fixture (WP01 in review)
 - [ ] T025 Add fixture manifest in `__init__.py` for discovery
 
 ### Implementation Notes
