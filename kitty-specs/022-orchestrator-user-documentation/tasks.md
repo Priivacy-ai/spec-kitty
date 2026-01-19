@@ -122,7 +122,7 @@ description: "Work package task list for orchestrator user documentation"
 
 ### Included Subtasks
 - [x] T010 Create `docs/tutorials/autonomous-orchestration.md` (T1) - step-by-step tutorial
-- [ ] T011 Update `docs/explanation/multi-agent-orchestration.md` (E2) - add autonomous section
+- [x] T011 Update `docs/explanation/multi-agent-orchestration.md` (E2) - add autonomous section
 
 ### Implementation Notes
 - T1 must follow tutorial style: Time estimate, Prerequisites, numbered steps, expected output
