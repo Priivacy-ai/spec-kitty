@@ -24,7 +24,7 @@
 
 ### Included Subtasks
 - [x] T001 Create `src/specify_cli/orchestrator/testing/__init__.py` module structure
-- [ ] T002 Implement `AgentAvailability` dataclass in `availability.py`
+- [x] T002 Implement `AgentAvailability` dataclass in `availability.py`
 - [ ] T003 Implement `is_installed` check using existing agent invoker registry
 - [ ] T004 Implement `probe()` method for auth verification (lightweight API call)
 - [ ] T005 Implement `detect_all_agents()` function with tier categorization
