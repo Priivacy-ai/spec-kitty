@@ -9,10 +9,10 @@ subtasks:
   - "T020"
 title: "Fixture Loader"
 phase: "Phase 0 - Foundation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "12835"
 review_status: ""
 reviewed_by: ""
 dependencies: ["WP03"]
@@ -472,3 +472,4 @@ Implement fixture loading that restores checkpoints to usable test state:
 ## Activity Log
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
+- 2026-01-19T09:59:01Z – claude – shell_pid=12835 – lane=doing – Started implementation via workflow command
