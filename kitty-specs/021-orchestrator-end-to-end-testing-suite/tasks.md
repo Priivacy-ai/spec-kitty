@@ -119,7 +119,7 @@
 - [x] T017 Implement `create_worktrees_from_metadata()` - recreates worktrees
 - [x] T018 Implement `load_orchestration_state()` - deserializes state.json
 - [x] T019 Implement `load_checkpoint()` - assembles full TestContext
-- [ ] T020 Implement `cleanup_test_context()` - removes temp directories
+- [x] T020 Implement `cleanup_test_context()` - removes temp directories
 
 ### Implementation Notes
 - Use `tempfile.mkdtemp()` for isolation
