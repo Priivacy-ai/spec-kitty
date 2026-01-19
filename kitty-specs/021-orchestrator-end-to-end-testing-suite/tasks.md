@@ -83,7 +83,7 @@
 **Estimated Size**: ~320 lines
 
 ### Included Subtasks
-- [ ] T010 Implement `FixtureCheckpoint` dataclass in `fixtures.py`
+- [x] T010 Implement `FixtureCheckpoint` dataclass in `fixtures.py`
 - [ ] T011 Implement `WorktreeMetadata` dataclass
 - [ ] T012 Implement `TestContext` dataclass
 - [ ] T013 Add `worktrees.json` schema validation with Pydantic or manual checks
