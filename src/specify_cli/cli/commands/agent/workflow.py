@@ -304,12 +304,16 @@ def implement(
                     sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
                     subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
 
-                    # Add .gitignore to prevent manual kitty-specs/ additions
+                    # Add .gitignore to block WP status files but allow research artifacts
                     gitignore_path = workspace_path / ".gitignore"
-                    gitignore_entry = "# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n"
+                    gitignore_entry = "# Block WP status files (managed in main repo, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
                     if gitignore_path.exists():
                         content = gitignore_path.read_text(encoding="utf-8")
-                        if "kitty-specs/" not in content:
+                        if "kitty-specs/**/tasks/*.md" not in content:
+                            # Remove old blanket rule if present
+                            if "kitty-specs/\n" in content:
+                                content = content.replace("# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n", "")
+                                content = content.replace("kitty-specs/\n", "")
                             gitignore_path.write_text(content.rstrip() + "\n" + gitignore_entry, encoding="utf-8")
                     else:
                         gitignore_path.write_text(gitignore_entry, encoding="utf-8")
@@ -627,12 +631,16 @@ def review(
                     sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
                     subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
 
-                    # Add .gitignore to prevent manual kitty-specs/ additions
+                    # Add .gitignore to block WP status files but allow research artifacts
                     gitignore_path = workspace_path / ".gitignore"
-                    gitignore_entry = "# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n"
+                    gitignore_entry = "# Block WP status files (managed in main repo, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
                     if gitignore_path.exists():
                         content = gitignore_path.read_text(encoding="utf-8")
-                        if "kitty-specs/" not in content:
+                        if "kitty-specs/**/tasks/*.md" not in content:
+                            # Remove old blanket rule if present
+                            if "kitty-specs/\n" in content:
+                                content = content.replace("# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n", "")
+                                content = content.replace("kitty-specs/\n", "")
                             gitignore_path.write_text(content.rstrip() + "\n" + gitignore_entry, encoding="utf-8")
                     else:
                         gitignore_path.write_text(gitignore_entry, encoding="utf-8")

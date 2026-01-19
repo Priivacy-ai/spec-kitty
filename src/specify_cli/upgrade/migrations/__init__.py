@@ -17,6 +17,7 @@ from . import m_0_8_0_remove_active_mission
 from . import m_0_8_0_worktree_agents_symlink
 from . import m_0_9_0_frontmatter_only_lanes
 from . import m_0_9_1_complete_lane_migration
+from . import m_0_9_2_research_mission_templates
 from . import m_0_10_0_python_only
 from . import m_0_10_1_populate_slash_commands
 from . import m_0_10_2_update_slash_commands
@@ -38,6 +39,7 @@ __all__ = [
     "m_0_8_0_worktree_agents_symlink",
     "m_0_9_0_frontmatter_only_lanes",
     "m_0_9_1_complete_lane_migration",
+    "m_0_9_2_research_mission_templates",  # Add missing research mission templates
     "m_0_10_0_python_only",  # Python-only CLI migration
     "m_0_10_1_populate_slash_commands",  # Populate missing slash commands
     "m_0_10_2_update_slash_commands",  # Update to Python CLI and flat structure
