@@ -57,7 +57,7 @@
 - [x] T006 Implement `TestPath` dataclass in `paths.py`
 - [x] T007 Implement path selection logic based on agent count
 - [x] T008 Implement agent assignment (implementation, review, fallback)
-- [ ] T009 Add `select_test_path()` function with caching
+- [x] T009 Add `select_test_path()` function with caching
 
 ### Implementation Notes
 - Path selection: 1 agent → 1-agent, 2 agents → 2-agent, 3+ agents → 3+-agent
