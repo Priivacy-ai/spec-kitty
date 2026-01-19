@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: pytest Configuration
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 subtasks:
@@ -429,3 +429,4 @@ Set up pytest fixtures and markers for orchestrator tests:
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
 - 2026-01-19T10:03:10Z – claude-opus – shell_pid=14894 – lane=doing – Started implementation via workflow command
+- 2026-01-19T10:15:05Z – claude-opus – shell_pid=14894 – lane=for_review – Ready for review: pytest fixtures and markers for orchestrator e2e tests. All 17 tests passing.
