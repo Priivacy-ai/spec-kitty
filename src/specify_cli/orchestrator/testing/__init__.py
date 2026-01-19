@@ -15,6 +15,9 @@ Example usage:
         EXTENDED_AGENTS,
         TestPath,
         select_test_path,
+        FixtureCheckpoint,
+        TestContext,
+        load_state_file,
     )
 
     # Detect available agents
@@ -51,13 +54,18 @@ from specify_cli.orchestrator.testing.paths import (
     select_test_path_sync,
 )
 
-# Note: The following imports will be available after WP03-WP04 are complete
-# from specify_cli.orchestrator.testing.fixtures import (
-#     FixtureCheckpoint,
-#     WorktreeMetadata,
-#     TestContext,
-#     load_checkpoint,
-# )
+# Fixture management (WP03)
+from specify_cli.orchestrator.testing.fixtures import (
+    FixtureCheckpoint,
+    StateFileError,
+    TestContext,
+    WorktreeMetadata,
+    WorktreesFileError,
+    load_state_file,
+    load_worktrees_file,
+    save_state_file,
+    save_worktrees_file,
+)
 
 __all__ = [
     # Tier constants
@@ -79,9 +87,14 @@ __all__ = [
     "determine_path_type",
     "select_test_path",
     "select_test_path_sync",
-    # Note: These will be added as WP03-WP04 complete
-    # "FixtureCheckpoint",
-    # "WorktreeMetadata",
-    # "TestContext",
-    # "load_checkpoint",
+    # Fixture management (WP03)
+    "FixtureCheckpoint",
+    "WorktreeMetadata",
+    "TestContext",
+    "WorktreesFileError",
+    "StateFileError",
+    "load_worktrees_file",
+    "save_worktrees_file",
+    "load_state_file",
+    "save_state_file",
 ]
