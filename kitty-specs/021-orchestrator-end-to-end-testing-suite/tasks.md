@@ -208,7 +208,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T031 Implement test: single WP orchestration end-to-end
+- [x] T031 Implement test: single WP orchestration end-to-end
 - [ ] T032 Implement test: multiple parallel WPs orchestration
 - [ ] T033 Implement test: state validation after orchestration
 - [ ] T034 Implement test: lane status consistency (frontmatter matches state)
