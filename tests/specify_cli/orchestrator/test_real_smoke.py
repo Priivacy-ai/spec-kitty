@@ -80,7 +80,13 @@ class TestRealAgentInvocation:
         Note: Codex may fail with 404 if the configured model endpoint
         is unavailable. This is a codex configuration issue, not a test issue.
         """
+        import os
         prompt = "Create a file called hello.txt containing exactly 'Hello from Codex'. Nothing else."
+
+        # Remove env vars that redirect to DashScope - let codex use OAuth
+        env = os.environ.copy()
+        for var in ["OPENAI_BASE_URL", "OPENAI_API_KEY", "OPENAI_MODEL"]:
+            env.pop(var, None)
 
         result = subprocess.run(
             [
@@ -94,6 +100,7 @@ class TestRealAgentInvocation:
             capture_output=True,
             text=True,
             timeout=60,
+            env=env,
         )
 
         # Skip if codex has API/endpoint issues
