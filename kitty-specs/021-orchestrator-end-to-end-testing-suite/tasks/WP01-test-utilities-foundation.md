@@ -8,10 +8,10 @@ subtasks:
   - "T005"
 title: "Test Utilities Foundation"
 phase: "Phase 0 - Foundation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "4819"
 review_status: ""
 reviewed_by: ""
 dependencies: []
@@ -405,3 +405,4 @@ Create the core test utilities module with agent availability detection capabili
 ## Activity Log
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
+- 2026-01-19T09:45:14Z – claude – shell_pid=4819 – lane=doing – Started implementation via workflow command
