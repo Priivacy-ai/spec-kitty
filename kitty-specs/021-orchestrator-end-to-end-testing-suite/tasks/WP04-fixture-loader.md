@@ -9,10 +9,10 @@ subtasks:
   - "T020"
 title: "Fixture Loader"
 phase: "Phase 0 - Foundation"
-lane: "for_review"
+lane: "doing"
 assignee: ""
-agent: "claude"
-shell_pid: "12835"
+agent: "claude-opus"
+shell_pid: "20551"
 review_status: ""
 reviewed_by: ""
 dependencies: ["WP03"]
@@ -474,3 +474,4 @@ Implement fixture loading that restores checkpoints to usable test state:
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
 - 2026-01-19T09:59:01Z – claude – shell_pid=12835 – lane=doing – Started implementation via workflow command
 - 2026-01-19T10:08:07Z – claude – shell_pid=12835 – lane=for_review – Ready for review: Implemented fixture loader functions (copy_fixture_to_temp, init_git_repo, create_worktrees_from_metadata, load_orchestration_state, load_checkpoint, cleanup functions). 60 tests passing.
+- 2026-01-19T10:09:08Z – claude-opus – shell_pid=20551 – lane=doing – Started review via workflow command
