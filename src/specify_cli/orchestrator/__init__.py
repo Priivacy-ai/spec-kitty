@@ -9,6 +9,7 @@ Core Components:
     - Executor: Process spawning and management with asyncio
     - Monitor: Completion detection and failure handling
     - State Manager: Persistent orchestration state
+    - Integration: Main orchestration loop connecting all components (WP09)
 
 Configuration:
     - OrchestratorConfig: Main configuration dataclass
@@ -23,6 +24,7 @@ Usage:
         OrchestrationStatus,
         WPStatus,
         FallbackStrategy,
+        run_orchestration_loop,
     )
 
     config = load_config(repo_root / ".kittify" / "agents.yaml")
@@ -38,6 +40,16 @@ from specify_cli.orchestrator.config import (
     generate_default_config,
     load_config,
 )
+from specify_cli.orchestrator.integration import (
+    CircularDependencyError,
+    NoAgentsError,
+    OrchestrationError,
+    ValidationError,
+    print_summary,
+    run_orchestration_loop,
+    validate_agents,
+    validate_feature,
+)
 
 __all__ = [
     # Enums
@@ -50,6 +62,14 @@ __all__ = [
     # Functions
     "load_config",
     "generate_default_config",
+    "run_orchestration_loop",
+    "validate_feature",
+    "validate_agents",
+    "print_summary",
     # Exceptions
     "ConfigValidationError",
+    "OrchestrationError",
+    "CircularDependencyError",
+    "NoAgentsError",
+    "ValidationError",
 ]

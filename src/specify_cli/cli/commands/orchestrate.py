@@ -7,15 +7,14 @@ This module implements the `spec-kitty orchestrate` CLI command with:
     - --abort: Stop orchestration and cleanup (T041)
     - Help text and documentation (T042)
 
-Implemented in WP08.
+WP08: Initial CLI structure
+WP09: Full integration with real agent execution
 """
 
 from __future__ import annotations
 
 import asyncio
-import signal
 import subprocess
-import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,7 +23,6 @@ from typing import TYPE_CHECKING
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from specify_cli.cli.helpers import get_project_root_or_exit
@@ -34,22 +32,27 @@ from specify_cli.orchestrator.config import (
     WPStatus,
     load_config,
 )
+from specify_cli.orchestrator.integration import (
+    CircularDependencyError,
+    NoAgentsError,
+    ValidationError,
+    print_summary,
+    run_orchestration_loop,
+    validate_agents,
+    validate_feature,
+)
 from specify_cli.orchestrator.scheduler import (
     build_wp_graph,
+    get_topological_order,
     validate_wp_graph,
-    get_ready_wps,
-    topological_sort,
-    select_agent,
-    ConcurrencyManager,
-    is_single_agent_mode,
 )
 from specify_cli.orchestrator.state import (
     OrchestrationRun,
     WPExecution,
-    save_state,
-    load_state,
     clear_state,
     has_active_orchestration,
+    load_state,
+    save_state,
 )
 
 if TYPE_CHECKING:
@@ -284,17 +287,17 @@ async def start_orchestration_async(feature_slug: str, repo_root: Path) -> None:
     """Start new orchestration for a feature (async implementation)."""
     feature_dir = repo_root / "kitty-specs" / feature_slug
 
-    # Validate feature exists
-    if not feature_dir.exists():
-        console.print(f"[red]Error:[/red] Feature not found: {feature_slug}")
-        console.print(f"Expected directory: {feature_dir}")
+    # Validate feature and build graph (T046 - edge case handling)
+    console.print(f"Validating feature [bold]{feature_slug}[/bold]...")
+    try:
+        graph = validate_feature(feature_dir)
+    except CircularDependencyError as e:
+        console.print(f"[red]Error: Circular dependency detected[/red]")
+        console.print(str(e))
+        console.print("\nFix the dependency cycle in your tasks.md and WP frontmatter.")
         raise typer.Exit(1)
-
-    # Check tasks directory exists
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.exists():
-        console.print(f"[red]Error:[/red] No tasks directory found for {feature_slug}")
-        console.print("Run /spec-kitty.tasks first to generate work packages.")
+    except ValidationError as e:
+        console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
     # Check for existing orchestration
@@ -303,28 +306,25 @@ async def start_orchestration_async(feature_slug: str, repo_root: Path) -> None:
         console.print("Use --status to check progress, --resume to continue, or --abort to cancel.")
         raise typer.Exit(1)
 
-    # Load config
+    # Load and validate config
     config_path = repo_root / ".kittify" / "agents.yaml"
     try:
         config = load_config(config_path)
     except Exception as e:
         console.print(f"[red]Error loading config:[/red] {e}")
+        console.print("\nCreate config with: spec-kitty agent config init")
         raise typer.Exit(1)
 
-    # Build and validate dependency graph
-    console.print(f"Building dependency graph for [bold]{feature_slug}[/bold]...")
+    # Validate agents are available (T046 - no agents installed)
     try:
-        graph = build_wp_graph(feature_dir)
-        if not graph:
-            console.print("[red]Error:[/red] No work packages found.")
-            raise typer.Exit(1)
-        validate_wp_graph(graph)
-    except Exception as e:
-        console.print(f"[red]Error building dependency graph:[/red] {e}")
+        available_agents = validate_agents(config)
+        console.print(f"Available agents: {', '.join(available_agents)}")
+    except NoAgentsError as e:
+        console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
     # Get topological order
-    wp_order = topological_sort(graph)
+    wp_order = get_topological_order(graph)
     console.print(f"Work packages: {', '.join(wp_order)}")
 
     # Initialize state
@@ -332,7 +332,7 @@ async def start_orchestration_async(feature_slug: str, repo_root: Path) -> None:
         run_id=str(uuid.uuid4()),
         feature_slug=feature_slug,
         started_at=datetime.now(timezone.utc),
-        status=OrchestrationStatus.RUNNING,
+        status=OrchestrationStatus.PENDING,
         config_hash="",  # TODO: compute hash
         concurrency_limit=config.global_concurrency,
         wps_total=len(wp_order),
@@ -350,164 +350,13 @@ async def start_orchestration_async(feature_slug: str, repo_root: Path) -> None:
         f"Starting orchestration for [bold]{feature_slug}[/bold]\n\n"
         f"Work packages: {len(wp_order)}\n"
         f"Concurrency: {config.global_concurrency}\n"
-        f"Agents: {', '.join(a for a, ac in config.agents.items() if ac.enabled)}",
+        f"Agents: {', '.join(available_agents)}",
         title="Orchestration Started",
         border_style="green",
     ))
 
-    # Run the orchestration loop
-    await run_orchestration_loop(state, config, feature_dir, repo_root)
-
-
-async def run_orchestration_loop(
-    state: OrchestrationRun,
-    config: OrchestratorConfig,
-    feature_dir: Path,
-    repo_root: Path,
-) -> None:
-    """Main orchestration loop that schedules and monitors WPs.
-
-    This is a simplified implementation that demonstrates the structure.
-    The full implementation would integrate with executor and monitor modules.
-    """
-    from specify_cli.orchestrator.executor import (
-        execute_wp,
-        ExecutionContext,
-        create_worktree,
-        get_worktree_path,
-    )
-    from specify_cli.orchestrator.monitor import (
-        is_success,
-        execute_with_retry,
-        apply_fallback,
-        escalate_to_human,
-        transition_wp_lane,
-    )
-    from specify_cli.orchestrator.agents import get_invoker
-
-    console.print("\n[bold]Starting orchestration loop...[/bold]\n")
-
-    # Build the dependency graph
-    graph = build_wp_graph(feature_dir)
-
-    # Create concurrency manager
-    concurrency = ConcurrencyManager(config)
-
-    # Set up signal handler for graceful shutdown
-    shutdown_requested = False
-
-    def signal_handler(sig, frame):
-        nonlocal shutdown_requested
-        console.print("\n[yellow]Shutdown requested, saving state...[/yellow]")
-        shutdown_requested = True
-        state.status = OrchestrationStatus.PAUSED
-        save_state(state, repo_root)
-
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-
-    try:
-        while not shutdown_requested:
-            # Check for completion
-            all_done = all(
-                wp.status in [WPStatus.COMPLETED, WPStatus.FAILED]
-                for wp in state.work_packages.values()
-            )
-
-            if all_done:
-                state.status = OrchestrationStatus.COMPLETED
-                state.completed_at = datetime.now(timezone.utc)
-                save_state(state, repo_root)
-
-                console.print()
-                console.print(Panel(
-                    f"[bold green]Orchestration Complete[/bold green]\n\n"
-                    f"Completed: {state.wps_completed}/{state.wps_total}\n"
-                    f"Failed: {state.wps_failed}",
-                    title="Done",
-                    border_style="green",
-                ))
-                break
-
-            # Check if paused (failure escalation)
-            if state.status == OrchestrationStatus.PAUSED:
-                console.print("[yellow]Orchestration paused. Use --resume to continue.[/yellow]")
-                break
-
-            # Get ready WPs
-            ready = get_ready_wps(graph, state)
-
-            if not ready:
-                # Nothing ready - wait for running WPs
-                running_count = sum(
-                    1 for wp in state.work_packages.values()
-                    if wp.status in [WPStatus.IMPLEMENTATION, WPStatus.REVIEW]
-                )
-                if running_count == 0:
-                    # Deadlock or all failed
-                    console.print("[red]No work packages ready and none running.[/red]")
-                    state.status = OrchestrationStatus.FAILED
-                    save_state(state, repo_root)
-                    break
-
-                # Wait and check again
-                await asyncio.sleep(5)
-                continue
-
-            # Process ready WPs (limited by concurrency)
-            for wp_id in ready[:config.global_concurrency]:
-                wp = state.work_packages[wp_id]
-
-                # Skip if already in progress
-                if wp.status not in [WPStatus.PENDING, WPStatus.READY]:
-                    continue
-
-                # Select agent
-                agent_id = select_agent(config, "implementation", state=state)
-                if not agent_id:
-                    console.print(f"[yellow]No agent available for {wp_id}[/yellow]")
-                    continue
-
-                # Get invoker
-                invoker = get_invoker(agent_id)
-                if invoker is None:
-                    console.print(f"[yellow]Agent {agent_id} not available[/yellow]")
-                    continue
-
-                # Start implementation
-                wp.status = WPStatus.IMPLEMENTATION
-                wp.implementation_agent = agent_id
-                wp.implementation_started = datetime.now(timezone.utc)
-                state.total_agent_invocations += 1
-                save_state(state, repo_root)
-
-                console.print(f"[cyan]Starting {wp_id}[/cyan] with {agent_id}...")
-
-                # Execute in background (simplified - real impl would use asyncio.create_task)
-                # For now, just update status to show it's running
-                # The full implementation would spawn the agent here
-
-                # For demo: mark as completed after short delay
-                # In real implementation, this would be actual agent execution
-                await asyncio.sleep(2)
-
-                # Simulate completion (in real impl, check agent exit code)
-                wp.status = WPStatus.COMPLETED
-                wp.implementation_completed = datetime.now(timezone.utc)
-                wp.implementation_exit_code = 0
-                state.wps_completed += 1
-                save_state(state, repo_root)
-
-                console.print(f"[green]Completed {wp_id}[/green]")
-
-            # Brief pause before next iteration
-            await asyncio.sleep(1)
-
-    except Exception as e:
-        console.print(f"[red]Orchestration error:[/red] {e}")
-        state.status = OrchestrationStatus.FAILED
-        save_state(state, repo_root)
-        raise
+    # Run the full orchestration loop (T043)
+    await run_orchestration_loop(state, config, feature_dir, repo_root, console)
 
 
 def start_orchestration(feature_slug: str) -> None:
@@ -553,8 +402,8 @@ async def resume_orchestration_async(repo_root: Path) -> None:
     console.print(f"Resuming orchestration for [bold]{state.feature_slug}[/bold]...")
     console.print(f"Progress: {state.wps_completed}/{state.wps_total} completed")
 
-    # Continue orchestration loop
-    await run_orchestration_loop(state, config, feature_dir, repo_root)
+    # Continue orchestration loop with full integration
+    await run_orchestration_loop(state, config, feature_dir, repo_root, console)
 
 
 def resume_orchestration() -> None:
