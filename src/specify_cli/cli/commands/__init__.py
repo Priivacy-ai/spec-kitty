@@ -11,6 +11,7 @@ from . import implement as implement_module
 from . import merge as merge_module
 from . import mission as mission_module
 from . import ops as ops_module
+from . import orchestrate as orchestrate_module
 from . import repair as repair_module
 from . import research as research_module
 from . import sync as sync_module
@@ -29,6 +30,7 @@ def register_commands(app: typer.Typer) -> None:
     app.command()(merge_module.merge)
     app.add_typer(mission_module.app, name="mission")
     app.add_typer(ops_module.app, name="ops")
+    app.add_typer(orchestrate_module.app, name="orchestrate")
     app.add_typer(repair_module.app, name="repair", help="Repair broken templates")
     app.command()(research_module.research)
     app.command()(sync_module.sync)
