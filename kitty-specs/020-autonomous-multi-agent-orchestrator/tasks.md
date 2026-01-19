@@ -245,7 +245,7 @@
 - [x] T038 Implement `spec-kitty orchestrate --feature` command
 - [x] T039 Implement `spec-kitty orchestrate --status` command
 - [x] T040 Implement `spec-kitty orchestrate --resume` command
-- [ ] T041 Implement `spec-kitty orchestrate --abort` command
+- [x] T041 Implement `spec-kitty orchestrate --abort` command
 - [ ] T042 Add help text and CLI documentation
 
 ### Implementation Notes
