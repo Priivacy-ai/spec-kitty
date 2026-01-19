@@ -1,37 +1,31 @@
-"""Test utilities for orchestrator end-to-end testing.
+"""Testing infrastructure for orchestrator end-to-end tests.
 
 This module provides:
-- Agent availability detection (availability.py)
-- Test path selection based on agent count (paths.py)
-- Fixture loading and checkpoint management (fixtures.py)
+    - Fixture data structures (FixtureCheckpoint, WorktreeMetadata, TestContext)
+    - JSON schema validation for fixture files
+    - Serialization/deserialization utilities
 """
 
-from specify_cli.orchestrator.testing.availability import (
-    AgentAvailability,
-    clear_availability_cache,
-    detect_all_agents,
-    get_available_agents,
-)
-from specify_cli.orchestrator.testing.paths import (
-    TestPath,
-    assign_agents,
-    clear_test_path_cache,
-    determine_path_type,
-    select_test_path,
-    select_test_path_sync,
+from specify_cli.orchestrator.testing.fixtures import (
+    FixtureCheckpoint,
+    StateFileError,
+    TestContext,
+    WorktreeMetadata,
+    WorktreesFileError,
+    load_state_file,
+    load_worktrees_file,
+    save_state_file,
+    save_worktrees_file,
 )
 
 __all__ = [
-    # Availability (WP01 - stub until fully implemented)
-    "AgentAvailability",
-    "clear_availability_cache",
-    "detect_all_agents",
-    "get_available_agents",
-    # Paths (WP02)
-    "TestPath",
-    "assign_agents",
-    "clear_test_path_cache",
-    "determine_path_type",
-    "select_test_path",
-    "select_test_path_sync",
+    "FixtureCheckpoint",
+    "WorktreeMetadata",
+    "TestContext",
+    "WorktreesFileError",
+    "StateFileError",
+    "load_worktrees_file",
+    "save_worktrees_file",
+    "load_state_file",
+    "save_state_file",
 ]
