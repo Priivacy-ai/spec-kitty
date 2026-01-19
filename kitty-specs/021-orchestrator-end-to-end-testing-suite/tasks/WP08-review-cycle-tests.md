@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Review Cycle Tests
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP05
 subtasks:
@@ -681,3 +681,4 @@ Test review rejection and re-implementation cycles:
 
 - 2026-01-19T09:30:27Z – system – lane=planned – Prompt created.
 - 2026-01-19T10:19:34Z – claude-opus – shell_pid=29321 – lane=doing – Started implementation via workflow command
+- 2026-01-19T10:25:38Z – claude-opus – shell_pid=29321 – lane=for_review – Ready for review: Review cycle tests - 20 tests covering rejection, re-implementation, full cycles, max cycles, and state history
