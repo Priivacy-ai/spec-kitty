@@ -1,18 +1,23 @@
-"""Fixture data structures for orchestrator e2e testing.
+"""Fixture data structures and loader for orchestrator e2e testing.
 
 This module defines the core data structures for managing test fixtures:
     - FixtureCheckpoint: A restorable snapshot of orchestration state
     - WorktreeMetadata: Information needed to recreate a git worktree
     - TestContext: Complete runtime context for an e2e test
 
-It also provides JSON schema validation for:
-    - worktrees.json: List of worktree metadata
-    - state.json: Serialized OrchestrationRun
+It also provides:
+    - JSON schema validation for worktrees.json and state.json
+    - Fixture loading functions to restore checkpoints to usable test state
+    - Cleanup functions for temporary test directories
 """
 
 from __future__ import annotations
 
+import atexit
 import json
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -35,6 +40,12 @@ class WorktreesFileError(Exception):
 
 class StateFileError(Exception):
     """Error loading or validating state.json."""
+
+    pass
+
+
+class GitError(Exception):
+    """Error during git operations."""
 
     pass
 
@@ -348,3 +359,324 @@ def save_state_file(path: Path, state: OrchestrationRun) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         json.dump(state.to_dict(), f, indent=2)
+
+
+# =============================================================================
+# Fixture Loader Functions (WP04: T015-T020)
+# =============================================================================
+
+# Track temp directories for cleanup at exit
+_temp_dirs_to_cleanup: set[Path] = set()
+
+
+def copy_fixture_to_temp(checkpoint: FixtureCheckpoint) -> Path:
+    """Copy checkpoint fixture to a temporary directory.
+
+    Creates an isolated copy of the checkpoint fixture in a temporary
+    directory for use in testing. The copy includes:
+    - feature/ directory copied to kitty-specs/test-feature/
+    - state.json copied to the feature directory
+    - worktrees.json copied to the temp root
+
+    Args:
+        checkpoint: The checkpoint to copy
+
+    Returns:
+        Path to the temporary directory
+
+    Raises:
+        FileNotFoundError: If checkpoint doesn't exist or is incomplete
+    """
+    if not checkpoint.exists():
+        raise FileNotFoundError(
+            f"Checkpoint not found or incomplete: {checkpoint.path}"
+        )
+
+    # Create temp directory with descriptive prefix
+    temp_dir = Path(tempfile.mkdtemp(prefix=f"orchestrator_test_{checkpoint.name}_"))
+
+    # Copy feature directory
+    feature_dest = temp_dir / "kitty-specs" / "test-feature"
+    shutil.copytree(
+        checkpoint.feature_dir,
+        feature_dest,
+        dirs_exist_ok=True,
+    )
+
+    # Copy state file to feature dir
+    shutil.copy2(
+        checkpoint.state_file,
+        feature_dest / ".orchestration-state.json",
+    )
+
+    # Copy worktrees.json for reference
+    shutil.copy2(
+        checkpoint.worktrees_file,
+        temp_dir / "worktrees.json",
+    )
+
+    return temp_dir
+
+
+def init_git_repo(repo_path: Path) -> None:
+    """Initialize a git repository with initial commit.
+
+    Creates a new git repository, configures a test user, adds all files,
+    and creates an initial commit.
+
+    Args:
+        repo_path: Path to initialize as git repo
+
+    Raises:
+        GitError: If git commands fail
+    """
+    try:
+        # Initialize repo
+        subprocess.run(
+            ["git", "init"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+
+        # Configure git user for commits
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+
+        # Add all files
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+
+        # Initial commit
+        subprocess.run(
+            ["git", "commit", "-m", "Initial test fixture commit"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+
+    except subprocess.CalledProcessError as e:
+        raise GitError(
+            f"Git command failed: {e.cmd}\n"
+            f"stdout: {e.stdout.decode() if e.stdout else ''}\n"
+            f"stderr: {e.stderr.decode() if e.stderr else ''}"
+        )
+
+
+def create_worktrees_from_metadata(
+    repo_path: Path,
+    worktrees: list[WorktreeMetadata],
+) -> None:
+    """Create git worktrees from metadata.
+
+    For each worktree in the metadata list, creates the corresponding
+    branch and git worktree.
+
+    Args:
+        repo_path: Path to the git repository
+        worktrees: List of worktree metadata
+
+    Raises:
+        GitError: If worktree creation fails
+    """
+    for wt in worktrees:
+        worktree_path = repo_path / wt.relative_path
+
+        # Ensure parent directory exists
+        worktree_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # Create branch if it doesn't exist
+            subprocess.run(
+                ["git", "branch", wt.branch_name],
+                cwd=repo_path,
+                check=False,  # Branch may already exist
+                capture_output=True,
+            )
+
+            # Create worktree
+            cmd = ["git", "worktree", "add", str(worktree_path), wt.branch_name]
+            subprocess.run(
+                cmd,
+                cwd=repo_path,
+                check=True,
+                capture_output=True,
+            )
+
+            # Checkout specific commit if specified
+            if wt.commit_hash:
+                subprocess.run(
+                    ["git", "checkout", wt.commit_hash],
+                    cwd=worktree_path,
+                    check=True,
+                    capture_output=True,
+                )
+
+        except subprocess.CalledProcessError as e:
+            raise GitError(
+                f"Failed to create worktree {wt.wp_id}: {e.cmd}\n"
+                f"stdout: {e.stdout.decode() if e.stdout else ''}\n"
+                f"stderr: {e.stderr.decode() if e.stderr else ''}"
+            )
+
+
+def load_orchestration_state(feature_dir: Path) -> OrchestrationRun:
+    """Load orchestration state from feature directory.
+
+    Args:
+        feature_dir: Path to feature directory containing state file
+
+    Returns:
+        Loaded OrchestrationRun
+
+    Raises:
+        StateFileError: If state file is invalid or missing
+    """
+    state_path = feature_dir / ".orchestration-state.json"
+    return load_state_file(state_path)
+
+
+def cleanup_temp_dir(temp_dir: Path) -> None:
+    """Remove a temporary directory and its contents.
+
+    Handles git worktrees by pruning before removal. Safe to call
+    multiple times (idempotent).
+
+    Args:
+        temp_dir: Path to remove
+    """
+    if temp_dir.exists():
+        # Remove worktrees first (git requirement)
+        worktrees_dir = temp_dir / ".worktrees"
+        if worktrees_dir.exists():
+            try:
+                subprocess.run(
+                    ["git", "worktree", "prune"],
+                    cwd=temp_dir,
+                    check=False,
+                    capture_output=True,
+                )
+            except Exception:
+                pass  # Best effort
+
+        # Remove directory tree
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    _temp_dirs_to_cleanup.discard(temp_dir)
+
+
+def cleanup_test_context(ctx: TestContext) -> None:
+    """Clean up a test context.
+
+    Removes the temporary directory and any git worktrees.
+
+    Args:
+        ctx: The test context to clean up
+    """
+    cleanup_temp_dir(ctx.temp_dir)
+
+
+def register_for_cleanup(temp_dir: Path) -> None:
+    """Register a temp directory for cleanup at exit.
+
+    Directories registered here will be cleaned up when the process
+    exits, ensuring no leaked temp directories.
+
+    Args:
+        temp_dir: Path to register
+    """
+    _temp_dirs_to_cleanup.add(temp_dir)
+
+
+def _cleanup_all_temp_dirs() -> None:
+    """Cleanup handler for atexit."""
+    for temp_dir in list(_temp_dirs_to_cleanup):
+        cleanup_temp_dir(temp_dir)
+
+
+# Register cleanup handler
+atexit.register(_cleanup_all_temp_dirs)
+
+
+def load_checkpoint(
+    checkpoint: FixtureCheckpoint,
+    test_path: Any | None = None,
+) -> TestContext:
+    """Load a checkpoint fixture into a usable test context.
+
+    This is the main entry point for loading test fixtures. It:
+    1. Copies the checkpoint to a temp directory
+    2. Initializes a git repository
+    3. Loads worktree metadata and creates worktrees
+    4. Loads the orchestration state
+    5. Assembles a TestContext
+
+    Args:
+        checkpoint: The checkpoint to load
+        test_path: Optional pre-selected test path. If None, a placeholder
+            is used (tests should provide this when WP02 is merged).
+
+    Returns:
+        Complete TestContext ready for testing
+
+    Raises:
+        FileNotFoundError: If checkpoint doesn't exist
+        GitError: If git operations fail
+        StateFileError: If state file is invalid
+        WorktreesFileError: If worktrees.json is invalid
+    """
+    # Copy fixture to temp
+    temp_dir = copy_fixture_to_temp(checkpoint)
+    register_for_cleanup(temp_dir)
+
+    repo_root = temp_dir
+    feature_dir = temp_dir / "kitty-specs" / "test-feature"
+
+    try:
+        # Initialize git repo
+        init_git_repo(repo_root)
+
+        # Load worktrees metadata
+        worktrees_path = temp_dir / "worktrees.json"
+        worktrees = load_worktrees_file(worktrees_path)
+
+        # Create worktrees
+        if worktrees:
+            create_worktrees_from_metadata(repo_root, worktrees)
+
+        # Load orchestration state
+        state = load_orchestration_state(feature_dir)
+
+        # Use provided test_path or placeholder
+        # Note: When WP02 is merged, this can import and call select_test_path_sync()
+        if test_path is None:
+            test_path = None  # Placeholder until WP02 provides TestPath
+
+        return TestContext(
+            temp_dir=temp_dir,
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            test_path=test_path,
+            checkpoint=checkpoint,
+            orchestration_state=state,
+            worktrees=worktrees,
+        )
+
+    except Exception:
+        # Cleanup on failure
+        cleanup_temp_dir(temp_dir)
+        raise
