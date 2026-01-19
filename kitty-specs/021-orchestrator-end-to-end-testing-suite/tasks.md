@@ -27,7 +27,7 @@
 - [x] T002 Implement `AgentAvailability` dataclass in `availability.py`
 - [x] T003 Implement `is_installed` check using existing agent invoker registry
 - [x] T004 Implement `probe()` method for auth verification (lightweight API call)
-- [ ] T005 Implement `detect_all_agents()` function with tier categorization
+- [x] T005 Implement `detect_all_agents()` function with tier categorization
 
 ### Implementation Notes
 - Reuse existing agent invoker detection from `src/specify_cli/orchestrator/agents/__init__.py`
