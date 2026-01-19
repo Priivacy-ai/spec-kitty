@@ -178,7 +178,7 @@
 **Estimated Size**: ~380 lines
 
 ### Included Subtasks
-- [ ] T026 Create `tests/specify_cli/orchestrator/conftest.py`
+- [x] T026 Create `tests/specify_cli/orchestrator/conftest.py`
 - [ ] T027 Register custom markers in pytest.ini or conftest
 - [ ] T028 Implement `available_agents` fixture (session-scoped)
 - [ ] T029 Implement `test_path` fixture (derives from available_agents)
