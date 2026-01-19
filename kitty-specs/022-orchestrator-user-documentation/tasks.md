@@ -121,7 +121,7 @@ description: "Work package task list for orchestrator user documentation"
 **Prompt**: `tasks/WP04-tutorial-and-explanation.md`
 
 ### Included Subtasks
-- [ ] T010 Create `docs/tutorials/autonomous-orchestration.md` (T1) - step-by-step tutorial
+- [x] T010 Create `docs/tutorials/autonomous-orchestration.md` (T1) - step-by-step tutorial
 - [ ] T011 Update `docs/explanation/multi-agent-orchestration.md` (E2) - add autonomous section
 
 ### Implementation Notes
