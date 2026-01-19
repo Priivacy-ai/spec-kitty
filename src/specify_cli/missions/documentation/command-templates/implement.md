@@ -301,3 +301,9 @@ Documentation implementation follows the standard workspace-per-WP model:
 - Add descriptive alt text
 - Define technical terms
 - Validate before considering complete
+
+---
+
+## Status Tracking Note
+
+If `/spec-kitty.status` shows your WP in "doing" after you moved it to "for_review", don't panic - a reviewer may have moved it back (changes requested), or there's a sync delay. Focus on your WP.
