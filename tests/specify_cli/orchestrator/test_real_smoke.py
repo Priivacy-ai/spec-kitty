@@ -106,7 +106,7 @@ class TestRealAgentInvocation:
         content = hello_file.read_text().strip()
         assert "Hello from Codex" in content, f"Unexpected content: {content}"
 
-    @pytest.mark.timeout(60)
+    @pytest.mark.timeout(120)
     def test_gemini_can_create_file(self, temp_workdir: Path):
         """Gemini should be able to create a simple file.
 
@@ -131,7 +131,7 @@ class TestRealAgentInvocation:
             cwd=temp_workdir,
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=120,
         )
 
         hello_file = temp_workdir / "hello.txt"
