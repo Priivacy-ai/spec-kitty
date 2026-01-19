@@ -5,9 +5,15 @@
 **Status**: Draft
 **Input**: Comprehensive end-to-end testing for the orchestrator (feature 020) covering all agents with tiered coverage
 
+## Clarifications
+
+### Session 2026-01-19
+
+- Q: Should tests deliberately trigger retry/fallback logic, or only test when real failures occur? → A: Remove retry/fallback testing from scope; only test with real failures that occur naturally.
+
 ## Overview
 
-This feature provides a comprehensive end-to-end testing infrastructure for the Autonomous Multi-Agent Orchestrator (feature 020). The testing suite validates that the orchestrator correctly executes work packages across multiple AI agents, handles failures gracefully, and maintains state through complex multi-turn workflows.
+This feature provides a comprehensive end-to-end testing infrastructure for the Autonomous Multi-Agent Orchestrator (feature 020). The testing suite validates that the orchestrator correctly executes work packages across multiple AI agents and maintains state through complex multi-turn workflows.
 
 **Key design decisions**:
 - **Tiered agent coverage**: Core agents (Claude Code, Codex, Copilot, Gemini, OpenCode) get full integration tests; extended agents get smoke tests
@@ -93,27 +99,7 @@ A test developer wants to create and use checkpoint snapshots to speed up test e
 
 ---
 
-### User Story 5 - Retry and Fallback Testing (Priority: P2)
-
-A test developer wants to verify the orchestrator handles agent failures, retries, and fallback strategies correctly.
-
-**Why this priority**: Production reliability depends on graceful failure handling; these tests catch regression in error paths.
-
-**Independent Test**: Can be tested by simulating agent failures and verifying retry/fallback behavior.
-
-**Acceptance Scenarios**:
-
-1. **Given** a simulated agent timeout, **When** fallback strategy is "next_in_list", **Then** the next configured agent is invoked.
-
-2. **Given** a simulated rate limit error, **When** retry logic executes, **Then** the same agent is retried after the configured delay.
-
-3. **Given** all agents fail for a WP, **When** max retries exceeded, **Then** orchestration pauses with clear error state.
-
-4. **Given** network error during agent invocation, **When** error is transient, **Then** retry occurs without fallback.
-
----
-
-### User Story 6 - Parallel Execution and Dependency Testing (Priority: P2)
+### User Story 5 - Parallel Execution and Dependency Testing (Priority: P2)
 
 A test developer wants to verify the orchestrator respects WP dependencies and executes independent WPs in parallel.
 
@@ -133,7 +119,7 @@ A test developer wants to verify the orchestrator respects WP dependencies and e
 
 ---
 
-### User Story 7 - Extended Agent Smoke Tests (Priority: P3)
+### User Story 6 - Extended Agent Smoke Tests (Priority: P3)
 
 A test developer wants basic validation that extended-tier agents (Cursor, Qwen, Augment, Kilocode, Roo, Windsurf, Amazon Q) can be invoked by the orchestrator.
 
@@ -186,27 +172,25 @@ A test developer wants basic validation that extended-tier agents (Cursor, Qwen,
 - **FR-012**: System MUST test review cycles: implement -> review-reject -> re-implement -> review-approve -> done
 - **FR-013**: System MUST test parallel execution with configurable concurrency
 - **FR-014**: System MUST test dependency ordering with various graph patterns (linear, fan-out, diamond)
-- **FR-015**: System MUST test retry behavior on transient failures
-- **FR-016**: System MUST test fallback behavior when primary agent fails
 
 **Extended Agent Smoke Tests**
 
-- **FR-017**: System MUST test basic invocation for each extended agent
-- **FR-018**: System MUST verify agent receives task and produces some output
-- **FR-019**: System MUST complete smoke tests in under 60 seconds per agent
+- **FR-015**: System MUST test basic invocation for each extended agent
+- **FR-016**: System MUST verify agent receives task and produces some output
+- **FR-017**: System MUST complete smoke tests in under 60 seconds per agent
 
 **Test Organization**
 
-- **FR-020**: System MUST organize tests by category: availability, fixtures, integration, smoke
-- **FR-021**: System MUST support running specific test categories via pytest markers
-- **FR-022**: System MUST provide clear test output distinguishing skips, failures, and passes
-- **FR-023**: System MUST support parallel test execution where fixtures allow
+- **FR-018**: System MUST organize tests by category: availability, fixtures, integration, smoke
+- **FR-019**: System MUST support running specific test categories via pytest markers
+- **FR-020**: System MUST provide clear test output distinguishing skips, failures, and passes
+- **FR-021**: System MUST support parallel test execution where fixtures allow
 
 **State Validation**
 
-- **FR-024**: System MUST validate orchestration state file integrity after each test
-- **FR-025**: System MUST verify WP lane transitions are recorded correctly
-- **FR-026**: System MUST validate git state (commits, branches) matches expected post-orchestration state
+- **FR-022**: System MUST validate orchestration state file integrity after each test
+- **FR-023**: System MUST verify WP lane transitions are recorded correctly
+- **FR-024**: System MUST validate git state (commits, branches) matches expected post-orchestration state
 
 ### Key Entities
 
@@ -214,7 +198,7 @@ A test developer wants basic validation that extended-tier agents (Cursor, Qwen,
 
 - **FixtureCheckpoint**: A snapshot of orchestration state at a known point. Includes: checkpoint_name, orchestration_state, git_state (branches, commits), created_at, and orchestrator_version.
 
-- **TestCategory**: Classification of tests. Values: availability, fixture_management, integration_happy_path, integration_review_cycles, integration_parallel, integration_retry, smoke_extended.
+- **TestCategory**: Classification of tests. Values: availability, fixture_management, integration_happy_path, integration_review_cycles, integration_parallel, smoke_extended.
 
 - **TestResult**: Outcome of a single test. Includes: test_name, category, status (passed/failed/skipped), duration, skip_reason if skipped, failure_details if failed.
 
@@ -255,3 +239,4 @@ A test developer wants basic validation that extended-tier agents (Cursor, Qwen,
 - Agent-specific bug testing (focus is on orchestrator, not individual agents)
 - Cost/token tracking during tests
 - Test coverage reporting integration
+- Deliberate retry/fallback testing (retry/fallback paths tested only when real failures occur naturally)
