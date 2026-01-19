@@ -240,7 +240,7 @@
 **Estimated Size**: ~420 lines
 
 ### Included Subtasks
-- [ ] T036 Implement test: review rejection triggers re-implementation
+- [x] T036 Implement test: review rejection triggers re-implementation
 - [ ] T037 Implement test: re-implementation produces new commits
 - [ ] T038 Implement test: full cycle (reject → re-impl → re-review → approve)
 - [ ] T039 Implement test: max review cycles exceeded marks WP failed
