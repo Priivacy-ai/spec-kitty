@@ -1,0 +1,14 @@
+- name: Getting Started
+  href: getting-started.md
+- name: Your First Feature
+  href: your-first-feature.md
+- name: Multi-Agent Workflow
+  href: multi-agent-workflow.md
+- name: Missions Overview
+  href: missions-overview.md
+- name: Jujutsu (jj) Workflow
+  href: jujutsu-workflow.md
+- name: Claude Code Integration
+  href: claude-code-integration.md
+- name: Claude Code Workflow
+  href: claude-code-workflow.md

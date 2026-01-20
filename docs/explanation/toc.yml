@@ -1,0 +1,22 @@
+- name: Spec-Driven Development
+  href: spec-driven-development.md
+- name: Divio Documentation System
+  href: divio-documentation.md
+- name: Workspace-per-WP Model
+  href: workspace-per-wp.md
+- name: Git Worktrees
+  href: git-worktrees.md
+- name: Jujutsu for Multi-Agent Development
+  href: jujutsu-for-multi-agent.md
+- name: Auto-Rebase and Non-Blocking Conflicts
+  href: auto-rebase-and-conflicts.md
+- name: Mission System
+  href: mission-system.md
+- name: Kanban Workflow
+  href: kanban-workflow.md
+- name: AI Agent Architecture
+  href: ai-agent-architecture.md
+- name: Documentation Mission
+  href: documentation-mission.md
+- name: Multi-Agent Orchestration
+  href: multi-agent-orchestration.md

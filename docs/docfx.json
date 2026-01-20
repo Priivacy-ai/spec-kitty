@@ -4,11 +4,15 @@
       {
         "files": [
           "*.md",
+          "toc.yml",
           "tutorials/*.md",
+          "tutorials/toc.yml",
           "how-to/*.md",
+          "how-to/toc.yml",
           "reference/*.md",
+          "reference/toc.yml",
           "explanation/*.md",
-          "toc.yml"
+          "explanation/toc.yml"
         ]
       },
       {
@@ -19,7 +23,7 @@
           "../SECURITY.md",
           "../SUPPORT.md"
         ],
-        "dest": "."
+        "dest": "project"
       }
     ],
     "resource": [
@@ -45,7 +49,8 @@
     "fileMetadataFiles": [],
     "template": [
       "default",
-      "modern"
+      "modern",
+      "templates/spec-kitty"
     ],
     "postProcessors": [],
     "markdownEngineName": "markdig",
@@ -64,11 +69,7 @@
         "branch": "main"
       },
       "_appLogoPath": "assets/images/logo_small.webp",
-      "_appFaviconPath": "assets/images/logo_small.webp",
-      "_appHeader": "<div class=\"sk-header\"><a href=\"https://priivacy.ai\" target=\"_blank\" rel=\"noopener\">Priivacy.ai</a><span class=\"sk-separator\">∙</span><a href=\"https://github.com/Priivacy-ai/spec-kitty\" target=\"_blank\" rel=\"noopener\">GitHub Repository</a></div>",
-      "_additionalCss": [
-        "assets/css/custom.css"
-      ]
+      "_appFaviconPath": "assets/images/logo_small.webp"
     }
   }
 }

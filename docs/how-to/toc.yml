@@ -1,0 +1,36 @@
+- name: Install & Upgrade
+  href: install-spec-kitty.md
+- name: Create a Specification
+  href: create-specification.md
+- name: Create a Plan
+  href: create-plan.md
+- name: Generate Tasks
+  href: generate-tasks.md
+- name: Implement a Work Package
+  href: implement-work-package.md
+- name: Review Work Packages
+  href: review-work-package.md
+- name: Accept and Merge
+  href: accept-and-merge.md
+- name: Merge a Feature
+  href: merge-feature.md
+- name: Troubleshoot Merge Issues
+  href: troubleshoot-merge.md
+- name: Handle Dependencies
+  href: handle-dependencies.md
+- name: Sync Workspaces
+  href: sync-workspaces.md
+- name: Handle Conflicts (jj)
+  href: handle-conflicts-jj.md
+- name: Use Operation History
+  href: use-operation-history.md
+- name: Parallel Development
+  href: parallel-development.md
+- name: Switch Missions
+  href: switch-missions.md
+- name: Use the Dashboard
+  href: use-dashboard.md
+- name: Upgrade to 0.11.0
+  href: upgrade-to-0-11-0.md
+- name: Non-Interactive Init
+  href: non-interactive-init.md

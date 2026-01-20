@@ -1,0 +1,16 @@
+- name: CLI Commands
+  href: cli-commands.md
+- name: Slash Commands
+  href: slash-commands.md
+- name: Agent Subcommands
+  href: agent-subcommands.md
+- name: Configuration
+  href: configuration.md
+- name: Environment Variables
+  href: environment-variables.md
+- name: File Structure
+  href: file-structure.md
+- name: Missions
+  href: missions.md
+- name: Supported Agents
+  href: supported-agents.md
