@@ -430,7 +430,7 @@ async def create_worktree(
         WorktreeCreationError: If creation fails
     """
     # Build command
-    cmd = ["spec-kitty", "implement", wp_id]
+    cmd = ["spec-kitty", "implement", wp_id, "--feature", feature_slug]
     if base_wp:
         cmd.extend(["--base", base_wp])
 
@@ -446,9 +446,12 @@ async def create_worktree(
         stdout, stderr = await process.communicate()
 
         if process.returncode != 0:
-            stderr_text = stderr.decode("utf-8", errors="replace")
+            stderr_text = stderr.decode("utf-8", errors="replace").strip()
+            stdout_text = stdout.decode("utf-8", errors="replace").strip()
+            # Combine both outputs for better error visibility
+            error_msg = stderr_text or stdout_text or "Unknown error (no output)"
             raise WorktreeCreationError(
-                f"Failed to create worktree for {wp_id}: {stderr_text}"
+                f"Failed to create worktree for {wp_id}: {error_msg}"
             )
 
     except FileNotFoundError:
