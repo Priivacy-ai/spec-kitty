@@ -609,13 +609,22 @@ async def mark_subtask_done(
 # Lane transition helpers
 LANE_TRANSITIONS = {
     # (from_status, event) -> (to_status, to_lane)
+    # Starting implementation
     (WPStatus.PENDING, "start_implementation"): (WPStatus.IMPLEMENTATION, "doing"),
     (WPStatus.READY, "start_implementation"): (WPStatus.IMPLEMENTATION, "doing"),
+    # Idempotent: already implementing, stay in implementation
+    (WPStatus.IMPLEMENTATION, "start_implementation"): (WPStatus.IMPLEMENTATION, "doing"),
+    # Completing implementation
     (WPStatus.IMPLEMENTATION, "complete_implementation"): (
         WPStatus.REVIEW,
         "for_review",
     ),
+    # Idempotent: already in review, stay in review
+    (WPStatus.REVIEW, "complete_implementation"): (WPStatus.REVIEW, "for_review"),
+    # Completing review
     (WPStatus.REVIEW, "complete_review"): (WPStatus.COMPLETED, "done"),
+    # Rework: going back to implementation
+    (WPStatus.REWORK, "start_implementation"): (WPStatus.IMPLEMENTATION, "doing"),
 }
 
 
