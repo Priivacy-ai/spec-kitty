@@ -461,69 +461,43 @@ def _ensure_planning_artifacts_committed_jj(
     wp_id: str,
     primary_branch: str,
 ) -> None:
-    """Ensure planning artifacts are on the main bookmark using jj.
+    """Verify planning artifacts exist for jj repos.
 
     For jj repos, the working copy IS always a commit - there's no "uncommitted"
-    state like in git. If the working copy is on main (@ == main), then the
-    planning artifacts are already committed to main.
+    state like in git. We just need to verify the feature directory exists.
 
-    This function simply verifies that @ is on main. If not, it errors out
-    asking the user to run `jj edit main`.
-
-    In jj colocated repos, git shows "HEAD" (detached) which is normal.
-    jj tracks the actual revision via bookmarks.
+    The user can run orchestration from any bookmark - we don't enforce being
+    on main. The planning artifacts just need to exist in the current revision.
 
     Args:
         repo_root: Repository root path
         feature_dir: Path to feature directory (kitty-specs/###-feature/)
         feature_slug: Feature slug (e.g., "001-my-feature")
         wp_id: Work package ID (e.g., "WP01")
-        primary_branch: Primary branch name (main/master)
+        primary_branch: Primary branch name (main/master) - not enforced
 
     Raises:
-        typer.Exit: If not on primary bookmark
+        typer.Exit: If feature directory doesn't exist
     """
-    # In jj, check if working copy (@) is the main bookmark OR a child of main
-    # Use revset: "@ & main" - if this is non-empty, @ IS main
+    # In jj, working copy IS a commit - no "uncommitted" state
+    # Just verify the feature directory exists
+    if not feature_dir.exists():
+        console.print(
+            f"\n[red]Error:[/red] Feature directory not found: {feature_dir}"
+        )
+        console.print("Run planning commands first (specify, plan, tasks)")
+        raise typer.Exit(1)
+
+    # Get current bookmark for display
     result = subprocess.run(
-        ["jj", "log", "-r", f"@ & {primary_branch}", "--no-graph", "-T", "change_id"],
+        ["jj", "log", "-r", "@", "--no-graph", "-T", "bookmarks"],
         cwd=repo_root,
         capture_output=True,
         text=True,
         check=False
     )
-    at_is_main = result.returncode == 0 and result.stdout.strip() != ""
-
-    # Also check if @ is a direct child of main (common during parallel workspace creation)
-    # Use revset: "@- & main" - if @'s parent is main, we're one commit ahead of main
-    result = subprocess.run(
-        ["jj", "log", "-r", f"@- & {primary_branch}", "--no-graph", "-T", "change_id"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=False
-    )
-    parent_is_main = result.returncode == 0 and result.stdout.strip() != ""
-
-    if at_is_main:
-        # @ IS main - planning artifacts are already committed to main
-        # In jj, the working copy IS a commit, so if we're on main, everything is committed
-        console.print(f"[green]✓[/green] Planning artifacts on {primary_branch}")
-        return
-
-    if parent_is_main:
-        # @'s parent is main - this is fine, we're one commit ahead
-        # This happens during parallel workspace creation when another process
-        # created a commit on top of main
-        console.print(f"[green]✓[/green] Planning artifacts on descendant of {primary_branch}")
-        return
-
-    # Not on main or child of main - error out
-    console.print(
-        f"\n[red]Error:[/red] Must be on {primary_branch} or a direct descendant."
-    )
-    console.print(f"Run: jj edit {primary_branch}")
-    raise typer.Exit(1)
+    current_bookmark = result.stdout.strip() if result.returncode == 0 else "unknown"
+    console.print(f"[green]✓[/green] Planning artifacts ready (on {current_bookmark or '@'})")
 
 
 def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
