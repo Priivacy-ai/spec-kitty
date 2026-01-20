@@ -300,32 +300,18 @@ class WorkPackage:
 def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
     """Locate a work package by ID, supporting both legacy and new formats.
 
+    Always uses main repo's kitty-specs/ regardless of current directory.
+    Worktrees should not contain kitty-specs/ (excluded via sparse checkout).
+
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
-    from specify_cli.core.paths import is_worktree_context
+    from specify_cli.core.paths import get_main_repo_root
 
-    cwd = Path.cwd().resolve()
-
-    # Check if we're in a worktree - if so, use worktree's kitty-specs
-    if is_worktree_context(cwd):
-        # We're in a worktree, look for kitty-specs relative to cwd
-        if (cwd / "kitty-specs" / feature).exists():
-            feature_path = cwd / "kitty-specs" / feature
-        else:
-            # Walk up to find kitty-specs
-            current = cwd
-            while current != current.parent:
-                if (current / "kitty-specs" / feature).exists():
-                    feature_path = current / "kitty-specs" / feature
-                    break
-                current = current.parent
-            else:
-                # Fallback to repo_root
-                feature_path = repo_root / "kitty-specs" / feature
-    else:
-        # We're in main repo
-        feature_path = repo_root / "kitty-specs" / feature
+    # Always use main repo's kitty-specs - it's the source of truth
+    # This fixes the bug where worktree's stale kitty-specs/ would be used
+    main_root = get_main_repo_root(repo_root)
+    feature_path = main_root / "kitty-specs" / feature
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():

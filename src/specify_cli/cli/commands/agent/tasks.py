@@ -13,7 +13,7 @@ from rich.console import Console
 from typing_extensions import Annotated
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
-from specify_cli.core.paths import locate_project_root, get_main_repo_root, find_feature_slug
+from specify_cli.core.paths import locate_project_root, get_main_repo_root, find_feature_slug, is_worktree_context
 from specify_cli.tasks_support import (
     LANES,
     WorkPackage,
@@ -247,6 +247,25 @@ def move_task(
             raise typer.Exit(1)
 
         feature_slug = feature or _find_feature_slug()
+
+        # Informational: Let user know we're using main repo's kitty-specs
+        cwd = Path.cwd().resolve()
+        if is_worktree_context(cwd) and not json_output:
+            main_root = get_main_repo_root(repo_root)
+            if cwd != main_root:
+                # Check if worktree has its own kitty-specs (stale copy)
+                worktree_kitty = None
+                current = cwd
+                while current != current.parent and ".worktrees" in str(current):
+                    if (current / "kitty-specs").exists():
+                        worktree_kitty = current / "kitty-specs"
+                        break
+                    current = current.parent
+
+                if worktree_kitty and (worktree_kitty / feature_slug / "tasks").exists():
+                    console.print(
+                        f"[dim]Note: Using main repo's kitty-specs/ (worktree copy ignored)[/dim]"
+                    )
 
         # Load work package first (needed for current_lane check)
         wp = locate_work_package(repo_root, feature_slug, task_id)

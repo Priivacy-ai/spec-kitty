@@ -203,15 +203,15 @@ def get_workflow_status(artifacts: Dict[str, Dict[str, any]]) -> Dict[str, str]:
 
 
 def gather_feature_paths(project_dir: Path) -> Dict[str, Path]:
-    """Collect candidate feature directories from root and worktrees."""
+    """Collect candidate feature directories from root and worktrees.
+
+    Main repo (kitty-specs/) paths take priority over worktree copies.
+    Worktrees may have stale data from when they were created, so the
+    main repo should be the source of truth for feature status.
+    """
     feature_paths: Dict[str, Path] = {}
 
-    root_specs = project_dir / "kitty-specs"
-    if root_specs.exists():
-        for feature_dir in root_specs.iterdir():
-            if feature_dir.is_dir():
-                feature_paths[feature_dir.name] = feature_dir
-
+    # First scan worktrees (lower priority - may have stale data)
     worktrees_root = project_dir / ".worktrees"
     if worktrees_root.exists():
         for worktree_dir in worktrees_root.iterdir():
@@ -223,6 +223,14 @@ def gather_feature_paths(project_dir: Path) -> Dict[str, Path]:
             for feature_dir in wt_specs.iterdir():
                 if feature_dir.is_dir():
                     feature_paths[feature_dir.name] = feature_dir
+
+    # Then scan main repo (higher priority - source of truth)
+    # This will overwrite any worktree paths with the same feature name
+    root_specs = project_dir / "kitty-specs"
+    if root_specs.exists():
+        for feature_dir in root_specs.iterdir():
+            if feature_dir.is_dir():
+                feature_paths[feature_dir.name] = feature_dir
 
     return feature_paths
 

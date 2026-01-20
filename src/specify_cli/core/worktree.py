@@ -192,6 +192,10 @@ def create_feature_worktree(
         raise FileExistsError(f"Worktree path already exists: {worktree_path}")
 
     # Get VCS implementation and create workspace
+    # NOTE: We do NOT use sparse_exclude for kitty-specs/ here because:
+    # - Users need to add research artifacts, patterns, etc. to kitty-specs/
+    # - The locate_work_package() function always uses main repo's kitty-specs/
+    #   for WP operations, so stale copies in worktrees don't affect lane changes
     try:
         vcs = get_vcs(repo_root)
         result = vcs.create_workspace(
