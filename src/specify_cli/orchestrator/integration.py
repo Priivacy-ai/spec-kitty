@@ -24,7 +24,7 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
-from specify_cli.orchestrator.agents import detect_installed_agents, get_invoker
+from specify_cli.orchestrator.agents import detect_installed_agents, get_invoker, InvocationResult
 from specify_cli.orchestrator.config import (
     OrchestrationStatus,
     OrchestratorConfig,
@@ -590,7 +590,7 @@ class ReviewResult:
         return self.outcome == self.REJECTED
 
 
-def parse_review_outcome(result: dict, log_path: Path | None = None) -> ReviewResult:
+def parse_review_outcome(result: InvocationResult, log_path: Path | None = None) -> ReviewResult:
     """Parse review result to determine if approved or rejected.
 
     Looks for rejection signals in the output:
@@ -599,15 +599,15 @@ def parse_review_outcome(result: dict, log_path: Path | None = None) -> ReviewRe
     - Non-zero exit code with feedback
 
     Args:
-        result: Execution result dict with 'exit_code', 'stdout', 'stderr'.
+        result: InvocationResult from agent execution.
         log_path: Optional path to log file for detailed output.
 
     Returns:
         ReviewResult with outcome and feedback.
     """
-    exit_code = result.get("exit_code", 1)
-    stdout = result.get("stdout", "") or ""
-    stderr = result.get("stderr", "") or ""
+    exit_code = result.exit_code
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
     output = stdout + "\n" + stderr
 
     # Check for explicit markers (case-insensitive)
