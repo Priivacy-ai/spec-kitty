@@ -350,6 +350,182 @@ def check_for_dependents(
         console.print()
 
 
+def _ensure_planning_artifacts_committed_git(
+    repo_root: Path,
+    feature_dir: Path,
+    feature_slug: str,
+    wp_id: str,
+    primary_branch: str,
+) -> None:
+    """Ensure planning artifacts are committed using git commands.
+
+    For git repos, checks that:
+    1. We're on the primary branch (main/master)
+    2. No uncommitted files exist in kitty-specs/$feature/
+
+    If uncommitted files exist and we're on the primary branch, auto-commits them.
+
+    Args:
+        repo_root: Repository root path
+        feature_dir: Path to feature directory (kitty-specs/###-feature/)
+        feature_slug: Feature slug (e.g., "001-my-feature")
+        wp_id: Work package ID (e.g., "WP01")
+        primary_branch: Primary branch name (main/master)
+
+    Raises:
+        typer.Exit: If not on primary branch or commit fails
+    """
+    # Check current branch
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False
+    )
+    current_branch = result.stdout.strip() if result.returncode == 0 else ""
+
+    # Check git status for untracked/modified files in feature directory
+    result = subprocess.run(
+        ["git", "status", "--porcelain", str(feature_dir)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False
+    )
+
+    if result.returncode == 0 and result.stdout.strip():
+        # Parse git status output - any file showing up needs to be committed
+        # Porcelain format: XY filename (X=staged, Y=working tree)
+        # Examples: ??(untracked), M (staged modified), MM(staged+modified), etc.
+        files_to_commit = []
+        for line in result.stdout.strip().split('\n'):
+            if line.strip():
+                # Get status code (first 2 chars) and filepath (rest after space)
+                if len(line) >= 3:
+                    filepath = line[3:].strip()
+                    # Any file with status means it's untracked, modified, or staged
+                    # All of these should be included in the commit
+                    files_to_commit.append(filepath)
+
+        if files_to_commit:
+            console.print(f"\n[cyan]Planning artifacts not committed:[/cyan]")
+            for f in files_to_commit:
+                console.print(f"  {f}")
+
+            if current_branch != primary_branch:
+                console.print(
+                    f"\n[red]Error:[/red] Planning artifacts must be committed on {primary_branch}."
+                )
+                console.print(f"Current branch: {current_branch}")
+                console.print(f"Run: git checkout {primary_branch}")
+                raise typer.Exit(1)
+
+            console.print(f"\n[cyan]Auto-committing to {primary_branch}...[/cyan]")
+
+            # Stage all files in feature directory
+            # Use -f to force-add files in kitty-specs/ which is in .gitignore
+            result = subprocess.run(
+                ["git", "add", "-f", str(feature_dir)],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode != 0:
+                console.print(f"[red]Error:[/red] Failed to stage files")
+                console.print(result.stderr)
+                raise typer.Exit(1)
+
+            # Commit with descriptive message
+            commit_msg = f"chore: Planning artifacts for {feature_slug}\n\nAuto-committed by spec-kitty before creating workspace for {wp_id}"
+            result = subprocess.run(
+                ["git", "commit", "-m", commit_msg],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode != 0:
+                console.print(f"[red]Error:[/red] Failed to commit")
+                console.print(result.stderr)
+                raise typer.Exit(1)
+
+            console.print(f"[green]✓[/green] Planning artifacts committed to {primary_branch}")
+
+
+def _ensure_planning_artifacts_committed_jj(
+    repo_root: Path,
+    feature_dir: Path,
+    feature_slug: str,
+    wp_id: str,
+    primary_branch: str,
+) -> None:
+    """Ensure planning artifacts are on the main bookmark using jj.
+
+    For jj repos, the working copy IS always a commit - there's no "uncommitted"
+    state like in git. If the working copy is on main (@ == main), then the
+    planning artifacts are already committed to main.
+
+    This function simply verifies that @ is on main. If not, it errors out
+    asking the user to run `jj edit main`.
+
+    In jj colocated repos, git shows "HEAD" (detached) which is normal.
+    jj tracks the actual revision via bookmarks.
+
+    Args:
+        repo_root: Repository root path
+        feature_dir: Path to feature directory (kitty-specs/###-feature/)
+        feature_slug: Feature slug (e.g., "001-my-feature")
+        wp_id: Work package ID (e.g., "WP01")
+        primary_branch: Primary branch name (main/master)
+
+    Raises:
+        typer.Exit: If not on primary bookmark
+    """
+    # In jj, check if working copy (@) is the main bookmark OR a child of main
+    # Use revset: "@ & main" - if this is non-empty, @ IS main
+    result = subprocess.run(
+        ["jj", "log", "-r", f"@ & {primary_branch}", "--no-graph", "-T", "change_id"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False
+    )
+    at_is_main = result.returncode == 0 and result.stdout.strip() != ""
+
+    # Also check if @ is a direct child of main (common during parallel workspace creation)
+    # Use revset: "@- & main" - if @'s parent is main, we're one commit ahead of main
+    result = subprocess.run(
+        ["jj", "log", "-r", f"@- & {primary_branch}", "--no-graph", "-T", "change_id"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False
+    )
+    parent_is_main = result.returncode == 0 and result.stdout.strip() != ""
+
+    if at_is_main:
+        # @ IS main - planning artifacts are already committed to main
+        # In jj, the working copy IS a commit, so if we're on main, everything is committed
+        console.print(f"[green]✓[/green] Planning artifacts on {primary_branch}")
+        return
+
+    if parent_is_main:
+        # @'s parent is main - this is fine, we're one commit ahead
+        # This happens during parallel workspace creation when another process
+        # created a commit on top of main
+        console.print(f"[green]✓[/green] Planning artifacts on descendant of {primary_branch}")
+        return
+
+    # Not on main or child of main - error out
+    console.print(
+        f"\n[red]Error:[/red] Must be on {primary_branch} or a direct descendant."
+    )
+    console.print(f"Run: jj edit {primary_branch}")
+    raise typer.Exit(1)
+
+
 def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
     """Ensure VCS is selected and locked in meta.json.
 
@@ -534,93 +710,29 @@ def implement(
     # All planning must happen in primary branch and be committed BEFORE worktree creation
     if base is None:  # Only for first WP in feature (branches from main)
         try:
-            primary_branch = resolve_primary_branch(repo_root)
-
-            # Check current branch
-            result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            current_branch = result.stdout.strip() if result.returncode == 0 else ""
-
-            # Find planning artifacts for this feature
+            # Detect VCS backend early to use appropriate commands
             feature_dir = repo_root / "kitty-specs" / feature_slug
             if not feature_dir.exists():
                 console.print(f"\n[red]Error:[/red] Feature directory not found: {feature_dir}")
                 console.print(f"Run /spec-kitty.specify first")
                 raise typer.Exit(1)
 
-            # Check git status for untracked/modified files in feature directory
-            result = subprocess.run(
-                ["git", "status", "--porcelain", str(feature_dir)],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=False
-            )
+            # Get VCS backend (auto-detect or from meta.json)
+            vcs = get_vcs(repo_root)
+            vcs_backend = vcs.backend
 
-            if result.returncode == 0 and result.stdout.strip():
-                # Parse git status output - any file showing up needs to be committed
-                # Porcelain format: XY filename (X=staged, Y=working tree)
-                # Examples: ??(untracked), M (staged modified), MM(staged+modified), etc.
-                files_to_commit = []
-                for line in result.stdout.strip().split('\n'):
-                    if line.strip():
-                        # Get status code (first 2 chars) and filepath (rest after space)
-                        if len(line) >= 3:
-                            status = line[:2]
-                            filepath = line[3:].strip()
-                            # Any file with status means it's untracked, modified, or staged
-                            # All of these should be included in the commit
-                            files_to_commit.append(filepath)
+            primary_branch = resolve_primary_branch(repo_root)
 
-                if files_to_commit:
-                    console.print(f"\n[cyan]Planning artifacts not committed:[/cyan]")
-                    for f in files_to_commit:
-                        console.print(f"  {f}")
-
-                    if current_branch != primary_branch:
-                        console.print(
-                            f"\n[red]Error:[/red] Planning artifacts must be committed on {primary_branch}."
-                        )
-                        console.print(f"Current branch: {current_branch}")
-                        console.print(f"Run: git checkout {primary_branch}")
-                        raise typer.Exit(1)
-
-                    console.print(f"\n[cyan]Auto-committing to {primary_branch}...[/cyan]")
-
-                    # Stage all files in feature directory
-                    # Use -f to force-add files in kitty-specs/ which is in .gitignore
-                    result = subprocess.run(
-                        ["git", "add", "-f", str(feature_dir)],
-                        cwd=repo_root,
-                        capture_output=True,
-                        text=True,
-                        check=False
-                    )
-                    if result.returncode != 0:
-                        console.print(f"[red]Error:[/red] Failed to stage files")
-                        console.print(result.stderr)
-                        raise typer.Exit(1)
-
-                    # Commit with descriptive message
-                    commit_msg = f"chore: Planning artifacts for {feature_slug}\n\nAuto-committed by spec-kitty before creating workspace for {wp_id}"
-                    result = subprocess.run(
-                        ["git", "commit", "-m", commit_msg],
-                        cwd=repo_root,
-                        capture_output=True,
-                        text=True,
-                        check=False
-                    )
-                    if result.returncode != 0:
-                        console.print(f"[red]Error:[/red] Failed to commit")
-                        console.print(result.stderr)
-                        raise typer.Exit(1)
-
-                    console.print(f"[green]✓[/green] Planning artifacts committed to {primary_branch}")
+            if vcs_backend == VCSBackend.GIT:
+                # Git path: check branch and status using git commands
+                _ensure_planning_artifacts_committed_git(
+                    repo_root, feature_dir, feature_slug, wp_id, primary_branch
+                )
+            else:
+                # jj path: check status and commit using jj commands
+                _ensure_planning_artifacts_committed_jj(
+                    repo_root, feature_dir, feature_slug, wp_id, primary_branch
+                )
 
         except typer.Exit:
             raise
