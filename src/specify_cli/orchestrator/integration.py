@@ -535,7 +535,7 @@ Fix the issues described above and ensure all requirements are met.
             prompt_content,
             worktree_path,
             "implementation",
-            config.default_timeout,
+            config.global_timeout,
             log_path,
         )
 
@@ -737,7 +737,7 @@ Do NOT fix issues yourself during review - just identify them.
             review_prompt,
             worktree_path,
             "review",
-            config.default_timeout,
+            config.global_timeout,
             log_path,
         )
 

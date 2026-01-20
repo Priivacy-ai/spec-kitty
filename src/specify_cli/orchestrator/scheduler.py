@@ -312,14 +312,15 @@ def select_agent_from_user_config(
         override_agent: CLI override to use specific agent
 
     Returns:
-        Agent ID or None if no agents configured
+        Canonical agent ID (normalized from aliases) or None if no agents configured
     """
     from specify_cli.orchestrator.agent_config import load_agent_config
+    from specify_cli.orchestrator.agents import normalize_agent_id
 
     # CLI override takes precedence
     if override_agent:
         logger.info(f"Using CLI override agent: {override_agent}")
-        return override_agent
+        return normalize_agent_id(override_agent)
 
     config = load_agent_config(repo_root)
 
@@ -327,13 +328,16 @@ def select_agent_from_user_config(
         logger.warning("No agents configured in .kittify/config.yaml")
         return None
 
+    # Select agent and normalize to canonical ID
     if role == "implementation":
-        return config.select_implementer(exclude=exclude_agent)
+        selected = config.select_implementer(exclude=exclude_agent)
     elif role == "review":
-        return config.select_reviewer(implementer=exclude_agent)
+        selected = config.select_reviewer(implementer=exclude_agent)
     else:
         logger.warning(f"Unknown role: {role}")
-        return config.available[0] if config.available else None
+        selected = config.available[0] if config.available else None
+
+    return normalize_agent_id(selected) if selected else None
 
 
 def select_agent(
@@ -413,26 +417,28 @@ def select_review_agent_from_user_config(
 
     Args:
         repo_root: Repository root for loading config
-        implementation_agent: Agent that did implementation
+        implementation_agent: Agent that did implementation (may be alias or canonical)
         override_agent: CLI override to use specific agent
 
     Returns:
-        Agent ID for review
+        Canonical agent ID (normalized from aliases) for review
     """
     from specify_cli.orchestrator.agent_config import load_agent_config
+    from specify_cli.orchestrator.agents import normalize_agent_id
 
     # CLI override takes precedence
     if override_agent:
         logger.info(f"Using CLI override review agent: {override_agent}")
-        return override_agent
+        return normalize_agent_id(override_agent)
 
     config = load_agent_config(repo_root)
 
     if not config.available:
         logger.warning("No agents configured, using implementer for review")
-        return implementation_agent
+        return normalize_agent_id(implementation_agent)
 
-    return config.select_reviewer(implementer=implementation_agent)
+    selected = config.select_reviewer(implementer=implementation_agent)
+    return normalize_agent_id(selected) if selected else None
 
 
 def select_review_agent(
