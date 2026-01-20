@@ -6,10 +6,10 @@ import json
 from pathlib import Path
 
 from ..diagnostics import run_diagnostics
-from ..scanner import format_path_for_display
+from ..scanner import format_path_for_display, scan_all_features
 from ..templates import get_dashboard_html
 from .base import DashboardHandler
-from specify_cli.mission import MissionError, get_active_mission
+from specify_cli.mission import MissionError, get_mission_by_name
 
 __all__ = ["APIHandler"]
 
@@ -21,26 +21,46 @@ class APIHandler(DashboardHandler):
         """Return the rendered dashboard HTML shell."""
         project_path = Path(self.project_dir).resolve()
 
+        # Derive active mission from the most active feature (per-feature mission model)
         mission_context = {
-            'name': 'Unknown mission',
+            'name': 'No active feature',
             'domain': 'unknown',
             'version': '',
             'slug': '',
             'description': '',
             'path': '',
         }
+
         try:
-            mission = get_active_mission(project_path)
-            mission_context = {
-                'name': mission.name,
-                'domain': mission.domain,
-                'version': mission.version,
-                'slug': mission.path.name,
-                'description': mission.description or '',
-                'path': format_path_for_display(str(mission.path)),
-            }
-        except MissionError:
-            pass
+            features = scan_all_features(project_path)
+
+            # Find active feature: WPs in doing > for_review > most recent
+            active_feature = None
+            for feature in features:
+                stats = feature.get('kanban_stats', {})
+                if stats.get('doing', 0) > 0:
+                    active_feature = feature
+                    break
+                if stats.get('for_review', 0) > 0 and active_feature is None:
+                    active_feature = feature
+
+            if active_feature is None and features:
+                active_feature = features[0]  # Most recent
+
+            if active_feature:
+                feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
+                kittify_dir = project_path / ".kittify"
+                mission = get_mission_by_name(feature_mission_key, kittify_dir)
+                mission_context = {
+                    'name': mission.name,
+                    'domain': mission.config.domain,
+                    'version': mission.config.version,
+                    'slug': mission.path.name,
+                    'description': mission.config.description or '',
+                    'path': format_path_for_display(str(mission.path)),
+                }
+        except (MissionError, Exception):
+            pass  # Keep default "No active feature" context
 
         self.send_response(200)
         self.send_header('Content-type', 'text/html')

@@ -15,7 +15,7 @@ from ..scanner import (
 )
 from .base import DashboardHandler
 from specify_cli.legacy_detector import is_legacy_format
-from specify_cli.mission import MissionError, get_active_mission
+from specify_cli.mission import MissionError, get_mission_by_name
 
 __all__ = ["FeatureHandler"]
 
@@ -38,26 +38,55 @@ class FeatureHandler(DashboardHandler):
             feature_dir = project_path / feature['path']
             feature['is_legacy'] = is_legacy_format(feature_dir)
 
+        # Derive active mission from the most active feature (per-feature mission model)
+        # Priority: feature with WPs in doing > for_review > most recent feature
         mission_context = {
-            'name': 'Unknown mission',
+            'name': 'No active feature',
             'domain': 'unknown',
             'version': '',
             'slug': '',
             'description': '',
             'path': '',
         }
-        try:
-            mission = get_active_mission(project_path)
-            mission_context = {
-                'name': mission.name,
-                'domain': mission.domain,
-                'version': mission.version,
-                'slug': mission.path.name,
-                'description': mission.description or '',
-                'path': format_path_for_display(str(mission.path)),
-            }
-        except MissionError:
-            pass
+
+        active_feature = None
+        for feature in features:
+            stats = feature.get('kanban_stats', {})
+            if stats.get('doing', 0) > 0:
+                active_feature = feature
+                break
+            if stats.get('for_review', 0) > 0 and active_feature is None:
+                active_feature = feature
+
+        # Fall back to most recent feature if none are active
+        if active_feature is None and features:
+            active_feature = features[0]  # Already sorted by id descending (most recent first)
+
+        if active_feature:
+            feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
+            try:
+                kittify_dir = project_path / ".kittify"
+                mission = get_mission_by_name(feature_mission_key, kittify_dir)
+                mission_context = {
+                    'name': mission.name,
+                    'domain': mission.config.domain,
+                    'version': mission.config.version,
+                    'slug': mission.path.name,
+                    'description': mission.config.description or '',
+                    'path': format_path_for_display(str(mission.path)),
+                    'feature': active_feature.get('name', ''),
+                }
+            except MissionError:
+                # Fallback: show feature name with unknown mission
+                mission_context = {
+                    'name': f"Unknown ({feature_mission_key})",
+                    'domain': 'unknown',
+                    'version': '',
+                    'slug': feature_mission_key,
+                    'description': '',
+                    'path': '',
+                    'feature': active_feature.get('name', ''),
+                }
 
         worktrees_root_path = project_path / '.worktrees'
         try:
