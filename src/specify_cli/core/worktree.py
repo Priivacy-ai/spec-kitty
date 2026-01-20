@@ -21,6 +21,64 @@ from .paths import locate_project_root
 from .vcs import VCSBackend, get_vcs
 
 
+def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
+    """Add patterns to worktree's .git/info/exclude to prevent committing.
+
+    This prevents symlinks created in worktrees from being committed and
+    overwriting real files in main on merge (fixes issue #79).
+
+    Args:
+        worktree_path: Path to the worktree root
+        patterns: List of patterns to exclude (e.g., [".kittify/memory"])
+    """
+    # In a worktree, .git is a file pointing to the real git dir
+    git_path = worktree_path / ".git"
+    if not git_path.exists():
+        return
+
+    # Find the actual git directory
+    if git_path.is_file():
+        # Worktree: .git file contains "gitdir: /path/to/real/.git/worktrees/name"
+        try:
+            content = git_path.read_text().strip()
+            if content.startswith("gitdir:"):
+                git_dir = Path(content[7:].strip())
+                exclude_file = git_dir / "info" / "exclude"
+            else:
+                return
+        except (OSError, ValueError):
+            return
+    else:
+        # Regular repo or already resolved
+        exclude_file = git_path / "info" / "exclude"
+
+    # Ensure info directory exists
+    exclude_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # Read existing exclusions
+    existing = set()
+    if exclude_file.exists():
+        try:
+            existing = set(exclude_file.read_text().splitlines())
+        except OSError:
+            pass
+
+    # Add new patterns if not already present
+    new_patterns = [p for p in patterns if p not in existing]
+    if new_patterns:
+        try:
+            with exclude_file.open("a") as f:
+                # Add comment if this is our first addition
+                marker = "# Added by spec-kitty (worktree symlinks)"
+                if marker not in existing:
+                    f.write(f"\n{marker}\n")
+                for pattern in new_patterns:
+                    f.write(f"{pattern}\n")
+        except OSError:
+            # If we can't write, just skip - not critical
+            pass
+
+
 def get_next_feature_number(repo_root: Path) -> int:
     """Determine next sequential feature number.
 
@@ -342,6 +400,10 @@ spec-kitty agent tasks move-task WP01 --to doing
                 worktree_agents.symlink_to(relative_agents_path)
             except (OSError, NotImplementedError):
                 shutil.copy2(main_agents, worktree_agents)
+
+    # Exclude symlinks from git to prevent them from being committed
+    # This fixes issue #79: symlinks overwriting main repo files on merge
+    _exclude_from_git(worktree_path, [".kittify/memory", ".kittify/AGENTS.md"])
 
     # Copy spec template if it exists
     spec_file = feature_dir / "spec.md"

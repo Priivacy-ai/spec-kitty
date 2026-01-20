@@ -12,8 +12,9 @@ from rich.panel import Panel
 from specify_cli.acceptance import AcceptanceError, detect_feature_slug
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
-from specify_cli.core import MISSION_CHOICES, get_active_mission_key
+from specify_cli.core import MISSION_CHOICES
 from specify_cli.core.project_resolver import resolve_template_path, resolve_worktree_aware_feature_dir
+from specify_cli.mission import get_feature_mission_key
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
@@ -34,8 +35,6 @@ def research(
 
     project_root = get_project_root_or_exit(repo_root)
     check_version_compatibility(project_root, "research")
-    mission_key = get_active_mission_key(project_root)
-    mission_display = MISSION_CHOICES.get(mission_key, mission_key)
 
     tracker = StepTracker("Research Phase Setup")
     tracker.add("project", "Locate project root")
@@ -47,7 +46,7 @@ def research(
     console.print()
 
     tracker.start("project")
-    tracker.complete("project", f"{project_root} ({mission_display})")
+    tracker.complete("project", str(project_root))
 
     tracker.start("feature")
     try:
@@ -60,7 +59,11 @@ def research(
 
     feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
     feature_dir.mkdir(parents=True, exist_ok=True)
-    tracker.complete("feature", str(feature_dir))
+
+    # Get mission from feature's meta.json (not project-level default)
+    mission_key = get_feature_mission_key(feature_dir)
+    mission_display = MISSION_CHOICES.get(mission_key, mission_key)
+    tracker.complete("feature", f"{feature_dir} ({mission_display})")
 
     # Validate that plan.md has been filled out before proceeding
     plan_path = feature_dir / "plan.md"

@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from specify_cli.core.worktree import (
+    _exclude_from_git,
     create_feature_worktree,
     get_next_feature_number,
     setup_feature_directory,
@@ -632,3 +633,270 @@ class TestVCSAbstraction:
             # Should return the existing path
             assert worktree_result == worktree_path
             assert feature_dir == worktree_path / "kitty-specs" / "001-test-feature"
+
+
+class TestExcludeFromGit:
+    """Tests for _exclude_from_git function (fixes issue #79)."""
+
+    def test_excludes_patterns_in_worktree(self, tmp_path: Path):
+        """Should add patterns to worktree's .git/info/exclude file."""
+        # Setup: Simulate worktree with .git file pointing to gitdir
+        worktree = tmp_path / "worktree"
+        worktree.mkdir()
+
+        git_dir = tmp_path / "main_repo" / ".git" / "worktrees" / "test-worktree"
+        git_dir.mkdir(parents=True)
+
+        # Create .git file that points to git_dir
+        (worktree / ".git").write_text(f"gitdir: {git_dir}")
+
+        # Execute
+        _exclude_from_git(worktree, [".kittify/memory", ".kittify/AGENTS.md"])
+
+        # Verify
+        exclude_file = git_dir / "info" / "exclude"
+        assert exclude_file.exists()
+        content = exclude_file.read_text()
+        assert ".kittify/memory" in content
+        assert ".kittify/AGENTS.md" in content
+        assert "# Added by spec-kitty (worktree symlinks)" in content
+
+    def test_excludes_patterns_in_regular_repo(self, tmp_path: Path):
+        """Should add patterns to regular repo's .git/info/exclude file."""
+        # Setup: Regular git repo with .git directory
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        git_dir = repo / ".git"
+        git_dir.mkdir()
+
+        # Execute
+        _exclude_from_git(repo, [".kittify/memory"])
+
+        # Verify
+        exclude_file = git_dir / "info" / "exclude"
+        assert exclude_file.exists()
+        content = exclude_file.read_text()
+        assert ".kittify/memory" in content
+
+    def test_creates_info_directory_if_missing(self, tmp_path: Path):
+        """Should create info/ directory if it doesn't exist."""
+        # Setup: Worktree with git_dir but no info/ directory
+        worktree = tmp_path / "worktree"
+        worktree.mkdir()
+
+        git_dir = tmp_path / "git_dir"
+        git_dir.mkdir()
+        # Don't create info/ subdirectory
+
+        (worktree / ".git").write_text(f"gitdir: {git_dir}")
+
+        # Execute
+        _exclude_from_git(worktree, [".kittify/memory"])
+
+        # Verify
+        assert (git_dir / "info").exists()
+        assert (git_dir / "info" / "exclude").exists()
+
+    def test_appends_to_existing_exclude_file(self, tmp_path: Path):
+        """Should append patterns to existing exclude file without overwriting."""
+        # Setup: Worktree with existing exclude file
+        worktree = tmp_path / "worktree"
+        worktree.mkdir()
+
+        git_dir = tmp_path / "git_dir"
+        (git_dir / "info").mkdir(parents=True)
+        exclude_file = git_dir / "info" / "exclude"
+        exclude_file.write_text("# Existing content\n*.pyc\n__pycache__/\n")
+
+        (worktree / ".git").write_text(f"gitdir: {git_dir}")
+
+        # Execute
+        _exclude_from_git(worktree, [".kittify/memory"])
+
+        # Verify
+        content = exclude_file.read_text()
+        assert "# Existing content" in content
+        assert "*.pyc" in content
+        assert "__pycache__/" in content
+        assert ".kittify/memory" in content
+
+    def test_does_not_duplicate_existing_patterns(self, tmp_path: Path):
+        """Should not add patterns that already exist in exclude file."""
+        # Setup: Worktree with exclude file containing pattern
+        worktree = tmp_path / "worktree"
+        worktree.mkdir()
+
+        git_dir = tmp_path / "git_dir"
+        (git_dir / "info").mkdir(parents=True)
+        exclude_file = git_dir / "info" / "exclude"
+        exclude_file.write_text(".kittify/memory\n")
+
+        (worktree / ".git").write_text(f"gitdir: {git_dir}")
+
+        # Execute
+        _exclude_from_git(worktree, [".kittify/memory", ".kittify/AGENTS.md"])
+
+        # Verify: memory should appear only once, AGENTS.md should be added
+        content = exclude_file.read_text()
+        assert content.count(".kittify/memory") == 1
+        assert ".kittify/AGENTS.md" in content
+
+    def test_handles_missing_git_file(self, tmp_path: Path):
+        """Should handle missing .git file gracefully (no crash)."""
+        # Setup: Directory without .git
+        worktree = tmp_path / "not_a_repo"
+        worktree.mkdir()
+
+        # Execute: Should not raise
+        _exclude_from_git(worktree, [".kittify/memory"])
+
+        # Verify: Nothing created
+        assert not (worktree / ".git").exists()
+
+    def test_handles_invalid_gitdir_content(self, tmp_path: Path):
+        """Should handle invalid .git file content gracefully."""
+        # Setup: .git file with invalid content
+        worktree = tmp_path / "worktree"
+        worktree.mkdir()
+        (worktree / ".git").write_text("invalid content without gitdir prefix")
+
+        # Execute: Should not raise
+        _exclude_from_git(worktree, [".kittify/memory"])
+
+        # Verify: No crash, nothing added
+        # (can't verify much else since gitdir parsing failed)
+
+    def test_handles_empty_patterns_list(self, tmp_path: Path):
+        """Should handle empty patterns list gracefully."""
+        # Setup: Valid worktree
+        worktree = tmp_path / "worktree"
+        worktree.mkdir()
+
+        git_dir = tmp_path / "git_dir"
+        (git_dir / "info").mkdir(parents=True)
+
+        (worktree / ".git").write_text(f"gitdir: {git_dir}")
+
+        # Execute
+        _exclude_from_git(worktree, [])
+
+        # Verify: Exclude file may or may not exist, but no patterns added
+        exclude_file = git_dir / "info" / "exclude"
+        if exclude_file.exists():
+            content = exclude_file.read_text()
+            # Should not have added marker for empty list
+            assert "# Added by spec-kitty" not in content
+
+    def test_adds_marker_only_once(self, tmp_path: Path):
+        """Should only add marker comment once even when called multiple times."""
+        # Setup
+        worktree = tmp_path / "worktree"
+        worktree.mkdir()
+
+        git_dir = tmp_path / "git_dir"
+        (git_dir / "info").mkdir(parents=True)
+
+        (worktree / ".git").write_text(f"gitdir: {git_dir}")
+
+        # Execute multiple times
+        _exclude_from_git(worktree, [".kittify/memory"])
+        _exclude_from_git(worktree, [".kittify/AGENTS.md"])
+
+        # Verify
+        content = (git_dir / "info" / "exclude").read_text()
+        marker_count = content.count("# Added by spec-kitty (worktree symlinks)")
+        assert marker_count == 1
+
+    def test_handles_jj_workspace_without_git(self, tmp_path: Path):
+        """Should gracefully skip jj workspaces that don't have .git (pure jj mode).
+
+        jj workspaces use .jj/ directory, not .git/. The symlink commit issue
+        (#79) is git-specific, so we should gracefully skip jj workspaces.
+        """
+        # Setup: jj workspace with only .jj/ (no .git/)
+        workspace = tmp_path / "jj_workspace"
+        workspace.mkdir()
+        (workspace / ".jj").mkdir()  # jj marker, no .git
+
+        # Execute: Should not raise, should not create any exclude file
+        _exclude_from_git(workspace, [".kittify/memory", ".kittify/AGENTS.md"])
+
+        # Verify: No .git/info/exclude created (because no .git)
+        assert not (workspace / ".git").exists()
+
+    def test_handles_jj_colocated_mode(self, tmp_path: Path):
+        """Should work correctly in jj colocated mode (both .jj/ and .git/).
+
+        In colocated mode, jj and git coexist. The .git/ directory exists,
+        so exclusions should be applied to prevent git from committing symlinks.
+        """
+        # Setup: Colocated repo with both .jj/ and .git/
+        repo = tmp_path / "colocated"
+        repo.mkdir()
+        (repo / ".jj").mkdir()  # jj marker
+        (repo / ".git").mkdir()  # git marker (directory, not worktree)
+
+        # Execute
+        _exclude_from_git(repo, [".kittify/memory"])
+
+        # Verify: Exclusions applied to git
+        exclude_file = repo / ".git" / "info" / "exclude"
+        assert exclude_file.exists()
+        content = exclude_file.read_text()
+        assert ".kittify/memory" in content
+
+    def test_integration_with_setup_feature_directory(self, tmp_path: Path):
+        """Should be called by setup_feature_directory to exclude symlinks."""
+        # Setup: Git repo with worktree structure
+        subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+        (tmp_path / "README.md").write_text("test")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "initial"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+
+        # Create worktree using git directly
+        worktree_path = tmp_path / ".worktrees" / "001-test"
+        subprocess.run(
+            ["git", "worktree", "add", str(worktree_path), "-b", "001-test"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
+
+        # Create memory and AGENTS.md in main repo
+        memory_dir = tmp_path / ".kittify" / "memory"
+        memory_dir.mkdir(parents=True)
+        (memory_dir / "constitution.md").write_text("Constitution")
+        (tmp_path / ".kittify" / "AGENTS.md").write_text("# Agents")
+
+        # Execute: setup_feature_directory should call _exclude_from_git
+        feature_dir = worktree_path / "kitty-specs" / "001-test"
+        setup_feature_directory(feature_dir, worktree_path, tmp_path, create_symlinks=True)
+
+        # Verify: Symlinks should be excluded
+        # Find the git dir from .git file
+        git_file_content = (worktree_path / ".git").read_text().strip()
+        assert git_file_content.startswith("gitdir:")
+        git_dir = Path(git_file_content[7:].strip())
+        exclude_file = git_dir / "info" / "exclude"
+
+        assert exclude_file.exists()
+        content = exclude_file.read_text()
+        assert ".kittify/memory" in content
+        assert ".kittify/AGENTS.md" in content

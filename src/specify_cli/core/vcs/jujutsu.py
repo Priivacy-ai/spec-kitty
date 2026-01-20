@@ -38,6 +38,65 @@ from .types import (
 )
 
 
+# Known benign stderr patterns from jj that should NOT be treated as errors
+# These are info messages, hints, and warnings that jj prints to stderr
+JJ_BENIGN_STDERR_PATTERNS = [
+    "Reset the working copy parent to",
+    "Done importing changes from the underlying Git repo",
+    "Created workspace in",
+    "Working copy",
+    "Parent commit",
+    "Added ",
+    "Warning:",
+    "Hint:",
+    "Concurrent modification detected, resolving automatically",
+]
+
+
+def _extract_jj_error(stderr: str) -> str | None:
+    """
+    Extract actual error message from jj stderr output.
+
+    jj prints various informational messages to stderr (hints, warnings,
+    status updates) even during successful operations. This function
+    filters out benign messages and extracts only actual errors.
+
+    Actual jj errors start with "Error:" at the beginning of a line.
+
+    Args:
+        stderr: Raw stderr output from jj command
+
+    Returns:
+        Error message if found, None if no actual error
+    """
+    if not stderr:
+        return None
+
+    lines = stderr.strip().split("\n")
+    error_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Actual jj errors start with "Error:"
+        if stripped.startswith("Error:"):
+            error_lines.append(stripped)
+        # Also capture "Caused by:" lines that follow errors
+        elif stripped.startswith("Caused by:") and error_lines:
+            error_lines.append(stripped)
+        # Skip benign patterns
+        elif any(pattern in stripped for pattern in JJ_BENIGN_STDERR_PATTERNS):
+            continue
+        # Skip empty lines
+        elif not stripped:
+            continue
+
+    if error_lines:
+        return " ".join(error_lines)
+
+    return None
+
+
 class JujutsuVCS:
     """
     Jujutsu VCS implementation.
@@ -118,11 +177,25 @@ class JujutsuVCS:
                 cwd=str(repo_root),
             )
 
+            # jj has quirky error handling - sometimes returns exit 0 with "Error:" in stderr
+            # Check for actual errors in stderr even if returncode is 0
+            jj_error = _extract_jj_error(result.stderr)
+
             if result.returncode != 0:
+                # Prefer extracted error over raw stderr
+                error_msg = jj_error or result.stderr.strip() or "Failed to create workspace"
                 return WorkspaceCreateResult(
                     success=False,
                     workspace=None,
-                    error=result.stderr.strip() or "Failed to create workspace",
+                    error=error_msg,
+                )
+
+            # Even with returncode 0, jj might have printed "Error:" to stderr
+            if jj_error:
+                return WorkspaceCreateResult(
+                    success=False,
+                    workspace=None,
+                    error=jj_error,
                 )
 
             # Get workspace info for the newly created workspace

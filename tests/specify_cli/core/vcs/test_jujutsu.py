@@ -14,6 +14,7 @@ import pytest
 from specify_cli.core.vcs import VCSBackend, VCSProtocol
 from specify_cli.core.vcs.jujutsu import (
     JujutsuVCS,
+    _extract_jj_error,
     jj_get_change_by_id,
     jj_get_operation_log,
     jj_undo_operation,
@@ -545,3 +546,146 @@ class TestEdgeCases:
         assert change is not None
         assert change.change_id is not None
         # Working copy changes are automatically tracked
+
+
+# =============================================================================
+# Error Extraction Tests (Issue #79 fix)
+# =============================================================================
+
+
+class TestExtractJJError:
+    """Tests for _extract_jj_error function.
+
+    jj has quirky error handling - it prints info messages to stderr even
+    during successful operations, and sometimes returns exit code 0 with
+    actual errors. This function filters out benign messages.
+    """
+
+    def test_extracts_error_from_stderr(self):
+        """Should extract 'Error:' lines from stderr."""
+        stderr = "Error: Workspace named 'test' already exists"
+        error = _extract_jj_error(stderr)
+        assert error == "Error: Workspace named 'test' already exists"
+
+    def test_extracts_error_with_cause(self):
+        """Should include 'Caused by:' lines following errors."""
+        stderr = """Error: Cannot access /nonexistent/path
+Caused by: No such file or directory (os error 2)"""
+        error = _extract_jj_error(stderr)
+        assert "Error: Cannot access" in error
+        assert "Caused by:" in error
+
+    def test_ignores_reset_working_copy_message(self):
+        """Should ignore 'Reset the working copy parent' info message."""
+        stderr = "Reset the working copy parent to the new Git HEAD."
+        error = _extract_jj_error(stderr)
+        assert error is None
+
+    def test_ignores_done_importing_message(self):
+        """Should ignore 'Done importing changes' info message."""
+        stderr = "Done importing changes from the underlying Git repo."
+        error = _extract_jj_error(stderr)
+        assert error is None
+
+    def test_ignores_created_workspace_message(self):
+        """Should ignore 'Created workspace' info message."""
+        stderr = 'Created workspace in "../../../../tmp/test-ws"'
+        error = _extract_jj_error(stderr)
+        assert error is None
+
+    def test_ignores_working_copy_info(self):
+        """Should ignore working copy status lines."""
+        stderr = "Working copy  (@) now at: abc123 (empty) (no description set)"
+        error = _extract_jj_error(stderr)
+        assert error is None
+
+    def test_ignores_parent_commit_info(self):
+        """Should ignore parent commit info lines."""
+        stderr = "Parent commit (@-)      : def456 main | Initial commit"
+        error = _extract_jj_error(stderr)
+        assert error is None
+
+    def test_ignores_added_files_info(self):
+        """Should ignore 'Added X files' info messages."""
+        stderr = "Added 540 files, modified 0 files, removed 0 files"
+        error = _extract_jj_error(stderr)
+        assert error is None
+
+    def test_ignores_warning_messages(self):
+        """Should ignore 'Warning:' messages (not errors)."""
+        stderr = "Warning: 9 of those updates were skipped because there were conflicting changes"
+        error = _extract_jj_error(stderr)
+        assert error is None
+
+    def test_ignores_hint_messages(self):
+        """Should ignore 'Hint:' messages."""
+        stderr = 'Hint: Inspect the changes with `jj diff --from abc123`.'
+        error = _extract_jj_error(stderr)
+        assert error is None
+
+    def test_ignores_concurrent_modification_info(self):
+        """Should ignore concurrent modification resolution info."""
+        stderr = "Concurrent modification detected, resolving automatically."
+        error = _extract_jj_error(stderr)
+        assert error is None
+
+    def test_extracts_error_from_mixed_output(self):
+        """Should extract error even when mixed with info messages."""
+        stderr = """Concurrent modification detected, resolving automatically.
+Error: Workspace named 'test-ws-01' already exists"""
+        error = _extract_jj_error(stderr)
+        assert "Error: Workspace named 'test-ws-01' already exists" in error
+
+    def test_handles_typical_successful_stderr(self):
+        """Should return None for typical successful operation stderr."""
+        stderr = """Reset the working copy parent to the new Git HEAD.
+Done importing changes from the underlying Git repo.
+Created workspace in "../../../../tmp/test-ws"
+Working copy  (@) now at: abc123 (empty) (no description set)
+Parent commit (@-)      : def456 main | Initial commit
+Added 540 files, modified 0 files, removed 0 files
+Warning: 9 of those updates were skipped because there were conflicting changes.
+Hint: Inspect the changes with `jj diff --from abc123`."""
+        error = _extract_jj_error(stderr)
+        assert error is None
+
+    def test_handles_empty_stderr(self):
+        """Should return None for empty stderr."""
+        assert _extract_jj_error("") is None
+        assert _extract_jj_error(None) is None
+
+    def test_handles_whitespace_only_stderr(self):
+        """Should return None for whitespace-only stderr."""
+        assert _extract_jj_error("   \n\n   ") is None
+
+
+class TestCreateWorkspaceDuplicateError:
+    """Test that duplicate workspace name errors are caught (issue fix)."""
+
+    def test_create_duplicate_workspace_returns_error(self, jj_repo, jj_vcs):
+        """Creating workspace with existing name should return error, not success.
+
+        This tests the fix for jj returning exit code 0 with 'Error:' in stderr.
+        """
+        workspace_path = jj_repo / ".worktrees" / "dup-test"
+
+        # Create workspace first time
+        result1 = jj_vcs.create_workspace(
+            workspace_path,
+            "dup-test",
+            repo_root=jj_repo,
+        )
+        assert result1.success is True, f"First create failed: {result1.error}"
+
+        # Try to create again with same name (different path)
+        workspace_path2 = jj_repo / ".worktrees" / "dup-test-2"
+        result2 = jj_vcs.create_workspace(
+            workspace_path2,
+            "dup-test",  # Same name!
+            repo_root=jj_repo,
+        )
+
+        # Should detect the error even if jj returns exit code 0
+        assert result2.success is False
+        assert result2.error is not None
+        assert "already exists" in result2.error.lower()
