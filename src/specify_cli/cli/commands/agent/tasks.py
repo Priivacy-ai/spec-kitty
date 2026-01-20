@@ -983,16 +983,24 @@ def status(
         bool,
         typer.Option("--json", help="Output as JSON")
     ] = False,
+    stale_threshold: Annotated[
+        int,
+        typer.Option("--stale-threshold", help="Minutes of inactivity before a WP is considered stale")
+    ] = 10,
 ):
     """Display kanban status board for all work packages in a feature.
 
     Shows a beautiful overview of work package statuses, progress metrics,
     and next steps based on dependencies.
 
+    WPs in "doing" with no commits for --stale-threshold minutes are flagged
+    as potentially stale (agent may have stopped).
+
     Example:
         spec-kitty agent tasks status
         spec-kitty agent tasks status --feature 012-documentation-mission
         spec-kitty agent tasks status --json
+        spec-kitty agent tasks status --stale-threshold 15
     """
     from rich.table import Table
     from rich.panel import Panel
@@ -1034,13 +1042,17 @@ def status(
             title = extract_scalar(front, "title")
             lane = extract_scalar(front, "lane") or "unknown"
             phase = extract_scalar(front, "phase") or "Unknown Phase"
+            agent = extract_scalar(front, "agent") or ""
+            shell_pid = extract_scalar(front, "shell_pid") or ""
 
             work_packages.append({
                 "id": wp_id,
                 "title": title,
                 "lane": lane,
                 "phase": phase,
-                "file": wp_file.name
+                "file": wp_file.name,
+                "agent": agent,
+                "shell_pid": shell_pid,
             })
 
         if not work_packages:
@@ -1049,13 +1061,34 @@ def status(
 
         # JSON output
         if json_output:
+            # Check for stale WPs first (need to do this before JSON output too)
+            from specify_cli.core.stale_detection import check_doing_wps_for_staleness
+
+            doing_wps = [wp for wp in work_packages if wp["lane"] == "doing"]
+            stale_results = check_doing_wps_for_staleness(
+                main_repo_root=main_repo_root,
+                feature_slug=feature_slug,
+                doing_wps=doing_wps,
+                threshold_minutes=stale_threshold,
+            )
+
+            # Add staleness info to WPs
+            for wp in work_packages:
+                if wp["lane"] == "doing" and wp["id"] in stale_results:
+                    result = stale_results[wp["id"]]
+                    wp["is_stale"] = result.is_stale
+                    wp["minutes_since_commit"] = result.minutes_since_commit
+                    wp["worktree_exists"] = result.worktree_exists
+
             lane_counts = Counter(wp["lane"] for wp in work_packages)
+            stale_count = sum(1 for wp in work_packages if wp.get("is_stale"))
             result = {
                 "feature": feature_slug,
                 "total_wps": len(work_packages),
                 "by_lane": dict(lane_counts),
                 "work_packages": work_packages,
-                "progress_percentage": round(lane_counts.get("done", 0) / len(work_packages) * 100, 1)
+                "progress_percentage": round(lane_counts.get("done", 0) / len(work_packages) * 100, 1),
+                "stale_wps": stale_count,
             }
             print(json.dumps(result, indent=2))
             return
@@ -1069,6 +1102,27 @@ def status(
                 by_lane[lane].append(wp)
             else:
                 by_lane.setdefault("other", []).append(wp)
+
+        # Check for stale WPs in "doing" lane
+        from specify_cli.core.stale_detection import check_doing_wps_for_staleness
+
+        stale_results = check_doing_wps_for_staleness(
+            main_repo_root=main_repo_root,
+            feature_slug=feature_slug,
+            doing_wps=by_lane["doing"],
+            threshold_minutes=stale_threshold,
+        )
+
+        # Add staleness info to WPs
+        for wp in by_lane["doing"]:
+            wp_id = wp["id"]
+            if wp_id in stale_results:
+                result = stale_results[wp_id]
+                wp["is_stale"] = result.is_stale
+                wp["minutes_since_commit"] = result.minutes_since_commit
+                wp["worktree_exists"] = result.worktree_exists
+            else:
+                wp["is_stale"] = False
 
         # Calculate metrics
         total = len(work_packages)
@@ -1117,7 +1171,13 @@ def status(
             for lane in ["planned", "doing", "for_review", "done"]:
                 if i < len(by_lane[lane]):
                     wp = by_lane[lane][i]
-                    cell = f"{wp['id']}\n{wp['title'][:22]}..." if len(wp['title']) > 22 else f"{wp['id']}\n{wp['title']}"
+                    title_truncated = wp['title'][:22] + "..." if len(wp['title']) > 22 else wp['title']
+
+                    # Add stale indicator for doing WPs
+                    if lane == "doing" and wp.get("is_stale"):
+                        cell = f"[red]⚠️ {wp['id']}[/red]\n{title_truncated}"
+                    else:
+                        cell = f"{wp['id']}\n{title_truncated}"
                     row.append(cell)
                 else:
                     row.append("")
@@ -1144,9 +1204,22 @@ def status(
 
         if by_lane["doing"]:
             console.print("[bold blue]🔄 In Progress:[/bold blue]")
+            stale_wps = []
             for wp in by_lane["doing"]:
-                console.print(f"  • {wp['id']} - {wp['title']}")
+                if wp.get("is_stale"):
+                    mins = wp.get("minutes_since_commit", "?")
+                    agent = wp.get("agent", "unknown")
+                    console.print(f"  • [red]⚠️ {wp['id']}[/red] - {wp['title']} [dim](stale: {mins}m, agent: {agent})[/dim]")
+                    stale_wps.append(wp)
+                else:
+                    console.print(f"  • {wp['id']} - {wp['title']}")
             console.print()
+
+            # Show stale warning if any
+            if stale_wps:
+                console.print(f"[yellow]⚠️  {len(stale_wps)} stale WP(s) detected - agents may have stopped without transitioning[/yellow]")
+                console.print("[dim]   Run: spec-kitty agent tasks move-task <WP_ID> --to for_review[/dim]")
+                console.print()
 
         if by_lane["planned"]:
             console.print("[bold yellow]📋 Next Up (Planned):[/bold yellow]")
