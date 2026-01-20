@@ -76,10 +76,18 @@ header.bg-body {
     color: #5a9647 !important;
 }
 
+/* Logo styling - constrained like dashboard */
 .navbar-brand img {
+    width: 48px;
+    height: 48px;
+    max-width: 48px;
+    max-height: 48px;
+    object-fit: contain;
     border-radius: 10px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     border: 2px solid rgba(123, 182, 97, 0.25);
+    background: white;
+    padding: 4px;
 }
 
 /* Navigation tabs */
