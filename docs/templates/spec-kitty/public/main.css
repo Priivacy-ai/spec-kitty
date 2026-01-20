@@ -332,14 +332,32 @@ footer {
     background: var(--sk-creamy-white) !important;
 }
 
-/* Breadcrumbs */
+/* Breadcrumbs - high contrast for visibility */
 #breadcrumb {
     background: transparent;
     padding: 10px 0;
 }
 
 #breadcrumb a {
+    color: var(--sk-dark-text);
+    font-weight: 500;
+}
+
+#breadcrumb a:hover {
     color: var(--sk-grassy-green);
+}
+
+.breadcrumb-item {
+    color: var(--sk-dark-text);
+}
+
+.breadcrumb-item.active {
+    color: var(--sk-dark-text);
+    font-weight: 600;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    color: var(--sk-medium-text);
 }
 
 /* GitHub icon styling */
@@ -638,7 +656,23 @@ article li {
 
 /* Dark mode breadcrumbs */
 [data-bs-theme="dark"] #breadcrumb a {
+    color: var(--sk-dark-text);
+}
+
+[data-bs-theme="dark"] #breadcrumb a:hover {
     color: var(--sk-grassy-green);
+}
+
+[data-bs-theme="dark"] .breadcrumb-item {
+    color: var(--sk-dark-text);
+}
+
+[data-bs-theme="dark"] .breadcrumb-item.active {
+    color: var(--sk-dark-text);
+}
+
+[data-bs-theme="dark"] .breadcrumb-item + .breadcrumb-item::before {
+    color: var(--sk-medium-text);
 }
 
 /* Dark mode GitHub icon */
