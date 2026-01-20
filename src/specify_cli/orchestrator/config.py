@@ -96,7 +96,7 @@ class AgentConfig:
     enabled: bool = True
     roles: list[str] = field(default_factory=lambda: ["implementation", "review"])
     priority: int = 50
-    max_concurrent: int = 2
+    max_concurrent: int = 100  # Effectively unlimited - let dependency graph be the limit
     timeout_seconds: int = 600
 
 
@@ -111,7 +111,7 @@ class OrchestratorConfig:
     max_retries: int = 3
     single_agent_mode: bool = False
     single_agent: str | None = None
-    global_concurrency: int = 5
+    global_concurrency: int = 100  # Effectively unlimited - let dependency graph be the limit
     global_timeout: int = 3600
 
 
@@ -373,6 +373,7 @@ def generate_default_config() -> OrchestratorConfig:
     logger.info(f"Detected {len(installed)} installed agents: {', '.join(installed)}")
 
     # Create agent configs sorted by priority
+    # No artificial per-agent limits - let dependency graph determine parallelism
     agents: dict[str, AgentConfig] = {}
     for agent_id in installed:
         agents[agent_id] = AgentConfig(
@@ -380,7 +381,7 @@ def generate_default_config() -> OrchestratorConfig:
             enabled=True,
             roles=["implementation", "review"],
             priority=AGENT_PRIORITIES.get(agent_id, 50),
-            max_concurrent=2,
+            max_concurrent=100,  # Effectively unlimited
             timeout_seconds=600,
         )
 
@@ -405,7 +406,7 @@ def generate_default_config() -> OrchestratorConfig:
         max_retries=3,
         single_agent_mode=single_agent_mode,
         single_agent=single_agent,
-        global_concurrency=5,
+        global_concurrency=100,  # Effectively unlimited - dependency graph is the limit
         global_timeout=3600,
     )
 
