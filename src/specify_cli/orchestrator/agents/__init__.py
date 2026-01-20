@@ -56,6 +56,13 @@ AGENT_REGISTRY: dict[str, type[BaseInvoker]] = {
     "cursor": CursorInvoker,
 }
 
+# Aliases for user-friendly names to canonical registry names
+# These match the keys used in AI_CHOICES (core/config.py) and .kittify/config.yaml
+AGENT_ALIASES: dict[str, str] = {
+    "claude": "claude-code",  # User-facing name -> registry name
+    "auggie": "augment",      # Alternative name used in gitignore_manager
+}
+
 # Priority order for agent selection (lower index = higher priority)
 # Based on feature 019 research recommendations
 AGENT_PRIORITY_ORDER = [
@@ -71,11 +78,26 @@ AGENT_PRIORITY_ORDER = [
 ]
 
 
+def normalize_agent_id(agent_id: str) -> str:
+    """Normalize agent ID to canonical registry name.
+
+    Resolves user-friendly aliases (e.g., "claude" -> "claude-code").
+
+    Args:
+        agent_id: User-provided agent ID (may be an alias).
+
+    Returns:
+        Canonical agent ID used in AGENT_REGISTRY.
+    """
+    return AGENT_ALIASES.get(agent_id, agent_id)
+
+
 def get_invoker(agent_id: str) -> BaseInvoker:
     """Get invoker instance for agent ID.
 
     Args:
         agent_id: The agent identifier (e.g., "claude-code", "codex").
+                  Aliases like "claude" are automatically resolved.
 
     Returns:
         Instantiated invoker for the specified agent.
@@ -83,11 +105,17 @@ def get_invoker(agent_id: str) -> BaseInvoker:
     Raises:
         ValueError: If agent_id is not recognized.
     """
-    invoker_class = AGENT_REGISTRY.get(agent_id)
+    # Resolve aliases to canonical names
+    canonical_id = normalize_agent_id(agent_id)
+
+    invoker_class = AGENT_REGISTRY.get(canonical_id)
     if not invoker_class:
         valid_agents = ", ".join(sorted(AGENT_REGISTRY.keys()))
+        # Include aliases in the error message for clarity
+        alias_info = ", ".join(f"{k}->{v}" for k, v in AGENT_ALIASES.items())
         raise ValueError(
-            f"Unknown agent: {agent_id}. Valid agents: {valid_agents}"
+            f"Unknown agent: {agent_id}. Valid agents: {valid_agents}. "
+            f"Aliases: {alias_info}"
         )
     return invoker_class()
 
@@ -134,7 +162,9 @@ __all__ = [
     "CursorInvoker",
     # Registry and utilities
     "AGENT_REGISTRY",
+    "AGENT_ALIASES",
     "AGENT_PRIORITY_ORDER",
     "get_invoker",
+    "normalize_agent_id",
     "detect_installed_agents",
 ]
