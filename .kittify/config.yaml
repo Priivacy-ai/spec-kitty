@@ -3,3 +3,13 @@ vcs:
   jj:
     min_version: 0.20.0
     colocate: true
+agents:
+  available:
+  - copilot
+  - claude
+  - opencode
+  - codex
+  selection:
+    strategy: preferred
+    preferred_implementer: claude
+    preferred_reviewer: opencode

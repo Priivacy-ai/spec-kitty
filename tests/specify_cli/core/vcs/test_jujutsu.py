@@ -259,6 +259,94 @@ class TestWorkspaceOperations:
         workspace_names = [w.name for w in workspaces]
         assert "default" in workspace_names or jj_repo.name in workspace_names
 
+    def test_create_workspace_creates_bookmark(self, jj_repo, jj_vcs):
+        """create_workspace should create a bookmark with the workspace name.
+
+        This is critical for dependent WPs - they need to reference parent WPs
+        by bookmark name (e.g., "001-feature-WP01" as a base revision).
+        """
+        workspace_path = jj_repo / ".worktrees" / "feature-WP01"
+
+        result = jj_vcs.create_workspace(
+            workspace_path,
+            "feature-WP01",
+            repo_root=jj_repo,
+        )
+
+        assert result.success is True, f"Failed: {result.error}"
+
+        # Verify bookmark was created
+        bookmark_result = subprocess.run(
+            ["jj", "bookmark", "list", "--all"],
+            cwd=jj_repo,
+            capture_output=True,
+            text=True,
+        )
+
+        assert "feature-WP01" in bookmark_result.stdout, \
+            f"Bookmark 'feature-WP01' not found in: {bookmark_result.stdout}"
+
+    def test_create_workspace_bookmark_usable_as_base(self, jj_repo, jj_vcs):
+        """Bookmark created by workspace should be usable as base for dependent WPs.
+
+        Regression test: WP06 failed because it couldn't find WP01's bookmark
+        when trying to use it as a base revision.
+        """
+        # Create WP01 workspace with bookmark
+        wp01_path = jj_repo / ".worktrees" / "feature-WP01"
+        r1 = jj_vcs.create_workspace(wp01_path, "feature-WP01", repo_root=jj_repo)
+        assert r1.success is True, f"WP01 failed: {r1.error}"
+
+        # Make a change in WP01 so it has content
+        (wp01_path / "wp01_file.txt").write_text("WP01 content")
+        subprocess.run(["jj", "describe", "-m", "WP01 implementation"], cwd=wp01_path)
+
+        # Create WP06 workspace based on WP01's bookmark
+        wp06_path = jj_repo / ".worktrees" / "feature-WP06"
+        r6 = jj_vcs.create_workspace(
+            wp06_path,
+            "feature-WP06",
+            base_branch="feature-WP01",  # Use WP01's bookmark as base
+            repo_root=jj_repo,
+        )
+
+        assert r6.success is True, \
+            f"WP06 based on WP01 bookmark failed: {r6.error}"
+
+        # Verify WP06 has WP01's content
+        assert (wp06_path / "wp01_file.txt").exists(), \
+            "WP06 should inherit files from WP01"
+
+    def test_remove_workspace_deletes_bookmark(self, jj_repo, jj_vcs):
+        """remove_workspace should also delete the associated bookmark."""
+        workspace_path = jj_repo / ".worktrees" / "feature-WP-remove"
+
+        # Create workspace (which creates bookmark)
+        r = jj_vcs.create_workspace(workspace_path, "feature-WP-remove", repo_root=jj_repo)
+        assert r.success is True, f"Create failed: {r.error}"
+
+        # Verify bookmark exists
+        list_result = subprocess.run(
+            ["jj", "bookmark", "list", "--all"],
+            cwd=jj_repo,
+            capture_output=True,
+            text=True,
+        )
+        assert "feature-WP-remove" in list_result.stdout
+
+        # Remove workspace
+        jj_vcs.remove_workspace(workspace_path)
+
+        # Verify bookmark was also deleted
+        list_result2 = subprocess.run(
+            ["jj", "bookmark", "list", "--all"],
+            cwd=jj_repo,
+            capture_output=True,
+            text=True,
+        )
+        assert "feature-WP-remove" not in list_result2.stdout, \
+            f"Bookmark should have been deleted but found in: {list_result2.stdout}"
+
 
 # =============================================================================
 # Commit Operations Tests

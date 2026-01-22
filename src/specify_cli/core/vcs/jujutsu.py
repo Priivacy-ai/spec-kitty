@@ -198,6 +198,41 @@ class JujutsuVCS:
                     error=jj_error,
                 )
 
+            # Create a bookmark pointing to the workspace's current revision
+            # This is necessary because dependent WPs need to reference this
+            # workspace by name (e.g., "001-feature-WP01" as a base revision)
+            # Unlike git worktree which auto-creates branches, jj workspace add
+            # does NOT create bookmarks.
+            bookmark_result = subprocess.run(
+                ["jj", "bookmark", "create", workspace_name, "-r", "@"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(workspace_path),  # Run from new workspace
+            )
+
+            # Check for bookmark creation errors
+            bookmark_error = _extract_jj_error(bookmark_result.stderr)
+            if bookmark_result.returncode != 0 or bookmark_error:
+                # Workspace was created but bookmark failed - clean up and report
+                error_msg = bookmark_error or bookmark_result.stderr.strip() or "Failed to create bookmark"
+                # Try to clean up the workspace
+                try:
+                    subprocess.run(
+                        ["jj", "workspace", "forget", workspace_name],
+                        capture_output=True,
+                        timeout=30,
+                        cwd=str(repo_root),
+                    )
+                    shutil.rmtree(workspace_path, ignore_errors=True)
+                except Exception:
+                    pass
+                return WorkspaceCreateResult(
+                    success=False,
+                    workspace=None,
+                    error=f"Workspace created but bookmark failed: {error_msg}",
+                )
+
             # Get workspace info for the newly created workspace
             workspace_info = self.get_workspace_info(workspace_path)
 
@@ -245,6 +280,15 @@ class JujutsuVCS:
             # Use jj workspace forget to unregister
             result = subprocess.run(
                 ["jj", "workspace", "forget", workspace_name],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(repo_root),
+            )
+
+            # Also delete the associated bookmark (created during create_workspace)
+            subprocess.run(
+                ["jj", "bookmark", "delete", workspace_name],
                 capture_output=True,
                 text=True,
                 timeout=30,
