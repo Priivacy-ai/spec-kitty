@@ -63,10 +63,10 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/spec-kitty/spec-kit"
-Issues = "https://github.com/spec-kitty/spec-kit/issues"
-Documentation = "https://spec-kitty.github.io/spec-kit"
-Changelog = "https://github.com/spec-kitty/spec-kit/blob/main/CHANGELOG.md"
+Repository = "https://github.com/spec-kitty/spec-kitty"
+Issues = "https://github.com/spec-kitty/spec-kitty/issues"
+Documentation = "https://spec-kitty.github.io/spec-kitty"
+Changelog = "https://github.com/spec-kitty/spec-kitty/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 test = [
