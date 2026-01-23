@@ -243,7 +243,7 @@
 - [x] T029 Run grep audit for jujutsu/jj references in docs
 - [x] T030 Update `docs/reference/cli-commands.md` init section - Remove jj VCS detection mentions
 - [x] T031 [P] Fix broken jj links in how-to guides
-- [ ] T032 [P] Fix broken jj links in tutorials
+- [x] T032 [P] Fix broken jj links in tutorials
 - [ ] T033 [P] Fix broken jj links in explanation articles
 
 ### Implementation Notes
