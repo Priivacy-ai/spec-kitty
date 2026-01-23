@@ -30,7 +30,7 @@
 ### Included Subtasks
 - [x] T001 [P] Read and extract command signatures from `src/specify_cli/cli/commands/agent/config.py`
 - [x] T002 [P] Read and extract config schema from `src/specify_cli/orchestrator/agent_config.py`
-- [ ] T003 [P] Read and extract agent mappings from `m_0_9_1_complete_lane_migration.py`
+- [x] T003 [P] Read and extract agent mappings from `m_0_9_1_complete_lane_migration.py`
 
 ### Implementation Notes
 - All three subtasks are parallel (read-only source code inspection)
