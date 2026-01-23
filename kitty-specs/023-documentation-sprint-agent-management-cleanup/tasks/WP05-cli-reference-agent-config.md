@@ -9,10 +9,10 @@ subtasks:
   - "T024"
 title: "CLI Reference - Agent Config Commands"
 phase: "Phase 2 - Reference Documentation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "28306"
 review_status: ""
 reviewed_by: ""
 dependencies: ["WP01"]
@@ -808,6 +808,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+- 2026-01-23T11:06:32Z – claude – shell_pid=28306 – lane=doing – Started implementation via workflow command
 
 ## Implementation Command
 
