@@ -271,18 +271,13 @@ register, login, logout, and recover forgotten passwords.
 ```
 
 **What this does:**
-- Creates feature branch: `001-auth-system`
-- Creates feature worktree: `.worktrees/001-auth-system/`
 - Creates `kitty-specs/001-auth-system/spec.md` with user stories
 - **Enters discovery interview** - Answer questions before continuing!
+- All planning happens in the main repo (worktrees created later during implementation)
 
-**⚠️ Important:** After `/spec-kitty.specify` completes:
-```bash
-cd .worktrees/001-auth-system
-claude  # Restart your agent in the feature worktree
-```
+**⚠️ Important:** Continue in the same session - no need to change directories!
 
-#### 4b. Define HOW to Build (In Feature Worktree)
+#### 4b. Define HOW to Build (In Main Repo)
 
 ```text
 /spec-kitty.plan
@@ -392,11 +387,11 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 ### Required Workflow (Each feature)
 ```
-2️⃣  /spec-kitty.specify          → Creates feature branch + worktree
-    cd .worktrees/XXX-feature    → Switch to feature worktree
-3️⃣  /spec-kitty.plan             → Define technical approach
-4️⃣  /spec-kitty.tasks            → Generate work packages
-5️⃣  /spec-kitty.implement        → Build the feature (repeat for each task)
+2️⃣  /spec-kitty.specify          → Create spec (in main repo)
+3️⃣  /spec-kitty.plan             → Define technical approach (in main repo)
+4️⃣  /spec-kitty.tasks            → Generate work packages (in main repo)
+5️⃣  spec-kitty implement WP01    → Create workspace for WP01 (first worktree)
+    /spec-kitty.implement        → Build the work package
 6️⃣  /spec-kitty.review           → Review completed work
 7️⃣  /spec-kitty.accept           → Validate feature ready
 8️⃣  /spec-kitty.merge            → Merge to main + cleanup
@@ -441,11 +436,11 @@ The installed pre-commit hook will block any commit that includes files from:
 If you need to bypass the hook (not recommended): `git commit --no-verify`
 
 **Worktree Constitution Sharing:**
-When creating feature worktrees, Spec Kitty uses symlinks to share the constitution:
+When creating WP workspaces, Spec Kitty uses symlinks to share the constitution:
 ```
-.worktrees/001-feature/.kittify/memory -> ../../../.kittify/memory
+.worktrees/001-feature-WP01/.kittify/memory -> ../../../../.kittify/memory
 ```
-This ensures all features follow the same project principles.
+This ensures all work packages follow the same project principles.
 
 ### What Gets Committed?
 
