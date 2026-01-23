@@ -8,7 +8,7 @@ subtasks:
   - "T033"
 title: "Jujutsu Reference Cleanup"
 phase: "Phase 3 - Cleanup"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
 shell_pid: "33676"
@@ -495,6 +495,7 @@ The CLI command updates both frontmatter and activity log automatically.
 
 ---
 - 2026-01-23T11:10:55Z – claude – shell_pid=33676 – lane=doing – Started implementation via workflow command
+- 2026-01-23T11:27:10Z – claude – shell_pid=33676 – lane=for_review – Completed comprehensive jujutsu cleanup: Removed all jj/jujutsu references from 15+ documentation files including reference docs (cli-commands.md, configuration.md, file-structure.md), how-to guides (install-spec-kitty.md, handle-dependencies.md, sync-workspaces.md, toc.yml), tutorials (getting-started.md, multi-agent-workflow.md, your-first-feature.md, toc.yml), and explanations (multi-agent-orchestration.md, git-worktrees.md, workspace-per-wp.md, kanban-workflow.md, toc.yml). All broken links to deleted jj documentation removed.
 
 ## Implementation Command
 
