@@ -9,12 +9,12 @@ subtasks:
   - "T024"
 title: "CLI Reference - Agent Config Commands"
 phase: "Phase 2 - Reference Documentation"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "Claude"
 shell_pid: "38505"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 dependencies: ["WP01"]
 history:
   - timestamp: "2026-01-23T10:23:45Z"
@@ -811,6 +811,7 @@ The CLI command updates both frontmatter and activity log automatically.
 - 2026-01-23T11:06:32Z – claude – shell_pid=28306 – lane=doing – Started implementation via workflow command
 - 2026-01-23T11:08:19Z – claude – shell_pid=28306 – lane=for_review – Ready for review: Added complete CLI reference documentation for spec-kitty agent config command group. Documented all 5 subcommands (list, add, remove, status, sync) with synopsis, description, arguments, options, output format, and examples. Added main section with subcommand index and cross-reference to manage-agents how-to guide. 324 lines added following existing CLI reference format.
 - 2026-01-23T11:15:46Z – Claude – shell_pid=38505 – lane=doing – Started review via workflow command
+- 2026-01-23T11:15:46Z – Claude – shell_pid=38505 – lane=done – Review passed: Implementation complete
 
 ## Implementation Command
 
