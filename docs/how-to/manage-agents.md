@@ -27,6 +27,12 @@ Before using agent config commands, ensure:
 - You are in the project root directory (where `.kittify/` exists)
 - You have write permissions to the project directory
 
+---
+
+**Quick Navigation**: [Listing Agents](#listing-agents) | [Adding Agents](#adding-agents) | [Removing Agents](#removing-agents) | [Checking Status](#checking-agent-status) | [Synchronizing](#synchronizing-filesystem) | [Troubleshooting](#troubleshooting) | [See Also](#see-also)
+
+---
+
 ## Quick Reference
 
 | Command | Purpose |
@@ -458,4 +464,168 @@ spec-kitty agent config sync --create-missing --remove-orphaned
 # Default sync removes orphaned directories
 spec-kitty agent config sync
 ```
+
+## Agent Directory Mappings
+
+The following table shows the mapping between agent keys (used in commands) and their filesystem directories:
+
+| Agent Key | Directory Path | Notes |
+|-----------|----------------|-------|
+| `claude` | `.claude/commands/` | Standard mapping |
+| `codex` | `.codex/prompts/` | Standard mapping |
+| `gemini` | `.gemini/commands/` | Standard mapping |
+| `cursor` | `.cursor/commands/` | Standard mapping |
+| `qwen` | `.qwen/commands/` | Standard mapping |
+| `opencode` | `.opencode/command/` | Singular "command" subdirectory |
+| `windsurf` | `.windsurf/workflows/` | Workflows instead of commands |
+| `kilocode` | `.kilocode/workflows/` | Workflows instead of commands |
+| `roo` | `.roo/commands/` | Standard mapping |
+| `copilot` | `.github/prompts/` | **Special**: GitHub Copilot uses `.github` directory |
+| `auggie` | `.augment/commands/` | **Special**: Key `auggie` maps to `.augment` directory |
+| `q` | `.amazonq/prompts/` | **Special**: Short key `q` maps to `.amazonq` directory |
+
+**Special Cases**:
+
+- **copilot**: GitHub Copilot uses the standard `.github/prompts/` directory (not `.copilot/`)
+- **auggie**: Config key `auggie` maps to `.augment/commands/` directory (Augment Code agent)
+- **q**: Minimal key `q` maps to `.amazonq/prompts/` directory (Amazon Q agent)
+
+For all standard agents, the agent key matches the directory name (e.g., `claude` → `.claude/`).
+
+**Subdirectory Patterns**:
+
+- Most agents use `commands/` subdirectory (plural)
+- `opencode` uses `command/` (singular)
+- `codex`, `copilot`, `q` use `prompts/` subdirectory
+- `windsurf` and `kilocode` use `workflows/` subdirectory
+
+These variations are handled automatically by spec-kitty commands - you don't need to memorize them.
+
+> **When to reference this table**: Use agent keys (left column) in commands like `spec-kitty agent config add claude codex`. The directory paths (middle column) show where templates are stored, but you shouldn't need to interact with these directories directly.
+
+## Troubleshooting
+
+This section covers common issues you may encounter when managing agents.
+
+### Orphaned Agent Directories
+
+**Problem**: You see directories like `.gemini/` on filesystem, but the agent is not configured in `.kittify/config.yaml`.
+
+**Cause**: Agent was manually deleted from config.yaml, or directory was created manually.
+
+**Solution**:
+
+```bash
+# Option 1: Remove orphaned directory
+spec-kitty agent config sync --remove-orphaned
+
+# Option 2: Add to configuration to keep it
+spec-kitty agent config add gemini
+```
+
+**Detection**: Run `spec-kitty agent config status` - orphaned agents show red "Orphaned" status.
+
+### Missing Configured Agent Directories
+
+**Problem**: Agent is listed in `.kittify/config.yaml` but directory doesn't exist.
+
+**Cause**: Directory was manually deleted, or filesystem corruption.
+
+**Solution**:
+
+```bash
+# Option 1: Restore missing directory
+spec-kitty agent config sync --create-missing
+
+# Option 2: Remove from configuration if you don't use it
+spec-kitty agent config remove gemini
+```
+
+**Detection**: Run `spec-kitty agent config status` - missing agents show yellow "Missing" status.
+
+### Corrupt or Missing config.yaml
+
+**Problem**: `.kittify/config.yaml` is missing, unreadable, or has invalid YAML syntax.
+
+**Symptoms**: Commands fail with YAML parsing errors, or all 12 agents are treated as configured (legacy fallback).
+
+**Solution**:
+
+```bash
+# Check current config structure
+cat .kittify/config.yaml
+
+# If corrupt or missing, recreate with desired agents
+spec-kitty agent config add claude codex opencode
+# This recreates config.yaml with only specified agents
+```
+
+**Prevention**: Don't manually edit `.kittify/config.yaml` - use `spec-kitty agent config` commands instead.
+
+### "spec-kitty: command not found"
+
+**Problem**: Terminal doesn't recognize `spec-kitty` command.
+
+**Cause**: spec-kitty is not installed or not in PATH.
+
+**Solution**: Ensure spec-kitty is installed via `pip install spec-kitty-cli` and your shell's PATH includes Python package binaries.
+
+**Not a configuration issue**: This is an installation problem. See [Installation Guide](install-spec-kitty.md).
+
+### "Invalid agent keys" Error
+
+**Problem**: You get an error like "Invalid agent keys: cluade" when running `add` or `remove`.
+
+**Cause**: Typo in agent key name.
+
+**Solution**: Check the error message for the list of valid agent keys, and correct your command:
+
+```bash
+# Error message shows:
+# Valid agent keys:
+#   claude, codex, gemini, cursor, qwen, opencode,
+#   windsurf, kilocode, roo, copilot, auggie, q
+
+# Fix typo and retry
+spec-kitty agent config add claude  # Not "cluade"
+```
+
+**Reference**: See [Agent Directory Mappings](#agent-directory-mappings) table for complete list.
+
+### Still Stuck?
+
+If your issue isn't covered here:
+
+1. Check [Supported AI Agents](../reference/supported-agents.md) for agent-specific requirements
+2. Review [Configuration Reference](../reference/configuration.md) for config.yaml schema
+3. Consult [CLI Commands Reference](../reference/cli-commands.md#spec-kitty-agent-config) for detailed command syntax
+4. Report bugs at [spec-kitty GitHub Issues](https://github.com/yourusername/spec-kitty/issues)
+
+## See Also
+
+For more information on agent management and related topics:
+
+### Command Reference
+
+- [CLI Commands: spec-kitty agent config](../reference/cli-commands.md#spec-kitty-agent-config) - Detailed command syntax, flags, and options for all agent config subcommands
+
+### Supported Agents
+
+- [Supported AI Agents](../reference/supported-agents.md) - Complete list of 12 supported agents with capabilities, installation requirements, and usage notes
+
+### Configuration
+
+- [Configuration Reference](../reference/configuration.md) - Complete `.kittify/config.yaml` schema including agent selection strategies (preferred vs random)
+
+### Architecture
+
+- [ADR #6: Config-Driven Agent Management](../../architecture/adrs/2026-01-23-6-config-driven-agent-management.md) - Architectural decision record explaining why migrations now respect `config.yaml` and the config-driven model rationale
+
+### Migration Guides
+
+- [Upgrading to 0.12.0](upgrade-to-0-11-0.md#upgrading-to-0120) - Migration guide for 0.11.x users transitioning to config-driven agent management
+
+### Initial Setup
+
+- [Installing spec-kitty](install-spec-kitty.md) - Initial agent selection during `spec-kitty init`
 
