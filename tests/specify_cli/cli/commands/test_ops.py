@@ -122,7 +122,7 @@ class TestOpsLog:
 
     @pytest.mark.parametrize("backend", [
         "git",
-        pytest.param("jj", marks=pytest.mark.xfail(reason="jj backend not fully implemented")),
+        "jj",
     ])
     def test_ops_log_shows_history(self, runner, backend, sample_operations, tmp_path):
         """ops log should show operation history for both backends."""
@@ -448,7 +448,6 @@ class TestDisplayFormatting:
         # But truncated version should
         assert long_id[:12] in result.output
 
-    @pytest.mark.xfail(reason="jj backend not fully implemented")
     def test_jj_shows_undoable_column(self, runner, tmp_path):
         """jj backend should show Undoable column."""
         from specify_cli.cli.commands import ops as ops_module
