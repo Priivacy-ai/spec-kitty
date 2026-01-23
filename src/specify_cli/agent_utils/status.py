@@ -72,11 +72,11 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
         # Collect all work packages with dependencies
         work_packages = []
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
-            front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8"))
+            front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
-            lane = extract_scalar(front, "lane") or "unknown"
+            lane = extract_scalar(front, "lane") or "planned"
             phase = extract_scalar(front, "phase") or "Unknown Phase"
 
             # Parse dependencies
