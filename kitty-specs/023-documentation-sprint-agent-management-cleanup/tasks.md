@@ -244,7 +244,7 @@
 - [x] T030 Update `docs/reference/cli-commands.md` init section - Remove jj VCS detection mentions
 - [x] T031 [P] Fix broken jj links in how-to guides
 - [x] T032 [P] Fix broken jj links in tutorials
-- [ ] T033 [P] Fix broken jj links in explanation articles
+- [x] T033 [P] Fix broken jj links in explanation articles
 
 ### Implementation Notes
 - T029: Run `grep -r "jujutsu\|jj\s\|\.jj" docs/ | grep -v ".jj/" | grep -v "jjust"`
