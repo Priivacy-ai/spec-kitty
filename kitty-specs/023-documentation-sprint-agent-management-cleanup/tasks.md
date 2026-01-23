@@ -166,12 +166,12 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T019 Update `docs/reference/cli-commands.md` - Add `spec-kitty agent config` main section
-- [ ] T020 Document `list` subcommand in CLI reference (synopsis, options, examples)
-- [ ] T021 Document `add` subcommand in CLI reference
-- [ ] T022 Document `remove` subcommand in CLI reference
-- [ ] T023 Document `status` subcommand in CLI reference
-- [ ] T024 Document `sync` subcommand in CLI reference
+- [x] T019 Update `docs/reference/cli-commands.md` - Add `spec-kitty agent config` main section
+- [x] T020 Document `list` subcommand in CLI reference (synopsis, options, examples)
+- [x] T021 Document `add` subcommand in CLI reference
+- [x] T022 Document `remove` subcommand in CLI reference
+- [x] T023 Document `status` subcommand in CLI reference
+- [x] T024 Document `sync` subcommand in CLI reference
 
 ### Implementation Notes
 - T019: Insert new section after existing `spec-kitty agent` entry
