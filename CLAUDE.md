@@ -22,9 +22,130 @@ Spec Kitty supports **12 AI agents** with slash commands. When adding features t
 **Canonical source**: `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` → `AGENT_DIRS`
 
 **When modifying**:
-- Migrations that update slash commands: Use `AGENT_DIRS` list
+- Migrations that update slash commands: Use `get_agent_dirs_for_project()` helper (config-aware)
 - Template changes: Will propagate to all agents via migration
 - Testing: Verify at least .claude, .codex, .opencode (most common)
+
+## Agent Management Best Practices
+
+**CRITICAL: config.yaml is the single source of truth for agent configuration.**
+
+### For Users
+
+**Adding/Removing Agents:**
+```bash
+# List configured agents
+spec-kitty agent config list
+
+# Add agents
+spec-kitty agent config add claude codex
+
+# Remove agents
+spec-kitty agent config remove codex gemini
+
+# Check status (configured vs orphaned)
+spec-kitty agent config status
+
+# Sync filesystem with config
+spec-kitty agent config sync
+```
+
+**DO:**
+- ✅ Use `spec-kitty agent config add/remove` commands
+- ✅ Let migrations respect your agent configuration
+- ✅ Keep agents you actually use configured
+
+**DON'T:**
+- ❌ Manually delete agent directories without updating config
+- ❌ Expect manually deleted agents to stay deleted (pre-0.12.0 bug)
+- ❌ Modify `.kittify/config.yaml` directly (use CLI commands)
+
+### For Developers
+
+**Writing Migrations:**
+```python
+# ALWAYS use config-aware helper:
+from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
+
+def apply(self, project_path: Path, dry_run: bool = False):
+    # Get only configured agents
+    agent_dirs = get_agent_dirs_for_project(project_path)
+
+    for agent_root, subdir in agent_dirs:
+        agent_dir = project_path / agent_root / subdir
+
+        # Skip if directory doesn't exist (respect deletions)
+        if not agent_dir.exists():
+            continue  # DON'T recreate!
+
+        # Process agent...
+```
+
+**DO:**
+- ✅ Import `get_agent_dirs_for_project()` from `m_0_9_1_complete_lane_migration`
+- ✅ Use `continue` if directory doesn't exist (respect deletions)
+- ✅ Test with both configured and unconfigured agents
+- ✅ Test legacy projects without config.yaml (should fallback to all)
+
+**DON'T:**
+- ❌ Hardcode `AGENT_DIRS` in new migrations (import from `m_0_9_1`)
+- ❌ Create missing directories (`mkdir`) - respect user deletions
+- ❌ Assume all 12 agents are always present
+- ❌ Process agents not in config.yaml
+
+**Testing Migrations:**
+```python
+# Test config-aware behavior
+def test_migration_respects_config(tmp_path):
+    # Setup: config with only opencode
+    config = AgentConfig(available=["opencode"])
+    save_agent_config(tmp_path, config)
+
+    # Create opencode directory (configured)
+    (tmp_path / ".opencode" / "command").mkdir(parents=True)
+
+    # Create claude directory (NOT configured - orphaned)
+    (tmp_path / ".claude" / "commands").mkdir(parents=True)
+
+    # Run migration
+    migration.apply(tmp_path)
+
+    # Verify: opencode processed, claude skipped
+    assert migration_updated_opencode
+    assert not migration_updated_claude
+```
+
+**Agent Key Mappings:**
+- `copilot` → `.github/prompts` (not `.copilot`)
+- `auggie` → `.augment/commands` (not `.auggie`)
+- `q` → `.amazonq/prompts` (not `.q`)
+
+Use `AGENT_DIR_TO_KEY` mapping for conversions.
+
+### Architecture
+
+**Single Source of Truth:** `.kittify/config.yaml`
+```yaml
+agents:
+  available:
+    - opencode
+    - claude
+```
+
+**Derived State:** Agent directories on filesystem
+- Only configured agents have directories
+- Migrations only process configured agents
+- Deletions are respected across upgrades
+
+**Key Functions:**
+- `get_agent_dirs_for_project(project_path)` - Returns list of (dir, subdir) tuples for configured agents
+- `load_agent_config(repo_root)` - Loads AgentConfig from config.yaml
+- `save_agent_config(repo_root, config)` - Saves AgentConfig to config.yaml
+
+**See Also:**
+- ADR #6: Config-Driven Agent Management
+- `tests/specify_cli/test_agent_config_migration.py` - Integration tests
+- `tests/specify_cli/cli/commands/test_agent_config.py` - CLI command tests
 
 ---
 

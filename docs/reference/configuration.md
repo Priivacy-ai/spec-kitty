@@ -297,6 +297,189 @@ Colocated: Yes
 
 ---
 
+## Agent Configuration
+
+Spec Kitty supports 12 AI agents across different platforms. Agent configuration is stored in `.kittify/config.yaml` and can be managed via CLI commands.
+
+### Supported Agents
+
+| Agent Key | Directory | Platform |
+|-----------|-----------|----------|
+| `claude` | `.claude/commands/` | Claude (Anthropic) |
+| `copilot` | `.github/prompts/` | GitHub Copilot |
+| `gemini` | `.gemini/commands/` | Google Gemini |
+| `cursor` | `.cursor/commands/` | Cursor AI |
+| `qwen` | `.qwen/commands/` | Qwen Code |
+| `opencode` | `.opencode/command/` | OpenCode |
+| `windsurf` | `.windsurf/workflows/` | Windsurf |
+| `codex` | `.codex/prompts/` | GitHub Codex |
+| `kilocode` | `.kilocode/workflows/` | Kilocode |
+| `auggie` | `.augment/commands/` | Augment Code |
+| `roo` | `.roo/commands/` | Roo Cline |
+| `q` | `.amazonq/prompts/` | Amazon Q |
+
+### Configuration File
+
+Agent configuration is stored in `.kittify/config.yaml`:
+
+```yaml
+agents:
+  available:
+    - opencode
+    - claude
+  selection:
+    strategy: "preferred"
+    preferred_implementer: "opencode"
+    preferred_reviewer: "claude"
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `agents.available` | list | Agents enabled for this project |
+| `selection.strategy` | string | `"preferred"` or `"random"` |
+| `selection.preferred_implementer` | string | Agent for implementation tasks |
+| `selection.preferred_reviewer` | string | Agent for review tasks |
+
+### Managing Agents
+
+#### List Configured Agents
+
+```bash
+spec-kitty agent config list
+```
+
+Output:
+```
+Configured agents:
+  ✓ opencode (.opencode/command/)
+  ✓ claude (.claude/commands/)
+
+Available but not configured:
+  - codex, copilot, gemini, ...
+```
+
+#### Add Agents
+
+```bash
+spec-kitty agent config add claude codex
+```
+
+This command:
+1. Creates agent directories (`.claude/commands/`, `.codex/prompts/`)
+2. Copies slash command templates from mission templates
+3. Updates `config.yaml` to include new agents
+
+#### Remove Agents
+
+```bash
+spec-kitty agent config remove codex gemini
+```
+
+This command:
+1. Deletes agent directories
+2. Updates `config.yaml` to remove agents
+
+**Options:**
+- `--keep-config`: Delete directory but keep in config (useful for temporary removal)
+
+#### Check Agent Status
+
+```bash
+spec-kitty agent config status
+```
+
+Shows a table of all agents with their status:
+- **OK**: Configured and directory exists
+- **Missing**: Configured but directory doesn't exist
+- **Orphaned**: Directory exists but not configured
+- **Not used**: Neither configured nor present
+
+Example output:
+```
+┏━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┓
+┃ Agent Key ┃ Directory           ┃ Configured ┃ Exists ┃ Status   ┃
+┡━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━┩
+│ opencode  │ .opencode/command   │     ✓      │   ✓    │ OK       │
+│ claude    │ .claude/commands    │     ✓      │   ✓    │ OK       │
+│ codex     │ .codex/prompts      │     ✗      │   ✓    │ Orphaned │
+└───────────┴─────────────────────┴────────────┴────────┴──────────┘
+
+⚠ 1 orphaned directory found (present but not configured)
+```
+
+#### Sync Filesystem with Config
+
+```bash
+spec-kitty agent config sync
+```
+
+Synchronizes filesystem with `config.yaml`:
+- By default, removes orphaned directories (present but not configured)
+- Use `--create-missing` to create directories for configured agents
+- Use `--keep-orphaned` to keep orphaned directories
+
+**Examples:**
+
+```bash
+# Remove orphaned agents (default)
+spec-kitty agent config sync
+
+# Create missing directories for configured agents
+spec-kitty agent config sync --create-missing
+
+# Keep orphaned directories
+spec-kitty agent config sync --keep-orphaned
+```
+
+### Agent Selection During Init
+
+When creating a new project, select agents interactively or via CLI:
+
+```bash
+# Interactive selection
+spec-kitty init myproject
+
+# CLI selection
+spec-kitty init myproject --ai opencode,claude
+
+# Single agent
+spec-kitty init myproject --ai opencode
+```
+
+Selected agents are stored in `config.yaml` and their directories are created automatically.
+
+### Migration Behavior
+
+**Important:** Migrations respect `config.yaml` as the single source of truth.
+
+- **Upgrades only process configured agents** - If you remove an agent, upgrades won't recreate it
+- **Deleted agents stay deleted** - Manual deletions are respected
+- **Legacy projects fallback gracefully** - Projects without `config.yaml` process all 12 agents
+
+This ensures your agent preferences are preserved across upgrades.
+
+### Troubleshooting
+
+**Q: Why did upgrade recreate agents I deleted?**
+
+This was a bug in versions prior to 0.12.0. Upgrade to the latest version and use `spec-kitty agent config remove` instead of manual deletion.
+
+**Q: How do I add an agent I initially skipped?**
+
+```bash
+spec-kitty agent config add <agent-key>
+```
+
+**Q: Can I use multiple agents in one project?**
+
+Yes! Configure multiple agents in `config.yaml` and they'll be used according to your selection strategy (`preferred` or `random`).
+
+**Q: What if I manually deleted agent directories?**
+
+Use `spec-kitty agent config sync` to clean up the config or `--create-missing` to recreate them.
+
+---
+
 ## Legacy Configuration
 
 ### .kittify/active-mission (Deprecated)
