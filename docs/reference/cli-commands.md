@@ -491,6 +491,330 @@ spec-kitty ops restore abc123def456
 
 **See Also**: `docs/reference/agent-subcommands.md`
 
+---
+
+### spec-kitty agent config
+
+Manage project AI agent configuration (add, remove, list agents).
+
+**Usage**:
+```bash
+spec-kitty agent config [OPTIONS] COMMAND [ARGS]...
+```
+
+**Description**: The `config` subcommand provides tools for managing which AI agents are active in your project. Agent configuration is stored in `.kittify/config.yaml` and controls which agent directories are present on the filesystem.
+
+**Subcommands**:
+
+| Command | Description |
+|---------|-------------|
+| `list` | View configured agents and available options |
+| `add` | Add one or more agents to your project |
+| `remove` | Remove one or more agents from your project |
+| `status` | Audit agent configuration sync status |
+| `sync` | Synchronize filesystem with config.yaml |
+
+**See also**: [Managing AI Agents](../how-to/manage-agents.md) for task-oriented guidance on agent management workflows.
+
+> **Note**: Starting in 0.12.0, agent configuration is config-driven. `.kittify/config.yaml` is the single source of truth, and migrations respect your configuration choices. See [Upgrading to 0.12.0](../how-to/upgrade-to-0-11-0.md#upgrading-to-0120) for migration details.
+
+#### spec-kitty agent config list
+
+View configured agents and available options.
+
+**Synopsis**:
+```bash
+spec-kitty agent config list
+```
+
+**Description**:
+
+Lists agents currently configured in your project (from `.kittify/config.yaml`) with status indicators, and shows available agents that can be added.
+
+**Arguments**: None
+
+**Options**: None
+
+**Output**:
+
+Two sections:
+- **Configured agents**: Agents in `config.yaml` with status indicators:
+  - ✓ (green) - Directory exists
+  - ⚠ (yellow) - Configured but directory missing
+- **Available but not configured**: Agents you can add
+
+**Examples**:
+
+View configured agents:
+```bash
+spec-kitty agent config list
+```
+
+Example output:
+```
+Configured agents:
+  ✓ opencode (.opencode/command/)
+  ✓ claude (.claude/commands/)
+
+Available but not configured:
+  - codex
+  - gemini
+  - cursor
+  ...
+```
+
+#### spec-kitty agent config add
+
+Add one or more agents to your project.
+
+**Synopsis**:
+```bash
+spec-kitty agent config add <agent1> [agent2] [agent3] ...
+```
+
+**Description**:
+
+Adds specified agents to your project by creating agent directories, copying slash command templates, and updating `.kittify/config.yaml`.
+
+**Arguments**:
+
+- `<agents>`: Space-separated list of agent keys to add. Valid keys: `claude`, `codex`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `roo`, `copilot`, `auggie`, `q`.
+
+**Options**: None
+
+**Output**:
+
+- Success: `✓ Added <agent-dir>/<subdir>/` for each agent
+- Already configured: `Already configured: <agent>` (informational, not an error)
+- Error: `Error: Invalid agent keys: <keys>` with list of valid keys
+
+**Side Effects**:
+
+- Creates agent directory (e.g., `.claude/commands/`)
+- Copies slash command templates from mission templates
+- Adds agent key to `.kittify/config.yaml` under `agents.available`
+
+**Examples**:
+
+Add a single agent:
+```bash
+spec-kitty agent config add claude
+```
+
+Add multiple agents:
+```bash
+spec-kitty agent config add codex gemini cursor
+```
+
+Example output:
+```
+✓ Added .codex/prompts/
+✓ Added .gemini/commands/
+✓ Added .cursor/commands/
+Updated .kittify/config.yaml
+```
+
+Error handling (invalid key):
+```bash
+spec-kitty agent config add cluade
+```
+Output:
+```
+Error: Invalid agent keys: cluade
+
+Valid agent keys:
+  claude, codex, gemini, cursor, qwen, opencode,
+  windsurf, kilocode, roo, copilot, auggie, q
+```
+
+#### spec-kitty agent config remove
+
+Remove one or more agents from your project.
+
+**Synopsis**:
+```bash
+spec-kitty agent config remove [OPTIONS] <agent1> [agent2] [agent3] ...
+```
+
+**Description**:
+
+Removes specified agents from your project by deleting agent directories and updating `.kittify/config.yaml`.
+
+**Arguments**:
+
+- `<agents>`: Space-separated list of agent keys to remove. Valid keys: same as `add` command.
+
+**Options**:
+
+- `--keep-config`: Keep agent in `config.yaml` but delete directory (default: False)
+
+**Output**:
+
+- Success: `✓ Removed <agent-dir>/` for each agent
+- Already removed: `• <agent-dir>/ already removed` (dim, informational)
+- Error: `Error: Invalid agent keys: <keys>` with list of valid keys
+
+**Side Effects**:
+
+- Deletes entire agent directory (e.g., `.gemini/` and all contents)
+- Removes agent key from `.kittify/config.yaml` (unless `--keep-config` used)
+
+**Warning**: Directory deletion is permanent. Ensure you don't have custom modifications in template files before removing.
+
+**Examples**:
+
+Remove a single agent:
+```bash
+spec-kitty agent config remove gemini
+```
+
+Remove multiple agents:
+```bash
+spec-kitty agent config remove cursor qwen windsurf
+```
+
+Example output:
+```
+✓ Removed .cursor/
+✓ Removed .qwen/
+✓ Removed .windsurf/
+Updated .kittify/config.yaml
+```
+
+Keep in config but remove directory:
+```bash
+spec-kitty agent config remove gemini --keep-config
+```
+
+Restore later with:
+```bash
+spec-kitty agent config sync --create-missing
+```
+
+#### spec-kitty agent config status
+
+Audit agent configuration sync status.
+
+**Synopsis**:
+```bash
+spec-kitty agent config status
+```
+
+**Description**:
+
+Displays a comprehensive table showing all 12 supported agents, whether they're configured, whether directories exist, and sync status.
+
+**Arguments**: None
+
+**Options**: None
+
+**Output**:
+
+Rich table with columns:
+- **Agent Key** (cyan): Agent identifier
+- **Directory** (dim): Filesystem path
+- **Configured**: ✓ if in `config.yaml`, ✗ otherwise
+- **Exists**: ✓ if directory present, ✗ otherwise
+- **Status**: Colored status indicator
+
+**Status values**:
+- `[green]OK[/green]`: Configured and directory exists (normal state)
+- `[yellow]Missing[/yellow]`: Configured but directory doesn't exist (needs sync)
+- `[red]Orphaned[/red]`: Directory exists but not configured (should be cleaned up)
+- `[dim]Not used[/dim]`: Neither configured nor present (available to add)
+
+**Actionable message**: If orphaned directories detected, shows: `"Run 'spec-kitty agent config sync --remove-orphaned' to clean up"`
+
+**Examples**:
+
+Audit agent configuration:
+```bash
+spec-kitty agent config status
+```
+
+Example output:
+```
+Agent Key  Directory                Configured  Exists  Status
+──────────────────────────────────────────────────────────────────
+claude     .claude/commands/        ✓           ✓       OK
+codex      .codex/prompts/          ✗           ✓       Orphaned
+gemini     .gemini/commands/        ✓           ✗       Missing
+cursor     .cursor/commands/        ✗           ✗       Not used
+qwen       .qwen/commands/          ✓           ✓       OK
+...
+
+⚠ Found 1 orphaned directory
+Run 'spec-kitty agent config sync --remove-orphaned' to clean up
+```
+
+#### spec-kitty agent config sync
+
+Synchronize filesystem with config.yaml.
+
+**Synopsis**:
+```bash
+spec-kitty agent config sync [OPTIONS]
+```
+
+**Description**:
+
+Automatically aligns filesystem with `.kittify/config.yaml` by creating missing directories and/or removing orphaned directories.
+
+**Arguments**: None
+
+**Options**:
+
+- `--create-missing`: Create directories for configured agents that are missing from filesystem (default: False)
+- `--remove-orphaned` / `--keep-orphaned`: Remove orphaned directories (directories present but not configured). Default: `--remove-orphaned` (True)
+
+**Default behavior** (no flags): Removes orphaned directories only. Does NOT create missing directories.
+
+**Output**:
+
+- Creating: `✓ Created <agent-dir>/<subdir>/`
+- Removing: `✓ Removed orphaned <agent-dir>/`
+- No changes: `No changes needed - filesystem matches config`
+
+**Side Effects**:
+
+- Creates agent directories with slash command templates (if `--create-missing`)
+- Deletes orphaned agent directories (if `--remove-orphaned`, default)
+
+**Examples**:
+
+Default sync (remove orphaned only):
+```bash
+spec-kitty agent config sync
+```
+
+Create missing configured agents:
+```bash
+spec-kitty agent config sync --create-missing
+```
+
+Complete sync (both directions):
+```bash
+spec-kitty agent config sync --create-missing --remove-orphaned
+```
+
+Keep orphaned directories:
+```bash
+spec-kitty agent config sync --keep-orphaned
+```
+
+Example output:
+```
+✓ Created .claude/commands/
+✓ Removed orphaned .gemini/
+```
+
+No changes needed:
+```
+No changes needed - filesystem matches config
+```
+
+---
+
 ## Getting Started
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
