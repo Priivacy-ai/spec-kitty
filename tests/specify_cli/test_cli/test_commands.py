@@ -65,7 +65,7 @@ def test_research_creates_artifacts(monkeypatch, tmp_path: Path) -> None:
     feature_dir = project_root / "kitty-specs" / "001-demo-feature"
 
     monkeypatch.setattr(research_module, "find_repo_root", lambda: project_root)
-    monkeypatch.setattr(research_module, "get_active_mission_key", lambda _project: "software-dev")
+    monkeypatch.setattr(research_module, "get_feature_mission_key", lambda *_args, **_kwargs: "software-dev")
     monkeypatch.setattr(
         research_module,
         "resolve_worktree_aware_feature_dir",

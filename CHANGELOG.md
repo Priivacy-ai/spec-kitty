@@ -58,6 +58,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added directive language (`▶▶▶ NEXT STEP: Read the full prompt file now:`) so agents automatically read the file
 - Agents no longer miss work package requirements due to output truncation
 
+**False Staleness for Newly-Created Worktrees**:
+- Fixed stale detection flagging new worktrees as stale immediately
+- Previously, `git log -1` returned parent branch's commit time (could be hours old)
+- Now checks if branch has commits since diverging from main
+- Worktrees with no new commits are NOT flagged as stale (agent just started)
+
 ## [0.11.1] - 2026-01-16
 
 ### 🐛 Fixed

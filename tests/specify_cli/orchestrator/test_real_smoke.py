@@ -148,6 +148,7 @@ class TestRealAgentInvocation:
         assert "Hello from Gemini" in content, f"Unexpected content: {content}"
 
     @pytest.mark.timeout(60)
+    @pytest.mark.xfail(reason="Requires opencode agent to be installed")
     def test_opencode_can_create_file(self, temp_workdir: Path):
         """OpenCode should be able to create a simple file."""
         prompt = "Create a file called hello.txt containing exactly 'Hello from OpenCode'. Nothing else."
@@ -223,47 +224,50 @@ class TestReviewOutcomeParsing:
 
     def test_parse_approved_markers(self):
         """Should detect approval markers in output."""
+        from specify_cli.orchestrator.agents.base import InvocationResult
         from specify_cli.orchestrator.integration import parse_review_outcome
 
         # Test various approval patterns
         approved_outputs = [
-            {"exit_code": 0, "stdout": "APPROVED - review complete", "stderr": ""},
-            {"exit_code": 0, "stdout": "LGTM, looks good to merge", "stderr": ""},
-            {"exit_code": 0, "stdout": "Review passed, all tests pass", "stderr": ""},
-            {"exit_code": 0, "stdout": "No issues found in this implementation", "stderr": ""},
+            InvocationResult(success=True, exit_code=0, stdout="APPROVED - review complete", stderr="", duration_seconds=1.0),
+            InvocationResult(success=True, exit_code=0, stdout="LGTM, looks good to merge", stderr="", duration_seconds=1.0),
+            InvocationResult(success=True, exit_code=0, stdout="Review passed, all tests pass", stderr="", duration_seconds=1.0),
+            InvocationResult(success=True, exit_code=0, stdout="No issues found in this implementation", stderr="", duration_seconds=1.0),
         ]
 
         for output in approved_outputs:
             result = parse_review_outcome(output)
-            assert result.is_approved, f"Should be approved: {output['stdout']}"
+            assert result.is_approved, f"Should be approved: {output.stdout}"
 
     def test_parse_rejected_markers(self):
         """Should detect rejection markers in output."""
+        from specify_cli.orchestrator.agents.base import InvocationResult
         from specify_cli.orchestrator.integration import parse_review_outcome
 
         # Test various rejection patterns
         rejected_outputs = [
-            {"exit_code": 1, "stdout": "REJECTED - missing error handling", "stderr": ""},
-            {"exit_code": 1, "stdout": "Changes requested: add tests", "stderr": ""},
-            {"exit_code": 0, "stdout": "This needs work - please fix the validation", "stderr": ""},
-            {"exit_code": 1, "stdout": "Issues found: tests failing, please fix", "stderr": ""},
+            InvocationResult(success=False, exit_code=1, stdout="REJECTED - missing error handling", stderr="", duration_seconds=1.0),
+            InvocationResult(success=False, exit_code=1, stdout="Changes requested: add tests", stderr="", duration_seconds=1.0),
+            InvocationResult(success=True, exit_code=0, stdout="This needs work - please fix the validation", stderr="", duration_seconds=1.0),
+            InvocationResult(success=False, exit_code=1, stdout="Issues found: tests failing, please fix", stderr="", duration_seconds=1.0),
         ]
 
         for output in rejected_outputs:
             result = parse_review_outcome(output)
-            assert result.is_rejected, f"Should be rejected: {output['stdout']}"
+            assert result.is_rejected, f"Should be rejected: {output.stdout}"
             assert result.feedback is not None
 
     def test_parse_falls_back_to_exit_code(self):
         """Should use exit code when no clear markers."""
+        from specify_cli.orchestrator.agents.base import InvocationResult
         from specify_cli.orchestrator.integration import parse_review_outcome
 
         # No clear markers, use exit code
-        success = parse_review_outcome({"exit_code": 0, "stdout": "Done.", "stderr": ""})
+        success = parse_review_outcome(InvocationResult(success=True, exit_code=0, stdout="Done.", stderr="", duration_seconds=1.0))
         assert success.is_approved
 
         # Non-zero exit with no markers = error (not rejection)
-        error = parse_review_outcome({"exit_code": 1, "stdout": "Error occurred", "stderr": ""})
+        error = parse_review_outcome(InvocationResult(success=False, exit_code=1, stdout="Error occurred", stderr="", duration_seconds=1.0))
         assert error.outcome == "error"
 
 
@@ -397,6 +401,7 @@ Create a Python file `greet.py` with a function `greet(name)` that returns "Hell
         return repo
 
     @pytest.mark.timeout(180)
+    @pytest.mark.xfail(reason="Requires claude agent to be installed and configured")
     def test_claude_implement_and_review_basic(self, feature_dir: Path, repo_root: Path):
         """Claude should be able to implement and then review code.
 

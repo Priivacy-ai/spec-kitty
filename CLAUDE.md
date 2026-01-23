@@ -194,6 +194,18 @@ docs/                 # User documentation
 ## Commands
 cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
 
+## Testing
+
+**Run tests in headless mode** (prevents browser windows from opening):
+```bash
+PWHEADLESS=1 pytest tests/
+```
+
+Or use pytest flags:
+```bash
+pytest tests/ --browser-channel=chromium --headed=false
+```
+
 ## Code Style
 Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
