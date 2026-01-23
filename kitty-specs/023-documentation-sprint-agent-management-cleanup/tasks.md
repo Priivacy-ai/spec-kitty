@@ -128,11 +128,11 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T014 [P] Read ADR #6 for migration guide content extraction
-- [ ] T015 Create 0.12.0 migration section in `upgrade-to-0-11-0.md`
-- [ ] T016 Write "What Changed" and "Why This Change" explanations
-- [ ] T017 Write step-by-step migration workflow (5 steps with commands)
-- [ ] T018 Add migration troubleshooting subsection
+- [x] T014 [P] Read ADR #6 for migration guide content extraction
+- [x] T015 Create 0.12.0 migration section in `upgrade-to-0-11-0.md`
+- [x] T016 Write "What Changed" and "Why This Change" explanations
+- [x] T017 Write step-by-step migration workflow (5 steps with commands)
+- [x] T018 Add migration troubleshooting subsection
 
 ### Implementation Notes
 - T014: Extract key points from ADR #6 (problem, solution, user workflow)
