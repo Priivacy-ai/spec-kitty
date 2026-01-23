@@ -464,13 +464,9 @@ class TestVCSAbstraction:
                         call_kwargs = mock_vcs.create_workspace.call_args[1]
                         assert call_kwargs["workspace_name"] == "015-feature-WP01"
 
-                        # For git, verify sparse_exclude was passed
-                        if backend == "git":
-                            assert "sparse_exclude" in call_kwargs
-                            assert "kitty-specs/" in call_kwargs["sparse_exclude"]
-                        else:
-                            # jj doesn't use sparse_exclude
-                            assert "sparse_exclude" not in call_kwargs
+                        # Sparse_exclude is always used now (jj converted to git)
+                        assert "sparse_exclude" in call_kwargs
+                        assert "kitty-specs/" in call_kwargs["sparse_exclude"]
 
     def test_vcs_locking_in_meta_json(self, tmp_path):
         """Test VCS is stored and locked in meta.json on first workspace creation."""
@@ -503,16 +499,16 @@ class TestVCSAbstraction:
             assert "vcs_locked_at" in updated_meta
 
     def test_vcs_already_locked(self, tmp_path):
-        """Test VCS selection respects existing lock in meta.json."""
-        # Setup - meta.json WITH vcs field already set
+        """Test VCS is converted from jj to git (jj no longer supported)."""
+        # Setup - meta.json WITH vcs field already set to jj
         feature_dir = tmp_path / "kitty-specs" / "015-feature"
         create_meta_json(feature_dir, vcs="jj")
 
         # Call helper function
         backend = _ensure_vcs_in_meta(feature_dir, tmp_path)
 
-        # Verify locked VCS is returned
-        assert backend == VCSBackend.JUJUTSU
+        # Verify jj is converted to git
+        assert backend == VCSBackend.GIT
 
     @pytest.mark.parametrize("backend", [
         "git",

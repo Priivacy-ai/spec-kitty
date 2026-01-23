@@ -6,7 +6,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 import httpx
 import typer
@@ -28,7 +28,6 @@ from specify_cli.core import (
     is_git_repo,
 )
 from specify_cli.core.vcs import (
-    is_jj_available,
     is_git_available,
     VCSBackend,
 )
@@ -75,35 +74,25 @@ class VCSNotFoundError(Exception):
 def _detect_default_vcs() -> VCSBackend:
     """Detect the default VCS based on tool availability.
 
-    Returns jj (JUJUTSU) if available, otherwise git.
-    Raises VCSNotFoundError if neither is available.
+    Returns VCSBackend.GIT if git is available.
+    Raises VCSNotFoundError if git is not available.
+
+    Note: jj support removed due to sparse checkout incompatibility.
     """
-    if is_jj_available():
-        return VCSBackend.JUJUTSU
-    elif is_git_available():
+    if is_git_available():
         return VCSBackend.GIT
     else:
-        raise VCSNotFoundError("Neither jj nor git is available")
+        raise VCSNotFoundError("git is not available. Please install git.")
 
 
 def _display_vcs_info(detected_vcs: VCSBackend, console: Console) -> None:
     """Display informational message about VCS selection.
 
     Args:
-        detected_vcs: The detected/selected VCS backend
+        detected_vcs: The detected/selected VCS backend (always GIT)
         console: Rich console for output
     """
-    if detected_vcs == VCSBackend.JUJUTSU:
-        console.print("[green]✓ jj detected[/green] - will be used for new features")
-        console.print("  jj enables auto-rebase and parallel multi-agent development")
-    else:
-        console.print("[yellow]ℹ Using git[/yellow] for version control")
-        console.print()
-        console.print("[dim]RECOMMENDED: Install jj (jujutsu) for improved multi-agent workflows:[/dim]")
-        console.print("[dim]  - Auto-rebase of dependent work packages[/dim]")
-        console.print("[dim]  - Non-blocking conflict handling[/dim]")
-        console.print("[dim]  - Operation log with full undo[/dim]")
-        console.print("[dim]  Install: https://github.com/martinvonz/jj#installation[/dim]")
+    console.print("[green]✓ git detected[/green] - will be used for version control")
 
 
 def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
@@ -111,7 +100,7 @@ def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
 
     Args:
         config_path: Path to .kittify directory
-        detected_vcs: The detected/selected VCS backend
+        detected_vcs: The detected/selected VCS backend (always GIT)
     """
     config_file = config_path / "config.yaml"
 
@@ -126,13 +115,9 @@ def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
         config = {}
         config_path.mkdir(parents=True, exist_ok=True)
 
-    # Add/update vcs section
+    # Add/update vcs section (git only)
     config["vcs"] = {
-        "preferred": "auto",  # auto | jj | git
-        "jj": {
-            "min_version": "0.20.0",
-            "colocate": True,
-        },
+        "type": "git",
     }
 
     # Write back
@@ -189,7 +174,6 @@ def init(
     mission_key: str = typer.Option(None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
-    vcs: Optional[str] = typer.Option(None, "--vcs", help="VCS to use: 'git' or 'jj'. Defaults to jj if available.", rich_help_panel="Selection"),
     here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
     force: bool = typer.Option(False, "--force", help="Force merge/overwrite when using --here (skip confirmation)"),
     skip_tls: bool = typer.Option(False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"),
@@ -277,38 +261,17 @@ def init(
         if not should_init_git:
             _console.print("[yellow]Git not found - will skip repository initialization[/yellow]")
 
-    # VCS detection and selection
+    # Detect VCS (git only, jj support removed)
     selected_vcs: VCSBackend | None = None
-    if vcs:
-        # Explicit VCS override via --vcs flag
-        if vcs.lower() not in ("git", "jj"):
-            _console.print(f"[red]Error:[/red] --vcs must be 'git' or 'jj', got '{vcs}'")
-            raise typer.Exit(1)
-        if vcs.lower() == "jj":
-            if not is_jj_available():
-                _console.print("[red]Error:[/red] --vcs=jj specified but jj is not installed")
-                _console.print("[dim]Install jj: https://github.com/martinvonz/jj#installation[/dim]")
-                raise typer.Exit(1)
-            selected_vcs = VCSBackend.JUJUTSU
-        else:
-            if not is_git_available():
-                _console.print("[red]Error:[/red] --vcs=git specified but git is not installed")
-                raise typer.Exit(1)
-            selected_vcs = VCSBackend.GIT
-    else:
-        # Auto-detect VCS
-        try:
-            selected_vcs = _detect_default_vcs()
-        except VCSNotFoundError:
-            # Neither jj nor git available - not an error, just informational
-            selected_vcs = None
-            _console.print("[yellow]ℹ No VCS tools detected[/yellow] - install git or jj for version control")
-
-    # Display VCS info message (if VCS available)
-    if selected_vcs:
+    try:
+        selected_vcs = _detect_default_vcs()
         _console.print()
         _display_vcs_info(selected_vcs, _console)
         _console.print()
+    except VCSNotFoundError:
+        # git not available - not an error, just informational
+        selected_vcs = None
+        _console.print("[yellow]ℹ git not detected[/yellow] - install git for version control")
 
     if ai_assistant:
         raw_agents = [part.strip().lower() for part in ai_assistant.replace(";", ",").split(",") if part.strip()]

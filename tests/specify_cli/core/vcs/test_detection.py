@@ -107,18 +107,16 @@ class TestGitDetection:
 class TestJJDetection:
     """Tests for jj detection functions."""
 
-    @requires_jj
     def test_is_jj_available_when_installed(self):
-        """Should return True when jj is installed."""
-        assert is_jj_available() is True
+        """Should return False (jj detection disabled)."""
+        # jj detection is disabled due to sparse checkout incompatibility
+        assert is_jj_available() is False
 
-    @requires_jj
     def test_get_jj_version_when_installed(self):
-        """Should return a valid version string for jj."""
+        """Should return None (jj detection disabled)."""
+        # jj detection is disabled due to sparse checkout incompatibility
         version = get_jj_version()
-        assert version is not None
-        # Version should be in format like "0.23.0"
-        assert "." in version
+        assert version is None
 
     @requires_jj
     def test_get_jj_version_parses_correctly(self):
@@ -173,13 +171,12 @@ class TestDetectAvailableBackends:
         backends = detect_available_backends()
         assert VCSBackend.GIT in backends
 
-    @requires_jj
     def test_jj_first_when_available(self):
-        """jj should be listed before git when available."""
+        """jj should NOT be in available backends (jj detection disabled)."""
+        # jj is disabled, so only git should be available
         backends = detect_available_backends()
-        jj_index = backends.index(VCSBackend.JUJUTSU)
-        git_index = backends.index(VCSBackend.GIT)
-        assert jj_index < git_index
+        assert VCSBackend.JUJUTSU not in backends
+        assert VCSBackend.GIT in backends
 
     def test_empty_when_nothing_available(self):
         """Should return empty list when no VCS tools available."""
@@ -222,17 +219,17 @@ class TestGetVCS:
         vcs = get_vcs(Path("."), backend=VCSBackend.GIT)
         assert vcs.backend == VCSBackend.GIT
 
-    @requires_jj
     def test_explicit_jj_backend(self):
-        """Should return JujutsuVCS when explicitly requested."""
-        vcs = get_vcs(Path("."), backend=VCSBackend.JUJUTSU)
-        assert vcs.backend == VCSBackend.JUJUTSU
+        """Should raise VCSNotFoundError (jj detection disabled)."""
+        # jj is disabled, so explicit request should fail
+        with pytest.raises(VCSNotFoundError):
+            get_vcs(Path("."), backend=VCSBackend.JUJUTSU)
 
-    @requires_jj
     def test_prefers_jj_when_available(self):
-        """Should prefer jj over git when both available and prefer_jj=True."""
+        """Should return git (jj not available anymore)."""
+        # jj detection is disabled, so prefer_jj flag has no effect
         vcs = get_vcs(Path("."), prefer_jj=True)
-        assert vcs.backend == VCSBackend.JUJUTSU
+        assert vcs.backend == VCSBackend.GIT
 
     def test_falls_back_to_git(self):
         """Should fall back to git when jj not available."""
@@ -344,9 +341,8 @@ class TestLockedVCSFromMeta:
         vcs = get_vcs(path_inside, prefer_jj=True)
         assert vcs.backend == VCSBackend.GIT
 
-    @requires_jj
     def test_locked_jj_vcs_used_when_path_inside_feature(self, tmp_path):
-        """Locked jj VCS should be used when path is inside feature."""
+        """Locked jj VCS should fail (jj detection disabled)."""
         import json
 
         # Create feature with jj locked
@@ -361,9 +357,9 @@ class TestLockedVCSFromMeta:
         path_inside = tasks_dir / "WP01.md"
         path_inside.touch()
 
-        # Should use jj (locked VCS)
-        vcs = get_vcs(path_inside)
-        assert vcs.backend == VCSBackend.JUJUTSU
+        # Should fail since jj is not available anymore
+        with pytest.raises(VCSNotFoundError):
+            get_vcs(path_inside)
 
     def test_explicit_backend_mismatch_raises_error(self, tmp_path):
         """Explicit backend that mismatches locked VCS should raise VCSBackendMismatchError."""

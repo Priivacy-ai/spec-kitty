@@ -1,15 +1,9 @@
 vcs:
-  preferred: auto
-  jj:
-    min_version: 0.20.0
-    colocate: true
+  type: git
 agents:
   available:
-  - copilot
-  - claude
   - opencode
-  - codex
   selection:
-    strategy: preferred
-    preferred_implementer: claude
-    preferred_reviewer: opencode
+    strategy: random
+    preferred_implementer:
+    preferred_reviewer:

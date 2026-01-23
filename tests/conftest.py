@@ -167,3 +167,181 @@ def mock_main_repo(tmp_path: Path) -> Path:
     specs.mkdir()
 
     return tmp_path
+
+
+@pytest.fixture
+def conflicting_wps_repo(tmp_path: Path) -> tuple[Path, list[tuple[Path, str, str]]]:
+    """
+    Create repo with overlapping WP file changes for conflict testing.
+
+    Returns:
+        Tuple of (repo_root, wp_workspaces) where wp_workspaces is a list
+        of (worktree_path, wp_id, branch_name) tuples with 3 WPs that
+        have overlapping file modifications.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run(["git", "init"], cwd=repo)
+    run(["git", "config", "user.name", "Test"], cwd=repo)
+    run(["git", "config", "user.email", "test@example.com"], cwd=repo)
+
+    # Create initial commit
+    (repo / "README.md").write_text("main", encoding="utf-8")
+    (repo / "shared.txt").write_text("original", encoding="utf-8")
+    run(["git", "add", "."], cwd=repo)
+    run(["git", "commit", "-m", "init"], cwd=repo)
+    run(["git", "branch", "-M", "main"], cwd=repo)
+
+    # Create feature with WP tasks
+    feature_slug = "017-conflict-test"
+    feature_dir = repo / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    wp_workspaces = []
+
+    # Create 3 WPs that all modify shared.txt
+    for wp_num in [1, 2, 3]:
+        wp_id = f"WP{wp_num:02d}"
+        branch_name = f"{feature_slug}-{wp_id}"
+
+        # Create WP task file
+        wp_file = tasks_dir / f"{wp_id}.md"
+        wp_file.write_text(
+            f"""---
+work_package_id: {wp_id}
+title: Test WP {wp_num}
+lane: doing
+dependencies: []
+---
+
+# {wp_id} Content
+""",
+            encoding="utf-8",
+        )
+
+        # Create worktree
+        worktree_dir = repo / ".worktrees" / branch_name
+        run(["git", "worktree", "add", str(worktree_dir), "-b", branch_name], cwd=repo)
+
+        # Modify shared.txt (this will conflict)
+        (worktree_dir / "shared.txt").write_text(f"{wp_id} changes\n", encoding="utf-8")
+
+        # Also modify WP-specific file (no conflict)
+        (worktree_dir / f"{wp_id}.txt").write_text(f"{wp_id} specific\n", encoding="utf-8")
+
+        run(["git", "add", "."], cwd=worktree_dir)
+        run(["git", "commit", "-m", f"Add {wp_id} changes"], cwd=worktree_dir)
+
+        wp_workspaces.append((worktree_dir, wp_id, branch_name))
+
+    run(["git", "checkout", "main"], cwd=repo)
+
+    return repo, wp_workspaces
+
+
+@pytest.fixture
+def git_stale_workspace(tmp_path: Path) -> dict[str, Path]:
+    """
+    Create main repo + stale WP worktree.
+
+    The main branch will have commits that the WP branch doesn't have,
+    simulating a stale workspace that needs syncing.
+
+    Returns:
+        Dictionary with 'repo_root', 'main_branch', 'worktree_path', 'feature_slug' keys
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run(["git", "init"], cwd=repo)
+    run(["git", "config", "user.name", "Test"], cwd=repo)
+    run(["git", "config", "user.email", "test@example.com"], cwd=repo)
+
+    # Create initial commit on main
+    (repo / "README.md").write_text("initial", encoding="utf-8")
+    run(["git", "add", "."], cwd=repo)
+    run(["git", "commit", "-m", "initial commit"], cwd=repo)
+    run(["git", "branch", "-M", "main"], cwd=repo)
+
+    # Create feature branch and worktree
+    feature_slug = "018-stale-test"
+    branch_name = f"{feature_slug}-WP01"
+    worktree_dir = repo / ".worktrees" / branch_name
+    run(["git", "worktree", "add", str(worktree_dir), "-b", branch_name], cwd=repo)
+
+    # Make commit in worktree
+    (worktree_dir / "WP01.txt").write_text("WP01 work", encoding="utf-8")
+    run(["git", "add", "."], cwd=worktree_dir)
+    run(["git", "commit", "-m", "WP01 work"], cwd=worktree_dir)
+
+    # Advance main branch (making worktree stale)
+    run(["git", "checkout", "main"], cwd=repo)
+    (repo / "main_advance.txt").write_text("main advanced", encoding="utf-8")
+    run(["git", "add", "."], cwd=repo)
+    run(["git", "commit", "-m", "advance main"], cwd=repo)
+
+    return {
+        "repo_root": repo,
+        "main_branch": "main",
+        "worktree_path": worktree_dir,
+        "feature_slug": feature_slug,
+        "branch_name": branch_name,
+    }
+
+
+@pytest.fixture
+def dirty_worktree_repo(tmp_path: Path) -> tuple[Path, Path]:
+    """
+    Add uncommitted changes to a WP worktree.
+
+    Returns:
+        Tuple of (repo_root, dirty_worktree_path)
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run(["git", "init"], cwd=repo)
+    run(["git", "config", "user.name", "Test"], cwd=repo)
+    run(["git", "config", "user.email", "test@example.com"], cwd=repo)
+
+    # Create initial commit
+    (repo / "README.md").write_text("test", encoding="utf-8")
+    run(["git", "add", "."], cwd=repo)
+    run(["git", "commit", "-m", "init"], cwd=repo)
+    run(["git", "branch", "-M", "main"], cwd=repo)
+
+    # Create feature with WP tasks
+    feature_slug = "019-dirty-test"
+    feature_dir = repo / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    wp_file = tasks_dir / "WP01.md"
+    wp_file.write_text(
+        """---
+work_package_id: WP01
+title: Test WP
+lane: doing
+dependencies: []
+---
+
+# WP01 Content
+""",
+        encoding="utf-8",
+    )
+
+    # Create worktree
+    branch_name = f"{feature_slug}-WP01"
+    worktree_dir = repo / ".worktrees" / branch_name
+    run(["git", "worktree", "add", str(worktree_dir), "-b", branch_name], cwd=repo)
+
+    # Make commit
+    (worktree_dir / "WP01.txt").write_text("committed", encoding="utf-8")
+    run(["git", "add", "."], cwd=worktree_dir)
+    run(["git", "commit", "-m", "WP01 commit"], cwd=worktree_dir)
+
+    # Add uncommitted changes
+    (worktree_dir / "uncommitted.txt").write_text("dirty changes", encoding="utf-8")
+
+    run(["git", "checkout", "main"], cwd=repo)
+
+    return repo, worktree_dir

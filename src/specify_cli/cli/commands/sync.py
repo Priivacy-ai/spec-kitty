@@ -268,8 +268,7 @@ def sync(
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
         raise typer.Exit(1)
 
-    backend_display = "jj" if vcs.backend == VCSBackend.JUJUTSU else "git"
-    console.print(f"[cyan]Backend:[/cyan] {backend_display}")
+    console.print(f"[cyan]Backend:[/cyan] git")
     console.print()
 
     # Handle repair mode

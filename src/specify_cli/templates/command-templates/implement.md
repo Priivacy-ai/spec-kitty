@@ -180,7 +180,7 @@ grep "^lane:" kitty-specs/###-feature/tasks/WP##-*.md
 - Solution: Add --base flag as suggested
 
 **Warning: "Base branch has changed. Consider rebasing..."**
-- Solution: Run suggested rebase command (git limitation, fixed in future jj integration)
+- Solution: Run suggested rebase command
 
 **"I finished implementing but nothing happened"**
 - Check: Did you move to for_review? `spec-kitty agent tasks move-task WP## --to for_review`

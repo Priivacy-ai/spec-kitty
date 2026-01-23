@@ -40,20 +40,28 @@ def is_jj_available() -> bool:
     """
     Check if jj is installed and working.
 
+    DISABLED: jj colocated mode is incompatible with sparse checkouts.
+    This function now always returns False to prevent jj detection.
+
     Returns:
-        True if jj is installed and responds to --version, False otherwise.
+        False (jj detection disabled)
     """
-    if shutil.which("jj") is None:
-        return False
-    try:
-        result = subprocess.run(
-            ["jj", "--version"],
-            capture_output=True,
-            timeout=5,
-        )
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, OSError):
-        return False
+    # DISABLED: jj is not compatible with sparse checkouts
+    # Keeping function signature for VCS abstraction layer compatibility
+    return False
+
+    # Original implementation (commented out for reference):
+    # if shutil.which("jj") is None:
+    #     return False
+    # try:
+    #     result = subprocess.run(
+    #         ["jj", "--version"],
+    #         capture_output=True,
+    #         timeout=5,
+    #     )
+    #     return result.returncode == 0
+    # except (subprocess.TimeoutExpired, OSError):
+    #     return False
 
 
 @lru_cache(maxsize=1)
@@ -82,31 +90,13 @@ def get_jj_version() -> str | None:
     """
     Get installed jj version, or None if not installed.
 
+    DISABLED: jj detection is disabled (incompatible with sparse checkouts).
+
     Returns:
-        Version string (e.g., "0.23.0") or None if jj is not available.
+        None (jj detection disabled)
     """
-    if not is_jj_available():
-        return None
-    try:
-        result = subprocess.run(
-            ["jj", "--version"],
-            capture_output=True,
-            timeout=5,
-            text=True,
-        )
-        if result.returncode != 0:
-            return None
-        # jj version format: "jj 0.23.0"
-        output = result.stdout.strip()
-        match = re.search(r"jj\s+(\d+\.\d+\.\d+)", output)
-        if match:
-            return match.group(1)
-        # Fallback: return everything after "jj "
-        if output.startswith("jj "):
-            return output[3:].strip()
-        return "unknown"
-    except (subprocess.TimeoutExpired, OSError):
-        return None
+    # DISABLED: jj is not compatible with sparse checkouts
+    return None
 
 
 @lru_cache(maxsize=1)
@@ -313,11 +303,12 @@ def get_vcs(
         return _instantiate_backend(locked)
 
     # 3. Auto-detect based on availability
-    if prefer_jj and is_jj_available():
-        # Lazy import to avoid circular imports
-        from .jujutsu import JujutsuVCS
-
-        return JujutsuVCS()
+    # DISABLED: jj detection disabled (incompatible with sparse checkouts)
+    # if prefer_jj and is_jj_available():
+    #     # Lazy import to avoid circular imports
+    #     from .jujutsu import JujutsuVCS
+    #
+    #     return JujutsuVCS()
 
     if is_git_available():
         # Lazy import to avoid circular imports
@@ -325,12 +316,10 @@ def get_vcs(
 
         return GitVCS()
 
-    # 4. Neither available
+    # 4. git not available
     raise VCSNotFoundError(
-        "Neither jj nor git is available. "
-        "Please install at least one of:\n"
-        "  - jj (recommended): https://github.com/martinvonz/jj#installation\n"
-        "  - git: https://git-scm.com/downloads"
+        "git is not available. "
+        "Please install git: https://git-scm.com/downloads"
     )
 
 

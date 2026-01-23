@@ -112,19 +112,13 @@ def log(
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
         raise typer.Exit(1)
 
-    backend_display = "jj" if vcs.backend == VCSBackend.JUJUTSU else "git"
-    console.print(f"\n[cyan]Backend:[/cyan] {backend_display}")
+    console.print(f"\n[cyan]Backend:[/cyan] git")
     console.print()
 
-    # Get operation history
-    if vcs.backend == VCSBackend.JUJUTSU:
-        from specify_cli.core.vcs.jujutsu import jj_get_operation_log
+    # Get operation history (git reflog only)
+    from specify_cli.core.vcs.git import git_get_reflog
 
-        ops = jj_get_operation_log(workspace_path, limit=limit)
-    else:
-        from specify_cli.core.vcs.git import git_get_reflog
-
-        ops = git_get_reflog(workspace_path, limit=limit)
+    ops = git_get_reflog(workspace_path, limit=limit)
 
     _display_operations(ops, vcs.backend)
 
