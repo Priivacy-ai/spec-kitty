@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Migration Guide for 0.12.0
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
 - WP02
@@ -13,8 +13,8 @@ subtasks:
 - T018
 phase: Phase 1 - Core Documentation
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude"
+shell_pid: "20855"
 review_status: ''
 reviewed_by: ''
 history:
@@ -657,6 +657,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+- 2026-01-23T11:01:43Z – claude – shell_pid=20855 – lane=doing – Started implementation via workflow command
 
 ## Implementation Command
 
