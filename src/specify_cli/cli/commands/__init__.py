@@ -6,6 +6,7 @@ import typer
 
 from . import accept as accept_module
 from . import agent as agent_module
+from . import context as context_module
 from . import dashboard as dashboard_module
 from . import implement as implement_module
 from . import merge as merge_module
@@ -25,6 +26,7 @@ def register_commands(app: typer.Typer) -> None:
     """Attach all extracted commands to the root Typer application."""
     app.command()(accept_module.accept)
     app.add_typer(agent_module.app, name="agent")
+    app.add_typer(context_module.app, name="context")
     app.command()(dashboard_module.dashboard)
     app.command()(implement_module.implement)
     app.command()(merge_module.merge)

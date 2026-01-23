@@ -22,7 +22,7 @@ from specify_cli.core.vcs import (
     VCSBackend,
     VCSLockError,
 )
-from specify_cli.frontmatter import read_frontmatter
+from specify_cli.frontmatter import read_frontmatter, update_fields
 from specify_cli.tasks_support import (
     TaskCliError,
     find_repo_root,
@@ -30,6 +30,9 @@ from specify_cli.tasks_support import (
     set_scalar,
     build_document,
 )
+from specify_cli.workspace_context import WorkspaceContext, save_context
+from specify_cli.core.multi_parent_merge import create_multi_parent_base
+from specify_cli.core.context_validation import require_main_repo
 
 console = Console()
 
@@ -503,19 +506,17 @@ def _ensure_planning_artifacts_committed_jj(
 def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
     """Ensure VCS is selected and locked in meta.json.
 
-    On first workspace creation for a feature, this function:
-    1. Detects available VCS (prefers jj if available)
-    2. Stores the selection in meta.json
-    3. Returns the selected backend
+    Always locks to git (jj support removed due to sparse checkout incompatibility).
 
-    If VCS is already locked, returns the locked backend.
+    If a feature was created with jj, it will be automatically converted to git
+    with a warning message.
 
     Args:
         feature_dir: Path to the feature directory (kitty-specs/###-feature/)
-        repo_root: Repository root path (for VCS detection)
+        repo_root: Repository root path (not used, but kept for compatibility)
 
     Returns:
-        The VCS backend to use for this feature
+        VCSBackend.GIT (always)
 
     Raises:
         typer.Exit: If meta.json is missing or malformed
@@ -536,27 +537,29 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
     # Check if VCS is already locked
     if "vcs" in meta:
         backend_str = meta["vcs"]
-        try:
-            return VCSBackend(backend_str)
-        except ValueError:
-            console.print(f"[yellow]Warning:[/yellow] Unknown VCS '{backend_str}' in meta.json, defaulting to git")
+        if backend_str == "jj":
+            console.print("[yellow]Warning:[/yellow] Feature was created with jj, but jj is no longer supported.")
+            console.print("[yellow]Converting to git...[/yellow]")
+            # Override to git
+            meta["vcs"] = "git"
+            meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
+            meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
             return VCSBackend.GIT
+        # Already git
+        return VCSBackend.GIT
 
-    # VCS not yet locked - detect and lock it
-    vcs = get_vcs(repo_root)
-    backend = vcs.backend
-
-    # Store VCS selection in meta.json
-    meta["vcs"] = backend.value
+    # VCS not yet locked - lock to git (only supported VCS)
+    meta["vcs"] = "git"
     meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
 
     # Write updated meta.json
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
 
-    console.print(f"[cyan]→ VCS locked to {backend.value} in meta.json[/cyan]")
-    return backend
+    console.print("[cyan]→ VCS locked to git in meta.json[/cyan]")
+    return VCSBackend.GIT
 
 
+@require_main_repo
 def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
     base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
@@ -581,24 +584,7 @@ def implement(
         # JSON output for scripting
         spec-kitty implement WP01 --json
     """
-    # GUARD: Refuse to create worktrees from inside a worktree (prevents nesting)
-    cwd = Path.cwd().resolve()
-    if ".worktrees" in cwd.parts:
-        console.print("[bold red]Error: Cannot create worktrees from inside a worktree![/bold red]")
-        console.print(f"Current directory: {cwd}\n")
-
-        # Find and suggest the main repo path
-        for i, part in enumerate(cwd.parts):
-            if part == ".worktrees":
-                main_repo = Path(*cwd.parts[:i])
-                console.print("[cyan]Run from the main repository instead:[/cyan]")
-                console.print(f"  cd {main_repo}")
-                console.print(f"  spec-kitty implement {wp_id}" + (f" --base {base}" if base else ""))
-                break
-
-        console.print("\n[dim]This guard prevents nested worktrees which corrupt git state.[/dim]")
-        raise typer.Exit(1)
-
+    # Context validation handled by @require_main_repo decorator
     tracker = StepTracker(f"Implement {wp_id}")
     tracker.add("detect", "Detect feature context")
     tracker.add("validate", "Validate dependencies")
@@ -618,30 +604,29 @@ def implement(
 
     # Step 2: Validate dependencies
     tracker.start("validate")
+    auto_merge_base = False  # Track if we're using auto-merge
     try:
         # Find WP file to read dependencies
         wp_file = find_wp_file(repo_root, feature_slug, wp_id)
         declared_deps = parse_wp_dependencies(wp_file)
 
-        # Check if WP has dependencies but --base not provided
-        if declared_deps and base is None:
+        # Multi-parent dependency handling
+        if len(declared_deps) > 1 and base is None:
+            # Auto-merge mode: Create merge commit combining all dependencies
+            console.print(f"\n[cyan]Multi-parent dependency detected:[/cyan]")
+            console.print(f"  {wp_id} depends on: {', '.join(declared_deps)}")
+            console.print(f"  Auto-creating merge base combining all dependencies...")
+            auto_merge_base = True
+            # Will create merge base after validation completes
+
+        # Single dependency handling
+        elif len(declared_deps) == 1 and base is None:
+            # Suggest base for single dependency
             tracker.error("validate", "missing --base flag")
             console.print(tracker.render())
-            console.print(f"\n[red]Error:[/red] {wp_id} has dependencies: {declared_deps}")
-            console.print(f"\nYou MUST specify a base workspace with --base:")
-
-            # Suggest the last dependency (most likely the right one for linear/diamond patterns)
-            suggested_base = declared_deps[-1]
-            console.print(f"  spec-kitty implement {wp_id} --base {suggested_base}")
-
-            # If multiple dependencies, provide guidance
-            if len(declared_deps) > 1:
-                console.print(f"\n[yellow]Note:[/yellow] {wp_id} has multiple dependencies: {declared_deps}")
-                console.print(f"Base on the last one ({suggested_base}), then manually merge others:")
-                console.print(f"  cd .worktrees/{feature_slug}-{wp_id}")
-                for dep in declared_deps[:-1]:
-                    console.print(f"  git merge {feature_slug}-{dep}")
-
+            console.print(f"\n[red]Error:[/red] {wp_id} depends on {declared_deps[0]}")
+            console.print(f"\nSpecify base workspace:")
+            console.print(f"  spec-kitty implement {wp_id} --base {declared_deps[0]}")
             raise typer.Exit(1)
 
         # If --base provided, validate it matches declared dependencies
@@ -763,7 +748,33 @@ def implement(
             raise typer.Exit(1)
 
         # Determine base branch
-        if base is None:
+        if auto_merge_base:
+            # Multi-parent: Create merge base combining all dependencies
+            merge_result = create_multi_parent_base(
+                feature_slug=feature_slug,
+                wp_id=wp_id,
+                dependencies=declared_deps,
+                repo_root=repo_root,
+            )
+
+            if not merge_result.success:
+                tracker.error("create", "merge base creation failed")
+                console.print(tracker.render())
+                console.print(f"\n[red]Error:[/red] Failed to create merge base")
+                console.print(f"Reason: {merge_result.error}")
+
+                if merge_result.conflicts:
+                    console.print(f"\n[yellow]Conflicts in:[/yellow]")
+                    for conflict_file in merge_result.conflicts:
+                        console.print(f"  - {conflict_file}")
+                    console.print(f"\n[dim]Resolve conflicts manually, then re-run implement[/dim]")
+
+                raise typer.Exit(1)
+
+            # Use merge base branch
+            base_branch = merge_result.branch_name
+
+        elif base is None:
             # No dependencies - branch from primary branch
             base_branch = resolve_primary_branch(repo_root)
         else:
@@ -827,6 +838,56 @@ def implement(
         # For git, confirm sparse-checkout was applied
         if vcs_backend == VCSBackend.GIT:
             console.print("[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
+
+        # Step 3.5: Get base commit SHA for tracking
+        result = subprocess.run(
+            ["git", "rev-parse", base_branch],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        base_commit_sha = result.stdout.strip() if result.returncode == 0 else "unknown"
+
+        # Step 3.6: Update WP frontmatter with base tracking
+        try:
+            created_at = datetime.now(timezone.utc).isoformat()
+
+            # Update frontmatter with base tracking fields
+            update_fields(wp_file, {
+                "base_branch": base_branch,
+                "base_commit": base_commit_sha,
+                "created_at": created_at,
+            })
+
+            console.print(f"[cyan]→ Base tracking: {base_branch} @ {base_commit_sha[:7]}[/cyan]")
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] Could not update base tracking in frontmatter: {e}")
+
+        # Step 3.7: Create workspace context file
+        try:
+            # Note if this was created via multi-parent merge
+            created_by = "implement-command"
+            if auto_merge_base:
+                created_by = "implement-command-multi-parent-merge"
+
+            context = WorkspaceContext(
+                wp_id=wp_id,
+                feature_slug=feature_slug,
+                worktree_path=str(workspace_path.relative_to(repo_root)),
+                branch_name=branch_name,
+                base_branch=base_branch,
+                base_commit=base_commit_sha,
+                dependencies=declared_deps,
+                created_at=created_at,
+                created_by=created_by,
+                vcs_backend=vcs_backend.value,
+            )
+
+            context_path = save_context(repo_root, context)
+            console.print(f"[cyan]→ Workspace context: {context_path.relative_to(repo_root)}[/cyan]")
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] Could not create workspace context: {e}")
 
         tracker.complete("create", f"Workspace: {workspace_path.relative_to(repo_root)}")
 

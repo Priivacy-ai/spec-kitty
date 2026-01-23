@@ -53,9 +53,22 @@ Spec Kitty supports **12 AI agents** with slash commands. When adding features t
 
 ## Project Structure
 ```
-src/
-tests/
+architecture/           # Architectural design decisions and technical specifications
+  ├── README.md        # Overview of architecture documentation
+  ├── GIT_REPO_MANAGEMENT_IMPLEMENTATION.md  # Complete git repo management design
+  ├── PHASE1_IMPLEMENTATION.md               # Base branch tracking spec
+  └── PHASE2_IMPLEMENTATION.md               # Multi-parent merge spec
+src/                   # Source code
+tests/                 # Test suite
+kitty-specs/          # Feature specifications (dogfooding spec-kitty)
+docs/                 # User documentation
 ```
+
+**When adding new architectural designs**:
+- Store in `architecture/` directory
+- Follow the template in `architecture/README.md`
+- Update the architecture README index
+- Reference from code comments for major components
 
 ## Commands
 cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
@@ -344,101 +357,6 @@ git merge ###-feature-WP02  # Manual merge second dependency
 - Complete or delete features before upgrading
 - Use `spec-kitty list-legacy-features` to identify
 - Follow [upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md)
-
-### jj Integration (Feature 015)
-
-Spec Kitty now supports jujutsu (jj) as a first-class VCS alongside git through a Protocol-based abstraction layer.
-
-**Key Benefits of jj:**
-- Automatic rebasing of dependent workspaces when parent changes
-- No manual rebase needed for review feedback
-- Multi-parent merges handled automatically
-- Non-blocking conflicts (conflicts stored, not blocking)
-- Operation log with full undo capability
-
-**Architecture:**
-- VCS abstraction layer with Protocol-based interface (`VCSProtocol`)
-- New `src/specify_cli/core/vcs/` subpackage with git.py and jujutsu.py implementations
-- jj preferred when available (`.jj/` directory detected), git as fallback
-- Colocated mode (both .jj/ and .git/) supported for gradual migration
-
-**VCS Detection Priority:**
-1. If `.jj/` exists → Use jujutsu backend
-2. If `.git/` exists → Use git backend
-3. Neither → Raise error
-
-**New Commands:**
-
-```bash
-# Sync workspace with upstream changes
-spec-kitty sync [WORKSPACE_PATH]
-# - jj: Runs jj git fetch + auto-rebase
-# - git: Runs git pull --rebase
-
-# View operation history
-spec-kitty ops log [WORKSPACE_PATH]
-# - jj: Shows jj operation log with timestamps
-# - git: Shows git reflog entries
-
-# Undo last operation
-spec-kitty ops undo [WORKSPACE_PATH]
-# - jj: Runs jj undo (safe, time-travel)
-# - git: Runs git reset --hard HEAD~1
-
-# Restore to specific operation
-spec-kitty ops restore <OP_ID> [WORKSPACE_PATH]
-# - jj: Runs jj op restore <op_id>
-# - git: Runs git reset --hard <commit>
-```
-
-**Key Differences from Git:**
-
-| Operation | Git | jj |
-|-----------|-----|-----|
-| Workspace | git worktree | jj workspace |
-| Sync | git pull --rebase | jj git fetch + auto-rebase |
-| History | git reflog | jj op log |
-| Undo | git reset --hard | jj undo (safer) |
-| Conflicts | Blocking (must resolve) | Non-blocking (stored) |
-| Branches | Explicit checkout | Automatic @ tracking |
-
-**Colocated Mode:**
-
-When both jj and git are available, jj operates in colocated mode:
-- Both `.jj/` and `.git/` directories exist
-- Changes can be pushed via either tool
-- Enables gradual migration from git to jj
-
-**Python API:**
-
-```python
-from specify_cli.core.vcs import get_vcs, VCSBackend
-
-# Auto-detect VCS for a path
-vcs = get_vcs(workspace_path)
-
-# Check backend type
-if vcs.backend == VCSBackend.JUJUTSU:
-    print("Using jujutsu")
-else:
-    print("Using git")
-
-# Common operations (work with both backends)
-vcs.create_workspace(workspace_path, "feature-WP01", repo_root=repo_root)
-vcs.commit(workspace_path, "Implement feature")
-vcs.sync_workspace(workspace_path)
-changes = vcs.get_changes(workspace_path, limit=10)
-```
-
-**Implementation Files:**
-- `src/specify_cli/core/vcs/__init__.py` - Public API, VCSBackend enum
-- `src/specify_cli/core/vcs/base.py` - VCSProtocol, dataclasses
-- `src/specify_cli/core/vcs/git.py` - Git implementation
-- `src/specify_cli/core/vcs/jujutsu.py` - Jujutsu implementation
-- `src/specify_cli/cli/commands/sync.py` - sync command
-- `src/specify_cli/cli/commands/ops.py` - ops log/undo/restore commands
-
-See `kitty-specs/015-first-class-jujutsu-vcs-integration/` for full specification and plan.
 
 ### Documentation
 

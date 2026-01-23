@@ -18,6 +18,7 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.vcs import VCSBackend, get_vcs
+from specify_cli.core.context_validation import require_main_repo
 from specify_cli.merge.executor import execute_legacy_merge, execute_merge
 from specify_cli.merge.preflight import (
     display_preflight_result,
@@ -379,6 +380,7 @@ def merge_workspace_per_wp(
     console.print(f"\n[bold green]✓ Feature {feature_slug} ({len(wp_workspaces)} WPs) successfully merged into {target_branch}[/bold green]")
 
 
+@require_main_repo
 def merge(
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     delete_branch: bool = typer.Option(True, "--delete-branch/--keep-branch", help="Delete feature branch after merge"),
@@ -491,12 +493,7 @@ def merge(
         vcs_backend = VCSBackend.GIT
 
     # Show VCS backend info
-    backend_label = "jj" if vcs_backend == VCSBackend.JUJUTSU else "git"
-    console.print(f"[dim]VCS Backend: {backend_label}[/dim]")
-
-    # jj-specific merge workflow note
-    if vcs_backend == VCSBackend.JUJUTSU:
-        console.print("[dim]Note: Using git commands for merge (jj colocated mode)[/dim]")
+    console.print(f"[dim]VCS Backend: git[/dim]")
 
     feature_worktree_path = merge_root = repo_root
     tracker.start("detect")

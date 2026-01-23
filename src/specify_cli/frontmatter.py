@@ -40,6 +40,9 @@ class FrontmatterManager:
         "title",
         "lane",
         "dependencies",  # List of WP IDs this WP depends on (e.g., ['WP01', 'WP02'])
+        "base_branch",  # Git branch this WP was created from (e.g., "010-feature-WP01" or "main")
+        "base_commit",  # Git commit SHA this WP was created from (snapshot for validation)
+        "created_at",  # ISO timestamp when workspace was created
         "subtasks",
         "phase",
         "assignee",
