@@ -95,9 +95,9 @@
 **Estimated Size**: ~200 lines
 
 ### Included Subtasks
-- [ ] T011 Create agent directory mappings table (12 agents, special cases highlighted)
-- [ ] T012 Write troubleshooting section for manage-agents.md
-- [ ] T013 Add cross-reference links (ADR #6, CLI reference, supported agents)
+- [x] T011 Create agent directory mappings table (12 agents, special cases highlighted)
+- [x] T012 Write troubleshooting section for manage-agents.md
+- [x] T013 Add cross-reference links (ADR #6, CLI reference, supported agents)
 
 ### Implementation Notes
 - T011: Create markdown table with columns (Agent Key, Directory Path, Notes)
