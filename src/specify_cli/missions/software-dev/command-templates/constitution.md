@@ -39,26 +39,26 @@ This command uses a **4-phase discovery process**:
 1. **Phase 1: Technical Standards** (Recommended)
    - Languages, frameworks, testing requirements
    - Performance targets, deployment constraints
-   - ~3-4 questions, creates a lean foundation
+   - ≈3-4 questions, creates a lean foundation
 
 2. **Phase 2: Code Quality** (Optional)
    - PR requirements, review checklist, quality gates
    - Documentation standards
-   - ~3-4 questions
+   - ≈3-4 questions
 
 3. **Phase 3: Tribal Knowledge** (Optional)
    - Team conventions, lessons learned
    - Historical decisions (optional)
-   - ~2-4 questions
+   - ≈2-4 questions
 
 4. **Phase 4: Governance** (Optional)
    - Amendment process, compliance validation
    - Exception handling (optional)
-   - ~2-3 questions
+   - ≈2-3 questions
 
 **Paths**:
-- **Minimal** (~1 page): Phase 1 only → ~3-5 questions
-- **Comprehensive** (~2-3 pages): All phases → ~8-12 questions
+- **Minimal** (≈1 page): Phase 1 only → ≈3-5 questions
+- **Comprehensive** (≈2-3 pages): All phases → ≈8-12 questions
 
 ---
 
@@ -71,8 +71,8 @@ Ask the user:
 Do you want to establish a project constitution?
 
 A) No, skip it - I don't need a formal constitution
-B) Yes, minimal - Core technical standards only (~1 page, 3-5 questions)
-C) Yes, comprehensive - Full governance and tribal knowledge (~2-3 pages, 8-12 questions)
+B) Yes, minimal - Core technical standards only (≈1 page, 3-5 questions)
+C) Yes, comprehensive - Full governance and tribal knowledge (≈2-3 pages, 8-12 questions)
 ```
 
 Handle responses:
@@ -315,7 +315,7 @@ Tribal Knowledge:
 
 Governance: [Custom if Phase 4 completed, otherwise defaults]
 
-Estimated length: ~[50-80 lines minimal] or ~[150-200 lines comprehensive]
+Estimated length: ≈[50-80 lines minimal] or ≈[150-200 lines comprehensive]
 
 Proceed with writing constitution?
 A) Yes, write it
