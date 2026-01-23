@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ✨ Added
 
+**Config-Driven Agent Management** (Feature 022):
+- **Single source of truth**: `.kittify/config.yaml` now controls which agents are configured
+- **New CLI commands**: `spec-kitty agent config list|add|remove|status|sync`
+  - `list`: Show configured agents
+  - `add <agents...>`: Add agents to configuration
+  - `remove <agents...>`: Remove agents from configuration
+  - `status`: Show configured vs orphaned agents
+  - `sync`: Synchronize filesystem with configuration
+- **Migrations respect config**: `get_agent_dirs_for_project()` helper only processes configured agents
+- **Orphan detection**: Identifies agent directories not in config (from manual deletions)
+- **ADR #6**: Documents architectural decision for config-driven approach
+
 **Smarter Feature Merge with Pre-flight** (Feature 017):
 - **Pre-flight validation**: Checks all WP worktrees for uncommitted changes, missing worktrees, and target branch divergence before any merge starts
 - **Conflict forecasting**: `--dry-run` predicts which files will conflict and classifies them as auto-resolvable (status files) or manual
@@ -26,6 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `docs/how-to/merge-feature.md` - Complete merge workflow guide with pre-flight, dry-run, strategies, and cleanup options
 - Added `docs/how-to/troubleshoot-merge.md` - Comprehensive troubleshooting guide with error reference table
 - Updated CLAUDE.md with Merge & Preflight Patterns section documenting MergeState dataclass and public API
+
+**Agent Management Documentation Sprint** (Feature 023):
+- Added `docs/how-to/manage-agents.md` - Complete guide to adding, removing, and managing AI agent integrations
+- Added `docs/how-to/upgrade-to-0-12-0.md` - Migration guide for config-driven agent management
+- Updated `docs/reference/cli-commands.md` with comprehensive `agent config` subcommand documentation
+- Updated `docs/reference/agent-subcommands.md`, `docs/reference/configuration.md`, `docs/reference/supported-agents.md` with accurate cross-references
+- Cleaned up outdated Jujutsu (jj) references throughout documentation (git-only VCS for now)
+- Updated `docs/how-to/install-spec-kitty.md` with agent configuration guidance
 
 ### 🐛 Fixed
 

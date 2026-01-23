@@ -71,9 +71,20 @@ See [**Upgrade Guide**](docs/how-to/upgrade-to-0-11-0.md) for step-by-step migra
 
 ---
 
-> **🎉 Version 0.10.9 Released - Template Bundling Fix**
-> Fixed critical issue where wrong templates were bundled in PyPI packages (#62, #63, #64). All 12 AI agents now receive correct Python CLI slash commands.
-> **Existing projects:** Run `spec-kitty upgrade` to apply repair migration. [See CHANGELOG](CHANGELOG.md#0109---2026-01-06) for full details.
+> **🎉 Coming in v0.12.0 - Smarter Merge & Config-Driven Agents**
+>
+> **Merge Improvements:**
+> - **Pre-flight validation**: Checks all WP worktrees for uncommitted changes before merge
+> - **Conflict forecasting**: `--dry-run` predicts conflicts and classifies as auto-resolvable or manual
+> - **Resume/abort**: `--resume` continues interrupted merges, `--abort` starts fresh
+> - **Auto-cleanup**: Worktrees and branches removed after successful merge
+>
+> **Agent Management:**
+> - **Config-driven agents**: `.kittify/config.yaml` is now the single source of truth
+> - **New CLI commands**: `spec-kitty agent config list|add|remove|status|sync`
+> - **Migrations respect config**: Only configured agents are updated during `spec-kitty upgrade`
+>
+> [See CHANGELOG](CHANGELOG.md#unreleased) for full details.
 
 ## 🔄 Why Fork Spec Kit?
 
