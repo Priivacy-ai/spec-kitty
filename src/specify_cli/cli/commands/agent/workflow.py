@@ -751,15 +751,18 @@ def review(
         lines.append(f"✅ APPROVE (no issues found):")
         lines.append(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed: <summary>\"")
         lines.append("")
+        # Create unique temp file path for review feedback (avoids conflicts between agents)
+        review_feedback_path = Path(tempfile.gettempdir()) / f"spec-kitty-review-feedback-{normalized_wp_id}.md"
+
         lines.append(f"❌ REQUEST CHANGES (issues found):")
         lines.append(f"   1. Write feedback:")
-        lines.append(f"      cat > review-feedback.md <<'EOF'")
+        lines.append(f"      cat > {review_feedback_path} <<'EOF'")
         lines.append(f"**Issue 1**: <description and how to fix>")
         lines.append(f"**Issue 2**: <description and how to fix>")
         lines.append(f"EOF")
         lines.append("")
         lines.append(f"   2. Move to planned with feedback:")
-        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file review-feedback.md")
+        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
         lines.append("")
         lines.append("⚠️  NOTE: You MUST run one of these commands to complete the review!")
         lines.append("     The Python script handles all file updates automatically.")
@@ -768,6 +771,9 @@ def review(
         # Write full prompt to file
         full_content = "\n".join(lines)
         prompt_file = _write_prompt_to_file("review", normalized_wp_id, full_content)
+
+        # Create unique temp file path for review feedback (same as in prompt)
+        review_feedback_path = Path(tempfile.gettempdir()) / f"spec-kitty-review-feedback-{normalized_wp_id}.md"
 
         # Output concise summary with directive to read the prompt
         print()
@@ -782,7 +788,7 @@ def review(
         print()
         print("After review, run:")
         print(f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
-        print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file feedback.md")
+        print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
 
     except Exception as e:
         print(f"Error: {e}")
