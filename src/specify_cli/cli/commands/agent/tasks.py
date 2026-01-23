@@ -412,8 +412,11 @@ def move_task(
             # Get the ACTUAL main repo root (not worktree path)
             main_repo_root = get_main_repo_root(repo_root)
 
+            # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
+            spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+
             # Commit to main (file is always in main, worktrees excluded via sparse-checkout)
-            commit_msg = f"chore: Move {task_id} to {target_lane}"
+            commit_msg = f"chore: Move {task_id} to {target_lane} on spec {spec_number}"
             if agent_name != "unknown":
                 commit_msg += f" [{agent_name}]"
 
@@ -574,11 +577,14 @@ def mark_status(
         if auto_commit:
             import subprocess
 
+            # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
+            spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+
             # Build commit message
             if len(updated_tasks) == 1:
-                commit_msg = f"chore: Mark {updated_tasks[0]} as {status}"
+                commit_msg = f"chore: Mark {updated_tasks[0]} as {status} on spec {spec_number}"
             else:
-                commit_msg = f"chore: Mark {len(updated_tasks)} subtasks as {status}"
+                commit_msg = f"chore: Mark {len(updated_tasks)} subtasks as {status} on spec {spec_number}"
 
             try:
                 actual_tasks_path = tasks_md.resolve()
