@@ -328,9 +328,9 @@ agents:
     - opencode
     - claude
   selection:
-    strategy: "preferred"
-    preferred_implementer: "opencode"
-    preferred_reviewer: "claude"
+    strategy: preferred
+    preferred_implementer: opencode
+    preferred_reviewer: claude
 ```
 
 | Field | Type | Description |
@@ -498,7 +498,6 @@ If you see this file in older projects, it will be ignored. The mission in each 
 - [Environment Variables](environment-variables.md) — Runtime configuration
 - [Missions](missions.md) — Mission types and their artifacts
 - [CLI Commands](cli-commands.md) — Command reference including `--vcs` flag
-- [Jujutsu (jj) Workflow](../tutorials/jujutsu-workflow.md) — Tutorial for jj users
 
 ## Getting Started
 - [Claude Code Integration](../tutorials/claude-code-integration.md)

@@ -229,7 +229,7 @@ spec-kitty sync --repair
 > - **jj**: Sync always **succeeds**. Conflicts are stored in the working copy and can be resolved later. Auto-rebase handles dependent changes automatically.
 > - **git**: Sync may **fail** on conflicts. You must resolve conflicts before continuing.
 
-**See Also**: [Sync Workspaces](../how-to/sync-workspaces.md), [Auto-Rebase and Non-Blocking Conflicts](../explanation/auto-rebase-and-conflicts.md)
+**See Also**: [Sync Workspaces](../how-to/sync-workspaces.md)
 
 ---
 
