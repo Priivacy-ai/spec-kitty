@@ -6,10 +6,10 @@ subtasks:
   - "T013"
 title: "Manage Agents How-To Guide - Supplementary Content"
 phase: "Phase 1 - Core Documentation"
-lane: "for_review"
+lane: "doing"
 assignee: ""
-agent: "claude"
-shell_pid: "18511"
+agent: "Claude"
+shell_pid: "21098"
 review_status: ""
 reviewed_by: ""
 dependencies: ["WP01", "WP02"]
@@ -494,6 +494,7 @@ The CLI command updates both frontmatter and activity log automatically.
 ---
 - 2026-01-23T10:59:09Z – claude – shell_pid=18511 – lane=doing – Started implementation via workflow command
 - 2026-01-23T11:01:30Z – claude – shell_pid=18511 – lane=for_review – Ready for review: Added 170 lines of supplementary content to manage-agents.md - agent directory mappings table (12 agents with special cases highlighted), troubleshooting section (6 common issues with solutions), cross-reference links, and quick navigation. Completes FR-003.
+- 2026-01-23T11:02:00Z – Claude – shell_pid=21098 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
