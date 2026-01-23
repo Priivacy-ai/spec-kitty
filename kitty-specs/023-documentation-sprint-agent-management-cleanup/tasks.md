@@ -280,9 +280,9 @@
 **Estimated Size**: ~200 lines
 
 ### Included Subtasks
-- [ ] T034 [P] Validate command syntax in tutorials against source code
-- [ ] T035 [P] Validate config examples against AgentConfig dataclass
-- [ ] T036 [P] Check and fix broken internal documentation links
+- [x] T034 [P] Validate command syntax in tutorials against source code
+- [x] T035 [P] Validate config examples against AgentConfig dataclass
+- [x] T036 [P] Check and fix broken internal documentation links
 
 ### Implementation Notes
 - T034: Scan tutorials for command examples, verify against `--help` output
