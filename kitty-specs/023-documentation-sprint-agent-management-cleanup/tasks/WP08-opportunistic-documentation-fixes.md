@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Opportunistic Documentation Fixes
-lane: "doing"
+lane: "done"
 dependencies:
 - WP01
 subtasks:
@@ -12,8 +12,8 @@ phase: Phase 3 - Cleanup
 assignee: ''
 agent: "Claude"
 shell_pid: "51920"
-review_status: ''
-reviewed_by: ''
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-01-23T10:23:45Z'
   lane: planned
@@ -486,6 +486,7 @@ The CLI command updates both frontmatter and activity log automatically.
 - 2026-01-23T11:27:22Z – claude – shell_pid=50727 – lane=doing – Started implementation via workflow command
 - 2026-01-23T11:29:42Z – claude – shell_pid=50727 – lane=for_review – Completed opportunistic documentation fixes: (T034) Validated tutorial command syntax - all current; (T035) Fixed config.yaml example in configuration.md - removed unnecessary quotes from strategy/agent names; (T036) Fixed 2 broken links to deleted jj docs in cli-commands.md and configuration.md. Total: 3 fixes, <50 lines changed, well under scope limits.
 - 2026-01-23T11:30:00Z – Claude – shell_pid=51920 – lane=doing – Started review via workflow command
+- 2026-01-23T11:30:00Z – Claude – shell_pid=51920 – lane=done – Review passed: Implementation complete
 
 ## Implementation Command
 
