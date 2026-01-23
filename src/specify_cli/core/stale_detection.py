@@ -30,9 +30,13 @@ class StaleCheckResult:
     error: str | None = None
 
 
-def get_last_meaningful_commit_time(worktree_path: Path) -> datetime | None:
+def get_last_meaningful_commit_time(worktree_path: Path) -> tuple[datetime | None, bool]:
     """
     Get the timestamp of the most recent meaningful commit in a worktree.
+
+    A "meaningful" commit is one made ON THIS BRANCH since it diverged from main.
+    This prevents false staleness when a worktree is just created but no commits
+    have been made yet (HEAD points to parent branch's old commit).
 
     For worktrees, we always use git to check the branch-specific history,
     even in jj colocated repos. This is because:
@@ -44,17 +48,45 @@ def get_last_meaningful_commit_time(worktree_path: Path) -> datetime | None:
         worktree_path: Path to the worktree
 
     Returns:
-        datetime of last meaningful commit, or None if unable to determine
+        Tuple of (datetime of last commit on this branch, has_own_commits).
+        has_own_commits is False if the branch has no commits since diverging from main.
     """
     import subprocess
 
     if not worktree_path.exists():
-        return None
+        return None, False
 
     try:
-        # Always use git for worktree branch history
-        # This works for both pure git and jj colocated repos
-        # because jj colocated repos maintain a .git directory
+        # First, check if this branch has any commits since diverging from main
+        # This prevents false staleness when worktree was just created
+        merge_base_result = subprocess.run(
+            ["git", "merge-base", "HEAD", "main"],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        if merge_base_result.returncode == 0:
+            merge_base = merge_base_result.stdout.strip()
+
+            # Count commits on this branch since the merge base
+            count_result = subprocess.run(
+                ["git", "rev-list", "--count", f"{merge_base}..HEAD"],
+                cwd=worktree_path,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if count_result.returncode == 0:
+                commit_count = int(count_result.stdout.strip())
+                if commit_count == 0:
+                    # No commits on this branch yet - worktree just created
+                    # Don't flag as stale since agent just started
+                    return None, False
+
+        # Get the last commit time on this branch
         result = subprocess.run(
             ["git", "log", "-1", "--format=%cI"],
             cwd=worktree_path,
@@ -64,16 +96,16 @@ def get_last_meaningful_commit_time(worktree_path: Path) -> datetime | None:
         )
 
         if result.returncode != 0 or not result.stdout.strip():
-            return None
+            return None, False
 
         # Parse ISO format timestamp
         timestamp_str = result.stdout.strip()
-        return datetime.fromisoformat(timestamp_str)
+        return datetime.fromisoformat(timestamp_str), True
 
     except subprocess.TimeoutExpired:
-        return None
+        return None, False
     except Exception:
-        return None
+        return None, False
 
 
 def check_wp_staleness(
@@ -86,7 +118,11 @@ def check_wp_staleness(
 
     A WP is considered stale if:
     - Its worktree exists
+    - The branch has commits since diverging from main (agent has done work)
     - The last commit is older than threshold_minutes
+
+    A WP with a worktree but NO commits since diverging is NOT stale - the agent
+    just started and hasn't committed yet.
 
     Args:
         wp_id: Work package ID (e.g., "WP01")
@@ -106,17 +142,18 @@ def check_wp_staleness(
         )
 
     try:
-        last_commit = get_last_meaningful_commit_time(worktree_path)
+        last_commit, has_own_commits = get_last_meaningful_commit_time(worktree_path)
 
         if last_commit is None:
-            # Can't determine - don't flag as stale
+            # Can't determine commit time, or no commits on this branch yet
+            # If no commits yet (has_own_commits=False), agent just started - not stale
             return StaleCheckResult(
                 wp_id=wp_id,
                 is_stale=False,
                 last_commit_time=None,
                 minutes_since_commit=None,
                 worktree_exists=True,
-                error="Could not determine last commit time",
+                error=None if not has_own_commits else "Could not determine last commit time",
             )
 
         now = datetime.now(timezone.utc)
