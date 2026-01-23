@@ -7,10 +7,10 @@ subtasks:
   - "T028"
 title: "Cross-Reference Updates"
 phase: "Phase 2 - Reference Documentation"
-lane: "planned"
+lane: "doing"
 assignee: ""
-agent: ""
-shell_pid: ""
+agent: "claude"
+shell_pid: "30211"
 review_status: ""
 reviewed_by: ""
 dependencies: ["WP02", "WP05"]
@@ -422,6 +422,7 @@ The CLI command updates both frontmatter and activity log automatically.
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 
 ---
+- 2026-01-23T11:08:30Z – claude – shell_pid=30211 – lane=doing – Started implementation via workflow command
 
 ## Implementation Command
 
