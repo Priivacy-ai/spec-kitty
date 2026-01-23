@@ -5,7 +5,6 @@ let isConstitutionView = false;
 let lastNonConstitutionPage = 'overview';
 let projectPathDisplay = 'Loading…';
 let activeWorktreeDisplay = 'detecting…';
-let featureWorktreeDisplay = 'select a feature';
 let featureSelectActive = false;
 let featureSelectIdleTimer = null;
 let activeMission = {
@@ -86,25 +85,17 @@ function updateTreeInfo() {
     }
     const lines = [`└─ ${projectPathDisplay}`];
     if (activeWorktreeDisplay) {
-        lines.push(`   ├─ Active worktree: ${activeWorktreeDisplay}`);
-        lines.push(`   └─ Feature worktree: ${featureWorktreeDisplay}`);
-    } else {
-        lines.push(`   └─ Feature worktree: ${featureWorktreeDisplay}`);
+        lines.push(`   └─ Active worktree: ${activeWorktreeDisplay}`);
     }
+    // Note: In 0.11.0+, worktrees are per-WP, not per-feature
+    // Feature-level worktree display removed (obsolete 0.10.x concept)
     treeElement.textContent = lines.join('\n');
 }
 
 function computeFeatureWorktreeStatus(feature) {
-    if (!feature) {
-        featureWorktreeDisplay = allFeatures.length === 0 ? 'none yet' : 'select a feature';
-        return;
-    }
-    const worktree = feature.worktree;
-    if (worktree && worktree.path) {
-        featureWorktreeDisplay = worktree.exists ? worktree.path : `${worktree.path} (missing)`;
-    } else {
-        featureWorktreeDisplay = 'unavailable';
-    }
+    // No-op: Feature-level worktrees are obsolete in 0.11.0+
+    // In workspace-per-WP model, worktrees are per-WP, not per-feature
+    // This function is kept for compatibility but does nothing
 }
 
 function switchFeature(featureId) {
