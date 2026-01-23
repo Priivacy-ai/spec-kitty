@@ -28,7 +28,7 @@
 **Estimated Size**: ~250 lines
 
 ### Included Subtasks
-- [ ] T001 [P] Read and extract command signatures from `src/specify_cli/cli/commands/agent/config.py`
+- [x] T001 [P] Read and extract command signatures from `src/specify_cli/cli/commands/agent/config.py`
 - [ ] T002 [P] Read and extract config schema from `src/specify_cli/orchestrator/agent_config.py`
 - [ ] T003 [P] Read and extract agent mappings from `m_0_9_1_complete_lane_migration.py`
 
