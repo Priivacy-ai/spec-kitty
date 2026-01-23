@@ -207,10 +207,10 @@
 **Estimated Size**: ~280 lines
 
 ### Included Subtasks
-- [ ] T025 Update `docs/reference/agent-subcommands.md` - Add config to command index
-- [ ] T026 [P] Update `docs/reference/configuration.md` - Add config-driven model section
-- [ ] T027 [P] Update `docs/how-to/install-spec-kitty.md` - Add cross-reference to manage-agents
-- [ ] T028 [P] Update `docs/reference/supported-agents.md` - Add cross-reference to manage-agents
+- [x] T025 Update `docs/reference/agent-subcommands.md` - Add config to command index
+- [x] T026 [P] Update `docs/reference/configuration.md` - Add config-driven model section
+- [x] T027 [P] Update `docs/how-to/install-spec-kitty.md` - Add cross-reference to manage-agents
+- [x] T028 [P] Update `docs/reference/supported-agents.md` - Add cross-reference to manage-agents
 
 ### Implementation Notes
 - T025: Add row to agent subcommands table: `config | Manage project AI agent configuration`
