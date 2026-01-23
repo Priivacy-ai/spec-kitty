@@ -10,7 +10,7 @@ subtasks:
   - "T010"
 title: "Manage Agents How-To Guide - Core Commands"
 phase: "Phase 1 - Core Documentation"
-lane: "doing"
+lane: "for_review"
 assignee: ""
 agent: "claude"
 shell_pid: "15781"
@@ -888,6 +888,7 @@ The CLI command updates both frontmatter and activity log automatically.
 
 ---
 - 2026-01-23T10:56:39Z – claude – shell_pid=15781 – lane=doing – Started implementation via workflow command
+- 2026-01-23T10:58:56Z – claude – shell_pid=15781 – lane=for_review – Ready for review: Comprehensive 461-line how-to guide covering all 5 agent config commands (list, add, remove, status, sync) with concrete examples, error handling, and common scenarios. Includes config-driven model explanation and cross-references to migration guide and ADR #6.
 
 ## Implementation Command
 
