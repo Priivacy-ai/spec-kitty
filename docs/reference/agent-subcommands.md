@@ -332,6 +332,28 @@ spec-kitty agent tasks status --json
 
 ---
 
+## spec-kitty agent config
+
+**Synopsis**: `spec-kitty agent config [OPTIONS] COMMAND [ARGS]...`
+
+**Description**: Manage project AI agent configuration (add, remove, list, sync agents).
+
+**Subcommands**:
+
+| Command | Description |
+|---------|-------------|
+| `list` | View configured agents and available options |
+| `add` | Add one or more agents to your project |
+| `remove` | Remove one or more agents from your project |
+| `status` | Audit agent configuration sync status |
+| `sync` | Synchronize filesystem with config.yaml |
+
+**See**:
+- [CLI Reference: spec-kitty agent config](cli-commands.md#spec-kitty-agent-config) - Complete command syntax and options
+- [Managing AI Agents](../how-to/manage-agents.md) - Task-oriented guide for agent management workflows
+
+---
+
 ## spec-kitty agent context
 
 **Synopsis**: `spec-kitty agent context [OPTIONS] COMMAND [ARGS]...`

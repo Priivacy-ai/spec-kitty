@@ -123,6 +123,17 @@ spec-kitty init <project_name> --ai gemini
 spec-kitty init <project_name> --ai copilot
 ```
 
+### Managing Agents After Initialization
+
+After running `spec-kitty init`, you can add or remove agents at any time using the `spec-kitty agent config` command family.
+
+To manage agents post-init:
+- **Add agents**: `spec-kitty agent config add <agents>`
+- **Remove agents**: `spec-kitty agent config remove <agents>`
+- **Check status**: `spec-kitty agent config status`
+
+See [Managing AI Agents](manage-agents.md) for complete documentation on agent management workflows.
+
 ### Cross-Platform Python CLI (v0.10.0+)
 
 As of v0.10.0, all automation uses cross-platform Python CLI commands (`spec-kitty agent`).

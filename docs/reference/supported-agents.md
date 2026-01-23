@@ -23,6 +23,19 @@ Spec Kitty supports **12 AI coding agents** with slash commands. This document l
 
 ---
 
+## Managing Active Agents
+
+Spec-kitty supports 12 AI agents (listed above). You can activate or deactivate agents at any time using the `spec-kitty agent config` command family.
+
+To manage which agents are active in your project:
+- **View configured agents**: `spec-kitty agent config list`
+- **Add agents**: `spec-kitty agent config add <agents>`
+- **Remove agents**: `spec-kitty agent config remove <agents>`
+
+See [Managing AI Agents](../how-to/manage-agents.md) for complete documentation on agent management workflows.
+
+---
+
 ## Agent Details
 
 ### Claude Code
