@@ -59,13 +59,13 @@
 **Estimated Size**: ~500 lines
 
 ### Included Subtasks
-- [ ] T004 Create `docs/how-to/manage-agents.md` - Overview and prerequisites section
-- [ ] T005 Write "Agent Configuration Model" section with config-driven explanation
-- [ ] T006 Document `spec-kitty agent config list` command with examples
-- [ ] T007 Document `spec-kitty agent config add` command with examples and error handling
-- [ ] T008 Document `spec-kitty agent config remove` command with `--keep-config` flag
-- [ ] T009 Document `spec-kitty agent config status` command with table format
-- [ ] T010 Document `spec-kitty agent config sync` command with all flags
+- [x] T004 Create `docs/how-to/manage-agents.md` - Overview and prerequisites section
+- [x] T005 Write "Agent Configuration Model" section with config-driven explanation
+- [x] T006 Document `spec-kitty agent config list` command with examples
+- [x] T007 Document `spec-kitty agent config add` command with examples and error handling
+- [x] T008 Document `spec-kitty agent config remove` command with `--keep-config` flag
+- [x] T009 Document `spec-kitty agent config status` command with table format
+- [x] T010 Document `spec-kitty agent config sync` command with all flags
 
 ### Implementation Notes
 - Sequential subtasks (T004-T010): Build document section by section
