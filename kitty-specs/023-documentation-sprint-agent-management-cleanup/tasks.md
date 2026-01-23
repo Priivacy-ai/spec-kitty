@@ -240,7 +240,7 @@
 **Estimated Size**: ~300 lines
 
 ### Included Subtasks
-- [ ] T029 Run grep audit for jujutsu/jj references in docs
+- [x] T029 Run grep audit for jujutsu/jj references in docs
 - [ ] T030 Update `docs/reference/cli-commands.md` init section - Remove jj VCS detection mentions
 - [ ] T031 [P] Fix broken jj links in how-to guides
 - [ ] T032 [P] Fix broken jj links in tutorials
