@@ -55,7 +55,6 @@ cd .worktrees/###-feature-WP04
 git merge ###-feature-WP02
 ```
 
-> **With jujutsu (jj)**: Multiple dependencies are handled automatically via auto-rebase. No manual merge is needed. See [Jujutsu for Multi-Agent Development](../explanation/jujutsu-for-multi-agent.md).
 
 ## Keeping Dependencies Updated
 
@@ -66,7 +65,7 @@ cd .worktrees/###-feature-WP02
 spec-kitty sync
 ```
 
-With jj, sync always succeeds (conflicts are non-blocking). With git, you may need to resolve conflicts. See [Sync Workspaces](sync-workspaces.md).
+You may need to resolve conflicts during sync. See [Sync Workspaces](sync-workspaces.md).
 
 ## What `--base` Does
 

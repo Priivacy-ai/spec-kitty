@@ -11,33 +11,8 @@
 - [uv](https://docs.astral.sh/uv/) for package management
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)
-- **Recommended**: [Jujutsu (jj)](https://martinvonz.github.io/jj/) for enhanced multi-agent workflows
 
 ## Installation
-
-### Install Jujutsu (Recommended)
-
-Spec Kitty works best with [jujutsu (jj)](https://martinvonz.github.io/jj/), which provides automatic rebasing and non-blocking conflicts for multi-agent workflows.
-
-**macOS (Homebrew):**
-```bash
-brew install jj
-```
-
-**Any platform (Cargo):**
-```bash
-cargo install jj-cli
-```
-
-**Verify installation:**
-```bash
-jj --version
-# Expected: jj 0.20.0 or higher
-```
-
-> **Note**: jj is recommended but not required. Spec Kitty automatically detects jj and uses it when available, falling back to git otherwise.
-
-See [Jujutsu Workflow Tutorial](../tutorials/jujutsu-workflow.md) for the complete jj workflow.
 
 ### Install Spec Kitty CLI
 

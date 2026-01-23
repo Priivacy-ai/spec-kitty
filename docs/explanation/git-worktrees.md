@@ -286,34 +286,9 @@ git checkout -b feature-WP01  # Create and switch to branch
 - [Git Worktree Documentation](https://git-scm.com/docs/git-worktree) - Official git documentation
 - [Git Sparse Checkout](https://git-scm.com/docs/git-sparse-checkout) - Sparse checkout documentation
 
-## Comparison with jj Workspaces
-
-Spec Kitty also supports [jujutsu (jj)](https://martinvonz.github.io/jj/) as an alternative to git. Here's how they compare:
-
-| Aspect | Git Worktrees | jj Workspaces |
-|--------|---------------|---------------|
-| **Isolation** | Separate working trees, same repo | Same repo, different commits |
-| **Rebase** | Manual (`git rebase`) | Automatic on sync |
-| **Conflicts** | Blocking (must resolve immediately) | Non-blocking (stored in files) |
-| **Multi-parent** | Manual merge required | Automatic |
-| **Undo** | Limited (reflog) | Full operation history |
-
-**When to use git worktrees**:
-- Team prefers git
-- Existing git-based CI/CD pipelines
-- Don't need automatic rebasing
-
-**When to use jj workspaces**:
-- Multi-agent parallel development
-- Frequent dependency changes
-- Want non-blocking conflicts
-
-See [Jujutsu for Multi-Agent Development](jujutsu-for-multi-agent.md) for details on why jj is recommended.
-
 ## See Also
 
 - [Workspace-per-WP Model](workspace-per-wp.md) - How Spec Kitty uses worktrees
-- [Jujutsu for Multi-Agent Development](jujutsu-for-multi-agent.md) - Why jj is preferred
 - [Spec-Driven Development](spec-driven-development.md) - The methodology that requires parallel work
 - [Kanban Workflow](kanban-workflow.md) - How work progresses through lanes
 

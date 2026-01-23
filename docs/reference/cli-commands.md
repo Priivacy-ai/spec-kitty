@@ -21,7 +21,7 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 - `implement` - Create workspace for work package implementation
 - `merge` - Merge a completed feature branch into the target branch and clean up resources
 - `sync` - Synchronize workspace with upstream changes
-- `ops` - Operation history and undo (jj: full undo, git: reflog only)
+- `ops` - Operation history and undo (git reflog)
 - `research` - Execute Phase 0 research workflow to scaffold artifacts
 - `upgrade` - Upgrade a Spec Kitty project to the current version
 - `list-legacy-features` - List legacy worktrees blocking 0.11.0 upgrade
@@ -56,7 +56,7 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 | `--template-root TEXT` | Override default template location (useful for development mode) |
 | `--ai TEXT` | Comma-separated AI assistants (claude,codex,gemini,...) |
 | `--script TEXT` | Script type to use: `sh` or `ps` |
-| `--vcs TEXT` | VCS to use: `git` or `jj`. Defaults to jj if available, otherwise git |
+| `--vcs TEXT` | VCS to use: `git`. Defaults to git |
 | `--help` | Show this message and exit |
 
 **Examples**:
@@ -69,12 +69,11 @@ spec-kitty init --here --ai claude
 spec-kitty init my-project --vcs git
 ```
 
-**VCS Detection Order**: Spec Kitty selects the VCS backend in this order:
-1. **Explicit backend (CLI flag)**: `spec-kitty init --vcs git` or `--vcs jj`
+**VCS**: Spec Kitty uses git for version control. The VCS is determined in this order:
+1. **Explicit backend (CLI flag)**: `spec-kitty init --vcs git`
    - If a feature has a locked VCS that conflicts, **raises an error** (does not silently override)
 2. **Feature meta.json**: If the path is within a feature, use its locked `vcs` field
-3. **jj preferred**: If `jj` is installed and meets requirements, use jj
-4. **git fallback**: Use git if available
+3. **Default**: Use git
 
 **See Also**: `docs/non-interactive-init.md`
 
@@ -207,9 +206,7 @@ spec-kitty implement WP01 --json
 
 **Synopsis**: `spec-kitty sync [OPTIONS]`
 
-**Description**: Synchronize workspace with upstream changes. Updates the current workspace with changes from its base branch or parent. This is equivalent to:
-- **git**: `git rebase <base-branch>`
-- **jj**: `jj workspace update-stale` + auto-rebase
+**Description**: Synchronize workspace with upstream changes. Updates the current workspace with changes from its base branch or parent using `git rebase <base-branch>`.
 
 **Options**:
 | Flag | Description |
@@ -225,11 +222,9 @@ spec-kitty sync --verbose
 spec-kitty sync --repair
 ```
 
-> **jj vs git**: Sync behavior differs between VCS backends:
-> - **jj**: Sync always **succeeds**. Conflicts are stored in the working copy and can be resolved later. Auto-rebase handles dependent changes automatically.
-> - **git**: Sync may **fail** on conflicts. You must resolve conflicts before continuing.
+> **Note**: Sync may fail on conflicts. You must resolve conflicts before continuing.
 
-**See Also**: [Sync Workspaces](../how-to/sync-workspaces.md), [Auto-Rebase and Non-Blocking Conflicts](../explanation/auto-rebase-and-conflicts.md)
+**See Also**: [Sync Workspaces](../how-to/sync-workspaces.md)
 
 ---
 
@@ -237,9 +232,7 @@ spec-kitty sync --repair
 
 **Synopsis**: `spec-kitty ops COMMAND [ARGS]...`
 
-**Description**: Operation history and undo capability. View operation logs and restore previous states.
-
-> **Note**: Full undo/restore functionality is only available with jj. Git provides limited functionality via reflog.
+**Description**: Operation history via git reflog. View recent git operations.
 
 **Options**:
 | Flag | Description |
@@ -247,15 +240,13 @@ spec-kitty sync --repair
 | `--help` | Show this message and exit |
 
 **Commands**:
-- `log` - Show operation history
-- `undo` - Undo last operation (jj only)
-- `restore` - Restore to a specific operation (jj only)
+- `log` - Show operation history (git reflog)
 
 ### spec-kitty ops log
 
 **Synopsis**: `spec-kitty ops log [OPTIONS]`
 
-**Description**: Show operation history. Displays recent operations that have modified the repository state.
+**Description**: Show git reflog entries. Displays recent git operations that have modified the repository state.
 
 **Options**:
 | Flag | Description |
@@ -270,55 +261,6 @@ spec-kitty ops log
 spec-kitty ops log -n 50
 spec-kitty ops log --verbose
 ```
-
-> **jj vs git**: Operation log differs between backends:
-> - **jj**: Shows jj operation log with timestamps and operation IDs
-> - **git**: Shows git reflog entries
-
-### spec-kitty ops undo
-
-**Synopsis**: `spec-kitty ops undo [OPTIONS] [OPERATION_ID]`
-
-**Description**: Undo the last operation or a specific operation.
-
-> **jj only**: This command is only available when using jujutsu. Git does not support operation undo.
-
-**Arguments**:
-- `OPERATION_ID`: Operation ID to undo (optional, defaults to last operation)
-
-**Options**:
-| Flag | Description |
-| --- | --- |
-| `--help` | Show this message and exit |
-
-**Examples**:
-```bash
-spec-kitty ops undo
-spec-kitty ops undo abc123
-```
-
-### spec-kitty ops restore
-
-**Synopsis**: `spec-kitty ops restore OPERATION_ID`
-
-**Description**: Restore repository to a specific operation state. Unlike undo (which reverses the last operation), restore jumps directly to any previous operation state.
-
-> **jj only**: This command is only available when using jujutsu. Git does not support operation restore.
-
-**Arguments**:
-- `OPERATION_ID`: Operation ID to restore to (required)
-
-**Options**:
-| Flag | Description |
-| --- | --- |
-| `--help` | Show this message and exit |
-
-**Examples**:
-```bash
-spec-kitty ops restore abc123def456
-```
-
-**See Also**: [Use Operation History](../how-to/use-operation-history.md)
 
 ---
 

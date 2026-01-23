@@ -15,9 +15,6 @@ For background on how git worktrees work, see [Git Worktrees Explained](git-work
 - **Parallel development**: Multiple agents work on different WPs simultaneously without conflicts
 - **Isolation**: Each WP has its own workspace with separate git branch
 - **Scalability**: Features with 10+ WPs can have multiple agents working in parallel
-- **jj integration (0.12.0+)**: With [jujutsu (jj)](https://martinvonz.github.io/jj/), workspaces auto-rebase when dependencies change and conflicts are non-blocking
-
-> **Recommended**: Install jj for the best multi-agent experience. See [Jujutsu Workflow Tutorial](../tutorials/jujutsu-workflow.md).
 
 ## Workflow Comparison
 
@@ -231,9 +228,8 @@ dependencies: []  # Independent WP, branches from main
 - WP02 builds on WP01's foundation
 
 **During review cycles**:
-- If WP01 changes after WP02 starts, WP02 needs manual rebase (git limitation)
+- If WP01 changes after WP02 starts, WP02 needs manual rebase
 - Review warnings alert you to downstream impacts
-- Future jj integration will enable automatic rebasing
 
 ### Validation Rules
 
@@ -343,7 +339,7 @@ git merge ###-feature-WP02  # Manually merge second dependency
 dependencies: ["WP02", "WP03"]
 ```
 
-**Note**: Git limitation requires manual merge of second dependency. With jj, this is handled automatically via auto-rebase. See [Jujutsu for Multi-Agent Development](jujutsu-for-multi-agent.md).
+**Note**: Git requires manual merge of second dependency. Branch from one dependency, then manually merge the other.
 
 ### Pattern 4: Independent Modules
 
@@ -444,7 +440,7 @@ spec-kitty implement WP05 --base WP04
 ❌ Cannot upgrade to 0.11.0
 Legacy worktrees detected:
   - 008-unified-python-cli
-  - 009-jujutsu-vcs
+  - 009-improved-documentation
 ```
 
 **Cause**: You have in-progress features using the old worktree model.
@@ -558,8 +554,6 @@ cd .worktrees/###-feature-WP04/
 git merge ###-feature-WP02
 ```
 
-**Future**: jj integration will automate multi-parent merging.
-
 ## Migration from Legacy Model
 
 See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration guide.
@@ -574,8 +568,6 @@ See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration
 
 ### Related Explanations
 - [Git Worktrees Explained](git-worktrees.md) - Background on the underlying technology
-- [Jujutsu for Multi-Agent Development](jujutsu-for-multi-agent.md) - Why jj is recommended
-- [Auto-Rebase and Non-Blocking Conflicts](auto-rebase-and-conflicts.md) - How jj handles dependencies
 - [Spec-Driven Development](spec-driven-development.md) - The methodology that enables this workflow
 - [Kanban Workflow](kanban-workflow.md) - How work moves through lanes
 - [AI Agent Architecture](ai-agent-architecture.md) - How multiple agents collaborate
@@ -587,13 +579,11 @@ See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration
 ## Try It
 - [Your First Feature](../tutorials/your-first-feature.md)
 - [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md)
-- [Jujutsu Workflow](../tutorials/jujutsu-workflow.md)
 
 ## How-To Guides
 - [Implement a Work Package](../how-to/implement-work-package.md)
 - [Handle Dependencies](../how-to/handle-dependencies.md)
 - [Sync Workspaces](../how-to/sync-workspaces.md)
-- [Handle Conflicts (jj)](../how-to/handle-conflicts-jj.md)
 - [Parallel Development](../how-to/parallel-development.md)
 - [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
 
