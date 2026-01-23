@@ -8,6 +8,7 @@ from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 
 
 @MigrationRegistry.register
@@ -27,26 +28,12 @@ class WorkflowSimplificationMigration(BaseMigration):
     description = "Simplify implement and review templates to use workflow commands"
     target_version = "0.10.6"
 
-    # Canonical list from m_0_9_1 (all supported agents)
-    AGENT_DIRS = [
-        (".claude", "commands"),
-        (".github", "prompts"),
-        (".gemini", "commands"),
-        (".cursor", "commands"),
-        (".qwen", "commands"),
-        (".opencode", "command"),
-        (".windsurf", "workflows"),
-        (".codex", "prompts"),
-        (".kilocode", "workflows"),
-        (".augment", "commands"),
-        (".roo", "commands"),
-        (".amazonq", "prompts"),
-    ]
-
     def detect(self, project_path: Path) -> bool:
         """Check if slash commands need updating to workflow commands."""
-        # Check if any agent directory has the old complex templates
-        for agent_root, subdir in self.AGENT_DIRS:
+        # Check configured agent directories for old complex templates
+        agent_dirs = get_agent_dirs_for_project(project_path)
+
+        for agent_root, subdir in agent_dirs:
             agent_dir = project_path / agent_root / subdir
 
             if not agent_dir.exists():
@@ -136,7 +123,8 @@ class WorkflowSimplificationMigration(BaseMigration):
         templates_to_update = ["implement.md", "review.md"]
         total_updated = 0
 
-        for agent_root, subdir in self.AGENT_DIRS:
+        agent_dirs = get_agent_dirs_for_project(project_path)
+        for agent_root, subdir in agent_dirs:
             agent_dir = project_path / agent_root / subdir
 
             if not agent_dir.exists():

@@ -7,6 +7,7 @@ from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 
 
 @MigrationRegistry.register
@@ -27,22 +28,6 @@ class PopulateSlashCommandsMigration(BaseMigration):
     migration_id = "0.10.1_populate_slash_commands"
     description = "Populate missing slash commands from mission templates"
     target_version = "0.10.1"
-
-    # Canonical list from m_0_9_1 (all supported agents)
-    AGENT_DIRS = [
-        (".claude", "commands"),
-        (".github", "prompts"),
-        (".gemini", "commands"),
-        (".cursor", "commands"),
-        (".qwen", "commands"),
-        (".opencode", "command"),
-        (".windsurf", "workflows"),
-        (".codex", "prompts"),
-        (".kilocode", "workflows"),
-        (".augment", "commands"),
-        (".roo", "commands"),
-        (".amazonq", "prompts"),
-    ]
 
     def detect(self, project_path: Path) -> bool:
         """Check if slash commands are missing from agent directories."""
@@ -120,13 +105,15 @@ class PopulateSlashCommandsMigration(BaseMigration):
                 warnings=warnings,
             )
 
-        # Populate all agent command directories
+        # Populate agent command directories (respecting user config)
         total_created = 0
-        for agent_root, subdir in self.AGENT_DIRS:
+        agent_dirs_to_process = get_agent_dirs_for_project(project_path)
+
+        for agent_root, subdir in agent_dirs_to_process:
             agent_dir = project_path / agent_root / subdir
 
-            # Always create .claude/commands/, only create others if parent exists
-            if agent_dir.parent.exists() or agent_root == ".claude":
+            # Only process if parent directory exists (agent was configured during init)
+            if agent_dir.parent.exists():
                 created = self._populate_agent_commands(
                     command_templates_dir,
                     agent_dir,

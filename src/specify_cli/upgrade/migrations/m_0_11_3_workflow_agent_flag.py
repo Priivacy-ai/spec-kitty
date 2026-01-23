@@ -7,6 +7,7 @@ from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 
 
 @MigrationRegistry.register
@@ -16,21 +17,6 @@ class WorkflowAgentFlagMigration(BaseMigration):
     migration_id = "0.11.3_workflow_agent_flag"
     description = "Ensure workflow commands in agent prompts include --agent"
     target_version = "0.11.3"
-
-    AGENT_DIRS = [
-        (".claude", "commands"),
-        (".github", "prompts"),
-        (".gemini", "commands"),
-        (".cursor", "commands"),
-        (".qwen", "commands"),
-        (".opencode", "command"),
-        (".windsurf", "workflows"),
-        (".codex", "prompts"),
-        (".kilocode", "workflows"),
-        (".augment", "commands"),
-        (".roo", "commands"),
-        (".amazonq", "prompts"),
-    ]
 
     AGENT_NAME_MAP = {
         ".github": "copilot",
@@ -72,7 +58,8 @@ class WorkflowAgentFlagMigration(BaseMigration):
         return updated
 
     def detect(self, project_path: Path) -> bool:
-        for agent_root, subdir in self.AGENT_DIRS:
+        agent_dirs = get_agent_dirs_for_project(project_path)
+        for agent_root, subdir in agent_dirs:
             agent_dir = project_path / agent_root / subdir
             if not agent_dir.exists():
                 continue
@@ -102,7 +89,8 @@ class WorkflowAgentFlagMigration(BaseMigration):
         warnings: List[str] = []
         errors: List[str] = []
 
-        for agent_root, subdir in self.AGENT_DIRS:
+        agent_dirs = get_agent_dirs_for_project(project_path)
+        for agent_root, subdir in agent_dirs:
             agent_dir = project_path / agent_root / subdir
             if not agent_dir.exists():
                 continue

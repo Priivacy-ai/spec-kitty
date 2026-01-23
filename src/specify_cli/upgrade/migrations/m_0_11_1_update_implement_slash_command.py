@@ -26,6 +26,7 @@ except ImportError:
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 
 
 @MigrationRegistry.register
@@ -41,22 +42,6 @@ class UpdateImplementSlashCommandMigration(BaseMigration):
     description = "Update /spec-kitty.implement slash command to show 2-step workflow"
     target_version = "0.11.1"
 
-    # All 12 supported agent directories (canonical list)
-    AGENT_DIRS = [
-        (".claude", "commands"),
-        (".github", "prompts"),
-        (".gemini", "commands"),
-        (".cursor", "commands"),
-        (".qwen", "commands"),
-        (".opencode", "command"),
-        (".windsurf", "workflows"),
-        (".codex", "prompts"),
-        (".kilocode", "workflows"),
-        (".augment", "commands"),
-        (".roo", "commands"),
-        (".amazonq", "prompts"),
-    ]
-
     MISSION_NAME = "software-dev"
     TEMPLATE_FILE = "implement.md"
     SLASH_COMMAND_FILE = "spec-kitty.implement.md"
@@ -66,7 +51,8 @@ class UpdateImplementSlashCommandMigration(BaseMigration):
         # Check for old single-step pattern that's missing the critical step 2
         old_pattern = "spec-kitty agent workflow implement $ARGUMENTS"
 
-        for agent_dir, subdir in self.AGENT_DIRS:
+        agent_dirs = get_agent_dirs_for_project(project_path)
+        for agent_dir, subdir in agent_dirs:
             slash_cmd = project_path / agent_dir / subdir / self.SLASH_COMMAND_FILE
             if slash_cmd.exists():
                 content = slash_cmd.read_text(encoding="utf-8")
@@ -126,9 +112,10 @@ class UpdateImplementSlashCommandMigration(BaseMigration):
                 warnings=warnings,
             )
 
-        # Update all agent directories
+        # Update configured agent directories
         agents_updated = 0
-        for agent_dir, subdir in self.AGENT_DIRS:
+        agent_dirs = get_agent_dirs_for_project(project_path)
+        for agent_dir, subdir in agent_dirs:
             agent_path = project_path / agent_dir / subdir
             slash_cmd = agent_path / self.SLASH_COMMAND_FILE
 

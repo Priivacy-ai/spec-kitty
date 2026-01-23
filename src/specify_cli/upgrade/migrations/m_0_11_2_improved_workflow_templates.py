@@ -8,6 +8,7 @@ from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 
 
 @MigrationRegistry.register
@@ -28,26 +29,12 @@ class ImprovedWorkflowTemplatesMigration(BaseMigration):
     description = "Update workflow templates with end-of-output instructions and --agent requirement"
     target_version = "0.11.2"
 
-    # Canonical list from m_0_9_1 (all supported agents)
-    AGENT_DIRS = [
-        (".claude", "commands"),
-        (".github", "prompts"),
-        (".gemini", "commands"),
-        (".cursor", "commands"),
-        (".qwen", "commands"),
-        (".opencode", "command"),
-        (".windsurf", "workflows"),
-        (".codex", "prompts"),
-        (".kilocode", "workflows"),
-        (".augment", "commands"),
-        (".roo", "commands"),
-        (".amazonq", "prompts"),
-    ]
-
     def detect(self, project_path: Path) -> bool:
         """Check if slash commands need updating with improved guidance."""
         # Check if any agent directory has the old templates (without scroll warning)
-        for agent_root, subdir in self.AGENT_DIRS:
+        agent_dirs = get_agent_dirs_for_project(project_path)
+
+        for agent_root, subdir in agent_dirs:
             agent_dir = project_path / agent_root / subdir
 
             if not agent_dir.exists():
@@ -127,18 +114,19 @@ class ImprovedWorkflowTemplatesMigration(BaseMigration):
                 "Slash commands may already be updated or require manual repair."
             )
 
-        # Update implement.md and review.md in ALL agent directories
+        # Update implement.md and review.md in configured agent directories only
         templates_to_update = ["implement.md", "review.md"]
         total_updated = 0
 
-        for agent_root, subdir in self.AGENT_DIRS:
+        # Get agent dirs respecting user's config
+        agent_dirs_to_process = get_agent_dirs_for_project(project_path)
+
+        for agent_root, subdir in agent_dirs_to_process:
             agent_dir = project_path / agent_root / subdir
 
-            # Create agent directory if it doesn't exist (for new agents)
+            # Skip if directory doesn't exist (respect user deletions)
             if not agent_dir.exists():
-                if not dry_run:
-                    agent_dir.mkdir(parents=True, exist_ok=True)
-                    changes.append(f"Created {agent_root}/{subdir} directory")
+                continue
 
             updated_count = 0
             for template_name in templates_to_update:

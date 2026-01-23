@@ -7,6 +7,7 @@ from typing import List
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 
 
 @MigrationRegistry.register
@@ -28,26 +29,12 @@ class UpdateSlashCommandsMigration(BaseMigration):
     description = "Update slash commands to Python CLI and flat structure"
     target_version = "0.10.2"
 
-    # Canonical list from m_0_9_1 (all supported agents)
-    AGENT_DIRS = [
-        (".claude", "commands"),
-        (".github", "prompts"),
-        (".gemini", "commands"),
-        (".cursor", "commands"),
-        (".qwen", "commands"),
-        (".opencode", "command"),
-        (".windsurf", "workflows"),
-        (".codex", "prompts"),
-        (".kilocode", "workflows"),
-        (".augment", "commands"),
-        (".roo", "commands"),
-        (".amazonq", "prompts"),
-    ]
-
     def detect(self, project_path: Path) -> bool:
         """Check if slash commands need updating."""
-        # Check ALL agent directories
-        for agent_root, subdir in self.AGENT_DIRS:
+        # Check agent directories respecting user config
+        agent_dirs = get_agent_dirs_for_project(project_path)
+
+        for agent_root, subdir in agent_dirs:
             agent_dir = project_path / agent_root / subdir
 
             if not agent_dir.exists():
@@ -124,9 +111,11 @@ class UpdateSlashCommandsMigration(BaseMigration):
                 warnings=warnings,
             )
 
-        # Update slash commands in ALL agent directories (overwrite existing)
+        # Update slash commands in configured agent directories (overwrite existing)
         total_updated = 0
-        for agent_root, subdir in self.AGENT_DIRS:
+        agent_dirs = get_agent_dirs_for_project(project_path)
+
+        for agent_root, subdir in agent_dirs:
             agent_dir = project_path / agent_root / subdir
 
             if not agent_dir.exists():
