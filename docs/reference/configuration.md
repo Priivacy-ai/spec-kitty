@@ -297,9 +297,9 @@ agents:
     - opencode
     - claude
   selection:
-    strategy: "preferred"
-    preferred_implementer: "opencode"
-    preferred_reviewer: "claude"
+    strategy: preferred
+    preferred_implementer: opencode
+    preferred_reviewer: claude
 ```
 
 | Field | Type | Description |
