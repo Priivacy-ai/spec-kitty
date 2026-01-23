@@ -49,37 +49,14 @@ Sync Workspace
 Check that upstream changes are now present:
 
 ```bash
-# With jj
-jj log --limit 10
-
-# With git
 git log --oneline -10
 ```
 
 ---
 
-## Backend Differences
+## Conflict Handling
 
-> **Important**: Sync behavior differs between jj and git backends.
-
-### jj (Jujutsu)
-
-- Sync **always succeeds**
-- Conflicts are stored in files as conflict markers
-- You can continue working even with conflicts
-- Resolve conflicts when convenient
-
-### git
-
-- Sync may **fail** if conflicts are detected
-- You must resolve conflicts before proceeding
-- Work is blocked until conflicts are resolved
-
-To check which backend your workspace uses:
-
-```bash
-spec-kitty verify-setup --diagnostics
-```
+Sync may **fail** if conflicts are detected. You must resolve conflicts before proceeding.
 
 ---
 
@@ -93,7 +70,7 @@ spec-kitty sync --verbose
 
 Output includes:
 - Rebase operations performed
-- Any conflicts detected or stored conflicts (jj)
+- Any conflicts detected
 
 ---
 
@@ -120,10 +97,6 @@ This attempts to:
 Commit or stash your changes before syncing:
 
 ```bash
-# With jj
-jj commit -m "WIP: save before sync"
-
-# With git
 git add . && git commit -m "WIP: save before sync"
 ```
 
@@ -146,11 +119,7 @@ git rebase --continue
 The base branch may have been deleted or renamed. Check available branches:
 
 ```bash
-# With git
 git branch -a
-
-# With jj
-jj branch list
 ```
 
 If the base branch is missing, you may need to recreate it or use `--repair`.
@@ -179,8 +148,5 @@ Sync your workspace:
 
 ## See Also
 
-- [Jujutsu (jj) Workflow Tutorial](../tutorials/jujutsu-workflow.md) — Complete workflow tutorial
-- [Handle Conflicts (jj)](handle-conflicts-jj.md) — Resolving conflicts after sync
 - [Handle Dependencies](handle-dependencies.md) — Keeping dependent WPs in sync
-- [Auto-Rebase and Non-Blocking Conflicts](../explanation/auto-rebase-and-conflicts.md) — How auto-rebase works
 - [CLI Commands Reference](../reference/cli-commands.md#spec-kitty-sync) — Full command reference

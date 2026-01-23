@@ -35,7 +35,7 @@ Look for directories matching pattern `###-feature` (without `-WP##` suffix).
 
 **Examples of legacy worktrees**:
 - `008-unified-python-cli/` ← Legacy (0.10.x)
-- `009-jujutsu-vcs/` ← Legacy (0.10.x)
+- `009-improved-documentation/` ← Legacy (0.10.x)
 - `010-workspace-per-wp-WP01/` ← New (0.11.0+, this is OK)
 
 **Or use the utility command (after upgrading spec-kitty-cli)**:
@@ -305,7 +305,7 @@ No legacy worktrees detected. Safe to upgrade to 0.11.0.
 # Legacy worktrees found
 Legacy worktrees detected:
   - 008-unified-python-cli
-  - 009-jujutsu-vcs
+  - 009-improved-documentation
 
 Complete or delete these features before upgrading to 0.11.0.
 ```
@@ -431,7 +431,7 @@ spec-kitty merge 011-user-authentication
 ❌ Cannot upgrade to 0.11.0
 Legacy worktrees detected:
   - 008-unified-python-cli
-  - 009-jujutsu-vcs
+  - 009-improved-documentation
 
 Complete or delete these features before upgrading.
 ```
@@ -509,7 +509,6 @@ After upgrading, you'll benefit from:
 3. **Explicit dependencies**: Dependencies declared in frontmatter, validated automatically
 4. **Cleaner main**: Planning artifacts visible in main (no need to cd to worktree to see plan)
 5. **Scalability**: Features with 10+ WPs can have multiple agents working in parallel
-6. **Foundation for jj**: Future jj integration will enable automatic rebasing
 
 ## Getting Help
 

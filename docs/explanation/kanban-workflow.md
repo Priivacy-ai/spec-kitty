@@ -313,7 +313,6 @@ Work returned from review goes back to `planned` with feedback.
 
 - [Spec-Driven Development](spec-driven-development.md) - The methodology that creates work packages
 - [Workspace-per-WP](workspace-per-wp.md) - How parallel development works
-- [Jujutsu for Multi-Agent Development](jujutsu-for-multi-agent.md) - Why jj is recommended
 - [AI Agent Architecture](ai-agent-architecture.md) - How agents claim and process work
 
 ---
@@ -322,7 +321,6 @@ Work returned from review goes back to `planned` with feedback.
 
 ## Try It
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
-- [Jujutsu Workflow](../tutorials/jujutsu-workflow.md)
 
 ## How-To Guides
 - [Use the Dashboard](../how-to/use-dashboard.md)

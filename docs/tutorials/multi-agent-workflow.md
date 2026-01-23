@@ -13,7 +13,6 @@ Learn how to coordinate multiple AI agents working on different work packages si
 - Clear isolation with dedicated worktrees
 - Reduced merge conflicts
 
-> **With jujutsu (jj)**: Multiple agents can work on dependent work packages simultaneously. When one WP changes, others auto-rebase. No manual coordination needed. See [Why Jujutsu for Multi-Agent](../explanation/jujutsu-for-multi-agent.md).
 
 ## Understanding Work Package Dependencies
 

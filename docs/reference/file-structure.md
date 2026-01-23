@@ -10,15 +10,14 @@ This document describes the complete directory structure of a Spec Kitty project
 my-project/
 ├── .kittify/              # Spec Kitty configuration and templates
 ├── kitty-specs/           # Feature specifications
-├── .worktrees/            # Git/jj worktrees for WP implementation (0.11.0+)
+├── .worktrees/            # Git worktrees for WP implementation (0.11.0+)
 ├── .claude/               # Claude Code slash commands
 ├── .cursor/               # Cursor slash commands
 ├── .gemini/               # Gemini CLI slash commands
 ├── (other agent dirs)     # Other AI agent directories
 ├── docs/                  # Project documentation
 ├── src/                   # Your source code
-├── .git/                  # Git repository (if using git)
-└── .jj/                   # Jujutsu repository (if using jj)
+└── .git/                  # Git repository
 ```
 
 ---
@@ -130,11 +129,11 @@ Contains Git worktrees for work package implementation. Each WP gets its own iso
 
 ## VCS Directories
 
-Spec Kitty supports both Git and Jujutsu (jj) as version control backends.
+Spec Kitty uses Git as the version control backend.
 
 ### .git/ Directory
 
-Standard Git repository directory. Present when using Git as the VCS.
+Standard Git repository directory.
 
 ```
 .git/
@@ -144,39 +143,6 @@ Standard Git repository directory. Present when using Git as the VCS.
 ├── refs/          # Branch and tag references
 └── worktrees/     # Git worktree info (managed internally)
 ```
-
-### .jj/ Directory
-
-Jujutsu repository directory. Present when using jj as the VCS.
-
-```
-.jj/
-├── repo/          # Repository storage
-│   ├── store/     # Object store
-│   └── op_store/  # Operation history (enables undo)
-└── working_copy/  # Working copy state
-```
-
-### Colocated Mode
-
-When both `.jj/` and `.git/` directories exist, jj operates in **colocated mode**:
-
-```
-my-project/
-├── .git/          # Git repository
-├── .jj/           # Jujutsu overlay
-└── ...
-```
-
-**Benefits of colocated mode**:
-- Push/pull via either `git` or `jj git` commands
-- Gradual migration from git to jj
-- Team members can use their preferred tool
-
-**VCS Detection**:
-VCS backend is determined by the full detection algorithm (CLI flags, feature locks, tool availability), not simply by which directory exists. See [VCS Detection Order](configuration.md#vcs-detection-order) for details.
-
-In colocated mode, both `.jj/` and `.git/` exist simultaneously.
 
 ---
 
@@ -247,12 +213,11 @@ docs/
 
 ## Complete Example
 
-Here's a complete project structure with one active feature (using jj in colocated mode):
+Here's a complete project structure with one active feature:
 
 ```
 my-project/
 ├── .git/                            # Git repository
-├── .jj/                             # Jujutsu repository (colocated)
 ├── .gitignore
 ├── .kittify/
 │   ├── templates/
@@ -299,8 +264,6 @@ my-project/
 - [Configuration](configuration.md) — Configuration file formats
 - [Workspace-per-WP Model](../explanation/workspace-per-wp.md) — How worktrees work
 - [Git Worktrees](../explanation/git-worktrees.md) — Git worktrees explained
-- [Jujutsu for Multi-Agent Development](../explanation/jujutsu-for-multi-agent.md) — Why jj is preferred
-- [Jujutsu (jj) Workflow](../tutorials/jujutsu-workflow.md) — Tutorial for jj users
 
 ## Getting Started
 - [Claude Code Integration](../tutorials/claude-code-integration.md)

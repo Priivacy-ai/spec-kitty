@@ -6,10 +6,6 @@
   href: workspace-per-wp.md
 - name: Git Worktrees
   href: git-worktrees.md
-- name: Jujutsu for Multi-Agent Development
-  href: jujutsu-for-multi-agent.md
-- name: Auto-Rebase and Non-Blocking Conflicts
-  href: auto-rebase-and-conflicts.md
 - name: Mission System
   href: mission-system.md
 - name: Kanban Workflow

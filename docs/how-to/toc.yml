@@ -20,8 +20,6 @@
   href: handle-dependencies.md
 - name: Sync Workspaces
   href: sync-workspaces.md
-- name: Handle Conflicts (jj)
-  href: handle-conflicts-jj.md
 - name: Use Operation History
   href: use-operation-history.md
 - name: Parallel Development

@@ -18,7 +18,7 @@ Each feature has a `meta.json` file in its directory that stores metadata about 
   "slug": "014-comprehensive-end-user-documentation",
   "friendly_name": "Comprehensive End-User Documentation",
   "mission": "documentation",
-  "vcs": "jj",
+  "vcs": "git",
   "source_description": "Original feature description provided during /spec-kitty.specify",
   "created_at": "2026-01-16T12:00:00Z"
 }
@@ -30,7 +30,7 @@ Each feature has a `meta.json` file in its directory that stores metadata about 
 | `slug` | string | Full feature slug including number |
 | `friendly_name` | string | Human-readable feature name |
 | `mission` | string | Mission type: `software-dev`, `research`, or `documentation` |
-| `vcs` | string | VCS backend: `git` or `jj` (auto-detected if not specified) |
+| `vcs` | string | VCS backend: `git` (auto-detected if not specified) |
 | `source_description` | string | Original description from `/spec-kitty.specify` |
 | `created_at` | string | ISO 8601 timestamp of creation |
 
@@ -240,46 +240,16 @@ artifacts:
 
 ## VCS Configuration (0.12.0+)
 
-Spec Kitty supports both Git and Jujutsu (jj) as VCS backends. Configuration options control VCS detection and behavior.
+Spec Kitty uses Git as the version control backend. Configuration options control VCS detection and behavior.
 
 ### Project-Level VCS Settings
 
-VCS preferences can be configured in `.kittify/config.yaml`:
-
-```yaml
-vcs:
-  preferred: "auto"    # "auto" | "jj" | "git"
-  jj:
-    min_version: "0.20.0"
-    colocate: true     # Create .git alongside .jj for compatibility
-```
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `vcs.preferred` | `"auto"` | VCS preference: `auto` (detect), `jj`, or `git` |
-| `vcs.jj.min_version` | `"0.20.0"` | Minimum jj version required |
-| `vcs.jj.colocate` | `true` | Enable colocated mode (both .jj and .git) |
-
-### VCS Detection Order
-
-Spec Kitty detects VCS backend in this order:
-
-1. **Explicit backend (CLI flag)**: `spec-kitty init --vcs git` or `--vcs jj`
-   - If a feature has a locked VCS that conflicts, **raises an error** (does not silently override)
-2. **Feature meta.json**: If the path is within a feature, use its locked `vcs` field
-3. **jj preferred**: If `jj` is installed and meets `min_version`, use jj
-4. **git fallback**: Use git if available
-
-> **Important**: Once a feature is created, its VCS is locked. Attempting to use a different `--vcs` flag within that feature will error with `VCSBackendMismatchError`.
-
-### Per-Feature VCS Lock
-
-Once a feature is created, its VCS is locked in `meta.json`:
+Spec Kitty uses git for version control. Once a feature is created, its VCS is locked in `meta.json`:
 
 ```json
 {
   "slug": "016-documentation",
-  "vcs": "jj"
+  "vcs": "git"
 }
 ```
 
@@ -291,8 +261,7 @@ Use `spec-kitty verify-setup --diagnostics` to see which VCS is active:
 
 ```bash
 $ spec-kitty verify-setup --diagnostics
-VCS Backend: jj (0.24.0)
-Colocated: Yes
+VCS Backend: git
 ```
 
 ---
@@ -533,7 +502,6 @@ If you see this file in older projects, it will be ignored. The mission in each 
 - [Environment Variables](environment-variables.md) — Runtime configuration
 - [Missions](missions.md) — Mission types and their artifacts
 - [CLI Commands](cli-commands.md) — Command reference including `--vcs` flag
-- [Jujutsu (jj) Workflow](../tutorials/jujutsu-workflow.md) — Tutorial for jj users
 
 ## Getting Started
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
