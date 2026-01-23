@@ -7,12 +7,12 @@ subtasks:
   - "T028"
 title: "Cross-Reference Updates"
 phase: "Phase 2 - Reference Documentation"
-lane: "doing"
+lane: "done"
 assignee: ""
 agent: "Claude"
 shell_pid: "38575"
-review_status: ""
-reviewed_by: ""
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 dependencies: ["WP02", "WP05"]
 history:
   - timestamp: "2026-01-23T10:23:45Z"
@@ -425,6 +425,7 @@ The CLI command updates both frontmatter and activity log automatically.
 - 2026-01-23T11:08:30Z – claude – shell_pid=30211 – lane=doing – Started implementation via workflow command
 - 2026-01-23T11:10:44Z – claude – shell_pid=30211 – lane=for_review – Ready for review: Added cross-references to agent config documentation from 4 related pages. Updated agent-subcommands.md with config command entry, configuration.md with config-driven model section, install-spec-kitty.md with post-init management guide, and supported-agents.md with management commands overview. All relative paths tested and agent config commands now discoverable from multiple documentation entry points.
 - 2026-01-23T11:15:49Z – Claude – shell_pid=38575 – lane=doing – Started review via workflow command
+- 2026-01-23T11:15:49Z – Claude – shell_pid=38575 – lane=done – Review passed: Implementation complete
 
 ## Implementation Command
 
