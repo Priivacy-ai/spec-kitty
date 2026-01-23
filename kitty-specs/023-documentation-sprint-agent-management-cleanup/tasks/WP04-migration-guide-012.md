@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Migration Guide for 0.12.0
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 - WP02
@@ -658,6 +658,7 @@ The CLI command updates both frontmatter and activity log automatically.
 
 ---
 - 2026-01-23T11:01:43Z – claude – shell_pid=20855 – lane=doing – Started implementation via workflow command
+- 2026-01-23T11:18:18Z – claude – shell_pid=20855 – lane=for_review – Ready for review: Migration guide for 0.12.0 config-driven agent management. Step-by-step upgrade workflow covering removal of unwanted agents before upgrade, verification, optional sync, and adding new agents. Includes troubleshooting section for common scenarios.
 
 ## Implementation Command
 
