@@ -340,6 +340,41 @@ agents:
 | `selection.preferred_implementer` | string | Agent for implementation tasks |
 | `selection.preferred_reviewer` | string | Agent for review tasks |
 
+### Config-Driven Agent Management
+
+Starting in spec-kitty 0.12.0, agent configuration follows a config-driven model where `.kittify/config.yaml` is the single source of truth for which agents are active in your project.
+
+**Key principles**:
+- Agent directories on filesystem (e.g., `.claude/commands/`) are derived from `config.yaml`
+- Migrations respect `config.yaml` - only process configured agents
+- Use `spec-kitty agent config` commands to manage agents (not manual editing)
+
+**Schema**:
+```yaml
+agents:
+  available:
+    - claude
+    - codex
+    - opencode
+  selection:
+    strategy: preferred  # or "random"
+    preferred_implementer: claude
+    preferred_reviewer: codex
+```
+
+**Fields**:
+- `available` (list): Agent keys currently active in project
+- `selection.strategy` (string): Agent selection strategy (`preferred` or `random`)
+- `selection.preferred_implementer` (string): Preferred agent for implementation tasks
+- `selection.preferred_reviewer` (string): Preferred agent for review tasks
+
+**See**:
+- [Managing AI Agents](../how-to/manage-agents.md) - Complete guide to agent management commands
+- [CLI Reference: spec-kitty agent config](cli-commands.md#spec-kitty-agent-config) - Command syntax and options
+- [ADR #6: Config-Driven Agent Management](../../architecture/adrs/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
+
+> **Legacy behavior**: Projects without `agents.available` field default to all 12 agents for backward compatibility. To adopt config-driven model, use `spec-kitty agent config remove` to remove unwanted agents.
+
 ### Managing Agents
 
 #### List Configured Agents
