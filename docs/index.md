@@ -8,7 +8,7 @@
 
 ## What is Spec Kitty?
 
-Spec Kitty is a toolkit for **spec-driven development** with AI coding agents. It structures your AI workflows around specifications, plans, and work packages—ensuring that AI agents build exactly what you need, with live progress tracking via a kanban dashboard.
+Spec Kitty is a toolkit for [spec-driven development](explanation/spec-driven-development.md) with AI coding agents. It structures your AI workflows around specifications, plans, and work packages—ensuring that AI agents build exactly what you need, with live progress tracking via a kanban dashboard.
 
 Works with Claude Code, Cursor, Windsurf, Gemini CLI, GitHub Copilot, and 7 other AI coding agents.
 
