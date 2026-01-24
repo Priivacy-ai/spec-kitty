@@ -32,6 +32,7 @@ from . import m_0_11_1_update_implement_slash_command
 from . import m_0_11_2_improved_workflow_templates
 from . import m_0_11_3_workflow_agent_flag
 from . import m_0_12_0_documentation_mission
+from . import m_0_12_1_remove_kitty_specs_from_gitignore
 
 __all__ = [
     "m_0_2_0_specify_to_kittify",
@@ -60,4 +61,5 @@ __all__ = [
     "m_0_11_2_improved_workflow_templates",
     "m_0_11_3_workflow_agent_flag",
     "m_0_12_0_documentation_mission",
+    "m_0_12_1_remove_kitty_specs_from_gitignore",
 ]

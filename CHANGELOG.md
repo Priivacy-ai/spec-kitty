@@ -7,6 +7,31 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.1] - 2026-01-24
+
+### 🐛 Fixed
+
+**kitty-specs/ in .gitignore Blocking Feature Creation**:
+- Fixed issue where users with `kitty-specs/` in their `.gitignore` couldn't create features
+- Error manifested as: "Issue Detected: The spec-kitty agent feature create-feature command failed to commit because .gitignore contains kitty-specs/"
+- New migration `m_0_12_1_remove_kitty_specs_from_gitignore` automatically removes blocking entries
+- Only removes patterns that block the entire `kitty-specs/` directory
+- Preserves worktree-specific patterns like `kitty-specs/**/tasks/*.md` (used to prevent merge conflicts)
+
+### Migration Notes
+
+**For users experiencing this bug:**
+1. Run `spec-kitty upgrade` to apply the fix automatically
+2. Or manually remove `kitty-specs/` from your `.gitignore`
+
+The migration will detect and remove entries like:
+- `kitty-specs`
+- `kitty-specs/`
+- `/kitty-specs`
+- `/kitty-specs/`
+
+It will NOT remove specific subpath patterns that are intentionally used in worktrees.
+
 ## [0.12.0] - 2026-01-23
 
 ### ✨ Added
