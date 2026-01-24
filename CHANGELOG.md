@@ -7,6 +7,24 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.2] - 2026-01-25
+
+### 🐛 Fixed
+
+**Dashboard Command Template Generating Python Code Instead of Running CLI** ([#94](https://github.com/Priivacy-ai/spec-kitty/issues/94)):
+- Fixed `/spec-kitty.dashboard` command template to use `spec-kitty dashboard` CLI command
+- Removed outdated Python code that manually checked dashboard status and opened browsers
+- Dashboard now properly:
+  - Starts automatically if not running
+  - Opens in default browser
+  - Handles worktree detection automatically
+- Updated all three dashboard template files:
+  - `.kittify/missions/software-dev/command-templates/dashboard.md`
+  - `src/specify_cli/missions/software-dev/command-templates/dashboard.md`
+  - `src/specify_cli/templates/command-templates/dashboard.md`
+- Reduced template code from ~264 lines to ~47 lines
+- **Contributors**: Claude Sonnet 4.5, Jerome Lacube
+
 ## [0.12.1] - 2026-01-24
 
 ### 🐛 Fixed

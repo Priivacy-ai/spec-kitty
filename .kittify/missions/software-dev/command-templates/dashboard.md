@@ -30,7 +30,7 @@ spec-kitty dashboard
 
 ## Success Criteria
 
-- Dashboard starts or opens if already running
-- Browser opens automatically to the dashboard URL
-- User sees the dashboard URL displayed in the terminal
+- User sees the dashboard URL clearly displayed
+- Browser opens automatically to the dashboard
+- If browser doesn't open, user gets clear instructions
 - Error messages are helpful and actionable
