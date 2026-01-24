@@ -419,7 +419,7 @@ Consider updating constitution if exceptions become common.
 After writing, provide:
 - Location of the file
 - Phases completed and questions answered
-- Next steps (review, share with team, run /spec-kitty.plan)
+- Next steps (review, share with team, run /spec-kitty.specify)
 
 ---
 
