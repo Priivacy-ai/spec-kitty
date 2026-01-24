@@ -659,7 +659,7 @@ def review(
         graph = build_dependency_graph(feature_dir)
         dependents = get_dependents(normalized_wp_id, graph)
         if dependents:
-            in_progress: list[str] = []
+            incomplete: list[str] = []
             for dependent_id in dependents:
                 try:
                     dependent_wp = locate_work_package(repo_root, feature_slug, dependent_id)
@@ -667,10 +667,10 @@ def review(
                     continue
                 lane = extract_scalar(dependent_wp.frontmatter, "lane")
                 if lane in {"planned", "doing", "for_review"}:
-                    in_progress.append(dependent_id)
-            if in_progress:
-                dependents_list = ", ".join(sorted(in_progress))
-                dependents_warning.append(f"⚠️  Dependency Alert: {dependents_list} depend on {normalized_wp_id}")
+                    incomplete.append(dependent_id)
+            if incomplete:
+                dependents_list = ", ".join(sorted(incomplete))
+                dependents_warning.append(f"⚠️  Dependency Alert: {dependents_list} depend on {normalized_wp_id} (not yet done)")
                 dependents_warning.append("   If you request changes, notify those agents to rebase.")
 
         # Build full prompt content for file

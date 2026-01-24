@@ -312,7 +312,7 @@ def check_for_dependents(
     feature_slug: str,
     wp_id: str
 ) -> None:
-    """Check if any WPs depend on this WP and warn if in progress.
+    """Check if any WPs depend on this WP and warn if not yet done.
 
     Args:
         repo_root: Repository root path
@@ -329,8 +329,8 @@ def check_for_dependents(
     if not dependents:
         return  # No dependents, no warnings needed
 
-    # Check if any dependents are in progress (lane: planned, doing, for_review)
-    in_progress_deps = []
+    # Check if any dependents are incomplete (any lane except done)
+    incomplete_deps = []
     for dep_id in dependents:
         try:
             dep_file = find_wp_file(repo_root, feature_slug, dep_id)
@@ -338,16 +338,16 @@ def check_for_dependents(
             lane = frontmatter.get("lane", "planned")
 
             if lane in ["planned", "doing", "for_review"]:
-                in_progress_deps.append(dep_id)
+                incomplete_deps.append(dep_id)
         except (FileNotFoundError, Exception):
             # If we can't read the dependent's metadata, skip it
             continue
 
-    if in_progress_deps:
+    if incomplete_deps:
         console.print(f"\n[yellow]⚠️  Dependency Alert:[/yellow]")
-        console.print(f"{', '.join(in_progress_deps)} depend on {wp_id}")
+        console.print(f"{', '.join(incomplete_deps)} depend on {wp_id} (not yet done)")
         console.print("If you modify this WP, dependent WPs will need manual rebase:")
-        for dep_id in in_progress_deps:
+        for dep_id in incomplete_deps:
             dep_workspace = f".worktrees/{feature_slug}-{dep_id}"
             console.print(f"  cd {dep_workspace} && git rebase {feature_slug}-{wp_id}")
         console.print()

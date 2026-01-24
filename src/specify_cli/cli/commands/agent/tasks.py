@@ -148,7 +148,7 @@ def _check_dependent_warnings(
     target_lane: str,
     json_mode: bool
 ) -> None:
-    """Display warning when WP moves to for_review and has dependents in progress.
+    """Display warning when WP moves to for_review and has incomplete dependents.
 
     Args:
         repo_root: Repository root path
@@ -181,8 +181,8 @@ def _check_dependent_warnings(
     if not dependents:
         return  # No dependents, no warnings
 
-    # Check if any dependents are in progress
-    in_progress = []
+    # Check if any dependents are incomplete (not yet done)
+    incomplete = []
     for dep_id in dependents:
         try:
             # Find dependent WP file
@@ -197,18 +197,18 @@ def _check_dependent_warnings(
             lane = extract_scalar(frontmatter, "lane") or "planned"
 
             if lane in ["planned", "doing"]:
-                in_progress.append(dep_id)
+                incomplete.append(dep_id)
         except Exception:
             # Skip if we can't read the dependent
             continue
 
-    if in_progress:
+    if incomplete:
         console.print(f"\n[yellow]⚠️  Dependency Alert[/yellow]")
-        console.print(f"{', '.join(in_progress)} are in progress and depend on {wp_id}")
+        console.print(f"{', '.join(incomplete)} depend on {wp_id} (not yet done)")
         console.print("\nIf changes are requested during review:")
         console.print("  1. Notify dependent WP agents")
         console.print("  2. Dependent WPs will need manual rebase after changes")
-        for dep in in_progress:
+        for dep in incomplete:
             console.print(f"     cd .worktrees/{feature_slug}-{dep} && git rebase {feature_slug}-{wp_id}")
         console.print()
 
