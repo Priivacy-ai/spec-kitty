@@ -3,7 +3,7 @@
     <h1>Spec Kitty</h1>
 </div>
 
-Spec Kitty is for people using LLM agents to write code (eg. Claude Code, Codex, Cursor). It enforces spec-first development with a live kanban dashboard, letting you coordinate multiple AI agents on complex features while maintaining quality.
+Spec Kitty is for Spec Coding: using LLM agents to write code (eg. Claude Code, Codex, Cursor) while enforcing specification-first development. It features a live kanban dashboard, deterministic automation, git worktrees per work package, and smart merging. This helps you coordinate multiple AI agents on complex features while maintaining quality.
 
 **Try it now**: `pip install spec-kitty-cli && spec-kitty init myproject --ai claude`
 
