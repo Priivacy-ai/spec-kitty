@@ -20,6 +20,88 @@ if (typeof window !== 'undefined' && window.__INITIAL_MISSION__) {
     activeMission = window.__INITIAL_MISSION__;
 }
 
+/**
+ * Intercept clicks on links within rendered markdown content.
+ * Routes artifact links (spec.md, plan.md, etc.) through the dashboard API
+ * instead of navigating to broken URLs.
+ *
+ * @param {HTMLElement} container - The container element with rendered markdown
+ * @param {string} basePath - Base path for relative links (e.g., 'research/' for research artifacts)
+ */
+function interceptMarkdownLinks(container, basePath = '') {
+    if (!container) return;
+
+    // Map of artifact names to their dashboard page keys
+    const artifactMap = {
+        'spec.md': 'spec',
+        'plan.md': 'plan',
+        'tasks.md': 'tasks',
+        'research.md': 'research',
+        'quickstart.md': 'quickstart',
+        'data-model.md': 'data_model',
+        'data_model.md': 'data_model',
+    };
+
+    container.querySelectorAll('a').forEach(link => {
+        const href = link.getAttribute('href');
+        if (!href) return;
+
+        // Skip external links and anchor links
+        if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('#')) {
+            return;
+        }
+
+        // Normalize the path (remove leading ./ or /)
+        let normalizedPath = href.replace(/^\.?\//, '');
+
+        // Check if it's a known artifact (top-level .md file)
+        if (artifactMap[normalizedPath]) {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchPage(artifactMap[normalizedPath]);
+            });
+            link.style.cursor = 'pointer';
+            link.title = `View ${normalizedPath} in dashboard`;
+            return;
+        }
+
+        // Check if it's a research/, contracts/, or checklists/ subdirectory file
+        if (normalizedPath.startsWith('research/') || normalizedPath.startsWith('contracts/') || normalizedPath.startsWith('checklists/')) {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const fileName = normalizedPath.split('/').pop();
+                if (normalizedPath.startsWith('research/')) {
+                    loadResearchFile(normalizedPath, fileName);
+                } else if (normalizedPath.startsWith('contracts/')) {
+                    loadContractFile(normalizedPath, fileName);
+                } else if (normalizedPath.startsWith('checklists/')) {
+                    loadChecklistFile(normalizedPath, fileName);
+                }
+            });
+            link.style.cursor = 'pointer';
+            link.title = `View ${normalizedPath} in dashboard`;
+            return;
+        }
+
+        // Handle relative paths within the current context (e.g., evidence-log.csv from research.md)
+        if (basePath && !normalizedPath.includes('/')) {
+            const fullPath = basePath + normalizedPath;
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (basePath === 'research/') {
+                    loadResearchFile(fullPath, normalizedPath);
+                } else if (basePath === 'contracts/') {
+                    loadContractFile(fullPath, normalizedPath);
+                } else if (basePath === 'checklists/') {
+                    loadChecklistFile(fullPath, normalizedPath);
+                }
+            });
+            link.style.cursor = 'pointer';
+            link.title = `View ${fullPath} in dashboard`;
+        }
+    });
+}
+
 function updateMissionDisplay(mission) {
     const nameEl = document.getElementById('mission-name');
     if (!nameEl) return;
@@ -508,7 +590,10 @@ function loadArtifact(artifactName) {
         .then(content => {
             // Render markdown to HTML
             const htmlContent = marked.parse(content);
-            document.getElementById(`${artifactName}-content`).innerHTML = htmlContent;
+            const container = document.getElementById(`${artifactName}-content`);
+            container.innerHTML = htmlContent;
+            // Intercept markdown links to route through dashboard
+            interceptMarkdownLinks(container);
         })
         .catch(error => {
             document.getElementById(`${artifactName}-content`).innerHTML =
@@ -596,7 +681,8 @@ function loadContractFile(filePath, fileName) {
                 htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto;"><code>${escapeHtml(content)}</code></pre>`;
             }
 
-            document.getElementById('contracts-content').innerHTML = `
+            const container = document.getElementById('contracts-content');
+            container.innerHTML = `
                 <div style="margin-bottom: 20px;">
                     <button onclick="loadContracts()"
                             style="padding: 8px 16px; background: var(--baby-blue); border: none; border-radius: 6px; cursor: pointer; color: var(--dark-text); font-weight: 500;">
@@ -606,6 +692,8 @@ function loadContractFile(filePath, fileName) {
                 <h3 style="color: var(--grassy-green); margin-bottom: 15px;">${escapeHtml(fileName)}</h3>
                 ${htmlContent}
             `;
+            // Intercept markdown links to route through dashboard
+            interceptMarkdownLinks(container, 'contracts/');
         })
         .catch(error => {
             document.getElementById('contracts-content').innerHTML =
@@ -693,7 +781,8 @@ function loadChecklistFile(filePath, fileName) {
                 htmlContent = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto;"><code>${escapeHtml(content)}</code></pre>`;
             }
 
-            document.getElementById('checklists-content').innerHTML = `
+            const container = document.getElementById('checklists-content');
+            container.innerHTML = `
                 <div style="margin-bottom: 20px;">
                     <button onclick="loadChecklists()"
                             style="padding: 8px 16px; background: var(--baby-blue); border: none; border-radius: 6px; cursor: pointer; color: var(--dark-text); font-weight: 500;">
@@ -703,6 +792,8 @@ function loadChecklistFile(filePath, fileName) {
                 <h3 style="color: var(--grassy-green); margin-bottom: 15px;">${escapeHtml(fileName)}</h3>
                 ${htmlContent}
             `;
+            // Intercept markdown links to route through dashboard
+            interceptMarkdownLinks(container, 'checklists/');
         })
         .catch(error => {
             document.getElementById('checklists-content').innerHTML =
@@ -766,6 +857,9 @@ function renderResearchContent(data) {
 
     document.getElementById('research-content').innerHTML = mainContent + artifactsHtml;
 
+    // Intercept markdown links to route through dashboard
+    interceptMarkdownLinks(document.getElementById('research-content'));
+
     // Add click handlers
     document.querySelectorAll('.research-artifact-item').forEach(item => {
         item.addEventListener('click', () => {
@@ -802,7 +896,8 @@ function loadResearchFile(filePath, fileName) {
                 htmlContent = `<pre style="background: white; padding: 20px; border-radius: 8px; overflow-x: auto;">${escapeHtml(content)}</pre>`;
             }
 
-            document.getElementById('research-content').innerHTML = `
+            const container = document.getElementById('research-content');
+            container.innerHTML = `
                 <div style="margin-bottom: 20px;">
                     <button onclick="loadResearch()"
                             style="padding: 8px 16px; background: var(--baby-blue); border: none; border-radius: 6px; cursor: pointer; color: var(--dark-text); font-weight: 500;">
@@ -812,6 +907,8 @@ function loadResearchFile(filePath, fileName) {
                 <h3 style="color: var(--grassy-green); margin-bottom: 15px;">${escapeHtml(fileName)}</h3>
                 ${htmlContent}
             `;
+            // Intercept markdown links to route through dashboard
+            interceptMarkdownLinks(container, 'research/');
         })
         .catch(error => {
             document.getElementById('research-content').innerHTML =
@@ -910,7 +1007,10 @@ function showConstitution() {
         .then(response => response.ok ? response.text() : Promise.reject('Not found'))
         .then(content => {
             const htmlContent = marked.parse(content);
-            document.getElementById('constitution-content').innerHTML = htmlContent;
+            const container = document.getElementById('constitution-content');
+            container.innerHTML = htmlContent;
+            // Intercept markdown links to route through dashboard
+            interceptMarkdownLinks(container);
         })
         .catch(error => {
             document.getElementById('constitution-content').innerHTML =
