@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -11,6 +13,7 @@ from typing_extensions import Annotated
 
 from specify_cli.core.paths import locate_project_root, find_feature_slug
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
+from specify_cli.mission import get_feature_mission_key, get_deliverables_path
 from specify_cli.tasks_support import (
     extract_scalar,
     locate_work_package,
@@ -94,6 +97,78 @@ def _normalize_wp_id(wp_arg: str) -> str:
     else:
         # Assume it's like "01" or "1", prefix with WP
         return f"WP{wp_upper.lstrip('WP')}"
+
+
+def _ensure_sparse_checkout(worktree_path: Path) -> bool:
+    """Ensure worktree has sparse-checkout configured to exclude kitty-specs/.
+
+    This function runs on EVERY implement/review command, not just when creating
+    new worktrees. This fixes legacy worktrees that were created without
+    sparse-checkout or where the setup failed silently.
+
+    Args:
+        worktree_path: Path to the worktree directory
+
+    Returns:
+        True if sparse-checkout is configured correctly, False if not a worktree
+    """
+    # For worktrees, .git is a file pointing to the real git dir
+    git_path = worktree_path / ".git"
+    if not git_path.is_file():
+        return False  # Not a worktree (or doesn't exist yet)
+
+    # Get actual git dir path from the .git file
+    try:
+        git_content = git_path.read_text().strip()
+    except OSError:
+        return False
+
+    if not git_content.startswith("gitdir:"):
+        return False
+
+    git_dir = Path(git_content.split(":", 1)[1].strip())
+    if not git_dir.exists():
+        return False
+
+    sparse_checkout_file = git_dir / "info" / "sparse-checkout"
+    expected_content = "/*\n!/kitty-specs/\n!/kitty-specs/**\n"
+
+    # Check if sparse-checkout needs to be set up or fixed
+    needs_setup = False
+    if not sparse_checkout_file.exists():
+        needs_setup = True
+    else:
+        try:
+            current_content = sparse_checkout_file.read_text()
+            if current_content != expected_content:
+                needs_setup = True
+        except OSError:
+            needs_setup = True
+
+    if needs_setup:
+        # Configure sparse-checkout
+        subprocess.run(
+            ["git", "config", "core.sparseCheckout", "true"],
+            cwd=worktree_path, capture_output=True, check=False
+        )
+        subprocess.run(
+            ["git", "config", "core.sparseCheckoutCone", "false"],
+            cwd=worktree_path, capture_output=True, check=False
+        )
+        sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
+        sparse_checkout_file.write_text(expected_content, encoding="utf-8")
+        subprocess.run(
+            ["git", "read-tree", "-mu", "HEAD"],
+            cwd=worktree_path, capture_output=True, check=False
+        )
+
+        # Remove orphaned kitty-specs if present (from before sparse-checkout was configured)
+        orphan_kitty = worktree_path / "kitty-specs"
+        if orphan_kitty.exists():
+            shutil.rmtree(orphan_kitty)
+            print(f"✓ Removed orphaned kitty-specs/ from worktree (now uses main repo)")
+
+    return True
 
 
 def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
@@ -263,6 +338,13 @@ def implement(
         review_status = extract_scalar(wp.frontmatter, "review_status")
         has_feedback = review_status == "has_feedback"
 
+        # Detect mission type and get deliverables_path for research missions
+        feature_dir = repo_root / "kitty-specs" / feature_slug
+        mission_key = get_feature_mission_key(feature_dir)
+        deliverables_path = None
+        if mission_key == "research":
+            deliverables_path = get_deliverables_path(feature_dir, feature_slug)
+
         # Calculate workspace path
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
         workspace_path = repo_root / ".worktrees" / workspace_name
@@ -319,6 +401,11 @@ def implement(
                         gitignore_path.write_text(gitignore_entry, encoding="utf-8")
 
                 print(f"✓ Created workspace: {workspace_path}")
+
+        # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
+        # without sparse-checkout or where setup failed silently)
+        if workspace_path.exists():
+            _ensure_sparse_checkout(workspace_path)
 
         # Build full prompt content for file
         lines = []
@@ -382,6 +469,27 @@ def implement(
             lines.append("⚠️  This work package has review feedback. Check the '## Review Feedback' section below.")
             lines.append("")
 
+        # Research mission: Show deliverables path prominently
+        if mission_key == "research" and deliverables_path:
+            lines.append("╔" + "=" * 78 + "╗")
+            lines.append("║  🔬 RESEARCH MISSION - TWO ARTIFACT TYPES                                 ║")
+            lines.append("╠" + "=" * 78 + "╣")
+            lines.append("║                                                                          ║")
+            lines.append("║  📁 RESEARCH DELIVERABLES (your output):                                 ║")
+            deliv_line = f"║     {deliverables_path:<69} ║"
+            lines.append(deliv_line)
+            lines.append("║     ↳ Create findings, reports, data here                                ║")
+            lines.append("║     ↳ Commit to worktree branch                                          ║")
+            lines.append("║     ↳ Will merge to main when WP completes                               ║")
+            lines.append("║                                                                          ║")
+            lines.append("║  📋 PLANNING ARTIFACTS (kitty-specs/):                                   ║")
+            lines.append("║     ↳ evidence-log.csv, source-register.csv                              ║")
+            lines.append("║     ↳ Edit in main repo (rare during implementation)                     ║")
+            lines.append("║                                                                          ║")
+            lines.append("║  ⚠️  DO NOT put research deliverables in kitty-specs/!                   ║")
+            lines.append("╚" + "=" * 78 + "╝")
+            lines.append("")
+
         # WP content marker and content
         lines.append("╔" + "=" * 78 + "╗")
         lines.append("║  WORK PACKAGE PROMPT BEGINS                                            ║")
@@ -421,6 +529,9 @@ def implement(
         print(f"📍 Workspace: cd {workspace_path}")
         if has_feedback:
             print(f"⚠️  Has review feedback - check prompt file")
+        if mission_key == "research" and deliverables_path:
+            print(f"🔬 Research deliverables: {deliverables_path}")
+            print(f"   (NOT in kitty-specs/ - those are planning artifacts)")
         print()
         print("▶▶▶ NEXT STEP: Read the full prompt file now:")
         print(f"    cat {prompt_file}")
@@ -652,6 +763,11 @@ def review(
                         gitignore_path.write_text(gitignore_entry, encoding="utf-8")
 
                 print(f"✓ Created workspace: {workspace_path}")
+
+        # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
+        # without sparse-checkout or where setup failed silently)
+        if workspace_path.exists():
+            _ensure_sparse_checkout(workspace_path)
 
         # Capture dependency warning for both file and summary
         dependents_warning = []

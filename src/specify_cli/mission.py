@@ -558,6 +558,85 @@ def get_feature_mission_key(feature_dir: Path) -> str:
         return "software-dev"
 
 
+def get_deliverables_path(feature_dir: Path, feature_slug: Optional[str] = None) -> Optional[str]:
+    """Extract deliverables_path from feature's meta.json.
+
+    For research missions, deliverables go in a separate location from
+    kitty-specs/ planning artifacts. This function reads that location
+    from meta.json.
+
+    Args:
+        feature_dir: Path to the feature directory (kitty-specs/<feature>/)
+        feature_slug: Feature slug for default path generation (optional)
+
+    Returns:
+        Deliverables path string if configured, or a default path for research
+        missions, or None for non-research missions.
+
+    Example:
+        >>> get_deliverables_path(Path("kitty-specs/001-market-research"))
+        'docs/research/001-market-research/'
+    """
+    meta_file = feature_dir / "meta.json"
+
+    # Try to read from meta.json
+    if meta_file.exists():
+        try:
+            with open(meta_file, 'r', encoding='utf-8') as f:
+                meta = json.load(f)
+            deliverables_path = meta.get("deliverables_path")
+            if deliverables_path:
+                return deliverables_path
+
+            # Check if this is a research mission - provide default if so
+            mission = meta.get("mission", "software-dev")
+            if mission == "research":
+                # Generate default path using slug from meta or directory name
+                slug = meta.get("slug") or feature_slug or feature_dir.name
+                return f"docs/research/{slug}/"
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # If no meta.json but feature_slug provided, check mission from directory structure
+    # and provide default for research missions
+    if feature_slug:
+        return f"docs/research/{feature_slug}/"
+
+    return None
+
+
+def validate_deliverables_path(deliverables_path: str) -> Tuple[bool, str]:
+    """Validate that a deliverables_path is acceptable.
+
+    Rules:
+    - Must NOT be inside kitty-specs/
+    - Must NOT be just 'research/' at root (ambiguous)
+    - Should be a relative path
+
+    Args:
+        deliverables_path: The path to validate
+
+    Returns:
+        Tuple of (is_valid, error_message)
+        If valid, error_message is empty string.
+    """
+    path = deliverables_path.strip().rstrip('/')
+
+    # Check if inside kitty-specs/
+    if path.startswith('kitty-specs/') or path.startswith('kitty-specs'):
+        return False, "deliverables_path must NOT be inside kitty-specs/ (reserved for planning artifacts)"
+
+    # Check if just 'research/' at root
+    if path == 'research' or path == 'research/':
+        return False, "deliverables_path should not be just 'research/' at root (ambiguous). Use 'docs/research/<feature>/' or 'research-outputs/<feature>/' instead."
+
+    # Check if absolute path
+    if path.startswith('/'):
+        return False, "deliverables_path should be a relative path, not absolute"
+
+    return True, ""
+
+
 def get_mission_for_feature(feature_dir: Path, project_root: Optional[Path] = None) -> Mission:
     """Get the mission for a specific feature.
 

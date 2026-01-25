@@ -2,6 +2,53 @@
 description: Perform structured research review with citation validation.
 ---
 
+## Research Review Overview
+
+Research WPs produce deliverables in a **worktree**, which merge to main like code.
+
+### Two Types of Artifacts
+
+| Type | Location | Review Focus |
+|------|----------|--------------|
+| **Research Deliverables** | `{{deliverables_path}}` (in worktree) | PRIMARY - Your main review target |
+| **Planning Artifacts** | `kitty-specs/{{feature_slug}}/research/` (in main) | SECONDARY - Citation validation only |
+
+### Review Checklist
+
+- [ ] Research deliverables exist in `{{deliverables_path}}/`
+- [ ] Findings address the WP objectives
+- [ ] Citations/sources are properly documented
+- [ ] Deliverables are committed to worktree branch
+- [ ] Quality meets research standards
+
+---
+
+## Understanding Research Dependencies
+
+**For research missions, `dependencies: []` is often NORMAL.**
+
+Research phases typically work like this:
+- **Investigation phase**: WPs run in parallel, no inter-dependencies
+- **Synthesis phase**: WPs depend on investigation WPs
+- **Final/Validation phase**: Depends on synthesis
+
+Empty dependencies means this WP CAN start immediately - it's **not an error**.
+
+**To see dependency relationships:**
+```bash
+spec-kitty agent tasks list-dependents WP##
+
+# Output shows both:
+#   Depends on: (upstream - what blocks this WP)
+#   Depended on by: (downstream - what this WP blocks)
+```
+
+**Why this matters for review:**
+- If a WP has dependents and you request changes, those downstream WPs may need updates
+- The review workflow will warn you about incomplete dependents
+
+---
+
 ## User Input
 
 ```text

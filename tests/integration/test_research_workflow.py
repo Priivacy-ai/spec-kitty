@@ -180,12 +180,12 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
     # Create CSV artifacts
     research_dir = project_dir / "research"
     research_dir.mkdir()
-    
+
     (research_dir / "evidence-log.csv").write_text(
         "timestamp,source_type,citation,key_finding,confidence,notes\n"
         "2025-01-15T10:00:00,journal,\"Smith (2024). Title.\",Finding,high,Notes\n"
     )
-    
+
     (research_dir / "source-register.csv").write_text(
         "source_id,citation,url,accessed_date,relevance,status\n"
         "smith2024,\"Smith (2024). Title.\",https://example.com,2025-01-15,high,reviewed\n"
@@ -201,3 +201,107 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
 
     result_src = validate_source_register(research_dir / "source-register.csv")
     assert not result_src.has_errors
+
+
+def test_deliverables_path_in_meta_json(tmp_path: Path) -> None:
+    """meta.json should correctly store and retrieve deliverables_path."""
+    import sys
+    import json
+    sys.path.insert(0, str(Path.cwd() / "src"))
+
+    from specify_cli.mission import get_deliverables_path
+
+    # Create feature structure
+    feature_dir = tmp_path / "kitty-specs" / "001-market-research"
+    feature_dir.mkdir(parents=True)
+
+    # Write meta.json with deliverables_path
+    meta_file = feature_dir / "meta.json"
+    meta_file.write_text(json.dumps({
+        "mission": "research",
+        "slug": "001-market-research",
+        "deliverables_path": "docs/research/market-study/"
+    }))
+
+    # Verify retrieval
+    result = get_deliverables_path(feature_dir)
+    assert result == "docs/research/market-study/"
+
+
+def test_deliverables_path_not_in_kitty_specs(tmp_path: Path) -> None:
+    """deliverables_path must NOT be inside kitty-specs/."""
+    import sys
+    sys.path.insert(0, str(Path.cwd() / "src"))
+
+    from specify_cli.mission import validate_deliverables_path
+
+    # Should reject kitty-specs paths
+    is_valid, error = validate_deliverables_path("kitty-specs/001-test/research/")
+    assert not is_valid
+    assert "kitty-specs" in error.lower()
+
+    # Should accept proper paths
+    is_valid, error = validate_deliverables_path("docs/research/001-test/")
+    assert is_valid
+
+
+def test_research_deliverables_separate_from_planning(tmp_path: Path) -> None:
+    """Research deliverables should be separate from planning artifacts."""
+    import sys
+    import json
+    sys.path.insert(0, str(Path.cwd() / "src"))
+
+    from specify_cli.mission import get_deliverables_path, get_feature_mission_key
+
+    # Create feature structure
+    feature_dir = tmp_path / "kitty-specs" / "001-research"
+    feature_dir.mkdir(parents=True)
+
+    # Create research planning artifacts (in kitty-specs)
+    research_planning = feature_dir / "research"
+    research_planning.mkdir()
+    (research_planning / "evidence-log.csv").write_text("timestamp,source_type,citation\n")
+    (research_planning / "source-register.csv").write_text("source_id,citation,url\n")
+
+    # Create meta.json with deliverables path
+    meta_file = feature_dir / "meta.json"
+    meta_file.write_text(json.dumps({
+        "mission": "research",
+        "deliverables_path": "docs/research/001-research/"
+    }))
+
+    # Verify separation
+    assert get_feature_mission_key(feature_dir) == "research"
+    deliverables = get_deliverables_path(feature_dir)
+    assert deliverables == "docs/research/001-research/"
+
+    # Planning artifacts exist in kitty-specs
+    assert (research_planning / "evidence-log.csv").exists()
+    assert (research_planning / "source-register.csv").exists()
+
+    # Deliverables path is NOT in kitty-specs
+    assert not deliverables.startswith("kitty-specs")
+
+
+def test_default_deliverables_path_generation(tmp_path: Path) -> None:
+    """Should generate default deliverables path when not specified."""
+    import sys
+    import json
+    sys.path.insert(0, str(Path.cwd() / "src"))
+
+    from specify_cli.mission import get_deliverables_path
+
+    # Create feature with research mission but NO deliverables_path
+    feature_dir = tmp_path / "kitty-specs" / "002-literature-review"
+    feature_dir.mkdir(parents=True)
+
+    meta_file = feature_dir / "meta.json"
+    meta_file.write_text(json.dumps({
+        "mission": "research",
+        "slug": "002-literature-review"
+        # Note: no deliverables_path
+    }))
+
+    # Should return default path
+    result = get_deliverables_path(feature_dir)
+    assert result == "docs/research/002-literature-review/"
