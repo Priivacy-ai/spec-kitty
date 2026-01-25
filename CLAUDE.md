@@ -1,5 +1,37 @@
 # Spec Kitty Development Guidelines
 
+## ⚠️ CRITICAL: Template Source Location (READ THIS FIRST!)
+
+**When fixing bugs or updating templates, edit the SOURCE files, NOT the agent copies!**
+
+| What | Location | Action |
+|------|----------|--------|
+| **SOURCE templates** | `src/specify_cli/missions/*/command-templates/` | ✅ EDIT THESE |
+| **Agent copies** | `.claude/`, `.amazonq/`, `.augment/`, etc. | ❌ DO NOT EDIT |
+
+The directories like `.claude/commands/`, `.amazonq/prompts/`, etc. are **GENERATED COPIES** that get deployed to projects that USE spec-kitty. They are NOT source code.
+
+**To fix a template bug:**
+```bash
+# ✅ CORRECT: Edit the source template
+vim src/specify_cli/missions/software-dev/command-templates/implement.md
+
+# ❌ WRONG: Editing agent copies (these are generated, not source!)
+vim .claude/commands/spec-kitty.implement.md  # NO!
+vim .amazonq/prompts/spec-kitty.implement.md  # NO!
+```
+
+**How templates flow:**
+```
+src/specify_cli/missions/*/command-templates/*.md  (SOURCE - edit here!)
+    ↓ (copied by migrations during `spec-kitty upgrade`)
+.claude/commands/spec-kitty.*.md  (GENERATED COPY - don't edit!)
+.amazonq/prompts/spec-kitty.*.md  (GENERATED COPY - don't edit!)
+... (12 agent directories total)
+```
+
+---
+
 ## Supported AI Agents
 
 Spec Kitty supports **12 AI agents** with slash commands. When adding features that affect slash commands, migrations, or templates, ensure ALL agents are updated:

@@ -41,6 +41,7 @@ env/
 .env
 .env.local
 .codex/
+.claudeignore
 *.lock
 .worktrees/
 .kittify/.dashboard
