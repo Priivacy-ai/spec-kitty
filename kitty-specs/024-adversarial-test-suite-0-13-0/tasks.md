@@ -248,15 +248,15 @@
 **Estimated Size**: ~500 lines
 
 ### Included Subtasks
-- [ ] T046 Create `tests/adversarial/test_workspace_context.py` structure
-- [ ] T047 Implement `TestOrphanedContext` class (cleanup detection)
-- [ ] T048 Implement `TestCorruptedContext` class (invalid JSON handling)
-- [ ] T049 Create `tests/adversarial/test_context_validation.py` structure
-- [ ] T050 Implement `TestEnvVarBypass` class (filesystem overrides env)
-- [ ] T051 Implement `TestFalsePositiveWorktree` class (.worktrees dir naming)
-- [ ] T052 Create `tests/adversarial/test_agent_config.py` structure
-- [ ] T053 Implement `TestCorruptYaml` class (parse errors not silent fallback)
-- [ ] T054 Implement `TestUnknownAgentKey` class (explicit error)
+- [x] T046 Create `tests/adversarial/test_workspace_context.py` structure
+- [x] T047 Implement `TestOrphanedContext` class (cleanup detection)
+- [x] T048 Implement `TestCorruptedContext` class (invalid JSON handling)
+- [x] T049 Create `tests/adversarial/test_context_validation.py` structure
+- [x] T050 Implement `TestEnvVarBypass` class (filesystem overrides env)
+- [x] T051 Implement `TestFalsePositiveWorktree` class (.worktrees dir naming)
+- [x] T052 Create `tests/adversarial/test_agent_config.py` structure
+- [x] T053 Implement `TestCorruptYaml` class (parse errors not silent fallback)
+- [x] T054 Implement `TestUnknownAgentKey` class (explicit error)
 
 ### Implementation Notes
 - Test context using `specify_cli.workspace_context` module
