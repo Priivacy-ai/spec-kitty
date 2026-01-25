@@ -53,12 +53,12 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T008 Create `tests/adversarial/test_distribution.py` structure
-- [ ] T009 Implement `test_wheel_build_and_install` (builds wheel, installs in venv)
-- [ ] T010 Implement `test_init_without_template_root` (spec-kitty init)
-- [ ] T011 Implement `test_research_feature_creation` (deliverables_path prompt)
-- [ ] T012 Implement `test_upgrade_with_all_missions` (template propagation)
-- [ ] T013 Create `wheel_install` fixture (session-scoped, builds wheel once)
+- [x] T008 Create `tests/adversarial/test_distribution.py` structure
+- [x] T009 Implement `test_wheel_build_and_install` (builds wheel, installs in venv)
+- [x] T010 Implement `test_init_without_template_root` (spec-kitty init)
+- [x] T011 Implement `test_research_feature_creation` (deliverables_path prompt)
+- [x] T012 Implement `test_upgrade_with_all_missions` (template propagation)
+- [x] T013 Create `wheel_install` fixture (session-scoped, builds wheel once)
 
 ### Implementation Notes
 - Use `subprocess` for clean environment isolation
