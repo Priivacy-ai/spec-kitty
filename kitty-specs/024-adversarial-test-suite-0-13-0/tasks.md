@@ -119,12 +119,12 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T021 Create `tests/adversarial/test_csv_attacks.py` structure
-- [ ] T022 Implement `TestFormulaInjection` class (=, +, @, - prefixes)
-- [ ] T023 Implement `TestEncodingAttacks` class (invalid UTF-8, BOM, Latin-1)
-- [ ] T024 Implement `TestSchemaViolations` class (duplicates, missing, extra columns)
-- [ ] T025 Implement `TestEmptyAndMalformed` class (empty, headers-only, mixed line endings)
-- [ ] T026 Create `malformed_csv_factory` fixture helper
+- [x] T021 Create `tests/adversarial/test_csv_attacks.py` structure
+- [x] T022 Implement `TestFormulaInjection` class (=, +, @, - prefixes)
+- [x] T023 Implement `TestEncodingAttacks` class (invalid UTF-8, BOM, Latin-1)
+- [x] T024 Implement `TestSchemaViolations` class (duplicates, missing, extra columns)
+- [x] T025 Implement `TestEmptyAndMalformed` class (empty, headers-only, mixed line endings)
+- [x] T026 Create `malformed_csv_factory` fixture helper
 
 ### Implementation Notes
 - Import `validate_csv_schema` from `specify_cli.validators.csv_schema`
