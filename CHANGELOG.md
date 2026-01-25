@@ -7,6 +7,39 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.2] - 2026-01-25
+
+### 🐛 Fixed
+
+**Windows Charmap Encoding Errors (Comprehensive Fix)**:
+- Fixed `'charmap' codec can't encode characters` errors across multiple commands on Windows
+- **Root cause**: Windows default file encoding (cp1252) cannot handle Unicode characters when writing files
+  - `Path.write_text()` without explicit `encoding` parameter uses system default (cp1252 on Windows)
+  - Unicode characters include: box-drawing (├─└), typographic dashes (– —), and other UTF-8 content
+- **Files fixed** (5 modules, 7 write_text() calls):
+  1. `cli/commands/agent/feature.py` - Feature creation templates
+  2. `core/worktree.py` - Worktree README generation
+  3. `gap_analysis.py` - Documentation gap reports
+  4. `doc_generators.py` - JSDoc, Sphinx, and rustdoc configs (3 instances)
+  5. `core/agent_context.py` - Agent context file updates
+- **Solution**: Added explicit `encoding="utf-8"` parameter to all `Path.write_text()` calls
+  - Ensures files written with UTF-8 encoding regardless of system default
+  - Simple, minimal fix (no module-level reconfiguration needed - __init__.py main() handles stdout)
+- **Impact**: 
+  - Unicode box-drawing characters (├─└) and typographic dashes (– —) now render correctly across all commands
+  - JSON output works correctly on Windows systems
+  - Documentation generators work with UTF-8 content
+  - Agent context updates preserve Unicode characters
+  - Cross-platform compatible (Windows, Linux, macOS, Docker)
+  - No user configuration required (no `PYTHONIOENCODING` environment variable needed)
+
+### ✨ Enhancement
+
+**Preserved Unicode Formatting in Templates**:
+- Tasks README templates retain beautiful Unicode box-drawing characters for better readability
+- Typographic dashes properly rendered in all environments
+- Consistent appearance across all supported platforms
+
 ## [0.12.1] - 2026-01-24
 
 ### 🐛 Fixed

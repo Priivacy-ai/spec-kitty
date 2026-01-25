@@ -884,7 +884,7 @@ def generate_gap_analysis_report(
 
     # Write to file
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    output_file.write_text(report_content)
+    output_file.write_text(report_content, encoding="utf-8")
 
     return analysis
 
