@@ -1,6 +1,7 @@
 <div align="center">
     <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/logo_small.webp" alt="Spec Kitty Logo"/>
     <h1>Spec Kitty</h1>
+    <h2>Spec Driven Development for serious software</h2>
 </div>
 
 Spec Kitty is for Spec Coding: using LLM agents to write code (eg. Claude Code, Codex, Cursor) while enforcing specification-first development. It features a live kanban dashboard, deterministic automation, git worktrees per work package, and smart merging. This helps you coordinate multiple AI agents on complex features while maintaining quality.
