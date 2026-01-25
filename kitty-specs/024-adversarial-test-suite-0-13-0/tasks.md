@@ -184,12 +184,12 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T034 Create `tests/adversarial/test_migration_robustness.py` structure
-- [ ] T035 Create migration test project fixture with .kittify structure
-- [ ] T036 Implement `TestAtomicWrites` class (simulate interruption)
-- [ ] T037 Implement `TestConcurrentMigration` class (multiprocessing race)
-- [ ] T038 Implement `TestPartialMigrationRecovery` class (resume after failure)
-- [ ] T039 Implement `TestPermissionErrors` class (read-only files)
+- [x] T034 Create `tests/adversarial/test_migration_robustness.py` structure
+- [x] T035 Create migration test project fixture with .kittify structure
+- [x] T036 Implement `TestAtomicWrites` class (simulate interruption)
+- [x] T037 Implement `TestConcurrentMigration` class (multiprocessing race)
+- [x] T038 Implement `TestPartialMigrationRecovery` class (resume after failure)
+- [x] T039 Implement `TestPermissionErrors` class (read-only files)
 
 ### Implementation Notes
 - Use `multiprocessing` for concurrent tests (not threading)
