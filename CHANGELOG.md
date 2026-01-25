@@ -7,6 +7,23 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.2] - 2026-01-25
+
+### 🐛 Fixed
+
+**Workflow Completion Instructions Missing Git Commit Step**:
+- Fixed agents not committing implementation files before marking tasks done
+- Issue caused cascading failures where dependent work packages started from empty branches
+  - WP02 worktree had HTML + CSS ✅
+  - WP03 worktree had HTML only (missing WP02's CSS) ❌
+  - WP04 worktree had HTML only (missing CSS and JS from WP02 and WP03) ❌
+- Root cause: "WHEN YOU'RE DONE" instructions in `workflow implement` command didn't include git commit step
+- Fix: Added explicit git commit instruction as step 1 in completion checklist
+- Updated both in-prompt instructions (shown twice) and terminal output summary
+- Added warning: "The move-task command will FAIL if you have uncommitted changes! Commit all implementation files BEFORE moving to for_review. Dependent work packages need your committed changes."
+
+**Impact**: Critical fix for multi-agent parallel development workflows using workspace-per-WP model (v0.11.0+)
+
 ## [0.13.1] - 2026-01-25
 
 ### ✨ Added
