@@ -27,6 +27,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Solution Approach**: Document schemas where agents can see them (prevention) rather than runtime enforcement or auto-migration (data loss risk).
 
+### 🐛 Fixed
+
+**Windows UTF-8 Encoding Crashes**:
+- Fixed all `write_text()` calls to include `encoding='utf-8'` parameter
+- Affects feature creation, worktree setup, gap analysis, doc generators, agent context, and test fixtures
+- Windows users can now create features without charmap encoding errors
+- Fixes #101, incorporates PR #100
+
+**Constitution Template Workflow**:
+- Fixed incorrect next-step suggestion after creating constitution
+- Now correctly suggests `/spec-kitty.specify` instead of `/spec-kitty.plan`
+- Propagated fix to all 12 agent directories via migration
+- Fixes #97 (inspired by PR #98)
+
+**Research Mission Detection**:
+- Fixed `spec-kitty mission current` to show feature-level missions
+- Now auto-detects feature from current directory (kitty-specs or worktree)
+- Added `--feature` flag for explicit feature specification
+- No longer always defaults to software-dev for research features
+- Fixes #93
+
+### 🎉 Closed
+
+**Agent Configuration Feature**:
+- Closed #51 as completed (already implemented in v0.12.0)
+- Feature: `spec-kitty agent config add/remove/list`
+
 ### 📚 Documentation
 
 **Release Management**:
