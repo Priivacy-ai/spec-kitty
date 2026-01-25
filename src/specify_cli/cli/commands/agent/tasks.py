@@ -298,6 +298,83 @@ def _validate_ready_for_review(
         worktree_path = main_repo_root / ".worktrees" / f"{feature_slug}-{wp_id}"
 
         if worktree_path.exists():
+            # Check for detached HEAD before other git status checks
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=worktree_path,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode == 0 and result.stdout.strip() == "HEAD":
+                guidance.append("Detached HEAD detected in worktree!")
+                guidance.append("")
+                guidance.append("Please reattach to a branch before review:")
+                guidance.append(f"  cd {worktree_path}")
+                guidance.append("  git checkout <your-branch>")
+                guidance.append("")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                return False, guidance
+
+            # Check for in-progress git operations (merge/rebase/cherry-pick)
+            in_progress = []
+            state_checks = {
+                "MERGE_HEAD": "merge",
+                "REBASE_HEAD": "rebase",
+                "CHERRY_PICK_HEAD": "cherry-pick",
+            }
+            for ref, label in state_checks.items():
+                state_result = subprocess.run(
+                    ["git", "rev-parse", "-q", "--verify", ref],
+                    cwd=worktree_path,
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                if state_result.returncode == 0:
+                    in_progress.append(label)
+
+            if in_progress:
+                guidance.append("In-progress git operation detected in worktree!")
+                guidance.append("")
+                guidance.append(f"Active operation(s): {', '.join(in_progress)}")
+                guidance.append("")
+                guidance.append("Resolve or abort before review:")
+                guidance.append(f"  cd {worktree_path}")
+                guidance.append("  git status")
+                guidance.append("  git merge --abort   # if merge")
+                guidance.append("  git rebase --abort  # if rebase")
+                guidance.append("  git cherry-pick --abort  # if cherry-pick")
+                guidance.append("")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                return False, guidance
+
+            # Check if worktree branch is behind main
+            result = subprocess.run(
+                ["git", "rev-list", "--count", "HEAD..main"],
+                cwd=worktree_path,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            behind_count = 0
+            if result.returncode == 0 and result.stdout.strip():
+                try:
+                    behind_count = int(result.stdout.strip())
+                except ValueError:
+                    behind_count = 0
+
+            if behind_count > 0:
+                guidance.append("Main branch has new commits not in this worktree!")
+                guidance.append("")
+                guidance.append(f"Your branch is behind main by {behind_count} commit(s).")
+                guidance.append("Rebase before review:")
+                guidance.append(f"  cd {worktree_path}")
+                guidance.append("  git rebase main")
+                guidance.append("")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                return False, guidance
+
             # Check for uncommitted changes in worktree
             result = subprocess.run(
                 ["git", "status", "--porcelain"],
@@ -309,7 +386,26 @@ def _validate_ready_for_review(
             uncommitted_in_worktree = result.stdout.strip()
 
             if uncommitted_in_worktree:
-                guidance.append("Uncommitted implementation changes in worktree!")
+                staged_lines = []
+                unstaged_lines = []
+                for line in uncommitted_in_worktree.split("\n"):
+                    if not line.strip():
+                        continue
+                    if line.startswith("??"):
+                        unstaged_lines.append(line)
+                        continue
+                    status = line[:2]
+                    if status[0] != " ":
+                        staged_lines.append(line)
+                    if status[1] != " ":
+                        unstaged_lines.append(line)
+
+                if staged_lines and not unstaged_lines:
+                    guidance.append("Staged but uncommitted changes in worktree!")
+                elif staged_lines and unstaged_lines:
+                    guidance.append("Staged and unstaged changes in worktree!")
+                else:
+                    guidance.append("Uncommitted implementation changes in worktree!")
                 guidance.append("")
                 guidance.append("Modified files:")
                 for line in uncommitted_in_worktree.split("\n")[:5]:
