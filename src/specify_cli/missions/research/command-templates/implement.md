@@ -108,6 +108,64 @@ Planning artifacts in `kitty-specs/{{feature_slug}}/research/` are:
 
 ---
 
+## Research CSV Schemas (CRITICAL - DO NOT MODIFY HEADERS)
+
+**⚠️  WARNING:** These schemas are validated during review. Modifying headers will BLOCK your review.
+
+### evidence-log.csv Schema
+
+**Required columns (exact order, do not change):**
+```csv
+timestamp,source_type,citation,key_finding,confidence,notes
+```
+
+| Column | Type | Description | Valid Values |
+|--------|------|-------------|--------------|
+| `timestamp` | ISO datetime | When evidence collected | `YYYY-MM-DDTHH:MM:SS` |
+| `source_type` | Enum | Type of source | `journal` \| `conference` \| `book` \| `web` \| `preprint` |
+| `citation` | Text | Full citation | BibTeX, APA, or Simple format |
+| `key_finding` | Text | Main takeaway | 1-2 sentences |
+| `confidence` | Enum | Source quality | `high` \| `medium` \| `low` |
+| `notes` | Text | Additional context | Free text |
+
+**To add evidence (append only, never edit headers):**
+```bash
+# Format: timestamp,source_type,citation,key_finding,confidence,notes
+echo '2025-01-25T14:00:00,journal,"Smith, J. (2024). AI Tools. Nature, 10(2), 123.",AI improves productivity 30%,high,Meta-analysis' \
+  >> kitty-specs/{{feature_slug}}/research/evidence-log.csv
+```
+
+### source-register.csv Schema
+
+**Required columns (exact order, do not change):**
+```csv
+source_id,citation,url,accessed_date,relevance,status
+```
+
+| Column | Type | Description | Valid Values |
+|--------|------|-------------|--------------|
+| `source_id` | Text | Unique ID | Must be unique (e.g., S001, S002) |
+| `citation` | Text | Full citation | Same format as evidence-log |
+| `url` | URL | Source location | Valid URL or "N/A" |
+| `accessed_date` | ISO date | When accessed | `YYYY-MM-DD` |
+| `relevance` | Enum | Research relevance | `high` \| `medium` \| `low` |
+| `status` | Enum | Processing status | `reviewed` \| `pending` \| `archived` |
+
+**To add source (append only, never edit headers):**
+```bash
+# Format: source_id,citation,url,accessed_date,relevance,status
+echo 'S001,"Smith (2024). AI Tools.",https://example.com,2025-01-25,high,reviewed' \
+  >> kitty-specs/{{feature_slug}}/research/source-register.csv
+```
+
+**Why this matters:**
+- Schema validation runs during `/spec-kitty.review`
+- Wrong schemas BLOCK review (cannot proceed)
+- Agents must preserve exact column order and names
+- Templates have correct schemas - never overwrite, only append
+
+---
+
 ## Key Differences from Software-Dev
 
 | Aspect | Software-Dev | Research |
