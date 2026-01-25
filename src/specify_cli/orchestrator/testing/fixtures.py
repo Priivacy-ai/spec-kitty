@@ -481,7 +481,7 @@ def init_git_repo(path: Path) -> None:
         # Create a .gitkeep if no files exist (to ensure we can make a commit)
         gitkeep = path / ".gitkeep"
         if not gitkeep.exists():
-            gitkeep.write_text("")
+            gitkeep.write_text("", encoding="utf-8")
 
         # Add all files and make initial commit
         subprocess.run(
@@ -662,8 +662,8 @@ def setup_test_repo(tmp_path: Path, feature_slug: str = "test-feature") -> TestC
     tasks_dir.mkdir()
 
     # Create basic files
-    (feature_dir / "spec.md").write_text("# Test Spec\n")
-    (feature_dir / "plan.md").write_text("# Test Plan\n")
+    (feature_dir / "spec.md").write_text("# Test Spec\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Test Plan\n", encoding="utf-8")
 
     # Create a mock test_path
     from specify_cli.orchestrator.testing.paths import TestPath
