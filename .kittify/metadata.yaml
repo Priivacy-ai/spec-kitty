@@ -3,12 +3,20 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 0.11.3
+  version: 0.12.1
   initialized_at: '2026-01-22T10:36:24.129683'
-  last_upgraded_at: null
+  last_upgraded_at: '2026-01-25T14:17:34.747212'
 environment:
   python_version: 3.14.0
   platform: darwin
   platform_version: macOS-15.7.3-arm64-arm-64bit-Mach-O
 migrations:
-  applied: []
+  applied:
+  - id: 0.12.0_documentation_mission
+    applied_at: '2026-01-25T14:17:34.747107'
+    result: skipped
+    notes: Not applicable
+  - id: 0.12.1_remove_kitty_specs_from_gitignore
+    applied_at: '2026-01-25T14:17:34.747211'
+    result: skipped
+    notes: Not applicable
