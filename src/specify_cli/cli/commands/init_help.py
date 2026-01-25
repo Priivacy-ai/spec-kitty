@@ -5,12 +5,12 @@ Initialize a new Spec Kitty project from templates.
 
 Interactive Mode (default):
 - Prompts you to select AI assistants
-- Choose script type (sh/ps)
-- Select mission (software-dev/research)
+- Choose agent selection strategy + preferred implementer/reviewer
 
-Non-Interactive Mode (with --ai flag):
+Non-Interactive Mode:
+- Enabled with --non-interactive/--yes, SPEC_KITTY_NON_INTERACTIVE=1, or non-TTY
 - Skips all prompts
-- Uses provided options or defaults
+- Uses provided options or defaults (auto-selects preferred strategy if not specified)
 - Perfect for CI/CD and automation
 
 What Gets Created:
@@ -46,17 +46,16 @@ Examples:
   spec-kitty init my-project                    # Interactive mode
   spec-kitty init my-project --ai codex         # Non-interactive with Codex
   spec-kitty init my-project --ai codex,claude  # Multiple agents
-  spec-kitty init my-project --ai codex,claude --script sh --mission software-dev
+  spec-kitty init my-project --ai codex,claude --script sh
   spec-kitty init . --ai codex --force          # Current directory (skip prompts)
   spec-kitty init --here --ai claude            # Alternative syntax for current dir
   spec-kitty init my-project --ai claude --template-root=/path/to/spec-kitty  # Dev mode
 
 Non-interactive automation example:
-  spec-kitty init my-project --ai codex,claude --script sh --mission software-dev --no-git
+  spec-kitty init my-project --ai codex,claude --script sh --no-git --non-interactive
 
 Missions:
-- software-dev: Standard software development workflows
-- research: Deep research with evidence tracking
+- Missions are selected per-feature during /spec-kitty.specify
 
 See docs/non-interactive-init.md for automation patterns and CI examples.
 """

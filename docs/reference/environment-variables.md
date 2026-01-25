@@ -142,6 +142,23 @@ spec-kitty agent tasks status
 - Piping output to files
 - Accessibility needs
 
+### SPEC_KITTY_NON_INTERACTIVE
+
+Force non-interactive mode for CLI commands that normally prompt.
+
+**Purpose**: Disable prompts and arrow-key menus (useful for CI/CD).
+
+**Example**:
+```bash
+export SPEC_KITTY_NON_INTERACTIVE=1
+spec-kitty init my-project --ai codex --non-interactive
+```
+
+**When to use**:
+- CI/CD pipelines
+- Headless scripts
+- Non-TTY automation
+
 ---
 
 ## Summary Table
@@ -156,6 +173,7 @@ spec-kitty agent tasks status
 | `GITHUB_TOKEN` | GitHub authentication (alt) | `ghp_xxx...` |
 | `SPEC_KITTY_DEBUG` | Enable debug output | `1` |
 | `SPEC_KITTY_NO_COLOR` | Disable colors | `1` |
+| `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 
 ---
 

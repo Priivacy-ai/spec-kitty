@@ -2,15 +2,18 @@
 
 ## Summary
 
-✅ **spec-kitty init IS fully non-interactive** when all required options are provided via command-line arguments.
+✅ **spec-kitty init IS fully non-interactive** when `--non-interactive` (or the environment variable) is set and required options are provided.
 
 ## Complete Non-Interactive Syntax
 
 ```bash
 spec-kitty init <project-name> \
   --ai <agents> \
-  --script <type> \
-  --mission <mission> \
+  [--script <type>] \
+  [--agent-strategy <preferred|random>] \
+  [--preferred-implementer <agent>] \
+  [--preferred-reviewer <agent>] \
+  [--non-interactive] \
   [--force] \
   [--no-git] \
   [--ignore-agent-tools]
@@ -70,25 +73,35 @@ spec-kitty init --here
 --script ps   # PowerShell - for Windows
 ```
 
-**Auto-detection**: If omitted and not TTY:
+**Auto-detection**: If omitted:
 - Windows → `ps`
 - Mac/Linux → `sh`
 
-### 4. Mission (`--mission`)
+### 4. Agent Selection Strategy (`--agent-strategy`)
 
-**Valid values**: `software-dev` or `research`
+**Valid values**: `preferred` or `random`
 
 ```bash
---mission software-dev   # Software Dev Kitty (default)
---mission research       # Deep Research Kitty
+--agent-strategy preferred   # Explicit preferred implementer/reviewer
+--agent-strategy random      # Randomly select each time
 ```
 
-**Auto-selection**: If omitted and not TTY, defaults to `software-dev`
+If omitted, defaults to `preferred`.
+
+### 5. Preferred Implementer/Reviewer
+
+Only valid with `--agent-strategy preferred`.
+
+```bash
+--preferred-implementer codex
+--preferred-reviewer claude
+```
 
 ## Optional Flags
 
 | Flag | Purpose | Default |
 |------|---------|---------|
+| `--non-interactive` / `--yes` | Disable prompts (required for CI) | Off |
 | `--force` | Skip confirmation when directory not empty | Off (will prompt) |
 | `--no-git` | Skip git repository initialization | Off (initializes git) |
 | `--ignore-agent-tools` | Skip verification that agent CLIs are installed | Off (checks tools) |
@@ -103,7 +116,7 @@ spec-kitty init --here
 spec-kitty init my-project \
   --ai codex \
   --script sh \
-  --mission software-dev
+  --non-interactive
 ```
 
 ### Example 2: Current directory with multiple agents
@@ -111,8 +124,11 @@ spec-kitty init my-project \
 spec-kitty init . \
   --ai claude,codex,cursor \
   --script sh \
-  --mission research \
-  --force
+  --agent-strategy preferred \
+  --preferred-implementer claude \
+  --preferred-reviewer codex \
+  --force \
+  --non-interactive
 ```
 
 ### Example 3: Current directory (--here syntax)
@@ -120,15 +136,15 @@ spec-kitty init . \
 spec-kitty init --here \
   --ai windsurf \
   --script sh \
-  --mission software-dev \
-  --force
+  --force \
+  --non-interactive
 ```
 
 ### Example 4: Minimal (relies on defaults)
 ```bash
 # In non-interactive environment (CI/CD):
-spec-kitty init my-project --ai codex
-# Auto-selects: --script sh (or ps on Windows), --mission software-dev
+spec-kitty init my-project --ai codex --non-interactive
+# Auto-selects: --script sh (or ps on Windows), preferred strategy defaults
 ```
 
 ### Example 5: CI/CD friendly
@@ -136,10 +152,10 @@ spec-kitty init my-project --ai codex
 spec-kitty init . \
   --ai claude \
   --script sh \
-  --mission software-dev \
   --force \
   --ignore-agent-tools \
-  --no-git
+  --no-git \
+  --non-interactive
 ```
 
 ### Example 6: All 12 agents
@@ -147,7 +163,7 @@ spec-kitty init . \
 spec-kitty init my-project \
   --ai codex,claude,gemini,cursor,qwen,opencode,windsurf,kilocode,auggie,roo,copilot,q \
   --script sh \
-  --mission software-dev
+  --non-interactive
 ```
 
 ## Interactive vs Non-Interactive Behavior
@@ -156,24 +172,24 @@ spec-kitty init my-project \
 
 Triggered when:
 - Running from a terminal (TTY)
-- Missing `--ai`, `--script`, or `--mission` options
+- `--non-interactive` / `--yes` is NOT provided
 
 Presents:
 - Multi-select menu for AI assistants (space to select, enter to confirm)
-- Arrow selection for script type
-- Arrow selection for mission
+- Arrow selection for agent strategy and preferred implementer/reviewer
 - Confirmation prompt if directory not empty (unless `--force`)
 
 ### Non-Interactive Mode
 
 Triggered when:
-- All required options provided via flags
+- `--non-interactive` / `--yes` is provided
+- OR `SPEC_KITTY_NON_INTERACTIVE=1` is set
 - OR running in non-TTY environment (pipes, CI/CD, scripts)
 
 Behavior:
 - Uses provided values
 - Falls back to defaults for omitted options
-- No prompts (unless `--force` missing and dir not empty)
+- No prompts (errors if `--force` missing and dir not empty)
 - Suitable for automation
 
 ## CI/CD Usage
@@ -182,12 +198,12 @@ Behavior:
 # GitHub Actions example
 - name: Initialize Spec Kitty
   run: |
-    spec-kitty init . \
-      --ai codex \
-      --script sh \
-      --mission software-dev \
-      --force \
-      --no-git
+spec-kitty init . \
+  --ai codex \
+  --script sh \
+  --force \
+  --no-git \
+  --non-interactive
 ```
 
 ```bash
@@ -196,8 +212,8 @@ Behavior:
 spec-kitty init /app/project \
   --ai claude,codex \
   --script sh \
-  --mission software-dev \
-  --ignore-agent-tools
+  --ignore-agent-tools \
+  --non-interactive
 ```
 
 ## What Gets Created (Agent-Specific)
@@ -334,16 +350,16 @@ spec-kitty init proj --script sh
 
 Valid values: `sh` or `ps`
 
-### "Invalid mission"
+### "Invalid agent strategy"
 ```bash
 # ERROR
-spec-kitty init proj --mission dev
+spec-kitty init proj --agent-strategy fastest
 
 # CORRECT
-spec-kitty init proj --mission software-dev
+spec-kitty init proj --agent-strategy preferred
 ```
 
-Valid values: `software-dev` or `research`
+Valid values: `preferred` or `random`
 
 ### "Do you want to continue?" prompt appears
 
@@ -358,7 +374,7 @@ spec-kitty init . --ai codex --force
 
 ### Minimal Non-Interactive Init
 ```bash
-spec-kitty init my-project --ai codex
+spec-kitty init my-project --ai codex --non-interactive
 ```
 
 ### Maximum Options
@@ -366,7 +382,9 @@ spec-kitty init my-project --ai codex
 spec-kitty init my-project \
   --ai codex,claude,cursor \
   --script sh \
-  --mission research \
+  --agent-strategy preferred \
+  --preferred-implementer codex \
+  --preferred-reviewer claude \
   --force \
   --no-git \
   --ignore-agent-tools \
@@ -385,6 +403,7 @@ spec-kitty init --here --ai codex --force
 Can also be set via environment:
 - `GH_TOKEN` or `GITHUB_TOKEN` - GitHub API token (instead of `--github-token`)
 - `SPECIFY_TEMPLATE_REPO` - Override template source (e.g., `myorg/custom-templates`)
+- `SPEC_KITTY_NON_INTERACTIVE` - Force non-interactive mode (set to `1`)
 
 ## Exit Codes
 
@@ -414,8 +433,8 @@ AI_AGENTS="${2:-codex}"  # Default to codex
 spec-kitty init "$PROJECT_NAME" \
   --ai "$AI_AGENTS" \
   --script sh \
-  --mission software-dev \
-  --ignore-agent-tools || exit 1
+  --ignore-agent-tools \
+  --non-interactive || exit 1
 
 cd "$PROJECT_NAME"
 echo "Project initialized successfully!"

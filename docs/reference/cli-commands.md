@@ -56,24 +56,21 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 | `--template-root TEXT` | Override default template location (useful for development mode) |
 | `--ai TEXT` | Comma-separated AI assistants (claude,codex,gemini,...) |
 | `--script TEXT` | Script type to use: `sh` or `ps` |
-| `--vcs TEXT` | VCS to use: `git`. Defaults to git |
+| `--agent-strategy TEXT` | Agent selection strategy: `preferred` or `random` |
+| `--preferred-implementer TEXT` | Preferred agent for implementation (preferred strategy only) |
+| `--preferred-reviewer TEXT` | Preferred agent for review (preferred strategy only) |
+| `--non-interactive` / `--yes` | Disable prompts (CI/CD) |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
 spec-kitty init my-project
 spec-kitty init my-project --ai codex
-spec-kitty init my-project --ai codex,claude --script sh --mission software-dev
+spec-kitty init my-project --ai codex,claude --script sh
 spec-kitty init . --ai codex --force
 spec-kitty init --here --ai claude
-spec-kitty init my-project --vcs git
+spec-kitty init my-project --ai codex --agent-strategy random --non-interactive
 ```
-
-**VCS**: Spec Kitty uses git for version control. The VCS is determined in this order:
-1. **Explicit backend (CLI flag)**: `spec-kitty init --vcs git`
-   - If a feature has a locked VCS that conflicts, **raises an error** (does not silently override)
-2. **Feature meta.json**: If the path is within a feature, use its locked `vcs` field
-3. **Default**: Use git
 
 **See Also**: `docs/non-interactive-init.md`
 

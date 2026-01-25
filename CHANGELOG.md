@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Solution Approach**: Document schemas where agents can see them (prevention) rather than runtime enforcement or auto-migration (data loss risk).
 
+**Fully Non-Interactive Init Support**:
+- Added `--non-interactive` / `--yes` and `SPEC_KITTY_NON_INTERACTIVE` to disable prompts
+- Added `--agent-strategy`, `--preferred-implementer`, and `--preferred-reviewer` to expose all selection options via CLI
+- Non-interactive mode now avoids arrow-key menus and requires `--force` for non-empty `--here` directories
+- Updated documentation for automation and CI usage
+
 ### 🐛 Fixed
 
 **Windows UTF-8 Encoding Crashes**:
