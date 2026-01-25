@@ -16,9 +16,15 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from specify_cli.core.config import AI_CHOICES
+
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class AgentConfigError(RuntimeError):
+    """Raised when .kittify/config.yaml cannot be parsed or validated."""
 
 
 class SelectionStrategy(str, Enum):
@@ -129,7 +135,9 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
             data = yaml.load(f) or {}
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
-        return AgentConfig()
+        raise AgentConfigError(
+            f"Invalid YAML in {config_file}: {e}"
+        ) from e
 
     agents_data = data.get("agents", {})
     if not agents_data:
@@ -140,6 +148,19 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
     available = agents_data.get("available", [])
     if isinstance(available, str):
         available = [available]
+    if not isinstance(available, list):
+        raise AgentConfigError(
+            "Invalid agents.available in config.yaml: expected a list of agent keys"
+        )
+
+    invalid_agents = [agent for agent in available if agent not in AI_CHOICES]
+    if invalid_agents:
+        valid_agents = ", ".join(sorted(AI_CHOICES.keys()))
+        unknown = ", ".join(sorted(invalid_agents))
+        raise AgentConfigError(
+            f"Unknown agent key(s) in config.yaml: {unknown}. "
+            f"Valid agents: {valid_agents}"
+        )
 
     # Parse selection config
     selection_data = agents_data.get("selection", {})
@@ -218,6 +239,7 @@ __all__ = [
     "SelectionStrategy",
     "AgentSelectionConfig",
     "AgentConfig",
+    "AgentConfigError",
     "load_agent_config",
     "save_agent_config",
     "get_configured_agents",

@@ -59,6 +59,7 @@ class TestContextDetection:
     def test_detect_worktree_root(self, tmp_path: Path):
         """Test detection when in worktree root directory."""
         # Create worktree structure
+        (tmp_path / ".kittify").mkdir()
         worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
         worktree_path.mkdir(parents=True)
 
@@ -73,6 +74,7 @@ class TestContextDetection:
     def test_detect_worktree_subdirectory(self, tmp_path: Path):
         """Test detection when in subdirectory of worktree."""
         # Create worktree with subdirectory
+        (tmp_path / ".kittify").mkdir()
         worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
         subdir = worktree_path / "src" / "components"
         subdir.mkdir(parents=True)
@@ -88,6 +90,7 @@ class TestContextDetection:
     def test_detect_nested_worktree_path(self, tmp_path: Path):
         """Test detection prevents nested worktree confusion."""
         # Create nested structure (should not happen, but test detection)
+        (tmp_path / ".kittify").mkdir()
         outer_worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         # This would be a nested worktree (invalid)
         nested_path = outer_worktree / ".worktrees" / "010-feature-WP02"
@@ -112,6 +115,16 @@ class TestContextDetection:
         assert ctx.location == ExecutionContext.MAIN_REPO
         assert ctx.cwd == tmp_path
 
+    def test_detect_false_positive_worktree(self, tmp_path: Path):
+        """Directory named .worktrees outside project root should not false-positive."""
+        fake_worktree = tmp_path / ".worktrees" / "not-a-worktree"
+        fake_worktree.mkdir(parents=True)
+
+        ctx = detect_execution_context(cwd=fake_worktree)
+
+        assert ctx.location == ExecutionContext.MAIN_REPO
+        assert ctx.repo_root is None
+
 
 class TestRequireMainRepo:
     """Tests for @require_main_repo decorator."""
@@ -131,6 +144,7 @@ class TestRequireMainRepo:
 
     def test_blocks_execution_from_worktree(self, tmp_path: Path, monkeypatch):
         """Test decorator blocks execution from worktree."""
+        (tmp_path / ".kittify").mkdir()
         worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
         worktree_path.mkdir(parents=True)
         monkeypatch.chdir(worktree_path)
@@ -146,6 +160,7 @@ class TestRequireMainRepo:
 
     def test_error_message_from_worktree(self, tmp_path: Path, monkeypatch, capsys):
         """Test error message when blocked from worktree."""
+        (tmp_path / ".kittify").mkdir()
         worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
         worktree_path.mkdir(parents=True)
         monkeypatch.chdir(worktree_path)
@@ -166,6 +181,7 @@ class TestRequireWorktree:
 
     def test_allows_execution_from_worktree(self, tmp_path: Path, monkeypatch):
         """Test decorator allows execution from worktree."""
+        (tmp_path / ".kittify").mkdir()
         worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
         worktree_path.mkdir(parents=True)
         monkeypatch.chdir(worktree_path)
@@ -217,6 +233,22 @@ class TestLocationErrorMessages:
         assert "main repository" in error_msg
         assert "010-feature-WP02" in error_msg
         assert f"cd {tmp_path}" in error_msg
+
+
+class TestEnvVarBypass:
+    """Tests for env var bypass prevention."""
+
+    def test_filesystem_overrides_env(self, mock_worktree):
+        """Filesystem detection should override SPEC_KITTY_CONTEXT env var."""
+        import os
+
+        os.environ["SPEC_KITTY_CONTEXT"] = "main"
+
+        try:
+            context = detect_execution_context(cwd=mock_worktree["worktree_path"])
+            assert context.location == ExecutionContext.WORKTREE
+        finally:
+            os.environ.pop("SPEC_KITTY_CONTEXT", None)
 
     def test_format_error_worktree_required_from_main(self, tmp_path: Path):
         """Test error message for command needing worktree, run from main repo."""
@@ -336,6 +368,7 @@ class TestWorktreeNestingPrevention:
 
         This prevents nested worktrees which corrupt git state.
         """
+        (tmp_path / ".kittify").mkdir()
         # Setup worktree
         worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
         worktree_path.mkdir(parents=True)
@@ -352,6 +385,7 @@ class TestWorktreeNestingPrevention:
 
     def test_merge_blocked_from_worktree(self, tmp_path: Path, monkeypatch):
         """Test that merge command is blocked from worktree."""
+        (tmp_path / ".kittify").mkdir()
         worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
         worktree_path.mkdir(parents=True)
         monkeypatch.chdir(worktree_path)
@@ -366,6 +400,7 @@ class TestWorktreeNestingPrevention:
     def test_nested_worktree_detection(self, tmp_path: Path):
         """Test detection of nested worktree paths (edge case)."""
         # Create what would be a nested worktree (invalid scenario)
+        (tmp_path / ".kittify").mkdir()
         outer_worktree = tmp_path / ".worktrees" / "010-feature-WP01"
         nested_worktrees = outer_worktree / ".worktrees"
         nested_workspace = nested_worktrees / "010-feature-WP02"
@@ -410,6 +445,7 @@ class TestEdgeCases:
 
     def test_worktree_name_with_hyphens(self, tmp_path: Path):
         """Test worktree detection with complex names."""
+        (tmp_path / ".kittify").mkdir()
         worktree_path = tmp_path / ".worktrees" / "015-first-class-jujutsu-vcs-integration-WP08"
         worktree_path.mkdir(parents=True)
 

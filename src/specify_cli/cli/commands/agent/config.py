@@ -14,6 +14,7 @@ from specify_cli.orchestrator.agent_config import (
     load_agent_config,
     save_agent_config,
     AgentConfig,
+    AgentConfigError,
 )
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
@@ -36,6 +37,14 @@ KEY_TO_AGENT_DIR = {
 }
 
 
+def _load_config_or_exit(repo_root: Path) -> AgentConfig:
+    try:
+        return load_agent_config(repo_root)
+    except AgentConfigError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+
 @app.command(name="list")
 def list_agents():
     """List configured agents and their status."""
@@ -46,7 +55,7 @@ def list_agents():
         raise typer.Exit(1)
 
     # Load config
-    config = load_agent_config(repo_root)
+    config = _load_config_or_exit(repo_root)
 
     if not config.available:
         console.print("[yellow]No agents configured.[/yellow]")
@@ -93,7 +102,7 @@ def add_agents(
         raise typer.Exit(1)
 
     # Load current config
-    config = load_agent_config(repo_root)
+    config = _load_config_or_exit(repo_root)
 
     # Validate agent keys
     invalid = [a for a in agents if a not in AGENT_DIR_TO_KEY.values()]
@@ -179,7 +188,7 @@ def remove_agents(
         raise typer.Exit(1)
 
     # Load current config
-    config = load_agent_config(repo_root)
+    config = _load_config_or_exit(repo_root)
 
     # Validate agent keys
     invalid = [a for a in agents if a not in AGENT_DIR_TO_KEY.values()]
@@ -243,7 +252,7 @@ def agent_status():
         raise typer.Exit(1)
 
     # Load config
-    config = load_agent_config(repo_root)
+    config = _load_config_or_exit(repo_root)
 
     # Check filesystem for each agent
     table = Table(title="Agent Status")
@@ -319,7 +328,7 @@ def sync_agents(
         raise typer.Exit(1)
 
     # Load config
-    config = load_agent_config(repo_root)
+    config = _load_config_or_exit(repo_root)
 
     changes_made = False
 

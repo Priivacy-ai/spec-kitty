@@ -80,17 +80,19 @@ def detect_execution_context(cwd: Path | None = None) -> CurrentContext:
         # Extract worktree information
         for i, part in enumerate(cwd.parts):
             if part == ".worktrees" and i + 1 < len(cwd.parts):
-                worktree_name = cwd.parts[i + 1]
-                worktree_path = Path(*cwd.parts[: i + 2])
-                repo_root = Path(*cwd.parts[:i])
+                candidate_root = Path(*cwd.parts[:i])
+                if (candidate_root / ".kittify").exists() or (candidate_root / ".git").exists():
+                    worktree_name = cwd.parts[i + 1]
+                    worktree_path = Path(*cwd.parts[: i + 2])
+                    repo_root = candidate_root
 
-                return CurrentContext(
-                    location=ExecutionContext.WORKTREE,
-                    cwd=cwd,
-                    repo_root=repo_root,
-                    worktree_name=worktree_name,
-                    worktree_path=worktree_path,
-                )
+                    return CurrentContext(
+                        location=ExecutionContext.WORKTREE,
+                        cwd=cwd,
+                        repo_root=repo_root,
+                        worktree_name=worktree_name,
+                        worktree_path=worktree_path,
+                    )
 
     # Not in worktree - assume main repo
     # Try to find repo root (directory containing .kittify or .git)
