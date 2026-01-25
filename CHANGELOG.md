@@ -7,6 +7,48 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-01-25
+
+### ✨ Added
+
+**Deterministic CSV Schema Enforcement for Research Missions**:
+- **Canonical schema documentation**: Research CSV schemas now documented in all 12 agent implement.md templates
+- **Two schemas enforced**:
+  - `evidence-log.csv`: `timestamp,source_type,citation,key_finding,confidence,notes`
+  - `source-register.csv`: `source_id,citation,url,accessed_date,relevance,status`
+- **Schema visibility**: Agents see schemas before editing (in "Research CSV Schemas" section with examples)
+- **Detection migration**: `m_0_13_0_research_csv_schema_check.py` scans existing features for schema mismatches (informational only, no auto-fix)
+- **Template propagation**: `m_0_13_0_update_research_implement_templates.py` updates all agent templates with schema documentation
+- **Reusable validator**: `src/specify_cli/validators/csv_schema.py` provides `CSVSchemaValidation` dataclass for exact schema matching
+- **Exported constants**: `EVIDENCE_REQUIRED_COLUMNS` and `SOURCE_REGISTER_REQUIRED_COLUMNS` now importable from `research.py`
+- **ADR #8**: Documents architecture decision for documentation-based enforcement vs runtime enforcement/auto-migration
+
+**Problem Solved**: Agents were modifying CSV schemas during implementation, creating different schemas in parallel WPs, causing merge conflicts and validation failures at review time.
+
+**Solution Approach**: Document schemas where agents can see them (prevention) rather than runtime enforcement or auto-migration (data loss risk).
+
+### 📚 Documentation
+
+**Release Management**:
+- Added `RELEASE_CHECKLIST.md` - Comprehensive release preparation checklist with version-specific sections for research missions, agent management, and workspace-per-WP changes
+
+### Migration Notes
+
+**For users with existing research features**:
+1. Run `spec-kitty upgrade` to trigger detection migration
+2. See informational report with schema diffs and migration tips
+3. Use LLM agent to help migrate data:
+   - Read canonical schema in `.claude/commands/spec-kitty.implement.md`
+   - Create new CSV with correct headers
+   - Map old columns → new columns
+   - Replace old file and commit to main
+
+**For new research features (0.13.0+)**:
+- Templates already have correct schemas
+- Agents see schema documentation before editing
+- Follow append-only pattern to avoid overwrites
+- Validation passes at review
+
 ## [0.12.1] - 2026-01-24
 
 ### 🐛 Fixed
