@@ -86,13 +86,13 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T014 Create `tests/adversarial/test_path_validation.py` structure
-- [ ] T015 Implement `TestDirectoryTraversal` class (../../../, dot-slash)
-- [ ] T016 Implement `TestCaseSensitivityBypass` class (macOS-specific)
-- [ ] T017 Implement `TestEmptyPaths` class (empty, whitespace, slashes)
-- [ ] T018 Implement `TestSymlinkAttacks` class (symlink to kitty-specs)
-- [ ] T019 Implement `TestSpecialPaths` class (home, absolute, null byte)
-- [ ] T020 Implement `TestUnicodePaths` class (valid unicode, RTL override)
+- [x] T014 Create `tests/adversarial/test_path_validation.py` structure
+- [x] T015 Implement `TestDirectoryTraversal` class (../../../, dot-slash)
+- [x] T016 Implement `TestCaseSensitivityBypass` class (macOS-specific)
+- [x] T017 Implement `TestEmptyPaths` class (empty, whitespace, slashes)
+- [x] T018 Implement `TestSymlinkAttacks` class (symlink to kitty-specs)
+- [x] T019 Implement `TestSpecialPaths` class (home, absolute, null byte)
+- [x] T020 Implement `TestUnicodePaths` class (valid unicode, RTL override)
 
 ### Implementation Notes
 - Import `validate_deliverables_path` from `specify_cli.mission`
