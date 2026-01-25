@@ -71,6 +71,7 @@ Changelog = "https://github.com/spec-kitty/spec-kitty/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 test = [
     "pytest>=7.4",
+    "build>=1.0.0",  # Required for distribution tests (wheel building)
 ]
 
 [project.scripts]
