@@ -1,108 +1,133 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Adversarial Test Suite for 0.13.0
 
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `.kittify/templates/commands/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+**Branch**: `024-adversarial-test-suite-0-13-0` | **Date**: 2026-01-25 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `/kitty-specs/024-adversarial-test-suite-0-13-0/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Create a comprehensive adversarial test suite for spec-kitty 0.13.0 that validates security, robustness, and edge-case handling across 9 categories: distribution testing, path validation, CSV schema attacks, git state detection, migration robustness, multi-parent merges, workspace context, context validation bypass, and agent config manipulation. Tests will be organized in a new `tests/adversarial/` directory with one file per category.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python 3.11+ (matches existing test suite)
+**Primary Dependencies**: pytest, pytest-timeout (existing), multiprocessing (stdlib)
+**Storage**: N/A (test suite)
+**Testing**: pytest with existing conftest.py fixtures
+**Target Platform**: Linux/macOS (CI), Windows (best-effort)
+**Project Type**: Single project - test module addition
+**Performance Goals**: Full test suite runs in under 5 minutes on CI
+**Constraints**: Must not require additional CI infrastructure; must work with existing fixtures
+**Scale/Scope**: ~50-70 test cases across 9 test files
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
-
-[Gates determined based on constitution file]
+*No constitution file found - skipping constitution gates.*
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/024-adversarial-test-suite-0-13-0/
+├── spec.md              # Feature specification
+├── plan.md              # This file
+├── research.md          # Phase 0 research findings
+├── data-model.md        # Test entity definitions
+├── quickstart.md        # Implementation quickstart
+├── checklists/
+│   └── requirements.md  # Spec quality checklist
+└── tasks/               # WP files (created by /spec-kitty.tasks)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
 tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+├── adversarial/                          # NEW: Adversarial test suite
+│   ├── __init__.py
+│   ├── conftest.py                       # Shared adversarial fixtures
+│   ├── test_distribution.py              # P1: PyPI user experience validation
+│   ├── test_path_validation.py           # P1: Directory traversal, symlinks
+│   ├── test_csv_attacks.py               # P1: Injection, encoding, malformed
+│   ├── test_git_state.py                 # P2: Detached HEAD, merge state
+│   ├── test_migration_robustness.py      # P2: Interruption, concurrency
+│   ├── test_multi_parent_merge.py        # P2: Diamond deps, conflicts
+│   ├── test_workspace_context.py         # P3: Orphaned, corrupted contexts
+│   ├── test_context_validation.py        # P3: Bypass prevention
+│   └── test_agent_config.py              # P3: Corrupt YAML handling
+├── conftest.py                           # Existing root conftest (extend)
+└── [existing test directories...]
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: New `tests/adversarial/` directory keeps adversarial tests isolated and organized by attack category, following the user's preference for Option A.
 
-## Complexity Tracking
+## Key Design Decisions
 
-*Fill ONLY if Constitution Check has violations that must be justified*
+### 1. Distribution Tests Without SPEC_KITTY_TEMPLATE_ROOT
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+Distribution tests (`test_distribution.py`) will:
+- Build wheel from source using `python -m build`
+- Install into fresh venv without `SPEC_KITTY_TEMPLATE_ROOT`
+- Validate template resolution uses packaged templates
+- Test all three mission types (software-dev, research, documentation)
+
+This directly addresses the 0.10.8 catastrophe where 100% of tests used the bypass.
+
+### 2. Fixture Strategy
+
+New fixtures in `tests/adversarial/conftest.py`:
+
+| Fixture | Purpose |
+|---------|---------|
+| `malicious_paths` | Parametrized path traversal vectors |
+| `malformed_csv` | Factory for creating attack CSVs |
+| `git_merge_state` | Create repos in merge/rebase state |
+| `detached_head_repo` | Create worktree in detached HEAD |
+| `concurrent_migration` | Multiprocessing setup for race tests |
+| `corrupt_config` | Generate malformed config.yaml |
+| `symlink_factory` | Cross-platform symlink creation |
+
+### 3. Platform Considerations
+
+- Symlink tests: Skip on Windows if not elevated
+- Case-sensitivity tests: Mark as `@pytest.mark.skipif` on case-sensitive FS
+- Concurrent tests: Use `multiprocessing` not `threading` (GIL)
+
+### 4. Test Markers
+
+```python
+pytest.mark.adversarial      # All adversarial tests
+pytest.mark.distribution     # Distribution-only (isolated CI job)
+pytest.mark.slow            # Tests > 10s (concurrent/build)
+pytest.mark.platform_linux  # Linux-specific edge cases
+pytest.mark.platform_darwin # macOS-specific (case-insensitive FS)
+```
+
+## Target Modules Under Test
+
+| Test File | Target Module(s) | Attack Surface |
+|-----------|------------------|----------------|
+| test_distribution.py | Package bundling | Template resolution |
+| test_path_validation.py | `mission.py:validate_deliverables_path()` | Path traversal, symlinks |
+| test_csv_attacks.py | `validators/csv_schema.py` | Injection, encoding |
+| test_git_state.py | `cli/commands/agent/tasks.py:_validate_ready_for_review()` | Git state detection |
+| test_migration_robustness.py | `upgrade/runner.py`, `upgrade/metadata.py` | Atomicity, concurrency |
+| test_multi_parent_merge.py | `core/multi_parent_merge.py` | Conflict handling |
+| test_workspace_context.py | `workspace_context.py` | Orphaned/corrupt JSON |
+| test_context_validation.py | `core/context_validation.py` | Decorator bypass |
+| test_agent_config.py | `upgrade/migrations/*.py` | Config parsing |
+
+## Risk Mitigation
+
+| Risk | Mitigation |
+|------|------------|
+| Distribution tests slow CI | Separate marker, run only on release branches |
+| Concurrent tests flaky | Use file locks, increase timeout, retry once |
+| Symlink tests platform-dependent | Skip gracefully with clear message |
+| Multiprocessing spawn issues | Use `spawn` context explicitly on all platforms |
+
+## Dependencies
+
+- No new dependencies required
+- Uses existing: pytest, pytest-timeout
+- stdlib only: multiprocessing, tempfile, pathlib
