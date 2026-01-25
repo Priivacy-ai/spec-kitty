@@ -13,6 +13,13 @@ import pytest
 from tests.utils import REPO_ROOT, run, run_tasks_cli, write_wp
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line(
+        "markers",
+        "adversarial: adversarial scenarios for merge and dependency handling",
+    )
+
+
 def _venv_python(venv_dir: Path) -> Path:
     candidate = venv_dir / "bin" / "python"
     if candidate.exists():
