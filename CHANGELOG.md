@@ -7,6 +7,32 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] - 2026-01-25
+
+### ✨ Added
+
+**Adversarial Test Suite for 0.13.0 Release**:
+- **Distribution tests**: Validate PyPI user experience without SPEC_KITTY_TEMPLATE_ROOT bypass (prevents 0.10.8-style packaging failures)
+- **Path validation security tests**: Test directory traversal, symlink attacks, case-sensitivity bypasses, and path injection prevention
+- **CSV schema attack tests**: Validate handling of formula injection, encoding errors, duplicate columns, and empty files
+- **Git state detection tests**: Verify accuracy of uncommitted work, merge state, and branch divergence detection
+- **Migration robustness tests**: Test UTF-8 encoding, idempotency, and partial/corrupted file handling
+- **Multi-parent merge tests**: Validate dependency-order merging and conflict resolution
+- **Context & config tests**: Test non-interactive modes, agent configuration, and workspace validation
+
+**Test Infrastructure**:
+- New `tests/adversarial/` directory with shared fixtures and attack vectors
+- `@pytest.mark.distribution` and `@pytest.mark.slow` markers for CI optimization
+- Session-scoped `wheel_install` fixture for efficient testing
+- Platform-specific skip conditions for cross-platform compatibility
+
+### 📚 Documentation
+
+**Testing**:
+- Comprehensive adversarial test documentation in feature 024 spec
+- Attack vector catalog with prevention strategies
+- CI integration guidance for slow/distribution tests
+
 ## [0.13.0] - 2026-01-25
 
 ### ✨ Added
