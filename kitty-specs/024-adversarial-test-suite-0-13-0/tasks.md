@@ -216,12 +216,12 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T040 Create `tests/adversarial/test_multi_parent_merge.py` structure
-- [ ] T041 Create diamond dependency fixture (WP01 → WP02/WP03 → WP04)
-- [ ] T042 Implement `TestMergeConflictDetection` class (same file modified)
-- [ ] T043 Implement `TestDeterministicMergeOrder` class (same tree hash)
-- [ ] T044 Implement `TestOrphanedBranchCleanup` class (temporary branches removed)
-- [ ] T045 Implement `TestThreeParentMerge` class (3+ dependencies)
+- [x] T040 Create `tests/adversarial/test_multi_parent_merge.py` structure
+- [x] T041 Create diamond dependency fixture (WP01 → WP02/WP03 → WP04)
+- [x] T042 Implement `TestMergeConflictDetection` class (same file modified)
+- [x] T043 Implement `TestDeterministicMergeOrder` class (same tree hash)
+- [x] T044 Implement `TestOrphanedBranchCleanup` class (temporary branches removed)
+- [x] T045 Implement `TestThreeParentMerge` class (3+ dependencies)
 
 ### Implementation Notes
 - Create repos with diamond dependency patterns
