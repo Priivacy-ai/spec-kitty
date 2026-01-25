@@ -21,13 +21,13 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T001 Create `tests/adversarial/__init__.py` with module docstring
-- [ ] T002 Create `tests/adversarial/conftest.py` with shared fixtures
-- [ ] T003 Define `PATH_ATTACK_VECTORS` data structure in conftest
-- [ ] T004 Define `CSV_ATTACK_VECTORS` data structure in conftest
-- [ ] T005 Create `symlink_factory` fixture with platform detection
-- [ ] T006 Create `adversarial_env` fixture (no SPEC_KITTY_TEMPLATE_ROOT)
-- [ ] T007 Register pytest markers in `pyproject.toml`
+- [x] T001 Create `tests/adversarial/__init__.py` with module docstring
+- [x] T002 Create `tests/adversarial/conftest.py` with shared fixtures
+- [x] T003 Define `PATH_ATTACK_VECTORS` data structure in conftest
+- [x] T004 Define `CSV_ATTACK_VECTORS` data structure in conftest
+- [x] T005 Create `symlink_factory` fixture with platform detection
+- [x] T006 Create `adversarial_env` fixture (no SPEC_KITTY_TEMPLATE_ROOT)
+- [x] T007 Register pytest markers in `pyproject.toml`
 
 ### Implementation Notes
 - All fixtures should be session-scoped where appropriate for performance
