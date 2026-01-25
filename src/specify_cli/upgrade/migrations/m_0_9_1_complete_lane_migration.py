@@ -626,7 +626,10 @@ def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
         List of (agent_root, subdir) tuples for configured agents
     """
     try:
-        from specify_cli.orchestrator.agent_config import get_configured_agents
+        from specify_cli.orchestrator.agent_config import (
+            AgentConfigError,
+            get_configured_agents,
+        )
 
         available = get_configured_agents(project_path)
 
@@ -643,6 +646,8 @@ def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
 
         return configured_dirs
 
+    except AgentConfigError:
+        raise
     except Exception:
         # Config missing or error reading - fallback to all agents
         # This handles legacy projects gracefully
