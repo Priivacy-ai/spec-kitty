@@ -151,13 +151,13 @@
 **Estimated Size**: ~500 lines
 
 ### Included Subtasks
-- [ ] T027 Create `tests/adversarial/test_git_state.py` structure
-- [ ] T028 Create git scenario fixtures (detached_head_repo, merge_state_repo)
-- [ ] T029 Implement `TestDetachedHead` class (detection and error message)
-- [ ] T030 Implement `TestMergeState` class (MERGE_HEAD, REBASE_HEAD, CHERRY_PICK_HEAD)
-- [ ] T031 Implement `TestStagedUncommitted` class (clear distinction in messages)
-- [ ] T032 Implement `TestMainDivergence` class (stale base detection)
-- [ ] T033 Implement `TestNoCommitsOnBranch` class (empty WP branch)
+- [x] T027 Create `tests/adversarial/test_git_state.py` structure
+- [x] T028 Create git scenario fixtures (detached_head_repo, merge_state_repo)
+- [x] T029 Implement `TestDetachedHead` class (detection and error message)
+- [x] T030 Implement `TestMergeState` class (MERGE_HEAD, REBASE_HEAD, CHERRY_PICK_HEAD)
+- [x] T031 Implement `TestStagedUncommitted` class (clear distinction in messages)
+- [x] T032 Implement `TestMainDivergence` class (stale base detection)
+- [x] T033 Implement `TestNoCommitsOnBranch` class (empty WP branch)
 
 ### Implementation Notes
 - Create real git repos with specific states in fixtures
