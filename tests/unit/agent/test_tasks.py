@@ -728,8 +728,15 @@ class TestValidateReadyForReview:
                     return Mock(returncode=0, stdout=" M src/main.py\n")
                 else:
                     return Mock(returncode=0, stdout="")  # Main repo clean
+            elif "rev-parse" in cmd and "--verify" in cmd:
+                # No in-progress operations (MERGE_HEAD, REBASE_HEAD, etc. don't exist)
+                return Mock(returncode=1, stdout="")
+            elif "rev-list" in cmd and "HEAD..main" in cmd:
+                # Not behind main
+                return Mock(returncode=0, stdout="0\n")
             elif "rev-list" in cmd:
-                return Mock(returncode=0, stdout="5\n")  # Has commits
+                # Has implementation commits
+                return Mock(returncode=0, stdout="5\n")
             return Mock(returncode=0, stdout="")
 
         mock_run.side_effect = subprocess_side_effect
@@ -770,6 +777,9 @@ class TestValidateReadyForReview:
 
             if "status" in cmd and "--porcelain" in cmd:
                 return Mock(returncode=0, stdout="")  # Both clean
+            elif "rev-parse" in cmd and "--verify" in cmd:
+                # No in-progress operations
+                return Mock(returncode=1, stdout="")
             elif "rev-list" in cmd:
                 return Mock(returncode=0, stdout="0\n")  # No commits beyond main
             return Mock(returncode=0, stdout="")
