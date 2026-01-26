@@ -114,6 +114,7 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-01-23-4](adrs/2026-01-23-4-auto-merge-multi-parent-dependencies.md) | Auto-Merge Multi-Parent Dependencies | Accepted | Git Repository Management |
 | [2026-01-23-5](adrs/2026-01-23-5-decorator-based-context-validation.md) | Decorator-Based Context Validation | Accepted | Git Repository Management |
 | [2026-01-25-8](adrs/2026-01-25-8-cli-first-command-interface.md) | CLI-First Command Interface | Accepted | CLI/Automation |
+| [2026-01-26-9](adrs/2026-01-26-9-worktree-cleanup-at-merge-not-eager.md) | Worktree Cleanup at Merge, Not Eager | Accepted | Git Repository Management |
 
 ### By Topic
 
