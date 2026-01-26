@@ -37,6 +37,7 @@ from . import m_0_13_0_research_csv_schema_check
 from . import m_0_13_0_update_constitution_templates
 from . import m_0_13_0_update_research_implement_templates
 from . import m_0_13_1_exclude_worktrees
+from . import m_0_13_5_fix_clarify_template
 
 __all__ = [
     "m_0_2_0_specify_to_kittify",
@@ -70,4 +71,5 @@ __all__ = [
     "m_0_13_0_update_constitution_templates",
     "m_0_13_0_update_research_implement_templates",
     "m_0_13_1_exclude_worktrees",
+    "m_0_13_5_fix_clarify_template",
 ]

@@ -7,6 +7,26 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.5] - 2026-01-26
+
+### 🐛 Fixed
+
+**Fixed /spec-kitty.clarify Command Template**:
+- Fixed broken placeholder in clarify template that prevented agents from running clarification workflow
+  - **Bug**: Template contained `(Missing script command for sh)` placeholder instead of actual command
+  - **Impact**: Agents couldn't get feature context, invented non-existent commands like `spec-kitty agent feature get-active --json`
+  - **Fix**: Replaced manual detection logic with `spec-kitty agent feature check-prerequisites --json --paths-only`
+  - **Consistency**: Now matches pattern used in specify.md, plan.md, and tasks.md templates
+  - Migration `m_0_13_5_fix_clarify_template.py` automatically updates all 12 agent directories on upgrade
+  - Source template: `src/specify_cli/missions/software-dev/command-templates/clarify.md`
+
+**Testing**:
+- Added comprehensive test suite with 34 tests covering all scenarios
+  - Parametrized tests for all 12 agents (claude, copilot, gemini, cursor, qwen, opencode, windsurf, codex, kilocode, auggie, roo, q)
+  - Tests for detection, application, agent config respect, idempotency, dry-run
+  - Template content validation (ensures no broken placeholders, matches tasks.md pattern)
+  - End-to-end integration test verifying migration actually runs and fixes templates
+
 ## [0.13.4] - 2026-01-26
 
 ### 🐛 Fixed

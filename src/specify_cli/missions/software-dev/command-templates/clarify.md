@@ -18,16 +18,10 @@ Note: This clarification workflow is expected to run (and be completed) BEFORE i
 
 Execution steps:
 
-1. Detect the active feature and construct feature paths:
-   - Check git branch name for pattern `###-feature-name-WP##` or `###-feature-name` (extract feature slug)
-   - If not found, check for most recent directory in `kitty-specs/` (e.g., `kitty-specs/017-my-feature/`)
-   - If still not found, ask user for feature slug
-   - Once detected, construct paths:
-     * `FEATURE_DIR`: `kitty-specs/{feature-slug}/`
-     * `FEATURE_SPEC`: `kitty-specs/{feature-slug}/spec.md`
-     * `IMPL_PLAN`: `kitty-specs/{feature-slug}/plan.md` (optional, for future reference)
-     * `TASKS`: `kitty-specs/{feature-slug}/tasks.md` (optional, for future reference)
-   - If `FEATURE_SPEC` does not exist, abort and instruct user to run `/spec-kitty.specify` first.
+1. Run `spec-kitty agent feature check-prerequisites --json --paths-only` from the repository root and parse JSON for:
+   - `FEATURE_DIR` - Absolute path to feature directory (e.g., `/path/to/kitty-specs/017-my-feature/`)
+   - `FEATURE_SPEC` - Absolute path to spec.md file
+   - If command fails or JSON parsing fails, abort and instruct user to run `/spec-kitty.specify` first or verify they are in a spec-kitty-initialized repository.
 
 2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
 
