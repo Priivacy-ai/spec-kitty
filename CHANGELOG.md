@@ -7,6 +7,46 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.2] - 2026-01-26
+
+### 🐛 Fixed
+
+**Critical Windows Compatibility Issues**:
+- Fixed UTF-8 encoding errors causing Windows crashes (Issue #101)
+  - Added `encoding='utf-8'` to all `write_text()` and `read_text()` calls
+  - Affected files: feature.py, worktree.py, agent_context.py, doc_generators.py, gap_analysis.py
+  - Completes PR #100 which missed several locations
+- Fixed hardcoded `python3` breaking Windows installations (Issue #105)
+  - Replaced with `sys.executable` in Python code (feature.py)
+  - Added dynamic Python detection in git hooks (tries python3, falls back to python)
+  - Windows users no longer need to create python3 hardlinks/aliases
+
+**Workflow Improvements**:
+- Added `--base` parameter to `spec-kitty agent workflow implement` (Issue #96)
+  - Enables agents to create dependent WP worktrees via workflow command
+  - Provides feature parity with top-level `spec-kitty implement` command
+  - Example: `spec-kitty agent workflow implement WP02 --base WP01 --agent claude`
+
+**Template and Documentation Fixes**:
+- Fixed broken `/spec-kitty.clarify` skill (Issue #106)
+  - Removed unresolved `{SCRIPT}` and `{ARGS}` placeholders
+  - Replaced with auto-detection instructions for feature paths
+- Fixed outdated template path references (Issue #102)
+  - Updated 6 references from `.kittify/templates/` to `src/specify_cli/missions/`
+  - Templates now reference correct bundled locations
+- Fixed upgrade version detection for modern projects (Issue #108)
+  - Added detection for versions 0.7.0-0.13.0
+  - Prevents unnecessary migrations on modern projects
+- Regenerated all 12 agent constitution templates (Issue #97)
+  - All agents now correctly suggest `/spec-kitty.specify` as next step (not `/spec-kitty.plan`)
+
+### 📚 Documentation
+
+- Added GitHub CLI authentication troubleshooting to CLAUDE.md
+  - Documents `unset GITHUB_TOKEN` technique for organization repos
+
+**Issues Closed**: #96, #97, #101, #102, #105, #106, #108, #103 (not a bug), #107 (not a bug)
+
 ## [0.13.1] - 2026-01-25
 
 ### ✨ Added
