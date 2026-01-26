@@ -7,6 +7,27 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.3] - 2026-01-26
+
+### 🐛 Fixed
+
+**Critical Merge Workflow Fix**:
+- Fixed merge failing when main branch lacks upstream tracking (Issue reported post-0.13.2 release)
+  - 0.13.2 only checked if remote EXISTS, but not if branch TRACKS it
+  - Added `has_tracking_branch()` function to check upstream tracking
+  - Merge now skips pull if: (1) no remote OR (2) no upstream tracking
+  - Affects users with local-only repos or repos where main doesn't track origin/main
+
+**Testing & Prevention**:
+- Added `TestMigrationRegistryCompleteness` test (prevents 0.13.2-style release blocker)
+  - Verifies all m_*.py migration files are imported in __init__.py
+  - Prevents silent bugs where migrations exist but never run
+- Added integration tests for merge with untracked branches
+- Added unit tests for `has_tracking_branch()` function
+
+**Documentation**:
+- Updated RELEASE_CHECKLIST.md with mandatory migration registry verification
+
 ## [0.13.2] - 2026-01-26
 
 ### 🐛 Fixed
