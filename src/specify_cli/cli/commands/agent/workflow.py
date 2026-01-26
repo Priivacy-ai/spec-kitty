@@ -11,16 +11,22 @@ from typing import Optional
 import typer
 from typing_extensions import Annotated
 
-from specify_cli.core.paths import locate_project_root, find_feature_slug
+from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
-from specify_cli.mission import get_feature_mission_key, get_deliverables_path
+from specify_cli.core.implement_validation import (
+    validate_and_resolve_base,
+    validate_base_workspace_exists,
+)
+from specify_cli.core.paths import find_feature_slug, locate_project_root
+from specify_cli.mission import get_deliverables_path, get_feature_mission_key
 from specify_cli.tasks_support import (
-    extract_scalar,
-    locate_work_package,
-    split_frontmatter,
-    set_scalar,
     append_activity_log,
     build_document,
+    extract_scalar,
+    find_repo_root,
+    locate_work_package,
+    set_scalar,
+    split_frontmatter,
 )
 
 
@@ -265,15 +271,45 @@ def implement(
                 print("Error: No planned work packages found. Specify a WP ID explicitly.")
                 raise typer.Exit(1)
 
-        # If --base is provided, create worktree by calling top-level implement
-        if base:
-            from specify_cli.cli.commands.implement import implement as top_level_implement
+        # ALWAYS validate dependencies before creating workspace or displaying prompts
+        # This prevents creating workspaces with wrong base branches
 
-            print(f"Creating worktree for {normalized_wp_id} branching from {base}...")
+        # Find WP file to read dependencies
+        try:
+            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        except Exception as e:
+            print(f"Error locating work package: {e}")
+            raise typer.Exit(1)
+
+        # Validate dependencies and resolve base workspace
+        # This will error if:
+        # - WP has single dependency but --base not provided
+        # - Provided base doesn't match declared dependencies (warning only)
+        try:
+            resolved_base, auto_merge = validate_and_resolve_base(
+                wp_id=normalized_wp_id,
+                wp_file=wp.path,
+                base=base,  # May be None
+                feature_slug=feature_slug,
+                repo_root=repo_root
+            )
+        except typer.Exit:
+            # Validation failed (e.g., missing --base for single dependency)
+            raise
+
+        # If validation resolved a base (or auto-merge mode), validate base workspace exists
+        if resolved_base:
+            validate_base_workspace_exists(resolved_base, feature_slug, repo_root)
+
+        # Create worktree only if explicitly requested via --base or auto-merge
+        # Don't auto-create workspaces for WPs with no dependencies and no --base
+        # (user can create manually later or provide --base explicitly)
+        if base is not None or auto_merge:
+            print(f"Creating workspace for {normalized_wp_id}...")
             try:
                 top_level_implement(
                     wp_id=normalized_wp_id,
-                    base=base,
+                    base=resolved_base,  # None for auto-merge or no deps
                     feature=feature_slug,
                     json_output=False
                 )

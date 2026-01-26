@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+**Critical Dependency Validation Fix**:
+- Fixed `spec-kitty agent workflow implement` not validating WP dependencies before creating workspaces
+  - **Bug**: WP with single dependency could create workspace without `--base` flag
+  - **Impact**: Workspace branched from main instead of dependency branch (silent correctness bug)
+  - **Fix**: Added shared validation utility that errors when single dependency but no `--base` provided
+  - **Example**: `WP06` depends on `WP04` → command now errors and suggests `--base WP04`
+  - Created `src/specify_cli/core/implement_validation.py` with `validate_and_resolve_base()`
+  - Agent commands now delegate to top-level commands (no more legacy script calls)
+
+**Fixed Broken Agent Commands**:
+- Fixed `spec-kitty agent feature accept` calling non-existent `scripts/tasks/tasks_cli.py`
+  - Now delegates to top-level `accept()` command
+- Fixed `spec-kitty agent feature merge` calling non-existent `scripts/tasks/tasks_cli.py`
+  - Now delegates to top-level `merge()` command
+  - Parameter mapping: `keep_branch` → `delete_branch` (inverted logic)
+
 **Critical Merge Workflow Fix**:
 - Fixed merge failing when main branch lacks upstream tracking (Issue reported post-0.13.2 release)
   - 0.13.2 only checked if remote EXISTS, but not if branch TRACKS it
@@ -19,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Affects users with local-only repos or repos where main doesn't track origin/main
 
 **Testing & Prevention**:
+- Added 22 new tests for dependency validation and agent command wrappers
+  - Unit tests: `test_implement_validation.py` (11 tests)
+  - Integration tests: `test_agent_command_wrappers.py` (11 tests)
 - Added `TestMigrationRegistryCompleteness` test (prevents 0.13.2-style release blocker)
   - Verifies all m_*.py migration files are imported in __init__.py
   - Prevents silent bugs where migrations exist but never run
@@ -26,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added unit tests for `has_tracking_branch()` function
 
 **Documentation**:
+- Added `src/specify_cli/cli/commands/agent/README.md` (wrapper pattern documentation)
+  - Dependency validation best practices
+  - Parameter mapping guidelines
+  - Common pitfalls and examples
 - Updated RELEASE_CHECKLIST.md with mandatory migration registry verification
 
 ## [0.13.2] - 2026-01-26
