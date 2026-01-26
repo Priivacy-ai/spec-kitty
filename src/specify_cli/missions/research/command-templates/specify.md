@@ -156,7 +156,7 @@ Example with default path:
 
 ### 4. Load Research Spec Template
 
-Load from `.kittify/templates/spec-template.md` (research mission version).
+The spec template is bundled with spec-kitty and will be used automatically. The research mission uses a specialized template optimized for research projects.
 
 ### 5. Generate Research Specification
 

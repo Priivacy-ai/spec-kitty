@@ -457,7 +457,7 @@ def extract_public_api_from_python(source_dir: Path) -> List[str]:
 
     for py_file in source_dir.rglob("*.py"):
         try:
-            source = py_file.read_text()
+            source = py_file.read_text(encoding='utf-8')
             tree = ast.parse(source)
 
             for node in ast.walk(tree):
@@ -497,7 +497,7 @@ def extract_documented_api_from_sphinx(docs_dir: Path) -> List[str]:
     if build_dir.exists():
         # Parse HTML for documented classes/functions
         for html_file in build_dir.rglob("*.html"):
-            content = html_file.read_text()
+            content = html_file.read_text(encoding='utf-8')
             # Simple heuristic: look for Sphinx autodoc class/function markers
             # Example: <dt class="sig sig-object py" id="ClassName">
             import re
@@ -814,7 +814,7 @@ def analyze_documentation_gaps(
     classified = {}
     for doc_file in doc_files:
         try:
-            content = doc_file.read_text()
+            content = doc_file.read_text(encoding='utf-8')
             divio_type, confidence = classify_divio_type(content)
             classified[doc_file] = (divio_type, confidence)
         except Exception:
@@ -884,7 +884,7 @@ def generate_gap_analysis_report(
 
     # Write to file
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    output_file.write_text(report_content)
+    output_file.write_text(report_content, encoding='utf-8')
 
     return analysis
 

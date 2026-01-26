@@ -83,6 +83,29 @@ class VersionDetector:
                     if (mission / "commands").exists():
                         has_mission_commands = True
 
+        # v0.13.0+: Has research CSV schema files
+        research_mission = missions_dir / "research" if missions_dir.exists() else None
+        if research_mission and research_mission.exists():
+            evidence_schema = research_mission / "evidence-log-schema.csv"
+            if evidence_schema.exists():
+                return "0.13.0"
+
+        # v0.12.0+: Has documentation mission
+        doc_mission = missions_dir / "documentation" if missions_dir.exists() else None
+        if doc_mission and doc_mission.exists():
+            return "0.12.0"
+
+        # v0.11.0+: Has workspace-per-WP structure (.worktrees)
+        worktrees_dir = self.project_path / ".worktrees"
+        if worktrees_dir.exists():
+            return "0.11.0"
+
+        # v0.7.0+: Has missions in .kittify (modernized structure)
+        if missions_dir.exists() and not (has_command_templates or has_mission_command_templates):
+            # Has missions but not the command-templates structure (0.6.5)
+            # This means it's between 0.7.0 and pre-command-templates era
+            return "0.7.0"
+
         # v0.6.5+: Has command-templates (not commands)
         if has_command_templates or has_mission_command_templates:
             if not has_old_commands and not has_mission_commands:

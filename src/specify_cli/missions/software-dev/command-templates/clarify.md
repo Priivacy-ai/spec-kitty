@@ -18,11 +18,16 @@ Note: This clarification workflow is expected to run (and be completed) BEFORE i
 
 Execution steps:
 
-1. Run `{SCRIPT}` from repo root **once** (combined `--json --paths-only` mode / `-Json -PathsOnly`). Parse minimal JSON payload fields:
-   - `FEATURE_DIR`
-   - `FEATURE_SPEC`
-   - (Optionally capture `IMPL_PLAN`, `TASKS` for future chained flows.)
-   - If JSON parsing fails, abort and instruct user to re-run `/spec-kitty.specify` or verify feature branch environment.
+1. Detect the active feature and construct feature paths:
+   - Check git branch name for pattern `###-feature-name-WP##` or `###-feature-name` (extract feature slug)
+   - If not found, check for most recent directory in `kitty-specs/` (e.g., `kitty-specs/017-my-feature/`)
+   - If still not found, ask user for feature slug
+   - Once detected, construct paths:
+     * `FEATURE_DIR`: `kitty-specs/{feature-slug}/`
+     * `FEATURE_SPEC`: `kitty-specs/{feature-slug}/spec.md`
+     * `IMPL_PLAN`: `kitty-specs/{feature-slug}/plan.md` (optional, for future reference)
+     * `TASKS`: `kitty-specs/{feature-slug}/tasks.md` (optional, for future reference)
+   - If `FEATURE_SPEC` does not exist, abort and instruct user to run `/spec-kitty.specify` first.
 
 2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
 
@@ -154,4 +159,4 @@ Behavior rules:
  - If no questions asked due to full coverage, output a compact coverage summary (all categories Clear) then suggest advancing.
  - If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
 
-Context for prioritization: {ARGS}
+Context for prioritization: User arguments from $ARGUMENTS section above (if provided). Use these to focus clarification on specific areas of concern mentioned by the user.
