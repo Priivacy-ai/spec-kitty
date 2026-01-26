@@ -18,6 +18,14 @@ Use this checklist to ensure consistent, high-quality releases of spec-kitty.
   - No unexpected failures
   - Check for XPASS (unexpectedly passing tests that should be reviewed)
 
+- [ ] **CRITICAL: Verify all migrations are registered**:
+  ```bash
+  pytest tests/specify_cli/upgrade/test_migration_robustness.py::TestMigrationRegistryCompleteness -v
+  ```
+  - **Why**: Prevents release blocker bug (0.13.2) where migrations existed but weren't imported
+  - **Impact**: If this test fails, migrations won't run during `spec-kitty upgrade`
+  - **Fix**: Add missing imports to `src/specify_cli/upgrade/migrations/__init__.py`
+
 - [ ] Run linting and formatting checks:
   ```bash
   ruff check .
