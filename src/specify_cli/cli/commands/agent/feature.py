@@ -333,7 +333,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 - Format: `WP01-kebab-case-slug.md`
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
 '''
-        (tasks_dir / "README.md").write_text(tasks_readme_content)
+        (tasks_dir / "README.md").write_text(tasks_readme_content, encoding='utf-8')
 
         # Copy spec template if it exists
         spec_file = feature_dir / "spec.md"
@@ -630,7 +630,7 @@ def accept_feature(
                 console.print(f"[red]Error:[/red] {error}")
             sys.exit(1)
 
-        cmd = ["python3", str(tasks_cli), "accept"]
+        cmd = [sys.executable, str(tasks_cli), "accept"]
         if feature:
             cmd.extend(["--feature", feature])
         cmd.extend(["--mode", mode])
@@ -805,7 +805,7 @@ def merge_feature(
             print(json.dumps({"error": error, "success": False}))
             sys.exit(1)
 
-        cmd = ["python3", str(tasks_cli), "merge"]
+        cmd = [sys.executable, str(tasks_cli), "merge"]
         if feature:
             cmd.extend(["--feature", feature])
         cmd.extend(["--target", target, "--strategy", strategy])

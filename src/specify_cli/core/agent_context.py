@@ -280,7 +280,7 @@ def update_agent_context(
     final_content = preserve_manual_additions(old_content, new_content)
 
     # Write updated content
-    agent_file_path.write_text(final_content)
+    agent_file_path.write_text(final_content, encoding='utf-8')
 
 
 def get_supported_agent_types() -> List[str]:

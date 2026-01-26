@@ -229,6 +229,7 @@ def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
+    base: Annotated[Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -237,8 +238,11 @@ def implement(
 
     Automatically moves WP from planned to doing lane (requires --agent to track who is working).
 
+    If --base is provided, creates a worktree for this WP branching from the base WP's branch.
+
     Examples:
         spec-kitty agent workflow implement WP01 --agent claude
+        spec-kitty agent workflow implement WP02 --agent claude --base WP01  # Create worktree from WP01
         spec-kitty agent workflow implement wp01 --agent codex
         spec-kitty agent workflow implement --agent gemini  # auto-detects first planned WP
     """
@@ -259,6 +263,25 @@ def implement(
             normalized_wp_id = _find_first_planned_wp(repo_root, feature_slug)
             if not normalized_wp_id:
                 print("Error: No planned work packages found. Specify a WP ID explicitly.")
+                raise typer.Exit(1)
+
+        # If --base is provided, create worktree by calling top-level implement
+        if base:
+            from specify_cli.cli.commands.implement import implement as top_level_implement
+
+            print(f"Creating worktree for {normalized_wp_id} branching from {base}...")
+            try:
+                top_level_implement(
+                    wp_id=normalized_wp_id,
+                    base=base,
+                    feature=feature_slug,
+                    json_output=False
+                )
+            except typer.Exit:
+                # Worktree creation failed - propagate error
+                raise
+            except Exception as e:
+                print(f"Error creating worktree: {e}")
                 raise typer.Exit(1)
 
         # Load work package

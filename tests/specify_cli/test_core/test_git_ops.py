@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.git_ops import (
+    exclude_from_git_index,
     get_current_branch,
+    has_remote,
     init_git_repo,
     is_git_repo,
     run_command,
@@ -53,3 +55,83 @@ def git_identity_fixture(monkeypatch):
     monkeypatch.setenv("GIT_AUTHOR_EMAIL", "spec@example.com")
     monkeypatch.setenv("GIT_COMMITTER_NAME", "Spec Kitty")
     monkeypatch.setenv("GIT_COMMITTER_EMAIL", "spec@example.com")
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_has_remote_with_origin(tmp_path):
+    """Test has_remote returns True when origin exists."""
+    # Setup git repo with remote
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+    run_command(["git", "remote", "add", "origin", "https://example.com/repo.git"], cwd=repo)
+
+    assert has_remote(repo) is True
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_has_remote_without_origin(tmp_path):
+    """Test has_remote returns False when no remote exists."""
+    # Setup git repo without remote
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+
+    assert has_remote(repo) is False
+
+
+def test_has_remote_nonexistent_repo(tmp_path):
+    """Test has_remote returns False for non-git directory."""
+    non_repo = tmp_path / "not-a-repo"
+    non_repo.mkdir()
+
+    assert has_remote(non_repo) is False
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_exclude_from_git_index(tmp_path):
+    """Test exclude_from_git_index adds patterns to .git/info/exclude."""
+    # Setup git repo
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+
+    # Add exclusions
+    exclude_from_git_index(repo, [".worktrees/", ".build/"])
+
+    # Verify exclusions were added
+    exclude_file = repo / ".git" / "info" / "exclude"
+    content = exclude_file.read_text()
+    assert ".worktrees/" in content
+    assert ".build/" in content
+    assert "# Added by spec-kitty" in content
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_exclude_from_git_index_duplicate(tmp_path):
+    """Test exclude_from_git_index doesn't duplicate existing patterns."""
+    # Setup git repo
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+
+    # Add exclusions twice
+    exclude_from_git_index(repo, [".worktrees/"])
+    exclude_from_git_index(repo, [".worktrees/"])
+
+    # Verify pattern appears only once
+    exclude_file = repo / ".git" / "info" / "exclude"
+    content = exclude_file.read_text()
+    assert content.count(".worktrees/") == 1
+
+
+def test_exclude_from_git_index_non_git_repo(tmp_path):
+    """Test exclude_from_git_index silently skips non-git directories."""
+    non_repo = tmp_path / "not-a-repo"
+    non_repo.mkdir()
+
+    # Should not raise an error
+    exclude_from_git_index(non_repo, [".worktrees/"])
+
+    # Verify no .git directory was created
+    assert not (non_repo / ".git").exists()
