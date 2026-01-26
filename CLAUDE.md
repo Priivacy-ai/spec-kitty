@@ -935,4 +935,32 @@ Never claim something in the frontend works without Playwright proof.
 - Frontend can break silently (404 caught, shows fallback)
 - Always test the actual user experience, not just backend
 
+## GitHub CLI Authentication for Organization Repos
+
+When `gh` commands fail with "Missing required token scopes" error on organization repos:
+
+**Problem**: GITHUB_TOKEN environment variable may have limited scopes (e.g., 'copilot' only)
+**Solution**: Unset GITHUB_TOKEN to use keyring authentication which typically has broader scopes
+
+```bash
+# Check current auth status
+gh auth status
+
+# If GITHUB_TOKEN has limited scopes, unset it
+unset GITHUB_TOKEN && gh issue comment <issue> --body "..."
+unset GITHUB_TOKEN && gh issue close <issue>
+```
+
+**Background**:
+- `gh` checks GITHUB_TOKEN env var first, then falls back to keyring
+- GITHUB_TOKEN (ghp_*) may have limited scopes for security
+- Keyring token (gho_*) often has full 'repo' scope
+- For organization repos, you need 'repo' and 'read:org' scopes
+
+**Verify fix worked**:
+```bash
+unset GITHUB_TOKEN && gh auth status
+# Should show keyring token with 'repo' scope as active
+```
+
 <!-- MANUAL ADDITIONS END -->

@@ -121,8 +121,67 @@ def get_current_branch(path: Path | None = None) -> str | None:
         return None
 
 
+def has_remote(repo_path: Path, remote_name: str = "origin") -> bool:
+    """Check if repository has a configured remote.
+
+    Args:
+        repo_path: Repository root path
+        remote_name: Remote name to check (default: "origin")
+
+    Returns:
+        True if remote exists, False otherwise
+    """
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", remote_name],
+            capture_output=True,
+            text=True,
+            cwd=repo_path,
+            check=False,
+        )
+        return result.returncode == 0
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def exclude_from_git_index(repo_path: Path, patterns: list[str]) -> None:
+    """Add patterns to .git/info/exclude to prevent git tracking.
+
+    This is a local-only exclusion (never committed, unlike .gitignore).
+    Useful for build artifacts, worktrees, and other local-only files.
+
+    Args:
+        repo_path: Repository root path
+        patterns: List of patterns to exclude (e.g., [".worktrees/"])
+    """
+    exclude_file = repo_path / ".git" / "info" / "exclude"
+    if not exclude_file.exists():
+        return
+
+    # Read existing exclusions
+    try:
+        existing = set(exclude_file.read_text().splitlines())
+    except OSError:
+        existing = set()
+
+    # Add new patterns
+    new_patterns = [p for p in patterns if p not in existing]
+    if new_patterns:
+        try:
+            with exclude_file.open("a") as f:
+                marker = "# Added by spec-kitty (local exclusions)"
+                if marker not in existing:
+                    f.write(f"\n{marker}\n")
+                for pattern in new_patterns:
+                    f.write(f"{pattern}\n")
+        except OSError:
+            pass  # Non-critical, continue silently
+
+
 __all__ = [
+    "exclude_from_git_index",
     "get_current_branch",
+    "has_remote",
     "init_git_repo",
     "is_git_repo",
     "run_command",

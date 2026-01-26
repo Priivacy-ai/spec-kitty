@@ -27,6 +27,7 @@ from specify_cli.core import (
     init_git_repo,
     is_git_repo,
 )
+from specify_cli.core.git_ops import exclude_from_git_index
 from specify_cli.core.vcs import (
     is_git_available,
     VCSBackend,
@@ -683,6 +684,10 @@ def init(
                     tracker.skip("git", "git not available")
             else:
                 tracker.skip("git", "--no-git flag")
+
+            # Exclude .worktrees/ from git index (defensive protection)
+            if not no_git and is_git_repo(project_path):
+                exclude_from_git_index(project_path, [".worktrees/"])
 
             # Install git hooks AFTER git is initialized
             if not no_git and is_git_repo(project_path):
