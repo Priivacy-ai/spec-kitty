@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.core.git_ops import exclude_from_git_index, run_command
+from specify_cli.core.git_ops import (
+    exclude_from_git_index,
+    has_tracking_branch,
+    run_command,
+)
 from specify_cli.merge.executor import execute_merge, execute_legacy_merge, MergeResult
 from specify_cli.cli import StepTracker
 
@@ -192,3 +196,87 @@ def test_merge_dry_run_without_remote(tmp_path):
 
     # Dry run should succeed
     assert result.success is True
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_execute_merge_skips_pull_with_untracked_branch(tmp_path):
+    """Test merge skips pull when remote exists but branch has no upstream tracking.
+
+    This is the scenario that caused the 0.13.2 bug report:
+    - Repository has origin remote configured
+    - Main branch is NOT tracking origin/main
+    - git pull --ff-only fails with "no tracking information"
+
+    Expected: Merge should skip pull and continue successfully
+    """
+    # Create local git repo
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+
+    # Add a REMOTE (but don't set up tracking!)
+    bare_repo = tmp_path / "bare"
+    bare_repo.mkdir()
+    run_command(["git", "init", "--bare"], cwd=bare_repo)
+    run_command(["git", "remote", "add", "origin", str(bare_repo)], cwd=repo)
+
+    # Create initial commit
+    gitignore = repo / ".gitignore"
+    gitignore.write_text(".worktrees/\n", encoding="utf-8")
+    run_command(["git", "add", ".gitignore"], cwd=repo)
+    run_command(["git", "commit", "-m", "Initial"], cwd=repo)
+
+    # Verify: remote exists but no tracking
+    assert subprocess.run(
+        ["git", "remote", "get-url", "origin"],
+        cwd=repo,
+        capture_output=True,
+        check=False,
+    ).returncode == 0
+
+    assert not has_tracking_branch(repo)
+
+    # Get default branch name
+    _, default_branch, _ = run_command(
+        ["git", "symbolic-ref", "--short", "HEAD"],
+        cwd=repo,
+        capture=True,
+    )
+    default_branch = default_branch.strip()
+
+    # Create worktree with changes
+    worktree = repo / ".worktrees" / "001-feature-WP01"
+    run_command(["git", "worktree", "add", str(worktree), "-b", "001-feature-WP01"], cwd=repo)
+    (worktree / "test.txt").write_text("change", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=worktree)
+    run_command(["git", "commit", "-m", "Add test"], cwd=worktree)
+
+    # Ensure main repo is clean and on correct branch
+    run_command(["git", "checkout", default_branch], cwd=repo)
+    _, status, _ = run_command(["git", "status", "--porcelain"], cwd=repo, capture=True)
+    if status.strip():
+        # Commit any changes (like .git/info/exclude if it was modified)
+        run_command(["git", "add", "-A"], cwd=repo)
+        run_command(["git", "commit", "-m", "Clean state"], cwd=repo)
+
+    # Run dry-run merge - should succeed despite no tracking
+    # (Use dry run to focus on pull step validation, not full merge flow)
+    tracker = StepTracker("Test Merge No Tracking")
+    wp_workspaces = [(worktree, "WP01", "001-feature-WP01")]
+    result = execute_merge(
+        wp_workspaces=wp_workspaces,
+        feature_slug="001-feature",
+        feature_dir=None,
+        target_branch=default_branch,
+        strategy="merge",
+        repo_root=repo,
+        merge_root=repo,
+        tracker=tracker,
+        delete_branch=False,
+        remove_worktree=False,
+        push=False,
+        dry_run=True,  # Dry run to test pull skip logic
+    )
+
+    # Should succeed (skips pull due to no tracking, validates merge plan)
+    assert result.success is True, f"Merge failed: {result.error}"

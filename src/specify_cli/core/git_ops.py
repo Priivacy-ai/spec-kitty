@@ -144,6 +144,30 @@ def has_remote(repo_path: Path, remote_name: str = "origin") -> bool:
         return False
 
 
+def has_tracking_branch(repo_path: Path) -> bool:
+    """Check if current branch has upstream tracking configured.
+
+    Args:
+        repo_path: Repository root path
+
+    Returns:
+        True if current branch tracks a remote branch, False otherwise
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+            capture_output=True,
+            text=True,
+            cwd=repo_path,
+            check=False,
+        )
+        # Returns 0 with output like "origin/main" if tracking exists
+        # Returns 128 with error if no tracking configured
+        return result.returncode == 0 and result.stdout.strip() != ""
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
 def exclude_from_git_index(repo_path: Path, patterns: list[str]) -> None:
     """Add patterns to .git/info/exclude to prevent git tracking.
 
@@ -182,6 +206,7 @@ __all__ = [
     "exclude_from_git_index",
     "get_current_branch",
     "has_remote",
+    "has_tracking_branch",
     "init_git_repo",
     "is_git_repo",
     "run_command",
