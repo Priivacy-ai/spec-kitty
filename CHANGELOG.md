@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+**Workflow Completion Instructions Missing Git Commit Step**:
+- Fixed agents not committing implementation files before marking tasks done
+- Issue caused cascading failures where dependent work packages started from empty branches
+  - WP02 worktree had HTML + CSS ✅
+  - WP03 worktree had HTML only (missing WP02's CSS) ❌
+  - WP04 worktree had HTML only (missing CSS and JS from WP02 and WP03) ❌
+- Root cause: "WHEN YOU'RE DONE" instructions in `workflow implement` command didn't include git commit step
+- Fix: Added explicit git commit instruction as step 1 in completion checklist
+- Updated both in-prompt instructions (shown twice) and terminal output summary
+- Added warning: "The move-task command will FAIL if you have uncommitted changes! Commit all implementation files BEFORE moving to for_review. Dependent work packages need your committed changes."
+- **Impact**: Critical fix for multi-agent parallel development workflows using workspace-per-WP model (v0.11.0+)
+
 **Dashboard Command Template Generating Python Code Instead of Running CLI** ([#94](https://github.com/Priivacy-ai/spec-kitty/issues/94)):
 - Fixed `/spec-kitty.dashboard` command template to use `spec-kitty dashboard` CLI command
 - Removed outdated Python code that manually checked dashboard status and opened browsers
@@ -178,6 +190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documents `unset GITHUB_TOKEN` technique for organization repos
 
 **Issues Closed**: #96, #97, #101, #102, #105, #106, #108, #103 (not a bug), #107 (not a bug)
+>>>>>>> origin/main
 
 ## [0.13.1] - 2026-01-25
 
