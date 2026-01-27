@@ -129,7 +129,82 @@ This constitution captures the technical standards, architectural principles, an
 - Explicit integration points (you control when updates happen)
 - Prevents silent breakage from upstream changes
 
-**Details:** See [ADR-001: Dual-Repository Pattern](../../architecture/decisions/001-dual-repository-pattern.md)
+**Details:** See [ADR-11: Dual-Repository Pattern](../../architecture/adrs/2026-01-27-11-dual-repository-pattern.md)
+
+---
+
+## Architecture: Two-Branch Release Strategy
+
+### 1.x vs 2.x Branch Strategy
+
+**Branch Purpose:**
+- **1.x branch** - Stable local-only CLI tool (maintenance mode)
+- **2.x branch** - SaaS transformation with event sourcing and sync protocol (active development)
+
+### 1.x Branch (Maintenance Mode)
+
+**Status:** Maintenance-only after initial v1.0.0 release
+
+**Characteristics:**
+- YAML activity logs (existing system)
+- No event sourcing or sync protocol
+- No spec-kitty-events dependency
+- Local-only operation
+
+**Allowed changes:**
+- Security fixes
+- Critical bug fixes
+- Documentation updates
+
+**Forbidden changes:**
+- ❌ New features
+- ❌ Architectural changes
+- ❌ Breaking changes to stable APIs
+
+### 2.x Branch (Active Development)
+
+**Status:** Active SaaS development (no releases until substantially complete)
+
+**Characteristics:**
+- Event sourcing with Lamport clocks
+- spec-kitty-events library integration (Git dependency per ADR-11)
+- Sync protocol for CLI ↔ Django communication
+- Distributed state management with CRDT merge rules
+- Greenfield architecture (no 1.x backward compatibility)
+
+**Development principles:**
+- ✅ No 1.x compatibility constraints
+- ✅ Greenfield architectural freedom
+- ✅ Breaking changes allowed (pre-release)
+- ✅ Integration with private dependencies (spec-kitty-events)
+
+### Migration Strategy
+
+**Deferred until 2.x nears completion:**
+- No progressive migration from 1.x → 2.x during development
+- No dual state systems (YAML + events) to maintain
+- Migration tool built when 2.x is proven stable
+
+**When 2.x approaches beta:**
+1. Build migration tool: `spec-kitty migrate-to-2x`
+2. Convert YAML activity logs → event log
+3. User-initiated migration (not automatic)
+
+**Rationale:** Deferred migration is simpler than progressive migration (avoids dual state complexity)
+
+### Communication
+
+**Users:**
+- README badges: "1.x (Maintenance)" vs "2.x (Active Development)"
+- Clear documentation separation
+- GitHub issue tags: `1.x` and `2.x`
+
+**Contributors:**
+- All new features target 2.x branch
+- 1.x PRs limited to security/critical fixes
+- ADRs indicate target branch if applicable
+
+**Details:** See [ADR-12: Two-Branch Strategy for SaaS Transformation](../../architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md)
 
 ---
 
