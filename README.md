@@ -1057,69 +1057,6 @@ cd .worktrees/001-my-feature # Enter isolated sandbox for feature development
 # Ready for next feature!
 ```
 
-## ✅ Feature Acceptance & Merge Workflow
-
-> **📖 Quick Start:** See [Phase 6 in the Getting Started guide](#phase-6-accept--merge-in-feature-worktree) for a simplified version of this workflow.
-
-### Step 1: Accept
-Once every work package has `lane: "done"` in its frontmatter, verify the feature is ready:
-
-```bash
-/spec-kitty.accept
-```
-
-The accept command:
-- Verifies all WPs have `lane: "done"`, checks frontmatter metadata, activity logs, `tasks.md`, and required spec artifacts
-- Records acceptance metadata in `kitty-specs/<feature>/meta.json`
-- Creates an acceptance commit
-- Confirms the feature is ready to merge
-
-### Step 2: Merge
-After acceptance checks pass, integrate the feature:
-
-```bash
-/spec-kitty.merge --push
-```
-
-The merge command:
-- Switches to main branch
-- Pulls latest changes
-- Merges your feature (creates merge commit by default)
-- Pushes to origin (if `--push` specified)
-- Removes the feature worktree
-- Deletes the feature branch
-
-**Merge strategies:**
-```bash
-# Default: merge commit (preserves history)
-/spec-kitty.merge --push
-
-# Squash: single commit (cleaner history)
-/spec-kitty.merge --strategy squash --push
-
-# Keep branch for reference
-/spec-kitty.merge --keep-branch --push
-
-# Dry run to see what will happen
-/spec-kitty.merge --dry-run
-```
-
-## Task Workflow Automation
-
-All task workflow commands are available through the `spec-kitty agent` CLI:
-
-- `spec-kitty agent workflow implement WP01 --agent __AGENT__` – auto-advances planned → doing → for_review
-- `spec-kitty agent workflow review WP01 --agent __AGENT__` – auto-advances for_review → doing → planned/done
-- `spec-kitty agent tasks validate-workflow WP01` – validates that the work-package has correct metadata
-- `spec-kitty agent tasks list-tasks` – lists all tasks grouped by lane
-- `spec-kitty agent tasks mark-status WP01 --status done` – marks a task with a specific status
-- `spec-kitty agent workflow implement [WP01] --agent __AGENT__` – displays WP prompt and auto-moves to "doing" lane
-- `spec-kitty agent workflow review [WP01] --agent __AGENT__` – displays WP prompt for review and auto-moves to "doing" lane
-
-Work-package IDs follow the pattern `WPxx` and reference bundled subtasks (`Txxx`) listed in `tasks.md`. All WP files live in flat `tasks/` directory with lane tracked in frontmatter (no subdirectories).
-
-For programmatic access with JSON output, add the `--json` flag to any command.
-
 ## 🧭 Mission System
 
 Spec Kitty supports **missions**: curated bundles of templates, commands, and guardrails for different domains. Two missions ship out of the box:
