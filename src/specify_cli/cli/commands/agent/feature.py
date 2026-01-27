@@ -16,17 +16,19 @@ import typer
 from rich.console import Console
 from typing_extensions import Annotated
 
-from specify_cli.core.paths import locate_project_root, is_worktree_context
+from specify_cli.cli.commands.accept import accept as top_level_accept
+from specify_cli.cli.commands.merge import merge as top_level_merge
+from specify_cli.core.dependency_graph import (
+    detect_cycles,
+    parse_wp_dependencies,
+    validate_dependencies,
+)
+from specify_cli.core.git_ops import get_current_branch, is_git_repo, run_command
+from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.core.worktree import (
     get_next_feature_number,
-    validate_feature_structure,
     setup_feature_directory,
-)
-from specify_cli.core.git_ops import run_command, is_git_repo, get_current_branch
-from specify_cli.core.dependency_graph import (
-    parse_wp_dependencies,
-    detect_cycles,
-    validate_dependencies,
+    validate_feature_structure,
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 
@@ -333,7 +335,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 - Format: `WP01-kebab-case-slug.md`
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
 '''
-        (tasks_dir / "README.md").write_text(tasks_readme_content)
+        (tasks_dir / "README.md").write_text(tasks_readme_content, encoding='utf-8')
 
         # Copy spec template if it exists
         spec_file = feature_dir / "spec.md"
@@ -598,7 +600,7 @@ def accept_feature(
     3. Creates acceptance report
     4. Marks feature as ready for merge
 
-    Delegates to existing tasks_cli.py accept implementation.
+    Wrapper for top-level accept command with agent-specific defaults.
 
     Examples:
         # Run acceptance workflow
@@ -610,59 +612,28 @@ def accept_feature(
         # Lenient mode (skip strict validation)
         spec-kitty agent feature accept --lenient --json
     """
+    # Delegate to top-level accept command
     try:
-        repo_root = locate_project_root()
-        if repo_root is None:
-            error = "Could not locate project root"
-            if json_output:
-                print(json.dumps({"error": error, "success": False}))
-            else:
-                console.print(f"[red]Error:[/red] {error}")
-            sys.exit(1)
-
-        # Build command to call tasks_cli.py
-        tasks_cli = repo_root / "scripts" / "tasks" / "tasks_cli.py"
-        if not tasks_cli.exists():
-            error = f"tasks_cli.py not found: {tasks_cli}"
-            if json_output:
-                print(json.dumps({"error": error, "success": False}))
-            else:
-                console.print(f"[red]Error:[/red] {error}")
-            sys.exit(1)
-
-        cmd = ["python3", str(tasks_cli), "accept"]
-        if feature:
-            cmd.extend(["--feature", feature])
-        cmd.extend(["--mode", mode])
-        if json_output:
-            cmd.append("--json")
-        if lenient:
-            cmd.append("--lenient")
-        if no_commit:
-            cmd.append("--no-commit")
-
-        # Execute accept command
-        result = subprocess.run(
-            cmd,
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
+        # Call top-level accept with mapped parameters
+        top_level_accept(
+            feature=feature,
+            mode=mode,
+            actor=None,  # Agent commands don't use --actor
+            test=[],  # Agent commands don't use --test
+            json_output=json_output,
+            lenient=lenient,
+            no_commit=no_commit,
+            allow_fail=False,  # Agent commands use strict validation
         )
-
-        # Pass through output
-        if result.stdout:
-            print(result.stdout, end="")
-        if result.stderr and not json_output:
-            print(result.stderr, end="", file=sys.stderr)
-
-        sys.exit(result.returncode)
-
+    except typer.Exit as e:
+        # Propagate typer.Exit cleanly
+        raise
     except Exception as e:
         if json_output:
             print(json.dumps({"error": str(e), "success": False}))
         else:
             console.print(f"[red]Error:[/red] {e}")
-        sys.exit(1)
+        raise typer.Exit(1)
 
 
 @app.command(name="merge")
@@ -798,49 +769,32 @@ def merge_feature(
                     )
                     sys.exit(result.returncode)
 
-        # Build command to call tasks_cli.py
-        tasks_cli = repo_root / "scripts" / "tasks" / "tasks_cli.py"
-        if not tasks_cli.exists():
-            error = f"tasks_cli.py not found: {tasks_cli}"
-            print(json.dumps({"error": error, "success": False}))
-            sys.exit(1)
-
-        cmd = ["python3", str(tasks_cli), "merge"]
-        if feature:
-            cmd.extend(["--feature", feature])
-        cmd.extend(["--target", target, "--strategy", strategy])
-        if push:
-            cmd.append("--push")
-        if dry_run:
-            cmd.append("--dry-run")
-        if keep_branch:
-            cmd.append("--keep-branch")
-        else:
-            cmd.append("--delete-branch")
-        if keep_worktree:
-            cmd.append("--keep-worktree")
-        else:
-            cmd.append("--remove-worktree")
-
-        # Execute merge command
-        result = subprocess.run(
-            cmd,
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-        )
-
-        # Pass through output
-        if result.stdout:
-            print(result.stdout, end="")
-        if result.stderr:
-            print(result.stderr, end="", file=sys.stderr)
-
-        sys.exit(result.returncode)
+        # Delegate to top-level merge command with parameter mapping
+        # Note: Agent uses --keep-branch/--keep-worktree (default: False)
+        #       Top-level uses --delete-branch/--remove-worktree (default: True)
+        #       So we need to invert the logic
+        try:
+            top_level_merge(
+                strategy=strategy,
+                delete_branch=not keep_branch,  # Invert: keep -> delete
+                remove_worktree=not keep_worktree,  # Invert: keep -> remove
+                push=push,
+                target_branch=target,  # Note: parameter name differs
+                dry_run=dry_run,
+                feature=feature,
+                resume=False,  # Agent commands don't support resume
+                abort=False,  # Agent commands don't support abort
+            )
+        except typer.Exit:
+            # Propagate typer.Exit cleanly
+            raise
+        except Exception as e:
+            print(json.dumps({"error": str(e), "success": False}))
+            raise typer.Exit(1)
 
     except Exception as e:
         print(json.dumps({"error": str(e), "success": False}))
-        sys.exit(1)
+        raise typer.Exit(1)
 
 
 @app.command(name="finalize-tasks")

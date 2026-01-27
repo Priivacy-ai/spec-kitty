@@ -621,6 +621,211 @@ No activity log section.
         assert any("Activity Log" in warning for warning in output["warnings"])
 
 
+class TestValidateReadyForReview:
+    """Tests for _validate_ready_for_review helper."""
+
+    def test_force_bypasses_validation(self, tmp_path: Path):
+        """Should skip all checks when force=True."""
+        from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
+
+        # Don't need to set up anything - force should bypass all checks
+        is_valid, guidance = _validate_ready_for_review(
+            tmp_path, "008-test", "WP01", force=True
+        )
+
+        assert is_valid is True
+        assert guidance == []
+
+    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
+    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
+    @patch("subprocess.run")
+    def test_research_uncommitted_artifacts_blocks_review(
+        self, mock_run: Mock, mock_mission_key: Mock, mock_main_root: Mock, tmp_path: Path
+    ):
+        """Should detect uncommitted research artifacts and provide actionable guidance."""
+        from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
+
+        # Setup mocks
+        mock_main_root.return_value = tmp_path
+        mock_mission_key.return_value = "research"
+
+        # Create feature directory
+        feature_dir = tmp_path / "kitty-specs" / "008-research"
+        feature_dir.mkdir(parents=True)
+
+        # Simulate uncommitted research artifacts
+        mock_run.return_value = Mock(
+            returncode=0,
+            stdout=" M kitty-specs/008-research/data-model.md\n M kitty-specs/008-research/research/evidence-log.csv\n"
+        )
+
+        is_valid, guidance = _validate_ready_for_review(
+            tmp_path, "008-research", "WP01", force=False
+        )
+
+        assert is_valid is False
+        assert len(guidance) > 0
+        # Check actionable guidance is present
+        guidance_text = "\n".join(guidance)
+        assert "uncommitted" in guidance_text.lower()
+        assert "git add" in guidance_text
+        assert "git commit" in guidance_text
+        assert "research(WP01)" in guidance_text  # Research-specific commit format
+
+    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
+    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
+    @patch("subprocess.run")
+    def test_research_committed_artifacts_allows_review(
+        self, mock_run: Mock, mock_mission_key: Mock, mock_main_root: Mock, tmp_path: Path
+    ):
+        """Should pass when research artifacts are committed."""
+        from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
+
+        # Setup mocks
+        mock_main_root.return_value = tmp_path
+        mock_mission_key.return_value = "research"
+
+        # Create feature directory
+        feature_dir = tmp_path / "kitty-specs" / "008-research"
+        feature_dir.mkdir(parents=True)
+
+        # Simulate no uncommitted changes
+        mock_run.return_value = Mock(returncode=0, stdout="")
+
+        is_valid, guidance = _validate_ready_for_review(
+            tmp_path, "008-research", "WP01", force=False
+        )
+
+        assert is_valid is True
+        assert guidance == []
+
+    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
+    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
+    @patch("subprocess.run")
+    def test_softwaredev_uncommitted_worktree_blocks_review(
+        self, mock_run: Mock, mock_mission_key: Mock, mock_main_root: Mock, tmp_path: Path
+    ):
+        """Should detect uncommitted implementation changes in worktree."""
+        from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
+
+        # Setup mocks
+        mock_main_root.return_value = tmp_path
+        mock_mission_key.return_value = "software-dev"
+
+        # Create feature and worktree directories
+        feature_dir = tmp_path / "kitty-specs" / "008-feature"
+        feature_dir.mkdir(parents=True)
+        worktree_path = tmp_path / ".worktrees" / "008-feature-WP01"
+        worktree_path.mkdir(parents=True)
+
+        # Simulate: main clean, worktree has uncommitted changes
+        def subprocess_side_effect(*args, **kwargs):
+            cmd = args[0] if args else kwargs.get("args", [])
+            cwd = kwargs.get("cwd", tmp_path)
+
+            if "status" in cmd and "--porcelain" in cmd:
+                if cwd == worktree_path:
+                    return Mock(returncode=0, stdout=" M src/main.py\n")
+                else:
+                    return Mock(returncode=0, stdout="")  # Main repo clean
+            elif "rev-parse" in cmd and "--verify" in cmd:
+                # No in-progress operations (MERGE_HEAD, REBASE_HEAD, etc. don't exist)
+                return Mock(returncode=1, stdout="")
+            elif "rev-list" in cmd and "HEAD..main" in cmd:
+                # Not behind main
+                return Mock(returncode=0, stdout="0\n")
+            elif "rev-list" in cmd:
+                # Has implementation commits
+                return Mock(returncode=0, stdout="5\n")
+            return Mock(returncode=0, stdout="")
+
+        mock_run.side_effect = subprocess_side_effect
+
+        is_valid, guidance = _validate_ready_for_review(
+            tmp_path, "008-feature", "WP01", force=False
+        )
+
+        assert is_valid is False
+        guidance_text = "\n".join(guidance)
+        assert "uncommitted" in guidance_text.lower()
+        assert "worktree" in guidance_text.lower()
+        assert "git add" in guidance_text
+
+    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
+    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
+    @patch("subprocess.run")
+    def test_softwaredev_no_commits_blocks_review(
+        self, mock_run: Mock, mock_mission_key: Mock, mock_main_root: Mock, tmp_path: Path
+    ):
+        """Should detect when worktree has no implementation commits."""
+        from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
+
+        # Setup mocks
+        mock_main_root.return_value = tmp_path
+        mock_mission_key.return_value = "software-dev"
+
+        # Create feature and worktree directories
+        feature_dir = tmp_path / "kitty-specs" / "008-feature"
+        feature_dir.mkdir(parents=True)
+        worktree_path = tmp_path / ".worktrees" / "008-feature-WP01"
+        worktree_path.mkdir(parents=True)
+
+        # Simulate: main clean, worktree clean, but no commits beyond main
+        def subprocess_side_effect(*args, **kwargs):
+            cmd = args[0] if args else kwargs.get("args", [])
+            cwd = kwargs.get("cwd", tmp_path)
+
+            if "status" in cmd and "--porcelain" in cmd:
+                return Mock(returncode=0, stdout="")  # Both clean
+            elif "rev-parse" in cmd and "--verify" in cmd:
+                # No in-progress operations
+                return Mock(returncode=1, stdout="")
+            elif "rev-list" in cmd:
+                return Mock(returncode=0, stdout="0\n")  # No commits beyond main
+            return Mock(returncode=0, stdout="")
+
+        mock_run.side_effect = subprocess_side_effect
+
+        is_valid, guidance = _validate_ready_for_review(
+            tmp_path, "008-feature", "WP01", force=False
+        )
+
+        assert is_valid is False
+        guidance_text = "\n".join(guidance)
+        assert "no implementation commits" in guidance_text.lower()
+
+    @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
+    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
+    @patch("subprocess.run")
+    def test_filters_out_wp_status_files(
+        self, mock_run: Mock, mock_mission_key: Mock, mock_main_root: Mock, tmp_path: Path
+    ):
+        """Should ignore WP status files in tasks/ (auto-committed by move-task)."""
+        from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
+
+        # Setup mocks
+        mock_main_root.return_value = tmp_path
+        mock_mission_key.return_value = "research"
+
+        # Create feature directory
+        feature_dir = tmp_path / "kitty-specs" / "008-research"
+        feature_dir.mkdir(parents=True)
+
+        # Simulate only WP status files modified (should be filtered out)
+        mock_run.return_value = Mock(
+            returncode=0,
+            stdout=" M kitty-specs/008-research/tasks/WP01-task.md\n"
+        )
+
+        is_valid, guidance = _validate_ready_for_review(
+            tmp_path, "008-research", "WP01", force=False
+        )
+
+        # Should pass - WP status files are filtered out
+        assert is_valid is True
+        assert guidance == []
+
+
 class TestFindFeatureSlug:
     """Tests for _find_feature_slug helper."""
 

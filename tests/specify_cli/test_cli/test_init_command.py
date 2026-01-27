@@ -51,7 +51,6 @@ def _invoke(cli: Typer, args: list[str]) -> CliRunner:
     return runner
 
 
-@pytest.mark.xfail(reason="Requires interactive TTY for agent strategy selection")
 def test_init_local_mode_uses_local_repo(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     app, console, outputs = cli_app
     monkeypatch.chdir(tmp_path)
@@ -85,9 +84,8 @@ def test_init_local_mode_uses_local_repo(cli_app, monkeypatch: pytest.MonkeyPatc
             "claude",
             "--script",
             "sh",
-            "--mission",
-            "software-dev",
             "--no-git",
+            "--non-interactive",
         ],
     )
 
@@ -98,7 +96,6 @@ def test_init_local_mode_uses_local_repo(cli_app, monkeypatch: pytest.MonkeyPatc
     assert "activate:software-dev" in outputs
 
 
-@pytest.mark.xfail(reason="Requires interactive TTY for agent strategy selection")
 def test_init_package_mode_falls_back_when_no_local(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
@@ -127,16 +124,14 @@ def test_init_package_mode_falls_back_when_no_local(cli_app, monkeypatch: pytest
             "gemini",
             "--script",
             "ps",
-            "--mission",
-            "software-dev",
             "--no-git",
+            "--non-interactive",
         ],
     )
 
     assert generated == ["gemini"]
 
 
-@pytest.mark.xfail(reason="Requires interactive TTY for agent strategy selection")
 def test_init_remote_mode_downloads_for_each_agent(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
@@ -175,10 +170,9 @@ def test_init_remote_mode_downloads_for_each_agent(cli_app, monkeypatch: pytest.
             "claude,gemini",
             "--script",
             "sh",
-            "--mission",
-            "software-dev",
             "--skip-tls",
             "--no-git",
+            "--non-interactive",
         ],
     )
 
@@ -195,7 +189,6 @@ def test_init_remote_mode_downloads_for_each_agent(cli_app, monkeypatch: pytest.
 # =============================================================================
 
 
-@pytest.mark.xfail(reason="Requires interactive TTY for agent strategy selection")
 def test_init_with_jj_shows_confirmation(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """Init should show 'git detected' message (jj no longer supported)."""
     app, console, outputs = cli_app
@@ -229,6 +222,7 @@ def test_init_with_jj_shows_confirmation(cli_app, monkeypatch: pytest.MonkeyPatc
                 "--script",
                 "sh",
                 "--no-git",
+                "--non-interactive",
             ],
         )
 
@@ -238,7 +232,6 @@ def test_init_with_jj_shows_confirmation(cli_app, monkeypatch: pytest.MonkeyPatc
     assert "git detected" in console_output
 
 
-@pytest.mark.xfail(reason="Requires interactive TTY for agent strategy selection")
 def test_init_without_jj_shows_recommendation(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """Init should work with git (jj no longer supported)."""
     app, console, outputs = cli_app
@@ -272,6 +265,7 @@ def test_init_without_jj_shows_recommendation(cli_app, monkeypatch: pytest.Monke
                 "--script",
                 "sh",
                 "--no-git",
+                "--non-interactive",
             ],
         )
 
@@ -281,7 +275,6 @@ def test_init_without_jj_shows_recommendation(cli_app, monkeypatch: pytest.Monke
     assert "git detected" in console_output
 
 
-@pytest.mark.xfail(reason="Requires interactive TTY for agent strategy selection")
 def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """Init should create config.yaml with git vcs section."""
     app, console, outputs = cli_app
@@ -315,6 +308,7 @@ def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_p
                 "--script",
                 "sh",
                 "--no-git",
+                "--non-interactive",
             ],
         )
 
@@ -327,3 +321,144 @@ def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_p
     config = yaml.safe_load(config_file.read_text())
     assert "vcs" in config
     assert config["vcs"]["type"] == "git"
+
+
+def test_init_non_interactive_requires_ai(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    app, console, _ = cli_app
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "missing-ai",
+            "--non-interactive",
+        ],
+    )
+    assert result.exit_code == 1
+    console_output = console.file.getvalue()
+    assert "--ai is required in non-interactive mode" in console_output
+
+
+def test_init_non_interactive_requires_force_for_nonempty_here(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    app, console, _ = cli_app
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "existing.txt").write_text("data", encoding="utf-8")
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "--here",
+            "--ai",
+            "claude",
+            "--script",
+            "sh",
+            "--no-git",
+            "--non-interactive",
+        ],
+    )
+    assert result.exit_code == 1
+    console_output = console.file.getvalue()
+    assert "Non-interactive mode requires --force when using --here" in console_output
+
+
+def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    app, _, _ = cli_app
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
+
+    def fake_local_repo(override_path=None):
+        return tmp_path / "templates"
+
+    def fake_copy(local_repo: Path, project_path: Path, script: str):
+        commands_dir = project_path / ".templates"
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        return commands_dir
+
+    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
+        (project_path / f".{agent_key}" / f"run.{script}").parent.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
+    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "env-non-interactive",
+            "--ai",
+            "claude",
+            "--script",
+            "sh",
+            "--no-git",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+
+def test_init_non_interactive_invalid_agent_strategy(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    app, console, _ = cli_app
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "bad-strategy",
+            "--ai",
+            "codex",
+            "--agent-strategy",
+            "fastest",
+            "--non-interactive",
+        ],
+    )
+    assert result.exit_code == 1
+    console_output = console.file.getvalue()
+    assert "Invalid --agent-strategy" in console_output
+
+
+def test_init_non_interactive_random_rejects_preferred_flags(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    app, console, _ = cli_app
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "random-pref",
+            "--ai",
+            "codex,claude",
+            "--agent-strategy",
+            "random",
+            "--preferred-implementer",
+            "codex",
+            "--non-interactive",
+        ],
+    )
+    assert result.exit_code == 1
+    console_output = console.file.getvalue()
+    assert "require --agent-strategy" in console_output
+
+
+def test_init_non_interactive_preferred_agent_not_selected(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    app, console, _ = cli_app
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "bad-preferred",
+            "--ai",
+            "codex",
+            "--preferred-implementer",
+            "gemini",
+            "--non-interactive",
+        ],
+    )
+    assert result.exit_code == 1
+    console_output = console.file.getvalue()
+    assert "--preferred-implementer must be one of the selected agents" in console_output

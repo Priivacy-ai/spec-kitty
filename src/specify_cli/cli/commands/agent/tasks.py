@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple, List
 
 import typer
 from rich.console import Console
@@ -14,6 +15,7 @@ from typing_extensions import Annotated
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, find_feature_slug, is_worktree_context
+from specify_cli.mission import get_feature_mission_key
 from specify_cli.tasks_support import (
     LANES,
     WorkPackage,
@@ -213,6 +215,243 @@ def _check_dependent_warnings(
         console.print()
 
 
+def _validate_ready_for_review(
+    repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+    force: bool
+) -> Tuple[bool, List[str]]:
+    """Validate that WP is ready for review by checking for uncommitted changes.
+
+    For research missions: Checks for uncommitted research artifacts in main repo.
+    For software-dev missions: Checks for uncommitted changes in worktree AND
+    verifies at least one implementation commit exists.
+
+    Args:
+        repo_root: Repository root path (could be main or worktree)
+        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        wp_id: Work package ID (e.g., "WP01")
+        force: If True, skip validation (return success)
+
+    Returns:
+        Tuple of (is_valid, guidance_messages)
+        - is_valid: True if ready for review, False if blocked
+        - guidance_messages: List of actionable instructions if blocked
+    """
+    if force:
+        return True, []
+
+    guidance: List[str] = []
+    main_repo_root = get_main_repo_root(repo_root)
+    feature_dir = main_repo_root / "kitty-specs" / feature_slug
+
+    # Detect mission type from feature's meta.json
+    mission_key = get_feature_mission_key(feature_dir)
+
+    # Check 1: Uncommitted research artifacts in main repo (applies to ALL missions)
+    # Research artifacts live in kitty-specs/ which is in main, not worktrees
+    result = subprocess.run(
+        ["git", "status", "--porcelain", str(feature_dir)],
+        cwd=main_repo_root,
+        capture_output=True,
+        text=True,
+        check=False
+    )
+    uncommitted_in_main = result.stdout.strip()
+
+    if uncommitted_in_main:
+        # Filter out WP status files (tasks/*.md) - those are auto-committed by move-task
+        # We care about research artifacts: data-model.md, research/*.csv, etc.
+        research_files = []
+        for line in uncommitted_in_main.split("\n"):
+            if not line.strip():
+                continue
+            # Extract filename from git status output (e.g., " M path/to/file" or "?? path")
+            file_part = line[3:] if len(line) > 3 else line.strip()
+            # Skip WP status files in tasks/ - move-task handles those
+            if "/tasks/" in file_part and file_part.endswith(".md"):
+                continue
+            research_files.append(line)
+
+        if research_files:
+            guidance.append("Uncommitted research outputs detected in main repo!")
+            guidance.append("")
+            guidance.append("Modified files in kitty-specs/:")
+            for line in research_files[:5]:  # Show first 5 files
+                guidance.append(f"  {line}")
+            if len(research_files) > 5:
+                guidance.append(f"  ... and {len(research_files) - 5} more")
+            guidance.append("")
+            guidance.append("You must commit these before moving to for_review:")
+            guidance.append(f"  cd {main_repo_root}")
+            guidance.append(f"  git add kitty-specs/{feature_slug}/")
+            if mission_key == "research":
+                guidance.append(f"  git commit -m \"research({wp_id}): <describe your research outputs>\"")
+            else:
+                guidance.append(f"  git commit -m \"docs({wp_id}): <describe your changes>\"")
+            guidance.append("")
+            guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+            return False, guidance
+
+    # Check 2: For software-dev missions, check worktree for implementation commits
+    if mission_key == "software-dev":
+        worktree_path = main_repo_root / ".worktrees" / f"{feature_slug}-{wp_id}"
+
+        if worktree_path.exists():
+            # Check for detached HEAD before other git status checks
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=worktree_path,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode == 0 and result.stdout.strip() == "HEAD":
+                guidance.append("Detached HEAD detected in worktree!")
+                guidance.append("")
+                guidance.append("Please reattach to a branch before review:")
+                guidance.append(f"  cd {worktree_path}")
+                guidance.append("  git checkout <your-branch>")
+                guidance.append("")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                return False, guidance
+
+            # Check for in-progress git operations (merge/rebase/cherry-pick)
+            in_progress = []
+            state_checks = {
+                "MERGE_HEAD": "merge",
+                "REBASE_HEAD": "rebase",
+                "CHERRY_PICK_HEAD": "cherry-pick",
+            }
+            for ref, label in state_checks.items():
+                state_result = subprocess.run(
+                    ["git", "rev-parse", "-q", "--verify", ref],
+                    cwd=worktree_path,
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                if state_result.returncode == 0:
+                    in_progress.append(label)
+
+            if in_progress:
+                guidance.append("In-progress git operation detected in worktree!")
+                guidance.append("")
+                guidance.append(f"Active operation(s): {', '.join(in_progress)}")
+                guidance.append("")
+                guidance.append("Resolve or abort before review:")
+                guidance.append(f"  cd {worktree_path}")
+                guidance.append("  git status")
+                guidance.append("  git merge --abort   # if merge")
+                guidance.append("  git rebase --abort  # if rebase")
+                guidance.append("  git cherry-pick --abort  # if cherry-pick")
+                guidance.append("")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                return False, guidance
+
+            # Check if worktree branch is behind main
+            result = subprocess.run(
+                ["git", "rev-list", "--count", "HEAD..main"],
+                cwd=worktree_path,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            behind_count = 0
+            if result.returncode == 0 and result.stdout.strip():
+                try:
+                    behind_count = int(result.stdout.strip())
+                except ValueError:
+                    behind_count = 0
+
+            if behind_count > 0:
+                guidance.append("Main branch has new commits not in this worktree!")
+                guidance.append("")
+                guidance.append(f"Your branch is behind main by {behind_count} commit(s).")
+                guidance.append("Rebase before review:")
+                guidance.append(f"  cd {worktree_path}")
+                guidance.append("  git rebase main")
+                guidance.append("")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                return False, guidance
+
+            # Check for uncommitted changes in worktree
+            result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=worktree_path,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            uncommitted_in_worktree = result.stdout.strip()
+
+            if uncommitted_in_worktree:
+                staged_lines = []
+                unstaged_lines = []
+                for line in uncommitted_in_worktree.split("\n"):
+                    if not line.strip():
+                        continue
+                    if line.startswith("??"):
+                        unstaged_lines.append(line)
+                        continue
+                    status = line[:2]
+                    if status[0] != " ":
+                        staged_lines.append(line)
+                    if status[1] != " ":
+                        unstaged_lines.append(line)
+
+                if staged_lines and not unstaged_lines:
+                    guidance.append("Staged but uncommitted changes in worktree!")
+                elif staged_lines and unstaged_lines:
+                    guidance.append("Staged and unstaged changes in worktree!")
+                else:
+                    guidance.append("Uncommitted implementation changes in worktree!")
+                guidance.append("")
+                guidance.append("Modified files:")
+                for line in uncommitted_in_worktree.split("\n")[:5]:
+                    guidance.append(f"  {line}")
+                guidance.append("")
+                guidance.append("Commit your work first:")
+                guidance.append(f"  cd {worktree_path}")
+                guidance.append("  git add -A")
+                guidance.append(f"  git commit -m \"feat({wp_id}): <describe implementation>\"")
+                guidance.append("")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                return False, guidance
+
+            # Check if branch has commits beyond base (main)
+            result = subprocess.run(
+                ["git", "rev-list", "--count", "main..HEAD"],
+                cwd=worktree_path,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            commit_count = 0
+            if result.returncode == 0 and result.stdout.strip():
+                try:
+                    commit_count = int(result.stdout.strip())
+                except ValueError:
+                    pass
+
+            if commit_count == 0:
+                guidance.append("No implementation commits on WP branch!")
+                guidance.append("")
+                guidance.append("The worktree exists but has no commits beyond main.")
+                guidance.append("Either:")
+                guidance.append("  1. Commit your implementation work to the worktree")
+                guidance.append("  2. Or verify work is complete (use --force if nothing to commit)")
+                guidance.append("")
+                guidance.append(f"  cd {worktree_path}")
+                guidance.append("  git add -A")
+                guidance.append(f"  git commit -m \"feat({wp_id}): <describe implementation>\"")
+                guidance.append("")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                return False, guidance
+
+    return True, []
+
+
 @app.command(name="move-task")
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
@@ -309,6 +548,18 @@ def move_task(
                     task_clean = task.split()[0] if ' ' in task else task
                     error_msg += f"  spec-kitty agent tasks mark-status {task_clean} --status done\n"
                 error_msg += f"\nOr use --force to override (not recommended)"
+                _output_error(json_output, error_msg)
+                raise typer.Exit(1)
+
+        # Validate uncommitted changes when moving to for_review OR done
+        # This catches the bug where agents edit artifacts but forget to commit
+        if target_lane in ("for_review", "done"):
+            is_valid, guidance = _validate_ready_for_review(repo_root, feature_slug, task_id, force)
+            if not is_valid:
+                error_msg = f"Cannot move {task_id} to {target_lane}\n\n"
+                error_msg += "\n".join(guidance)
+                if not force:
+                    error_msg += "\n\nOr use --force to override (not recommended)"
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)
 
@@ -1247,6 +1498,75 @@ def status(
 
         console.print(Panel(summary, title="[bold]Summary[/bold]", border_style="dim"))
         console.print()
+
+    except Exception as e:
+        _output_error(json_output, str(e))
+        raise typer.Exit(1)
+
+
+@app.command(name="list-dependents")
+def list_dependents(
+    wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """Find all WPs that depend on a given WP (downstream dependents).
+
+    This answers "who depends on me?" - useful when reviewing a WP to understand
+    the impact of requested changes on downstream work packages.
+
+    Also shows what the WP itself depends on (upstream dependencies).
+
+    Examples:
+        spec-kitty agent tasks list-dependents WP13
+        spec-kitty agent tasks list-dependents WP01 --feature 001-my-feature --json
+    """
+    try:
+        repo_root = locate_project_root()
+        if repo_root is None:
+            _output_error(json_output, "Could not locate project root")
+            raise typer.Exit(1)
+
+        feature_slug = feature or _find_feature_slug()
+        main_repo_root = get_main_repo_root(repo_root)
+        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+
+        if not feature_dir.exists():
+            _output_error(json_output, f"Feature directory not found: {feature_dir}")
+            raise typer.Exit(1)
+
+        # Build dependency graph and find dependents
+        graph = build_dependency_graph(feature_dir)
+        dependents = get_dependents(wp_id, graph)
+
+        # Also get this WP's own dependencies for context
+        try:
+            wp = locate_work_package(repo_root, feature_slug, wp_id)
+            own_deps_raw = extract_scalar(wp.frontmatter, "dependencies")
+            # Handle both list and string formats
+            if isinstance(own_deps_raw, list):
+                own_deps = own_deps_raw
+            elif own_deps_raw:
+                own_deps = [own_deps_raw]
+            else:
+                own_deps = []
+        except Exception:
+            own_deps = []
+
+        if json_output:
+            print(json.dumps({
+                "wp_id": wp_id,
+                "depends_on": own_deps,
+                "dependents": dependents
+            }))
+        else:
+            console.print(f"\n[bold]{wp_id} Dependency Info:[/bold]")
+            console.print(f"  Depends on: {', '.join(own_deps) if own_deps else '[dim](none)[/dim]'}")
+            console.print(f"  Depended on by: {', '.join(dependents) if dependents else '[dim](none)[/dim]'}")
+
+            if dependents:
+                console.print(f"\n[yellow]⚠️  Changes to {wp_id} may impact: {', '.join(dependents)}[/yellow]")
+            console.print()
 
     except Exception as e:
         _output_error(json_output, str(e))

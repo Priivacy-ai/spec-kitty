@@ -31,10 +31,29 @@ spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
 
 If no WP ID is provided, it will automatically find the first work package with `lane: "planned"` and move it to "doing" for you.
 
-**After implementation, scroll to the bottom and run**:
+---
+
+## Commit Workflow
+
+**BEFORE moving to for_review**, you MUST commit your implementation:
+
+```bash
+cd .worktrees/###-feature-WP##/
+git add -A
+git commit -m "feat(WP##): <describe your implementation>"
+```
+
+**Then move to review:**
 ```bash
 spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review: <summary>"
 ```
+
+**Why this matters:**
+- `move-task` validates that your worktree has commits beyond main
+- Uncommitted changes will block the move to for_review
+- This prevents lost work and ensures reviewers see complete implementations
+
+---
 
 **The Python script handles all file updates automatically - no manual editing required!**
 

@@ -14,7 +14,7 @@ from typing import Callable
 
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import console
-from specify_cli.core.git_ops import run_command
+from specify_cli.core.git_ops import has_remote, has_tracking_branch, run_command
 from specify_cli.merge.ordering import (
     MergeOrderError,
     display_merge_order,
@@ -214,8 +214,15 @@ def execute_merge(
 
     tracker.start("pull")
     try:
-        run_command(["git", "pull", "--ff-only"])
-        tracker.complete("pull")
+        if not has_remote(repo_root):
+            tracker.skip("pull", "no remote configured")
+            console.print("[dim]Skipping pull (no remote)[/dim]")
+        elif not has_tracking_branch(repo_root):
+            tracker.skip("pull", "no upstream tracking")
+            console.print("[dim]Skipping pull (main branch not tracking remote)[/dim]")
+        else:
+            run_command(["git", "pull", "--ff-only"])
+            tracker.complete("pull")
     except Exception as exc:
         tracker.error("pull", str(exc))
         result.error = f"Pull failed: {exc}. You may need to resolve conflicts manually."
@@ -462,8 +469,15 @@ def execute_legacy_merge(
 
     tracker.start("pull")
     try:
-        run_command(["git", "pull", "--ff-only"])
-        tracker.complete("pull")
+        if not has_remote(merge_root):
+            tracker.skip("pull", "no remote configured")
+            console.print("[dim]Skipping pull (no remote)[/dim]")
+        elif not has_tracking_branch(merge_root):
+            tracker.skip("pull", "no upstream tracking")
+            console.print("[dim]Skipping pull (main branch not tracking remote)[/dim]")
+        else:
+            run_command(["git", "pull", "--ff-only"])
+            tracker.complete("pull")
     except Exception as exc:
         tracker.error("pull", str(exc))
         result.error = (

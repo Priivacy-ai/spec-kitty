@@ -109,28 +109,58 @@
 2. Update status as research progresses.
 3. Maintain relevance ratings to prioritize review.
 
+## Research Deliverables Location
+
+**REQUIRED**: Specify where research outputs will be stored.
+
+This location is SEPARATE from `kitty-specs/` planning artifacts.
+
+**Deliverables Path**: `docs/research/[###-research-name]/`
+
+*(Update this path during planning - e.g., `docs/research/001-cancer-cure/`, `research-outputs/market-analysis/`)*
+
+This path will:
+- Be created in each WP worktree
+- Contain the actual research findings (markdown, data, diagrams)
+- Be merged to main when WPs complete (like code)
+
+**Do NOT use**:
+- `kitty-specs/` (reserved for sprint planning artifacts)
+- `research/` at project root without a subdirectory (ambiguous)
+
+### Why Two Locations?
+
+| Type | Location | Purpose |
+|------|----------|---------|
+| **Planning Artifacts** | `kitty-specs/[###]/research/` | Evidence/sources collected DURING planning (shared across WPs) |
+| **Research Deliverables** | `[deliverables_path]/` | Actual research OUTPUT (created in worktrees, merged to main) |
+
 ## Project Structure
 
-### Documentation (this research project)
+### Sprint Planning Artifacts (in kitty-specs/)
 ```
 kitty-specs/[###-research]/
 ├── spec.md              # Research question and scope
 ├── plan.md              # This file - methodology
 ├── tasks.md             # Research work packages
-├── findings.md          # Research findings
+├── meta.json            # Contains deliverables_path setting
 ├── research/
-│   ├── evidence-log.csv      # All evidence with citations
-│   ├── source-register.csv   # Master source list
+│   ├── evidence-log.csv      # Evidence collected DURING PLANNING
+│   ├── source-register.csv   # Sources cited DURING PLANNING
 │   └── methodology.md        # Detailed methodology (optional)
-└── data/                # Raw data (if empirical)
+└── tasks/               # WP prompt files
 ```
 
-### Deliverables
+### Research Deliverables (in deliverables_path)
 ```
-findings/
-├── report.md           # Main research report
-├── bibliography.md     # Formatted bibliography
-└── presentation/       # Slides or summary (optional)
+[deliverables_path]/           # e.g., docs/research/001-cancer-cure/
+├── findings.md          # Main research findings
+├── report.md            # Formal research report
+├── bibliography.md      # Formatted bibliography
+├── data/                # Raw data and analysis
+│   ├── analysis.csv
+│   └── methodology.md
+└── presentation/        # Slides or summary (optional)
 ```
 
 ## Quality Gates

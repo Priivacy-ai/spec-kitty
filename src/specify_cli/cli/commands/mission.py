@@ -17,6 +17,7 @@ from specify_cli.mission import (
     discover_missions,
     get_active_mission,
     get_mission_by_name,
+    get_mission_for_feature,
     list_available_missions,
 )
 
@@ -155,13 +156,73 @@ def list_cmd() -> None:
         raise typer.Exit(1)
 
 
+def _detect_current_feature(project_root: Path) -> Optional[str]:
+    """Detect feature slug from current working directory.
+
+    Returns:
+        Feature slug if detected, None otherwise
+    """
+    import re
+
+    try:
+        cwd = Path.cwd()
+
+        # Check if in kitty-specs directory
+        if "kitty-specs" in cwd.parts:
+            parts = list(cwd.parts)
+            idx = parts.index("kitty-specs")
+            if idx + 1 < len(parts):
+                return parts[idx + 1]
+
+        # Check if in .worktrees directory
+        if ".worktrees" in cwd.parts:
+            parts = list(cwd.parts)
+            idx = parts.index(".worktrees")
+            if idx + 1 < len(parts):
+                worktree_name = parts[idx + 1]
+                # Extract feature slug from worktree name (format: feature-slug-WP##)
+                match = re.match(r"^(.+)-WP\d+$", worktree_name)
+                if match:
+                    return match.group(1)
+                return worktree_name
+    except Exception:
+        pass
+
+    return None
+
+
 @app.command("current")
-def current_cmd() -> None:
-    """Show currently active mission."""
+def current_cmd(
+    feature: Optional[str] = typer.Option(
+        None,
+        "--feature",
+        "-f",
+        help="Feature slug (auto-detects from current directory if omitted)",
+    )
+) -> None:
+    """Show currently active mission for a feature (auto-detects feature from cwd)."""
     project_root = get_project_root_or_exit()
     check_version_compatibility(project_root, "mission")
+
+    # Detect feature if not explicitly provided
+    feature_slug = feature if feature else _detect_current_feature(project_root)
+
     try:
-        mission = get_active_mission(project_root)
+        if feature_slug:
+            # Use feature-level detection (CORRECT)
+            feature_dir = project_root / "kitty-specs" / feature_slug
+            if not feature_dir.exists():
+                console.print(f"[red]Feature not found:[/red] {feature_slug}")
+                raise typer.Exit(1)
+
+            mission = get_mission_for_feature(feature_dir, project_root)
+            context = f"Feature: {feature_slug}"
+        else:
+            # No feature context - show project default
+            # Still use get_active_mission() for backward compat with project-level
+            mission = get_active_mission(project_root)
+            context = "Project Default"
+
     except MissionNotFoundError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
@@ -171,7 +232,7 @@ def current_cmd() -> None:
 
     panel = Panel(
         "\n".join(_mission_details_lines(mission)),
-        title="Active Mission",
+        title=f"Active Mission ({context})",
         border_style="cyan",
     )
     console.print(panel)

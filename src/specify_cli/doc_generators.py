@@ -209,7 +209,7 @@ class JSDocGenerator:
         config_file = output_dir / "jsdoc.json"
         output_dir.mkdir(parents=True, exist_ok=True)
         try:
-            config_file.write_text(json.dumps(config, indent=2))
+            config_file.write_text(json.dumps(config, indent=2), encoding='utf-8')
             return config_file
         except OSError as e:
             raise GeneratorError(f"Failed to write jsdoc.json: {e}")
@@ -384,7 +384,7 @@ sys.path.insert(0, os.path.abspath('..'))
         config_file = output_dir / "conf.py"
         output_dir.mkdir(parents=True, exist_ok=True)
         try:
-            config_file.write_text(config_content)
+            config_file.write_text(config_content, encoding='utf-8')
             return config_file
         except OSError as e:
             raise GeneratorError(f"Failed to write conf.py: {e}")
@@ -541,7 +541,7 @@ No separate configuration file is needed for rustdoc.
         instructions_file = output_dir / "rustdoc-config.md"
         output_dir.mkdir(parents=True, exist_ok=True)
         try:
-            instructions_file.write_text(instructions)
+            instructions_file.write_text(instructions, encoding='utf-8')
             return instructions_file
         except OSError as e:
             raise GeneratorError(f"Failed to write rustdoc instructions: {e}")

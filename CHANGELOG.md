@@ -7,7 +7,7 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.12.2] - 2026-01-25
+## [Unreleased]
 
 ### 🐛 Fixed
 
@@ -24,6 +24,261 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/specify_cli/templates/command-templates/dashboard.md`
 - Reduced template code from ~264 lines to ~47 lines
 - **Contributors**: Claude Sonnet 4.5, Jerome Lacube
+
+## [0.13.6] - 2026-01-27
+
+### 🐛 Fixed
+
+**Critical JSON Mode Corruption Fix** (Release Blocker):
+- Fixed JSON output corruption in `spec-kitty implement --json` mode (GitHub Issue #72 follow-up)
+  - **Bug**: Warning messages from empty branch detection were written to stdout, corrupting JSON output
+  - **Impact**: Automated workflows using `--json` flag would fail with JSON parse errors
+  - **Fix**: Changed warning messages to use `file=sys.stderr` to separate warnings from JSON output
+  - **File**: `src/specify_cli/core/multi_parent_merge.py:142-144`
+  - **Tests**: Updated 5 tests in `test_multi_parent_merge_empty_branches.py` to check stderr instead of stdout
+
+**Missing Migration Fix** (Existing Users Affected):
+- Fixed missing migration for commit workflow section (GitHub Issue #72 follow-up)
+  - **Bug**: New projects got commit workflow section in implement.md, but existing projects didn't after upgrade
+  - **Impact**: Existing users remained vulnerable to agents forgetting to commit work
+  - **Fix**: Created migration `m_0_13_5_add_commit_workflow_to_templates.py` to update all agent templates
+  - **Coverage**: Updates both software-dev and documentation mission templates for all 12 agents
+  - **Migration**: Automatically runs on `spec-kitty upgrade` for projects missing commit workflow
+
+**Subprocess Error Handling** (Defensive Programming):
+- Added timeout and error handling to multi-parent merge git commands
+  - **Bug**: Git commands in empty branch detection lacked timeout parameters and try/except blocks
+  - **Impact**: Function could hang forever or crash on git errors (corrupted repo, permission issues)
+  - **Fix**: Added 10-second timeouts and exception handling to all git subprocess calls
+  - **File**: `src/specify_cli/core/multi_parent_merge.py:117-144`
+  - **Errors handled**: TimeoutExpired (>10s git commands), general exceptions with warning
+
+### Added
+- Git commit validation for "done" status transitions - prevents completing WPs with uncommitted changes
+- Empty branch detection in merge-base creation - warns when dependencies have no commits
+- Git commit workflow section in documentation mission template (consistency with software-dev/research)
+- Comprehensive troubleshooting guide for empty branch recovery in workspace-per-wp documentation
+- Migration to add commit workflow section to existing projects (`m_0_13_5_add_commit_workflow_to_templates.py`)
+
+### Changed
+- `move-task --to done` now validates git status (same checks as "for_review")
+- Use `--force` flag to bypass validation (not recommended)
+- Warning messages in multi-parent merge now output to stderr instead of stdout (preserves JSON output integrity)
+
+### Fixed (Non-Critical)
+- WP agents can no longer mark tasks as "done" without committing implementation files
+- Multi-parent merge-bases no longer silently accept empty dependency branches
+- Documentation mission now instructs agents to commit work before review
+- Stale WP detection now correctly detects default branch name (main/master/develop) instead of hardcoding "main"
+  - **Bug**: Fresh worktrees incorrectly flagged as stale when repository used non-standard default branch
+  - **Root Cause**: Code hardcoded "main" as default branch; when `git merge-base HEAD main` failed, it fell through to using parent branch's old commit timestamp
+  - **Fix**: Added `get_default_branch()` helper to dynamically detect default branch via origin HEAD or local branch existence
+  - **Impact**: Prevents false staleness warnings for fresh worktrees in repos using "master", "develop", or other default branches
+
+## [0.13.5] - 2026-01-26
+
+### 🐛 Fixed
+
+**Fixed /spec-kitty.clarify Command Template**:
+- Fixed broken placeholder in clarify template that prevented agents from running clarification workflow
+  - **Bug**: Template contained `(Missing script command for sh)` placeholder instead of actual command
+  - **Impact**: Agents couldn't get feature context, invented non-existent commands like `spec-kitty agent feature get-active --json`
+  - **Fix**: Replaced manual detection logic with `spec-kitty agent feature check-prerequisites --json --paths-only`
+  - **Consistency**: Now matches pattern used in specify.md, plan.md, and tasks.md templates
+  - Migration `m_0_13_5_fix_clarify_template.py` automatically updates all 12 agent directories on upgrade
+  - Source template: `src/specify_cli/missions/software-dev/command-templates/clarify.md`
+
+**Testing**:
+- Added comprehensive test suite with 34 tests covering all scenarios
+  - Parametrized tests for all 12 agents (claude, copilot, gemini, cursor, qwen, opencode, windsurf, codex, kilocode, auggie, roo, q)
+  - Tests for detection, application, agent config respect, idempotency, dry-run
+  - Template content validation (ensures no broken placeholders, matches tasks.md pattern)
+  - End-to-end integration test verifying migration actually runs and fixes templates
+
+## [0.13.4] - 2026-01-26
+
+### 🐛 Fixed
+
+**Critical Dependency Validation Fix**:
+- Fixed `spec-kitty agent workflow implement` not validating WP dependencies before creating workspaces
+  - **Bug**: WP with single dependency could create workspace without `--base` flag
+  - **Impact**: Workspace branched from main instead of dependency branch (silent correctness bug)
+  - **Fix**: Added shared validation utility that errors when single dependency but no `--base` provided
+  - **Example**: `WP06` depends on `WP04` → command now errors and suggests `--base WP04`
+  - Created `src/specify_cli/core/implement_validation.py` with `validate_and_resolve_base()`
+  - Agent commands now delegate to top-level commands (no more legacy script calls)
+
+**Fixed Broken Agent Commands**:
+- Fixed `spec-kitty agent feature accept` calling non-existent `scripts/tasks/tasks_cli.py`
+  - Now delegates to top-level `accept()` command
+- Fixed `spec-kitty agent feature merge` calling non-existent `scripts/tasks/tasks_cli.py`
+  - Now delegates to top-level `merge()` command
+  - Parameter mapping: `keep_branch` → `delete_branch` (inverted logic)
+
+**Critical Merge Workflow Fix**:
+- Fixed merge failing when main branch lacks upstream tracking (Issue reported post-0.13.2 release)
+  - 0.13.2 only checked if remote EXISTS, but not if branch TRACKS it
+  - Added `has_tracking_branch()` function to check upstream tracking
+  - Merge now skips pull if: (1) no remote OR (2) no upstream tracking
+  - Affects users with local-only repos or repos where main doesn't track origin/main
+
+**Testing & Prevention**:
+- Added 22 new tests for dependency validation and agent command wrappers
+  - Unit tests: `test_implement_validation.py` (11 tests)
+  - Integration tests: `test_agent_command_wrappers.py` (11 tests)
+- Added `TestMigrationRegistryCompleteness` test (prevents 0.13.2-style release blocker)
+  - Verifies all m_*.py migration files are imported in __init__.py
+  - Prevents silent bugs where migrations exist but never run
+- Added integration tests for merge with untracked branches
+- Added unit tests for `has_tracking_branch()` function
+
+**Documentation**:
+- Added `src/specify_cli/cli/commands/agent/README.md` (wrapper pattern documentation)
+  - Dependency validation best practices
+  - Parameter mapping guidelines
+  - Common pitfalls and examples
+- Updated RELEASE_CHECKLIST.md with mandatory migration registry verification
+
+## [0.13.2] - 2026-01-26
+
+### 🐛 Fixed
+
+**Critical Windows Compatibility Issues**:
+- Fixed UTF-8 encoding errors causing Windows crashes (Issue #101)
+  - Added `encoding='utf-8'` to all `write_text()` and `read_text()` calls
+  - Affected files: feature.py, worktree.py, agent_context.py, doc_generators.py, gap_analysis.py
+  - Completes PR #100 which missed several locations
+- Fixed hardcoded `python3` breaking Windows installations (Issue #105)
+  - Replaced with `sys.executable` in Python code (feature.py)
+  - Added dynamic Python detection in git hooks (tries python3, falls back to python)
+  - Windows users no longer need to create python3 hardlinks/aliases
+
+**Workflow Improvements**:
+- Added `--base` parameter to `spec-kitty agent workflow implement` (Issue #96)
+  - Enables agents to create dependent WP worktrees via workflow command
+  - Provides feature parity with top-level `spec-kitty implement` command
+  - Example: `spec-kitty agent workflow implement WP02 --base WP01 --agent claude`
+
+**Template and Documentation Fixes**:
+- Fixed broken `/spec-kitty.clarify` skill (Issue #106)
+  - Removed unresolved `{SCRIPT}` and `{ARGS}` placeholders
+  - Replaced with auto-detection instructions for feature paths
+- Fixed outdated template path references (Issue #102)
+  - Updated 6 references from `.kittify/templates/` to `src/specify_cli/missions/`
+  - Templates now reference correct bundled locations
+- Fixed upgrade version detection for modern projects (Issue #108)
+  - Added detection for versions 0.7.0-0.13.0
+  - Prevents unnecessary migrations on modern projects
+- Regenerated all 12 agent constitution templates (Issue #97)
+  - All agents now correctly suggest `/spec-kitty.specify` as next step (not `/spec-kitty.plan`)
+
+### 📚 Documentation
+
+- Added GitHub CLI authentication troubleshooting to CLAUDE.md
+  - Documents `unset GITHUB_TOKEN` technique for organization repos
+
+**Issues Closed**: #96, #97, #101, #102, #105, #106, #108, #103 (not a bug), #107 (not a bug)
+
+## [0.13.1] - 2026-01-25
+
+### ✨ Added
+
+**Adversarial Test Suite for 0.13.0 Release**:
+- **Distribution tests**: Validate PyPI user experience without SPEC_KITTY_TEMPLATE_ROOT bypass (prevents 0.10.8-style packaging failures)
+- **Path validation security tests**: Test directory traversal, symlink attacks, case-sensitivity bypasses, and path injection prevention
+- **CSV schema attack tests**: Validate handling of formula injection, encoding errors, duplicate columns, and empty files
+- **Git state detection tests**: Verify accuracy of uncommitted work, merge state, and branch divergence detection
+- **Migration robustness tests**: Test UTF-8 encoding, idempotency, and partial/corrupted file handling
+- **Multi-parent merge tests**: Validate dependency-order merging and conflict resolution
+- **Context & config tests**: Test non-interactive modes, agent configuration, and workspace validation
+
+**Test Infrastructure**:
+- New `tests/adversarial/` directory with shared fixtures and attack vectors
+- `@pytest.mark.distribution` and `@pytest.mark.slow` markers for CI optimization
+- Session-scoped `wheel_install` fixture for efficient testing
+- Platform-specific skip conditions for cross-platform compatibility
+
+### 📚 Documentation
+
+**Testing**:
+- Comprehensive adversarial test documentation in feature 024 spec
+- Attack vector catalog with prevention strategies
+- CI integration guidance for slow/distribution tests
+
+## [0.13.0] - 2026-01-25
+
+### ✨ Added
+
+**Deterministic CSV Schema Enforcement for Research Missions**:
+- **Canonical schema documentation**: Research CSV schemas now documented in all 12 agent implement.md templates
+- **Two schemas enforced**:
+  - `evidence-log.csv`: `timestamp,source_type,citation,key_finding,confidence,notes`
+  - `source-register.csv`: `source_id,citation,url,accessed_date,relevance,status`
+- **Schema visibility**: Agents see schemas before editing (in "Research CSV Schemas" section with examples)
+- **Detection migration**: `m_0_13_0_research_csv_schema_check.py` scans existing features for schema mismatches (informational only, no auto-fix)
+- **Template propagation**: `m_0_13_0_update_research_implement_templates.py` updates all agent templates with schema documentation
+- **Reusable validator**: `src/specify_cli/validators/csv_schema.py` provides `CSVSchemaValidation` dataclass for exact schema matching
+- **Exported constants**: `EVIDENCE_REQUIRED_COLUMNS` and `SOURCE_REGISTER_REQUIRED_COLUMNS` now importable from `research.py`
+- **ADR #8**: Documents architecture decision for documentation-based enforcement vs runtime enforcement/auto-migration
+
+**Problem Solved**: Agents were modifying CSV schemas during implementation, creating different schemas in parallel WPs, causing merge conflicts and validation failures at review time.
+
+**Solution Approach**: Document schemas where agents can see them (prevention) rather than runtime enforcement or auto-migration (data loss risk).
+
+**Fully Non-Interactive Init Support**:
+- Added `--non-interactive` / `--yes` and `SPEC_KITTY_NON_INTERACTIVE` to disable prompts
+- Added `--agent-strategy`, `--preferred-implementer`, and `--preferred-reviewer` to expose all selection options via CLI
+- Non-interactive mode now avoids arrow-key menus and requires `--force` for non-empty `--here` directories
+- Updated documentation for automation and CI usage
+
+### 🐛 Fixed
+
+**Windows UTF-8 Encoding Crashes**:
+- Fixed all `write_text()` calls to include `encoding='utf-8'` parameter
+- Affects feature creation, worktree setup, gap analysis, doc generators, agent context, and test fixtures
+- Windows users can now create features without charmap encoding errors
+- Fixes #101, incorporates PR #100
+
+**Constitution Template Workflow**:
+- Fixed incorrect next-step suggestion after creating constitution
+- Now correctly suggests `/spec-kitty.specify` instead of `/spec-kitty.plan`
+- Propagated fix to all 12 agent directories via migration
+- Fixes #97 (inspired by PR #98)
+
+**Research Mission Detection**:
+- Fixed `spec-kitty mission current` to show feature-level missions
+- Now auto-detects feature from current directory (kitty-specs or worktree)
+- Added `--feature` flag for explicit feature specification
+- No longer always defaults to software-dev for research features
+- Fixes #93
+
+### 🎉 Closed
+
+**Agent Configuration Feature**:
+- Closed #51 as completed (already implemented in v0.12.0)
+- Feature: `spec-kitty agent config add/remove/list`
+
+### 📚 Documentation
+
+**Release Management**:
+- Added `RELEASE_CHECKLIST.md` - Comprehensive release preparation checklist with version-specific sections for research missions, agent management, and workspace-per-WP changes
+
+### Migration Notes
+
+**For users with existing research features**:
+1. Run `spec-kitty upgrade` to trigger detection migration
+2. See informational report with schema diffs and migration tips
+3. Use LLM agent to help migrate data:
+   - Read canonical schema in `.claude/commands/spec-kitty.implement.md`
+   - Create new CSV with correct headers
+   - Map old columns → new columns
+   - Replace old file and commit to main
+
+**For new research features (0.13.0+)**:
+- Templates already have correct schemas
+- Agents see schema documentation before editing
+- Follow append-only pattern to avoid overwrites
+- Validation passes at review
 
 ## [0.12.1] - 2026-01-24
 

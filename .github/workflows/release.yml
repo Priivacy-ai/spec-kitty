@@ -61,7 +61,9 @@ jobs:
           python verify_isolation.py
 
       - name: Run tests
-        run: python -m pytest
+        run: |
+          python -m pytest -v --tb=short 2>&1 | tee pytest-output.txt
+          exit ${PIPESTATUS[0]}
 
       - name: Validate release metadata
         run: python scripts/release/validate_release.py --mode tag --tag "${GITHUB_REF_NAME}"
@@ -136,6 +138,14 @@ jobs:
             SHA256SUMS.txt
           draft: false
           prerelease: false
+
+      - name: Upload test output
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-output
+          path: pytest-output.txt
+          retention-days: 7
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

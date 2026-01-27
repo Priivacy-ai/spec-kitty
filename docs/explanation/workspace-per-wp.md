@@ -554,6 +554,56 @@ cd .worktrees/###-feature-WP04/
 git merge ###-feature-WP02
 ```
 
+### Problem: Empty Branches (Missing Implementation Work)
+
+**Symptom**: Merge-base has no work from dependencies, or dependent WP sees missing files.
+
+**Signs**:
+- `git log 017-feature-WP01` shows only planning commits, no implementation
+- WP09 workspace missing files from WP01-WP08
+- Warning during `spec-kitty implement`: "Dependency branch 'X' has no commits beyond main"
+
+**Cause**: Implementation files were never committed to worktree branch.
+
+**How it happens**:
+- Agent creates files in worktree but forgets to commit
+- Agent stages files (`git add`) but never commits them
+- Agent completes WP without running git commit
+
+**Solution**:
+1. Check for uncommitted changes in dependency worktree:
+   ```bash
+   cd .worktrees/017-feature-WP01/
+   git status
+   ```
+
+2. If files are untracked (`??`) or staged (`A`) but not committed:
+   ```bash
+   git add docs/  # or relevant path
+   git commit -m "docs(WP01): Add documentation"
+   ```
+
+3. Re-create merge-base (if already created with empty branches):
+   ```bash
+   # Delete existing workspace with bad merge-base
+   spec-kitty workspace delete WP09
+
+   # Re-implement with updated dependencies
+   spec-kitty implement WP09 --base WP01,WP02,WP03,...
+   ```
+
+**Prevention**:
+- Always commit work BEFORE moving WP to "for_review"
+- The `move-task` command now validates git status for both "for_review" and "done"
+- If validation fails, commit your work and retry
+- Review git commit instructions in your mission's implement template
+
+**Why this matters**:
+- Git branches are the mechanism for dependency sharing
+- Uncommitted changes exist only in the filesystem, not git history
+- Dependent WPs receive dependencies through git merge-bases
+- Empty branches = lost work that needs manual recovery
+
 ## Migration from Legacy Model
 
 See [Upgrading to 0.11.0](../how-to/upgrade-to-0-11-0.md) for detailed migration guide.
