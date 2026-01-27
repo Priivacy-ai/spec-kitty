@@ -33,6 +33,12 @@ from . import m_0_11_2_improved_workflow_templates
 from . import m_0_11_3_workflow_agent_flag
 from . import m_0_12_0_documentation_mission
 from . import m_0_12_1_remove_kitty_specs_from_gitignore
+from . import m_0_13_0_research_csv_schema_check
+from . import m_0_13_0_update_constitution_templates
+from . import m_0_13_0_update_research_implement_templates
+from . import m_0_13_1_exclude_worktrees
+from . import m_0_13_5_fix_clarify_template
+from . import m_0_13_5_add_commit_workflow_to_templates
 
 __all__ = [
     "m_0_2_0_specify_to_kittify",
@@ -62,4 +68,10 @@ __all__ = [
     "m_0_11_3_workflow_agent_flag",
     "m_0_12_0_documentation_mission",
     "m_0_12_1_remove_kitty_specs_from_gitignore",
+    "m_0_13_0_research_csv_schema_check",
+    "m_0_13_0_update_constitution_templates",
+    "m_0_13_0_update_research_implement_templates",
+    "m_0_13_1_exclude_worktrees",
+    "m_0_13_5_fix_clarify_template",
+    "m_0_13_5_add_commit_workflow_to_templates",
 ]

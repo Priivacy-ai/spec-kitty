@@ -11,16 +11,22 @@ from typing import Optional
 import typer
 from typing_extensions import Annotated
 
-from specify_cli.core.paths import locate_project_root, find_feature_slug
+from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
-from specify_cli.mission import get_feature_mission_key, get_deliverables_path
+from specify_cli.core.implement_validation import (
+    validate_and_resolve_base,
+    validate_base_workspace_exists,
+)
+from specify_cli.core.paths import find_feature_slug, locate_project_root
+from specify_cli.mission import get_deliverables_path, get_feature_mission_key
 from specify_cli.tasks_support import (
-    extract_scalar,
-    locate_work_package,
-    split_frontmatter,
-    set_scalar,
     append_activity_log,
     build_document,
+    extract_scalar,
+    find_repo_root,
+    locate_work_package,
+    set_scalar,
+    split_frontmatter,
 )
 
 
@@ -229,6 +235,7 @@ def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
+    base: Annotated[Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -237,8 +244,11 @@ def implement(
 
     Automatically moves WP from planned to doing lane (requires --agent to track who is working).
 
+    If --base is provided, creates a worktree for this WP branching from the base WP's branch.
+
     Examples:
         spec-kitty agent workflow implement WP01 --agent claude
+        spec-kitty agent workflow implement WP02 --agent claude --base WP01  # Create worktree from WP01
         spec-kitty agent workflow implement wp01 --agent codex
         spec-kitty agent workflow implement --agent gemini  # auto-detects first planned WP
     """
@@ -259,6 +269,55 @@ def implement(
             normalized_wp_id = _find_first_planned_wp(repo_root, feature_slug)
             if not normalized_wp_id:
                 print("Error: No planned work packages found. Specify a WP ID explicitly.")
+                raise typer.Exit(1)
+
+        # ALWAYS validate dependencies before creating workspace or displaying prompts
+        # This prevents creating workspaces with wrong base branches
+
+        # Find WP file to read dependencies
+        try:
+            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        except Exception as e:
+            print(f"Error locating work package: {e}")
+            raise typer.Exit(1)
+
+        # Validate dependencies and resolve base workspace
+        # This will error if:
+        # - WP has single dependency but --base not provided
+        # - Provided base doesn't match declared dependencies (warning only)
+        try:
+            resolved_base, auto_merge = validate_and_resolve_base(
+                wp_id=normalized_wp_id,
+                wp_file=wp.path,
+                base=base,  # May be None
+                feature_slug=feature_slug,
+                repo_root=repo_root
+            )
+        except typer.Exit:
+            # Validation failed (e.g., missing --base for single dependency)
+            raise
+
+        # If validation resolved a base (or auto-merge mode), validate base workspace exists
+        if resolved_base:
+            validate_base_workspace_exists(resolved_base, feature_slug, repo_root)
+
+        # Create worktree only if explicitly requested via --base or auto-merge
+        # Don't auto-create workspaces for WPs with no dependencies and no --base
+        # (user can create manually later or provide --base explicitly)
+        if base is not None or auto_merge:
+            print(f"Creating workspace for {normalized_wp_id}...")
+            try:
+                top_level_implement(
+                    wp_id=normalized_wp_id,
+                    base=resolved_base,  # None for auto-merge or no deps
+                    feature=feature_slug,
+                    json_output=False
+                )
+            except typer.Exit:
+                # Worktree creation failed - propagate error
+                raise
+            except Exception as e:
+                print(f"Error creating worktree: {e}")
                 raise typer.Exit(1)
 
         # Load work package

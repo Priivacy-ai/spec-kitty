@@ -113,7 +113,12 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-01-23-3](adrs/2026-01-23-3-centralized-workspace-context-storage.md) | Centralized Workspace Context Storage | Accepted | Git Repository Management |
 | [2026-01-23-4](adrs/2026-01-23-4-auto-merge-multi-parent-dependencies.md) | Auto-Merge Multi-Parent Dependencies | Accepted | Git Repository Management |
 | [2026-01-23-5](adrs/2026-01-23-5-decorator-based-context-validation.md) | Decorator-Based Context Validation | Accepted | Git Repository Management |
+| [2026-01-23-6](adrs/2026-01-23-6-config-driven-agent-management.md) | Config-Driven Agent Management | Accepted | Agent Management |
+| [2026-01-25-7](adrs/2026-01-25-7-research-deliverables-separation.md) | Research Deliverables Separation | Accepted | Mission System |
 | [2026-01-25-8](adrs/2026-01-25-8-cli-first-command-interface.md) | CLI-First Command Interface | Accepted | CLI/Automation |
+| [2026-01-25-8](adrs/2026-01-25-8-deterministic-csv-schema-enforcement.md) | Deterministic CSV Schema Enforcement | Accepted | Research Mission |
+| [2026-01-26-9](adrs/2026-01-26-9-worktree-cleanup-at-merge-not-eager.md) | Worktree Cleanup at Merge, Not Eager | Accepted | Git Repository Management |
+| [2026-01-27-10](adrs/2026-01-27-10-per-feature-mission-selection.md) | Per-Feature Mission Selection | Accepted | Mission System |
 
 ### By Topic
 

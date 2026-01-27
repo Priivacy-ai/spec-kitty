@@ -30,7 +30,7 @@ Spec Kitty is for Spec Coding: using LLM agents to write code (eg. Claude Code, 
 
 </div>
 
-> **Note:** Spec Kitty is a fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
+> **Note:** Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
 ## ⚠️ Breaking Change in v0.11.0
 

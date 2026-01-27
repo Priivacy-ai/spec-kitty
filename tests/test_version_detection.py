@@ -103,9 +103,9 @@ class TestVersionReading:
         init_content = init_file.read_text()
 
         # Should NOT have hardcoded version like __version__ = "0.4.13"
-        # Should use importlib.metadata or similar
-        assert 'importlib.metadata' in init_content or 'importlib_metadata' in init_content, \
-            "__init__.py should use importlib.metadata to read version dynamically"
+        # Should use version_utils or importlib.metadata
+        assert 'version_utils' in init_content or 'importlib.metadata' in init_content or 'importlib_metadata' in init_content, \
+            "__init__.py should use version_utils.get_version() or importlib.metadata to read version dynamically"
 
         # Should not have pattern like __version__ = "0.x.x"
         import re
@@ -244,24 +244,32 @@ class TestVersionUpdateWorkflow:
                 "pyproject.toml version should be valid semver"
 
     def test_version_not_imported_from_pyproject(self):
-        """Verify version is NOT read directly from pyproject.toml at runtime."""
-        # Reading from pyproject.toml at runtime is bad practice
-        # Should use package metadata instead
-        from specify_cli import __version__
-
-        # The version should come from importlib.metadata, not file parsing
-        # We validate this by checking __init__.py uses importlib.metadata
+        """Verify version prioritizes importlib.metadata over pyproject.toml."""
+        # Reading from pyproject.toml should be FALLBACK only, not primary
+        # Should try importlib.metadata first
         import specify_cli
         init_file = Path(specify_cli.__file__)
         init_content = init_file.read_text()
 
-        # Should use importlib.metadata
-        assert 'importlib.metadata' in init_content or 'importlib_metadata' in init_content, \
-            "Should use importlib.metadata to get version"
+        # Should delegate to version_utils
+        assert 'version_utils' in init_content or 'importlib.metadata' in init_content, \
+            "Should use version_utils.get_version() or importlib.metadata"
 
-        # Should NOT parse pyproject.toml
+        # __init__.py should NOT parse pyproject.toml directly
         assert 'pyproject.toml' not in init_content, \
-            "Should not parse pyproject.toml at runtime"
+            "Should not parse pyproject.toml directly in __init__.py"
+
+        # Verify version_utils uses importlib.metadata as primary method
+        from specify_cli import version_utils
+        utils_file = Path(version_utils.__file__)
+        utils_content = utils_file.read_text()
+
+        assert 'importlib.metadata' in utils_content, \
+            "version_utils should try importlib.metadata first"
+
+        # pyproject.toml is acceptable as FALLBACK in version_utils
+        assert 'pyproject.toml' in utils_content, \
+            "version_utils should have pyproject.toml fallback"
 
 
 class TestRegressionPrevention:

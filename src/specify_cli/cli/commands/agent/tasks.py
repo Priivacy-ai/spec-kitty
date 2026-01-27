@@ -551,12 +551,12 @@ def move_task(
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)
 
-        # Validate uncommitted changes when moving to for_review
-        # This catches the bug where agents edit research artifacts but forget to commit
-        if target_lane == "for_review":
+        # Validate uncommitted changes when moving to for_review OR done
+        # This catches the bug where agents edit artifacts but forget to commit
+        if target_lane in ("for_review", "done"):
             is_valid, guidance = _validate_ready_for_review(repo_root, feature_slug, task_id, force)
             if not is_valid:
-                error_msg = f"Cannot move {task_id} to for_review\n\n"
+                error_msg = f"Cannot move {task_id} to {target_lane}\n\n"
                 error_msg += "\n".join(guidance)
                 if not force:
                     error_msg += "\n\nOr use --force to override (not recommended)"

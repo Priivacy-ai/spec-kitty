@@ -18,6 +18,9 @@ from specify_cli.upgrade.migrations.m_0_12_1_remove_kitty_specs_from_gitignore i
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 
+# Get migrations directory path
+MIGRATIONS_DIR = Path(__file__).parents[3] / "src" / "specify_cli" / "upgrade" / "migrations"
+
 pytestmark = [pytest.mark.adversarial]
 
 LOCK_FILENAME = ".upgrade.lock"
@@ -224,3 +227,42 @@ class TestPermissionErrors:
             assert any("Failed to write .gitignore" in err for err in result.errors)
         finally:
             gitignore.chmod(0o644)
+
+
+class TestMigrationRegistryCompleteness:
+    """Verify all migration files are properly imported and registered.
+
+    CRITICAL: This test prevents the 0.13.2 release blocker bug where
+    migrations existed but weren't imported in __init__.py.
+    """
+
+    def test_all_migration_files_are_registered(self) -> None:
+        """Verify every m_*.py file in migrations/ is imported and registered.
+
+        This prevents silent bugs where migrations exist but never run during
+        `spec-kitty upgrade` because they weren't imported in __init__.py.
+
+        Bug prevented: 0.13.2 release blocker (4 migrations missing from registry)
+        """
+        # Find all migration files (m_*.py, excluding __init__.py)
+        migration_files = sorted([
+            f.stem for f in MIGRATIONS_DIR.glob("m_*.py")
+            if f.stem != "__init__"
+        ])
+
+        # Get all registered migrations
+        registered_migrations = MigrationRegistry.get_all()
+
+        # The count must match - if files exist but aren't registered, they're not imported
+        assert len(migration_files) == len(registered_migrations), (
+            f"Migration registry incomplete!\n"
+            f"Found {len(migration_files)} migration files in {MIGRATIONS_DIR}\n"
+            f"but only {len(registered_migrations)} are registered.\n\n"
+            f"Migration files ({len(migration_files)}):\n"
+            + "\n".join(f"  - {f}" for f in migration_files)
+            + f"\n\nRegistered migrations ({len(registered_migrations)}):\n"
+            + "\n".join(f"  - {m.migration_id}" for m in registered_migrations)
+            + "\n\nLikely cause: Missing imports in "
+            "src/specify_cli/upgrade/migrations/__init__.py\n"
+            "Add: from . import <migration_file_name>"
+        )

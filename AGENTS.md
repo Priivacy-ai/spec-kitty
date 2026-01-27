@@ -2,7 +2,7 @@
 
 ## About Spec Kitty and Spec Kitty CLI
 
-**Spec Kitty** is a community-maintained fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). It continues to provide a comprehensive toolkit for implementing Spec-Driven Development (SDD) with clear, actionable specifications ahead of implementation.
+**Spec Kitty** is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). It continues to provide a comprehensive toolkit for implementing Spec-Driven Development (SDD) with clear, actionable specifications ahead of implementation.
 
 **Spec Kitty CLI** is the command-line interface that bootstraps projects with the Spec Kitty framework. It sets up the necessary directory structures, templates, and AI agent integrations to support the Spec-Driven Development workflow.
 

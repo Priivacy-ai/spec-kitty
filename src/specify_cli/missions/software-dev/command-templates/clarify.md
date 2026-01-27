@@ -18,11 +18,10 @@ Note: This clarification workflow is expected to run (and be completed) BEFORE i
 
 Execution steps:
 
-1. Run `{SCRIPT}` from repo root **once** (combined `--json --paths-only` mode / `-Json -PathsOnly`). Parse minimal JSON payload fields:
-   - `FEATURE_DIR`
-   - `FEATURE_SPEC`
-   - (Optionally capture `IMPL_PLAN`, `TASKS` for future chained flows.)
-   - If JSON parsing fails, abort and instruct user to re-run `/spec-kitty.specify` or verify feature branch environment.
+1. Run `spec-kitty agent feature check-prerequisites --json --paths-only` from the repository root and parse JSON for:
+   - `FEATURE_DIR` - Absolute path to feature directory (e.g., `/path/to/kitty-specs/017-my-feature/`)
+   - `FEATURE_SPEC` - Absolute path to spec.md file
+   - If command fails or JSON parsing fails, abort and instruct user to run `/spec-kitty.specify` first or verify they are in a spec-kitty-initialized repository.
 
 2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
 
@@ -154,4 +153,4 @@ Behavior rules:
  - If no questions asked due to full coverage, output a compact coverage summary (all categories Clear) then suggest advancing.
  - If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
 
-Context for prioritization: {ARGS}
+Context for prioritization: User arguments from $ARGUMENTS section above (if provided). Use these to focus clarification on specific areas of concern mentioned by the user.
