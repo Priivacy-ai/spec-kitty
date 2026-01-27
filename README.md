@@ -537,7 +537,8 @@ See [AGENTS.md](.kittify/AGENTS.md) for complete guidelines.
 
 ---
 
-## 📚 Terminology
+<details>
+<summary><h2>📚 Terminology</h2></summary>
 
 Spec Kitty differentiates between the **project** that holds your entire codebase, the **features** you build within that project, and the **mission** that defines your workflow. Use these definitions whenever you write docs, prompts, or help text.
 
@@ -627,8 +628,10 @@ Only one mission is active at a time, but you can switch missions between featur
 **Q: Should I create a new project for every feature?**  
 No. Initialize a project once, then create as many features as you need with `/spec-kitty.specify`.
 
-**Q: What's a task?**  
+**Q: What's a task?**
 Tasks (T001, T002, etc.) are subtasks within a feature's work packages. They are **not** separate features or projects.
+
+</details>
 
 ---
 
