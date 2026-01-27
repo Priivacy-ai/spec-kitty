@@ -29,8 +29,8 @@ def git_repo_with_worktree(tmp_path: Path) -> tuple[Path, Path]:
     repo = tmp_path / "test-repo"
     repo.mkdir()
 
-    # Initialize git repo
-    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    # Initialize git repo with explicit branch name
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "config", "user.email", "test@example.com"],
         cwd=repo,
