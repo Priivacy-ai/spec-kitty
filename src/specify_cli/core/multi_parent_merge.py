@@ -110,6 +110,39 @@ def create_multi_parent_base(
                     conflicts=[],
                 )
 
+        # Step 1.5: Check if each dependency branch has unique commits
+        # (Warn if branch is empty - may indicate incomplete work)
+        for dep, branch in zip(sorted_deps, dep_branches):
+            # Get merge-base between dep branch and main
+            merge_base_result = subprocess.run(
+                ["git", "merge-base", branch, "main"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            if merge_base_result.returncode == 0:
+                merge_base = merge_base_result.stdout.strip()
+
+                # Get branch tip
+                branch_tip_result = subprocess.run(
+                    ["git", "rev-parse", branch],
+                    cwd=repo_root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+
+                if branch_tip_result.returncode == 0:
+                    branch_tip = branch_tip_result.stdout.strip()
+
+                    # If merge-base == branch tip, branch has no unique commits
+                    if merge_base == branch_tip:
+                        print(f"⚠️  Warning: Dependency branch '{branch}' has no commits beyond main")
+                        print(f"   This may indicate incomplete work or uncommitted changes")
+                        print(f"   The merge-base will not include any work from this branch\n")
+
         # Step 2: Check if temp branch already exists (cleanup from previous run)
         result = subprocess.run(
             ["git", "rev-parse", "--verify", temp_branch],

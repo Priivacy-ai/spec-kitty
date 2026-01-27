@@ -304,6 +304,34 @@ Documentation implementation follows the standard workspace-per-WP model:
 
 ---
 
+## Commit Workflow
+
+**BEFORE moving to for_review**, you MUST commit your documentation:
+
+```bash
+cd .worktrees/###-feature-WP##/
+git add docs/
+git commit -m "docs(WP##): <describe your documentation>"
+```
+
+**Example commit messages:**
+- `docs(WP01): Add Divio structure and generator configs`
+- `docs(WP02): Add getting started tutorial`
+- `docs(WP05): Add API reference documentation`
+
+**Then move to review:**
+```bash
+spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review: <summary>"
+```
+
+**Why this matters:**
+- `move-task` validates that your worktree has commits beyond main
+- Uncommitted changes will block the move to for_review
+- This prevents lost work and ensures reviewers see complete documentation
+- Dependent WPs will receive your work through the git merge-base
+
+---
+
 ## Status Tracking Note
 
 If `/spec-kitty.status` shows your WP in "doing" after you moved it to "for_review", don't panic - a reviewer may have moved it back (changes requested), or there's a sync delay. Focus on your WP.
