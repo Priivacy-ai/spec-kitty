@@ -9,9 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.7] - 2026-01-27
+
 ### 🐛 Fixed
 
-**Workflow Completion Instructions Missing Git Commit Step**:
+**Activity Log Parser Failing on Hyphenated Agent Names** ([#111](https://github.com/Priivacy-ai/spec-kitty/pull/111)):
+- Fixed `activity_entries()` regex in `tasks_support.py` to handle hyphenated agent names
+- Parser was using `[^–-]+?` pattern which treated hyphens as field separators
+- Agent names like `cursor-agent`, `claude-reviewer`, `cursor-reviewer` now parse correctly
+- Acceptance validation no longer fails with "Activity Log missing entry for lane=done" for hyphenated agents
+- Changed pattern to `\S+(?:\s+\S+)*?` (matches non-whitespace), aligning with `task_helpers.py`
+- Added comprehensive test suite with 11 test cases covering hyphenated names, backward compatibility, and edge cases
+- **Contributors**: Rodrigo D. L. (bruj0)
+
+**Workflow Completion Instructions Missing Git Commit Step** ([#104](https://github.com/Priivacy-ai/spec-kitty/pull/104)):
 - Fixed agents not committing implementation files before marking tasks done
 - Issue caused cascading failures where dependent work packages started from empty branches
   - WP02 worktree had HTML + CSS ✅
@@ -22,8 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated both in-prompt instructions (shown twice) and terminal output summary
 - Added warning: "The move-task command will FAIL if you have uncommitted changes! Commit all implementation files BEFORE moving to for_review. Dependent work packages need your committed changes."
 - **Impact**: Critical fix for multi-agent parallel development workflows using workspace-per-WP model (v0.11.0+)
+- **Contributors**: Jerome Lacube
 
-**Dashboard Command Template Generating Python Code Instead of Running CLI** ([#94](https://github.com/Priivacy-ai/spec-kitty/issues/94)):
+**Dashboard Command Template Generating Python Code Instead of Running CLI** ([#94](https://github.com/Priivacy-ai/spec-kitty/issues/94), [#99](https://github.com/Priivacy-ai/spec-kitty/pull/99)):
 - Fixed `/spec-kitty.dashboard` command template to use `spec-kitty dashboard` CLI command
 - Removed outdated Python code that manually checked dashboard status and opened browsers
 - Dashboard now properly:
@@ -35,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/specify_cli/missions/software-dev/command-templates/dashboard.md`
   - `src/specify_cli/templates/command-templates/dashboard.md`
 - Reduced template code from ~264 lines to ~47 lines
-- **Contributors**: Claude Sonnet 4.5, Jerome Lacube
+- **Contributors**: Jerome Lacube
 
 ## [0.13.6] - 2026-01-27
 
