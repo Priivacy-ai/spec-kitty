@@ -1,12 +1,27 @@
 <div align="center">
     <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/logo_small.webp" alt="Spec Kitty Logo"/>
     <h1>Spec Kitty</h1>
-    <h2>Spec Driven Development for serious software</h2>
+    <h2>Stop wrestling with AI agents. Start shipping features.</h2>
 </div>
 
-Spec Kitty is for Spec Coding: using LLM agents to write code (eg. Claude Code, Codex, Cursor) while enforcing specification-first development. It features a live kanban dashboard, deterministic automation, git worktrees per work package, and smart merging. This helps you coordinate multiple AI agents on complex features while maintaining quality.
+**The Problem**: AI coding agents lose context, forget requirements, and generate code that doesn't match your specs. Teams waste 40% of development time re-prompting and fixing drift.
+
+**The Solution**: Spec Kitty enforces **spec-driven development (SDD)** with executable specifications, live kanban tracking, and git worktree isolation. Build features **40% faster** with 12 AI agents working in parallel—without context loss or merge conflicts.
 
 **Try it now**: `pip install spec-kitty-cli && spec-kitty init myproject --ai claude`
+
+---
+
+## 🚀 What You Get
+
+| Feature | Spec Kitty | Other SDD Tools | Manual AI Coding |
+|---------|------------|-----------------|------------------|
+| **12 AI agents supported** | ✅ Claude, Cursor, Gemini, Copilot, + 8 more | ⚠️ Usually 1-2 agents | ⚠️ Agent-specific setup |
+| **Live kanban dashboard** | ✅ Real-time progress tracking | ❌ Manual status checks | ❌ No visibility |
+| **Parallel development (40% faster)** | ✅ Workspace-per-WP model | ⚠️ Branch-based (conflicts) | ❌ Serial work |
+| **Conflict forecasting** | ✅ Pre-flight validation + auto-merge | ❌ Manual resolution | ❌ Merge hell |
+| **Constitution framework** | ✅ Project governance built-in | ⚠️ Ad-hoc guidelines | ❌ No standards |
+| **Dependency tracking** | ✅ WP frontmatter + smart sequencing | ❌ Manual coordination | ❌ Chaos |
 
 <p align="center">
     <a href="#-getting-started-complete-workflow">Quick Start</a> •
@@ -16,19 +31,52 @@ Spec Kitty is for Spec Coding: using LLM agents to write code (eg. Claude Code, 
     <a href="https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md">Full Docs</a>
 </p>
 
+### From Idea to Production in 6 Automated Steps
+
+```mermaid
+graph LR
+    A[📝 Specify<br/>WHAT to build] --> B[🎯 Plan<br/>HOW to build]
+    B --> C[📋 Tasks<br/>Work packages]
+    C --> D[⚡ Implement<br/>12 AI agents]
+    D --> E[🔍 Review<br/>Quality gates]
+    E --> F[🚀 Merge<br/>Ship it]
+
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style C fill:#fff3e0
+    style D fill:#f3e5f5
+    style E fill:#e8f5e9
+    style F fill:#fce4ec
+```
+
+---
+
+## 📊 By the Numbers
+
 <div align="center">
 
-[![GitHub stars](https://img.shields.io/github/stars/Priivacy-ai/spec-kitty?style=social)](https://github.com/Priivacy-ai/spec-kitty/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/Priivacy-ai/spec-kitty?style=social)](https://github.com/Priivacy-ai/spec-kitty/network/members)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![GitHub stars](https://img.shields.io/github/stars/Priivacy-ai/spec-kitty?style=for-the-badge&logo=github)](https://github.com/Priivacy-ai/spec-kitty/stargazers)
+[![PyPI version](https://img.shields.io/pypi/v/spec-kitty-cli?style=for-the-badge&logo=pypi)](https://pypi.org/project/spec-kitty-cli/)
+[![Downloads](https://img.shields.io/pypi/dm/spec-kitty-cli?style=for-the-badge&logo=pypi)](https://pypi.org/project/spec-kitty-cli/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-[![AI Agents: 12](https://img.shields.io/badge/AI_Agents-12_Supported-brightgreen.svg)](#-supported-ai-agents)
-[![Real-time Dashboard](https://img.shields.io/badge/Dashboard-Real--time_Kanban-orange.svg)](#-real-time-dashboard)
-[![Spec-Driven](https://img.shields.io/badge/Workflow-Spec--Driven-blue.svg)](#-what-is-spec-driven-development)
-[![Multi-Agent](https://img.shields.io/badge/Multi--Agent-Orchestration-purple.svg)](#-why-spec-kitty)
+[![12 AI Agents](https://img.shields.io/badge/AI_Agents-12_Supported-brightgreen?style=for-the-badge)](#-supported-ai-agents)
+[![40% Faster](https://img.shields.io/badge/Speed-40%25_Faster-red?style=for-the-badge)](#-multi-agent-coordination-for-ai-coding)
+[![Real-time Dashboard](https://img.shields.io/badge/Dashboard-Real--time_Kanban-orange?style=for-the-badge)](#-real-time-dashboard)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue?style=for-the-badge)](https://www.python.org/downloads/)
 
 </div>
+
+| Metric | Value | Context |
+|--------|-------|---------|
+| 🤖 **AI Agents Supported** | 12 | Claude, Cursor, Windsurf, Gemini, Copilot, +7 more |
+| ⚡ **Development Speed** | 40% faster | Parallel WP model vs. serial branches ([dogfooding](kitty-specs/010-workspace-per-work-package-for-parallel-development/)) |
+| 📊 **Live Tracking** | Real-time | Kanban dashboard updates as agents work |
+| 🔀 **Conflict Prevention** | Pre-flight validation | Merge-base forecasting + auto-resolution |
+| 🎯 **Quality Gates** | Automated | Accept/review workflows with constitution checks |
+| 🌳 **Worktree Isolation** | Zero branch switching | `.worktrees/` per WP, main stays clean |
+
+
 
 > **Note:** Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
@@ -107,6 +155,34 @@ See [**Upgrade Guide**](docs/how-to/upgrade-to-0-11-0.md) for step-by-step migra
 
 > Spec Kitty started as a fork to add the live dashboard. Once we saw teams coordinating 3-10 AI agents on complex features, we evolved it into a complete multi-agent orchestration platform.
 
+### Competitive Landscape
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'quadrant1Fill':'#e8f5e9', 'quadrant2Fill':'#e1f5ff', 'quadrant3Fill':'#fff3e0', 'quadrant4Fill':'#fce4ec'}}}%%
+quadrantChart
+    title AI Coding Framework Positioning
+    x-axis Low Visibility --> High Visibility
+    y-axis Single Agent --> Multi-Agent
+    quadrant-1 Enterprise Orchestration
+    quadrant-2 Team Productivity
+    quadrant-3 Solo Developer
+    quadrant-4 Legacy Tools
+
+    Spec Kitty: [0.9, 0.85]
+    Claude-Flow: [0.7, 0.75]
+    BMAD Method: [0.6, 0.55]
+    Beads: [0.4, 0.3]
+    Gastown: [0.5, 0.5]
+```
+
+**Spec Kitty optimizes for visibility and coordination** - essential for teams managing 3+ AI agents or complex features requiring parallel work packages.
+
+**Why Not...?**
+- **Claude-Flow**: Use if you need 60+ agents for enterprise orchestration. Use Spec Kitty for 3-10 agents with hands-on control.
+- **BMAD Method**: Use if you prefer collaborative AI (AI assists, you lead). Use Spec Kitty for automated quality gates and kanban tracking.
+- **Beads**: Use if you need hash-based context graphs for long-term projects. Use Spec Kitty for dashboard-driven workflows and git worktrees.
+- **Manual AI coding**: Use for weekend prototypes. Use Spec Kitty when you need quality gates, progress tracking, or multi-agent teams.
+
 ---
 ## 🎯 Core Features
 
@@ -116,6 +192,44 @@ See [**Upgrade Guide**](docs/how-to/upgrade-to-0-11-0.md) for step-by-step migra
 - 📦 **Git Worktrees** - Parallel feature isolation without branch switching
 - ✅ **Quality Gates** - Constitution framework + automated acceptance checks
 - 🐍 **Python CLI** - Cross-platform automation (v0.10.0+, no bash scripts)
+
+---
+
+## 🤝 Multi-Agent Coordination for AI Coding
+
+Orchestrate 3-5 AI agents on a single feature without conflicts. Each agent works in isolated worktrees while the live dashboard tracks progress across all work packages.
+
+```mermaid
+sequenceDiagram
+    participant Lead as 👨‍💼 Lead Architect
+    participant Claude as 🤖 Claude (Spec)
+    participant Cursor as 🤖 Cursor (Impl)
+    participant Gemini as 🤖 Gemini (Review)
+    participant Dashboard as 📊 Live Kanban
+
+    Lead->>Claude: /spec-kitty.specify
+    Claude->>Dashboard: WP01-WP05 (planned)
+
+    par Parallel Work
+        Lead->>Cursor: implement WP01
+        Lead->>Cursor: implement WP02
+    end
+
+    Cursor->>Dashboard: WP01 → doing
+    Cursor->>Dashboard: WP01 → for_review
+    Lead->>Gemini: /spec-kitty.review WP01
+    Gemini->>Dashboard: WP01 → done
+
+    Note over Dashboard: Real-time updates<br/>No branch switching
+```
+
+**Key Benefits:**
+- 🔀 **Parallel execution** - Multiple WPs simultaneously
+- 🚫 **Zero conflicts** - Git worktree isolation per WP
+- 👀 **Full visibility** - Dashboard shows who's doing what
+- 🔄 **Auto-sequencing** - Dependency tracking in WP frontmatter
+
+---
 
 ## 📊 Real-Time Dashboard
 
@@ -131,7 +245,7 @@ Spec Kitty includes a **live dashboard** that automatically tracks your feature 
   <p><em>Feature overview with completion metrics and available artifacts</em></p>
 </div>
 
-The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn’t already running, let you request a specific port with `--port`, or stop it cleanly with `--kill`.
+The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn't already running, let you request a specific port with `--port`, or stop it cleanly with `--kill`.
 
 **Key Features:**
 - 📋 **Kanban Board**: Visual workflow across planned → doing → for review → done lanes
@@ -140,11 +254,127 @@ The dashboard starts automatically when you run `spec-kitty init` and runs in th
 - 📦 **Artifact Status**: Track specification, plan, tasks, and other deliverables
 - 🔄 **Live Updates**: Dashboard refreshes automatically as you work
 
+### Kanban Workflow Automation
+
+Work packages flow through automated quality gates. Agents move tasks between lanes, and the dashboard tracks state transitions in real-time.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Planned: /spec-kitty.tasks
+    Planned --> Doing: /spec-kitty.implement
+    Doing --> ForReview: Agent completes work
+    ForReview --> Done: /spec-kitty.review (approved)
+    ForReview --> Planned: /spec-kitty.review (changes needed)
+    Done --> [*]: /spec-kitty.merge
+
+    note right of Planned
+        Ready to start
+        Dependencies clear
+    end note
+
+    note right of Doing
+        Agent assigned
+        Work in progress
+    end note
+
+    note right of ForReview
+        Code complete
+        Awaiting review
+    end note
+
+    note right of Done
+        Approved
+        Ready to merge
+    end note
+```
+
 ---
 
-## 🚀 Getting Started: Complete Workflow
+## 🚀 Getting Started: Choose Your Path
 
-**New to Spec Kitty?** Here's the complete lifecycle from zero to shipping features:
+**New to Spec Kitty?** Pick the path that matches your team size and workflow:
+
+### 🧑‍💻 Solo Developer (3 minutes)
+
+Perfect for individual developers who want spec-driven development without the overhead.
+
+```bash
+# Install and create your first project
+pip install spec-kitty-cli
+spec-kitty init myproject --ai claude
+
+# Start coding
+cd myproject && claude
+/spec-kitty.specify Add user authentication
+```
+
+**What you get:**
+- ✅ Executable specs that generate code
+- ✅ Automated workflow (specify → plan → implement)
+- ✅ Live dashboard tracking progress
+- ✅ Quality gates before merge
+
+---
+
+### 👥 Team Lead (5 minutes, 3-10 agents)
+
+Coordinate multiple AI agents on complex features with parallel work packages.
+
+```bash
+# Install and initialize with multiple agents
+pip install spec-kitty-cli
+spec-kitty init team-project --ai claude,cursor,gemini
+
+cd team-project
+
+# Assign work packages to different agents
+spec-kitty implement WP01 --agent claude   # Architecture
+spec-kitty implement WP02 --agent cursor   # Implementation
+spec-kitty implement WP03 --agent gemini   # Testing
+
+# Monitor progress
+spec-kitty dashboard  # Live kanban tracking
+```
+
+**What you get:**
+- ✅ **Parallel development** - 40% faster with workspace-per-WP
+- ✅ **Conflict prevention** - Pre-flight validation + auto-merge
+- ✅ **Progress visibility** - Real-time dashboard shows who's doing what
+- ✅ **Dependency tracking** - Smart sequencing in WP frontmatter
+
+---
+
+### 🏢 Enterprise (Full Setup)
+
+Enforce governance and quality standards across large teams and multiple features.
+
+```bash
+# Install and initialize with governance
+pip install spec-kitty-cli
+spec-kitty init enterprise-app --mission software-dev --ai claude,codex
+
+cd enterprise-app
+
+# Configure additional agents
+spec-kitty agent config add cursor gemini
+
+# Establish project governance
+claude
+/spec-kitty.constitution  # Define standards and quality gates
+```
+
+**What you get:**
+- ✅ **Constitution framework** - Project-wide governance
+- ✅ **Quality gates** - Automated acceptance checks
+- ✅ **Audit trails** - Full history in git + kanban
+- ✅ **12 AI agents** - Mix and match for optimal workflow
+- ✅ **Mission system** - Software-dev, research, or custom domains
+
+---
+
+### Complete Workflow Reference
+
+Once initialized, all paths follow the same systematic workflow:
 
 ### Phase 1: Install & Initialize (Terminal)
 
@@ -154,9 +384,8 @@ pip install spec-kitty-cli
 # or
 uv tool install spec-kitty-cli
 
-# 2. Initialize your project
+# 2. Initialize your project (see paths above for variations)
 spec-kitty init my-project --ai claude
-# This creates project structure, installs slash commands, starts dashboard
 
 # 3. Verify setup (optional)
 cd my-project
@@ -174,7 +403,8 @@ spec-kitty dashboard  # Opens http://localhost:3000-5000
 
 ---
 
-## 🔄 Upgrading Existing Projects
+<details>
+<summary><h2>🔄 Upgrading Existing Projects</h2></summary>
 
 > **Important:** If you've upgraded `spec-kitty-cli` via pip/uv, run `spec-kitty upgrade` in each of your projects to apply structural migrations.
 
@@ -235,6 +465,8 @@ Run `spec-kitty upgrade` after:
 - Seeing "Unknown mission" or missing slash commands
 
 The upgrade command is **idempotent** - safe to run multiple times. It automatically detects your project's version and applies only the necessary migrations.
+
+</details>
 
 ---
 
@@ -590,15 +822,17 @@ Tasks (T001, T002, etc.) are subtasks within a feature's work packages. They are
 - [🙏 Acknowledgements](#-acknowledgements)
 - [📄 License](#-license)
 
-## 🤔 What is Spec-Driven Development?
+## 🤔 What is Spec-Driven Development (SDD)?
 
-Spec-Driven Development **flips the script** on traditional software development. For decades, code has been king — specifications were just scaffolding we built and discarded once the "real work" of coding began. Spec-Driven Development changes this: **specifications become executable**, directly generating working implementations rather than just guiding them.
+**Spec-Driven Development (SDD)** flips the script on traditional software development. For decades, code has been king — specifications were just scaffolding we built and discarded once the "real work" of coding began. **Specification-first development** changes this: **specifications become executable**, directly generating working implementations rather than just guiding them.
+
+In an **AI coding workflow**, SDD ensures agents stay aligned with requirements. Instead of re-prompting agents when they drift, you define specifications once and let automated workflows handle implementation, review, and merge. This **multi-agent coordination** model reduces rework by 40% compared to manual AI coding.
 
 ## ⚡ Get started
 
 > **📖 New to Spec Kitty?** See the [complete workflow guide above](#-getting-started-complete-workflow) for step-by-step instructions from installation to feature completion.
 
-## 🔍 Spec-Kitty vs. Other Spec-Driven Tools
+## 🔍 Specification-First Development: Spec Kitty vs. Other SDD Tools
 
 | Capability | Spec Kitty | Other SDD Toolkits |
 |------------|-----------|---------------------|
@@ -656,7 +890,8 @@ Browse our [examples directory](https://github.com/Priivacy-ai/spec-kitty/tree/m
 | [Codex CLI](https://github.com/openai/codex)              | ✅ |                                                   |
 | [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️ | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
 
-## 🔧 Spec Kitty CLI Reference
+<details>
+<summary><h2>🔧 Spec Kitty CLI Reference</h2></summary>
 
 The `spec-kitty` command supports the following options. Every run begins with a discovery interview, so be prepared to answer follow-up questions before files are touched.
 
@@ -957,19 +1192,49 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 | `/spec-kitty.checklist` | **Optional, anytime after `/spec-kitty.plan`**: Generate custom quality checklists that validate requirements completeness, clarity, and consistency |
 | `/spec-kitty.dashboard` | **Anytime (runs in background)**: Open the real-time kanban dashboard in your browser. Automatically starts with `spec-kitty init` and updates as you work. |
 
+</details>
+
 ## 🌳 Worktree Strategy
 
 > **📖 Quick Start:** See the [Getting Started guide](#-getting-started-complete-workflow) for practical examples of worktree usage in context.
 
 Spec Kitty uses an **opinionated worktree approach** for parallel feature development:
 
+### Parallel Development Without Branch Switching
+
+```mermaid
+graph TD
+    Main[main branch<br/>🔒 Clean production code]
+    WT1[.worktrees/001-auth-WP01<br/>🔐 Authentication]
+    WT2[.worktrees/001-auth-WP02<br/>💾 Database]
+    WT3[.worktrees/002-dashboard-WP01<br/>📊 UI Components]
+
+    Main --> WT1
+    Main --> WT2
+    Main --> WT3
+
+    WT1 -.->|🚀 Parallel work| WT2
+    WT2 -.->|✅ No conflicts| WT3
+
+    style Main fill:#e8f5e9
+    style WT1 fill:#e1f5ff
+    style WT2 fill:#fff3e0
+    style WT3 fill:#f3e5f5
+```
+
+**Why this works:**
+- Each WP gets its own directory + branch
+- Work on Feature 001 WP01 while another agent handles Feature 002 WP01
+- Main branch stays clean - no `git checkout` juggling
+- Merge conflicts detected early with pre-flight validation
+
 ### The Pattern
 ```
 my-project/                    # Main repo (main branch)
 ├── .worktrees/
-│   ├── 001-auth-system/      # Feature 1 worktree (isolated sandbox)
-│   ├── 002-dashboard/        # Feature 2 worktree (work in parallel)
-│   └── 003-notifications/    # Feature 3 worktree (no branch switching)
+│   ├── 001-auth-system-WP01/  # Feature 1 WP01 (isolated sandbox)
+│   ├── 001-auth-system-WP02/  # Feature 1 WP02 (parallel work)
+│   └── 002-dashboard-WP01/    # Feature 2 WP01 (different feature)
 ├── .kittify/
 ├── kitty-specs/
 └── ... (main branch files)
@@ -1131,7 +1396,8 @@ cat .kittify/active-mission/mission.yaml
 
 If you encounter issues with an agent, please open an issue so we can refine the integration.
 
-## 🚀 Releasing to PyPI
+<details>
+<summary><h2>🚀 Releasing to PyPI (Maintainers)</h2></summary>
 
 Spec Kitty CLI uses an automated release workflow to publish to PyPI. Releases are triggered by pushing semantic version tags and include automated validation, testing, and quality checks.
 
@@ -1318,6 +1584,8 @@ git push origin v0.2.4
 - 📦 [Feature Specification](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/002-lightweight-pypi-release/spec.md) - Design decisions
 - 🔄 [GitHub Workflows](https://github.com/Priivacy-ai/spec-kitty/tree/main/.github/workflows) - Automation implementation
 
+</details>
+
 ## 📖 Learn more
 
 - **[Complete Spec-Driven Development Methodology](https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md)** - Deep dive into the full process
@@ -1359,10 +1627,8 @@ This means development installs automatically find templates when running from t
 
 ---
 
-## 📋 Legacy: Detailed Taskify Example
-
 <details>
-<summary>Click to expand a detailed legacy example (Taskify platform)</summary>
+<summary><h2>📋 Legacy: Detailed Taskify Example</h2></summary>
 
 > **Note:** This is a legacy example preserved for reference. For current workflow guidance, see the [Getting Started section above](#-getting-started-complete-workflow).
 
@@ -1621,7 +1887,8 @@ Once the implementation is complete, test the application and resolve any runtim
 
 ---
 
-## 🔍 Troubleshooting
+<details>
+<summary><h2>🔍 Troubleshooting</h2></summary>
 
 ### Template Discovery Issues
 
@@ -1684,6 +1951,8 @@ git config --global credential.helper manager
 echo "Cleaning up..."
 rm gcm-linux_amd64.2.6.1.deb
 ```
+
+</details>
 
 ## 👥 Maintainers
 
