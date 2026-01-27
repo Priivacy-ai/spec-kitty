@@ -120,6 +120,7 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-01-26-9](adrs/2026-01-26-9-worktree-cleanup-at-merge-not-eager.md) | Worktree Cleanup at Merge, Not Eager | Accepted | Git Repository Management |
 | [2026-01-27-10](adrs/2026-01-27-10-per-feature-mission-selection.md) | Per-Feature Mission Selection | Accepted | Mission System |
 | [2026-01-27-11](adrs/2026-01-27-11-dual-repository-pattern.md) | Dual-Repository Pattern for Private Dependency | Accepted | Dependency Management |
+| [2026-01-27-12](adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md) | Two-Branch Strategy for SaaS Transformation | Accepted | Release Strategy |
 
 ### By Topic
 
