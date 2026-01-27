@@ -215,91 +215,9 @@ stateDiagram-v2
 
 ---
 
-## 🚀 Getting Started: Choose Your Path
+## 🚀 Getting Started: Complete Workflow
 
-**New to Spec Kitty?** Pick the path that matches your team size and workflow:
-
-### 🧑‍💻 Solo Developer (3 minutes)
-
-Perfect for individual developers who want spec-driven development without the overhead.
-
-```bash
-# Install and create your first project
-pip install spec-kitty-cli
-spec-kitty init myproject --ai claude
-
-# Start coding
-cd myproject && claude
-/spec-kitty.specify Add user authentication
-```
-
-**What you get:**
-- ✅ Executable specs that generate code
-- ✅ Automated workflow (specify → plan → implement)
-- ✅ Live dashboard tracking progress
-- ✅ Quality gates before merge
-
----
-
-### 👥 Team Lead (5 minutes, 3-10 agents)
-
-Coordinate multiple AI agents on complex features with parallel work packages.
-
-```bash
-# Install and initialize with multiple agents
-pip install spec-kitty-cli
-spec-kitty init team-project --ai claude,cursor,gemini
-
-cd team-project
-
-# Assign work packages to different agents
-spec-kitty implement WP01 --agent claude   # Architecture
-spec-kitty implement WP02 --agent cursor   # Implementation
-spec-kitty implement WP03 --agent gemini   # Testing
-
-# Monitor progress
-spec-kitty dashboard  # Live kanban tracking
-```
-
-**What you get:**
-- ✅ **Parallel development** - 40% faster with workspace-per-WP
-- ✅ **Conflict prevention** - Pre-flight validation + auto-merge
-- ✅ **Progress visibility** - Real-time dashboard shows who's doing what
-- ✅ **Dependency tracking** - Smart sequencing in WP frontmatter
-
----
-
-### 🏢 Enterprise (Full Setup)
-
-Enforce governance and quality standards across large teams and multiple features.
-
-```bash
-# Install and initialize with governance
-pip install spec-kitty-cli
-spec-kitty init enterprise-app --mission software-dev --ai claude,codex
-
-cd enterprise-app
-
-# Configure additional agents
-spec-kitty agent config add cursor gemini
-
-# Establish project governance
-claude
-/spec-kitty.constitution  # Define standards and quality gates
-```
-
-**What you get:**
-- ✅ **Constitution framework** - Project-wide governance
-- ✅ **Quality gates** - Automated acceptance checks
-- ✅ **Audit trails** - Full history in git + kanban
-- ✅ **12 AI agents** - Mix and match for optimal workflow
-- ✅ **Mission system** - Software-dev, research, or custom domains
-
----
-
-### Complete Workflow Reference
-
-Once initialized, all paths follow the same systematic workflow:
+**New to Spec Kitty?** Here's the complete lifecycle from zero to shipping features:
 
 ### Phase 1: Install & Initialize (Terminal)
 
@@ -309,7 +227,7 @@ pip install spec-kitty-cli
 # or
 uv tool install spec-kitty-cli
 
-# 2. Initialize your project (see paths above for variations)
+# 2. Initialize your project
 spec-kitty init my-project --ai claude
 
 # 3. Verify setup (optional)
