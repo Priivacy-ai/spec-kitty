@@ -76,53 +76,19 @@ graph LR
 | 🎯 **Quality Gates** | Automated | Accept/review workflows with constitution checks |
 | 🌳 **Worktree Isolation** | Zero branch switching | `.worktrees/` per WP, main stays clean |
 
-
-
----
-
-## 🤝 Multi-Agent Coordination for AI Coding
-
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'quadrant1Fill':'#e8f5e9', 'quadrant2Fill':'#e1f5ff', 'quadrant3Fill':'#fff3e0', 'quadrant4Fill':'#fce4ec'}}}%%
-quadrantChart
-    title AI Coding Framework Positioning
-    x-axis Low Visibility --> High Visibility
-    y-axis Single Agent --> Multi-Agent
-    quadrant-1 Enterprise Orchestration
-    quadrant-2 Team Productivity
-    quadrant-3 Solo Developer
-    quadrant-4 Legacy Tools
-
-    Spec Kitty: [0.9, 0.85]
-    Claude-Flow: [0.7, 0.75]
-    BMAD Method: [0.6, 0.55]
-    Beads: [0.4, 0.3]
-    Gastown: [0.5, 0.5]
-```
-
-**Spec Kitty optimizes for visibility and coordination** - essential for teams managing 3+ AI agents or complex features requiring parallel work packages.
-
-**Why Not...?**
-- **Claude-Flow**: Use if you need 60+ agents for enterprise orchestration. Use Spec Kitty for 3-10 agents with hands-on control.
-- **BMAD Method**: Use if you prefer collaborative AI (AI assists, you lead). Use Spec Kitty for automated quality gates and kanban tracking.
-- **Beads**: Use if you need hash-based context graphs for long-term projects. Use Spec Kitty for dashboard-driven workflows and git worktrees.
-- **Manual AI coding**: Use for weekend prototypes. Use Spec Kitty when you need quality gates, progress tracking, or multi-agent teams.
-
----
-## 🎯 Core Features
-
-- 📊 **Live Kanban Dashboard** - Real-time visibility into AI agent progress (run `spec-kitty dashboard`)
-- 👥 **12 AI Agents Supported** - Claude Code, Cursor, Windsurf, Gemini, Copilot, and more
-- 🔄 **Systematic Workflow** - Spec → Plan → Tasks → Implement → Review → Merge
-- 📦 **Git Worktrees** - Parallel feature isolation without branch switching
-- ✅ **Quality Gates** - Constitution framework + automated acceptance checks
-- 🐍 **Python CLI** - Cross-platform automation (v0.10.0+, no bash scripts)
+**Jump to:**
+[Getting Started](#-getting-started-complete-workflow) •
+[Examples](#-examples) •
+[12 AI Agents](#-supported-ai-agents) •
+[CLI Reference](#-spec-kitty-cli-reference) •
+[Worktrees](#-worktree-strategy) •
+[Troubleshooting](#-troubleshooting)
 
 ---
 
 ## 🤝 Multi-Agent Coordination for AI Coding
 
-Orchestrate 3-5 AI agents on a single feature without conflicts. Each agent works in isolated worktrees while the live dashboard tracks progress across all work packages.
+Orchestrate multiple AI agents on a single feature without conflicts. Each agent works in isolated worktrees while the live dashboard tracks progress across all work packages.
 
 ```mermaid
 sequenceDiagram
@@ -153,6 +119,32 @@ sequenceDiagram
 - 🚫 **Zero conflicts** - Git worktree isolation per WP
 - 👀 **Full visibility** - Dashboard shows who's doing what
 - 🔄 **Auto-sequencing** - Dependency tracking in WP frontmatter
+
+### Competitive Landscape
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'quadrant1Fill':'#e8f5e9', 'quadrant2Fill':'#e1f5ff', 'quadrant3Fill':'#fff3e0', 'quadrant4Fill':'#fce4ec'}}}%%
+quadrantChart
+    title AI Coding Framework Positioning
+    x-axis Low Visibility --> High Visibility
+    y-axis Single Agent --> Multi-Agent
+    quadrant-1 Enterprise Orchestration
+    quadrant-2 Team Productivity
+    quadrant-3 Solo Developer
+    quadrant-4 Legacy Tools
+
+    Spec Kitty: [0.9, 0.85]
+    Claude-Flow: [0.7, 0.75]
+    BMAD Method: [0.6, 0.55]
+    Beads: [0.4, 0.3]
+    Gastown: [0.5, 0.5]
+```
+
+**Why Not...?**
+- **Claude-Flow**: Use if you need 60+ agents for enterprise orchestration. Use Spec Kitty for 3-10 agents with hands-on control.
+- **BMAD Method**: Use if you prefer collaborative AI (AI assists, you lead). Use Spec Kitty for automated quality gates and kanban tracking.
+- **Beads**: Use if you need hash-based context graphs for long-term projects. Use Spec Kitty for dashboard-driven workflows and git worktrees.
+- **Manual AI coding**: Use for weekend prototypes. Use Spec Kitty when you need quality gates, progress tracking, or multi-agent teams.
 
 ---
 
@@ -639,56 +631,6 @@ No. Initialize a project once, then create as many features as you need with `/s
 Tasks (T001, T002, etc.) are subtasks within a feature's work packages. They are **not** separate features or projects.
 
 ---
-
-## Table of Contents
-
-- [🚀 Getting Started: Complete Workflow](#-getting-started-complete-workflow)
-- [🔄 Upgrading Existing Projects](#-upgrading-existing-projects)
-- [📋 Quick Reference: Command Order](#-quick-reference-command-order)
-- [📚 Terminology](#-terminology)
-- [🎯 Why Spec-Kitty?](#-why-spec-kitty)
-- [📊 Real-Time Dashboard](#-real-time-dashboard)
-- [🔍 Spec-Kitty vs. Other Spec-Driven Tools](#-spec-kitty-vs-other-spec-driven-tools)
-- [📦 Examples](#-examples)
-- [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
-- [⚡ Get started](#-get-started)
-- [🤖 Supported AI Agents](#-supported-ai-agents)
-- [🔧 Spec Kitty CLI Reference](#-spec-kitty-cli-reference)
-- [🌳 Worktree Strategy](#-worktree-strategy)
-- [✅ Feature Acceptance & Merge Workflow](#-feature-acceptance--merge-workflow)
-- [🔧 Prerequisites](#-prerequisites)
-- [📖 Learn more](#-learn-more)
-- [📋 Detailed process](#-detailed-process)
-- [🔍 Troubleshooting](#-troubleshooting)
-- [👥 Maintainers](#-maintainers)
-- [💬 Support](#-support)
-- [🙏 Acknowledgements](#-acknowledgements)
-- [📄 License](#-license)
-
-## 🤔 What is Spec-Driven Development (SDD)?
-
-**Spec-Driven Development (SDD)** flips the script on traditional software development. For decades, code has been king — specifications were just scaffolding we built and discarded once the "real work" of coding began. **Specification-first development** changes this: **specifications become executable**, directly generating working implementations rather than just guiding them.
-
-In an **AI coding workflow**, SDD ensures agents stay aligned with requirements. Instead of re-prompting agents when they drift, you define specifications once and let automated workflows handle implementation, review, and merge. This **multi-agent coordination** model reduces rework by 40% compared to manual AI coding.
-
-## ⚡ Get started
-
-> **📖 New to Spec Kitty?** See the [complete workflow guide above](#-getting-started-complete-workflow) for step-by-step instructions from installation to feature completion.
-
-## 🔍 Specification-First Development: Spec Kitty vs. Other SDD Tools
-
-| Capability | Spec Kitty | Other SDD Toolkits |
-|------------|-----------|---------------------|
-| Real-time kanban dashboard with agent telemetry | ✅ Built-in dashboard with lane automation | ⚠️ Often requires third-party integrations |
-| AI discovery interview gates (`WAITING_FOR_*_INPUT`) | ✅ Mandatory across spec, plan, tasks | ⚠️ Frequently optional or absent |
-| Worktree-aware prompt generation | ✅ Prompts align with git worktrees and task lanes | ❌ Typically manual setup |
-| Multi-agent orchestration playbooks | ✅ Bundled docs + scripts for coordination | ⚠️ Sparse or ad-hoc guidance |
-| Agent-specific command scaffolding (Claude, Gemini, Cursor, etc.) | ✅ Generated during `spec-kitty init` | ⚠️ Usually limited to one assistant |
-| Specification, plan, tasks, and merge automation | ✅ End-to-end command suite | ⚠️ Partial coverage |
-| Cross-agent coordination guides | ✅ Built-in examples & playbooks | ⚠️ Typically community-sourced |
-| Live progress visibility | ✅ Real-time dashboard | ❌ Manual status checks |
-| Parallel feature development | ✅ Worktree isolation + dashboard | ⚠️ Branch-based, limited visibility |
-| Quality gate automation | ✅ Accept/merge commands | ⚠️ Manual verification |
 
 ## 📦 Examples
 
