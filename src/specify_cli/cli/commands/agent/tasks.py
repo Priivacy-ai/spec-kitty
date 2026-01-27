@@ -14,7 +14,11 @@ from rich.console import Console
 from typing_extensions import Annotated
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
-from specify_cli.core.paths import locate_project_root, get_main_repo_root, find_feature_slug, is_worktree_context
+from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
+from specify_cli.core.feature_detection import (
+    detect_feature_slug,
+    FeatureDetectionError,
+)
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.tasks_support import (
     LANES,
@@ -38,8 +42,11 @@ app = typer.Typer(
 console = Console()
 
 
-def _find_feature_slug() -> str:
-    """Find the current feature slug from the working directory or git branch.
+def _find_feature_slug(explicit_feature: str | None = None) -> str:
+    """Find the current feature slug using centralized detection.
+
+    Args:
+        explicit_feature: Optional explicit feature slug from --feature flag
 
     Returns:
         Feature slug (e.g., "008-unified-python-cli")
@@ -53,11 +60,16 @@ def _find_feature_slug() -> str:
     if repo_root is None:
         raise typer.Exit(1)
 
-    slug = find_feature_slug(repo_root)
-    if slug is None:
+    try:
+        return detect_feature_slug(
+            repo_root,
+            explicit_feature=explicit_feature,
+            cwd=cwd,
+            mode="strict"
+        )
+    except FeatureDetectionError as e:
+        console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
-
-    return slug
 
 
 def _output_result(json_mode: bool, data: dict, success_message: str = None):
@@ -485,7 +497,7 @@ def move_task(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Informational: Let user know we're using main repo's kitty-specs
         cwd = Path.cwd().resolve()
@@ -781,7 +793,7 @@ def mark_status(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
         # Use main repo root (worktrees have kitty-specs/ sparse-checked out)
         main_repo_root = get_main_repo_root(repo_root)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
@@ -918,7 +930,7 @@ def list_tasks(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Use main repo (worktrees have kitty-specs/ sparse-checked out)
         main_repo_root = get_main_repo_root(repo_root)
@@ -991,7 +1003,7 @@ def add_history(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, task_id)
@@ -1053,7 +1065,7 @@ def finalize_tasks(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
         # Use main repo (worktrees have kitty-specs/ sparse-checked out)
         main_repo_root = get_main_repo_root(repo_root)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
@@ -1170,7 +1182,7 @@ def validate_workflow(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, task_id)
@@ -1272,7 +1284,7 @@ def status(
             raise typer.Exit(1)
 
         # Auto-detect or use provided feature slug
-        feature_slug = feature if feature else _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Get main repo root for correct path resolution
         main_repo_root = get_main_repo_root(repo_root)
@@ -1527,7 +1539,7 @@ def list_dependents(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
         main_repo_root = get_main_repo_root(repo_root)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
 

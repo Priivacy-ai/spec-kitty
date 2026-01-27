@@ -33,12 +33,19 @@ from specify_cli.tasks_support import (
 from specify_cli.workspace_context import WorkspaceContext, save_context
 from specify_cli.core.multi_parent_merge import create_multi_parent_base
 from specify_cli.core.context_validation import require_main_repo
+from specify_cli.core.feature_detection import (
+    detect_feature,
+    FeatureDetectionError,
+)
 
 console = Console()
 
 
 def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
-    """Detect feature number and slug from current context.
+    """Detect feature number and slug from current context using centralized detection.
+
+    This function now uses the centralized feature detection module
+    to provide deterministic, consistent behavior across all commands.
 
     Args:
         feature_flag: Explicit feature slug from --feature flag (optional)
@@ -50,88 +57,21 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
     Raises:
         typer.Exit: If feature context cannot be detected
     """
-    # Priority 1: Explicit --feature flag
-    if feature_flag:
-        match = re.match(r'^(\d{3})-(.+)$', feature_flag)
-        if match:
-            number = match.group(1)
-            return number, feature_flag
-        else:
-            console.print(f"[red]Error:[/red] Invalid feature format: {feature_flag}")
-            console.print("Expected format: ###-feature-name (e.g., 001-my-feature)")
-            raise typer.Exit(1)
-
-    # Priority 2: Try git branch
-    result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False
-    )
-
-    if result.returncode == 0:
-        branch = result.stdout.strip()
-
-        # Pattern 1: WP branch (###-feature-name-WP##)
-        # Check this FIRST - more specific pattern
-        # Extract feature slug by removing -WP## suffix
-        match = re.match(r'^((\d{3})-.+)-WP\d{2}$', branch)
-        if match:
-            slug = match.group(1)
-            number = match.group(2)
-            return number, slug
-
-        # Pattern 2: Feature branch (###-feature-name)
-        match = re.match(r'^(\d{3})-(.+)$', branch)
-        if match:
-            number = match.group(1)
-            slug = branch
-            return number, slug
-
-    # Try current directory
-    cwd = Path.cwd()
-    # Look for kitty-specs/###-feature-name/ in path
-    for part in cwd.parts:
-        match = re.match(r'^(\d{3})-(.+)$', part)
-        if match:
-            number = match.group(1)
-            slug = part
-            return number, slug
-
-    # Try scanning kitty-specs/ for features (v0.11.0 workflow)
     try:
         repo_root = find_repo_root()
-        kitty_specs = repo_root / "kitty-specs"
-        if kitty_specs.exists():
-            # Find all feature directories
-            features = [
-                d.name for d in kitty_specs.iterdir()
-                if d.is_dir() and re.match(r'^\d{3}-', d.name)
-            ]
-
-            if len(features) == 1:
-                # Only one feature - use it automatically
-                match = re.match(r'^(\d{3})-(.+)$', features[0])
-                if match:
-                    number = match.group(1)
-                    slug = features[0]
-                    return number, slug
-            elif len(features) > 1:
-                # Multiple features - need user to specify
-                console.print("[red]Error:[/red] Multiple features found:")
-                for f in sorted(features):
-                    console.print(f"  - {f}")
-                console.print("\nSpecify feature explicitly:")
-                console.print("  spec-kitty implement WP01 --feature 001-my-feature")
-                raise typer.Exit(1)
+        ctx = detect_feature(
+            repo_root,
+            explicit_feature=feature_flag,
+            cwd=Path.cwd(),
+            mode="strict"
+        )
+        return ctx.number, ctx.slug
     except TaskCliError:
-        # Not in a git repo, continue to generic error
-        pass
-
-    # Cannot detect
-    console.print("[red]Error:[/red] Cannot detect feature context")
-    console.print("Run this command from a feature branch or feature directory")
-    raise typer.Exit(1)
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+    except FeatureDetectionError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
 
 
 def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:

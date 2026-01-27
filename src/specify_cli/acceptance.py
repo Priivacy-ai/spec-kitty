@@ -26,6 +26,10 @@ from .tasks_support import (
 )
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
+from specify_cli.core.feature_detection import (
+    detect_feature_slug as centralized_detect_feature_slug,
+    FeatureDetectionError,
+)
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
@@ -229,37 +233,32 @@ def detect_feature_slug(
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
 ) -> str:
-    env = env or os.environ
-    if "SPECIFY_FEATURE" in env and env["SPECIFY_FEATURE"].strip():
-        return env["SPECIFY_FEATURE"].strip()
+    """Detect feature slug using centralized detection.
 
+    This function maintains backward compatibility while delegating
+    to the centralized feature detection module.
+
+    Args:
+        repo_root: Repository root path
+        env: Environment variables (defaults to os.environ)
+        cwd: Current working directory (defaults to Path.cwd())
+
+    Returns:
+        Feature slug (e.g., "020-my-feature")
+
+    Raises:
+        AcceptanceError: If feature slug cannot be determined
+    """
     try:
-        branch = (
-            run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, check=True)
-            .stdout.strip()
+        return centralized_detect_feature_slug(
+            repo_root,
+            env=env,
+            cwd=cwd,
+            mode="strict"
         )
-        if branch and branch != "HEAD" and re.match(r"^\d{3}-", branch):
-            return branch
-    except TaskCliError:
-        pass
-
-    cwd = (cwd or Path.cwd()).resolve()
-    for parent in [cwd, *cwd.parents]:
-        if parent.name.startswith(".worktrees"):
-            parts = list(parent.parts)
-            try:
-                idx = parts.index(".worktrees")
-                candidate = parts[idx + 1]
-                if re.match(r"^\d{3}-", candidate):
-                    return candidate
-            except (ValueError, IndexError):
-                continue
-        if parent.name.startswith("0") and re.match(r"^\d{3}-", parent.name):
-            return parent.name
-
-    raise AcceptanceError(
-        "Unable to determine feature slug automatically. Provide --feature explicitly."
-    )
+    except FeatureDetectionError as e:
+        # Convert to AcceptanceError for backward compatibility
+        raise AcceptanceError(str(e)) from e
 
 
 def _read_file(path: Path) -> str:

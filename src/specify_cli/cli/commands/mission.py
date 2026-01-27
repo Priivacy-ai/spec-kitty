@@ -20,6 +20,10 @@ from specify_cli.mission import (
     get_mission_for_feature,
     list_available_missions,
 )
+from specify_cli.core.feature_detection import (
+    detect_feature,
+    FeatureDetectionError,
+)
 
 app = typer.Typer(
     name="mission",
@@ -157,38 +161,26 @@ def list_cmd() -> None:
 
 
 def _detect_current_feature(project_root: Path) -> Optional[str]:
-    """Detect feature slug from current working directory.
+    """Detect feature slug from current working directory using centralized detection.
+
+    This function uses lenient mode to return None on failure (UI convenience).
+
+    Args:
+        project_root: Project root path
 
     Returns:
         Feature slug if detected, None otherwise
     """
-    import re
-
     try:
-        cwd = Path.cwd()
-
-        # Check if in kitty-specs directory
-        if "kitty-specs" in cwd.parts:
-            parts = list(cwd.parts)
-            idx = parts.index("kitty-specs")
-            if idx + 1 < len(parts):
-                return parts[idx + 1]
-
-        # Check if in .worktrees directory
-        if ".worktrees" in cwd.parts:
-            parts = list(cwd.parts)
-            idx = parts.index(".worktrees")
-            if idx + 1 < len(parts):
-                worktree_name = parts[idx + 1]
-                # Extract feature slug from worktree name (format: feature-slug-WP##)
-                match = re.match(r"^(.+)-WP\d+$", worktree_name)
-                if match:
-                    return match.group(1)
-                return worktree_name
+        ctx = detect_feature(
+            project_root,
+            cwd=Path.cwd(),
+            mode="lenient"  # Return None instead of raising error
+        )
+        return ctx.slug if ctx else None
     except Exception:
-        pass
-
-    return None
+        # Catch any unexpected errors and return None (lenient behavior)
+        return None
 
 
 @app.command("current")

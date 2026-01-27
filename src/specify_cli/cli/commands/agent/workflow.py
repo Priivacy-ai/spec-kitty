@@ -17,7 +17,11 @@ from specify_cli.core.implement_validation import (
     validate_and_resolve_base,
     validate_base_workspace_exists,
 )
-from specify_cli.core.paths import find_feature_slug, locate_project_root
+from specify_cli.core.paths import locate_project_root
+from specify_cli.core.feature_detection import (
+    detect_feature_slug,
+    FeatureDetectionError,
+)
 from specify_cli.mission import get_deliverables_path, get_feature_mission_key
 from specify_cli.tasks_support import (
     append_activity_log,
@@ -57,8 +61,11 @@ app = typer.Typer(
 )
 
 
-def _find_feature_slug() -> str:
-    """Find the current feature slug from the working directory or git branch.
+def _find_feature_slug(explicit_feature: str | None = None) -> str:
+    """Find the current feature slug using centralized detection.
+
+    Args:
+        explicit_feature: Optional explicit feature slug from --feature flag
 
     Returns:
         Feature slug (e.g., "008-unified-python-cli")
@@ -73,15 +80,16 @@ def _find_feature_slug() -> str:
         print("Error: Not in a spec-kitty project.")
         raise typer.Exit(1)
 
-    slug = find_feature_slug(repo_root)
-    if slug is None:
-        print("Error: Could not auto-detect feature slug.")
-        print("  - Not in a kitty-specs/###-feature-slug directory")
-        print("  - Git branch name doesn't match ###-slug format")
-        print("  - Use --feature <slug> to specify explicitly")
+    try:
+        return detect_feature_slug(
+            repo_root,
+            explicit_feature=explicit_feature,
+            cwd=cwd,
+            mode="strict"
+        )
+    except FeatureDetectionError as e:
+        print(f"Error: {e}")
         raise typer.Exit(1)
-
-    return slug
 
 
 def _normalize_wp_id(wp_arg: str) -> str:
@@ -259,7 +267,7 @@ def implement(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Determine which WP to implement
         if wp_id:
@@ -696,7 +704,7 @@ def review(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Determine which WP to review
         if wp_id:

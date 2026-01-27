@@ -25,6 +25,11 @@ from specify_cli.core.dependency_graph import (
 )
 from specify_cli.core.git_ops import get_current_branch, is_git_repo, run_command
 from specify_cli.core.paths import is_worktree_context, locate_project_root
+from specify_cli.core.feature_detection import (
+    detect_feature,
+    detect_feature_directory,
+    FeatureDetectionError,
+)
 from specify_cli.core.worktree import (
     get_next_feature_number,
     setup_feature_directory,
@@ -101,90 +106,34 @@ def _commit_to_main(
             raise
 
 
-def _find_feature_directory(repo_root: Path, cwd: Path) -> Path:
-    """Find the current feature directory.
+def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | None = None) -> Path:
+    """Find the current feature directory using centralized detection.
 
-    Handles three contexts:
-    1. Worktree root (cwd contains kitty-specs/)
-    2. Inside feature directory (walk up to find kitty-specs/)
-    3. Main repo (find latest feature in kitty-specs/)
+    This function now uses the centralized feature detection module
+    to provide deterministic, consistent behavior across all commands.
 
     Args:
         repo_root: Repository root path
         cwd: Current working directory
+        explicit_feature: Optional explicit feature slug from --feature flag
 
     Returns:
         Path to feature directory
 
     Raises:
         ValueError: If feature directory cannot be determined
+        FeatureDetectionError: If detection fails
     """
-    # Check if we're in a worktree
-    if is_worktree_context(cwd):
-        # Get the current git branch name to match feature directory
-        try:
-            result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            branch_name = result.stdout.strip()
-        except subprocess.CalledProcessError:
-            branch_name = None
-
-        # Strategy 1: Check if cwd contains kitty-specs/ (we're at worktree root)
-        kitty_specs_candidate = cwd / "kitty-specs"
-        if kitty_specs_candidate.exists() and kitty_specs_candidate.is_dir():
-            kitty_specs = kitty_specs_candidate
-        else:
-            # Strategy 2: Walk up to find kitty-specs directory
-            kitty_specs = cwd
-            while kitty_specs != kitty_specs.parent:
-                if kitty_specs.name == "kitty-specs":
-                    break
-                kitty_specs = kitty_specs.parent
-
-            if kitty_specs.name != "kitty-specs":
-                raise ValueError("Could not locate kitty-specs directory in worktree")
-
-        # Find the ###-* feature directory that matches the branch name
-        if branch_name:
-            # First try exact match with branch name
-            branch_feature_dir = kitty_specs / branch_name
-            if branch_feature_dir.exists() and branch_feature_dir.is_dir():
-                return branch_feature_dir
-
-        # Fallback: Find any ###-* feature directory (for older worktrees)
-        for item in kitty_specs.iterdir():
-            if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
-                return item
-
-        raise ValueError("Could not find feature directory in worktree")
-    else:
-        # We're in main repo - find latest feature
-        specs_dir = repo_root / "kitty-specs"
-        if not specs_dir.exists():
-            raise ValueError("No kitty-specs directory found in repository")
-
-        # Find the highest numbered feature
-        max_num = 0
-        feature_dir = None
-        for item in specs_dir.iterdir():
-            if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
-                try:
-                    num = int(item.name[:3])
-                    if num > max_num:
-                        max_num = num
-                        feature_dir = item
-                except ValueError:
-                    continue
-
-        if feature_dir is None:
-            raise ValueError("No feature directories found in kitty-specs/")
-
-        return feature_dir
+    try:
+        return detect_feature_directory(
+            repo_root,
+            explicit_feature=explicit_feature,
+            cwd=cwd,
+            mode="strict"  # Raise error if ambiguous
+        )
+    except FeatureDetectionError as e:
+        # Convert to ValueError for backward compatibility
+        raise ValueError(str(e)) from e
 
 
 @app.command(name="create-feature")
@@ -434,6 +383,7 @@ def check_prerequisites(
 
 @app.command(name="setup-plan")
 def setup_plan(
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Scaffold implementation plan template in main repository.
@@ -443,6 +393,7 @@ def setup_plan(
 
     Examples:
         spec-kitty agent setup-plan --json
+        spec-kitty agent setup-plan --feature 020-my-feature --json
     """
     try:
         repo_root = locate_project_root()
@@ -454,9 +405,9 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        # Determine feature directory (main repo or worktree)
+        # Determine feature directory using centralized detection
         cwd = Path.cwd().resolve()
-        feature_dir = _find_feature_directory(repo_root, cwd)
+        feature_dir = _find_feature_directory(repo_root, cwd, explicit_feature=feature)
 
         plan_file = feature_dir / "plan.md"
 
