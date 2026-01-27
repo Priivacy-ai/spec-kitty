@@ -7,6 +7,28 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Git commit validation for "done" status transitions - prevents completing WPs with uncommitted changes
+- Empty branch detection in merge-base creation - warns when dependencies have no commits
+- Git commit workflow section in documentation mission template (consistency with software-dev/research)
+- Comprehensive troubleshooting guide for empty branch recovery in workspace-per-wp documentation
+
+### Fixed
+- WP agents can no longer mark tasks as "done" without committing implementation files
+- Multi-parent merge-bases no longer silently accept empty dependency branches
+- Documentation mission now instructs agents to commit work before review
+- Stale WP detection now correctly detects default branch name (main/master/develop) instead of hardcoding "main"
+  - **Bug**: Fresh worktrees incorrectly flagged as stale when repository used non-standard default branch
+  - **Root Cause**: Code hardcoded "main" as default branch; when `git merge-base HEAD main` failed, it fell through to using parent branch's old commit timestamp
+  - **Fix**: Added `get_default_branch()` helper to dynamically detect default branch via origin HEAD or local branch existence
+  - **Impact**: Prevents false staleness warnings for fresh worktrees in repos using "master", "develop", or other default branches
+
+### Changed
+- `move-task --to done` now validates git status (same checks as "for_review")
+- Use `--force` flag to bypass validation (not recommended)
+
 ## [0.13.5] - 2026-01-26
 
 ### 🐛 Fixed

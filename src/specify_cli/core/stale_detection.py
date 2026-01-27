@@ -30,6 +30,52 @@ class StaleCheckResult:
     error: str | None = None
 
 
+def get_default_branch(repo_path: Path) -> str:
+    """
+    Get the default branch name for the repository.
+
+    Tries multiple methods to detect the default branch:
+    1. Check origin's HEAD symbolic ref
+    2. Check which common branch exists (main, master, develop)
+    3. Fallback to "main"
+
+    Args:
+        repo_path: Path to the repository
+
+    Returns:
+        Default branch name (e.g., "main", "master", "develop")
+    """
+    import subprocess
+
+    # Method 1: Get from origin's HEAD
+    result = subprocess.run(
+        ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+
+    if result.returncode == 0:
+        # Output: "refs/remotes/origin/main" → extract "main"
+        ref = result.stdout.strip()
+        return ref.split("/")[-1]
+
+    # Method 2: Check which common branch exists
+    for branch in ["main", "master", "develop"]:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", branch],
+            cwd=repo_path,
+            capture_output=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return branch
+
+    # Method 3: Fallback
+    return "main"
+
+
 def get_last_meaningful_commit_time(worktree_path: Path) -> tuple[datetime | None, bool]:
     """
     Get the timestamp of the most recent meaningful commit in a worktree.
@@ -57,34 +103,41 @@ def get_last_meaningful_commit_time(worktree_path: Path) -> tuple[datetime | Non
         return None, False
 
     try:
-        # First, check if this branch has any commits since diverging from main
+        # Detect the actual default branch name (main, master, develop, etc.)
+        default_branch = get_default_branch(worktree_path)
+
+        # First, check if this branch has any commits since diverging from the default branch
         # This prevents false staleness when worktree was just created
         merge_base_result = subprocess.run(
-            ["git", "merge-base", "HEAD", "main"],
+            ["git", "merge-base", "HEAD", default_branch],
             cwd=worktree_path,
             capture_output=True,
             text=True,
             timeout=10,
         )
 
-        if merge_base_result.returncode == 0:
-            merge_base = merge_base_result.stdout.strip()
+        if merge_base_result.returncode != 0:
+            # Merge-base failed - branch might not exist, detached HEAD, etc.
+            # Return None to avoid using wrong commit timestamp from parent branch
+            return None, False
 
-            # Count commits on this branch since the merge base
-            count_result = subprocess.run(
-                ["git", "rev-list", "--count", f"{merge_base}..HEAD"],
-                cwd=worktree_path,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
+        merge_base = merge_base_result.stdout.strip()
 
-            if count_result.returncode == 0:
-                commit_count = int(count_result.stdout.strip())
-                if commit_count == 0:
-                    # No commits on this branch yet - worktree just created
-                    # Don't flag as stale since agent just started
-                    return None, False
+        # Count commits on this branch since the merge base
+        count_result = subprocess.run(
+            ["git", "rev-list", "--count", f"{merge_base}..HEAD"],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        if count_result.returncode == 0:
+            commit_count = int(count_result.stdout.strip())
+            if commit_count == 0:
+                # No commits on this branch yet - worktree just created
+                # Don't flag as stale since agent just started
+                return None, False
 
         # Get the last commit time on this branch
         result = subprocess.run(
