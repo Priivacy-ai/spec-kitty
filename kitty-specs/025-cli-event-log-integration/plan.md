@@ -246,11 +246,16 @@ All decisions validated with HIGH or MEDIUM confidence research evidence. See `r
 
 ### Agent Context Update
 
-**Updated Files**:
-- `.claude/commands/spec-kitty.implement.md`: Added event emission context
-- `.claude/commands/spec-kitty.status.md`: Added event reading context
+**Status**: NOT REQUIRED
 
-See agent context update section below for details.
+Event log integration is **internal infrastructure** - it happens behind the scenes via AOP middleware decorators. The command interfaces (`/spec-kitty.implement`, `/spec-kitty.status`, `/spec-kitty.specify`, etc.) remain unchanged from the user's perspective.
+
+**No template updates needed** because:
+- Event emission is automatic (via `@with_event_store` decorator)
+- Commands don't expose event log operations directly to users
+- Event log is transparent to agents (they use existing commands as before)
+
+**Future consideration**: If explicit event log commands are added (e.g., `/spec-kitty.events query`, `/spec-kitty.events rebuild-index`), those would require new command template files in `src/specify_cli/missions/software-dev/command-templates/`.
 
 ---
 
