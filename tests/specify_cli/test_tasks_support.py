@@ -2,7 +2,7 @@
 
 from pathlib import Path
 import pytest
-from specify_cli.tasks_support import find_repo_root, TaskCliError
+from specify_cli.tasks_support import find_repo_root, activity_entries, TaskCliError
 
 
 def test_find_repo_root_normal_repo(tmp_path):
@@ -136,3 +136,152 @@ def test_find_repo_root_walks_upward(tmp_path):
     # Should find repo root from deep subdirectory
     result = find_repo_root(deep_dir)
     assert result == tmp_path
+
+
+class TestActivityEntries:
+    """Tests for activity_entries() parser."""
+
+    def test_parse_simple_agent_name(self):
+        """Test parsing activity log with simple agent name (no hyphens)."""
+        body = """
+## Activity Log
+
+- 2026-01-26T15:00:00Z – cursor – shell_pid=12345 – lane=done – All work complete
+"""
+        entries = activity_entries(body)
+        
+        assert len(entries) == 1
+        assert entries[0]['timestamp'] == '2026-01-26T15:00:00Z'
+        assert entries[0]['agent'] == 'cursor'
+        assert entries[0]['shell_pid'] == '12345'
+        assert entries[0]['lane'] == 'done'
+        assert entries[0]['note'] == 'All work complete'
+
+    def test_parse_hyphenated_agent_name(self):
+        """Test parsing activity log with hyphenated agent name.
+        
+        This is the primary bug fix - agent names like 'cursor-agent',
+        'claude-reviewer' should be parsed correctly.
+        """
+        body = """
+## Activity Log
+
+- 2026-01-26T13:50:55Z – claude-reviewer – shell_pid=58988 – lane=done – Review complete
+- 2026-01-26T14:00:00Z – cursor-agent – shell_pid=12345 – lane=doing – Started work
+"""
+        entries = activity_entries(body)
+        
+        assert len(entries) == 2
+        
+        # First entry with hyphenated agent name
+        assert entries[0]['agent'] == 'claude-reviewer'
+        assert entries[0]['shell_pid'] == '58988'
+        assert entries[0]['lane'] == 'done'
+        
+        # Second entry with hyphenated agent name
+        assert entries[1]['agent'] == 'cursor-agent'
+        assert entries[1]['shell_pid'] == '12345'
+        assert entries[1]['lane'] == 'doing'
+
+    def test_parse_multiple_hyphens_in_agent_name(self):
+        """Test parsing agent names with multiple hyphens."""
+        body = """
+- 2026-01-26T10:00:00Z – my-custom-ai-agent – shell_pid=99999 – lane=planned – Starting task
+"""
+        entries = activity_entries(body)
+        
+        assert len(entries) == 1
+        assert entries[0]['agent'] == 'my-custom-ai-agent'
+
+    def test_parse_without_shell_pid(self):
+        """Test parsing activity log without shell_pid (optional field)."""
+        body = """
+- 2026-01-26T12:00:00Z – system – lane=planned – Auto-generated task
+"""
+        entries = activity_entries(body)
+        
+        assert len(entries) == 1
+        assert entries[0]['agent'] == 'system'
+        assert entries[0]['shell_pid'] == ''
+        assert entries[0]['lane'] == 'planned'
+
+    def test_parse_mixed_agent_names(self):
+        """Test parsing with mix of simple and hyphenated agent names."""
+        body = """
+## Activity Log
+
+- 2026-01-25T10:00:00Z – system – lane=planned – Task created
+- 2026-01-25T11:00:00Z – cursor-agent – shell_pid=11111 – lane=doing – Started implementation
+- 2026-01-25T12:00:00Z – cursor – shell_pid=22222 – lane=for_review – Ready for review
+- 2026-01-25T13:00:00Z – claude-reviewer – shell_pid=33333 – lane=done – Approved
+"""
+        entries = activity_entries(body)
+        
+        assert len(entries) == 4
+        assert entries[0]['agent'] == 'system'
+        assert entries[1]['agent'] == 'cursor-agent'
+        assert entries[2]['agent'] == 'cursor'
+        assert entries[3]['agent'] == 'claude-reviewer'
+
+    def test_parse_with_hyphen_separator(self):
+        """Test parsing with regular hyphen separator (not en-dash)."""
+        body = """
+- 2026-01-26T14:00:00Z - cursor-agent - shell_pid=12345 - lane=doing - Started work
+"""
+        entries = activity_entries(body)
+        
+        assert len(entries) == 1
+        assert entries[0]['agent'] == 'cursor-agent'
+        assert entries[0]['lane'] == 'doing'
+
+    def test_parse_with_en_dash_separator(self):
+        """Test parsing with en-dash separator (–, U+2013)."""
+        body = """
+- 2026-01-26T14:00:00Z – cursor-agent – shell_pid=12345 – lane=doing – Started work
+"""
+        entries = activity_entries(body)
+        
+        assert len(entries) == 1
+        assert entries[0]['agent'] == 'cursor-agent'
+        assert entries[0]['lane'] == 'doing'
+
+    def test_parse_multiline_note(self):
+        """Test that note field captures everything to end of line."""
+        body = """
+- 2026-01-26T14:00:00Z – cursor-agent – shell_pid=12345 – lane=done – Complex note with - hyphens and – dashes
+"""
+        entries = activity_entries(body)
+        
+        assert len(entries) == 1
+        assert entries[0]['note'] == 'Complex note with - hyphens and – dashes'
+
+    def test_parse_empty_body(self):
+        """Test parsing empty body returns empty list."""
+        entries = activity_entries("")
+        assert entries == []
+
+    def test_parse_no_activity_log_section(self):
+        """Test parsing body without Activity Log section returns empty list."""
+        body = """
+## Some Other Section
+
+This is not an activity log.
+"""
+        entries = activity_entries(body)
+        assert entries == []
+
+    def test_parse_all_lanes(self):
+        """Test parsing entries with all possible lane values."""
+        body = """
+- 2026-01-26T10:00:00Z – agent – shell_pid=1 – lane=planned – Planned
+- 2026-01-26T11:00:00Z – agent – shell_pid=2 – lane=doing – Doing
+- 2026-01-26T12:00:00Z – agent – shell_pid=3 – lane=for_review – Review
+- 2026-01-26T13:00:00Z – agent – shell_pid=4 – lane=done – Done
+"""
+        entries = activity_entries(body)
+        
+        assert len(entries) == 4
+        assert entries[0]['lane'] == 'planned'
+        assert entries[1]['lane'] == 'doing'
+        assert entries[2]['lane'] == 'for_review'
+        assert entries[3]['lane'] == 'done'
