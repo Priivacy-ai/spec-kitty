@@ -9,13 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.6] - 2026-01-27
+
+### 🐛 Fixed
+
+**Critical JSON Mode Corruption Fix** (Release Blocker):
+- Fixed JSON output corruption in `spec-kitty implement --json` mode (GitHub Issue #72 follow-up)
+  - **Bug**: Warning messages from empty branch detection were written to stdout, corrupting JSON output
+  - **Impact**: Automated workflows using `--json` flag would fail with JSON parse errors
+  - **Fix**: Changed warning messages to use `file=sys.stderr` to separate warnings from JSON output
+  - **File**: `src/specify_cli/core/multi_parent_merge.py:142-144`
+  - **Tests**: Updated 5 tests in `test_multi_parent_merge_empty_branches.py` to check stderr instead of stdout
+
+**Missing Migration Fix** (Existing Users Affected):
+- Fixed missing migration for commit workflow section (GitHub Issue #72 follow-up)
+  - **Bug**: New projects got commit workflow section in implement.md, but existing projects didn't after upgrade
+  - **Impact**: Existing users remained vulnerable to agents forgetting to commit work
+  - **Fix**: Created migration `m_0_13_5_add_commit_workflow_to_templates.py` to update all agent templates
+  - **Coverage**: Updates both software-dev and documentation mission templates for all 12 agents
+  - **Migration**: Automatically runs on `spec-kitty upgrade` for projects missing commit workflow
+
+**Subprocess Error Handling** (Defensive Programming):
+- Added timeout and error handling to multi-parent merge git commands
+  - **Bug**: Git commands in empty branch detection lacked timeout parameters and try/except blocks
+  - **Impact**: Function could hang forever or crash on git errors (corrupted repo, permission issues)
+  - **Fix**: Added 10-second timeouts and exception handling to all git subprocess calls
+  - **File**: `src/specify_cli/core/multi_parent_merge.py:117-144`
+  - **Errors handled**: TimeoutExpired (>10s git commands), general exceptions with warning
+
 ### Added
 - Git commit validation for "done" status transitions - prevents completing WPs with uncommitted changes
 - Empty branch detection in merge-base creation - warns when dependencies have no commits
 - Git commit workflow section in documentation mission template (consistency with software-dev/research)
 - Comprehensive troubleshooting guide for empty branch recovery in workspace-per-wp documentation
+- Migration to add commit workflow section to existing projects (`m_0_13_5_add_commit_workflow_to_templates.py`)
 
-### Fixed
+### Changed
+- `move-task --to done` now validates git status (same checks as "for_review")
+- Use `--force` flag to bypass validation (not recommended)
+- Warning messages in multi-parent merge now output to stderr instead of stdout (preserves JSON output integrity)
+
+### Fixed (Non-Critical)
 - WP agents can no longer mark tasks as "done" without committing implementation files
 - Multi-parent merge-bases no longer silently accept empty dependency branches
 - Documentation mission now instructs agents to commit work before review
@@ -24,10 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Root Cause**: Code hardcoded "main" as default branch; when `git merge-base HEAD main` failed, it fell through to using parent branch's old commit timestamp
   - **Fix**: Added `get_default_branch()` helper to dynamically detect default branch via origin HEAD or local branch existence
   - **Impact**: Prevents false staleness warnings for fresh worktrees in repos using "master", "develop", or other default branches
-
-### Changed
-- `move-task --to done` now validates git status (same checks as "for_review")
-- Use `--force` flag to bypass validation (not recommended)
 
 ## [0.13.5] - 2026-01-26
 

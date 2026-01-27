@@ -90,11 +90,11 @@ class TestEmptyBranchDetection:
             repo_root=git_repo,
         )
 
-        # Verify warning was printed
+        # Verify warning was printed (to stderr, not stdout)
         captured = capsys.readouterr()
-        assert "⚠️  Warning: Dependency branch '017-feature-WP01' has no commits beyond main" in captured.out
-        assert "This may indicate incomplete work or uncommitted changes" in captured.out
-        assert "The merge-base will not include any work from this branch" in captured.out
+        assert "⚠️  Warning: Dependency branch '017-feature-WP01' has no commits beyond main" in captured.err
+        assert "This may indicate incomplete work or uncommitted changes" in captured.err
+        assert "The merge-base will not include any work from this branch" in captured.err
 
         # Result should still succeed (warning is non-blocking)
         assert result.success
@@ -157,9 +157,9 @@ class TestEmptyBranchDetection:
             repo_root=git_repo,
         )
 
-        # Verify no warning was printed
+        # Verify no warning was printed (check stderr since warnings go there)
         captured = capsys.readouterr()
-        assert "⚠️  Warning:" not in captured.out
+        assert "⚠️  Warning:" not in captured.err
         assert result.success
 
     def test_multiple_empty_branches_multiple_warnings(self, git_repo: Path, capsys):
@@ -208,11 +208,11 @@ class TestEmptyBranchDetection:
             repo_root=git_repo,
         )
 
-        # Verify warnings for empty branches only
+        # Verify warnings for empty branches only (warnings go to stderr)
         captured = capsys.readouterr()
-        assert captured.out.count("⚠️  Warning:") == 2
-        assert "017-feature-WP01" in captured.out
-        assert "017-feature-WP02" in captured.out
+        assert captured.err.count("⚠️  Warning:") == 2
+        assert "017-feature-WP01" in captured.err
+        assert "017-feature-WP02" in captured.err
         # WP03 should not have warning (it has commits)
         assert result.success
 
@@ -302,8 +302,8 @@ class TestEmptyBranchDetection:
             repo_root=git_repo,
         )
 
-        # Should succeed with warning for WP02 only
+        # Should succeed with warning for WP02 only (warnings go to stderr)
         captured = capsys.readouterr()
         assert result.success
-        assert "017-feature-WP02" in captured.out
-        assert captured.out.count("⚠️  Warning:") == 1
+        assert "017-feature-WP02" in captured.err
+        assert captured.err.count("⚠️  Warning:") == 1
