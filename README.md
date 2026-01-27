@@ -78,84 +78,9 @@ graph LR
 
 
 
-> **Note:** Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
-
-## ⚠️ Breaking Change in v0.11.0
-
-**Workspace model changed to workspace-per-work-package for parallel multi-agent development.**
-
-### What Changed
-
-- **Planning commands** (specify, plan, tasks) now work in main repository
-- **Worktrees created on-demand** during `spec-kitty implement WP##`
-- **One worktree per work package** (not per feature)
-
-### Action Required Before Upgrading
-
-**You MUST complete or delete all in-progress features before upgrading to 0.11.0.**
-
-Check for legacy worktrees (choose one method):
-
-```bash
-# Method 1: After upgrading spec-kitty-cli to 0.11.0
-pip install --upgrade spec-kitty-cli
-spec-kitty list-legacy-features
-
-# Method 2: Manual check (works on any version)
-ls -la .worktrees/ 2>/dev/null || echo "No worktrees found"
-```
-
-If you have existing worktrees, complete or delete them before running `spec-kitty upgrade`.
-
-See [**Upgrade Guide**](docs/how-to/upgrade-to-0-11-0.md) for step-by-step migration instructions.
-
-### New in 0.11.0
-
-- ✅ **Parallel development**: Multiple agents work on different WPs simultaneously
-- ✅ **Dependency tracking**: WP frontmatter includes `dependencies: []` field
-- ✅ **New command**: `spec-kitty implement WP##` creates workspace for work package
-- ✅ **Better isolation**: Each WP has its own worktree and branch
-
-📖 [Workspace-per-WP Documentation](docs/explanation/workspace-per-wp.md) | 📖 [Full Upgrade Guide](docs/how-to/upgrade-to-0-11-0.md)
-
 ---
 
-> **🎉 Coming in v0.12.0 - Smarter Merge & Config-Driven Agents**
->
-> **Merge Improvements:**
-> - **Pre-flight validation**: Checks all WP worktrees for uncommitted changes before merge
-> - **Conflict forecasting**: `--dry-run` predicts conflicts and classifies as auto-resolvable or manual
-> - **Resume/abort**: `--resume` continues interrupted merges, `--abort` starts fresh
-> - **Auto-cleanup**: Worktrees and branches removed after successful merge
->
-> **Agent Management:**
-> - **Config-driven agents**: `.kittify/config.yaml` is now the single source of truth
-> - **New CLI commands**: `spec-kitty agent config list|add|remove|status|sync`
-> - **Migrations respect config**: Only configured agents are updated during `spec-kitty upgrade`
->
-> [See CHANGELOG](CHANGELOG.md#unreleased) for full details.
-
-## 🔄 Why Fork Spec Kit?
-
-**GitHub Spec Kit** pioneered spec-driven development but stopped at spec creation. We forked to add production-grade features teams actually need:
-
-| Feature | Spec Kit | Spec Kitty |
-|---------|----------|------------|
-| **Real-time kanban dashboard** | ❌ No visibility | ✅ Live dashboard with agent tracking |
-| **Multi-agent init** | ⚠️ Single agent at init | ✅ Multiple agents at once (claude + codex) |
-| **Collaborative planning** | ❌ No guided discovery | ✅ LLM asks clarifying questions (plan & spec) |
-| **Mission system** | ❌ One workflow | ✅ Software-dev + research missions |
-| **Parallel features** | ❌ Branch switching | ✅ Git worktrees for isolation |
-| **Quality gates** | ❌ Manual merge | ✅ Automated accept/merge workflow |
-| **Task management** | ⚠️ Manual lane tracking | ✅ Automatic kanban + history |
-| **Python CLI** | ❌ Bash scripts only | ✅ Cross-platform Python |
-
-**Use Spec Kit if**: You want minimal tooling and single-agent workflows
-**Use Spec Kitty if**: You need visibility, multi-agent coordination (e.g., Claude implements + Codex reviews), or production quality gates
-
-> Spec Kitty started as a fork to add the live dashboard. Once we saw teams coordinating 3-10 AI agents on complex features, we evolved it into a complete multi-agent orchestration platform.
-
-### Competitive Landscape
+## 🤝 Multi-Agent Coordination for AI Coding
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': { 'quadrant1Fill':'#e8f5e9', 'quadrant2Fill':'#e1f5ff', 'quadrant3Fill':'#fff3e0', 'quadrant4Fill':'#fce4ec'}}}%%
