@@ -66,7 +66,7 @@ See spec.md "Branch Strategy" section for full rationale and ADR-12 reference.
 - [x] T002 - Document SSH deploy key setup for CI/CD in development docs
 - [x] T003 - Update GitHub Actions workflow to use SSH deploy key
 - [x] T004 - Create import adapter layer for spec-kitty-events library
-- [ ] T005 - Add graceful error handling for missing library with setup instructions
+- [x] T005 - Add graceful error handling for missing library with setup instructions
 
 ### Implementation Notes
 
