@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Git Dependency Setup & Library Integration
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 1e55c89f5fd0f33da7cf4f7b50c68ed65ce742ba
@@ -14,8 +14,8 @@ subtasks:
 - T005
 phase: Phase 0 - Foundation & Dependency Integration
 assignee: ''
-agent: claude-sonnet-4.5
-shell_pid: '53191'
+agent: "codex"
+shell_pid: "46237"
 review_status: acknowledged
 reviewed_by: Robert Douglass
 history:
@@ -752,6 +752,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 - 2026-01-28T05:46:47Z – codex – shell_pid=46237 – lane=planned – Moved to planned
 - 2026-01-28T05:56:15Z – codex – shell_pid=46237 – lane=doing – Moved to doing
 - 2026-01-28T06:09:50Z – claude-sonnet-4.5 – shell_pid=53191 – lane=for_review – Moved to for_review
+- 2026-01-28T06:10:47Z – codex – shell_pid=46237 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
