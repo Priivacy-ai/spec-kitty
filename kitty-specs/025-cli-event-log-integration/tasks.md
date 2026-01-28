@@ -62,7 +62,7 @@ See spec.md "Branch Strategy" section for full rationale and ADR-12 reference.
 
 ### Included Subtasks
 
-- [ ] T001 - Add spec-kitty-events Git dependency to pyproject.toml with commit pinning
+- [x] T001 - Add spec-kitty-events Git dependency to pyproject.toml with commit pinning
 - [ ] T002 - Document SSH deploy key setup for CI/CD in development docs
 - [ ] T003 - Update GitHub Actions workflow to use SSH deploy key
 - [ ] T004 - Create import adapter layer for spec-kitty-events library
