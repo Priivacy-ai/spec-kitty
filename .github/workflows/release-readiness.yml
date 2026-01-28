@@ -37,6 +37,17 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: Setup SSH for private repository access
+        # Purpose: spec-kitty depends on private spec-kitty-events library.
+        # Uses SSH deploy key stored in GitHub Actions secrets.
+        # See docs/development/ssh-deploy-keys.md for setup instructions.
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SPEC_KITTY_EVENTS_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+        shell: bash
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
