@@ -58,6 +58,10 @@ graph LR
 [![GitHub stars](https://img.shields.io/github/stars/Priivacy-ai/spec-kitty?style=for-the-badge&logo=github)](https://github.com/Priivacy-ai/spec-kitty/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/spec-kitty-cli?style=for-the-badge&logo=pypi)](https://pypi.org/project/spec-kitty-cli/)
 [![Downloads](https://img.shields.io/pypi/dm/spec-kitty-cli?style=for-the-badge&logo=pypi)](https://pypi.org/project/spec-kitty-cli/)
+
+**Branch Status:**
+[![main branch](https://img.shields.io/badge/main→1.x-Maintenance%20Only-yellow?style=for-the-badge)](https://github.com/Priivacy-ai/spec-kitty/tree/main)
+[![2.x branch](https://img.shields.io/badge/2.x-Active%20Development-green?style=for-the-badge)](https://github.com/Priivacy-ai/spec-kitty/tree/2.x)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 [![12 AI Agents](https://img.shields.io/badge/AI_Agents-12_Supported-brightgreen?style=for-the-badge)](#-supported-ai-agents)
@@ -83,6 +87,30 @@ graph LR
 [CLI Reference](#-spec-kitty-cli-reference) •
 [Worktrees](#-worktree-strategy) •
 [Troubleshooting](#-troubleshooting)
+
+---
+
+## 📌 Branch Strategy (Important!)
+
+Spec Kitty uses a **two-branch strategy** for parallel development tracks:
+
+| Branch | Version | Status | Purpose | Install |
+|--------|---------|--------|---------|---------|
+| **main** → **1.x** | v0.13.x → v1.x | 🟡 Maintenance Only | Stable local-only CLI with YAML activity logs | `pip install spec-kitty-cli` (PyPI) |
+| **2.x** | v2.x (pre-release) | 🟢 Active Development | SaaS transformation with event sourcing | `git clone -b 2.x` (development only) |
+
+**For users**: Install from PyPI (`pip install spec-kitty-cli`) - you're on the stable 1.x track.
+
+**For contributors**:
+- **New features**: Target `2.x` branch (SaaS platform, event sourcing architecture)
+- **Bug fixes for stable**: Target `main` branch (becomes 1.x, maintenance-only)
+
+**Why two branches?**
+- 2.x is **greenfield architecture** (event sourcing, no YAML logs) - incompatible with 1.x
+- 1.x remains **stable** for existing users (no breaking changes)
+- Parallel tracks enable **SaaS transformation** without disrupting stable CLI
+
+See [ADR-12: Two-Branch Strategy](architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md) for details.
 
 ---
 
