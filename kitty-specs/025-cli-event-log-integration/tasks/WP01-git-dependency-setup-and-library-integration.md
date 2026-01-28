@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Git Dependency Setup & Library Integration
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: main
 base_commit: 5eda48f73d10405352bb13896a99e2acf3dbd185
@@ -16,8 +16,8 @@ phase: Phase 0 - Foundation & Dependency Integration
 assignee: ''
 agent: "codex"
 shell_pid: "46237"
-review_status: ''
-reviewed_by: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
@@ -41,9 +41,18 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-28
 
----
+**Issue 1 (critical)**: WP01 was implemented on `main`, but the prompt requires **all work on the `2.x` branch**. The WP frontmatter even shows `base_branch: main` and base commit `5eda48f...`. This violates the architectural constraint.
+
+**Fix**: Re-implement or rebase the WP01 changes on `2.x` (not main) and ensure the resulting branch is based on `2.x`. The branch/base commit in the WP metadata should reflect `2.x` after the update. Verify with `git branch --show-current` and `git merge-base --is-ancestor 2.x HEAD`.
+
+**Issue 2 (required by T005)**: The spec asks for a **startup check in the CLI entry point** that exits with a clear error if `spec-kitty-events` is missing. Current changes only add a check in `src/specify_cli/events/store.py`; there is no check in the CLI entry point, so `spec-kitty --version` / regular CLI invocation won’t show the required message.
+
+**Fix**: Add the missing library check in the CLI entry point (where the Typer app is created/initialized) so a missing dependency exits gracefully with `EventAdapter.get_missing_library_error()` and no traceback. Keep the error message consistent with the doc reference.
+
 
 ## Markdown Formatting
 
@@ -736,6 +745,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 ---
 - 2026-01-28T05:35:40Z – unknown – shell_pid=42305 – lane=for_review – Ready for review: All 5 subtasks completed (T001-T005). Library integrated with SSH Git dependency, CI/CD configured, adapter layer created, error handling implemented. Commit: 071910e
 - 2026-01-28T05:44:10Z – codex – shell_pid=46237 – lane=doing – Started review via workflow command
+- 2026-01-28T05:46:47Z – codex – shell_pid=46237 – lane=planned – Moved to planned
 
 ## Implementation Command
 
