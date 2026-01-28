@@ -18,7 +18,8 @@ Priority order:
 3. Git branch name (strips -WP## suffix for worktree branches)
 4. Current directory path (walk up looking for ###-feature-name)
 5. Single feature auto-detect (only if exactly one feature exists)
-6. Error with clear guidance (if ambiguous or multiple features)
+6. Fallback to latest incomplete feature (auto-selects if no explicit context)
+7. Error with clear guidance (if all features complete or ambiguous)
 """
 
 import os
@@ -267,6 +268,76 @@ def _validate_feature_exists(slug: str, repo_root: Path) -> bool:
     return feature_dir.is_dir()
 
 
+def is_feature_complete(feature_dir: Path) -> bool:
+    """Check if all work packages in a feature are complete.
+
+    A feature is considered complete when all WP files have lane: 'done'.
+
+    Args:
+        feature_dir: Path to feature directory (e.g., kitty-specs/020-my-feature)
+
+    Returns:
+        True if all WPs have lane: 'done', False otherwise
+        Returns False on any parse errors (safe default - feature stays incomplete)
+    """
+    from specify_cli.frontmatter import read_frontmatter
+
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.exists():
+        return False
+
+    wp_files = list(tasks_dir.glob("WP*.md"))
+    if not wp_files:
+        return False
+
+    for wp_file in wp_files:
+        try:
+            frontmatter, _ = read_frontmatter(wp_file)
+            lane = frontmatter.get("lane", "planned")
+            if lane != "done":
+                return False
+        except Exception:
+            # On any error, treat as incomplete (safe default)
+            return False
+
+    return True
+
+
+def find_latest_incomplete_feature(repo_root: Path) -> Optional[str]:
+    """Find the highest numbered incomplete feature.
+
+    An incomplete feature is one where at least one WP has lane != 'done'.
+
+    Args:
+        repo_root: Repository root path
+
+    Returns:
+        Feature slug of the latest incomplete feature, or None if all complete
+    """
+    all_features = _list_all_features(repo_root)
+    if not all_features:
+        return None
+
+    main_repo_root = _get_main_repo_root(repo_root)
+    kitty_specs_dir = main_repo_root / "kitty-specs"
+    incomplete = []
+
+    for slug in all_features:
+        feature_dir = kitty_specs_dir / slug
+        if not is_feature_complete(feature_dir):
+            incomplete.append(slug)
+
+    if not incomplete:
+        return None
+
+    # Extract numbers and find highest
+    def extract_num(s: str) -> int:
+        m = re.match(r'^(\d{3})-', s)
+        return int(m.group(1)) if m else 0
+
+    return max(incomplete, key=extract_num)
+
+
 # ============================================================================
 # Core Detection Function
 # ============================================================================
@@ -290,7 +361,8 @@ def detect_feature(
     3. Git branch name (strips -WP## suffix)
     4. Current directory path (walks up to find ###-feature-name)
     5. Single feature auto-detect (if allow_single_auto=True)
-    6. Error (strict mode) or None (lenient mode)
+    6. Fallback to latest incomplete feature (if explicit_feature is None)
+    7. Error (strict mode) or None (lenient mode)
 
     Args:
         repo_root: Repository root path
@@ -357,19 +429,56 @@ def detect_feature(
             detected_slug = all_features[0]
             detection_method = "single_auto"
         elif len(all_features) > 1:
-            # Multiple features exist, none selected
-            error_msg = (
-                f"Multiple features found ({len(all_features)}), cannot auto-detect:\n"
-                + "\n".join(f"  - {f}" for f in all_features[:10])
-                + ("\n  ... and more" if len(all_features) > 10 else "")
-                + "\n\nPlease specify explicitly using:\n"
-                + "  --feature <feature-slug>  (e.g., --feature 020-my-feature)\n"
-                + "  SPECIFY_FEATURE=<feature-slug>  (environment variable)\n"
-                + "  Or run from inside a feature directory or worktree"
-            )
-            if mode == "strict":
-                raise MultipleFeaturesError(all_features, error_msg)
-            return None
+            # Priority 6: Fallback to latest incomplete feature
+            # Only activate if no explicit feature requested (respect explicit choices)
+            if explicit_feature is None:
+                latest = find_latest_incomplete_feature(repo_root)
+                if latest:
+                    # Import console only if needed (avoid circular imports at module level)
+                    try:
+                        from rich.console import Console
+                        console = Console()
+                        console.print(f"[yellow]ℹ️  Auto-selected latest incomplete: {latest}[/yellow]")
+                    except ImportError:
+                        pass  # Silently skip if rich not available
+
+                    detected_slug = latest
+                    detection_method = "fallback_latest_incomplete"
+
+            # Priority 7: Error (no fallback available or all features complete)
+            if not detected_slug:
+                # Check if all features are complete
+                main_repo_root = _get_main_repo_root(repo_root)
+                kitty_specs_dir = main_repo_root / "kitty-specs"
+                all_complete = all(
+                    is_feature_complete(kitty_specs_dir / slug)
+                    for slug in all_features
+                )
+
+                if all_complete:
+                    error_msg = (
+                        f"All features are complete ({len(all_features)} features).\n\n"
+                        + "Please specify explicitly using:\n"
+                        + "  --feature <feature-slug>  (e.g., --feature 020-my-feature)\n"
+                        + "  SPECIFY_FEATURE=<feature-slug>  (environment variable)\n"
+                        + "  Or create a new feature using:\n"
+                        + "  spec-kitty specify\n"
+                        + "  /spec-kitty.specify  (in agent workflow)"
+                    )
+                else:
+                    error_msg = (
+                        f"Multiple features found ({len(all_features)}), cannot auto-detect:\n"
+                        + "\n".join(f"  - {f}" for f in all_features[:10])
+                        + ("\n  ... and more" if len(all_features) > 10 else "")
+                        + "\n\nPlease specify explicitly using:\n"
+                        + "  --feature <feature-slug>  (e.g., --feature 020-my-feature)\n"
+                        + "  SPECIFY_FEATURE=<feature-slug>  (environment variable)\n"
+                        + "  Or run from inside a feature directory or worktree"
+                    )
+
+                if mode == "strict":
+                    raise MultipleFeaturesError(all_features, error_msg)
+                return None
         else:
             # No features found
             error_msg = (
