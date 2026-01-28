@@ -1,10 +1,10 @@
 ---
 work_package_id: WP01
 title: Git Dependency Setup & Library Integration
-lane: "planned"
+lane: planned
 dependencies: []
-base_branch: main
-base_commit: 5eda48f73d10405352bb13896a99e2acf3dbd185
+base_branch: 2.x
+base_commit: 1e55c89f5fd0f33da7cf4f7b50c68ed65ce742ba
 created_at: '2026-01-28T05:30:29.926530+00:00'
 subtasks:
 - T001
@@ -14,10 +14,10 @@ subtasks:
 - T005
 phase: Phase 0 - Foundation & Dependency Integration
 assignee: ''
-agent: "codex"
-shell_pid: "46237"
-review_status: "has_feedback"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: '46237'
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
