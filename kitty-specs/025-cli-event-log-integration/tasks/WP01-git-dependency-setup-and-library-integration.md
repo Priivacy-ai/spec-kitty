@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Git Dependency Setup & Library Integration
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: 5eda48f73d10405352bb13896a99e2acf3dbd185
@@ -14,8 +14,8 @@ subtasks:
 - T005
 phase: Phase 0 - Foundation & Dependency Integration
 assignee: ''
-agent: ''
-shell_pid: "42305"
+agent: "codex"
+shell_pid: "46237"
 review_status: ''
 reviewed_by: ''
 history:
@@ -735,6 +735,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 
 ---
 - 2026-01-28T05:35:40Z – unknown – shell_pid=42305 – lane=for_review – Ready for review: All 5 subtasks completed (T001-T005). Library integrated with SSH Git dependency, CI/CD configured, adapter layer created, error handling implemented. Commit: 071910e
+- 2026-01-28T05:44:10Z – codex – shell_pid=46237 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
