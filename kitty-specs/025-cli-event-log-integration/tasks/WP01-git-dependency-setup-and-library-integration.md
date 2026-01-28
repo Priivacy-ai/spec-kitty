@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Git Dependency Setup & Library Integration
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 2.x
 base_commit: 1e55c89f5fd0f33da7cf4f7b50c68ed65ce742ba
@@ -16,8 +16,8 @@ phase: Phase 0 - Foundation & Dependency Integration
 assignee: ''
 agent: "codex"
 shell_pid: "46237"
-review_status: acknowledged
-reviewed_by: Robert Douglass
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
@@ -49,13 +49,16 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-28
 
-**Issue 1 (critical)**: WP01 was implemented on `main`, but the prompt requires **all work on the `2.x` branch**. The WP frontmatter even shows `base_branch: main` and base commit `5eda48f...`. This violates the architectural constraint.
+**Issue 1 (critical): Branch base is not 2.x**
+The work was committed on a branch that is not based on `2.x`. `git merge-base --is-ancestor 2.x HEAD` returns exit code 1. This violates the WP constraint that all work must be implemented on `2.x`.
 
-**Fix**: Re-implement or rebase the WP01 changes on `2.x` (not main) and ensure the resulting branch is based on `2.x`. The branch/base commit in the WP metadata should reflect `2.x` after the update. Verify with `git branch --show-current` and `git merge-base --is-ancestor 2.x HEAD`.
+**How to fix**: Rebase or re-create the WP branch from `2.x` and re-apply the WP01 commits there. For example:
+- `git checkout 2.x && git pull`
+- `git checkout -b 025-cli-event-log-integration-WP01-2x`
+- `git cherry-pick <WP01 commits>` (or `git rebase --onto 2.x <old-base> 025-cli-event-log-integration-WP01`)
+- Verify: `git merge-base --is-ancestor 2.x HEAD`
 
-**Issue 2 (required by T005)**: The spec asks for a **startup check in the CLI entry point** that exits with a clear error if `spec-kitty-events` is missing. Current changes only add a check in `src/specify_cli/events/store.py`; there is no check in the CLI entry point, so `spec-kitty --version` / regular CLI invocation won’t show the required message.
-
-**Fix**: Add the missing library check in the CLI entry point (where the Typer app is created/initialized) so a missing dependency exits gracefully with `EventAdapter.get_missing_library_error()` and no traceback. Keep the error message consistent with the doc reference.
+Once this is done, update the WP metadata base commit accordingly.
 
 
 ## Markdown Formatting
@@ -753,6 +756,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 - 2026-01-28T05:56:15Z – codex – shell_pid=46237 – lane=doing – Moved to doing
 - 2026-01-28T06:09:50Z – claude-sonnet-4.5 – shell_pid=53191 – lane=for_review – Moved to for_review
 - 2026-01-28T06:10:47Z – codex – shell_pid=46237 – lane=doing – Started review via workflow command
+- 2026-01-28T06:11:53Z – codex – shell_pid=46237 – lane=planned – Moved to planned
 
 ## Implementation Command
 
