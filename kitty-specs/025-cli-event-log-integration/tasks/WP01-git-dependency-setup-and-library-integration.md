@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP01"
-title: "Git Dependency Setup & Library Integration"
-phase: "Phase 0 - Foundation & Dependency Integration"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP01
+title: Git Dependency Setup & Library Integration
+lane: "doing"
 dependencies: []
+base_branch: main
+base_commit: 5eda48f73d10405352bb13896a99e2acf3dbd185
+created_at: '2026-01-28T05:30:29.926530+00:00'
 subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
+- T001
+- T002
+- T003
+- T004
+- T005
+phase: Phase 0 - Foundation & Dependency Integration
+assignee: ''
+agent: ''
+shell_pid: "42305"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-27T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-27T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Git Dependency Setup & Library Integration
