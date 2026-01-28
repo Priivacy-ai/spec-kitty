@@ -184,17 +184,31 @@ Single branch with feature flags: `--enable-events`, `--enable-sync`.
 
 **Implementation Details:**
 
-**1.x Branch:**
-- Tag: `v1.0.0` (first stable release)
-- Branch protection: Only security/critical fixes merged
+**Branch Naming Decision:** After analysis, we chose to create **separate `2.x` branch** (not reuse main):
+
+**main Branch (becomes 1.x):**
+- Current: v0.13.x (stable development)
+- Future: v1.x (maintenance-only after v1.0.0 release)
+- No formal "1.x branch" created (main IS the 1.x line)
+- Branch protection: Only security/critical fixes merged after v1.0.0
 - No new features (frozen feature set)
+- YAML activity logs (existing system)
 - Documentation: "Spec Kitty 1.x (Local Mode)"
 
-**2.x Branch:**
-- Branch: `2.x` or `main` (depending on Git workflow preference)
-- Active development: Features 004+
+**2.x Branch (created 2026-01-27):**
+- Branch: `2.x` (NEW branch created from main)
+- Created from: main at v0.13.7 (commit c11ae57)
+- Active development: Features 025+ (Event Log → Sync Protocol → SaaS)
 - Private dependency: spec-kitty-events via Git (ADR-11)
+- Greenfield architecture (incompatible with 1.x)
+- No PyPI releases until substantially complete
 - Documentation: "Spec Kitty 2.x (SaaS Mode) - Beta"
+
+**Rationale for separate branch**:
+- Avoids confusion (main clearly remains stable)
+- Enables parallel PRs (1.x fixes on main, 2.x features on 2.x)
+- Clearer git history (2.x commits don't pollute main)
+- Option to rebase 2.x periodically from main (cherry-pick critical fixes)
 
 **Migration Plan (Deferred to Future Feature):**
 - Feature: "2.x Migration Tool" (build when 2.x nears beta)
@@ -227,6 +241,13 @@ Single branch with feature flags: `--enable-events`, `--enable-sync`.
 - Community feedback will determine 1.x end-of-life timeline
 
 **Code References:**
-- 1.x branch: `git checkout 1.x` (to be created at v1.0.0 release)
-- 2.x branch: `git checkout main` (current development)
-- Migration script: `src/specify_cli/cli/commands/migrate_to_2x.py` (to be created later)
+- **1.x line**: `git checkout main` (current: v0.13.x, future: v1.x after v1.0.0 release)
+  - No separate "1.x branch" created (main IS the 1.x line)
+- **2.x branch**: `git checkout 2.x` (created 2026-01-27 from main at c11ae57)
+  - Branch created: `git checkout -b 2.x && git push origin 2.x`
+- **Migration script**: `src/specify_cli/cli/commands/migrate_to_2x.py` (to be created later)
+
+**How to contribute**:
+- **For stable 1.x fixes**: Branch from main, PR to main
+- **For 2.x SaaS features**: Branch from 2.x, PR to 2.x
+- **See branches**: `git branch -a | grep -E "(main|2.x)"`
