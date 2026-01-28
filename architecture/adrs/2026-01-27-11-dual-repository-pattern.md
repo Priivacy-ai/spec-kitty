@@ -8,25 +8,33 @@
 
 **Deciders:** Robert Douglass
 
-**Technical Story:** Feature 004 (CLI Event Log Integration) requires integrating the completed spec-kitty-events library (Feature 003) into the CLI. The library is private during MVP phase but will eventually be open sourced.
+**Technical Story:** Feature 025 (CLI Event Log Integration) requires integrating the completed spec-kitty-events library (Feature 003) into the CLI. The library is private during MVP phase but will eventually be open sourced.
+
+**Branch Context:** This dependency is for the **2.x branch only**. The 1.x/main branch does NOT have this dependency (local-only CLI with YAML logs). See ADR-12 for branch strategy details.
 
 ---
 
 ## Context and Problem Statement
 
-Spec Kitty is transitioning from a local-only CLI tool to a distributed SaaS platform. The event sourcing library (`spec-kitty-events`) built in Feature 003 must be shared between:
-- **spec-kitty CLI** (public repository, PyPI distribution)
+Spec Kitty is transitioning from a local-only CLI tool to a distributed SaaS platform on the **2.x branch** (see ADR-12: Two-Branch Strategy). The event sourcing library (`spec-kitty-events`) built in Feature 003 must be shared between:
+- **spec-kitty CLI (2.x branch)** (public repository, private dependency during dev)
 - **spec-kitty Django** (future SaaS backend, private)
 
 The library provides Lamport clocks, CRDT merge rules, and conflict detection - solving the Last-Write-Wins data loss problem discovered in Feature 002.
+
+**Branch Context:**
+- **1.x/main branch**: Local-only CLI, NO spec-kitty-events dependency (YAML activity logs)
+- **2.x branch**: SaaS transformation, HAS spec-kitty-events dependency (event sourcing)
+- **Why separate**: Architectures are incompatible (cannot coexist in single branch)
 
 **Constraints:**
 - spec-kitty is PUBLIC (GitHub + PyPI)
 - spec-kitty-events is PRIVATE (MVP phase, will open source later)
 - Solo maintainer (no team coordination overhead)
 - CI/CD must work autonomously (no laptop dependency)
+- **2.x branch only** - This dependency applies ONLY to 2.x (SaaS transformation); 1.x/main remains dependency-free (local-only CLI)
 
-**Question:** How do we structure repositories and manage the private dependency?
+**Question:** How do we structure repositories and manage the private dependency for the 2.x branch while keeping 1.x simple?
 
 ## Decision Drivers
 
@@ -56,14 +64,17 @@ The library provides Lamport clocks, CRDT merge rules, and conflict detection - 
 
 ### Consequences
 
+**IMPORTANT**: This pattern applies to the **2.x branch only**. The 1.x/main branch remains dependency-free (local-only tool). See ADR-12 for branch strategy.
+
 #### Positive
 
-* **CI/CD autonomy** - Deploy key + Git dependency = fully automated builds
+* **CI/CD autonomy** - Deploy key + Git dependency = fully automated builds (2.x branch)
 * **Deterministic** - Commit hash pinning guarantees same behavior
 * **Explicit integration points** - You control when events updates land
-* **Private during MVP** - Events stays hidden, CLI is public
+* **Private during MVP** - Events stays hidden, CLI remains public on PyPI
 * **Clean transition** - Remove vendoring when events goes public
-* **Shared library** - CLI and Django use same logic (no code duplication)
+* **Shared library** - CLI (2.x) and Django use same logic (no code duplication)
+* **1.x unaffected** - Main branch stays simple (no private dependencies)
 
 #### Negative
 
@@ -91,25 +102,34 @@ The library provides Lamport clocks, CRDT merge rules, and conflict detection - 
 
 ### Option 1: Dual-Repository + Git Dependency
 
+**CHOSEN OPTION** - Implemented on 2.x branch only.
+
 Git dependency in pyproject.toml with commit hash pinning:
 ```toml
-spec-kitty-events = { git = "https://...", rev = "abc1234" }
+# In pyproject.toml (2.x branch only)
+spec-kitty-events = { git = "ssh://git@github.com/Priivacy-ai/spec-kitty-events.git", rev = "abc1234..." }
 ```
+
+**Branch-Specific Implementation:**
+- **2.x branch**: Has Git dependency (event sourcing architecture)
+- **1.x/main branch**: NO dependency (local-only, YAML logs)
+- **Why separate**: Per ADR-12, architectures are incompatible (cannot coexist)
 
 **Pros:**
 
-* CI/CD works autonomously (no local paths)
+* CI/CD works autonomously (no local paths) - 2.x branch
 * Deterministic builds (exact commit hash)
 * No infrastructure costs ($0/month)
 * Forces explicit integration points (good discipline)
 * Clean path to open source
+* **1.x simplicity preserved** - Main branch stays dependency-free
 
 **Cons:**
 
-* Manual commit hash updates
-* SSH deploy key setup required
-* Vendoring step for PyPI releases
-* Two-repo branch coordination
+* Manual commit hash updates (2.x branch maintenance)
+* SSH deploy key setup required (one-time per repo)
+* Vendoring step for PyPI releases (deferred to 2.x release feature)
+* Two-repo branch coordination (2.x feature branches only)
 
 ### Option 2: Monorepo
 
@@ -179,15 +199,57 @@ Copy events code into `src/specify_cli/_vendored/events/`.
 ## More Information
 
 **Implementation details:**
-- Deploy key setup: GitHub Settings > Deploy Keys (read-only)
+
+**Branch-Specific Application (CRITICAL):**
+- **2.x branch**: Git dependency with spec-kitty-events (implemented in Feature 025)
+  - Location: `pyproject.toml` on 2.x branch
+  - Created: 2026-01-27 (branch created from main at v0.13.7)
+  - Installs: `poetry install` on 2.x requires SSH access to spec-kitty-events
+
+- **1.x/main branch**: NO dependency on spec-kitty-events (local-only, YAML logs)
+  - Location: `pyproject.toml` on main does NOT include spec-kitty-events
+  - Installs: `poetry install` on main works without SSH key
+  - Future: main becomes 1.x maintenance branch (no event sourcing)
+
+- **Why separate**: Per ADR-12, branches have incompatible architectures (event sourcing vs YAML logs)
+
+**Git Dependency Configuration (2.x branch only):**
+- File: `pyproject.toml` (2.x branch)
+- Format: `spec-kitty-events = { git = "ssh://git@github.com/Priivacy-ai/spec-kitty-events.git", rev = "<commit-hash>" }`
+- Commit pinning: MUST use full 40-char hash (NOT branch name, NOT "main")
+- Deploy key: GitHub Settings > Deploy Keys (read-only to spec-kitty-events)
 - Secret name: `SPEC_KITTY_EVENTS_DEPLOY_KEY`
-- Vendoring script: `scripts/vendor_and_release.py` (to be created in Feature 004)
-- Constitution: `.kittify/memory/constitution.md` (Architecture: Private Dependency Pattern)
+- CI workflow: `.github/workflows/ci.yml` on 2.x branch (SSH setup before pip install)
+
+**PyPI Release Strategy (2.x branch, future):**
+- Vendoring script: `scripts/vendor_and_release.py` (deferred to "2.x Release Preparation" feature, NOT Feature 025)
+- Why needed: PyPI users don't have GitHub access to private repo
+- Process: Vendor events library into CLI → build wheel → publish to PyPI
+- When: Not until 2.x approaches beta/stable release
+
+**Documentation:**
+- Constitution: `.kittify/memory/constitution.md` (Architecture: Private Dependency Pattern, lines 46-132)
+- ADR-12: `architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md`
+- Setup guide: `docs/development/ssh-deploy-keys.md` (created in Feature 025 WP01 T002)
+- Dependency updates: `CONTRIBUTING.md` (documented in Feature 025 WP08 T044)
 
 **Related decisions:**
+- **ADR-12**: Two-Branch Strategy for SaaS Transformation (defines why 2.x branch exists and why it's separate from main)
 - Feature 001: SaaS Transformation Research (validated 4-phase roadmap)
-- Feature 002: Event Log Storage Research (identified LWW flaw)
-- Feature 003: Event Log Library (built spec-kitty-events v0.1.0-alpha)
+- Feature 002: Event Log Storage Research (identified LWW flaw requiring event sourcing)
+- Feature 003: Event Log Library (built spec-kitty-events v0.1.0-alpha in separate repo)
+- Feature 025: CLI Event Log Integration (implements this ADR on 2.x branch)
+
+**Branch workflow:**
+```bash
+# For 2.x development (event sourcing features):
+git checkout 2.x
+poetry install  # Requires SSH access to spec-kitty-events
+
+# For 1.x maintenance (stable fixes):
+git checkout main
+poetry install  # No private dependencies, works immediately
+```
 
 **Future considerations:**
 - Open source events library when stable (6+ months, no major bugs)
