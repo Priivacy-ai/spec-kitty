@@ -120,6 +120,15 @@ print("✓ Conflict detected and resolved via LWW")
 
 ## Context & Constraints
 
+### ⚠️ CRITICAL: Target Branch
+
+**This work package MUST be implemented on the `2.x` branch (NOT main).**
+
+Verify you're on 2.x:
+```bash
+git branch --show-current  # Must output: 2.x
+```
+
 ### Prerequisites
 
 - **WP05 complete**: EventReader.reconstruct_wp_status() exists

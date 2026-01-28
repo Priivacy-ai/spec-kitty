@@ -80,11 +80,35 @@ python -c "from specify_cli.events.adapter import EventAdapter; print('OK')"
 
 ## Context & Constraints
 
+### ⚠️ CRITICAL: Target Branch
+
+**This work package MUST be implemented on the `2.x` branch (NOT main).**
+
+If the 2.x branch doesn't exist yet, create it NOW:
+```bash
+git checkout main
+git checkout -b 2.x
+git push origin 2.x
+```
+
+**Verify you're on 2.x before implementing**:
+```bash
+git branch --show-current  # Must output: 2.x
+```
+
+**Why**: 2.x is a greenfield branch incompatible with main (v0.13.x). Per ADR-12, main will become the 1.x maintenance branch (YAML logs). This feature implements events-only architecture on 2.x.
+
+**DO NOT**:
+- ❌ Implement on main branch
+- ❌ Modify existing code on main
+- ❌ Create worktrees from main
+
 ### Prerequisites
 
 - **Spec-kitty-events repository**: https://github.com/Priivacy-ai/spec-kitty-events (PRIVATE)
 - **Constitution**: `.kittify/memory/constitution.md` - Architecture: Private Dependency Pattern section
 - **ADR-11**: `architecture/adrs/2026-01-27-11-dual-repository-pattern.md`
+- **ADR-12**: `architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md`
 - **Planning decision**: Commit pinning required (not `rev="main"`) for deterministic builds
 
 ### Architectural Constraints

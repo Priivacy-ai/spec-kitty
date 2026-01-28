@@ -95,6 +95,17 @@ print("✓ Event written successfully")
 
 ## Context & Constraints
 
+### ⚠️ CRITICAL: Target Branch
+
+**This work package MUST be implemented on the `2.x` branch (NOT main).**
+
+Verify you're on 2.x:
+```bash
+git branch --show-current  # Must output: 2.x
+```
+
+If you're not on 2.x, the implementation command at the bottom will create the worktree from the wrong branch. **Stop and switch to 2.x before running `spec-kitty implement WP02 --base WP01`.**
+
 ### Prerequisites
 
 - **WP01 complete**: spec-kitty-events library installed and adapter layer available

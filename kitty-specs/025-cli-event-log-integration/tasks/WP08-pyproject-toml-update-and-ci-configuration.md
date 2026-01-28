@@ -83,6 +83,20 @@ gh run watch <run_id>
 
 ## Context & Constraints
 
+### ⚠️ CRITICAL: Target Branch
+
+**This work package MUST be implemented on the `2.x` branch (NOT main).**
+
+**IMPORTANT**: This is the final integration WP. Verify ALL prior WPs (WP01-WP07) are merged to 2.x before starting.
+
+```bash
+# Verify you're on 2.x
+git branch --show-current  # Must output: 2.x
+
+# Verify all prior WPs merged
+git log --oneline --graph -20  # Should see WP01-WP07 merge commits
+```
+
 ### Prerequisites
 
 - **WP01-WP07 complete**: All implementation merged into 2.x branch

@@ -90,6 +90,15 @@ assert elapsed_ms < 500, f"Query too slow: {elapsed_ms}ms"
 
 ## Context & Constraints
 
+### ⚠️ CRITICAL: Target Branch
+
+**This work package MUST be implemented on the `2.x` branch (NOT main).**
+
+Verify you're on 2.x:
+```bash
+git branch --show-current  # Must output: 2.x
+```
+
 ### Prerequisites
 
 - **WP03 complete**: EventStore.emit() exists and writes JSONL files

@@ -15,11 +15,37 @@ Spec-kitty currently uses primitive YAML activity logs for tracking workflow sta
 
 **Target Branch**: 2.x development (greenfield implementation, no 1.x backward compatibility)
 
+**Branch Strategy (CRITICAL - READ FIRST)**:
+
+⚠️ **This feature requires creating a NEW `2.x` branch. Do NOT implement on `main` branch.**
+
+**Before any implementation**:
+```bash
+# Create 2.x branch from current main (v0.13.7)
+git checkout main
+git pull origin main
+git checkout -b 2.x
+git push origin 2.x
+```
+
+**Branch responsibilities**:
+- **main branch** (v0.13.x): Will become 1.x maintenance branch (YAML activity logs, stable CLI)
+  - ❌ **DO NOT modify for this feature**
+  - ✅ Maintenance-only: security fixes, critical bugs
+
+- **2.x branch** (NEW): SaaS transformation with event sourcing (greenfield architecture)
+  - ✅ **All Feature 025 implementation happens here**
+  - ✅ Events-only (no YAML logs, no 1.x compatibility)
+  - ✅ Breaking changes allowed (pre-release)
+
+**Rationale**: Per ADR-12 (Two-Branch Strategy), main/1.x and 2.x are **incompatible parallel tracks**. Event sourcing architecture cannot coexist with YAML activity logs.
+
 **Dependency Management**: Git dependency with commit pinning per ADR-11 (Dual-Repository Pattern). SSH deploy key for CI/CD autonomy.
 
 **Out of Scope for This Feature**:
 - Vendoring script for PyPI releases (deferred to "2.x Release Preparation" feature)
 - Migration from 1.x YAML logs (deferred until 2.x nears completion)
+- Creating 1.x branch from main (will happen when first v1.0.0 release is cut)
 
 ## User Scenarios & Testing *(mandatory)*
 

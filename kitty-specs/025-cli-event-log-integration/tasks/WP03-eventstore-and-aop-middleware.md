@@ -78,6 +78,15 @@ cat .kittify/events/$(date +%Y-%m-%d).jsonl | jq .
 
 ## Context & Constraints
 
+### ⚠️ CRITICAL: Target Branch
+
+**This work package MUST be implemented on the `2.x` branch (NOT main).**
+
+Verify you're on 2.x:
+```bash
+git branch --show-current  # Must output: 2.x
+```
+
 ### Prerequisites
 
 - **WP02 complete**: Event, LamportClock, ClockStorage, file_io modules available

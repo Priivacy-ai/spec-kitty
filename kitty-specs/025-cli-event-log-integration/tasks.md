@@ -12,6 +12,43 @@
 
 ---
 
+## ⚠️ CRITICAL: 2.x Branch Creation Required
+
+**BEFORE implementing WP01**, you MUST create the 2.x branch:
+
+```bash
+# 1. Ensure you're on latest main
+git checkout main
+git pull origin main
+
+# 2. Create 2.x branch (NEW parallel development track)
+git checkout -b 2.x
+
+# 3. Push to remote
+git push origin 2.x
+
+# 4. Verify you're on 2.x
+git branch --show-current  # Should output: 2.x
+```
+
+**Why this is critical**:
+- **2.x is a NEW branch** (not a version tag on main)
+- **2.x is greenfield architecture** (events-only, no YAML activity logs)
+- **Incompatible with main** (cannot coexist due to fundamental architecture differences)
+- **main branch (v0.13.x) becomes 1.x** (maintenance-only, YAML logs remain)
+
+**What NOT to do**:
+- ❌ DO NOT implement on `main` branch (would break stable 1.x line)
+- ❌ DO NOT modify existing YAML activity log code on main
+- ❌ DO NOT add backward compatibility with 1.x (greenfield means fresh start)
+- ❌ DO NOT create worktrees from main (must branch from 2.x)
+
+**All work packages (WP01-WP08) implement on the `2.x` branch.**
+
+See spec.md "Branch Strategy" section for full rationale and ADR-12 reference.
+
+---
+
 ## Phase 0: Foundation & Dependency Integration (P1)
 
 ### Work Package WP01: Git Dependency Setup & Library Integration
