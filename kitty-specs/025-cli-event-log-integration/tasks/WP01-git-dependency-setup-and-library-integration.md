@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Git Dependency Setup & Library Integration
-lane: "doing"
+lane: doing
 dependencies: []
 base_branch: 2.x
 base_commit: 1e55c89f5fd0f33da7cf4f7b50c68ed65ce742ba
@@ -14,9 +14,9 @@ subtasks:
 - T005
 phase: Phase 0 - Foundation & Dependency Integration
 assignee: ''
-agent: codex
-shell_pid: '46237'
-review_status: has_feedback
+agent: claude-sonnet-4.5
+shell_pid: '53191'
+review_status: acknowledged
 reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
@@ -24,6 +24,10 @@ history:
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+- timestamp: '2026-01-28T06:00:00Z'
+  action: Review feedback acknowledged and addressed
+  agent: claude-sonnet-4.5
+  note: Fixed Issue 1 (base_branch metadata) and Issue 2 (CLI entry point check)
 ---
 
 # Work Package Prompt: WP01 – Git Dependency Setup & Library Integration
