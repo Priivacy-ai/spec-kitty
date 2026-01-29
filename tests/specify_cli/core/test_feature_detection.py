@@ -29,6 +29,7 @@ from specify_cli.core.feature_detection import (
     detect_feature,
     detect_feature_slug,
     detect_feature_directory,
+    get_feature_target_branch,
 )
 
 
@@ -838,3 +839,124 @@ def test_detect_fallback_respects_priority_order(tmp_path: Path):
 
         assert ctx.slug == "020-feature-a"
         assert ctx.detection_method == "cwd_path"
+
+# ============================================================================
+# Target Branch Detection Tests
+# ============================================================================
+
+
+def test_get_feature_target_branch_with_main(tmp_path: Path):
+    """Test get_feature_target_branch returns 'main' for feature with target_branch='main'."""
+    import json
+
+    repo_root = tmp_path / "repo"
+    kitty_specs = repo_root / "kitty-specs"
+    feature_dir = kitty_specs / "020-feature-a"
+    feature_dir.mkdir(parents=True)
+
+    # Create meta.json with target_branch='main'
+    meta = {
+        "feature_number": "020",
+        "slug": "020-feature-a",
+        "target_branch": "main",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta))
+
+    target = get_feature_target_branch(repo_root, "020-feature-a")
+    assert target == "main"
+
+
+def test_get_feature_target_branch_with_2x(tmp_path: Path):
+    """Test get_feature_target_branch returns '2.x' for feature with target_branch='2.x'."""
+    import json
+
+    repo_root = tmp_path / "repo"
+    kitty_specs = repo_root / "kitty-specs"
+    feature_dir = kitty_specs / "025-cli-event-log-integration"
+    feature_dir.mkdir(parents=True)
+
+    # Create meta.json with target_branch='2.x'
+    meta = {
+        "feature_number": "025",
+        "slug": "025-cli-event-log-integration",
+        "target_branch": "2.x",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta))
+
+    target = get_feature_target_branch(repo_root, "025-cli-event-log-integration")
+    assert target == "2.x"
+
+
+def test_get_feature_target_branch_missing_field(tmp_path: Path):
+    """Test get_feature_target_branch defaults to 'main' when target_branch field missing."""
+    import json
+
+    repo_root = tmp_path / "repo"
+    kitty_specs = repo_root / "kitty-specs"
+    feature_dir = kitty_specs / "020-feature-a"
+    feature_dir.mkdir(parents=True)
+
+    # Create meta.json WITHOUT target_branch field (legacy feature)
+    meta = {
+        "feature_number": "020",
+        "slug": "020-feature-a",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta))
+
+    target = get_feature_target_branch(repo_root, "020-feature-a")
+    assert target == "main"  # Safe default
+
+
+def test_get_feature_target_branch_missing_meta_file(tmp_path: Path):
+    """Test get_feature_target_branch defaults to 'main' when meta.json doesn't exist."""
+    repo_root = tmp_path / "repo"
+    kitty_specs = repo_root / "kitty-specs"
+    feature_dir = kitty_specs / "020-feature-a"
+    feature_dir.mkdir(parents=True)
+
+    # No meta.json file created
+
+    target = get_feature_target_branch(repo_root, "020-feature-a")
+    assert target == "main"  # Safe default
+
+
+def test_get_feature_target_branch_malformed_json(tmp_path: Path):
+    """Test get_feature_target_branch defaults to 'main' when meta.json is malformed."""
+    repo_root = tmp_path / "repo"
+    kitty_specs = repo_root / "kitty-specs"
+    feature_dir = kitty_specs / "020-feature-a"
+    feature_dir.mkdir(parents=True)
+
+    # Create malformed JSON
+    (feature_dir / "meta.json").write_text("{invalid json")
+
+    target = get_feature_target_branch(repo_root, "020-feature-a")
+    assert target == "main"  # Safe default
+
+
+def test_get_feature_target_branch_from_worktree(tmp_path: Path):
+    """Test get_feature_target_branch works from worktree context."""
+    import json
+
+    # Create main repo structure
+    main_repo = tmp_path / "main"
+    kitty_specs = main_repo / "kitty-specs"
+    feature_dir = kitty_specs / "025-cli-event-log-integration"
+    feature_dir.mkdir(parents=True)
+
+    meta = {
+        "feature_number": "025",
+        "slug": "025-cli-event-log-integration",
+        "target_branch": "2.x",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta))
+
+    # Create worktree directory (simulated)
+    worktree = tmp_path / "worktrees" / "025-cli-event-log-integration-WP01"
+    worktree.mkdir(parents=True)
+    git_file = worktree / ".git"
+    git_file.write_text(f"gitdir: {main_repo}/.git/worktrees/025-cli-event-log-integration-WP01")
+
+    # Call from worktree context (should resolve to main repo)
+    target = get_feature_target_branch(worktree, "025-cli-event-log-integration")
+    assert target == "2.x"

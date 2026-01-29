@@ -17,6 +17,7 @@ from specify_cli.core.dependency_graph import build_dependency_graph, get_depend
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.feature_detection import (
     detect_feature_slug,
+    get_feature_target_branch,
     FeatureDetectionError,
 )
 from specify_cli.mission import get_feature_mission_key
@@ -666,19 +667,23 @@ def move_task(
         updated_doc = build_document(updated_front, updated_body, wp.padding)
         wp.path.write_text(updated_doc, encoding="utf-8")
 
-        # FIX B: Auto-commit to main branch (worktrees use sparse-checkout, don't have kitty-specs/)
+        # FIX B: Auto-commit to TARGET branch (detects from feature meta.json)
         # Agents read/write to main's kitty-specs/ directly (absolute paths)
         # This enables instant status sync across all worktrees (jujutsu-aligned)
+        # Route commits to target_branch (e.g., "2.x" for SaaS features, "main" for 1.x)
         if auto_commit:
             import subprocess
 
             # Get the ACTUAL main repo root (not worktree path)
             main_repo_root = get_main_repo_root(repo_root)
 
+            # Detect target branch for this feature (main or 2.x)
+            target_branch = get_feature_target_branch(repo_root, feature_slug)
+
             # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
             spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
 
-            # Commit to main (file is always in main, worktrees excluded via sparse-checkout)
+            # Commit to target branch (file is always in main, worktrees excluded via sparse-checkout)
             commit_msg = f"chore: Move {task_id} to {target_lane} on spec {spec_number}"
             if agent_name != "unknown":
                 commit_msg += f" [{agent_name}]"
@@ -688,39 +693,75 @@ def move_task(
                 # Worktrees use sparse-checkout to exclude kitty-specs/, so path is always to main
                 actual_file_path = wp.path.resolve()
 
-                # Stage the file first, then commit
-                # Use -u to only update tracked files (bypasses .gitignore check)
-                add_result = subprocess.run(
-                    ["git", "add", "-u", str(actual_file_path)],
+                # Get current branch in main repo
+                current_branch_result = subprocess.run(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                     cwd=main_repo_root,
                     capture_output=True,
                     text=True,
-                    check=False
+                    check=True
                 )
+                current_branch = current_branch_result.stdout.strip()
 
-                if add_result.returncode != 0:
-                    if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
-                else:
-                    # Commit the staged file
-                    commit_result = subprocess.run(
-                        ["git", "commit", "-m", commit_msg],
+                # Checkout target if needed
+                if current_branch != target_branch:
+                    checkout_result = subprocess.run(
+                        ["git", "checkout", target_branch],
+                        cwd=main_repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+                    if checkout_result.returncode != 0:
+                        if not json_output:
+                            console.print(f"[yellow]Warning:[/yellow] Could not checkout {target_branch}, committing to {current_branch}")
+                        target_branch = current_branch  # Fallback to current
+
+                try:
+                    # Stage the file first, then commit
+                    # Use -u to only update tracked files (bypasses .gitignore check)
+                    add_result = subprocess.run(
+                        ["git", "add", "-u", str(actual_file_path)],
                         cwd=main_repo_root,
                         capture_output=True,
                         text=True,
                         check=False
                     )
 
-                    if commit_result.returncode == 0:
+                    if add_result.returncode != 0:
                         if not json_output:
-                            console.print(f"[cyan]→ Committed status change to main branch[/cyan]")
-                    elif "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
-                        # File wasn't actually changed, that's OK
-                        pass
+                            console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
                     else:
-                        # Commit failed
-                        if not json_output:
-                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+                        # Commit the staged file
+                        commit_result = subprocess.run(
+                            ["git", "commit", "-m", commit_msg],
+                            cwd=main_repo_root,
+                            capture_output=True,
+                            text=True,
+                            check=False
+                        )
+
+                        if commit_result.returncode == 0:
+                            if not json_output:
+                                console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
+                        elif "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
+                            # File wasn't actually changed, that's OK
+                            pass
+                        else:
+                            # Commit failed
+                            if not json_output:
+                                console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+
+                finally:
+                    # Restore original branch
+                    if current_branch != target_branch:
+                        subprocess.run(
+                            ["git", "checkout", current_branch],
+                            cwd=main_repo_root,
+                            capture_output=True,
+                            text=True,
+                            check=False
+                        )
 
             except Exception as e:
                 # Unexpected error
@@ -836,9 +877,12 @@ def mark_status(
         updated_content = '\n'.join(lines)
         tasks_md.write_text(updated_content, encoding="utf-8")
 
-        # Auto-commit to main branch (single commit for all tasks)
+        # Auto-commit to TARGET branch (detects from feature meta.json)
         if auto_commit:
             import subprocess
+
+            # Detect target branch for this feature (main or 2.x)
+            target_branch = get_feature_target_branch(repo_root, feature_slug)
 
             # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
             spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
@@ -852,35 +896,71 @@ def mark_status(
             try:
                 actual_tasks_path = tasks_md.resolve()
 
-                # Stage the file first, then commit
-                # Use -u to only update tracked files (bypasses .gitignore check)
-                add_result = subprocess.run(
-                    ["git", "add", "-u", str(actual_tasks_path)],
+                # Get current branch in main repo
+                current_branch_result = subprocess.run(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                     cwd=main_repo_root,
                     capture_output=True,
                     text=True,
-                    check=False
+                    check=True
                 )
+                current_branch = current_branch_result.stdout.strip()
 
-                if add_result.returncode != 0:
-                    if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
-                else:
-                    # Commit the staged file
-                    commit_result = subprocess.run(
-                        ["git", "commit", "-m", commit_msg],
+                # Checkout target if needed
+                if current_branch != target_branch:
+                    checkout_result = subprocess.run(
+                        ["git", "checkout", target_branch],
+                        cwd=main_repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+                    if checkout_result.returncode != 0:
+                        if not json_output:
+                            console.print(f"[yellow]Warning:[/yellow] Could not checkout {target_branch}, committing to {current_branch}")
+                        target_branch = current_branch  # Fallback to current
+
+                try:
+                    # Stage the file first, then commit
+                    # Use -u to only update tracked files (bypasses .gitignore check)
+                    add_result = subprocess.run(
+                        ["git", "add", "-u", str(actual_tasks_path)],
                         cwd=main_repo_root,
                         capture_output=True,
                         text=True,
                         check=False
                     )
 
-                    if commit_result.returncode == 0:
+                    if add_result.returncode != 0:
                         if not json_output:
-                            console.print(f"[cyan]→ Committed subtask changes to main branch[/cyan]")
-                    elif "nothing to commit" not in commit_result.stdout and "nothing to commit" not in commit_result.stderr:
-                        if not json_output:
-                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+                            console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
+                    else:
+                        # Commit the staged file
+                        commit_result = subprocess.run(
+                            ["git", "commit", "-m", commit_msg],
+                            cwd=main_repo_root,
+                            capture_output=True,
+                            text=True,
+                            check=False
+                        )
+
+                        if commit_result.returncode == 0:
+                            if not json_output:
+                                console.print(f"[cyan]→ Committed subtask changes to {target_branch} branch[/cyan]")
+                        elif "nothing to commit" not in commit_result.stdout and "nothing to commit" not in commit_result.stderr:
+                            if not json_output:
+                                console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+
+                finally:
+                    # Restore original branch
+                    if current_branch != target_branch:
+                        subprocess.run(
+                            ["git", "checkout", current_branch],
+                            cwd=main_repo_root,
+                            capture_output=True,
+                            text=True,
+                            check=False
+                        )
 
             except Exception as e:
                 if not json_output:
