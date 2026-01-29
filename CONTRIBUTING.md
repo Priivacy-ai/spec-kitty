@@ -34,6 +34,12 @@ These are one time installations required to be able to test your changes locall
 1. Install [Git](https://git-scm.com/downloads)
 1. Have an [AI coding agent available](README.md#-supported-ai-agents)
 
+### Private Dependencies
+
+Spec-kitty depends on the private [spec-kitty-events](https://github.com/Priivacy-ai/spec-kitty-events) library. For CI/CD setup, see [SSH Deploy Keys documentation](docs/development/ssh-deploy-keys.md).
+
+For local development, ensure you have SSH access to the repository.
+
 ## Running Tests
 
 Spec Kitty's test suite is designed to run against source code, not installed packages. This ensures tests verify the current code, not a previously installed version.

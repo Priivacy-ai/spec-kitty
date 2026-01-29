@@ -159,6 +159,13 @@ def main():
         except (AttributeError, OSError):
             # Python < 3.7 or reconfigure not available
             pass
+
+    # Check for spec-kitty-events library availability (required for 2.x branch)
+    from specify_cli.events.adapter import EventAdapter
+    if not EventAdapter.check_library_available():
+        console.print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
+        raise typer.Exit(1)
+
     app()
 
 __all__ = ["main", "app", "__version__"]
