@@ -86,7 +86,7 @@ Planning requirements (scale to complexity):
       - Look for `###-feature-name` pattern in the current path
       - Examples:
         - Inside `kitty-specs/020-my-feature/` → Feature `020-my-feature`
-        - Inside `.worktrees/020-my-feature-WP01/` → Feature `020-my-feature` (strip `-WP##`)
+        - Not in a worktree during planning (worktrees only used during implement): If detection runs from `.worktrees/020-my-feature-WP01/` → Feature `020-my-feature`
 
    c. **Prioritize features without plan.md** (if multiple exist):
       - If multiple features exist and none detected from branch/path, list all features in `kitty-specs/`

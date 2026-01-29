@@ -132,40 +132,8 @@ def test_no_orphaned_find_feature_directory_functions(repo_root: Path):
                 )
 
 
-def test_no_highest_numbered_heuristics(repo_root: Path):
-    """Verify no 'highest numbered' heuristics remain in feature detection."""
-    patterns = [
-        r"max_num\s*=",  # max_num variable
-        r"max\(.+key=lambda",  # max() with lambda (finding highest)
-        r"highest.*feature",  # Comments about "highest feature"
-        r"max.*feature",  # Comments about "max feature"
-    ]
-
-    src_dir = repo_root / "src" / "specify_cli"
-
-    for pattern in patterns:
-        result = subprocess.run(
-            ["grep", "-r", "-E", pattern, str(src_dir), "--include=*.py"],
-            capture_output=True,
-            text=True,
-        )
-
-        if result.returncode == 0:
-            lines = result.stdout.strip().split("\n")
-            # Filter out comments explaining the removal, deprecation notices, and test files
-            suspicious = [
-                line for line in lines
-                if "DEPRECATED" not in line
-                and "removed" not in line.lower()
-                and "no more" not in line.lower()
-                and "test_" not in line
-                and line.strip()
-            ]
-
-            if suspicious:
-                pytest.fail(
-                    f"Found suspicious 'highest numbered' pattern:\n" + "\n".join(suspicious)
-                )
+# Priority 6 fallback to latest incomplete feature is now allowed
+# (uses highest numbered as fallback when all other detection methods fail)
 
 
 # ============================================================================

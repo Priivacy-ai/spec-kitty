@@ -254,6 +254,7 @@ Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 ## PyPI Release (Quick Reference)
 
 **CRITICAL: NEVER create releases without explicit user instruction!**
+**CRITICAL: NEVER manually create releases! You MUST use the Github release process.**
 
 Only cut a release when the user explicitly says:
 - "cut a release"
