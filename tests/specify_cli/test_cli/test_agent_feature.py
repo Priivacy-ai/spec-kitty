@@ -518,8 +518,8 @@ class TestFindFeatureDirectory:
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
 
-        # Execute & Verify
-        with pytest.raises(ValueError, match="No feature directories found"):
+        # Execute & Verify (updated to match centralized error message)
+        with pytest.raises(ValueError, match="No features found"):
             _find_feature_directory(tmp_path, tmp_path)
 
     @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
@@ -560,6 +560,6 @@ class TestFindFeatureDirectory:
 
         # No kitty-specs directory created
 
-        # Execute & Verify
-        with pytest.raises(ValueError, match="Could not locate kitty-specs"):
+        # Execute & Verify (updated to match centralized error message)
+        with pytest.raises(ValueError, match="Feature directory not found"):
             _find_feature_directory(tmp_path, tmp_path / "nested")

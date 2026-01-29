@@ -227,6 +227,55 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
             )
 
 
+def detect_feature_slug(
+    repo_root: Path,
+    *,
+    env: Optional[Mapping[str, str]] = None,
+    cwd: Optional[Path] = None,
+) -> str:
+    """Detect feature slug from environment, git branch, or current directory.
+
+    Priority:
+    1. SPECIFY_FEATURE environment variable
+    2. Git branch name (if starts with ###-)
+    3. Current directory path (walks up looking for .worktrees or ###- pattern)
+
+    Raises:
+        AcceptanceError: If feature cannot be auto-detected
+    """
+    env = env or os.environ
+    if "SPECIFY_FEATURE" in env and env["SPECIFY_FEATURE"].strip():
+        return env["SPECIFY_FEATURE"].strip()
+
+    try:
+        branch = (
+            run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, check=True)
+            .stdout.strip()
+        )
+        if branch and branch != "HEAD" and re.match(r"^\d{3}-", branch):
+            return branch
+    except TaskCliError:
+        pass
+
+    cwd = (cwd or Path.cwd()).resolve()
+    for parent in [cwd, *cwd.parents]:
+        if parent.name.startswith(".worktrees"):
+            parts = list(parent.parts)
+            try:
+                idx = parts.index(".worktrees")
+                candidate = parts[idx + 1]
+                if re.match(r"^\d{3}-", candidate):
+                    return candidate
+            except (ValueError, IndexError):
+                continue
+        if parent.name.startswith("0") and re.match(r"^\d{3}-", parent.name):
+            return parent.name
+
+    raise AcceptanceError(
+        "Unable to determine feature slug automatically. Provide --feature explicitly."
+    )
+
+
 def _read_file(path: Path) -> str:
     return _read_text_strict(path) if path.exists() else ""
 
