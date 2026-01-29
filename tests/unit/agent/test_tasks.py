@@ -836,14 +836,17 @@ class TestFindFeatureSlug:
         from specify_cli.cli.commands.agent.tasks import _find_feature_slug
 
         # Setup: cwd is in kitty-specs/feature-slug directory
-        mock_cwd.return_value = Path("/repo/.worktrees/008-test/kitty-specs/008-test-feature")
+        feature_dir = tmp_path / "kitty-specs" / "008-test-feature"
+        feature_dir.mkdir(parents=True)
+
+        mock_cwd.return_value = feature_dir
         mock_root.return_value = tmp_path
 
-        # Create kitty-specs directory in mock repo root
-        (tmp_path / "kitty-specs" / "008-test-feature").mkdir(parents=True)
+        with patch("specify_cli.core.feature_detection._get_main_repo_root") as mock_main:
+            mock_main.return_value = tmp_path
 
-        slug = _find_feature_slug()
-        assert slug == "008-test-feature"
+            slug = _find_feature_slug()
+            assert slug == "008-test-feature"
 
     @patch("subprocess.run")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
