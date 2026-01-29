@@ -734,8 +734,51 @@ def implement(
             base_branch = merge_result.branch_name
 
         elif base is None:
-            # No dependencies - branch from primary branch
-            base_branch = resolve_primary_branch(repo_root)
+            # No dependencies - branch from target branch (or primary if target not set)
+            from specify_cli.core.feature_detection import get_feature_target_branch
+
+            # Get target branch from feature metadata
+            target_branch = get_feature_target_branch(repo_root, feature_slug)
+
+            # Check if target branch exists
+            branch_exists_result = subprocess.run(
+                ["git", "rev-parse", "--verify", target_branch],
+                cwd=repo_root,
+                capture_output=True,
+                check=False
+            )
+
+            if branch_exists_result.returncode != 0:
+                # Target branch doesn't exist
+                if target_branch != "main" and target_branch != "master":
+                    # Auto-create target branch from primary branch (bootstrap)
+                    primary_branch = resolve_primary_branch(repo_root)
+                    console.print(f"\n[cyan]Target branch '{target_branch}' doesn't exist - creating from {primary_branch}[/cyan]")
+
+                    create_result = subprocess.run(
+                        ["git", "branch", target_branch, primary_branch],
+                        cwd=repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+
+                    if create_result.returncode == 0:
+                        # Branch created successfully from primary's current HEAD
+                        # This means 3.x now includes all planning commits (feature files exist)
+                        console.print(f"[green]✓[/green] Created target branch: {target_branch} from {primary_branch}")
+                        base_branch = target_branch
+                    else:
+                        # Creation failed (conflict, permissions, etc.)
+                        console.print(f"[yellow]Warning:[/yellow] Could not create {target_branch}: {create_result.stderr}")
+                        console.print(f"[yellow]Falling back to {primary_branch}[/yellow]")
+                        base_branch = primary_branch
+                else:
+                    # Target is main/master but doesn't exist - use primary
+                    base_branch = resolve_primary_branch(repo_root)
+            else:
+                # Target branch exists - use it
+                base_branch = target_branch
         else:
             # Has dependencies - branch from base WP's branch
             base_branch = f"{feature_slug}-{base}"
