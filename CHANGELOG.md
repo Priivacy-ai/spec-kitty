@@ -9,6 +9,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.8] - 2026-01-29
+
+### 🎯 Added
+
+**Dual-Branch Status Routing** (Main Feature):
+- Status commits now route to `target_branch` from feature metadata (not hard-coded to main)
+- Enables parallel development on main (1.x) and 2.x (SaaS) branches
+- Meta.json field: `"target_branch": "main"` or `"target_branch": "2.x"`
+- Migration automatically adds target_branch to existing features
+- Feature 025 (CLI Event Log Integration) can now develop on 2.x without race conditions
+- **ADR-13**: Target Branch Routing for Status Commits
+
+**Explicit Metadata Fields**:
+- meta.json now always includes `target_branch` and `vcs` fields (no implicit defaults)
+- Follows SDD principle: configuration should be explicit and visible
+- Updated specify template for all 12 agent directories
+- Improves debugging: `cat meta.json` shows complete configuration
+- **ADR-14**: Explicit Metadata Fields Over Implicit Defaults
+
+**Smart Dependency Detection**:
+- Auto-detects when multi-parent dependencies are complete
+- Suggests merge-first workflow before attempting auto-merge (prevents .gitignore conflicts)
+- Provides clear guidance: "Run spec-kitty merge first, then implement WP04"
+- New module: `src/specify_cli/core/dependency_resolver.py`
+- **ADR-15**: Merge-First Suggestion for Completed Dependencies
+
+**Auto-Create Target Branch**:
+- Automatically creates target branch during first implement if missing
+- Solves bootstrap paradox (WP01 creating the branch it should work on)
+- Just-in-time creation: `git branch 3.x main` when first WP implemented
+- Console message: "Creating target branch: 3.x"
+- **ADR-17**: Auto-Create Target Branch on First Implement
+
+**Centralized Feature Detection**:
+- Unified feature detection across all commands
+- Priority: --feature flag > SPECIFY_FEATURE env > git branch > cwd > single auto-detect
+- Clear error messages with actionable guidance
+- New module: Refactored in feature_detection.py
+
+**Priority 6 Fallback to Latest Incomplete Feature**:
+- Auto-selects highest numbered incomplete feature when running from repo root with no context
+- Resolves ambiguity: instead of erroring with "Multiple features found", auto-selects the feature you're most likely working on
+- Smart detection: features with all WPs `lane: done` are considered complete
+- Informational message: "Auto-selected latest incomplete: 022-dashboard"
+- Benefits all commands (plan/tasks/implement/review) automatically
+- Safe defaults: parse errors treat features as incomplete
+
+### 🐛 Fixed
+
+**Agent JSON Output Confusion**:
+- `spec-kitty agent feature finalize-tasks --json` now includes:
+  - `commit_created`: boolean (did commit happen?)
+  - `commit_hash`: string (SHA for verification)
+  - `files_committed`: array (what was committed)
+- Prevents agents from committing twice when unrelated files are dirty
+- **ADR-16**: Rich JSON Outputs for Agent Commands
+
+**Tasks Template Guidance**:
+- Added warning: "DO NOT commit after finalize-tasks (commits automatically)"
+- Clarifies that finalize-tasks handles git commit internally
+- Prevents redundant git commit attempts
+
+### 📚 Documentation
+
+- **5 New ADRs**: ADR-13 through ADR-17 documenting architectural decisions
+- **architecture/README.md**: Updated with new ADRs, organized by topic
+- **README.md**: Branch strategy badges (main → 1.x, 2.x → active)
+
+### 🧪 Testing
+
+- **66 new tests** across 6 test files (1 known issue in auto-create routing)
+- **test_dual_branch_status_routing.py**: 12 tests for routing behavior
+- **test_feature_025_workflow.py**: 3 end-to-end tests
+- **test_specify_metadata_explicit.py**: 13 tests for explicit fields
+- **test_finalize_tasks_json_output.py**: 6 tests for JSON enhancements
+- **test_auto_merge_dependencies.py**: 7 tests for smart detection
+- **test_auto_create_target_branch.py**: 6 tests (5 passing, 1 known issue)
+- **test_feature_detection.py**: 12 tests for Priority 6 fallback (is_feature_complete, find_latest_incomplete)
+- **test_feature_detection.py**: 7 tests for target branch detection (get_feature_target_branch)
+- **conftest.py**: dual_branch_repo fixture for multi-branch testing
+
+### ⚠️ Known Issues
+
+- Auto-created target branches don't receive status commits immediately (fallback to main works)
+- Worktree cleanup after merge not yet implemented (ADR-9)
+
+### 🔧 Migration
+
+- **m_0_13_8_target_branch**: Adds target_branch field to all existing features
+  - Auto-detects Feature 025 as targeting 2.x (from spec.md content)
+  - Defaults to "main" for all other features
+  - Safe, non-breaking migration
+
+- **m_0_14_0_centralized_feature_detection**: Updates to unified detection module
+  - No user-visible changes
+  - Infrastructure improvement
+
 ## [0.13.7] - 2026-01-27
 
 ### 🐛 Fixed
