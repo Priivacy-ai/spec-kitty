@@ -26,6 +26,10 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli.helpers import get_project_root_or_exit
+from specify_cli.core.feature_detection import (
+    detect_feature,
+    FeatureDetectionError,
+)
 from specify_cli.orchestrator.config import (
     OrchestrationStatus,
     OrchestratorConfig,
@@ -99,47 +103,24 @@ app = typer.Typer(
 
 
 def detect_current_feature() -> str | None:
-    """Auto-detect feature slug from current directory.
+    """Auto-detect feature slug from current directory using centralized detection.
 
-    Checks if current directory is inside a feature worktree
-    and extracts the feature slug.
+    This function uses lenient mode to return None on failure (UI convenience).
 
     Returns:
         Feature slug or None if not detected.
     """
-    cwd = Path.cwd()
-
-    # Check if we're in a worktree
-    if ".worktrees" in str(cwd):
-        # Pattern: .worktrees/###-feature-WP##
-        parts = cwd.parts
-        for i, part in enumerate(parts):
-            if part == ".worktrees" and i + 1 < len(parts):
-                worktree_name = parts[i + 1]
-                # Extract feature slug (remove WP## suffix if present)
-                if "-WP" in worktree_name:
-                    return worktree_name.rsplit("-WP", 1)[0]
-                return worktree_name
-
-    # Check kitty-specs directory
-    kitty_specs = cwd / "kitty-specs"
-    if not kitty_specs.exists():
-        # Try parent
-        project_root = get_project_root_or_exit(cwd)
-        kitty_specs = project_root / "kitty-specs"
-
-    if kitty_specs.exists():
-        # Look for most recently modified feature
-        features = [
-            d for d in kitty_specs.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        ]
-        if features:
-            # Return most recent
-            features.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-            return features[0].name
-
-    return None
+    try:
+        project_root = get_project_root_or_exit(Path.cwd())
+        ctx = detect_feature(
+            project_root,
+            cwd=Path.cwd(),
+            mode="lenient"  # Return None instead of raising error
+        )
+        return ctx.slug if ctx else None
+    except Exception:
+        # Catch any unexpected errors and return None (lenient behavior)
+        return None
 
 
 def format_elapsed(seconds: float) -> str:

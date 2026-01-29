@@ -24,6 +24,10 @@ def test_detect_current_feature_from_kitty_specs(tmp_path, monkeypatch):
 
 def test_detect_current_feature_from_worktree(tmp_path, monkeypatch):
     """Test _detect_current_feature from worktree."""
+    # Create kitty-specs/001-research/ directory (feature must exist for validation)
+    feature_dir = tmp_path / "kitty-specs" / "001-research"
+    feature_dir.mkdir(parents=True)
+
     # Create .worktrees/001-research-WP01/ directory
     worktree_dir = tmp_path / ".worktrees" / "001-research-WP01"
     worktree_dir.mkdir(parents=True)
@@ -38,6 +42,10 @@ def test_detect_current_feature_from_worktree(tmp_path, monkeypatch):
 
 def test_detect_current_feature_from_worktree_no_wp_suffix(tmp_path, monkeypatch):
     """Test _detect_current_feature from worktree without WP suffix."""
+    # Create kitty-specs/001-research/ directory (feature must exist for validation)
+    feature_dir = tmp_path / "kitty-specs" / "001-research"
+    feature_dir.mkdir(parents=True)
+
     # Create .worktrees/001-research/ directory (no WP## suffix)
     worktree_dir = tmp_path / ".worktrees" / "001-research"
     worktree_dir.mkdir(parents=True)

@@ -14,7 +14,12 @@ from rich.console import Console
 from typing_extensions import Annotated
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
-from specify_cli.core.paths import locate_project_root, get_main_repo_root, find_feature_slug, is_worktree_context
+from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
+from specify_cli.core.feature_detection import (
+    detect_feature_slug,
+    get_feature_target_branch,
+    FeatureDetectionError,
+)
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.tasks_support import (
     LANES,
@@ -38,8 +43,11 @@ app = typer.Typer(
 console = Console()
 
 
-def _find_feature_slug() -> str:
-    """Find the current feature slug from the working directory or git branch.
+def _find_feature_slug(explicit_feature: str | None = None) -> str:
+    """Find the current feature slug using centralized detection.
+
+    Args:
+        explicit_feature: Optional explicit feature slug from --feature flag
 
     Returns:
         Feature slug (e.g., "008-unified-python-cli")
@@ -53,11 +61,16 @@ def _find_feature_slug() -> str:
     if repo_root is None:
         raise typer.Exit(1)
 
-    slug = find_feature_slug(repo_root)
-    if slug is None:
+    try:
+        return detect_feature_slug(
+            repo_root,
+            explicit_feature=explicit_feature,
+            cwd=cwd,
+            mode="strict"
+        )
+    except FeatureDetectionError as e:
+        console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
-
-    return slug
 
 
 def _output_result(json_mode: bool, data: dict, success_message: str = None):
@@ -485,7 +498,7 @@ def move_task(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Informational: Let user know we're using main repo's kitty-specs
         cwd = Path.cwd().resolve()
@@ -654,19 +667,23 @@ def move_task(
         updated_doc = build_document(updated_front, updated_body, wp.padding)
         wp.path.write_text(updated_doc, encoding="utf-8")
 
-        # FIX B: Auto-commit to main branch (worktrees use sparse-checkout, don't have kitty-specs/)
+        # FIX B: Auto-commit to TARGET branch (detects from feature meta.json)
         # Agents read/write to main's kitty-specs/ directly (absolute paths)
         # This enables instant status sync across all worktrees (jujutsu-aligned)
+        # Route commits to target_branch (e.g., "2.x" for SaaS features, "main" for 1.x)
         if auto_commit:
             import subprocess
 
             # Get the ACTUAL main repo root (not worktree path)
             main_repo_root = get_main_repo_root(repo_root)
 
+            # Detect target branch for this feature (main or 2.x)
+            target_branch = get_feature_target_branch(repo_root, feature_slug)
+
             # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
             spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
 
-            # Commit to main (file is always in main, worktrees excluded via sparse-checkout)
+            # Commit to target branch (file is always in main, worktrees excluded via sparse-checkout)
             commit_msg = f"chore: Move {task_id} to {target_lane} on spec {spec_number}"
             if agent_name != "unknown":
                 commit_msg += f" [{agent_name}]"
@@ -676,39 +693,75 @@ def move_task(
                 # Worktrees use sparse-checkout to exclude kitty-specs/, so path is always to main
                 actual_file_path = wp.path.resolve()
 
-                # Stage the file first, then commit
-                # Use -u to only update tracked files (bypasses .gitignore check)
-                add_result = subprocess.run(
-                    ["git", "add", "-u", str(actual_file_path)],
+                # Get current branch in main repo
+                current_branch_result = subprocess.run(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                     cwd=main_repo_root,
                     capture_output=True,
                     text=True,
-                    check=False
+                    check=True
                 )
+                current_branch = current_branch_result.stdout.strip()
 
-                if add_result.returncode != 0:
-                    if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
-                else:
-                    # Commit the staged file
-                    commit_result = subprocess.run(
-                        ["git", "commit", "-m", commit_msg],
+                # Checkout target if needed
+                if current_branch != target_branch:
+                    checkout_result = subprocess.run(
+                        ["git", "checkout", target_branch],
+                        cwd=main_repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+                    if checkout_result.returncode != 0:
+                        if not json_output:
+                            console.print(f"[yellow]Warning:[/yellow] Could not checkout {target_branch}, committing to {current_branch}")
+                        target_branch = current_branch  # Fallback to current
+
+                try:
+                    # Stage the file first, then commit
+                    # Use -u to only update tracked files (bypasses .gitignore check)
+                    add_result = subprocess.run(
+                        ["git", "add", "-u", str(actual_file_path)],
                         cwd=main_repo_root,
                         capture_output=True,
                         text=True,
                         check=False
                     )
 
-                    if commit_result.returncode == 0:
+                    if add_result.returncode != 0:
                         if not json_output:
-                            console.print(f"[cyan]→ Committed status change to main branch[/cyan]")
-                    elif "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
-                        # File wasn't actually changed, that's OK
-                        pass
+                            console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
                     else:
-                        # Commit failed
-                        if not json_output:
-                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+                        # Commit the staged file
+                        commit_result = subprocess.run(
+                            ["git", "commit", "-m", commit_msg],
+                            cwd=main_repo_root,
+                            capture_output=True,
+                            text=True,
+                            check=False
+                        )
+
+                        if commit_result.returncode == 0:
+                            if not json_output:
+                                console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
+                        elif "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
+                            # File wasn't actually changed, that's OK
+                            pass
+                        else:
+                            # Commit failed
+                            if not json_output:
+                                console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+
+                finally:
+                    # Restore original branch
+                    if current_branch != target_branch:
+                        subprocess.run(
+                            ["git", "checkout", current_branch],
+                            cwd=main_repo_root,
+                            capture_output=True,
+                            text=True,
+                            check=False
+                        )
 
             except Exception as e:
                 # Unexpected error
@@ -781,7 +834,7 @@ def mark_status(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
         # Use main repo root (worktrees have kitty-specs/ sparse-checked out)
         main_repo_root = get_main_repo_root(repo_root)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
@@ -824,9 +877,12 @@ def mark_status(
         updated_content = '\n'.join(lines)
         tasks_md.write_text(updated_content, encoding="utf-8")
 
-        # Auto-commit to main branch (single commit for all tasks)
+        # Auto-commit to TARGET branch (detects from feature meta.json)
         if auto_commit:
             import subprocess
+
+            # Detect target branch for this feature (main or 2.x)
+            target_branch = get_feature_target_branch(repo_root, feature_slug)
 
             # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
             spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
@@ -840,35 +896,71 @@ def mark_status(
             try:
                 actual_tasks_path = tasks_md.resolve()
 
-                # Stage the file first, then commit
-                # Use -u to only update tracked files (bypasses .gitignore check)
-                add_result = subprocess.run(
-                    ["git", "add", "-u", str(actual_tasks_path)],
+                # Get current branch in main repo
+                current_branch_result = subprocess.run(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                     cwd=main_repo_root,
                     capture_output=True,
                     text=True,
-                    check=False
+                    check=True
                 )
+                current_branch = current_branch_result.stdout.strip()
 
-                if add_result.returncode != 0:
-                    if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
-                else:
-                    # Commit the staged file
-                    commit_result = subprocess.run(
-                        ["git", "commit", "-m", commit_msg],
+                # Checkout target if needed
+                if current_branch != target_branch:
+                    checkout_result = subprocess.run(
+                        ["git", "checkout", target_branch],
+                        cwd=main_repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+                    if checkout_result.returncode != 0:
+                        if not json_output:
+                            console.print(f"[yellow]Warning:[/yellow] Could not checkout {target_branch}, committing to {current_branch}")
+                        target_branch = current_branch  # Fallback to current
+
+                try:
+                    # Stage the file first, then commit
+                    # Use -u to only update tracked files (bypasses .gitignore check)
+                    add_result = subprocess.run(
+                        ["git", "add", "-u", str(actual_tasks_path)],
                         cwd=main_repo_root,
                         capture_output=True,
                         text=True,
                         check=False
                     )
 
-                    if commit_result.returncode == 0:
+                    if add_result.returncode != 0:
                         if not json_output:
-                            console.print(f"[cyan]→ Committed subtask changes to main branch[/cyan]")
-                    elif "nothing to commit" not in commit_result.stdout and "nothing to commit" not in commit_result.stderr:
-                        if not json_output:
-                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+                            console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
+                    else:
+                        # Commit the staged file
+                        commit_result = subprocess.run(
+                            ["git", "commit", "-m", commit_msg],
+                            cwd=main_repo_root,
+                            capture_output=True,
+                            text=True,
+                            check=False
+                        )
+
+                        if commit_result.returncode == 0:
+                            if not json_output:
+                                console.print(f"[cyan]→ Committed subtask changes to {target_branch} branch[/cyan]")
+                        elif "nothing to commit" not in commit_result.stdout and "nothing to commit" not in commit_result.stderr:
+                            if not json_output:
+                                console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+
+                finally:
+                    # Restore original branch
+                    if current_branch != target_branch:
+                        subprocess.run(
+                            ["git", "checkout", current_branch],
+                            cwd=main_repo_root,
+                            capture_output=True,
+                            text=True,
+                            check=False
+                        )
 
             except Exception as e:
                 if not json_output:
@@ -918,7 +1010,7 @@ def list_tasks(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Use main repo (worktrees have kitty-specs/ sparse-checked out)
         main_repo_root = get_main_repo_root(repo_root)
@@ -991,7 +1083,7 @@ def add_history(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, task_id)
@@ -1053,7 +1145,7 @@ def finalize_tasks(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
         # Use main repo (worktrees have kitty-specs/ sparse-checked out)
         main_repo_root = get_main_repo_root(repo_root)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
@@ -1170,7 +1262,7 @@ def validate_workflow(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, task_id)
@@ -1272,7 +1364,7 @@ def status(
             raise typer.Exit(1)
 
         # Auto-detect or use provided feature slug
-        feature_slug = feature if feature else _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Get main repo root for correct path resolution
         main_repo_root = get_main_repo_root(repo_root)
@@ -1527,7 +1619,7 @@ def list_dependents(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
         main_repo_root = get_main_repo_root(repo_root)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
 
