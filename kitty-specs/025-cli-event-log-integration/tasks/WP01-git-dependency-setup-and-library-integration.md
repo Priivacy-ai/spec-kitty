@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Git Dependency Setup & Library Integration
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 1e55c89f5fd0f33da7cf4f7b50c68ed65ce742ba
@@ -758,6 +758,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 - 2026-01-28T06:10:47Z – codex – shell_pid=46237 – lane=doing – Started review via workflow command
 - 2026-01-28T06:11:53Z – codex – shell_pid=46237 – lane=planned – Moved to planned
 - 2026-01-28T06:13:51Z – codex – shell_pid=46237 – lane=for_review – Moved to for_review
+- 2026-01-29T07:45:50Z – codex – shell_pid=46237 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
