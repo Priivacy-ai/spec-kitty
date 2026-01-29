@@ -473,6 +473,57 @@ def detect_feature_directory(repo_root: Path, **kwargs) -> Path:
     return ctx.directory
 
 
+def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
+    """Get target branch for feature from meta.json.
+
+    This function reads the target_branch field from a feature's meta.json file.
+    The target_branch determines where status commits and implementation work
+    should be routed (e.g., "main" for 1.x features, "2.x" for SaaS features).
+
+    Args:
+        repo_root: Repository root path (may be worktree)
+        feature_slug: Feature slug (e.g., "025-cli-event-log-integration")
+
+    Returns:
+        Target branch name (defaults to "main" for legacy features without
+        the target_branch field, or if meta.json cannot be read)
+
+    Examples:
+        >>> # Feature targeting main branch
+        >>> get_feature_target_branch(Path("."), "024-feature-name")
+        'main'
+
+        >>> # Feature targeting 2.x branch
+        >>> get_feature_target_branch(Path("."), "025-cli-event-log-integration")
+        '2.x'
+
+    Note:
+        This function always returns "main" as a safe default if:
+        - meta.json doesn't exist
+        - meta.json is malformed (invalid JSON)
+        - target_branch field is missing
+        - Any I/O error occurs
+
+        This ensures backward compatibility with legacy features created
+        before the target_branch field was introduced (version 0.13.8).
+    """
+    import json
+
+    main_repo_root = _get_main_repo_root(repo_root)
+    feature_dir = main_repo_root / "kitty-specs" / feature_slug
+    meta_file = feature_dir / "meta.json"
+
+    if not meta_file.exists():
+        return "main"
+
+    try:
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        return meta.get("target_branch", "main")
+    except (json.JSONDecodeError, KeyError, OSError):
+        # Safe fallback for any error
+        return "main"
+
+
 # ============================================================================
 # Exports
 # ============================================================================
@@ -490,4 +541,6 @@ __all__ = [
     # Simplified wrappers
     "detect_feature_slug",
     "detect_feature_directory",
+    # Target branch detection
+    "get_feature_target_branch",
 ]
