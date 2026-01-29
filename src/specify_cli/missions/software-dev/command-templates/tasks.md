@@ -171,6 +171,13 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Agents won't know which --base flag to use
    - Tasks won't be committed to main
 
+   **IMPORTANT - DO NOT COMMIT AGAIN AFTER THIS COMMAND**:
+   - finalize-tasks COMMITS the files automatically
+   - JSON output includes "commit_created": true/false and "commit_hash"
+   - If commit_created=true, files are ALREADY committed - do not run git commit again
+   - Other dirty files shown by 'git status' (templates, config) are UNRELATED
+   - Verify using the commit_hash from JSON output, not by running git add/commit again
+
 8. **Report**: Provide a concise outcome summary:
    - Path to `tasks.md`
    - Work package count and per-package subtask tallies
@@ -420,6 +427,9 @@ Run `spec-kitty agent feature finalize-tasks --json` to:
 - Update frontmatter
 - Validate (cycles, invalid refs)
 - Commit to main
+
+**DO NOT run git commit after this** - finalize-tasks commits automatically.
+Check JSON output for "commit_created": true and "commit_hash" to verify.
 
 ### Step 8: Report
 
