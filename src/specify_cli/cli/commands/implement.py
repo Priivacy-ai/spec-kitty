@@ -552,10 +552,29 @@ def implement(
 
         # Multi-parent dependency handling
         if len(declared_deps) > 1 and base is None:
+            # Check if all dependencies are done - suggest merge-first workflow
+            from specify_cli.core.dependency_resolver import check_dependency_status
+
+            feature_dir = repo_root / "kitty-specs" / feature_slug
+            dep_status = check_dependency_status(feature_dir, wp_id, declared_deps)
+
+            if dep_status.should_suggest_merge_first and not force:
+                # All dependencies done - suggest merging to main first
+                tracker.error("validate", "dependencies should be merged first")
+                console.print(tracker.render())
+                console.print(f"\n[yellow]Suggestion:[/yellow] {dep_status.get_recommendation()}")
+                raise typer.Exit(1)
+
             # Auto-merge mode: Create merge commit combining all dependencies
             console.print(f"\n[cyan]Multi-parent dependency detected:[/cyan]")
             console.print(f"  {wp_id} depends on: {', '.join(declared_deps)}")
-            console.print(f"  Auto-creating merge base combining all dependencies...")
+
+            if dep_status.all_done:
+                console.print(f"  [yellow]Warning:[/yellow] All dependencies done - merge conflicts likely")
+                console.print(f"  Attempting auto-merge (use merge command for safer workflow)...")
+            else:
+                console.print(f"  Auto-creating merge base combining all dependencies...")
+
             auto_merge_base = True
             # Will create merge base after validation completes
 
