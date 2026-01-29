@@ -166,14 +166,23 @@ A reviewer wants to examine work packages, request changes, and accept/reject im
 - **FR-014**: System MUST preserve all existing Spec Kitty behaviors (git commits, activity logs, frontmatter updates, checklist generation)
 - **FR-015**: System MUST support both stdio (standard input/output) and SSE (Server-Sent Events) transports for MCP communication
 - **FR-016**: System MUST provide detailed operation logs for debugging and audit trails
+- **FR-017**: System MUST wrap and reuse existing CLI code rather than reimplementing functionality, ensuring the MCP implementation remains independent from and parallel to the CLI interface
+
+### Architectural Constraints
+
+- **AC-001**: The MCP server SHALL act as a thin wrapper around existing `spec-kitty` CLI commands and core library functions, invoking the same code paths used by the CLI rather than duplicating logic
+- **AC-002**: The MCP implementation SHALL be architecturally independent from the CLI implementation, allowing both interfaces to evolve separately while sharing the same core functionality
+- **AC-003**: Changes to core Spec Kitty workflows (feature creation, task management, workspace operations) SHALL automatically be available to both CLI and MCP interfaces without requiring parallel modifications
+- **AC-004**: The MCP server SHALL translate conversational input into structured parameters for existing CLI functions, maintaining a clear separation between the conversational interface layer and the business logic layer
 
 ### Key Entities
 
-- **MCPServer**: The main server instance that handles MCP protocol communication, manages multiple project contexts, and routes tool invocations to appropriate handlers
+- **MCPServer**: The main server instance that handles MCP protocol communication, manages multiple project contexts, and routes tool invocations to appropriate handlers. Acts as a thin conversational wrapper around existing CLI code.
 - **ProjectContext**: Represents a single Spec Kitty project with its path, active feature, current mission, and cached state (metadata, tasks, worktrees)
 - **ConversationState**: Tracks multi-turn discovery interviews including the current phase (discovery/clarification/generation), answered questions, pending questions, and accumulated context
-- **MCPTool**: Represents an exposed MCP tool with its name, description, input schema, and handler function that executes the corresponding Spec Kitty operation
+- **MCPTool**: Represents an exposed MCP tool with its name, description, input schema, and handler function. Each tool translates conversational input into structured parameters and delegates to existing CLI functions or core library modules.
 - **OperationResult**: Encapsulates the result of a tool invocation including success status, generated artifacts (files, commits), updated state, and any error messages or warnings
+- **CLIAdapter**: An abstraction layer that wraps existing CLI commands and core library functions, providing a consistent interface for the MCP server to invoke Spec Kitty operations without duplicating business logic
 
 ## Success Criteria *(mandatory)*
 
@@ -189,3 +198,4 @@ A reviewer wants to examine work packages, request changes, and accept/reject im
 - **SC-008**: Conversation state persists across client disconnections for at least 24 hours, allowing users to resume interrupted workflows
 - **SC-009**: Error messages provide actionable guidance (e.g., "missing dependency", "invalid project structure") with suggested remediation steps
 - **SC-010**: The server handles 100 concurrent MCP requests without degradation in response time or accuracy
+- **SC-011**: Core workflow modifications (bug fixes, feature enhancements) in the CLI codebase automatically benefit the MCP interface without requiring parallel changes to MCP tool implementations
