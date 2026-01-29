@@ -861,6 +861,10 @@ def finalize_tasks(
 
         # Commit tasks.md and WP files to main
         feature_slug = feature_dir.name
+        commit_created = False
+        commit_hash = None
+        files_committed = []
+
         try:
             # Add tasks.md (if present) and all WP files
             if tasks_md.exists():
@@ -870,6 +874,13 @@ def finalize_tasks(
                     capture=True,
                     cwd=repo_root
                 )
+                files_committed.append(str(tasks_md.relative_to(repo_root)))
+
+            # Get list of WP files before staging
+            wp_files_to_commit = list(tasks_dir.glob("WP*.md"))
+            for wp_f in wp_files_to_commit:
+                files_committed.append(str(wp_f.relative_to(repo_root)))
+
             run_command(
                 ["git", "add", str(tasks_dir)],
                 check_return=True,
@@ -877,33 +888,63 @@ def finalize_tasks(
                 cwd=repo_root
             )
 
-            # Commit with descriptive message
+            # Commit with descriptive message (use check_return=False to handle "nothing to commit")
             commit_msg = f"Add tasks for feature {feature_slug}"
-            run_command(
+            returncode_commit, stdout_commit, stderr_commit = run_command(
                 ["git", "commit", "-m", commit_msg],
-                check_return=True,
+                check_return=False,
                 capture=True,
                 cwd=repo_root
             )
 
-            if not json_output:
-                console.print(f"[green]✓[/green] Tasks committed to main")
-                console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
+            if returncode_commit == 0:
+                # Commit succeeded - get hash
+                returncode, stdout, stderr = run_command(
+                    ["git", "rev-parse", "HEAD"],
+                    check_return=True,
+                    capture=True,
+                    cwd=repo_root
+                )
+                commit_hash = stdout.strip()
+                commit_created = True
 
-        except subprocess.CalledProcessError as e:
-            # Check if it's just "nothing to commit"
-            stderr = e.stderr if hasattr(e, 'stderr') and e.stderr else ""
-            if "nothing to commit" in stderr or "nothing added to commit" in stderr:
+                if not json_output:
+                    console.print(f"[green]✓[/green] Tasks committed to main")
+                    console.print(f"[dim]Commit: {commit_hash[:7]}[/dim]")
+                    console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
+            elif "nothing to commit" in stdout_commit or "nothing to commit" in stderr_commit or \
+                 "nothing added to commit" in stdout_commit or "nothing added to commit" in stderr_commit:
+                # Nothing to commit (already committed)
+                commit_created = False
+                commit_hash = None
+
                 if not json_output:
                     console.print(f"[dim]Tasks unchanged, no commit needed[/dim]")
             else:
-                raise
+                # Real error
+                error_output = stderr_commit if stderr_commit else stdout_commit
+                if json_output:
+                    print(json.dumps({"error": f"Git commit failed: {error_output}"}))
+                else:
+                    console.print(f"[red]Error:[/red] Git commit failed: {error_output}")
+                raise typer.Exit(1)
+
+        except Exception as e:
+            # Unexpected error
+            if json_output:
+                print(json.dumps({"error": str(e)}))
+            else:
+                console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(1)
 
         if json_output:
             print(json.dumps({
                 "result": "success",
                 "updated_wp_count": updated_count,
-                "tasks_dir": str(tasks_dir)
+                "tasks_dir": str(tasks_dir),
+                "commit_created": commit_created,
+                "commit_hash": commit_hash,
+                "files_committed": files_committed
             }))
 
     except Exception as e:
