@@ -5,6 +5,16 @@
 **Status**: Draft  
 **Input**: User description: "implement an mcp server offering the current functionality of spec kitty so that the user doesnt have to learn the slash commands but can talk directly to the AI Agent"
 
+## Clarifications
+
+### Session 2026-01-29
+
+- Q: Where should conversation state (discovery interviews, multi-turn context) be persisted? → A: Project-local `.kittify/` directory (e.g., `.kittify/mcp-sessions/`), stored indefinitely (not limited to 24 hours)
+- Q: How should concurrent modifications from multiple MCP clients be handled? → A: Pessimistic locking (lock file before write, block others)
+- Q: How should the MCP server discover available Spec Kitty projects? → A: The project name will come from the user prompt and verified by the MCP before actions are taken
+- Q: Should the MCP server implement authentication/authorization for connecting clients? → A: API key authentication with configuration to disable it
+- Q: How should server lifecycle be managed (startup, shutdown, restarts)? → A: Manual only (user starts/stops server explicitly)
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Conversational Feature Creation (Priority: P1)
@@ -85,10 +95,10 @@ A developer working on multiple Spec Kitty projects wants to switch context betw
 
 **Acceptance Scenarios**:
 
-1. **Given** the MCP server is running, **When** the user says "list my spec kitty projects", **Then** the server returns all detected projects with their paths and current feature counts
-2. **Given** multiple projects are available, **When** the user says "switch to project X", **Then** the server sets that project as the active context for subsequent commands
-3. **Given** a project is active, **When** the user says "show features", **Then** the server lists features from that project's `kitty-specs/` directory
-4. **Given** no project is specified, **When** the user issues a command, **Then** the server prompts "which project should I use?" with options
+1. **Given** the MCP server is running, **When** the user says "show features in /path/to/my-project", **Then** the server validates the path contains `.kittify/` and lists features from that project's `kitty-specs/` directory
+2. **Given** a user is working with one project, **When** the user says "in /path/to/other-project, show features", **Then** the server switches context to the specified project and lists its features
+3. **Given** a project path is specified in a command, **When** the user says "show features", **Then** the server lists features from the currently active project context
+4. **Given** no project is specified in the command or context, **When** the user issues a command, **Then** the server prompts "Which project would you like to work with? Please include the project path in your next message."
 
 ---
 
@@ -111,9 +121,9 @@ A reviewer wants to examine work packages, request changes, and accept/reject im
 
 ### Edge Cases
 
-- **What happens when an MCP client connects but no project is specified?** The server should prompt for project selection and list available Spec Kitty projects, or provide instructions for configuring the default project path.
+- **What happens when an MCP client connects but no project is specified?** The server prompts the user to specify a project path in their request (e.g., "Which project would you like to work with? Please include the project path or name in your next message."). The server validates the path contains a `.kittify/` directory before proceeding.
 
-- **How does the system handle concurrent modifications from multiple MCP clients?** The server should implement file-level locking when updating `.kittify/` state files and provide clear error messages if conflicts occur (e.g., "Another agent is currently modifying WP01. Retry in a moment.").
+- **How does the system handle concurrent modifications from multiple MCP clients?** The server implements pessimistic locking: when a client begins modifying state files, it acquires a lock file (e.g., `.kittify/.lock-WP01`) that blocks other clients from writing to the same resource. If a lock is held, other clients receive an error message like "WP01 is currently being modified by another client. Retry in a moment." Locks are automatically released on operation completion or timeout (e.g., 5 minutes).
 
 - **What happens when a user asks an ambiguous question like "show status"?** The server should clarify intent (e.g., "Do you want to see: (A) feature status, (B) task lane status, (C) git branch status, or (D) server health?").
 
@@ -125,15 +135,17 @@ A reviewer wants to examine work packages, request changes, and accept/reject im
 
 - **What happens when multiple users work on the same feature simultaneously?** The server should detect git conflicts during merge operations and guide users through resolution using conversational prompts.
 
+- **How does authentication work when API key is enabled?** MCP clients must include the API key in the connection headers or initial handshake. If authentication fails, the server returns an error message "Authentication required. Please configure your MCP client with a valid API key." If authentication is disabled in server configuration, all local clients are trusted without requiring keys.
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: System MUST implement an MCP server that exposes all current Spec Kitty CLI commands as conversational tools
 - **FR-002**: System MUST support conversational discovery interviews for feature creation, maintaining state across multiple back-and-forth exchanges
-- **FR-003**: System MUST read and write all state to project-local `.kittify/` directories (no centralized database)
-- **FR-004**: System MUST support managing multiple Spec Kitty projects from a single server instance
-- **FR-005**: System MUST allow users to specify which project to operate on via natural language (e.g., "switch to project X") or configuration
+- **FR-003**: System MUST read and write all state to project-local `.kittify/` directories (no centralized database), including conversation state stored in `.kittify/mcp-sessions/`
+- **FR-004**: System MUST support managing multiple Spec Kitty projects from a single server instance, with project paths specified in user prompts and verified before operations
+- **FR-005**: System MUST allow users to specify which project to operate on via natural language in their prompts (e.g., "in project X, show features"), validating the project path exists and contains `.kittify/` directory before executing operations
 - **FR-006**: System MUST expose the following workflow operations as MCP tools:
   - Feature specification creation (`/spec-kitty.specify` equivalent)
   - Feature planning (`/spec-kitty.plan` equivalent)
@@ -160,13 +172,15 @@ A reviewer wants to examine work packages, request changes, and accept/reject im
   - Validate project structure
   - List available missions
   - Report server health
-- **FR-011**: System MUST maintain conversation context across multiple exchanges to support discovery interviews
+- **FR-011**: System MUST maintain conversation context across multiple exchanges to support discovery interviews, persisting state indefinitely in project-local `.kittify/mcp-sessions/` directory
 - **FR-012**: System MUST validate project structure before operations and return actionable error messages if validation fails
-- **FR-013**: System MUST implement file-level locking or conflict detection when multiple clients modify the same project state
+- **FR-013**: System MUST implement pessimistic file-level locking when multiple clients modify the same project state (acquire lock before write, block other clients until lock is released)
 - **FR-014**: System MUST preserve all existing Spec Kitty behaviors (git commits, activity logs, frontmatter updates, checklist generation)
 - **FR-015**: System MUST support both stdio (standard input/output) and SSE (Server-Sent Events) transports for MCP communication
 - **FR-016**: System MUST provide detailed operation logs for debugging and audit trails
 - **FR-017**: System MUST wrap and reuse existing CLI code rather than reimplementing functionality, ensuring the MCP implementation remains independent from and parallel to the CLI interface
+- **FR-018**: System MUST implement optional API key authentication for connecting MCP clients, with configuration to disable authentication for trusted local environments
+- **FR-019**: System MUST support manual lifecycle management only (user explicitly starts and stops the server via command), with no automatic restart or system service integration
 
 ### Architectural Constraints
 
@@ -179,7 +193,7 @@ A reviewer wants to examine work packages, request changes, and accept/reject im
 
 - **MCPServer**: The main server instance that handles MCP protocol communication, manages multiple project contexts, and routes tool invocations to appropriate handlers. Acts as a thin conversational wrapper around existing CLI code.
 - **ProjectContext**: Represents a single Spec Kitty project with its path, active feature, current mission, and cached state (metadata, tasks, worktrees)
-- **ConversationState**: Tracks multi-turn discovery interviews including the current phase (discovery/clarification/generation), answered questions, pending questions, and accumulated context
+- **ConversationState**: Tracks multi-turn discovery interviews including the current phase (discovery/clarification/generation), answered questions, pending questions, and accumulated context. Persisted indefinitely in `.kittify/mcp-sessions/` directory.
 - **MCPTool**: Represents an exposed MCP tool with its name, description, input schema, and handler function. Each tool translates conversational input into structured parameters and delegates to existing CLI functions or core library modules.
 - **OperationResult**: Encapsulates the result of a tool invocation including success status, generated artifacts (files, commits), updated state, and any error messages or warnings
 - **CLIAdapter**: An abstraction layer that wraps existing CLI commands and core library functions, providing a consistent interface for the MCP server to invoke Spec Kitty operations without duplicating business logic
@@ -194,8 +208,8 @@ A reviewer wants to examine work packages, request changes, and accept/reject im
 - **SC-004**: The server successfully manages at least 3 concurrent projects without state corruption or cross-project interference
 - **SC-005**: File operations on `.kittify/` directories complete without conflicts when multiple clients operate on different work packages simultaneously
 - **SC-006**: 95% of conversational commands are correctly interpreted and routed to the appropriate tool without requiring clarification
-- **SC-007**: Server startup completes within 2 seconds and tool invocation latency is under 500ms for read operations
-- **SC-008**: Conversation state persists across client disconnections for at least 24 hours, allowing users to resume interrupted workflows
+- **SC-007**: Server startup completes within 2 seconds (manual start by user) and tool invocation latency is under 500ms for read operations
+- **SC-008**: Conversation state persists indefinitely in project-local storage, allowing users to resume interrupted workflows at any time (not limited to 24 hours)
 - **SC-009**: Error messages provide actionable guidance (e.g., "missing dependency", "invalid project structure") with suggested remediation steps
 - **SC-010**: The server handles 100 concurrent MCP requests without degradation in response time or accuracy
 - **SC-011**: Core workflow modifications (bug fixes, feature enhancements) in the CLI codebase automatically benefit the MCP interface without requiring parallel changes to MCP tool implementations
