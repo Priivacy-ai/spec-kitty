@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Git Dependency Setup & Library Integration
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 2.x
 base_commit: 1e55c89f5fd0f33da7cf4f7b50c68ed65ce742ba
@@ -47,18 +47,18 @@ history:
 
 **Reviewed by**: Robert Douglass
 **Status**: ❌ Changes Requested
-**Date**: 2026-01-28
+**Date**: 2026-01-29
 
-**Issue 1 (critical): Branch base is not 2.x**
-The work was committed on a branch that is not based on `2.x`. `git merge-base --is-ancestor 2.x HEAD` returns exit code 1. This violates the WP constraint that all work must be implemented on `2.x`.
+**Issue 1 (critical): Branch base is still not 2.x**
+`git merge-base --is-ancestor 2.x HEAD` returns exit code 1 in the WP01 worktree, so the implementation is still not based on `2.x`. This violates the WP constraint and blocks approval.
 
-**How to fix**: Rebase or re-create the WP branch from `2.x` and re-apply the WP01 commits there. For example:
+**How to fix**: Recreate or rebase the WP01 branch on top of `2.x` and re-apply the WP01 commits. Example:
 - `git checkout 2.x && git pull`
 - `git checkout -b 025-cli-event-log-integration-WP01-2x`
 - `git cherry-pick <WP01 commits>` (or `git rebase --onto 2.x <old-base> 025-cli-event-log-integration-WP01`)
 - Verify: `git merge-base --is-ancestor 2.x HEAD`
 
-Once this is done, update the WP metadata base commit accordingly.
+Then update WP metadata base commit to match the new base.
 
 
 ## Markdown Formatting
@@ -759,6 +759,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 - 2026-01-28T06:11:53Z – codex – shell_pid=46237 – lane=planned – Moved to planned
 - 2026-01-28T06:13:51Z – codex – shell_pid=46237 – lane=for_review – Moved to for_review
 - 2026-01-29T07:45:50Z – codex – shell_pid=46237 – lane=doing – Started review via workflow command
+- 2026-01-29T07:46:05Z – codex – shell_pid=46237 – lane=planned – Moved to planned
 
 ## Implementation Command
 
