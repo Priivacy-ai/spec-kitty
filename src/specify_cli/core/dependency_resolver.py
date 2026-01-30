@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.cli.commands.agent.tasks import read_frontmatter
+from specify_cli.frontmatter import read_frontmatter
 
 
 @dataclass
