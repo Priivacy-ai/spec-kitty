@@ -509,7 +509,7 @@ def implement(
     """Create workspace for work package implementation.
 
     Creates a git worktree for the specified work package, branching from
-    main (for WPs with no dependencies) or from a base WP's branch.
+    the feature's target branch (for WPs with no dependencies) or from a base WP's branch.
 
     Examples:
         # Create workspace for WP01 (no dependencies)
@@ -918,7 +918,7 @@ def implement(
             updated_doc = build_document(updated_front, wp.body, wp.padding)
             wp.path.write_text(updated_doc, encoding="utf-8")
 
-            # Auto-commit to main branch
+            # Auto-commit to target branch (respects two-branch strategy)
             commit_msg = f"chore: {wp_id} claimed for implementation"
             commit_result = subprocess.run(
                 ["git", "commit", str(wp.path.resolve()), "-m", commit_msg],
@@ -929,7 +929,10 @@ def implement(
             )
 
             if commit_result.returncode == 0:
-                console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to main)[/cyan]")
+                # Get target branch for accurate console message
+                from specify_cli.core.feature_detection import get_feature_target_branch
+                target_branch = get_feature_target_branch(repo_root, feature_slug)
+                console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {target_branch})[/cyan]")
             else:
                 # Commit failed - file might be unchanged or other issue
                 console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
