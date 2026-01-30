@@ -1,9 +1,12 @@
 ---
 work_package_id: WP08
 title: pyproject.toml Update & CI Configuration
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
+base_branch: 2.x
+base_commit: 004cb29ba7fd96bc55be21ce0c37a922a709ae00
+created_at: '2026-01-30T10:37:40.087203+00:00'
 subtasks:
 - T041
 - T042
@@ -13,7 +16,7 @@ subtasks:
 phase: Phase 2 - Advanced Features & Edge Cases
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "57334"
 review_status: ''
 reviewed_by: ''
 history:
