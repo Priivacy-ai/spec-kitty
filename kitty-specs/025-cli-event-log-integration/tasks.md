@@ -154,7 +154,7 @@ This work package establishes the foundational dependency on spec-kitty-events l
 
 ### Included Subtasks
 
-- [ ] T013 - Create EventStore class wrapping spec-kitty-events library
+- [x] T013 - Create EventStore class wrapping spec-kitty-events library
 - [ ] T014 - Implement `emit()` method with automatic clock increment and JSONL write
 - [ ] T015 - Create `@with_event_store` AOP decorator for dependency injection
 - [ ] T016 - Integrate event emission into `move_task` command (WPStatusChanged)
