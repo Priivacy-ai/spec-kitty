@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP03"
-title: "EventStore & AOP Middleware"
-phase: "Phase 1 - Core Event Infrastructure"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP02"]
+work_package_id: WP03
+title: EventStore & AOP Middleware
+lane: "doing"
+dependencies: [WP02]
+base_branch: 025-cli-event-log-integration-WP02
+base_commit: 7d9a6690405ccf8b835a49d27262d99a5c337997
+created_at: '2026-01-30T10:53:50.140916+00:00'
 subtasks:
-  - "T013"
-  - "T014"
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
+- T013
+- T014
+- T015
+- T016
+- T017
+- T018
+phase: Phase 1 - Core Event Infrastructure
+assignee: ''
+agent: ''
+shell_pid: "14744"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-27T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-27T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – EventStore & AOP Middleware
