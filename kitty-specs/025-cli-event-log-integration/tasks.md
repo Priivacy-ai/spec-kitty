@@ -106,7 +106,7 @@ This work package establishes the foundational dependency on spec-kitty-events l
 ### Included Subtasks
 
 - [x] T006 - Create Event dataclass with ULID, Lamport clock, entity metadata
-- [ ] T007 - Create LamportClock dataclass with tick() and persistence methods
+- [x] T007 - Create LamportClock dataclass with tick() and persistence methods
 - [ ] T008 - Implement ClockStorage for loading/saving clock state to JSON
 - [ ] T009 - Implement JSONL append with POSIX file locking (atomic writes)
 - [ ] T010 - Implement daily file rotation logic (YYYY-MM-DD.jsonl)
