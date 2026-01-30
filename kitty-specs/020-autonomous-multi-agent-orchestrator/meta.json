@@ -4,5 +4,6 @@
   "friendly_name": "Autonomous Multi-Agent Orchestrator",
   "mission": "software-dev",
   "source_description": "Build orchestrator for autonomous feature execution with parallel WP processing and 9 CLI-capable agents",
-  "created_at": "2026-01-18T16:15:00Z"
+  "created_at": "2026-01-18T16:15:00Z",
+  "target_branch": "main"
 }

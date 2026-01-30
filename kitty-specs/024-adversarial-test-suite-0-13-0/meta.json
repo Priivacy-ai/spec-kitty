@@ -4,5 +4,6 @@
   "friendly_name": "Adversarial Test Suite for 0.13.0",
   "mission": "software-dev",
   "source_description": "Deeply research the changes to ~/Code/spec-kitty since the last batch of tests we wrote (for the 0.12.0 release) and create an adversarial test suite for the upcoming 0.13.0 release that is represented by the current code.",
-  "created_at": "2026-01-25T12:00:00Z"
+  "created_at": "2026-01-25T12:00:00Z",
+  "target_branch": "main"
 }

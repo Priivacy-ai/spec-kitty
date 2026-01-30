@@ -3,9 +3,9 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 0.12.1
+  version: 0.13.20
   initialized_at: '2026-01-22T10:36:24.129683'
-  last_upgraded_at: '2026-01-25T14:17:34.743778'
+  last_upgraded_at: '2026-01-30T17:41:52.474082'
 environment:
   python_version: 3.14.0
   platform: darwin
@@ -20,3 +20,47 @@ migrations:
     applied_at: '2026-01-25T14:17:34.743775'
     result: skipped
     notes: Not applicable
+  - id: 0.13.0_research_csv_schema_check
+    applied_at: '2026-01-30T17:41:52.457207'
+    result: skipped
+    notes: Not applicable
+  - id: 0.13.0_update_constitution_templates
+    applied_at: '2026-01-30T17:41:52.459501'
+    result: skipped
+    notes: Not applicable
+  - id: 0.13.0_update_research_implement_templates
+    applied_at: '2026-01-30T17:41:52.460495'
+    result: skipped
+    notes: Not applicable
+  - id: 0.13.1_exclude_worktrees
+    applied_at: '2026-01-30T17:41:52.468071'
+    result: skipped
+    notes: Not applicable
+  - id: 0.13.5_add_commit_workflow_to_templates
+    applied_at: '2026-01-30T17:41:52.469426'
+    result: skipped
+    notes: Not applicable
+  - id: 0.13.5_fix_clarify_template
+    applied_at: '2026-01-30T17:41:52.470514'
+    result: skipped
+    notes: Not applicable
+  - id: 0.13.8_target_branch
+    applied_at: '2026-01-30T17:41:52.474071'
+    result: success
+    notes: Added target_branch=main to 015-first-class-jujutsu-vcs-integration; Added
+      target_branch=main to 024-adversarial-test-suite-0-13-0; Added target_branch=main
+      to 005-refactor-mission-system; Added target_branch=main to 002-lightweight-pypi-release;
+      Added target_branch=main to 004-modular-code-refactoring; Added target_branch=main
+      to 001-mission-system-architecture; Added target_branch=main to 020-autonomous-multi-agent-orchestrator;
+      Added target_branch=main to 022-orchestrator-user-documentation; Added target_branch=main
+      to 021-orchestrator-end-to-end-testing-suite; Added target_branch=main to 014-comprehensive-end-user-documentation;
+      Added target_branch=main to 016-jujutsu-vcs-documentation; Added target_branch=main
+      to 019-autonomous-multi-agent-orchestration-research; Added target_branch=main
+      to 023-documentation-sprint-agent-management-cleanup; Added target_branch=main
+      to 018-merge-preflight-documentation; Added target_branch=main to 011-constitution-packaging-safety-and-redesign;
+      Added target_branch=main to 012-documentation-mission; Added target_branch=main
+      to 003-auto-protect-agent; Added target_branch=main to 008-unified-python-cli;
+      Added target_branch=main to 017-smarter-feature-merge-with-preflight; Added
+      target_branch=main to 010-workspace-per-work-package-for-parallel-development;
+      Added target_branch=main to 013-fix-and-test-dashboard; Added target_branch=main
+      to 007-frontmatter-only-lane
