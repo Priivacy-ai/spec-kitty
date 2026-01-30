@@ -1,28 +1,31 @@
 ---
-work_package_id: "WP02"
-title: "Event Storage Foundation (Entities & File I/O)"
-phase: "Phase 1 - Core Event Infrastructure"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01"]
+work_package_id: WP02
+title: Event Storage Foundation (Entities & File I/O)
+lane: "doing"
+dependencies: [WP01]
+base_branch: 025-cli-event-log-integration-WP01
+base_commit: 66f2576bbf2c5d83d7244911e614ed8dbc50e6eb
+created_at: '2026-01-30T06:59:03.840488+00:00'
 subtasks:
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-  - "T010"
-  - "T011"
-  - "T012"
+- T006
+- T007
+- T008
+- T009
+- T010
+- T011
+- T012
+phase: Phase 1 - Core Event Infrastructure
+assignee: ''
+agent: ''
+shell_pid: "28472"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-27T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-27T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Event Storage Foundation (Entities & File I/O)
