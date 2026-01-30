@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Conflict Detection & Merge Rules
-lane: "for_review"
+lane: "doing"
 dependencies: [WP05]
 base_branch: 025-cli-event-log-integration-WP05
 base_commit: 96e941d0bff07d34ec73e9dc8b865db2e12746fe
@@ -14,8 +14,8 @@ subtasks:
 - T035
 phase: Phase 2 - Advanced Features & Edge Cases
 assignee: ''
-agent: ''
-shell_pid: "14744"
+agent: "claude-wp06-reviewer"
+shell_pid: "21622"
 review_status: ''
 reviewed_by: ''
 history:
@@ -775,6 +775,7 @@ print("✓ LWW merge rule test passed")
 
 ---
 - 2026-01-30T15:51:10Z – unknown – shell_pid=14744 – lane=for_review – Ready for review: conflict detection + LWW merge with status warnings
+- 2026-01-30T15:57:48Z – claude-wp06-reviewer – shell_pid=21622 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
