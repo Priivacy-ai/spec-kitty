@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: pyproject.toml Update & CI Configuration
-lane: "done"
+lane: "doing"
 dependencies:
 - WP01
 base_branch: 025-cli-event-log-integration-WP01
@@ -15,8 +15,8 @@ subtasks:
 - T045
 phase: Phase 2 - Advanced Features & Edge Cases
 assignee: ''
-agent: "claude-wp08-reviewer"
-shell_pid: "1386"
+agent: "codex"
+shell_pid: "14744"
 review_status: "approved"
 reviewed_by: "Robert Douglass"
 history:
@@ -729,6 +729,7 @@ echo "✓ CI validation complete"
 - 2026-01-30T12:49:14Z – unknown – shell_pid=57334 – lane=for_review – Ready for review: doc dependency update process, tighten SSH setup, and show spec-kitty-events version
 - 2026-01-30T12:56:21Z – claude-wp08-reviewer – shell_pid=1386 – lane=doing – Started review via workflow command
 - 2026-01-30T12:57:22Z – claude-wp08-reviewer – shell_pid=1386 – lane=done – Review passed: All three changes correctly implemented - dependency update docs in CONTRIBUTING.md, SSH hardening (chmod 700) in workflows, and --version output extended to show spec-kitty-events version. No CI testing required as noted by implementer.
+- 2026-01-30T16:29:32Z – codex – shell_pid=14744 – lane=doing – Started implementation via workflow command
 
 ## Implementation Command
 
