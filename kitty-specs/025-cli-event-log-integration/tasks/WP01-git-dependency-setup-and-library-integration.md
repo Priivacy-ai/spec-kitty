@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Git Dependency Setup & Library Integration
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: 2.x
 base_commit: 1e55c89f5fd0f33da7cf4f7b50c68ed65ce742ba
@@ -763,6 +763,7 @@ python -c "from specify_cli.events import EventAdapter; print(EventAdapter.get_m
 - 2026-01-30T06:47:16Z – claude-reviewer – shell_pid=25272 – lane=doing – Started review via workflow command
 - 2026-01-30T06:48:50Z – claude-reviewer – shell_pid=25272 – lane=done – Review passed: All 5 subtasks complete. Implementation verified on 2.x branch.
 - 2026-01-30T12:44:44Z – codex – shell_pid=14744 – lane=doing – Started implementation via workflow command
+- 2026-01-30T13:06:48Z – codex – shell_pid=14744 – lane=done – Moving to done - WP01 was already reviewed and approved, but showed as stale in status board
 
 ## Implementation Command
 
