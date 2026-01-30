@@ -17,6 +17,34 @@
       pyproject = builtins.fromTOML (builtins.readFile ./pyproject.toml);
       version = pyproject.project.version;
 
+      # Override truststore to use version compatible with spec-kitty (>=0.10.4)
+      mkTruststoreCompat =
+        python3Packages: pkgs:
+        python3Packages.truststore.overridePythonAttrs (old: rec {
+          version = "0.10.4";
+          src = pkgs.fetchPypi {
+            pname = "truststore";
+            inherit version;
+            sha256 = "00f3xc7720rkddsn291yrw871kfnimi6d9xbwi75xbb3ci1vv4cx";
+          };
+        });
+
+      # Runtime Python dependencies shared between package and devShell
+      runtimePythonDeps = ps: truststore-compat: [
+        ps.httpx
+        ps.packaging
+        ps.platformdirs
+        ps.psutil
+        ps.pydantic
+        ps.pyyaml
+        ps.readchar
+        ps.rich
+        ps.ruamel-yaml
+        ps.socksio
+        truststore-compat
+        ps.typer
+      ];
+
       # Package builder function that can be used in overlay
       mkSpecKitty =
         {
@@ -24,33 +52,17 @@
           python3Packages ? pkgs.python3Packages,
         }:
         let
-          # Override truststore to use version compatible with spec-kitty (>=0.10.4)
-          truststore-compat = python3Packages.truststore.overridePythonAttrs (old: rec {
-            version = "0.10.4";
-            src = pkgs.fetchPypi {
-              pname = "truststore";
-              inherit version;
-              sha256 = "00f3xc7720rkddsn291yrw871kfnimi6d9xbwi75xbb3ci1vv4cx";
-            };
-          });
+          truststore-compat = mkTruststoreCompat python3Packages pkgs;
 
-          pythonEnv = python3Packages.python.withPackages (ps: [
-            ps.httpx
-            ps.packaging
-            ps.platformdirs
-            ps.psutil
-            ps.pydantic
-            ps.pyyaml
-            ps.readchar
-            ps.rich
-            ps.ruamel-yaml
-            ps.socksio
-            truststore-compat
-            ps.typer
-            # Test dependencies
-            ps.pytest
-            ps.build
-          ]);
+          pythonEnv = python3Packages.python.withPackages (
+            ps:
+            runtimePythonDeps ps truststore-compat
+            ++ [
+              # Test dependencies
+              ps.pytest
+              ps.build
+            ]
+          );
         in
         python3Packages.buildPythonApplication rec {
           pname = "spec-kitty";
@@ -65,20 +77,7 @@
             pkgs.makeWrapper
           ];
 
-          propagatedBuildInputs = with python3Packages; [
-            httpx
-            packaging
-            platformdirs
-            psutil
-            pydantic
-            pyyaml
-            readchar
-            rich
-            ruamel-yaml
-            socksio
-            truststore-compat
-            typer
-          ];
+          propagatedBuildInputs = runtimePythonDeps python3Packages truststore-compat;
 
           nativeCheckInputs = with python3Packages; [
             pytest
@@ -398,18 +397,32 @@
           spec-kitty = spec-kitty;
         };
 
-        devShells.default = pkgs.mkShell {
-          packages = [
-            spec-kitty
-            pkgs.python3
-            pkgs.git
-          ];
+        devShells.default =
+          let
+            truststore-compat = mkTruststoreCompat pkgs.python3Packages pkgs;
+            pythonEnv = pkgs.python3.withPackages (
+              ps:
+              runtimePythonDeps ps truststore-compat
+              ++ [
+                # Dev/test dependencies
+                ps.pytest
+                ps.build
+                ps.hatchling
+              ]
+            );
+          in
+          pkgs.mkShell {
+            packages = [
+              pythonEnv
+              pkgs.git
+            ];
 
-          shellHook = ''
-            echo "spec-kitty development shell"
-            echo "Run 'spec-kitty --version' to verify installation"
-          '';
-        };
+            shellHook = ''
+              export PYTHONPATH="$PWD/src:$PYTHONPATH"
+              echo "spec-kitty development shell"
+              echo "Run 'pytest tests/' to run the test suite"
+            '';
+          };
 
         # Allow running directly with 'nix run'
         apps.default = {
