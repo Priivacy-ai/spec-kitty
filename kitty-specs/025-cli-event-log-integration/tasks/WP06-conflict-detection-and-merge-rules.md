@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Conflict Detection & Merge Rules
-lane: "doing"
+lane: "for_review"
 dependencies: [WP05]
 base_branch: 025-cli-event-log-integration-WP05
 base_commit: 96e941d0bff07d34ec73e9dc8b865db2e12746fe
@@ -774,6 +774,7 @@ print("✓ LWW merge rule test passed")
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+- 2026-01-30T15:51:10Z – unknown – shell_pid=14744 – lane=for_review – Ready for review: conflict detection + LWW merge with status warnings
 
 ## Implementation Command
 
