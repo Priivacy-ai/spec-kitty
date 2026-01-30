@@ -159,7 +159,7 @@ This work package establishes the foundational dependency on spec-kitty-events l
 - [x] T015 - Create `@with_event_store` AOP decorator for dependency injection
 - [x] T016 - Integrate event emission into `move_task` command (WPStatusChanged)
 - [x] T017 - Integrate event emission into `setup-spec` command (SpecCreated)
-- [ ] T018 - Integrate event emission into `finalize-tasks` command (WPCreated events)
+- [x] T018 - Integrate event emission into `finalize-tasks` command (WPCreated events)
 
 ### Implementation Notes
 
