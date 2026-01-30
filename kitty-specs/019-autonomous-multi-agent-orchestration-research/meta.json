@@ -4,5 +4,6 @@
   "friendly_name": "Autonomous Multi-Agent Orchestration Research",
   "mission": "research",
   "source_description": "Research all 12 agents supported by spec-kitty to understand their headless/CLI invocation capabilities. Goal: Enable fully autonomous workflow where agents hand off work based on WP state changes (e.g., for_review triggers review agent). Support parallel execution when dependencies allow. Allow user configuration of preferred implementation vs review agents.",
-  "created_at": "2026-01-18T15:25:00+00:00"
+  "created_at": "2026-01-18T15:25:00+00:00",
+  "target_branch": "main"
 }

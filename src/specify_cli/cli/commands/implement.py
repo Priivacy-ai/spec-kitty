@@ -596,27 +596,47 @@ def implement(
                 console.print(f"Declared dependencies: {declared_deps}")
                 # Allow but warn (user might know better than parser)
 
-            # Validate base workspace exists
-            base_workspace = repo_root / ".worktrees" / f"{feature_slug}-{base}"
-            if not base_workspace.exists():
-                tracker.error("validate", f"base workspace {base} not found")
+            # Check if base is merged (ADR-18: Auto-detect merged dependencies)
+            try:
+                base_wp = locate_work_package(repo_root, feature_slug, base)
+                base_lane = base_wp.lane or "planned"
+            except Exception:
+                # Base WP file not found - error
+                tracker.error("validate", f"base WP {base} not found")
                 console.print(tracker.render())
-                console.print(f"\n[red]Error:[/red] Base workspace {base} does not exist")
-                console.print(f"Implement {base} first: spec-kitty implement {base}")
+                console.print(f"\n[red]Error:[/red] Base work package {base} does not exist")
+                console.print(f"Feature: {feature_slug}")
                 raise typer.Exit(1)
 
-            # Verify it's a valid worktree
-            result = subprocess.run(
-                ["git", "rev-parse", "--git-dir"],
-                cwd=base_workspace,
-                capture_output=True,
-                check=False
-            )
-            if result.returncode != 0:
-                tracker.error("validate", f"base workspace {base} invalid")
-                console.print(tracker.render())
-                console.print(f"[red]Error:[/red] {base_workspace} exists but is not a valid worktree")
-                raise typer.Exit(1)
+            if base_lane == "done":
+                # Base is merged - will branch from target branch (no workspace validation needed)
+                # This is handled in "Create workspace" step
+                pass
+            else:
+                # Base is in-progress - validate workspace exists
+                base_workspace = repo_root / ".worktrees" / f"{feature_slug}-{base}"
+                if not base_workspace.exists():
+                    tracker.error("validate", f"base workspace {base} not found")
+                    console.print(tracker.render())
+                    console.print(f"\n[red]Error:[/red] Base workspace {base} does not exist")
+                    console.print(f"Status: {base} is in '{base_lane}' lane but workspace missing")
+                    console.print(f"\nPossible causes:")
+                    console.print(f"  - Workspace was deleted manually")
+                    console.print(f"  - {base} needs to be implemented first: spec-kitty implement {base}")
+                    raise typer.Exit(1)
+
+                # Verify it's a valid worktree
+                result = subprocess.run(
+                    ["git", "rev-parse", "--git-dir"],
+                    cwd=base_workspace,
+                    capture_output=True,
+                    check=False
+                )
+                if result.returncode != 0:
+                    tracker.error("validate", f"base workspace {base} invalid")
+                    console.print(tracker.render())
+                    console.print(f"[red]Error:[/red] {base_workspace} exists but is not a valid worktree")
+                    raise typer.Exit(1)
 
         tracker.complete("validate", f"Base: {base or 'main'}")
     except (FileNotFoundError, typer.Exit) as exc:
@@ -709,30 +729,46 @@ def implement(
 
         # Determine base branch
         if auto_merge_base:
-            # Multi-parent: Create merge base combining all dependencies
-            merge_result = create_multi_parent_base(
-                feature_slug=feature_slug,
-                wp_id=wp_id,
-                dependencies=declared_deps,
-                repo_root=repo_root,
-            )
+            # Check if all dependencies are done first (optimization)
+            from specify_cli.core.dependency_resolver import check_dependency_status
 
-            if not merge_result.success:
-                tracker.error("create", "merge base creation failed")
-                console.print(tracker.render())
-                console.print(f"\n[red]Error:[/red] Failed to create merge base")
-                console.print(f"Reason: {merge_result.error}")
+            dep_status = check_dependency_status(feature_dir, wp_id, declared_deps)
 
-                if merge_result.conflicts:
-                    console.print(f"\n[yellow]Conflicts in:[/yellow]")
-                    for conflict_file in merge_result.conflicts:
-                        console.print(f"  - {conflict_file}")
-                    console.print(f"\n[dim]Resolve conflicts manually, then re-run implement[/dim]")
+            if dep_status.all_done:
+                # All merged - branch from target (skip expensive merge base creation)
+                from specify_cli.core.feature_detection import get_feature_target_branch
 
-                raise typer.Exit(1)
+                target_branch = get_feature_target_branch(repo_root, feature_slug)
+                deps_str = ", ".join(declared_deps)
+                console.print(f"\n[cyan]→ All dependencies ({deps_str}) are done (merged)[/cyan]")
+                console.print(f"[cyan]→ Branching from {target_branch} (contains all changes)[/cyan]")
+                base_branch = target_branch
+                auto_merge_base = False  # Skip merge base creation
+            else:
+                # Create merge base combining in-progress dependencies
+                merge_result = create_multi_parent_base(
+                    feature_slug=feature_slug,
+                    wp_id=wp_id,
+                    dependencies=declared_deps,
+                    repo_root=repo_root,
+                )
 
-            # Use merge base branch
-            base_branch = merge_result.branch_name
+                if not merge_result.success:
+                    tracker.error("create", "merge base creation failed")
+                    console.print(tracker.render())
+                    console.print(f"\n[red]Error:[/red] Failed to create merge base")
+                    console.print(f"Reason: {merge_result.error}")
+
+                    if merge_result.conflicts:
+                        console.print(f"\n[yellow]Conflicts in:[/yellow]")
+                        for conflict_file in merge_result.conflicts:
+                            console.print(f"  - {conflict_file}")
+                        console.print(f"\n[dim]Resolve conflicts manually, then re-run implement[/dim]")
+
+                    raise typer.Exit(1)
+
+                # Use merge base branch
+                base_branch = merge_result.branch_name
 
         elif base is None:
             # No dependencies - branch from target branch (or primary if target not set)
@@ -781,35 +817,58 @@ def implement(
                 # Target branch exists - use it
                 base_branch = target_branch
         else:
-            # Has dependencies - branch from base WP's branch
-            base_branch = f"{feature_slug}-{base}"
-
-            # Validate base branch/workspace exists
-            base_workspace_path = repo_root / ".worktrees" / f"{feature_slug}-{base}"
-            base_workspace_info = vcs.get_workspace_info(base_workspace_path)
-            if base_workspace_info is None:
-                tracker.error("create", f"base workspace {base} not found")
+            # Has dependencies - check if base is merged or in-progress
+            try:
+                base_wp = locate_work_package(repo_root, feature_slug, base)
+                base_lane = base_wp.lane or "planned"
+            except Exception as e:
+                # Base WP file not found
+                tracker.error("create", f"base WP {base} not found")
                 console.print(tracker.render())
-                console.print(f"[red]Error:[/red] Base workspace {base} does not exist")
-                console.print(f"Implement {base} first: spec-kitty implement {base}")
+                console.print(f"[red]Error:[/red] Base work package {base} does not exist")
+                console.print(f"Feature: {feature_slug}")
                 raise typer.Exit(1)
 
-            # Use the base workspace's current branch for git, or the revision for jj
-            if vcs_backend == VCSBackend.GIT:
-                if base_workspace_info.current_branch:
-                    base_branch = base_workspace_info.current_branch
-                # For git, verify the branch exists
-                result = subprocess.run(
-                    ["git", "rev-parse", "--verify", base_branch],
-                    cwd=repo_root,
-                    capture_output=True,
-                    check=False
-                )
-                if result.returncode != 0:
-                    tracker.error("create", f"base branch {base_branch} not found")
+            if base_lane == "done":
+                # Base merged - use target branch (contains base's changes already)
+                from specify_cli.core.feature_detection import get_feature_target_branch
+
+                target_branch = get_feature_target_branch(repo_root, feature_slug)
+                console.print(f"\n[cyan]→ Base {base} is done (merged) - branching from {target_branch}[/cyan]")
+                base_branch = target_branch
+            else:
+                # Base in progress - use workspace branch
+                base_branch = f"{feature_slug}-{base}"
+                base_workspace_path = repo_root / ".worktrees" / f"{feature_slug}-{base}"
+                base_workspace_info = vcs.get_workspace_info(base_workspace_path)
+
+                if base_workspace_info is None:
+                    # Error with improved message showing status mismatch
+                    tracker.error("create", f"base workspace {base} not found")
                     console.print(tracker.render())
-                    console.print(f"[red]Error:[/red] Base branch {base_branch} does not exist")
+                    console.print(f"[red]Error:[/red] Base workspace {base} does not exist")
+                    console.print(f"Status: {base} is in '{base_lane}' lane but workspace missing")
+                    console.print(f"\nPossible causes:")
+                    console.print(f"  - Workspace was deleted manually")
+                    console.print(f"  - {base} needs to be implemented first: spec-kitty implement {base}")
                     raise typer.Exit(1)
+
+                # Use the base workspace's current branch for git, or the revision for jj
+                if vcs_backend == VCSBackend.GIT:
+                    if base_workspace_info.current_branch:
+                        base_branch = base_workspace_info.current_branch
+                    # For git, verify the branch exists
+                    result = subprocess.run(
+                        ["git", "rev-parse", "--verify", base_branch],
+                        cwd=repo_root,
+                        capture_output=True,
+                        check=False
+                    )
+                    if result.returncode != 0:
+                        tracker.error("create", f"base branch {base_branch} not found")
+                        console.print(tracker.render())
+                        console.print(f"[red]Error:[/red] Base branch {base_branch} does not exist")
+                        raise typer.Exit(1)
 
         # Create workspace using VCS abstraction
         # For git: sparse_exclude excludes kitty-specs/ from worktree

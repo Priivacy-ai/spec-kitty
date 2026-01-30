@@ -1,0 +1,14 @@
+{
+  "wp_id": "WP05",
+  "feature_slug": "025-cli-event-log-integration",
+  "worktree_path": ".worktrees/025-cli-event-log-integration-WP05",
+  "branch_name": "025-cli-event-log-integration-WP05",
+  "base_branch": "2.x",
+  "base_commit": "d15157619b991a25134fd1a1b0b57a2c34cee5b8",
+  "dependencies": [
+    "WP04"
+  ],
+  "created_at": "2026-01-30T13:14:16.933624+00:00",
+  "created_by": "implement-command",
+  "vcs_backend": "git"
+}

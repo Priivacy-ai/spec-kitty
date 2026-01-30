@@ -105,13 +105,13 @@ This work package establishes the foundational dependency on spec-kitty-events l
 
 ### Included Subtasks
 
-- [ ] T006 - Create Event dataclass with ULID, Lamport clock, entity metadata
-- [ ] T007 - Create LamportClock dataclass with tick() and persistence methods
-- [ ] T008 - Implement ClockStorage for loading/saving clock state to JSON
-- [ ] T009 - Implement JSONL append with POSIX file locking (atomic writes)
-- [ ] T010 - Implement daily file rotation logic (YYYY-MM-DD.jsonl)
-- [ ] T011 - Add clock corruption recovery (rebuild from event log max)
-- [ ] T012 - Create `.kittify/events/` and `.kittify/errors/` directory initialization
+- [x] T006 - Create Event dataclass with ULID, Lamport clock, entity metadata
+- [x] T007 - Create LamportClock dataclass with tick() and persistence methods
+- [x] T008 - Implement ClockStorage for loading/saving clock state to JSON
+- [x] T009 - Implement JSONL append with POSIX file locking (atomic writes)
+- [x] T010 - Implement daily file rotation logic (YYYY-MM-DD.jsonl)
+- [x] T011 - Add clock corruption recovery (rebuild from event log max)
+- [x] T012 - Create `.kittify/events/` and `.kittify/errors/` directory initialization
 
 ### Implementation Notes
 
@@ -154,12 +154,12 @@ This work package establishes the foundational dependency on spec-kitty-events l
 
 ### Included Subtasks
 
-- [ ] T013 - Create EventStore class wrapping spec-kitty-events library
-- [ ] T014 - Implement `emit()` method with automatic clock increment and JSONL write
-- [ ] T015 - Create `@with_event_store` AOP decorator for dependency injection
-- [ ] T016 - Integrate event emission into `move_task` command (WPStatusChanged)
-- [ ] T017 - Integrate event emission into `setup-spec` command (SpecCreated)
-- [ ] T018 - Integrate event emission into `finalize-tasks` command (WPCreated events)
+- [x] T013 - Create EventStore class wrapping spec-kitty-events library
+- [x] T014 - Implement `emit()` method with automatic clock increment and JSONL write
+- [x] T015 - Create `@with_event_store` AOP decorator for dependency injection
+- [x] T016 - Integrate event emission into `move_task` command (WPStatusChanged)
+- [x] T017 - Integrate event emission into `setup-spec` command (SpecCreated)
+- [x] T018 - Integrate event emission into `finalize-tasks` command (WPCreated events)
 
 ### Implementation Notes
 
@@ -203,12 +203,12 @@ def move_task(wp_id: str, lane: str, event_store: EventStore):
 
 ### Included Subtasks
 
-- [ ] T019 - Create EventIndex class with SQLite schema (events table + indices)
-- [ ] T020 - Implement `update()` method for inline index updates during emit
-- [ ] T021 - Implement `query()` method with filters (entity_id, event_type, since_clock)
-- [ ] T022 - Implement `rebuild()` method for corruption recovery
-- [ ] T023 - Integrate index updates into EventStore.emit() (synchronous for MVP)
-- [ ] T024 - Add automatic index rebuild on missing/corrupted database
+- [x] T019 - Create EventIndex class with SQLite schema (events table + indices)
+- [x] T020 - Implement `update()` method for inline index updates during emit
+- [x] T021 - Implement `query()` method with filters (entity_id, event_type, since_clock)
+- [x] T022 - Implement `rebuild()` method for corruption recovery
+- [x] T023 - Integrate index updates into EventStore.emit() (synchronous for MVP)
+- [x] T024 - Add automatic index rebuild on missing/corrupted database
 
 ### Implementation Notes
 
@@ -258,12 +258,12 @@ CREATE TABLE events (
 
 ### Included Subtasks
 
-- [ ] T025 - Implement EventStore.read() with optional filters (delegates to index)
-- [ ] T026 - Implement event sorting by Lamport clock (causal ordering)
-- [ ] T027 - Implement graceful degradation (skip invalid JSON lines with warnings)
-- [ ] T028 - Create state reconstruction logic (replay events to derive current status)
-- [ ] T029 - Integrate event reading into `spec-kitty status` command
-- [ ] T030 - Add fallback to direct JSONL reading when index unavailable
+- [x] T025 - Implement EventStore.read() with optional filters (delegates to index)
+- [x] T026 - Implement event sorting by Lamport clock (causal ordering)
+- [x] T027 - Implement graceful degradation (skip invalid JSON lines with warnings)
+- [x] T028 - Create state reconstruction logic (replay events to derive current status)
+- [x] T029 - Integrate event reading into `spec-kitty status` command
+- [x] T030 - Add fallback to direct JSONL reading when index unavailable
 
 ### Implementation Notes
 
@@ -306,11 +306,11 @@ CREATE TABLE events (
 
 ### Included Subtasks
 
-- [ ] T031 - Implement conflict detection (group events by Lamport clock, find duplicates)
-- [ ] T032 - Implement Last-Write-Wins merge rule (lexicographic ULID sorting)
-- [ ] T033 - Integrate conflict detection into state reconstruction (T028 enhancement)
-- [ ] T034 - Add conflict warning output to `spec-kitty status` command
-- [ ] T035 - Log conflict resolutions to stderr with explanation
+- [x] T031 - Implement conflict detection (group events by Lamport clock, find duplicates)
+- [x] T032 - Implement Last-Write-Wins merge rule (lexicographic ULID sorting)
+- [x] T033 - Integrate conflict detection into state reconstruction (T028 enhancement)
+- [x] T034 - Add conflict warning output to `spec-kitty status` command
+- [x] T035 - Log conflict resolutions to stderr with explanation
 
 ### Implementation Notes
 
@@ -354,11 +354,11 @@ for clock, clock_events in events_by_clock.items():
 
 ### Included Subtasks
 
-- [ ] T036 - Create ErrorEvent dataclass (error_id ULID, error_type, entity_id, reason, context)
-- [ ] T037 - Create ErrorStorage class with daily JSONL logging (parallel to EventStore)
-- [ ] T038 - Create `@with_error_storage` AOP decorator
-- [ ] T039 - Integrate error logging into validation failures (state transition errors)
-- [ ] T040 - Add best-effort error handling (don't block operations if error log fails)
+- [x] T036 - Create ErrorEvent dataclass (error_id ULID, error_type, entity_id, reason, context)
+- [x] T037 - Create ErrorStorage class with daily JSONL logging (parallel to EventStore)
+- [x] T038 - Create `@with_error_storage` AOP decorator
+- [x] T039 - Integrate error logging into validation failures (state transition errors)
+- [x] T040 - Add best-effort error handling (don't block operations if error log fails)
 
 ### Implementation Notes
 
@@ -406,11 +406,11 @@ class ErrorEvent:
 
 ### Included Subtasks
 
-- [ ] T041 - Pin spec-kitty-events to specific commit hash in pyproject.toml
-- [ ] T042 - Update GitHub Actions workflow with SSH setup steps
-- [ ] T043 - Test CI build end-to-end (trigger workflow, verify library installs)
-- [ ] T044 - Document dependency update process in CONTRIBUTING.md
-- [ ] T045 - Add spec-kitty-events version to `spec-kitty --version` output
+- [x] T041 - Pin spec-kitty-events to specific commit hash in pyproject.toml
+- [x] T042 - Update GitHub Actions workflow with SSH setup steps
+- [x] T043 - Test CI build end-to-end (trigger workflow, verify library installs)
+- [x] T044 - Document dependency update process in CONTRIBUTING.md
+- [x] T045 - Add spec-kitty-events version to `spec-kitty --version` output
 
 ### Implementation Notes
 

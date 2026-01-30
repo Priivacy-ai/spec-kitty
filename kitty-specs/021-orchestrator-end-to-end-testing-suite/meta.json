@@ -4,5 +4,6 @@
   "friendly_name": "Orchestrator End-to-End Testing Suite",
   "mission": "software-dev",
   "source_description": "now that we have implemented an orchestrator we need to be able to do end to end tests with all of the agents. this represents multiple complexity layers, including that the agents need to be installed, authenticated, and the setup can be extensive and take a long time (eg, when testing that a wp got implemented, reviewed, implemented to fix review, reviewed again, and then merged... that's a lot of fixture!) This feature sprint is the comprehensive deep testing sprint for the orchestrator in 020.",
-  "created_at": "2026-01-19T10:00:00Z"
+  "created_at": "2026-01-19T10:00:00Z",
+  "target_branch": "main"
 }

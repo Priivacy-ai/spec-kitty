@@ -4,5 +4,6 @@
   "friendly_name": "Smarter Feature Merge with Pre-flight and Auto-cleanup",
   "mission": "software-dev",
   "source_description": "Improve the spec-kitty merge command based on post-mortem feedback from features 016 and 002. Key pain points: uncommitted changes blocking merge, sequential merge amplifying conflicts, no conflict forecast, manual cleanup required, no resume capability. Focus on git-first improvements with non-invasive status file handling.",
-  "created_at": "2025-01-18T11:10:00Z"
+  "created_at": "2025-01-18T11:10:00Z",
+  "target_branch": "main"
 }
