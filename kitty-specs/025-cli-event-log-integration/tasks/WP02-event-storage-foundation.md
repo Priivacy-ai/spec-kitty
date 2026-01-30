@@ -2,9 +2,9 @@
 work_package_id: WP02
 title: Event Storage Foundation (Entities & File I/O)
 lane: "planned"
-dependencies: [WP01]
-base_branch: 025-cli-event-log-integration-WP01
-base_commit: 66f2576bbf2c5d83d7244911e614ed8dbc50e6eb
+dependencies: []
+base_branch: 2.x
+base_commit: 6c4caef6fc495732704e493a648eb5593045ba88
 created_at: '2026-01-30T06:59:03.840488+00:00'
 subtasks:
 - T006
