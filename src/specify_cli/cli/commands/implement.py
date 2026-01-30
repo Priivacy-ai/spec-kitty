@@ -504,6 +504,7 @@ def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
     base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
     feature: str = typer.Option(None, "--feature", help="Feature slug (e.g., 001-my-feature)"),
+    force: bool = typer.Option(False, "--force", help="Force auto-merge even when dependencies are done"),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
 ) -> None:
     """Create workspace for work package implementation.
@@ -517,6 +518,9 @@ def implement(
 
         # Create workspace for WP02, branching from WP01
         spec-kitty implement WP02 --base WP01
+
+        # Force auto-merge when all multi-parent dependencies are done
+        spec-kitty implement WP06 --force
 
         # Explicit feature specification
         spec-kitty implement WP01 --feature 001-my-feature
