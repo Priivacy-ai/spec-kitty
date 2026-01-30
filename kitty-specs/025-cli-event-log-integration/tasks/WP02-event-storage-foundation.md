@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Event Storage Foundation (Entities & File I/O)
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 3b415176a6615d2626900cab184d6d2e8307b36b
@@ -16,8 +16,8 @@ subtasks:
 - T012
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: "claude-implementer"
-shell_pid: "61314"
+agent: "codex"
+shell_pid: "14744"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -1295,6 +1295,7 @@ print("✓ Clock recovery test passed")
 - 2026-01-30T10:46:31Z – claude-reviewer-2 – shell_pid=60293 – lane=planned – Moved to planned
 - 2026-01-30T10:47:19Z – claude-implementer – shell_pid=61314 – lane=doing – Started implementation via workflow command
 - 2026-01-30T10:49:03Z – claude-implementer – shell_pid=61314 – lane=for_review – Review feedback addressed: Added all missing methods (to_json, from_json, __post_init__, initialize, to_dict, from_dict) to Event and LamportClock classes in adapter.py. All integration tests pass.
+- 2026-01-30T10:50:37Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
