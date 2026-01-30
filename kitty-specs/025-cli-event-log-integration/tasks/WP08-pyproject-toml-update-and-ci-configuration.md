@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: pyproject.toml Update & CI Configuration
-lane: "for_review"
+lane: "doing"
 dependencies:
 - WP01
 base_branch: 025-cli-event-log-integration-WP01
@@ -15,8 +15,8 @@ subtasks:
 - T045
 phase: Phase 2 - Advanced Features & Edge Cases
 assignee: ''
-agent: ''
-shell_pid: '57334'
+agent: "claude-wp08-reviewer"
+shell_pid: "1386"
 review_status: ''
 reviewed_by: ''
 history:
@@ -727,6 +727,7 @@ echo "✓ CI validation complete"
 ---
 - 2026-01-30T12:48:49Z – unknown – shell_pid=57334 – lane=doing – T043 not run locally (no GitHub Actions access in this environment).
 - 2026-01-30T12:49:14Z – unknown – shell_pid=57334 – lane=for_review – Ready for review: doc dependency update process, tighten SSH setup, and show spec-kitty-events version
+- 2026-01-30T12:56:21Z – claude-wp08-reviewer – shell_pid=1386 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
