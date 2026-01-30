@@ -4,10 +4,6 @@ title: pyproject.toml Update & CI Configuration
 lane: planned
 dependencies:
 - WP01
-- WP02
-- WP03
-- WP04
-- WP05
 subtasks:
 - T041
 - T042
