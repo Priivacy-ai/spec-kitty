@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Event Reading & State Reconstruction
-lane: "for_review"
+lane: "planned"
 dependencies: [WP04]
 base_branch: 2.x
 base_commit: d15157619b991a25134fd1a1b0b57a2c34cee5b8
@@ -17,8 +17,8 @@ phase: Phase 1 - Core Event Infrastructure
 assignee: ''
 agent: "codex"
 shell_pid: "14744"
-review_status: ''
-reviewed_by: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
@@ -42,9 +42,32 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate if work needs changes.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-30
 
----
+**Issue 1 (blocking): `spec-kitty status` is registered as a subcommand**
+- Current wiring uses `app = typer.Typer()` in `src/specify_cli/cli/commands/status.py` and `app.add_typer(status_module.app, name="status")` in `src/specify_cli/cli/commands/__init__.py`, which results in `spec-kitty status status` instead of `spec-kitty status`.
+- Fix: make `status` a plain function (like `dashboard`) and register with `app.command()(status_module.status)` OR keep a Typer app but remove the nested command and use `app.callback()` so `spec-kitty status` works.
+
+**Issue 2 (blocking): Missing WP04 public API exports still present**
+- `src/specify_cli/events/__init__.py` still omits `generate_ulid` and `with_event_store` (and their imports) expected per WP04 review feedback. This is a regression that blocks dependent commands.
+- Fix: restore prior exports:
+  ```python
+  from .adapter import Event, EventAdapter, HAS_LIBRARY, LamportClock, generate_ulid
+  from .index import EventIndex
+  from .middleware import with_event_store
+  from .store import EventStore
+
+  __all__ = ["Event","LamportClock","EventAdapter","EventStore","EventIndex","HAS_LIBRARY","generate_ulid","with_event_store"]
+  ```
+
+**Issue 3 (blocking): Status board omits WPs with no events**
+- In the WP05 prompt’s end‑to‑end test, a WP with no events (e.g., `WP03`) must still appear as `planned`. `reconstruct_all_wp_statuses()` only returns WPs with events, so `spec-kitty status` can’t show WPs that never emitted an event.
+- Fix: load the list of WPs (e.g., from task filenames/frontmatter without reading lane) and default missing ones to `planned`, then overlay event-derived statuses.
+
+**Dependency check:** WP04 is not merged to `main` and still has review feedback. WP05 should rebase onto the finalized WP04 once it lands.
+
 
 ## Objectives & Success Criteria
 
@@ -820,6 +843,7 @@ echo "✓ End-to-end test passed"
 - 2026-01-30T13:21:39Z – unknown – shell_pid=4601 – lane=for_review – Ready for review: Implemented EventReader with state reconstruction, created spec-kitty status command using event log, verified all WP04 infrastructure (read, sorting, graceful degradation, fallback). All 6 subtasks complete. Test script included.
 - 2026-01-30T14:45:14Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
 - 2026-01-30T14:46:16Z – codex – shell_pid=14744 – lane=for_review – Ready for review: EventReader class implemented with state reconstruction logic, new status command added, all 6 subtasks complete (T025-T030)
+- 2026-01-30T14:48:33Z – codex – shell_pid=14744 – lane=planned – Moved to planned
 
 ## Implementation Command
 
