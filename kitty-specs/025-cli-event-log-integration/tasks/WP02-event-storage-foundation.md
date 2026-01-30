@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Event Storage Foundation (Entities & File I/O)
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: 3b415176a6615d2626900cab184d6d2e8307b36b
@@ -1125,6 +1125,8 @@ print("✓ Clock recovery test passed")
 - 2026-01-30T10:32:37Z – claude-reviewer – shell_pid=55140 – lane=doing – Started review via workflow command
 - 2026-01-30T10:36:10Z – claude-reviewer – shell_pid=55140 – lane=planned – Moved to planned
 - 2026-01-30T10:36:59Z – codex – shell_pid=14744 – lane=doing – Started implementation via workflow command
+- 2026-01-30T10:38:48Z – codex – shell_pid=14744 – lane=doing – Acknowledged review feedback: remove duplicate types module, use adapter Event/LamportClock, move ULID generator to adapter.
+- 2026-01-30T10:39:32Z – codex – shell_pid=14744 – lane=for_review – Ready for review: removed duplicate types module, moved ULID generator to adapter, and aligned storage/file IO imports to adapter Event/LamportClock.
 
 ## Implementation Command
 
