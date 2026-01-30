@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Event Reading & State Reconstruction
-lane: "doing"
+lane: "planned"
 dependencies: [WP04]
 base_branch: 2.x
 base_commit: d15157619b991a25134fd1a1b0b57a2c34cee5b8
@@ -46,27 +46,16 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-30
 
-**Issue 1 (blocking): `spec-kitty status` is registered as a subcommand**
-- Current wiring uses `app = typer.Typer()` in `src/specify_cli/cli/commands/status.py` and `app.add_typer(status_module.app, name="status")` in `src/specify_cli/cli/commands/__init__.py`, which results in `spec-kitty status status` instead of `spec-kitty status`.
-- Fix: make `status` a plain function (like `dashboard`) and register with `app.command()(status_module.status)` OR keep a Typer app but remove the nested command and use `app.callback()` so `spec-kitty status` works.
+**Issue 1 (blocking): `specify_cli.events` now imports symbols that don't exist**
+- `src/specify_cli/events/__init__.py` imports `generate_ulid` and `with_event_store`, but there is no `generate_ulid` in `adapter.py` and no `middleware.py` in `src/specify_cli/events/`. This makes `import specify_cli.events` crash at import time.
+- Fix: restore the missing module/function from WP03, or remove the imports and re‑add the real implementations before exporting.
 
-**Issue 2 (blocking): Missing WP04 public API exports still present**
-- `src/specify_cli/events/__init__.py` still omits `generate_ulid` and `with_event_store` (and their imports) expected per WP04 review feedback. This is a regression that blocks dependent commands.
-- Fix: restore prior exports:
-  ```python
-  from .adapter import Event, EventAdapter, HAS_LIBRARY, LamportClock, generate_ulid
-  from .index import EventIndex
-  from .middleware import with_event_store
-  from .store import EventStore
+**Issue 2 (blocking): `reconstruct_all_wp_statuses` has a NameError and still misses WPs without events**
+- The updated signature uses `repo_root: Path | None`, but `Path` is not imported in `src/specify_cli/events/reader.py`, so calling the method raises `NameError: name 'Path' is not defined`.
+- The seeding logic only runs when `feature_slug` is provided; however the WP05 E2E test calls `spec-kitty status` without `--feature` and expects WPs with no events (e.g., WP03) to appear as `planned`. With `feature=None`, you still return only WPs that have events.
+- Fix: import `Path`, and seed planned WPs even when no feature filter is provided (e.g., discover all `kitty-specs/*/tasks/WP*.md` and default to planned, then overlay events).
 
-  __all__ = ["Event","LamportClock","EventAdapter","EventStore","EventIndex","HAS_LIBRARY","generate_ulid","with_event_store"]
-  ```
-
-**Issue 3 (blocking): Status board omits WPs with no events**
-- In the WP05 prompt’s end‑to‑end test, a WP with no events (e.g., `WP03`) must still appear as `planned`. `reconstruct_all_wp_statuses()` only returns WPs with events, so `spec-kitty status` can’t show WPs that never emitted an event.
-- Fix: load the list of WPs (e.g., from task filenames/frontmatter without reading lane) and default missing ones to `planned`, then overlay event-derived statuses.
-
-**Dependency check:** WP04 is not merged to `main` and still has review feedback. WP05 should rebase onto the finalized WP04 once it lands.
+**Dependency check:** WP04 is still not merged to `main` and has review feedback. WP05 should rebase onto the finalized WP04 once it lands.
 
 
 ## Objectives & Success Criteria
@@ -846,6 +835,7 @@ echo "✓ End-to-end test passed"
 - 2026-01-30T14:48:33Z – codex – shell_pid=14744 – lane=planned – Moved to planned
 - 2026-01-30T14:53:43Z – codex – shell_pid=14744 – lane=for_review – All blocking issues fixed: status command now registered as root command, missing exports restored (generate_ulid, with_event_store), state reconstruction seeds from WP files
 - 2026-01-30T15:16:54Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
+- 2026-01-30T15:17:48Z – codex – shell_pid=14744 – lane=planned – Moved to planned
 
 ## Implementation Command
 
