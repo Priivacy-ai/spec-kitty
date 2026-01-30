@@ -3,5 +3,6 @@
   "slug": "002-lightweight-pypi-release",
   "friendly_name": "Lightweight PyPI Release Workflow",
   "source_description": "ad a pypi release but leak no secrets into the git repo",
-  "created_at": "2025-11-02T15:37:41Z"
+  "created_at": "2025-11-02T15:37:41Z",
+  "target_branch": "main"
 }

@@ -25,5 +25,6 @@
   "friendly_name": "First-Class Jujutsu VCS Integration",
   "mission": "software-dev",
   "slug": "first-class-jujutsu-vcs-integration",
-  "source_description": "read the unfinished feature 09 on jujutsu. we are going to fully research and complete that work so that jj is an equal first-class citizen to git, but developers can choose which to use. JJ is to be preferred, and if JJ is available, will be used by spec kitty automatically. Furthermore, when using JJ we will leverage as much JJ capability towards autocommitting and surfacing changes across worktrees in real time as possible, but you need to start by researching and then explaining in detail (for my sake) how it will work in reality"
+  "source_description": "read the unfinished feature 09 on jujutsu. we are going to fully research and complete that work so that jj is an equal first-class citizen to git, but developers can choose which to use. JJ is to be preferred, and if JJ is available, will be used by spec kitty automatically. Furthermore, when using JJ we will leverage as much JJ capability towards autocommitting and surfacing changes across worktrees in real time as possible, but you need to start by researching and then explaining in detail (for my sake) how it will work in reality",
+  "target_branch": "main"
 }

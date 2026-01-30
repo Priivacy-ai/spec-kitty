@@ -4,5 +4,6 @@
   "friendly_name": "Workspace-per-Work-Package for Parallel Development",
   "mission": "software-dev",
   "source_description": "Create a new Feature based on the work(space/tree) per WP concept.",
-  "created_at": "2026-01-07T00:00:00Z"
+  "created_at": "2026-01-07T00:00:00Z",
+  "target_branch": "main"
 }
