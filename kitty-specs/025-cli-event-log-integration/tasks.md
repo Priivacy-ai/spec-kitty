@@ -306,11 +306,11 @@ CREATE TABLE events (
 
 ### Included Subtasks
 
-- [ ] T031 - Implement conflict detection (group events by Lamport clock, find duplicates)
-- [ ] T032 - Implement Last-Write-Wins merge rule (lexicographic ULID sorting)
-- [ ] T033 - Integrate conflict detection into state reconstruction (T028 enhancement)
-- [ ] T034 - Add conflict warning output to `spec-kitty status` command
-- [ ] T035 - Log conflict resolutions to stderr with explanation
+- [x] T031 - Implement conflict detection (group events by Lamport clock, find duplicates)
+- [x] T032 - Implement Last-Write-Wins merge rule (lexicographic ULID sorting)
+- [x] T033 - Integrate conflict detection into state reconstruction (T028 enhancement)
+- [x] T034 - Add conflict warning output to `spec-kitty status` command
+- [x] T035 - Log conflict resolutions to stderr with explanation
 
 ### Implementation Notes
 
