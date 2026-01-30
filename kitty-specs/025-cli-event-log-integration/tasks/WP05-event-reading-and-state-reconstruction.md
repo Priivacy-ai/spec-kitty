@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Event Reading & State Reconstruction
-lane: "for_review"
+lane: "doing"
 dependencies: [WP04]
 base_branch: 2.x
 base_commit: d15157619b991a25134fd1a1b0b57a2c34cee5b8
@@ -845,6 +845,7 @@ echo "✓ End-to-end test passed"
 - 2026-01-30T14:46:16Z – codex – shell_pid=14744 – lane=for_review – Ready for review: EventReader class implemented with state reconstruction logic, new status command added, all 6 subtasks complete (T025-T030)
 - 2026-01-30T14:48:33Z – codex – shell_pid=14744 – lane=planned – Moved to planned
 - 2026-01-30T14:53:43Z – codex – shell_pid=14744 – lane=for_review – All blocking issues fixed: status command now registered as root command, missing exports restored (generate_ulid, with_event_store), state reconstruction seeds from WP files
+- 2026-01-30T15:16:54Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
