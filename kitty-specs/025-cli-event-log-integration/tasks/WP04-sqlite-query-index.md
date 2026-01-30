@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: SQLite Query Index
-lane: "planned"
+lane: "doing"
 dependencies: [WP03]
 base_branch: 2.x
 base_commit: 033571b9334a4d44e4858abdd9f4fffd6bf5dfa7
@@ -1076,6 +1076,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 - 2026-01-30T12:46:42Z – claude-wp04-reviewer – shell_pid=96881 – lane=planned – Moved to planned
 - 2026-01-30T12:56:20Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
 - 2026-01-30T12:57:06Z – codex – shell_pid=14744 – lane=planned – Moved to planned
+- 2026-01-30T13:06:15Z – codex – shell_pid=14744 – lane=doing – Started implementation via workflow command
 
 ## Implementation Command
 
