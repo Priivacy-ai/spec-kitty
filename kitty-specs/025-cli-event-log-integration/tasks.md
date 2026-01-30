@@ -111,7 +111,7 @@ This work package establishes the foundational dependency on spec-kitty-events l
 - [x] T009 - Implement JSONL append with POSIX file locking (atomic writes)
 - [x] T010 - Implement daily file rotation logic (YYYY-MM-DD.jsonl)
 - [x] T011 - Add clock corruption recovery (rebuild from event log max)
-- [ ] T012 - Create `.kittify/events/` and `.kittify/errors/` directory initialization
+- [x] T012 - Create `.kittify/events/` and `.kittify/errors/` directory initialization
 
 ### Implementation Notes
 
