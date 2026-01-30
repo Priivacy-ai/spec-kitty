@@ -406,11 +406,11 @@ class ErrorEvent:
 
 ### Included Subtasks
 
-- [ ] T041 - Pin spec-kitty-events to specific commit hash in pyproject.toml
-- [ ] T042 - Update GitHub Actions workflow with SSH setup steps
+- [x] T041 - Pin spec-kitty-events to specific commit hash in pyproject.toml
+- [x] T042 - Update GitHub Actions workflow with SSH setup steps
 - [ ] T043 - Test CI build end-to-end (trigger workflow, verify library installs)
-- [ ] T044 - Document dependency update process in CONTRIBUTING.md
-- [ ] T045 - Add spec-kitty-events version to `spec-kitty --version` output
+- [x] T044 - Document dependency update process in CONTRIBUTING.md
+- [x] T045 - Add spec-kitty-events version to `spec-kitty --version` output
 
 ### Implementation Notes
 
