@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: EventStore & AOP Middleware
-lane: "doing"
+lane: "for_review"
 dependencies: [WP02]
 base_branch: 025-cli-event-log-integration-WP02
 base_commit: 7d9a6690405ccf8b835a49d27262d99a5c337997
@@ -860,6 +860,7 @@ echo "✓ End-to-end test passed: All events emitted"
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+- 2026-01-30T11:04:33Z – unknown – shell_pid=14744 – lane=for_review – Ready for review: implemented EventStore and event middleware; integrated event emission into move-task, create-feature/setup-spec, and finalize-tasks.
 
 ## Implementation Command
 
