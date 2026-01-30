@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Event Reading & State Reconstruction
-lane: "planned"
+lane: "doing"
 dependencies: [WP04]
 base_branch: 2.x
 base_commit: d15157619b991a25134fd1a1b0b57a2c34cee5b8
@@ -15,8 +15,8 @@ subtasks:
 - T030
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: "codex"
-shell_pid: "14744"
+agent: "claude-wp05-final-reviewer"
+shell_pid: "18406"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -836,6 +836,7 @@ echo "✓ End-to-end test passed"
 - 2026-01-30T14:53:43Z – codex – shell_pid=14744 – lane=for_review – All blocking issues fixed: status command now registered as root command, missing exports restored (generate_ulid, with_event_store), state reconstruction seeds from WP files
 - 2026-01-30T15:16:54Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
 - 2026-01-30T15:17:48Z – codex – shell_pid=14744 – lane=planned – Moved to planned
+- 2026-01-30T15:46:07Z – claude-wp05-final-reviewer – shell_pid=18406 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
