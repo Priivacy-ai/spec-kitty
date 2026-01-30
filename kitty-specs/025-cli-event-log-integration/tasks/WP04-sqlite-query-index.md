@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: SQLite Query Index
-lane: "for_review"
+lane: "doing"
 dependencies: [WP03]
 base_branch: 2.x
 base_commit: 033571b9334a4d44e4858abdd9f4fffd6bf5dfa7
@@ -15,8 +15,8 @@ subtasks:
 - T024
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: ''
-shell_pid: "14744"
+agent: "claude-wp04-reviewer"
+shell_pid: "96881"
 review_status: ''
 reviewed_by: ''
 history:
@@ -898,6 +898,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 
 ---
 - 2026-01-30T11:31:51Z – unknown – shell_pid=14744 – lane=for_review – Ready for review: add SQLite index, JSONL query path, and EventStore integration
+- 2026-01-30T12:44:29Z – claude-wp04-reviewer – shell_pid=96881 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
