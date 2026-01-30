@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.9] - 2026-01-30
+
+### 🐛 Fixed
+
+**Two-Branch Strategy Support (Critical)**:
+- Fixed hardcoded `main` branch in move-task validation (now uses `target_branch` from meta.json)
+- Fixed misleading console messages showing "committed to main" for all features
+- Enables proper separation between 1.x (main) and 2.x (SaaS) development per ADR-12
+- Features targeting 2.x now validate against 2.x branch, not main
+- Rebase instructions now show correct target branch
+- **Impact**: Unblocks Feature 025 (CLI Event Log Integration) on 2.x branch
+
+**Multi-Parent Dependency Support (Critical)**:
+- Fixed missing `force` parameter in implement command (line 561 used undefined variable)
+- Users can now bypass merge-first recommendation with `--force` flag
+- **Impact**: Unblocks all multi-parent workflows where dependencies are complete
+- **Error fixed**: `NameError: name 'force' is not defined`
+
+**Single Dependency Auto-Detection (UX)**:
+- Auto-detect `--base` from single dependency in frontmatter
+- No longer requires manual `--base WP01` when WP has single dependency
+- Reduces command friction: `spec-kitty implement WP02` just works
+- **Impact**: Simpler UX for 90% of work packages (most have single parent)
+
+### 📝 Changed
+
+**Console Output**:
+- move-task validation messages now show target branch name (e.g., "behind 2.x by 3 commits")
+- implement command shows accurate branch in status messages (e.g., "committed to 2.x")
+
+### ✅ Tests
+
+**New Integration Tests**:
+- Added `tests/integration/test_two_branch_strategy.py`
+- Verifies target_branch detection from meta.json
+- Verifies default to "main" for legacy features
+- Ensures two-branch strategy (ADR-12) works correctly
+
 ## [0.13.8] - 2026-01-29
 
 ### 🎯 Added
