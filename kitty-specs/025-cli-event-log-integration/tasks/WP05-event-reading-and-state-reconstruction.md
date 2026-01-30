@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP05"
-title: "Event Reading & State Reconstruction"
-phase: "Phase 1 - Core Event Infrastructure"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP04"]
+work_package_id: WP05
+title: Event Reading & State Reconstruction
+lane: "doing"
+dependencies: [WP04]
+base_branch: 2.x
+base_commit: d15157619b991a25134fd1a1b0b57a2c34cee5b8
+created_at: '2026-01-30T13:14:16.933624+00:00'
 subtasks:
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
+- T025
+- T026
+- T027
+- T028
+- T029
+- T030
+phase: Phase 1 - Core Event Infrastructure
+assignee: ''
+agent: ''
+shell_pid: "4601"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-27T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-27T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Event Reading & State Reconstruction
