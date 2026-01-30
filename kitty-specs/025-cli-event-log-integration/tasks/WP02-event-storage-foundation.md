@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Event Storage Foundation (Entities & File I/O)
-lane: "doing"
+lane: "planned"
 dependencies: [WP01]
 base_branch: 025-cli-event-log-integration-WP01
 base_commit: 66f2576bbf2c5d83d7244911e614ed8dbc50e6eb
@@ -1031,6 +1031,7 @@ print("✓ Clock recovery test passed")
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+- 2026-01-30T10:16:44Z – unknown – shell_pid=28472 – lane=planned – Reset to planned - starting fresh from clean 2.x branch
 
 ## Implementation Command
 
