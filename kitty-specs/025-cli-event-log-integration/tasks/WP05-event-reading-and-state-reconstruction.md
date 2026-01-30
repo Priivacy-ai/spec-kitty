@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Event Reading & State Reconstruction
-lane: "for_review"
+lane: "doing"
 dependencies: [WP04]
 base_branch: 2.x
 base_commit: d15157619b991a25134fd1a1b0b57a2c34cee5b8
@@ -15,8 +15,8 @@ subtasks:
 - T030
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: ''
-shell_pid: "4601"
+agent: "codex"
+shell_pid: "14744"
 review_status: ''
 reviewed_by: ''
 history:
@@ -818,6 +818,7 @@ echo "✓ End-to-end test passed"
 
 ---
 - 2026-01-30T13:21:39Z – unknown – shell_pid=4601 – lane=for_review – Ready for review: Implemented EventReader with state reconstruction, created spec-kitty status command using event log, verified all WP04 infrastructure (read, sorting, graceful degradation, fallback). All 6 subtasks complete. Test script included.
+- 2026-01-30T14:45:14Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
