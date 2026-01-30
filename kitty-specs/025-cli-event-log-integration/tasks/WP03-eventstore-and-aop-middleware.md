@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: EventStore & AOP Middleware
-lane: "for_review"
+lane: "doing"
 dependencies: [WP02]
 base_branch: 025-cli-event-log-integration-WP02
 base_commit: 7d9a6690405ccf8b835a49d27262d99a5c337997
@@ -15,8 +15,8 @@ subtasks:
 - T018
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: ''
-shell_pid: "14744"
+agent: "claude-final-reviewer"
+shell_pid: "78964"
 review_status: ''
 reviewed_by: ''
 history:
@@ -861,6 +861,7 @@ echo "✓ End-to-end test passed: All events emitted"
 
 ---
 - 2026-01-30T11:04:33Z – unknown – shell_pid=14744 – lane=for_review – Ready for review: implemented EventStore and event middleware; integrated event emission into move-task, create-feature/setup-spec, and finalize-tasks.
+- 2026-01-30T11:06:03Z – claude-final-reviewer – shell_pid=78964 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
