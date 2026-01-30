@@ -158,7 +158,7 @@ This work package establishes the foundational dependency on spec-kitty-events l
 - [x] T014 - Implement `emit()` method with automatic clock increment and JSONL write
 - [x] T015 - Create `@with_event_store` AOP decorator for dependency injection
 - [x] T016 - Integrate event emission into `move_task` command (WPStatusChanged)
-- [ ] T017 - Integrate event emission into `setup-spec` command (SpecCreated)
+- [x] T017 - Integrate event emission into `setup-spec` command (SpecCreated)
 - [ ] T018 - Integrate event emission into `finalize-tasks` command (WPCreated events)
 
 ### Implementation Notes
