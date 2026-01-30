@@ -259,7 +259,7 @@ else:
 
 **Enhances:** Workspace-per-WP workflow (0.11.0+)
 
-**Version:** 0.13.9 / 0.14.0 (bugfix/enhancement)
+**Version:** 0.13.20 (bugfix)
 
 **Real-world validation:**
 - Feature 025-cli-event-log-integration (WP02, WP08 blocked on merged WP01)

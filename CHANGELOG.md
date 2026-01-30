@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.20] - 2026-01-30
+
+### 🐛 Fixed
+
+**Merged Single-Parent Dependency Workflow Gap** (ADR-18):
+- Fixed `spec-kitty implement` failing when single-parent dependency has been merged to target branch
+- Issue: WP01 merged to 2.x → WP02 can't implement (looks for non-existent WP01 workspace branch)
+- Root cause: Implement command didn't distinguish between in-progress vs merged dependencies
+- Solution: Auto-detect when dependency lane is "done" and branch from target branch instead
+- Behavior:
+  - If `base_wp.lane == "done"`: Branch from target branch (e.g., 2.x) - merged work already there
+  - If `base_wp.lane != "done"`: Branch from workspace branch (e.g., 025-feature-WP01) - work in progress
+- Eliminates need for manual frontmatter editing (remove dependencies, update base_branch)
+- Complements ADR-15 (multi-parent all-done suggestion) for single-parent case
+- **Impact**: Critical fix for normal workspace-per-WP workflow where dependencies complete before dependents start
+- **Technical Story**: Feature 025-cli-event-log-integration WP02/WP08 blocked on merged WP01
+
 ## [0.13.7] - 2026-01-27
 
 ### 🐛 Fixed
