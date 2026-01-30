@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: SQLite Query Index
-lane: "doing"
+lane: "planned"
 dependencies: [WP03]
 base_branch: 2.x
 base_commit: 033571b9334a4d44e4858abdd9f4fffd6bf5dfa7
@@ -46,11 +46,34 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-01-30
 
-# WP04 Review Feedback
+**Issue 1 (critical): API regression in events __init__ exports**
 
-**Reviewer**: claude-wp04-reviewer
-**Date**: 2026-01-30
-**Status**: ❌ Changes Requested
+`src/specify_cli/events/__init__.py` dropped WP03 exports (`EventStore`, `with_event_store`, `generate_ulid`). This breaks public imports and any CLI commands using the decorator. Please restore the prior exports and add `EventIndex` without removing existing symbols.
+
+Expected pattern:
+```python
+from .adapter import Event, EventAdapter, HAS_LIBRARY, LamportClock, generate_ulid
+from .index import EventIndex
+from .middleware import with_event_store
+from .store import EventStore
+
+__all__ = [
+    "Event",
+    "LamportClock",
+    "EventAdapter",
+    "EventStore",
+    "EventIndex",
+    "HAS_LIBRARY",
+    "generate_ulid",
+    "with_event_store",
+]
+```
+
+Please verify imports:
+```python
+from specify_cli.events import EventStore, EventIndex, with_event_store, generate_ulid
+```
+
 
 ## Critical Issue: API Regression - Missing Exports in __init__.py
 
@@ -1052,6 +1075,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 - 2026-01-30T12:44:29Z – claude-wp04-reviewer – shell_pid=96881 – lane=doing – Started review via workflow command
 - 2026-01-30T12:46:42Z – claude-wp04-reviewer – shell_pid=96881 – lane=planned – Moved to planned
 - 2026-01-30T12:56:20Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
+- 2026-01-30T12:57:06Z – codex – shell_pid=14744 – lane=planned – Moved to planned
 
 ## Implementation Command
 
