@@ -354,11 +354,11 @@ for clock, clock_events in events_by_clock.items():
 
 ### Included Subtasks
 
-- [ ] T036 - Create ErrorEvent dataclass (error_id ULID, error_type, entity_id, reason, context)
-- [ ] T037 - Create ErrorStorage class with daily JSONL logging (parallel to EventStore)
-- [ ] T038 - Create `@with_error_storage` AOP decorator
-- [ ] T039 - Integrate error logging into validation failures (state transition errors)
-- [ ] T040 - Add best-effort error handling (don't block operations if error log fails)
+- [x] T036 - Create ErrorEvent dataclass (error_id ULID, error_type, entity_id, reason, context)
+- [x] T037 - Create ErrorStorage class with daily JSONL logging (parallel to EventStore)
+- [x] T038 - Create `@with_error_storage` AOP decorator
+- [x] T039 - Integrate error logging into validation failures (state transition errors)
+- [x] T040 - Add best-effort error handling (don't block operations if error log fails)
 
 ### Implementation Notes
 
