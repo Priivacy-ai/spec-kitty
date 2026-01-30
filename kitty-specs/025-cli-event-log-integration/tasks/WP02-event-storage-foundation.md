@@ -1,11 +1,11 @@
 ---
 work_package_id: WP02
 title: Event Storage Foundation (Entities & File I/O)
-lane: "planned"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
-base_commit: 6c4caef6fc495732704e493a648eb5593045ba88
-created_at: '2026-01-30T06:59:03.840488+00:00'
+base_commit: 3b415176a6615d2626900cab184d6d2e8307b36b
+created_at: '2026-01-30T10:20:52.401966+00:00'
 subtasks:
 - T006
 - T007
@@ -17,7 +17,7 @@ subtasks:
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
 agent: ''
-shell_pid: "28472"
+shell_pid: "49716"
 review_status: ''
 reviewed_by: ''
 history:
