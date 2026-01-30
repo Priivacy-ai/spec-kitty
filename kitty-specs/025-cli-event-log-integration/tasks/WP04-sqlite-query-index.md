@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP04"
-title: "SQLite Query Index"
-phase: "Phase 1 - Core Event Infrastructure"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP03"]
+work_package_id: WP04
+title: SQLite Query Index
+lane: "doing"
+dependencies: [WP03]
+base_branch: 2.x
+base_commit: 033571b9334a4d44e4858abdd9f4fffd6bf5dfa7
+created_at: '2026-01-30T11:22:42.807853+00:00'
 subtasks:
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
+- T019
+- T020
+- T021
+- T022
+- T023
+- T024
+phase: Phase 1 - Core Event Infrastructure
+assignee: ''
+agent: ''
+shell_pid: "14744"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-27T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-27T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – SQLite Query Index
