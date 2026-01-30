@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Event Storage Foundation (Entities & File I/O)
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 2.x
 base_commit: 3b415176a6615d2626900cab184d6d2e8307b36b
@@ -18,8 +18,8 @@ phase: Phase 1 - Core Event Infrastructure
 assignee: ''
 agent: "claude-reviewer"
 shell_pid: "55140"
-review_status: ''
-reviewed_by: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
@@ -43,9 +43,98 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-30
+
+# WP02 Review Feedback
+
+**Reviewer**: claude-reviewer
+**Date**: 2026-01-30
+**Status**: ❌ Changes Requested
+
+## Critical Issue: Architectural Violation - Duplicate Event/LamportClock Classes
+
+**Problem**: WP02 created a new `types.py` module with Event and LamportClock classes, but WP01 already provides these through `adapter.py`. This creates two different class hierarchies and violates the adapter pattern established in WP01.
+
+**Evidence**:
+```python
+# These are TWO DIFFERENT classes (not the same object):
+from specify_cli.events.adapter import Event as AdapterEvent
+from specify_cli.events.types import Event as TypesEvent
+
+# AdapterEvent is not TypesEvent  <-- Different classes!
+```
+
+**Import confusion**:
+- `__init__.py` exports Event from `adapter`
+- `clock_storage.py` and `file_io.py` import Event from `types`
+- This means different parts of the codebase use incompatible Event objects
+
+**Why this violates the architecture**:
+1. WP01 established the adapter pattern for loose coupling with spec-kitty-events library
+2. All CLI code should use `specify_cli.events.adapter.Event` and `LamportClock`
+3. Creating parallel `types.py` classes bypasses the adapter layer without justification
+4. Creates maintenance burden (two places to update if Event schema changes)
+
+**How to fix**:
+
+1. **Delete the duplicate types module**:
+   ```bash
+   rm src/specify_cli/events/types.py
+   ```
+
+2. **Move generate_ulid() to adapter.py**:
+   - Add `generate_ulid()` function and `_encode_base32()` helper to `adapter.py`
+   - These are utilities, not types, so they belong with the adapter
+
+3. **Update all imports**:
+   ```python
+   # In clock_storage.py and file_io.py, change:
+   from specify_cli.events.types import Event, LamportClock  # ❌ DELETE THIS
+   
+   # To:
+   from specify_cli.events.adapter import Event, LamportClock, generate_ulid  # ✅ USE THIS
+   ```
+
+4. **Verify no import errors**:
+   ```bash
+   python3 -c "from specify_cli.events import Event, LamportClock, generate_ulid; print('OK')"
+   ```
+
+**Functional note**: All 12 subtasks (T006-T012) are functionally complete. The ONLY issue is this architectural violation. Once fixed, WP02 will be ready for approval.
+
+**Dependent WP warning**: WP03 depends on WP02. Once this is fixed and merged, WP03 implementers should ensure they use `specify_cli.events.adapter.Event`, not a non-existent `types.Event`.
 
 ---
+
+## Implementation Quality (Otherwise Excellent)
+
+**What's working well**:
+- ✅ All 11 Event fields match data-model.md specification
+- ✅ ULID generation produces valid 26-character identifiers
+- ✅ LamportClock implements tick(), update(), initialize() correctly
+- ✅ ClockStorage uses atomic writes (temp file + rename)
+- ✅ POSIX file locking implemented with fcntl.flock()
+- ✅ Windows fallback (best-effort without locking)
+- ✅ Daily rotation works (events go to YYYY-MM-DD.jsonl files)
+- ✅ Clock recovery scans event log and returns max+1 correctly
+- ✅ Directory initialization is idempotent
+- ✅ Integration test passes (events written, clock persisted, recovery works)
+
+**Code quality**:
+- Clean, readable implementation
+- Proper error handling
+- Good docstrings
+- Follows Python conventions
+
+**Test results**:
+- Integration test passes (5 events emitted, clock persistence verified)
+- Clock recovery test passes (value=7 is correct: max_clock=6, recovery=6+1=7)
+- ULID generation produces valid identifiers
+
+Once the architectural issue is resolved, this will be an excellent implementation.
+
 
 ## Objectives & Success Criteria
 
@@ -1034,6 +1123,7 @@ print("✓ Clock recovery test passed")
 - 2026-01-30T10:16:44Z – unknown – shell_pid=28472 – lane=planned – Reset to planned - starting fresh from clean 2.x branch
 - 2026-01-30T10:31:59Z – unknown – shell_pid=49716 – lane=for_review – Ready for review: implemented event storage foundation (Event/LamportClock types, ULID generator), clock persistence + recovery, JSONL append with POSIX locking + daily rotation, and event/error directory initialization.
 - 2026-01-30T10:32:37Z – claude-reviewer – shell_pid=55140 – lane=doing – Started review via workflow command
+- 2026-01-30T10:36:10Z – claude-reviewer – shell_pid=55140 – lane=planned – Moved to planned
 
 ## Implementation Command
 
