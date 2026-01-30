@@ -258,12 +258,12 @@ CREATE TABLE events (
 
 ### Included Subtasks
 
-- [ ] T025 - Implement EventStore.read() with optional filters (delegates to index)
-- [ ] T026 - Implement event sorting by Lamport clock (causal ordering)
-- [ ] T027 - Implement graceful degradation (skip invalid JSON lines with warnings)
-- [ ] T028 - Create state reconstruction logic (replay events to derive current status)
-- [ ] T029 - Integrate event reading into `spec-kitty status` command
-- [ ] T030 - Add fallback to direct JSONL reading when index unavailable
+- [x] T025 - Implement EventStore.read() with optional filters (delegates to index)
+- [x] T026 - Implement event sorting by Lamport clock (causal ordering)
+- [x] T027 - Implement graceful degradation (skip invalid JSON lines with warnings)
+- [x] T028 - Create state reconstruction logic (replay events to derive current status)
+- [x] T029 - Integrate event reading into `spec-kitty status` command
+- [x] T030 - Add fallback to direct JSONL reading when index unavailable
 
 ### Implementation Notes
 
