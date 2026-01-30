@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP07"
-title: "Error Logging (Manus Pattern)"
-phase: "Phase 2 - Advanced Features & Edge Cases"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP03"]
+work_package_id: WP07
+title: Error Logging (Manus Pattern)
+lane: "doing"
+dependencies: [WP03]
+base_branch: 2.x
+base_commit: cdc7ce25582e38fd92ff031df28c89b9f62e49d7
+created_at: '2026-01-30T16:05:13.107798+00:00'
 subtasks:
-  - "T036"
-  - "T037"
-  - "T038"
-  - "T039"
-  - "T040"
+- T036
+- T037
+- T038
+- T039
+- T040
+phase: Phase 2 - Advanced Features & Edge Cases
+assignee: ''
+agent: ''
+shell_pid: "22633"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-27T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-27T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP07 – Error Logging (Manus Pattern)
