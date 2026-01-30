@@ -362,9 +362,13 @@ def _validate_ready_for_review(
                 guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
                 return False, guidance
 
-            # Check if worktree branch is behind main
+            # Check if worktree branch is behind target branch
+            # Get target branch from feature metadata (respects two-branch strategy)
+            from specify_cli.core.feature_detection import get_feature_target_branch
+            target_branch = get_feature_target_branch(repo_root, feature_slug)
+
             result = subprocess.run(
-                ["git", "rev-list", "--count", "HEAD..main"],
+                ["git", "rev-list", "--count", f"HEAD..{target_branch}"],
                 cwd=worktree_path,
                 capture_output=True,
                 text=True,
@@ -378,12 +382,12 @@ def _validate_ready_for_review(
                     behind_count = 0
 
             if behind_count > 0:
-                guidance.append("Main branch has new commits not in this worktree!")
+                guidance.append(f"{target_branch} branch has new commits not in this worktree!")
                 guidance.append("")
-                guidance.append(f"Your branch is behind main by {behind_count} commit(s).")
+                guidance.append(f"Your branch is behind {target_branch} by {behind_count} commit(s).")
                 guidance.append("Rebase before review:")
                 guidance.append(f"  cd {worktree_path}")
-                guidance.append("  git rebase main")
+                guidance.append(f"  git rebase {target_branch}")
                 guidance.append("")
                 guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
                 return False, guidance
