@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: SQLite Query Index
-lane: "for_review"
+lane: "doing"
 dependencies: [WP03]
 base_branch: 2.x
 base_commit: 033571b9334a4d44e4858abdd9f4fffd6bf5dfa7
@@ -15,8 +15,8 @@ subtasks:
 - T024
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: "codex"
-shell_pid: "14744"
+agent: "claude-wp04-final-reviewer"
+shell_pid: "3709"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -1078,6 +1078,7 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 - 2026-01-30T12:57:06Z – codex – shell_pid=14744 – lane=planned – Moved to planned
 - 2026-01-30T13:06:15Z – codex – shell_pid=14744 – lane=doing – Started implementation via workflow command
 - 2026-01-30T13:06:56Z – codex – shell_pid=14744 – lane=for_review – Ready for review: restore events exports and include EventIndex
+- 2026-01-30T13:08:08Z – claude-wp04-final-reviewer – shell_pid=3709 – lane=doing – Started review via workflow command
 
 ## Implementation Command
 
