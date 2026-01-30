@@ -578,15 +578,12 @@ def implement(
             auto_merge_base = True
             # Will create merge base after validation completes
 
-        # Single dependency handling
+        # Single dependency handling - auto-detect base
         elif len(declared_deps) == 1 and base is None:
-            # Suggest base for single dependency
-            tracker.error("validate", "missing --base flag")
-            console.print(tracker.render())
-            console.print(f"\n[red]Error:[/red] {wp_id} depends on {declared_deps[0]}")
-            console.print(f"\nSpecify base workspace:")
-            console.print(f"  spec-kitty implement {wp_id} --base {declared_deps[0]}")
-            raise typer.Exit(1)
+            # Auto-use the single dependency as base (no need to make user specify it!)
+            base = declared_deps[0]
+            console.print(f"\n[cyan]Auto-detected:[/cyan] {wp_id} depends on {base}")
+            console.print(f"Using --base {base} automatically")
 
         # If --base provided, validate it matches declared dependencies
         if base:
