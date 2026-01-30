@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP06"
-title: "Conflict Detection & Merge Rules"
-phase: "Phase 2 - Advanced Features & Edge Cases"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP05"]
+work_package_id: WP06
+title: Conflict Detection & Merge Rules
+lane: "doing"
+dependencies: [WP05]
+base_branch: 025-cli-event-log-integration-WP05
+base_commit: 96e941d0bff07d34ec73e9dc8b865db2e12746fe
+created_at: '2026-01-30T15:46:17.787476+00:00'
 subtasks:
-  - "T031"
-  - "T032"
-  - "T033"
-  - "T034"
-  - "T035"
+- T031
+- T032
+- T033
+- T034
+- T035
+phase: Phase 2 - Advanced Features & Edge Cases
+assignee: ''
+agent: ''
+shell_pid: "14744"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-01-27T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-27T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Conflict Detection & Merge Rules
