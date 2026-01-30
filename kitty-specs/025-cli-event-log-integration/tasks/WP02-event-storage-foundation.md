@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Event Storage Foundation (Entities & File I/O)
-lane: "planned"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 3b415176a6615d2626900cab184d6d2e8307b36b
@@ -16,8 +16,8 @@ subtasks:
 - T012
 phase: Phase 1 - Core Event Infrastructure
 assignee: ''
-agent: "claude-reviewer"
-shell_pid: "55140"
+agent: "codex"
+shell_pid: "14744"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -1124,6 +1124,7 @@ print("✓ Clock recovery test passed")
 - 2026-01-30T10:31:59Z – unknown – shell_pid=49716 – lane=for_review – Ready for review: implemented event storage foundation (Event/LamportClock types, ULID generator), clock persistence + recovery, JSONL append with POSIX locking + daily rotation, and event/error directory initialization.
 - 2026-01-30T10:32:37Z – claude-reviewer – shell_pid=55140 – lane=doing – Started review via workflow command
 - 2026-01-30T10:36:10Z – claude-reviewer – shell_pid=55140 – lane=planned – Moved to planned
+- 2026-01-30T10:36:59Z – codex – shell_pid=14744 – lane=doing – Started implementation via workflow command
 
 ## Implementation Command
 
