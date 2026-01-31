@@ -361,7 +361,7 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 - [x] T079 [P] Add other MCP client examples (VS Code, etc.)
 - [x] T080 Document server startup command and options
 - [x] T081 Add authentication configuration guide
-- [ ] T082 Add troubleshooting section (common errors, solutions)
+- [x] T082 Add troubleshooting section (common errors, solutions)
 - [ ] T083 Add example conversational workflows (specify → plan → implement)
 
 ### Implementation Notes
