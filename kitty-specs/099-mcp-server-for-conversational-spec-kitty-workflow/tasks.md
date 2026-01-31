@@ -61,13 +61,13 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP02-project-context-and-state-management.md`
 
 ### Included Subtasks
-- [ ] T007 Create ProjectContext dataclass in `src/specify_cli/mcp/session/context.py` with path validation
-- [ ] T008 Implement project path validation (check for `.kittify/` directory)
-- [ ] T009 Implement session directory creation (`.kittify/mcp-sessions/`) if not exists
-- [ ] T010 Create ConversationState dataclass in `src/specify_cli/mcp/session/state.py`
-- [ ] T011 Implement JSON serialization/deserialization for ConversationState (to_json, from_json methods)
-- [ ] T012 Implement atomic file write for state persistence (write to .tmp, then rename)
-- [ ] T013 Add state resumption logic (load from session_id)
+- [x] T007 Create ProjectContext dataclass in `src/specify_cli/mcp/session/context.py` with path validation
+- [x] T008 Implement project path validation (check for `.kittify/` directory)
+- [x] T009 Implement session directory creation (`.kittify/mcp-sessions/`) if not exists
+- [x] T010 Create ConversationState dataclass in `src/specify_cli/mcp/session/state.py`
+- [x] T011 Implement JSON serialization/deserialization for ConversationState (to_json, from_json methods)
+- [x] T012 Implement atomic file write for state persistence (write to .tmp, then rename)
+- [x] T013 Add state resumption logic (load from session_id)
 
 ### Implementation Notes
 - Use Path objects for all file operations
