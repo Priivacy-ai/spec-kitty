@@ -4,5 +4,7 @@
   "friendly_name": "MCP Server for Conversational Spec Kitty Workflow",
   "mission": "software-dev",
   "source_description": "implement an mcp server offering the current functionality of spec kitty so that the user doesnt have to learn the slash commands but can talk directly to the AI Agent",
-  "created_at": "2026-01-29T22:00:00Z"
+  "created_at": "2026-01-29T22:00:00Z",
+  "vcs": "git",
+  "vcs_locked_at": "2026-01-31T12:20:26.706087+00:00"
 }
