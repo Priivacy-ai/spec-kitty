@@ -156,16 +156,16 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP05-feature-operations-mcp-tools.md`
 
 ### Included Subtasks
-- [ ] T027 Create feature_tools.py in `src/specify_cli/mcp/tools/`
-- [ ] T028 Define JSON Schema for feature_operations parameters (project_path, operation, feature_slug, arguments)
-- [ ] T029 Implement feature_operations_handler that routes to CLIAdapter based on operation enum
-- [ ] T030 [P] Add specify operation support (discovery interview integration)
-- [ ] T031 [P] Add plan operation support
-- [ ] T032 [P] Add tasks operation support
-- [ ] T033 [P] Add implement operation support
-- [ ] T034 [P] Add review operation support
-- [ ] T035 [P] Add accept operation support
-- [ ] T036 Register feature_operations tool with FastMCP server
+- [x] T027 Create feature_tools.py in `src/specify_cli/mcp/tools/`
+- [x] T028 Define JSON Schema for feature_operations parameters (project_path, operation, feature_slug, arguments)
+- [x] T029 Implement feature_operations_handler that routes to CLIAdapter based on operation enum
+- [x] T030 [P] Add specify operation support (discovery interview integration)
+- [x] T031 [P] Add plan operation support
+- [x] T032 [P] Add tasks operation support
+- [x] T033 [P] Add implement operation support
+- [x] T034 [P] Add review operation support
+- [x] T035 [P] Add accept operation support
+- [x] T036 Register feature_operations tool with FastMCP server
 
 ### Implementation Notes
 - Tool uses single entry point with operation enum parameter (not 6 separate tools)
