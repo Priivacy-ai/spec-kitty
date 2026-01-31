@@ -93,12 +93,12 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP03-file-locking-and-concurrency-control.md`
 
 ### Included Subtasks
-- [ ] T014 Install filelock dependency in pyproject.toml
-- [ ] T015 Create ResourceLock dataclass in `src/specify_cli/mcp/session/locking.py`
-- [ ] T016 Implement lock acquisition with timeout (default 5 minutes)
-- [ ] T017 Implement lock release (context manager pattern)
-- [ ] T018 Add stale lock detection and cleanup (process PID check)
-- [ ] T019 Implement lock granularity: per-WP, per-feature, per-config-file
+- [x] T014 Install filelock dependency in pyproject.toml
+- [x] T015 Create ResourceLock dataclass in `src/specify_cli/mcp/session/locking.py`
+- [x] T016 Implement lock acquisition with timeout (default 5 minutes)
+- [x] T017 Implement lock release (context manager pattern)
+- [x] T018 Add stale lock detection and cleanup (process PID check)
+- [x] T019 Implement lock granularity: per-WP, per-feature, per-config-file
 
 ### Implementation Notes
 - Use filelock.FileLock with context manager (`with lock.acquire(timeout=300):`)
