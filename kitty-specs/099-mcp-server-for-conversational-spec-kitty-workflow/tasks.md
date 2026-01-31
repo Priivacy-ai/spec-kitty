@@ -191,14 +191,14 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP06-task-operations-mcp-tools.md`
 
 ### Included Subtasks
-- [ ] T037 Create task_tools.py in `src/specify_cli/mcp/tools/`
-- [ ] T038 Define JSON Schema for task_operations parameters
-- [ ] T039 Implement task_operations_handler with operation routing
-- [ ] T040 [P] Add list_tasks operation (with optional lane filter)
-- [ ] T041 [P] Add move_task operation (with locking via WP03)
-- [ ] T042 [P] Add add_history operation (append to activity log)
-- [ ] T043 [P] Add query_status operation (return task lane, dependencies, completion)
-- [ ] T044 Register task_operations tool with FastMCP server
+- [x] T037 Create task_tools.py in `src/specify_cli/mcp/tools/`
+- [x] T038 Define JSON Schema for task_operations parameters
+- [x] T039 Implement task_operations_handler with operation routing
+- [x] T040 [P] Add list_tasks operation (with optional lane filter)
+- [x] T041 [P] Add move_task operation (with locking via WP03)
+- [x] T042 [P] Add add_history operation (append to activity log)
+- [x] T043 [P] Add query_status operation (return task lane, dependencies, completion)
+- [x] T044 Register task_operations tool with FastMCP server
 
 ### Implementation Notes
 - move_task MUST acquire lock (use locking.py from WP03)
