@@ -359,7 +359,7 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 - [x] T077 [P] Add Claude Desktop MCP configuration example
 - [x] T078 [P] Add Cursor MCP configuration example
 - [x] T079 [P] Add other MCP client examples (VS Code, etc.)
-- [ ] T080 Document server startup command and options
+- [x] T080 Document server startup command and options
 - [ ] T081 Add authentication configuration guide
 - [ ] T082 Add troubleshooting section (common errors, solutions)
 - [ ] T083 Add example conversational workflows (specify → plan → implement)
