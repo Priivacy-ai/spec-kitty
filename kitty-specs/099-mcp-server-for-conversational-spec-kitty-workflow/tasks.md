@@ -124,13 +124,13 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP04-cli-adapter-layer.md`
 
 ### Included Subtasks
-- [ ] T020 Create OperationResult dataclass in `src/specify_cli/mcp/adapters/__init__.py` with success, message, data, artifacts, errors fields
-- [ ] T021 Create CLIAdapter class skeleton in `src/specify_cli/mcp/adapters/cli_adapter.py`
-- [ ] T022 [P] Implement feature operation adapters (create_feature, setup_plan, create_tasks)
-- [ ] T023 [P] Implement task operation adapters (list_tasks, move_task, add_history)
-- [ ] T024 [P] Implement workspace operation adapters (create_worktree, list_worktrees)
-- [ ] T025 [P] Implement system operation adapters (validate_project, get_missions)
-- [ ] T026 Add error handling: CLI exceptions → OperationResult with errors
+- [x] T020 Create OperationResult dataclass in `src/specify_cli/mcp/adapters/__init__.py` with success, message, data, artifacts, errors fields
+- [x] T021 Create CLIAdapter class skeleton in `src/specify_cli/mcp/adapters/cli_adapter.py`
+- [x] T022 [P] Implement feature operation adapters (create_feature, setup_plan, create_tasks)
+- [x] T023 [P] Implement task operation adapters (list_tasks, move_task, add_history)
+- [x] T024 [P] Implement workspace operation adapters (create_worktree, list_worktrees)
+- [x] T025 [P] Implement system operation adapters (validate_project, get_missions)
+- [x] T026 Add error handling: CLI exceptions → OperationResult with errors
 
 ### Implementation Notes
 - Each adapter method maps directly to existing CLI functions in `src/specify_cli/cli/` or `src/specify_cli/agent_utils/`
