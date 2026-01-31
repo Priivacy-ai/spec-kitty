@@ -321,7 +321,7 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP10-mcp-client-integration-tests.md`
 
 ### Included Subtasks
-- [ ] T067 Create `tests/mcp/` directory structure
+- [x] T067 Create `tests/mcp/` directory structure
 - [ ] T068 Write test_server.py for server startup/shutdown/health
 - [ ] T069 [P] Write test_feature_tools.py for feature_operations tool
 - [ ] T070 [P] Write test_task_tools.py for task_operations tool
