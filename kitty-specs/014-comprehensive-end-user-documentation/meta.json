@@ -4,5 +4,6 @@
   "friendly_name": "Comprehensive End-User Documentation",
   "mission": "documentation",
   "source_description": "a documentation mission that replaces this project's current documentation with a fresh, comprehensive, professional documentation that covers all use cases and all 4 types of docs.",
-  "created_at": "2026-01-16T12:00:00Z"
+  "created_at": "2026-01-16T12:00:00Z",
+  "target_branch": "main"
 }
