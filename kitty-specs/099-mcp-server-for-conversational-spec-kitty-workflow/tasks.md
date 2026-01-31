@@ -388,13 +388,13 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP12-cli-command-integration-and-server-management.md`
 
 ### Included Subtasks
-- [ ] T084 Create mcp command group in `src/specify_cli/cli/commands/`
-- [ ] T085 Implement `spec-kitty mcp start` command (launch server with config)
-- [ ] T086 Implement `spec-kitty mcp status` command (check if server running)
-- [ ] T087 Implement `spec-kitty mcp stop` command (graceful shutdown)
-- [ ] T088 Add PID file management (store/read/cleanup `.kittify/.mcp-server.pid`)
-- [ ] T089 Add signal handlers (SIGTERM, SIGINT for graceful shutdown)
-- [ ] T090 Add server configuration file support (`.kittify/mcp-config.yaml`)
+- [x] T084 Create mcp command group in `src/specify_cli/cli/commands/`
+- [x] T085 Implement `spec-kitty mcp start` command (launch server with config)
+- [x] T086 Implement `spec-kitty mcp status` command (check if server running)
+- [x] T087 Implement `spec-kitty mcp stop` command (graceful shutdown)
+- [x] T088 Add PID file management (store/read/cleanup `.kittify/.mcp-server.pid`)
+- [x] T089 Add signal handlers (SIGTERM, SIGINT for graceful shutdown)
+- [x] T090 Add server configuration file support (`.kittify/mcp-config.yaml`)
 
 ### Implementation Notes
 - Server runs as foreground process (manual lifecycle only, no daemon mode)
