@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Workspace Operations Tool",
+  "description": "Create and manage git worktrees for work packages (create, list, merge)",
+  "type": "object",
+  "properties": {
+    "project_path": {
+      "type": "string",
+      "description": "Absolute path to Spec Kitty project root directory",
+      "minLength": 1
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["create_worktree", "list_worktrees", "merge"],
+      "description": "Which workspace operation to perform"
+    },
+    "work_package_id": {
+      "type": "string",
+      "description": "WP ID for create_worktree operation (e.g., 'WP01')",
+      "pattern": "^WP[0-9]{2}$"
+    },
+    "base_wp": {
+      "type": "string",
+      "description": "Base WP for dependency-based branching (optional, for create_worktree when WP depends on another)",
+      "pattern": "^WP[0-9]{2}$"
+    },
+    "feature_slug": {
+      "type": "string",
+      "description": "Feature identifier (required for merge operation)",
+      "pattern": "^[0-9]{3}-.+$"
+    }
+  },
+  "required": ["project_path", "operation"],
+  "additionalProperties": false
+}

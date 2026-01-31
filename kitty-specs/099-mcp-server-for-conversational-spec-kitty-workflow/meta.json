@@ -1,0 +1,28 @@
+{
+  "accept_commit": null,
+  "acceptance_history": [
+    {
+      "accepted_at": "2026-01-31T15:25:30Z",
+      "accepted_by": "cursor",
+      "accepted_from_commit": "edc9304bd092ccee6018956800934ef84a24d906",
+      "branch": "main",
+      "mode": "pr",
+      "validation_commands": [
+        "pytest"
+      ]
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-01-31T15:25:30Z",
+  "accepted_by": "cursor",
+  "accepted_from_commit": "edc9304bd092ccee6018956800934ef84a24d906",
+  "created_at": "2026-01-29T22:00:00Z",
+  "feature_number": "099",
+  "friendly_name": "MCP Server for Conversational Spec Kitty Workflow",
+  "mission": "software-dev",
+  "slug": "099-mcp-server-for-conversational-spec-kitty-workflow",
+  "source_description": "implement an mcp server offering the current functionality of spec kitty so that the user doesnt have to learn the slash commands but can talk directly to the AI Agent",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-01-31T12:20:26.706087+00:00"
+}
