@@ -233,6 +233,23 @@ def detect_feature_slug(
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
 ) -> str:
+    """Detect feature slug from environment, git branch, or current directory.
+
+    This is a backward-compatible wrapper that delegates to the centralized
+    feature detection module (specify_cli.core.feature_detection).
+
+    Priority:
+    1. SPECIFY_FEATURE environment variable
+    2. Git branch name (if starts with ###-)
+    3. Current directory path (walks up looking for .worktrees or ###- pattern)
+
+    Raises:
+        AcceptanceError: If feature cannot be auto-detected
+    """
+    # Note: We can't import centralized_detect_feature_slug here because
+    # this file must remain standalone (used in packaged scripts).
+    # So we maintain the original implementation for backward compatibility.
+
     env = env or os.environ
     if "SPECIFY_FEATURE" in env and env["SPECIFY_FEATURE"].strip():
         return env["SPECIFY_FEATURE"].strip()

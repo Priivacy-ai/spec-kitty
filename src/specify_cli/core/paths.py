@@ -189,65 +189,17 @@ def get_main_repo_root(current_path: Path) -> Path:
     return current_path
 
 
-def find_feature_slug(repo_root: Path) -> Optional[str]:
-    """
-    Auto-detect feature slug from git branch or highest-numbered feature in kitty-specs.
-
-    Detection strategies (in order):
-    1. Git branch name matching pattern ###-slug (strips -WPxx suffix)
-    2. Highest-numbered directory in kitty-specs/
-
-    Args:
-        repo_root: Repository root path (can be worktree or main repo)
-
-    Returns:
-        Feature slug (e.g., "016-jujutsu-vcs-documentation") or None if not found
-
-    Examples:
-        >>> find_feature_slug(Path("/repo"))
-        '016-jujutsu-vcs-documentation'
-    """
-    import re
-
-    # Get main repo root for kitty-specs access
-    main_repo_root = get_main_repo_root(repo_root)
-
-    # Strategy 1: Get from git branch name
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        branch_name = result.stdout.strip()
-
-        # Strip -WPxx suffix if present (worktree branches)
-        branch_name = re.sub(r'-WP\d+$', '', branch_name)
-
-        # Validate format: ###-slug
-        if len(branch_name) >= 3 and branch_name[:3].isdigit():
-            return branch_name
-
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-
-    # Strategy 2: Auto-detect highest-numbered feature in kitty-specs
-    kitty_specs_dir = main_repo_root / "kitty-specs"
-    if kitty_specs_dir.is_dir():
-        candidates = []
-        for path in kitty_specs_dir.iterdir():
-            if not path.is_dir():
-                continue
-            match = re.match(r"^(\d{3})-", path.name)
-            if match:
-                candidates.append((int(match.group(1)), path.name))
-        if candidates:
-            _, slug = max(candidates, key=lambda item: item[0])
-            return slug
-
-    return None
+# DEPRECATED: find_feature_slug() has been removed
+# Use detect_feature_slug() from specify_cli.core.feature_detection instead
+#
+# Migration:
+#   from specify_cli.core.feature_detection import detect_feature_slug
+#   slug = detect_feature_slug(repo_root)
+#
+# The new centralized implementation provides:
+# - Deterministic behavior (no "highest numbered" guessing)
+# - Explicit error messages guiding users to --feature flag
+# - Consistent behavior across all commands
 
 
 __all__ = [
@@ -256,5 +208,5 @@ __all__ = [
     "resolve_with_context",
     "check_broken_symlink",
     "get_main_repo_root",
-    "find_feature_slug",
+    # find_feature_slug has been removed - use detect_feature_slug from core.feature_detection
 ]

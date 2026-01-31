@@ -18,6 +18,10 @@ from specify_cli.core.agent_context import (
     get_supported_agent_types,
     get_agent_file_path,
 )
+from specify_cli.core.feature_detection import (
+    detect_feature_directory,
+    FeatureDetectionError,
+)
 
 app = typer.Typer(
     name="context",
@@ -28,53 +32,39 @@ app = typer.Typer(
 console = Console()
 
 
-def _find_feature_directory(repo_root: Path, cwd: Path) -> Path:
-    """Find the current feature directory.
+def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | None = None) -> Path:
+    """Find the current feature directory using centralized detection.
 
-    Handles three contexts:
-    1. Worktree root (cwd contains kitty-specs/)
-    2. Inside feature directory (walk up to find kitty-specs/)
-    3. Main repo (find latest feature in kitty-specs/)
+    This function now uses the centralized feature detection module
+    to provide deterministic, consistent behavior across all commands.
 
     Args:
         repo_root: Repository root path
         cwd: Current working directory
+        explicit_feature: Optional explicit feature slug from --feature flag
 
     Returns:
         Path to feature directory
 
     Raises:
         ValueError: If feature directory cannot be determined
+        FeatureDetectionError: If detection fails
     """
-    # Check if we're in a worktree by looking for kitty-specs/ in current dir or parents
-    current = cwd
-    while current >= repo_root:
-        kitty_specs_dir = current / "kitty-specs"
-        if kitty_specs_dir.exists() and kitty_specs_dir.is_dir():
-            # Found kitty-specs/, look for feature subdirectory
-            feature_dirs = sorted(
-                [d for d in kitty_specs_dir.iterdir() if d.is_dir() and d.name.startswith(("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))],
-                key=lambda p: p.name
-            )
-            if feature_dirs:
-                return feature_dirs[-1]  # Return latest feature
-        current = current.parent
-
-    # Fallback: Look in main repo kitty-specs/
-    kitty_specs_main = repo_root / "kitty-specs"
-    if kitty_specs_main.exists():
-        feature_dirs = sorted(
-            [d for d in kitty_specs_main.iterdir() if d.is_dir() and d.name.startswith(("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"))],
-            key=lambda p: p.name
+    try:
+        return detect_feature_directory(
+            repo_root,
+            explicit_feature=explicit_feature,
+            cwd=cwd,
+            mode="strict"  # Raise error if ambiguous
         )
-        if feature_dirs:
-            return feature_dirs[-1]
-
-    raise ValueError("Could not determine feature directory. Ensure you're in a worktree or main repo with a feature.")
+    except FeatureDetectionError as e:
+        # Convert to ValueError for backward compatibility
+        raise ValueError(str(e)) from e
 
 
 @app.command(name="update-context")
 def update_context(
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     agent_type: Annotated[
         Optional[str],
         typer.Option(
@@ -116,9 +106,9 @@ def update_context(
         repo_root = locate_project_root()
         cwd = Path.cwd()
 
-        # Find feature directory
+        # Find feature directory using centralized detection
         try:
-            feature_dir = _find_feature_directory(repo_root, cwd)
+            feature_dir = _find_feature_directory(repo_root, cwd, explicit_feature=feature)
         except ValueError as e:
             if json_output:
                 print(json.dumps({"error": str(e), "success": False}))

@@ -353,6 +353,96 @@ If critical issues discovered after release:
 - **Import errors**: Verify package structure in `pyproject.toml`
 - **Release workflow fails**: Check `PYPI_API_TOKEN` secret is set
 
+### Test Environment Differences (Lessons from v0.13.6)
+
+**Problem**: Tests pass locally but fail in CI with git command errors.
+
+**Common Causes:**
+
+1. **Git Default Branch Name Mismatch**
+   ```
+   Error: Command '['git', 'branch', 'feature-branch', 'main']' returned non-zero exit status 128
+   ```
+   - **Cause**: `git init` creates different default branch names in different environments
+     - Local (macOS with git 2.30+): Creates "main"
+     - CI (Ubuntu with older git): Creates "master"
+     - User's machine: Depends on `init.defaultBranch` config
+
+   - **Fix**: Always use `git init -b main` to explicitly set branch name
+     ```python
+     # ❌ BAD (environment-dependent)
+     subprocess.run(["git", "init"], cwd=repo, check=True)
+
+     # ✅ GOOD (explicit)
+     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True)
+     ```
+
+   - **Files affected in v0.13.6**:
+     - `tests/unit/test_multi_parent_merge_empty_branches.py`
+     - `tests/unit/test_move_task_git_validation.py`
+
+2. **Rich Console Formatting Differences**
+   ```
+   AssertionError: assert 'exists but is not a valid worktree' in output
+   # Output has double spaces: 'exists but is not  a valid worktree'
+   ```
+   - **Cause**: Rich console adds ANSI color codes; `capsys.readouterr()` strips them but leaves spacing artifacts
+   - **Fix**: Normalize whitespace before assertions
+     ```python
+     import re
+     output = re.sub(r'\s+', ' ', captured.out)  # Normalize all whitespace
+     assert "expected text" in output
+     ```
+
+   - **File affected in v0.13.6**:
+     - `tests/specify_cli/test_implement_validation.py`
+
+3. **"PYPI_API_TOKEN not configured" Error (Misleading)**
+   - **What it looks like**: GitHub Actions shows "PYPI_API_TOKEN secret is not configured"
+   - **What it actually means**: Generic error message from failure handler
+   - **Real cause**: Usually test failures or validation errors earlier in workflow
+   - **Fix**: Check actual step that failed (tests, validation, build) before assuming it's a token issue
+   - **v0.13.6 experience**: Message appeared 3 times, but real issue was git test failures
+
+**Debugging Strategy:**
+
+1. **Add Test Output Capture** (Added in v0.13.6):
+   ```yaml
+   - name: Run tests
+     run: |
+       python -m pytest -v --tb=short 2>&1 | tee pytest-output.txt
+       exit ${PIPESTATUS[0]}
+
+   - name: Upload test output
+     uses: actions/upload-artifact@v4
+     if: always()
+     with:
+       name: pytest-output
+       path: pytest-output.txt
+       retention-days: 7
+   ```
+
+2. **Check System Reminder Messages**: When workflow fails, CI output may include system reminders with actual error details
+
+3. **Test Locally with CI-like Environment**:
+   ```bash
+   # Simulate CI Python version
+   python3.11 -m pytest
+
+   # Simulate CI git version
+   git --version
+   # If different from local, test with docker:
+   docker run -v $(pwd):/code -w /code python:3.11 python -m pytest
+   ```
+
+**Preventive Measures:**
+
+- [ ] Always use `git init -b main` in test fixtures
+- [ ] Normalize whitespace when testing console output
+- [ ] Don't assume default git config matches local environment
+- [ ] Test with pytest (not just `PYTHONPATH=src pytest`) to match CI
+- [ ] Review system reminder messages in CI output for real errors
+
 ## Checklist Summary
 
 Quick reference for minimum release steps:
@@ -368,5 +458,30 @@ Quick reference for minimum release steps:
 
 ---
 
-**Last Updated**: 2026-01-25 (for version 0.13.0)
+**Last Updated**: 2026-01-27 (for version 0.13.6)
 **Next Review**: After each major or minor release
+
+## Release History Notes
+
+### v0.13.6 (2026-01-27) - Lessons Learned
+
+**Issues Encountered:**
+1. Tests passed locally (1733/1733) but failed in CI (5 failed, 5 errors)
+2. Git default branch mismatch (local: "main", CI: "master")
+3. Rich console formatting created double-space artifacts in assertions
+4. Misleading "PYPI_API_TOKEN not configured" error (actual cause: test failures)
+
+**Resolution:**
+- Fixed git fixtures: `git init` → `git init -b main`
+- Normalized whitespace in assertions: `re.sub(r'\s+', ' ', output)`
+- Added pytest output artifact capture for debugging
+- Total release attempts: 4
+- Time to resolution: ~30 minutes
+
+**Improvements Made:**
+- Enhanced release workflow with test output artifacts
+- Documented CI environment gotchas
+- Added git fixture best practices
+- Clarified misleading error messages
+
+**Key Learning**: Always test that new test fixtures work in CI environments with different git/console configurations, not just locally.

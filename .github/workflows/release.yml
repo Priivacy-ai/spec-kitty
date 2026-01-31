@@ -61,10 +61,46 @@ jobs:
           python verify_isolation.py
 
       - name: Run tests
-        run: python -m pytest
+        run: |
+          python -m pytest -v --tb=short 2>&1 | tee pytest-output.txt
+          exit ${PIPESTATUS[0]}
 
       - name: Validate release metadata
         run: python scripts/release/validate_release.py --mode tag --tag "${GITHUB_REF_NAME}"
+
+      - name: Validate repository URLs
+        run: |
+          python << 'EOF'
+          import tomllib
+          import subprocess
+
+          # Get actual repo URL from git
+          actual_repo = subprocess.check_output(
+              ["git", "remote", "get-url", "origin"],
+              text=True
+          ).strip()
+
+          # Convert SSH to HTTPS format
+          if actual_repo.startswith("git@github.com:"):
+              actual_repo = actual_repo.replace("git@github.com:", "https://github.com/")
+              actual_repo = actual_repo.replace(".git", "")
+
+          # Read URLs from pyproject.toml
+          with open("pyproject.toml", "rb") as f:
+              config = tomllib.load(f)
+
+          repo_url = config["project"]["urls"]["Repository"]
+
+          # Verify match
+          if repo_url != actual_repo:
+              print(f"❌ URL mismatch!")
+              print(f"   pyproject.toml: {repo_url}")
+              print(f"   git remote:     {actual_repo}")
+              print("This will cause broken links on PyPI. Aborting release.")
+              exit(1)
+
+          print(f"✅ Repository URL matches: {repo_url}")
+          EOF
 
       - name: Build distributions
         run: python -m build
@@ -136,6 +172,14 @@ jobs:
             SHA256SUMS.txt
           draft: false
           prerelease: false
+
+      - name: Upload test output
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-output
+          path: pytest-output.txt
+          retention-days: 7
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

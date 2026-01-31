@@ -1,6 +1,6 @@
 # Specification-Driven Development (SDD)
 
-> This guide is maintained as part of Spec Kitty, a community fork of GitHub's [Spec Kit](https://github.com/github/spec-kit). We preserve attribution to the original authors while expanding the methodology.
+> This guide is maintained as part of Spec Kitty, inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). We preserve attribution to the original authors while expanding the methodology.
 
 ## The Power Inversion
 

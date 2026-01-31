@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -266,8 +267,8 @@ class TestValidateBaseWorkspaceExists:
             )
 
         captured = capsys.readouterr()
-        # Check for error message (may have line breaks)
-        output = captured.out.replace("\n", " ")
+        # Check for error message (normalize whitespace due to Rich formatting)
+        output = re.sub(r'\s+', ' ', captured.out)  # Normalize all whitespace to single spaces
         assert "exists but is not a valid worktree" in output
         assert "rm -rf" in output
 

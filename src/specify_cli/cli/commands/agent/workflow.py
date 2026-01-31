@@ -17,7 +17,11 @@ from specify_cli.core.implement_validation import (
     validate_and_resolve_base,
     validate_base_workspace_exists,
 )
-from specify_cli.core.paths import find_feature_slug, locate_project_root
+from specify_cli.core.paths import locate_project_root
+from specify_cli.core.feature_detection import (
+    detect_feature_slug,
+    FeatureDetectionError,
+)
 from specify_cli.mission import get_deliverables_path, get_feature_mission_key
 from specify_cli.tasks_support import (
     append_activity_log,
@@ -57,8 +61,11 @@ app = typer.Typer(
 )
 
 
-def _find_feature_slug() -> str:
-    """Find the current feature slug from the working directory or git branch.
+def _find_feature_slug(explicit_feature: str | None = None) -> str:
+    """Find the current feature slug using centralized detection.
+
+    Args:
+        explicit_feature: Optional explicit feature slug from --feature flag
 
     Returns:
         Feature slug (e.g., "008-unified-python-cli")
@@ -73,15 +80,16 @@ def _find_feature_slug() -> str:
         print("Error: Not in a spec-kitty project.")
         raise typer.Exit(1)
 
-    slug = find_feature_slug(repo_root)
-    if slug is None:
-        print("Error: Could not auto-detect feature slug.")
-        print("  - Not in a kitty-specs/###-feature-slug directory")
-        print("  - Git branch name doesn't match ###-slug format")
-        print("  - Use --feature <slug> to specify explicitly")
+    try:
+        return detect_feature_slug(
+            repo_root,
+            explicit_feature=explicit_feature,
+            cwd=cwd,
+            mode="strict"
+        )
+    except FeatureDetectionError as e:
+        print(f"Error: {e}")
         raise typer.Exit(1)
-
-    return slug
 
 
 def _normalize_wp_id(wp_arg: str) -> str:
@@ -259,7 +267,7 @@ def implement(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Determine which WP to implement
         if wp_id:
@@ -503,9 +511,14 @@ def implement(
         lines.append("WHEN YOU'RE DONE:")
         lines.append("=" * 80)
         lines.append(f"✓ Implementation complete and tested:")
-        lines.append(f"  1. Mark all subtasks as done first:")
+        lines.append(f"  1. **Commit your implementation files:**")
+        lines.append(f"     git status  # Check what you changed")
+        lines.append(f"     git add <your-implementation-files>  # NOT WP status files")
+        lines.append(f"     git commit -m \"feat({normalized_wp_id}): <brief description>\"")
+        lines.append(f"     git log -1 --oneline  # Verify commit succeeded")
+        lines.append(f"  2. Mark all subtasks as done:")
         lines.append(f"     spec-kitty agent tasks mark-status T001 T002 T003 --status done")
-        lines.append(f"  2. Move WP to review:")
+        lines.append(f"  3. Move WP to review:")
         lines.append(f"     spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
         lines.append("")
         lines.append(f"✗ Blocked or cannot complete:")
@@ -567,16 +580,23 @@ def implement(
         lines.append("=" * 80)
         lines.append("")
         lines.append(f"✅ Implementation complete and tested:")
-        lines.append(f"   1. Mark all subtasks as done first:")
+        lines.append(f"   1. **Commit your implementation files:**")
+        lines.append(f"      git status  # Check what you changed")
+        lines.append(f"      git add <your-implementation-files>  # NOT WP status files")
+        lines.append(f"      git commit -m \"feat({normalized_wp_id}): <brief description>\"")
+        lines.append(f"      git log -1 --oneline  # Verify commit succeeded")
+        lines.append(f"      (Use fix: for bugs, chore: for maintenance, docs: for documentation)")
+        lines.append(f"   2. Mark all subtasks as done:")
         lines.append(f"      spec-kitty agent tasks mark-status T001 T002 T003 --status done")
-        lines.append(f"   2. Move WP to review:")
+        lines.append(f"   3. Move WP to review (will check for uncommitted changes):")
         lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review: <summary>\"")
         lines.append("")
         lines.append(f"⚠️  Blocked or cannot complete:")
         lines.append(f"   spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
         lines.append("")
-        lines.append("⚠️  NOTE: You MUST mark subtasks as done BEFORE moving to for_review!")
-        lines.append("     The move-task command will fail if unchecked subtasks remain.")
+        lines.append("⚠️  NOTE: The move-task command will FAIL if you have uncommitted changes!")
+        lines.append("     Commit all implementation files BEFORE moving to for_review.")
+        lines.append("     Dependent work packages need your committed changes.")
         lines.append("=" * 80)
 
         # Write full prompt to file
@@ -596,7 +616,10 @@ def implement(
         print(f"    cat {prompt_file}")
         print()
         print("After implementation, run:")
-        print(f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
+        print(f"  1. git status && git add <your-files> && git commit -m \"feat({normalized_wp_id}): <description>\"")
+        print(f"  2. spec-kitty agent tasks mark-status T001 T002 ... --status done")
+        print(f"  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
+        print(f"     (Pre-flight check will verify no uncommitted changes)")
 
     except Exception as e:
         print(f"Error: {e}")
@@ -681,7 +704,7 @@ def review(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = feature or _find_feature_slug()
+        feature_slug = _find_feature_slug(explicit_feature=feature)
 
         # Determine which WP to review
         if wp_id:

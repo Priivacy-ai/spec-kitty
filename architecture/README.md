@@ -30,7 +30,18 @@ architecture/
     ├── 2026-01-23-2-explicit-base-branch-tracking.md
     ├── 2026-01-23-3-centralized-workspace-context-storage.md
     ├── 2026-01-23-4-auto-merge-multi-parent-dependencies.md
-    └── 2026-01-23-5-decorator-based-context-validation.md
+    ├── 2026-01-23-5-decorator-based-context-validation.md
+    ├── 2026-01-23-6-config-driven-agent-management.md
+    ├── 2026-01-25-7-research-deliverables-separation.md
+    ├── 2026-01-25-8-deterministic-csv-schema-enforcement.md
+    ├── 2026-01-26-9-worktree-cleanup-at-merge-not-eager.md
+    ├── 2026-01-27-10-per-feature-mission-selection.md
+    ├── 2026-01-27-11-dual-repository-pattern.md
+    ├── 2026-01-27-12-two-branch-strategy-for-saas-transformation.md
+    ├── 2026-01-29-13-target-branch-routing-for-status-commits.md
+    ├── 2026-01-29-14-explicit-metadata-fields-over-implicit-defaults.md
+    ├── 2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md
+    └── 2026-01-29-16-rich-json-outputs-for-agent-commands.md
 ```
 
 **Note:** Implementation details are documented in code, tests, and docstrings. ADRs focus on decisions and link directly to code.
@@ -113,16 +124,47 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-01-23-3](adrs/2026-01-23-3-centralized-workspace-context-storage.md) | Centralized Workspace Context Storage | Accepted | Git Repository Management |
 | [2026-01-23-4](adrs/2026-01-23-4-auto-merge-multi-parent-dependencies.md) | Auto-Merge Multi-Parent Dependencies | Accepted | Git Repository Management |
 | [2026-01-23-5](adrs/2026-01-23-5-decorator-based-context-validation.md) | Decorator-Based Context Validation | Accepted | Git Repository Management |
+| [2026-01-23-6](adrs/2026-01-23-6-config-driven-agent-management.md) | Config-Driven Agent Management | Accepted | Agent Management |
+| [2026-01-25-7](adrs/2026-01-25-7-research-deliverables-separation.md) | Research Deliverables Separation | Accepted | Mission System |
 | [2026-01-25-8](adrs/2026-01-25-8-cli-first-command-interface.md) | CLI-First Command Interface | Accepted | CLI/Automation |
+| [2026-01-25-8](adrs/2026-01-25-8-deterministic-csv-schema-enforcement.md) | Deterministic CSV Schema Enforcement | Accepted | Research Mission |
+| [2026-01-26-9](adrs/2026-01-26-9-worktree-cleanup-at-merge-not-eager.md) | Worktree Cleanup at Merge, Not Eager | Accepted | Git Repository Management |
+| [2026-01-27-10](adrs/2026-01-27-10-per-feature-mission-selection.md) | Per-Feature Mission Selection | Accepted | Mission System |
+| [2026-01-27-11](adrs/2026-01-27-11-dual-repository-pattern.md) | Dual-Repository Pattern for Private Dependency | Accepted | Dependency Management |
+| [2026-01-27-12](adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md) | Two-Branch Strategy for SaaS Transformation | Accepted | Release Strategy |
+| [2026-01-29-13](adrs/2026-01-29-13-target-branch-routing-for-status-commits.md) | Target Branch Routing for Status Commits | Accepted | Git Repository Management |
+| [2026-01-29-14](adrs/2026-01-29-14-explicit-metadata-fields-over-implicit-defaults.md) | Explicit Metadata Fields Over Implicit Defaults | Accepted | Metadata & Configuration |
+| [2026-01-29-15](adrs/2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md) | Merge-First Suggestion for Completed Dependencies | Accepted | Git Repository Management |
+| [2026-01-29-16](adrs/2026-01-29-16-rich-json-outputs-for-agent-commands.md) | Rich JSON Outputs for Agent Commands | Accepted | Agent Experience |
 
 ### By Topic
 
-**Git Repository Management** (ADRs 2026-01-23-2 through 2026-01-23-5)
-- Base branch visibility and tracking
-- Multi-parent dependency handling
-- Runtime context enforcement
+**Git Repository Management** (ADRs 2, 4, 9, 13, 15)
+- Base branch visibility and tracking (ADR-2)
+- Multi-parent dependency handling (ADR-4, ADR-15)
+- Worktree lifecycle management (ADR-9)
+- Dual-branch status routing (ADR-13)
+- Runtime context enforcement (ADR-5)
 
-**Status:** All phases complete ✅ (75/75 tests passing)
+**Metadata & Configuration** (ADRs 3, 6, 14)
+- Workspace context storage (ADR-3)
+- Config-driven agent selection (ADR-6)
+- Explicit metadata fields (ADR-14)
+
+**Agent Experience** (ADRs 5, 16)
+- Context validation (ADR-5)
+- Rich JSON outputs (ADR-16)
+
+**Multi-Product Strategy** (ADRs 10, 11, 12)
+- Per-feature missions (ADR-10)
+- Private dependencies (ADR-11)
+- Two-branch development (ADR-12)
+
+**Mission System** (ADRs 7, 8)
+- Research deliverables (ADR-7)
+- CSV schema enforcement (ADR-8)
+
+**Status:** Core architecture documented ✅ (49 tests covering latest ADRs)
 
 **Implementation:** See code references in each ADR
 

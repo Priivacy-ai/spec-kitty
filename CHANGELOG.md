@@ -7,6 +7,253 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.13.9] - 2026-01-30
+
+### 🐛 Fixed
+
+**Two-Branch Strategy Support (Critical)**:
+- Fixed hardcoded `main` branch in move-task validation (now uses `target_branch` from meta.json)
+- Fixed misleading console messages showing "committed to main" for all features
+- Enables proper separation between 1.x (main) and 2.x (SaaS) development per ADR-12
+- Features targeting 2.x now validate against 2.x branch, not main
+- Rebase instructions now show correct target branch
+- **Impact**: Unblocks Feature 025 (CLI Event Log Integration) on 2.x branch
+
+**Multi-Parent Dependency Support (Critical)**:
+- Fixed missing `force` parameter in implement command (line 561 used undefined variable)
+- Users can now bypass merge-first recommendation with `--force` flag
+- **Impact**: Unblocks all multi-parent workflows where dependencies are complete
+- **Error fixed**: `NameError: name 'force' is not defined`
+
+**Single Dependency Auto-Detection (UX)**:
+- Auto-detect `--base` from single dependency in frontmatter
+- No longer requires manual `--base WP01` when WP has single dependency
+- Reduces command friction: `spec-kitty implement WP02` just works
+- **Impact**: Simpler UX for 90% of work packages (most have single parent)
+
+### 📝 Changed
+
+**Console Output**:
+- move-task validation messages now show target branch name (e.g., "behind 2.x by 3 commits")
+- implement command shows accurate branch in status messages (e.g., "committed to 2.x")
+
+### ✅ Tests
+
+**New Integration Tests**:
+- Added `tests/integration/test_two_branch_strategy.py`
+- Verifies target_branch detection from meta.json
+- Verifies default to "main" for legacy features
+- Ensures two-branch strategy (ADR-12) works correctly
+
+## [0.13.8] - 2026-01-29
+
+### 🎯 Added
+
+**Dual-Branch Status Routing** (Main Feature):
+- Status commits now route to `target_branch` from feature metadata (not hard-coded to main)
+- Enables parallel development on main (1.x) and 2.x (SaaS) branches
+- Meta.json field: `"target_branch": "main"` or `"target_branch": "2.x"`
+- Migration automatically adds target_branch to existing features
+- Feature 025 (CLI Event Log Integration) can now develop on 2.x without race conditions
+- **ADR-13**: Target Branch Routing for Status Commits
+
+**Explicit Metadata Fields**:
+- meta.json now always includes `target_branch` and `vcs` fields (no implicit defaults)
+- Follows SDD principle: configuration should be explicit and visible
+- Updated specify template for all 12 agent directories
+- Improves debugging: `cat meta.json` shows complete configuration
+- **ADR-14**: Explicit Metadata Fields Over Implicit Defaults
+
+**Smart Dependency Detection**:
+- Auto-detects when multi-parent dependencies are complete
+- Suggests merge-first workflow before attempting auto-merge (prevents .gitignore conflicts)
+- Provides clear guidance: "Run spec-kitty merge first, then implement WP04"
+- New module: `src/specify_cli/core/dependency_resolver.py`
+- **ADR-15**: Merge-First Suggestion for Completed Dependencies
+
+**Auto-Create Target Branch**:
+- Automatically creates target branch during first implement if missing
+- Solves bootstrap paradox (WP01 creating the branch it should work on)
+- Just-in-time creation: `git branch 3.x main` when first WP implemented
+- Console message: "Creating target branch: 3.x"
+- **ADR-17**: Auto-Create Target Branch on First Implement
+
+**Centralized Feature Detection**:
+- Unified feature detection across all commands
+- Priority: --feature flag > SPECIFY_FEATURE env > git branch > cwd > single auto-detect
+- Clear error messages with actionable guidance
+- New module: Refactored in feature_detection.py
+
+**Priority 6 Fallback to Latest Incomplete Feature**:
+- Auto-selects highest numbered incomplete feature when running from repo root with no context
+- Resolves ambiguity: instead of erroring with "Multiple features found", auto-selects the feature you're most likely working on
+- Smart detection: features with all WPs `lane: done` are considered complete
+- Informational message: "Auto-selected latest incomplete: 022-dashboard"
+- Benefits all commands (plan/tasks/implement/review) automatically
+- Safe defaults: parse errors treat features as incomplete
+
+### 🐛 Fixed
+
+**Agent JSON Output Confusion**:
+- `spec-kitty agent feature finalize-tasks --json` now includes:
+  - `commit_created`: boolean (did commit happen?)
+  - `commit_hash`: string (SHA for verification)
+  - `files_committed`: array (what was committed)
+- Prevents agents from committing twice when unrelated files are dirty
+- **ADR-16**: Rich JSON Outputs for Agent Commands
+
+**Tasks Template Guidance**:
+- Added warning: "DO NOT commit after finalize-tasks (commits automatically)"
+- Clarifies that finalize-tasks handles git commit internally
+- Prevents redundant git commit attempts
+
+### 📚 Documentation
+
+- **5 New ADRs**: ADR-13 through ADR-17 documenting architectural decisions
+- **architecture/README.md**: Updated with new ADRs, organized by topic
+- **README.md**: Branch strategy badges (main → 1.x, 2.x → active)
+
+### 🧪 Testing
+
+- **66 new tests** across 6 test files (1 known issue in auto-create routing)
+- **test_dual_branch_status_routing.py**: 12 tests for routing behavior
+- **test_feature_025_workflow.py**: 3 end-to-end tests
+- **test_specify_metadata_explicit.py**: 13 tests for explicit fields
+- **test_finalize_tasks_json_output.py**: 6 tests for JSON enhancements
+- **test_auto_merge_dependencies.py**: 7 tests for smart detection
+- **test_auto_create_target_branch.py**: 6 tests (5 passing, 1 known issue)
+- **test_feature_detection.py**: 12 tests for Priority 6 fallback (is_feature_complete, find_latest_incomplete)
+- **test_feature_detection.py**: 7 tests for target branch detection (get_feature_target_branch)
+- **conftest.py**: dual_branch_repo fixture for multi-branch testing
+
+### ⚠️ Known Issues
+
+- Auto-created target branches don't receive status commits immediately (fallback to main works)
+- Worktree cleanup after merge not yet implemented (ADR-9)
+
+### 🔧 Migration
+
+- **m_0_13_8_target_branch**: Adds target_branch field to all existing features
+  - Auto-detects Feature 025 as targeting 2.x (from spec.md content)
+  - Defaults to "main" for all other features
+  - Safe, non-breaking migration
+
+- **m_0_14_0_centralized_feature_detection**: Updates to unified detection module
+  - No user-visible changes
+  - Infrastructure improvement
+
+## [0.13.7] - 2026-01-27
+
+### 🐛 Fixed
+
+**Activity Log Parser Failing on Hyphenated Agent Names** ([#111](https://github.com/Priivacy-ai/spec-kitty/pull/111)):
+- Fixed `activity_entries()` regex in `tasks_support.py` to handle hyphenated agent names
+- Parser was using `[^–-]+?` pattern which treated hyphens as field separators
+- Agent names like `cursor-agent`, `claude-reviewer`, `cursor-reviewer` now parse correctly
+- Acceptance validation no longer fails with "Activity Log missing entry for lane=done" for hyphenated agents
+- Changed pattern to `\S+(?:\s+\S+)*?` (matches non-whitespace), aligning with `task_helpers.py`
+- Added comprehensive test suite with 11 test cases covering hyphenated names, backward compatibility, and edge cases
+- **Contributors**: Rodrigo D. L. (bruj0)
+
+**Workflow Completion Instructions Missing Git Commit Step** ([#104](https://github.com/Priivacy-ai/spec-kitty/pull/104)):
+- Fixed agents not committing implementation files before marking tasks done
+- Issue caused cascading failures where dependent work packages started from empty branches
+  - WP02 worktree had HTML + CSS ✅
+  - WP03 worktree had HTML only (missing WP02's CSS) ❌
+  - WP04 worktree had HTML only (missing CSS and JS from WP02 and WP03) ❌
+- Root cause: "WHEN YOU'RE DONE" instructions in `workflow implement` command didn't include git commit step
+- Fix: Added explicit git commit instruction as step 1 in completion checklist
+- Updated both in-prompt instructions (shown twice) and terminal output summary
+- Added warning: "The move-task command will FAIL if you have uncommitted changes! Commit all implementation files BEFORE moving to for_review. Dependent work packages need your committed changes."
+- **Impact**: Critical fix for multi-agent parallel development workflows using workspace-per-WP model (v0.11.0+)
+- **Contributors**: Jerome Lacube
+
+**Dashboard Command Template Generating Python Code Instead of Running CLI** ([#94](https://github.com/Priivacy-ai/spec-kitty/issues/94), [#99](https://github.com/Priivacy-ai/spec-kitty/pull/99)):
+- Fixed `/spec-kitty.dashboard` command template to use `spec-kitty dashboard` CLI command
+- Removed outdated Python code that manually checked dashboard status and opened browsers
+- Dashboard now properly:
+  - Starts automatically if not running
+  - Opens in default browser
+  - Handles worktree detection automatically
+- Updated all three dashboard template files:
+  - `.kittify/missions/software-dev/command-templates/dashboard.md`
+  - `src/specify_cli/missions/software-dev/command-templates/dashboard.md`
+  - `src/specify_cli/templates/command-templates/dashboard.md`
+- Reduced template code from ~264 lines to ~47 lines
+- **Contributors**: Jerome Lacube
+
+## [0.13.6] - 2026-01-27
+
+### 🐛 Fixed
+
+**Critical JSON Mode Corruption Fix** (Release Blocker):
+- Fixed JSON output corruption in `spec-kitty implement --json` mode (GitHub Issue #72 follow-up)
+  - **Bug**: Warning messages from empty branch detection were written to stdout, corrupting JSON output
+  - **Impact**: Automated workflows using `--json` flag would fail with JSON parse errors
+  - **Fix**: Changed warning messages to use `file=sys.stderr` to separate warnings from JSON output
+  - **File**: `src/specify_cli/core/multi_parent_merge.py:142-144`
+  - **Tests**: Updated 5 tests in `test_multi_parent_merge_empty_branches.py` to check stderr instead of stdout
+
+**Missing Migration Fix** (Existing Users Affected):
+- Fixed missing migration for commit workflow section (GitHub Issue #72 follow-up)
+  - **Bug**: New projects got commit workflow section in implement.md, but existing projects didn't after upgrade
+  - **Impact**: Existing users remained vulnerable to agents forgetting to commit work
+  - **Fix**: Created migration `m_0_13_5_add_commit_workflow_to_templates.py` to update all agent templates
+  - **Coverage**: Updates both software-dev and documentation mission templates for all 12 agents
+  - **Migration**: Automatically runs on `spec-kitty upgrade` for projects missing commit workflow
+
+**Subprocess Error Handling** (Defensive Programming):
+- Added timeout and error handling to multi-parent merge git commands
+  - **Bug**: Git commands in empty branch detection lacked timeout parameters and try/except blocks
+  - **Impact**: Function could hang forever or crash on git errors (corrupted repo, permission issues)
+  - **Fix**: Added 10-second timeouts and exception handling to all git subprocess calls
+  - **File**: `src/specify_cli/core/multi_parent_merge.py:117-144`
+  - **Errors handled**: TimeoutExpired (>10s git commands), general exceptions with warning
+
+### Added
+- Git commit validation for "done" status transitions - prevents completing WPs with uncommitted changes
+- Empty branch detection in merge-base creation - warns when dependencies have no commits
+- Git commit workflow section in documentation mission template (consistency with software-dev/research)
+- Comprehensive troubleshooting guide for empty branch recovery in workspace-per-wp documentation
+- Migration to add commit workflow section to existing projects (`m_0_13_5_add_commit_workflow_to_templates.py`)
+
+### Changed
+- `move-task --to done` now validates git status (same checks as "for_review")
+- Use `--force` flag to bypass validation (not recommended)
+- Warning messages in multi-parent merge now output to stderr instead of stdout (preserves JSON output integrity)
+
+### Fixed (Non-Critical)
+- WP agents can no longer mark tasks as "done" without committing implementation files
+- Multi-parent merge-bases no longer silently accept empty dependency branches
+- Documentation mission now instructs agents to commit work before review
+- Stale WP detection now correctly detects default branch name (main/master/develop) instead of hardcoding "main"
+  - **Bug**: Fresh worktrees incorrectly flagged as stale when repository used non-standard default branch
+  - **Root Cause**: Code hardcoded "main" as default branch; when `git merge-base HEAD main` failed, it fell through to using parent branch's old commit timestamp
+  - **Fix**: Added `get_default_branch()` helper to dynamically detect default branch via origin HEAD or local branch existence
+  - **Impact**: Prevents false staleness warnings for fresh worktrees in repos using "master", "develop", or other default branches
+
+## [0.13.5] - 2026-01-26
+
+### 🐛 Fixed
+
+**Fixed /spec-kitty.clarify Command Template**:
+- Fixed broken placeholder in clarify template that prevented agents from running clarification workflow
+  - **Bug**: Template contained `(Missing script command for sh)` placeholder instead of actual command
+  - **Impact**: Agents couldn't get feature context, invented non-existent commands like `spec-kitty agent feature get-active --json`
+  - **Fix**: Replaced manual detection logic with `spec-kitty agent feature check-prerequisites --json --paths-only`
+  - **Consistency**: Now matches pattern used in specify.md, plan.md, and tasks.md templates
+  - Migration `m_0_13_5_fix_clarify_template.py` automatically updates all 12 agent directories on upgrade
+  - Source template: `src/specify_cli/missions/software-dev/command-templates/clarify.md`
+
+**Testing**:
+- Added comprehensive test suite with 34 tests covering all scenarios
+  - Parametrized tests for all 12 agents (claude, copilot, gemini, cursor, qwen, opencode, windsurf, codex, kilocode, auggie, roo, q)
+  - Tests for detection, application, agent config respect, idempotency, dry-run
+  - Template content validation (ensures no broken placeholders, matches tasks.md pattern)
+  - End-to-end integration test verifying migration actually runs and fixes templates
+
 ## [0.13.4] - 2026-01-26
 
 ### 🐛 Fixed
@@ -90,6 +337,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documents `unset GITHUB_TOKEN` technique for organization repos
 
 **Issues Closed**: #96, #97, #101, #102, #105, #106, #108, #103 (not a bug), #107 (not a bug)
+>>>>>>> origin/main
 
 ## [0.13.1] - 2026-01-25
 
