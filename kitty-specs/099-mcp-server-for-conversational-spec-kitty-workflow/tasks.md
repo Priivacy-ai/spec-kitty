@@ -224,13 +224,13 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP07-workspace-operations-mcp-tools.md`
 
 ### Included Subtasks
-- [ ] T045 Create workspace_tools.py in `src/specify_cli/mcp/tools/`
-- [ ] T046 Define JSON Schema for workspace_operations parameters
-- [ ] T047 Implement workspace_operations_handler with operation routing
-- [ ] T048 [P] Add create_worktree operation (with --base flag support for dependencies)
-- [ ] T049 [P] Add list_worktrees operation (scan `.worktrees/` directory)
-- [ ] T050 [P] Add merge operation (with preflight validation)
-- [ ] T051 Register workspace_operations tool with FastMCP server
+- [x] T045 Create workspace_tools.py in `src/specify_cli/mcp/tools/`
+- [x] T046 Define JSON Schema for workspace_operations parameters
+- [x] T047 Implement workspace_operations_handler with operation routing
+- [x] T048 [P] Add create_worktree operation (with --base flag support for dependencies)
+- [x] T049 [P] Add list_worktrees operation (scan `.worktrees/` directory)
+- [x] T050 [P] Add merge operation (with preflight validation)
+- [x] T051 Register workspace_operations tool with FastMCP server
 
 ### Implementation Notes
 - create_worktree delegates to existing `spec-kitty implement` CLI command
