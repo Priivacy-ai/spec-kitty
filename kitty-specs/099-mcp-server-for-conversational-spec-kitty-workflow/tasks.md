@@ -256,14 +256,14 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP08-system-operations-and-health-check.md`
 
 ### Included Subtasks
-- [ ] T052 Create system_tools.py in `src/specify_cli/mcp/tools/`
-- [ ] T053 Define JSON Schema for system_operations parameters
-- [ ] T054 Implement system_operations_handler with operation routing
-- [ ] T055 [P] Add health_check operation (return server uptime, active projects count)
-- [ ] T056 [P] Add validate_project operation (check `.kittify/` structure)
-- [ ] T057 [P] Add list_missions operation (return available missions from config)
-- [ ] T058 [P] Add server_config operation (return server settings, redacted API key)
-- [ ] T059 Register system_operations tool with FastMCP server
+- [x] T052 Create system_tools.py in `src/specify_cli/mcp/tools/`
+- [x] T053 Define JSON Schema for system_operations parameters
+- [x] T054 Implement system_operations_handler with operation routing
+- [x] T055 [P] Add health_check operation (return server uptime, active projects count)
+- [x] T056 [P] Add validate_project operation (check `.kittify/` structure)
+- [x] T057 [P] Add list_missions operation (return available missions from config)
+- [x] T058 [P] Add server_config operation (return server settings, redacted API key)
+- [x] T059 Register system_operations tool with FastMCP server
 
 ### Implementation Notes
 - health_check returns server status, active project count, uptime
