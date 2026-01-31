@@ -355,7 +355,7 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP11-documentation-and-quickstart-guide.md`
 
 ### Included Subtasks
-- [ ] T076 Complete quickstart.md with installation instructions
+- [x] T076 Complete quickstart.md with installation instructions
 - [ ] T077 [P] Add Claude Desktop MCP configuration example
 - [ ] T078 [P] Add Cursor MCP configuration example
 - [ ] T079 [P] Add other MCP client examples (VS Code, etc.)
