@@ -38,7 +38,7 @@
 **Attributes**:
 - `project_path: Path` - Absolute path to project root directory
 - `kittify_dir: Path` - Path to `.kittify/` directory (must exist)
-- `active_feature: Optional[str]` - Current feature slug (e.g., "025-mcp-server"), None if no active feature
+- `active_feature: Optional[str]` - Current feature slug (e.g., "099-mcp-server"), None if no active feature
 - `mission: Optional[str]` - Active mission (e.g., "software-dev", "research", "documentation")
 - `session_dir: Path` - Path to `.kittify/mcp-sessions/` directory (created on first use)
 - `lock_dir: Path` - Path to `.kittify/` directory (lock files stored here)
@@ -113,7 +113,7 @@ phase="generation" → phase="complete"
 **Purpose**: Represents a pessimistic lock on a project resource (work package, feature, config file) to prevent concurrent modifications.
 
 **Attributes**:
-- `resource_id: str` - Identifier of locked resource (e.g., "WP01", "025-mcp-server", "config.yaml")
+- `resource_id: str` - Identifier of locked resource (e.g., "WP01", "099-mcp-server", "config.yaml")
 - `lock_file: Path` - Path to lock file (e.g., `.kittify/.lock-WP01`)
 - `acquired_at: str` - ISO 8601 timestamp when lock was acquired
 - `timeout_seconds: int` - Lock timeout in seconds (default: 300 = 5 minutes)
@@ -127,7 +127,7 @@ phase="generation" → phase="complete"
 
 **Lock Granularity**:
 - **Per work package**: `.lock-WP01`, `.lock-WP02` (for task operations like move_task)
-- **Per feature**: `.lock-025-mcp-server` (for feature-level operations like accept)
+- **Per feature**: `.lock-099-mcp-server` (for feature-level operations like accept)
 - **Per config file**: `.lock-config.yaml` (for agent config updates)
 
 **Error Handling**:
@@ -243,10 +243,10 @@ OperationResult(
     message="Feature 099-mcp-server created successfully",
     data={
         "feature": "099-mcp-server-for-conversational-spec-kitty-workflow",
-        "feature_dir": "/path/to/kitty-specs/025-mcp-server/",
-        "spec_file": "/path/to/kitty-specs/025-mcp-server/spec.md"
+        "feature_dir": "/path/to/kitty-specs/099-mcp-server/",
+        "spec_file": "/path/to/kitty-specs/099-mcp-server/spec.md"
     },
-    artifacts=[Path("kitty-specs/025-mcp-server/spec.md")],
+    artifacts=[Path("kitty-specs/099-mcp-server/spec.md")],
     errors=[],
     warnings=[]
 )
@@ -270,7 +270,7 @@ OperationResult(
     success=True,
     message="Task WP01 moved to for_review lane",
     data={"task_id": "WP01", "lane": "for_review"},
-    artifacts=[Path("kitty-specs/025-mcp-server/tasks/WP01.md")],
+    artifacts=[Path("kitty-specs/099-mcp-server/tasks/WP01.md")],
     errors=[],
     warnings=["Stale lock from PID 12345 was cleaned up"]
 )

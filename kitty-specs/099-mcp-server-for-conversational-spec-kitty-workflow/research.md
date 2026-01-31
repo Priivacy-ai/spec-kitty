@@ -185,7 +185,7 @@ class ResourceLocker:
 
 **Lock Granularity**:
 - Per work package: `.lock-WP01`, `.lock-WP02`, etc.
-- Per feature (for feature-level operations): `.lock-025-mcp-server`
+- Per feature (for feature-level operations): `.lock-099-mcp-server`
 - Per config file (for config updates): `.lock-config.yaml`
 
 **Stale Lock Handling**:
