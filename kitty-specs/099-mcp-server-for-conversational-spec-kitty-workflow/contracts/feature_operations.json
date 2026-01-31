@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Feature Operations Tool",
+  "description": "Execute Spec Kitty feature workflow operations (specify, plan, tasks, implement, review, accept)",
+  "type": "object",
+  "properties": {
+    "project_path": {
+      "type": "string",
+      "description": "Absolute path to Spec Kitty project root directory (must contain .kittify/)",
+      "minLength": 1
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["specify", "plan", "tasks", "implement", "review", "accept"],
+      "description": "Which workflow operation to perform"
+    },
+    "feature_slug": {
+      "type": "string",
+      "description": "Feature identifier (e.g., '099-mcp-server-for-conversational-spec-kitty-workflow'), required for most operations except specify",
+      "pattern": "^[0-9]{3}-.+$"
+    },
+    "arguments": {
+      "type": "object",
+      "description": "Operation-specific arguments",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Feature description (for specify operation)"
+        },
+        "work_package_id": {
+          "type": "string",
+          "description": "Work package ID (for implement operation, e.g., 'WP01')",
+          "pattern": "^WP[0-9]{2}$"
+        },
+        "review_feedback": {
+          "type": "string",
+          "description": "Review feedback text (for review operation)"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Session ID for resuming multi-turn conversations (UUID)"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": ["project_path", "operation"],
+  "additionalProperties": false
+}

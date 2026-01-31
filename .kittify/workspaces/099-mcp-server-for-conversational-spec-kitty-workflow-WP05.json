@@ -1,0 +1,14 @@
+{
+  "wp_id": "WP05",
+  "feature_slug": "099-mcp-server-for-conversational-spec-kitty-workflow",
+  "worktree_path": ".worktrees/099-mcp-server-for-conversational-spec-kitty-workflow-WP05",
+  "branch_name": "099-mcp-server-for-conversational-spec-kitty-workflow-WP05",
+  "base_branch": "099-mcp-server-for-conversational-spec-kitty-workflow-WP04",
+  "base_commit": "e56ef1635c2c9dd6900c273e94eb86cb59ece9cb",
+  "dependencies": [
+    "WP04"
+  ],
+  "created_at": "2026-01-31T12:51:36.689692+00:00",
+  "created_by": "implement-command",
+  "vcs_backend": "git"
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Task Operations Tool",
+  "description": "Manage work package tasks and lanes (list, move, add history, query status)",
+  "type": "object",
+  "properties": {
+    "project_path": {
+      "type": "string",
+      "description": "Absolute path to Spec Kitty project root directory",
+      "minLength": 1
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["list_tasks", "move_task", "add_history", "query_status"],
+      "description": "Which task operation to perform"
+    },
+    "feature_slug": {
+      "type": "string",
+      "description": "Feature identifier (required for all operations)",
+      "pattern": "^[0-9]{3}-.+$"
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Work package ID (e.g., 'WP01'), required for move_task and add_history operations",
+      "pattern": "^WP[0-9]{2}$"
+    },
+    "lane": {
+      "type": "string",
+      "enum": ["planned", "doing", "for_review", "done"],
+      "description": "Target lane for move_task operation"
+    },
+    "note": {
+      "type": "string",
+      "description": "History note text for add_history operation"
+    }
+  },
+  "required": ["project_path", "operation", "feature_slug"],
+  "additionalProperties": false
+}
