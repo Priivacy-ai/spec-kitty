@@ -1,6 +1,6 @@
 """Conflict detection using Lamport clocks."""
 from typing import Tuple
-from spec_kitty_events.models import Event
+from .models import Event
 
 
 def is_concurrent(event1: Event, event2: Event) -> bool:

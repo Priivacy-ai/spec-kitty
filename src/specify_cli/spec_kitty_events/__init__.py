@@ -16,7 +16,7 @@ Example:
 __version__ = "0.1.0-alpha"
 
 # Core data models
-from spec_kitty_events.models import (
+from .models import (
     Event,
     ErrorEntry,
     ConflictResolution,
@@ -27,7 +27,7 @@ from spec_kitty_events.models import (
 )
 
 # Storage abstractions
-from spec_kitty_events.storage import (
+from .storage import (
     EventStore,
     ClockStorage,
     ErrorStorage,
@@ -37,28 +37,28 @@ from spec_kitty_events.storage import (
 )
 
 # Lamport clock
-from spec_kitty_events.clock import LamportClock
+from .clock import LamportClock
 
 # Conflict detection
-from spec_kitty_events.conflict import (
+from .conflict import (
     is_concurrent,
     total_order_key,
 )
 
 # Topological sorting
-from spec_kitty_events.topology import topological_sort
+from .topology import topological_sort
 
 # CRDT merge functions
-from spec_kitty_events.crdt import (
+from .crdt import (
     merge_gset,
     merge_counter,
 )
 
 # State-machine merge
-from spec_kitty_events.merge import state_machine_merge
+from .merge import state_machine_merge
 
 # Error logging
-from spec_kitty_events.error_log import ErrorLog
+from .error_log import ErrorLog
 
 # Public API (controls what's exported with "from spec_kitty_events import *")
 __all__ = [

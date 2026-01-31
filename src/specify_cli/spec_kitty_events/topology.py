@@ -1,7 +1,7 @@
 """Topological sorting of events by causation relationships."""
 from collections import deque
 from typing import Deque, List, Dict
-from spec_kitty_events.models import Event, CyclicDependencyError
+from .models import Event, CyclicDependencyError
 
 
 def topological_sort(events: List[Event]) -> List[Event]:

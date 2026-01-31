@@ -1,5 +1,5 @@
 """Lamport logical clock implementation for causal ordering."""
-from spec_kitty_events.storage import ClockStorage
+from .storage import ClockStorage
 
 
 class LamportClock:
