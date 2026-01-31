@@ -88,7 +88,7 @@
 ```
 [Create Session] → phase="discovery"
    ↓ (questions asked/answered)
-phase="discovery" → phase="clarification" (if [NEEDS CLARIFICATION] markers found)
+phase="discovery" → phase="clarification" (if clarification markers found)
    ↓ (clarifications resolved)
 phase="clarification" → phase="generation" (ready to create artifacts)
    ↓ (artifacts generated: spec.md, plan.md, etc.)
