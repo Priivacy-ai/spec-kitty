@@ -329,7 +329,7 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 - [x] T072 [P] Write test_system_tools.py for system_operations tool
 - [x] T073 Write test_cli_adapter.py for CLIAdapter contract tests
 - [x] T074 Write test_session_state.py for ConversationState persistence
-- [ ] T075 Write test_locking.py for concurrent access and timeout behavior
+- [x] T075 Write test_locking.py for concurrent access and timeout behavior
 
 ### Implementation Notes
 - Use FastMCP test client utilities for tool invocation
