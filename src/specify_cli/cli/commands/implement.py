@@ -979,25 +979,94 @@ def implement(
             wp.path.write_text(updated_doc, encoding="utf-8")
 
             # Auto-commit to target branch (respects two-branch strategy)
+            from specify_cli.core.feature_detection import get_feature_target_branch
+            target_branch = get_feature_target_branch(repo_root, feature_slug)
             commit_msg = f"chore: {wp_id} claimed for implementation"
-            commit_result = subprocess.run(
-                ["git", "commit", str(wp.path.resolve()), "-m", commit_msg],
+
+            # Get current branch
+            current_branch_result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
-                check=False
+                check=True
             )
+            current_branch = current_branch_result.stdout.strip()
 
-            if commit_result.returncode == 0:
-                # Get target branch for accurate console message
-                from specify_cli.core.feature_detection import get_feature_target_branch
-                target_branch = get_feature_target_branch(repo_root, feature_slug)
-                console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {target_branch})[/cyan]")
-            else:
-                # Commit failed - file might be unchanged or other issue
-                console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
-                if commit_result.stderr:
-                    console.print(f"  {commit_result.stderr.strip()}")
+            # Auto-create target branch if it doesn't exist (same as move-task logic)
+            if target_branch not in ["main", "master"]:
+                branch_exists_result = subprocess.run(
+                    ["git", "rev-parse", "--verify", target_branch],
+                    cwd=repo_root,
+                    capture_output=True,
+                    check=False
+                )
+
+                if branch_exists_result.returncode != 0:
+                    # Target branch doesn't exist - auto-create from primary
+                    primary_branch = resolve_primary_branch(repo_root)
+                    console.print(f"[cyan]Target branch '{target_branch}' doesn't exist - creating from {primary_branch}[/cyan]")
+
+                    create_result = subprocess.run(
+                        ["git", "branch", target_branch, primary_branch],
+                        cwd=repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
+
+                    if create_result.returncode == 0:
+                        console.print(f"[green]✓[/green] Created target branch: {target_branch} from {primary_branch}")
+                    else:
+                        console.print(f"[yellow]Warning:[/yellow] Could not create {target_branch}: {create_result.stderr}")
+
+            # Checkout target if needed
+            if current_branch != target_branch:
+                checkout_result = subprocess.run(
+                    ["git", "checkout", target_branch],
+                    cwd=repo_root,
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                if checkout_result.returncode != 0:
+                    console.print(f"[yellow]Warning:[/yellow] Could not checkout {target_branch}, committing to {current_branch}")
+                    target_branch = current_branch  # Fallback to current
+
+            try:
+                # Stage and commit the file
+                subprocess.run(
+                    ["git", "add", str(wp.path.resolve())],
+                    cwd=repo_root,
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+
+                commit_result = subprocess.run(
+                    ["git", "commit", "-m", commit_msg],
+                    cwd=repo_root,
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+
+                if commit_result.returncode == 0:
+                    console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {target_branch})[/cyan]")
+                else:
+                    # Commit failed - file might be unchanged or other issue
+                    console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
+                    if commit_result.stderr:
+                        console.print(f"  {commit_result.stderr.strip()}")
+            finally:
+                # Restore original branch
+                if current_branch != target_branch:
+                    subprocess.run(
+                        ["git", "checkout", current_branch],
+                        cwd=repo_root,
+                        capture_output=True,
+                        check=False
+                    )
 
     except Exception as e:
         # Non-fatal: workspace created but lane update failed

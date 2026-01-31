@@ -21,6 +21,30 @@ from specify_cli.core.feature_detection import (
     FeatureDetectionError,
 )
 from specify_cli.mission import get_feature_mission_key
+
+
+def resolve_primary_branch(repo_root: Path) -> str:
+    """Resolve the primary branch name (main or master).
+
+    Returns:
+        "main" if it exists, otherwise "master" if it exists.
+
+    Raises:
+        typer.Exit: If neither branch exists.
+    """
+    for candidate in ("main", "master"):
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", candidate],
+            cwd=repo_root,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            return candidate
+    # Neither exists
+    console = Console()
+    console.print("[red]Error:[/red] Could not find main or master branch")
+    raise typer.Exit(1)
 from specify_cli.tasks_support import (
     LANES,
     WorkPackage,
@@ -667,14 +691,14 @@ def move_task(
         # Add history entry to body
         updated_body = append_activity_log(updated_body, history_entry)
 
-        # Build and write updated document
+        # Build updated document (but don't write yet if auto-commit enabled)
         updated_doc = build_document(updated_front, updated_body, wp.padding)
-        wp.path.write_text(updated_doc, encoding="utf-8")
 
         # FIX B: Auto-commit to TARGET branch (detects from feature meta.json)
         # Agents read/write to main's kitty-specs/ directly (absolute paths)
         # This enables instant status sync across all worktrees (jujutsu-aligned)
         # Route commits to target_branch (e.g., "2.x" for SaaS features, "main" for 1.x)
+        file_written = False
         if auto_commit:
             import subprocess
 
@@ -703,9 +727,45 @@ def move_task(
                     cwd=main_repo_root,
                     capture_output=True,
                     text=True,
-                    check=True
+                    check=False  # Don't raise exception if git fails
                 )
+                if current_branch_result.returncode != 0:
+                    # Not in a git repo or git failed - skip auto-commit
+                    if not json_output:
+                        console.print(f"[yellow]Warning:[/yellow] Could not get current branch, skipping auto-commit")
+                    raise Exception("Not in a git repository")
+
                 current_branch = current_branch_result.stdout.strip()
+
+                # Auto-create target branch if it doesn't exist (mirrors implement.py behavior)
+                if target_branch not in ["main", "master"]:
+                    branch_exists_result = subprocess.run(
+                        ["git", "rev-parse", "--verify", target_branch],
+                        cwd=main_repo_root,
+                        capture_output=True,
+                        check=False
+                    )
+
+                    if branch_exists_result.returncode != 0:
+                        # Target branch doesn't exist - auto-create from primary
+                        primary_branch = resolve_primary_branch(main_repo_root)
+                        if not json_output:
+                            console.print(f"[cyan]Target branch '{target_branch}' doesn't exist - creating from {primary_branch}[/cyan]")
+
+                        create_result = subprocess.run(
+                            ["git", "branch", target_branch, primary_branch],
+                            cwd=main_repo_root,
+                            capture_output=True,
+                            text=True,
+                            check=False
+                        )
+
+                        if create_result.returncode == 0:
+                            if not json_output:
+                                console.print(f"[green]✓[/green] Created target branch: {target_branch} from {primary_branch}")
+                        else:
+                            if not json_output:
+                                console.print(f"[yellow]Warning:[/yellow] Could not create {target_branch}: {create_result.stderr}")
 
                 # Checkout target if needed
                 if current_branch != target_branch:
@@ -722,39 +782,37 @@ def move_task(
                         target_branch = current_branch  # Fallback to current
 
                 try:
-                    # Stage the file first, then commit
-                    # Use -u to only update tracked files (bypasses .gitignore check)
-                    add_result = subprocess.run(
-                        ["git", "add", "-u", str(actual_file_path)],
+                    # Write file AFTER checkout (avoids "uncommitted changes" error)
+                    wp.path.write_text(updated_doc, encoding="utf-8")
+                    file_written = True
+
+                    # Stage and commit the file
+                    subprocess.run(
+                        ["git", "add", str(actual_file_path)],
                         cwd=main_repo_root,
                         capture_output=True,
                         text=True,
                         check=False
                     )
 
-                    if add_result.returncode != 0:
-                        if not json_output:
-                            console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
-                    else:
-                        # Commit the staged file
-                        commit_result = subprocess.run(
-                            ["git", "commit", "-m", commit_msg],
-                            cwd=main_repo_root,
-                            capture_output=True,
-                            text=True,
-                            check=False
-                        )
+                    commit_result = subprocess.run(
+                        ["git", "commit", "-m", commit_msg],
+                        cwd=main_repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False
+                    )
 
-                        if commit_result.returncode == 0:
-                            if not json_output:
-                                console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
-                        elif "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
-                            # File wasn't actually changed, that's OK
-                            pass
-                        else:
-                            # Commit failed
-                            if not json_output:
-                                console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+                    if commit_result.returncode == 0:
+                        if not json_output:
+                            console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
+                    elif "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
+                        # File wasn't actually changed, that's OK
+                        pass
+                    else:
+                        # Commit failed
+                        if not json_output:
+                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
 
                 finally:
                     # Restore original branch
@@ -768,9 +826,14 @@ def move_task(
                         )
 
             except Exception as e:
-                # Unexpected error
+                # Unexpected error (e.g., not in a git repo) - ensure file gets written
+                if not file_written:
+                    wp.path.write_text(updated_doc, encoding="utf-8")
                 if not json_output:
-                    console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
+                    console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {e}")
+        else:
+            # No auto-commit - just write the file
+            wp.path.write_text(updated_doc, encoding="utf-8")
 
         # Output result
         result = {

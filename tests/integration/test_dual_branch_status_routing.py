@@ -484,11 +484,12 @@ def test_race_condition_prevented(dual_branch_repo):
 
 
 def test_fallback_when_target_missing(dual_branch_repo):
-    """Test graceful fallback when target_branch doesn't exist.
+    """Test auto-create when target_branch doesn't exist.
 
     Validates:
     - If target_branch in meta.json doesn't exist as git branch
-    - Falls back to current branch with warning
+    - Auto-creates the branch from main
+    - Commit routes to the newly created branch
     - Does not crash
     """
     repo = dual_branch_repo
@@ -496,18 +497,27 @@ def test_fallback_when_target_missing(dual_branch_repo):
     # Create feature with target_branch pointing to nonexistent branch
     feature_dir = create_feature_with_target(repo, "029-missing-target", target_branch="nonexistent")
 
-    # Try to move task (should fallback to current branch: main)
+    # Try to move task (should auto-create nonexistent branch)
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing")
 
-    # Should succeed (fallback to current branch)
-    assert result.returncode == 0, f"Should fallback gracefully: {result.stderr}"
+    # Should succeed (auto-create branch)
+    assert result.returncode == 0, f"Should auto-create branch: {result.stderr}"
 
-    # Should have warning in output
-    assert "Warning" in result.stdout or "could not checkout" in result.stderr.lower(), \
-        "Should warn about missing target branch"
+    # Should have creation message in output
+    assert "Created target branch" in result.stdout or "doesn't exist - creating" in result.stdout, \
+        "Should announce branch creation"
 
-    # Commit should land on current branch (main)
-    assert_commit_on_branch(repo, "main", "Move WP01 to doing")
+    # Verify branch was created
+    branch_check = subprocess.run(
+        ["git", "rev-parse", "--verify", "nonexistent"],
+        cwd=repo,
+        capture_output=True,
+        check=False,
+    )
+    assert branch_check.returncode == 0, "Target branch should be created"
+
+    # Commit should land on the new branch (nonexistent)
+    assert_commit_on_branch(repo, "nonexistent", "Move WP01 to doing")
 
 
 def test_migration_detection_and_routing(dual_branch_repo):
