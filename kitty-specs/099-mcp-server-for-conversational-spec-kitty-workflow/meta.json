@@ -1,6 +1,6 @@
 {
-  "feature_number": "025",
-  "slug": "025-mcp-server-for-conversational-spec-kitty-workflow",
+  "feature_number": "099",
+  "slug": "099-mcp-server-for-conversational-spec-kitty-workflow",
   "friendly_name": "MCP Server for Conversational Spec Kitty Workflow",
   "mission": "software-dev",
   "source_description": "implement an mcp server offering the current functionality of spec kitty so that the user doesnt have to learn the slash commands but can talk directly to the AI Agent",

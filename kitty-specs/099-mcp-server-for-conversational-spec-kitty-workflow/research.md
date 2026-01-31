@@ -1,6 +1,6 @@
 # Research: MCP Server for Conversational Spec Kitty Workflow
 
-**Feature**: 025-mcp-server-for-conversational-spec-kitty-workflow  
+**Feature**: 099-mcp-server-for-conversational-spec-kitty-workflow  
 **Date**: 2026-01-29  
 **Purpose**: Document research findings to resolve technical unknowns before Phase 1 design
 

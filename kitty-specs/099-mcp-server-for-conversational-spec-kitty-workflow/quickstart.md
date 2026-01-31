@@ -1,6 +1,6 @@
 # Quickstart: MCP Server for Conversational Spec Kitty Workflow
 
-**Feature**: 025-mcp-server-for-conversational-spec-kitty-workflow  
+**Feature**: 099-mcp-server-for-conversational-spec-kitty-workflow  
 **Date**: 2026-01-29  
 **Purpose**: Get started with the Spec Kitty MCP server in minutes
 
@@ -162,8 +162,8 @@ In project /Users/me/my-project, I want to create a feature for user authenticat
 
 **Expected Response**:
 ```
-✓ Feature specification created: 026-user-authentication
-  Spec file: /Users/me/my-project/kitty-specs/026-user-authentication/spec.md
+✓ Feature specification created: 099-user-authentication-example
+  Spec file: /Users/me/my-project/kitty-specs/099-user-authentication-example/spec.md
 
 I've created a specification for user authentication. The discovery interview gathered:
 - Authentication methods: email/password
@@ -177,7 +177,7 @@ Would you like to proceed with creating a technical plan?
 
 **Natural language**:
 ```
-In project /Users/me/my-project, show me the tasks for feature 026-user-authentication
+In project /Users/me/my-project, show me the tasks for feature 099-user-authentication-example
 ```
 
 **MCP tool call**:
@@ -187,14 +187,14 @@ In project /Users/me/my-project, show me the tasks for feature 026-user-authenti
   "parameters": {
     "project_path": "/Users/me/my-project",
     "operation": "list_tasks",
-    "feature_slug": "026-user-authentication"
+    "feature_slug": "099-user-authentication-example"
   }
 }
 ```
 
 **Response**:
 ```
-Tasks for 026-user-authentication:
+Tasks for 099-user-authentication-example:
 
 Planned (2):
 - WP01: Database schema for users table
@@ -224,7 +224,7 @@ In project /Users/me/my-project, WP03 is ready for review
   "parameters": {
     "project_path": "/Users/me/my-project",
     "operation": "move_task",
-    "feature_slug": "026-user-authentication",
+    "feature_slug": "099-user-authentication-example",
     "task_id": "WP03",
     "lane": "for_review"
   }
@@ -234,7 +234,7 @@ In project /Users/me/my-project, WP03 is ready for review
 **Response**:
 ```
 ✓ Task WP03 moved to for_review lane
-  Updated: kitty-specs/026-user-authentication/tasks/WP03.md
+  Updated: kitty-specs/099-user-authentication-example/tasks/WP03.md
   Activity log updated with timestamp
 ```
 

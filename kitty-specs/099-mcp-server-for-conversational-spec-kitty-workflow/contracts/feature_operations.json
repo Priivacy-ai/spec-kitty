@@ -16,7 +16,7 @@
     },
     "feature_slug": {
       "type": "string",
-      "description": "Feature identifier (e.g., '025-mcp-server-for-conversational-spec-kitty-workflow'), required for most operations except specify",
+      "description": "Feature identifier (e.g., '099-mcp-server-for-conversational-spec-kitty-workflow'), required for most operations except specify",
       "pattern": "^[0-9]{3}-.+$"
     },
     "arguments": {

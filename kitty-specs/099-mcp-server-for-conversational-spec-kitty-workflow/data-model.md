@@ -1,6 +1,6 @@
 # Data Model: MCP Server for Conversational Spec Kitty Workflow
 
-**Feature**: 025-mcp-server-for-conversational-spec-kitty-workflow  
+**Feature**: 099-mcp-server-for-conversational-spec-kitty-workflow  
 **Date**: 2026-01-29  
 **Purpose**: Define core entities, relationships, and state management for the MCP server
 
@@ -240,9 +240,9 @@ def feature_operations_handler(
 ```python
 OperationResult(
     success=True,
-    message="Feature 025-mcp-server created successfully",
+    message="Feature 099-mcp-server created successfully",
     data={
-        "feature": "025-mcp-server-for-conversational-spec-kitty-workflow",
+        "feature": "099-mcp-server-for-conversational-spec-kitty-workflow",
         "feature_dir": "/path/to/kitty-specs/025-mcp-server/",
         "spec_file": "/path/to/kitty-specs/025-mcp-server/spec.md"
     },

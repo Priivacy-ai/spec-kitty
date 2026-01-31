@@ -1,7 +1,7 @@
 # Implementation Plan: MCP Server for Conversational Spec Kitty Workflow
 
-**Branch**: `025-mcp-server-for-conversational-spec-kitty-workflow` | **Date**: 2026-01-29 | **Spec**: [spec.md](spec.md)  
-**Input**: Feature specification from `kitty-specs/025-mcp-server-for-conversational-spec-kitty-workflow/spec.md`
+**Branch**: `099-mcp-server-for-conversational-spec-kitty-workflow` | **Date**: 2026-01-29 | **Spec**: [spec.md](spec.md)  
+**Input**: Feature specification from `kitty-specs/099-mcp-server-for-conversational-spec-kitty-workflow/spec.md`
 
 ## Summary
 
@@ -70,7 +70,7 @@ Build an MCP (Model Context Protocol) server that exposes all Spec Kitty CLI fun
 ### Documentation (this feature)
 
 ```
-kitty-specs/025-mcp-server-for-conversational-spec-kitty-workflow/
+kitty-specs/099-mcp-server-for-conversational-spec-kitty-workflow/
 ├── plan.md              # This file
 ├── research.md          # Phase 0: FastMCP patterns, CLI integration strategies
 ├── data-model.md        # Phase 1: Session state, project context, lock entities

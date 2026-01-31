@@ -1,6 +1,6 @@
 # Feature Specification: MCP Server for Conversational Spec Kitty Workflow
 
-**Feature Branch**: `025-mcp-server-for-conversational-spec-kitty-workflow`  
+**Feature Branch**: `099-mcp-server-for-conversational-spec-kitty-workflow`  
 **Created**: 2026-01-29  
 **Status**: Draft  
 **Input**: User description: "implement an mcp server offering the current functionality of spec kitty so that the user doesnt have to learn the slash commands but can talk directly to the AI Agent"
@@ -115,7 +115,7 @@ A reviewer wants to examine work packages, request changes, and accept/reject im
 1. **Given** a work package is in "for_review" lane, **When** the user says "review WP01", **Then** the server displays the work package details and prompts for feedback
 2. **Given** the review is in progress, **When** the user says "this looks good, approve it", **Then** the server moves WP01 to "done" lane and records approval in the activity log
 3. **Given** changes are needed, **When** the user says "WP01 needs better error handling", **Then** the server moves WP01 back to "doing" with the feedback note
-4. **Given** a feature is complete, **When** the user says "accept feature 025", **Then** the server merges all approved work packages and updates feature status
+4. **Given** a feature is complete, **When** the user says "accept feature 099", **Then** the server merges all approved work packages and updates feature status
 
 ---
 
