@@ -1,6 +1,6 @@
 """State-machine merge logic with priority-based conflict resolution."""
 from typing import List, Dict
-from spec_kitty_events.models import Event, ConflictResolution, ValidationError
+from .models import Event, ConflictResolution, ValidationError
 
 
 def state_machine_merge(
