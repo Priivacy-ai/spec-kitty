@@ -289,13 +289,13 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP09-api-key-authentication.md`
 
 ### Included Subtasks
-- [ ] T060 Create auth module in `src/specify_cli/mcp/auth/`
-- [ ] T061 Create api_key.py with API key validation logic
-- [ ] T062 Add auth_enabled configuration flag to MCPServer
-- [ ] T063 Add api_key configuration (environment variable or config file)
-- [ ] T064 Implement authentication middleware for FastMCP
-- [ ] T065 Add authentication error responses (401 Unauthorized)
-- [ ] T066 Update server startup to log authentication status (enabled/disabled)
+- [x] T060 Create auth module in `src/specify_cli/mcp/auth/`
+- [x] T061 Create api_key.py with API key validation logic
+- [x] T062 Add auth_enabled configuration flag to MCPServer
+- [x] T063 Add api_key configuration (environment variable or config file)
+- [x] T064 Implement authentication middleware for FastMCP
+- [x] T065 Add authentication error responses (401 Unauthorized)
+- [x] T066 Update server startup to log authentication status (enabled/disabled)
 
 ### Implementation Notes
 - API key passed in MCP connection headers or initial handshake
