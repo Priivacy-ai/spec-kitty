@@ -325,7 +325,7 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 - [x] T068 Write test_server.py for server startup/shutdown/health
 - [x] T069 [P] Write test_feature_tools.py for feature_operations tool
 - [x] T070 [P] Write test_task_tools.py for task_operations tool
-- [ ] T071 [P] Write test_workspace_tools.py for workspace_operations tool
+- [x] T071 [P] Write test_workspace_tools.py for workspace_operations tool
 - [ ] T072 [P] Write test_system_tools.py for system_operations tool
 - [ ] T073 Write test_cli_adapter.py for CLIAdapter contract tests
 - [ ] T074 Write test_session_state.py for ConversationState persistence
