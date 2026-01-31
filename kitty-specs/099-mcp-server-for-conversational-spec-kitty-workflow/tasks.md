@@ -30,12 +30,12 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 **Prompt**: `tasks/WP01-core-mcp-server-foundation.md`
 
 ### Included Subtasks
-- [ ] T001 Install FastMCP dependency in pyproject.toml with version constraint
-- [ ] T002 Create `src/specify_cli/mcp/` module structure with __init__.py
-- [ ] T003 Implement MCPServer class in `src/specify_cli/mcp/server.py` with configuration (host, port, auth, transport)
-- [ ] T004 [P] Implement stdio transport handler for MCP communication
-- [ ] T005 [P] Implement SSE transport handler for MCP communication
-- [ ] T006 Add server startup command `spec-kitty mcp start` in CLI
+- [x] T001 Install FastMCP dependency in pyproject.toml with version constraint
+- [x] T002 Create `src/specify_cli/mcp/` module structure with __init__.py
+- [x] T003 Implement MCPServer class in `src/specify_cli/mcp/server.py` with configuration (host, port, auth, transport)
+- [x] T004 [P] Implement stdio transport handler for MCP communication
+- [x] T005 [P] Implement SSE transport handler for MCP communication
+- [x] T006 Add server startup command `spec-kitty mcp start` in CLI
 
 ### Implementation Notes
 - FastMCP handles protocol details; focus on configuration and tool registration
