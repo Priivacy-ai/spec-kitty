@@ -323,7 +323,7 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 ### Included Subtasks
 - [x] T067 Create `tests/mcp/` directory structure
 - [x] T068 Write test_server.py for server startup/shutdown/health
-- [ ] T069 [P] Write test_feature_tools.py for feature_operations tool
+- [x] T069 [P] Write test_feature_tools.py for feature_operations tool
 - [ ] T070 [P] Write test_task_tools.py for task_operations tool
 - [ ] T071 [P] Write test_workspace_tools.py for workspace_operations tool
 - [ ] T072 [P] Write test_system_tools.py for system_operations tool
