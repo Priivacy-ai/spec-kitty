@@ -356,7 +356,7 @@ description: "Work package task list for MCP Server for Conversational Spec Kitt
 
 ### Included Subtasks
 - [x] T076 Complete quickstart.md with installation instructions
-- [ ] T077 [P] Add Claude Desktop MCP configuration example
+- [x] T077 [P] Add Claude Desktop MCP configuration example
 - [ ] T078 [P] Add Cursor MCP configuration example
 - [ ] T079 [P] Add other MCP client examples (VS Code, etc.)
 - [ ] T080 Document server startup command and options
