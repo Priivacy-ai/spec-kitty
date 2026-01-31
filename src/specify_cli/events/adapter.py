@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-# Import from spec-kitty-events library
+# Import from vendored spec_kitty_events module
 try:
-    from spec_kitty_events import (
+    from specify_cli.spec_kitty_events import (
         Event as LibEvent,
         LamportClock as LibClock,
         InMemoryClockStorage,
