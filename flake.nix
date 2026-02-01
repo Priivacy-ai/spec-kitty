@@ -26,13 +26,16 @@
         system: python3Packages:
         let
           unstable = nixpkgs-unstable.legacyPackages.${system};
-          baseTruststore = python3Packages.callPackage "${unstable.path}/pkgs/development/python-modules/truststore/default.nix" { };
+          baseTruststore = python3Packages.callPackage "${unstable.path}/pkgs/development/python-modules/truststore/default.nix" {
+            # Ensure flit-core is passed through for building
+            flit-core = python3Packages.flit-core;
+          };
         in
         baseTruststore.overridePythonAttrs (old: {
           postPatch = (old.postPatch or "") + ''
-            # Fix pyproject.toml for flit_core compatibility
-            substituteInPlace pyproject.toml \
-              --replace-fail 'license = "MIT"' 'license = {text = "MIT"}'
+            # Fix pyproject.toml for flit_core compatibility with nixos-24.11
+            sed -i 's/license = "MIT"/license = {text = "MIT"}/' pyproject.toml
+            sed -i '/license-files/d' pyproject.toml
           '';
         });
 
