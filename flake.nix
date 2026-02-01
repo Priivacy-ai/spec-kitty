@@ -21,12 +21,20 @@
 
       # Get truststore 0.10.4 from nixpkgs-unstable (nixos-24.11 only has 0.9.2)
       # Build with python3Packages from stable (3.12) to avoid version mismatch
+      # Patch pyproject.toml to fix license format incompatibility with flit_core
       getTruststoreFromUnstable =
         system: python3Packages:
         let
           unstable = nixpkgs-unstable.legacyPackages.${system};
+          baseTruststore = python3Packages.callPackage "${unstable.path}/pkgs/development/python-modules/truststore/default.nix" { };
         in
-        python3Packages.callPackage "${unstable.path}/pkgs/development/python-modules/truststore/default.nix" { };
+        baseTruststore.overridePythonAttrs (old: {
+          postPatch = (old.postPatch or "") + ''
+            # Fix pyproject.toml for flit_core compatibility
+            substituteInPlace pyproject.toml \
+              --replace-fail 'license = "MIT"' 'license = {text = "MIT"}'
+          '';
+        });
 
       # Runtime Python dependencies shared between package and devShell
       runtimePythonDeps = ps: truststore: [
