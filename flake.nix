@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -10,6 +11,7 @@
     {
       self,
       nixpkgs,
+      nixpkgs-unstable,
       flake-utils,
     }:
     let
@@ -17,32 +19,12 @@
       pyproject = builtins.fromTOML (builtins.readFile ./pyproject.toml);
       version = pyproject.project.version;
 
-      # Override truststore to use version compatible with spec-kitty (>=0.10.4)
-      # nixpkgs-24.11 only has 0.9.2, so we need to fetch 0.10.4 from PyPI
-      mkTruststoreCompat =
-        python3Packages: pkgs:
-        python3Packages.truststore.overridePythonAttrs (old: rec {
-          version = "0.10.4";
-          src = pkgs.fetchPypi {
-            pname = "truststore";
-            inherit version;
-            sha256 = "00f3xc7720rkddsn291yrw871kfnimi6d9xbwi75xbb3ci1vv4cx";
-          };
-
-          # Ensure flit-core is available for building (merge with existing)
-          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ python3Packages.flit-core ];
-
-          # Fix pyproject.toml: flit_core requires license as dict, not string
-          # Also remove unsupported license-files field
-          postPatch = ''
-            substituteInPlace pyproject.toml \
-              --replace-fail 'license = "MIT"' 'license = {text = "MIT"}' \
-              --replace-fail 'license-files = ["LICENSE"]' ""
-          '';
-        });
+      # Get truststore 0.10.4 from nixpkgs-unstable (nixos-24.11 only has 0.9.2)
+      # We use the properly packaged version from unstable instead of overriding
+      getTruststoreFromUnstable = system: (nixpkgs-unstable.legacyPackages.${system}.python3Packages.truststore);
 
       # Runtime Python dependencies shared between package and devShell
-      runtimePythonDeps = ps: truststore-compat: [
+      runtimePythonDeps = ps: truststore: [
         ps.httpx
         ps.packaging
         ps.platformdirs
@@ -53,7 +35,7 @@
         ps.rich
         ps.ruamel-yaml
         ps.socksio
-        truststore-compat
+        truststore
         ps.typer
       ];
 
@@ -62,13 +44,14 @@
         {
           pkgs,
           python3Packages ? pkgs.python3Packages,
+          system,
         }:
         let
-          truststore-compat = mkTruststoreCompat python3Packages pkgs;
+          truststore-unstable = getTruststoreFromUnstable system;
 
           pythonEnv = python3Packages.python.withPackages (
             ps:
-            runtimePythonDeps ps truststore-compat
+            runtimePythonDeps ps truststore-unstable
             ++ [
               # Test dependencies
               ps.pytest
@@ -89,7 +72,7 @@
             pkgs.makeWrapper
           ];
 
-          propagatedBuildInputs = runtimePythonDeps python3Packages truststore-compat;
+          propagatedBuildInputs = runtimePythonDeps python3Packages truststore-unstable;
 
           nativeCheckInputs = with python3Packages; [
             pytest
@@ -388,6 +371,7 @@
         spec-kitty = mkSpecKitty {
           pkgs = final;
           python3Packages = final.python3Packages;
+          system = final.system;
         };
       };
 
@@ -399,7 +383,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         spec-kitty = mkSpecKitty {
-          inherit pkgs;
+          inherit pkgs system;
           python3Packages = pkgs.python3Packages;
         };
       in
@@ -411,10 +395,10 @@
 
         devShells.default =
           let
-            truststore-compat = mkTruststoreCompat pkgs.python3Packages pkgs;
+            truststore-unstable = getTruststoreFromUnstable system;
             pythonEnv = pkgs.python3.withPackages (
               ps:
-              runtimePythonDeps ps truststore-compat
+              runtimePythonDeps ps truststore-unstable
               ++ [
                 # Dev/test dependencies
                 ps.pytest
