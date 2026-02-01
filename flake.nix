@@ -18,7 +18,7 @@
       version = pyproject.project.version;
 
       # Override truststore to use version compatible with spec-kitty (>=0.10.4)
-      # Patch pyproject.toml to fix license field format for flit_core compatibility
+      # nixpkgs-24.11 only has 0.9.2, so we need to fetch 0.10.4 from PyPI
       mkTruststoreCompat =
         python3Packages: pkgs:
         python3Packages.truststore.overridePythonAttrs (old: rec {
@@ -29,10 +29,15 @@
             sha256 = "00f3xc7720rkddsn291yrw871kfnimi6d9xbwi75xbb3ci1vv4cx";
           };
 
+          # Ensure flit-core is available for building
+          build-system = [ python3Packages.flit-core ];
+
           # Fix pyproject.toml: flit_core requires license as dict, not string
+          # Also remove unsupported license-files field
           postPatch = ''
             substituteInPlace pyproject.toml \
-              --replace-fail 'license = "MIT"' 'license = {text = "MIT"}'
+              --replace-fail 'license = "MIT"' 'license = {text = "MIT"}' \
+              --replace-fail 'license-files = ["LICENSE"]' ""
           '';
         });
 
