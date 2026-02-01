@@ -20,8 +20,13 @@
       version = pyproject.project.version;
 
       # Get truststore 0.10.4 from nixpkgs-unstable (nixos-24.11 only has 0.9.2)
-      # We use the properly packaged version from unstable instead of overriding
-      getTruststoreFromUnstable = system: (nixpkgs-unstable.legacyPackages.${system}.python3Packages.truststore);
+      # Build with python3Packages from stable (3.12) to avoid version mismatch
+      getTruststoreFromUnstable =
+        system: python3Packages:
+        let
+          unstable = nixpkgs-unstable.legacyPackages.${system};
+        in
+        python3Packages.callPackage "${unstable.path}/pkgs/development/python-modules/truststore/default.nix" { };
 
       # Runtime Python dependencies shared between package and devShell
       runtimePythonDeps = ps: truststore: [
@@ -47,7 +52,7 @@
           system,
         }:
         let
-          truststore-unstable = getTruststoreFromUnstable system;
+          truststore-unstable = getTruststoreFromUnstable system python3Packages;
 
           pythonEnv = python3Packages.python.withPackages (
             ps:
@@ -395,7 +400,7 @@
 
         devShells.default =
           let
-            truststore-unstable = getTruststoreFromUnstable system;
+            truststore-unstable = getTruststoreFromUnstable system pkgs.python3Packages;
             pythonEnv = pkgs.python3.withPackages (
               ps:
               runtimePythonDeps ps truststore-unstable
