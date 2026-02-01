@@ -18,6 +18,7 @@
       version = pyproject.project.version;
 
       # Override truststore to use version compatible with spec-kitty (>=0.10.4)
+      # Patch pyproject.toml to fix license field format for flit_core compatibility
       mkTruststoreCompat =
         python3Packages: pkgs:
         python3Packages.truststore.overridePythonAttrs (old: rec {
@@ -27,6 +28,12 @@
             inherit version;
             sha256 = "00f3xc7720rkddsn291yrw871kfnimi6d9xbwi75xbb3ci1vv4cx";
           };
+
+          # Fix pyproject.toml: flit_core requires license as dict, not string
+          postPatch = ''
+            substituteInPlace pyproject.toml \
+              --replace-fail 'license = "MIT"' 'license = {text = "MIT"}'
+          '';
         });
 
       # Runtime Python dependencies shared between package and devShell
