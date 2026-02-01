@@ -29,8 +29,8 @@
             sha256 = "00f3xc7720rkddsn291yrw871kfnimi6d9xbwi75xbb3ci1vv4cx";
           };
 
-          # Ensure flit-core is available for building
-          build-system = [ python3Packages.flit-core ];
+          # Ensure flit-core is available for building (merge with existing)
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ python3Packages.flit-core ];
 
           # Fix pyproject.toml: flit_core requires license as dict, not string
           # Also remove unsupported license-files field
