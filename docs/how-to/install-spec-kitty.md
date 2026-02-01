@@ -163,6 +163,175 @@ rm gcm-linux_amd64.2.6.1.deb
 - [Upgrade to 0.11.0](upgrade-to-0-11-0.md)
 - [Use the Dashboard](use-dashboard.md)
 
+## Nix
+
+[Nix](https://nixos.org/) provides reproducible, declarative installation with automatic dependency management.
+
+### Quick Start
+
+**Try without installing:**
+```bash
+nix run github:Priivacy-ai/spec-kitty -- --version
+```
+
+**Install to user profile:**
+```bash
+nix profile install github:Priivacy-ai/spec-kitty
+spec-kitty --version
+```
+
+**Development environment:**
+```bash
+# Clone the repository first
+git clone https://github.com/Priivacy-ai/spec-kitty.git
+cd spec-kitty
+
+# Enter development shell with all dependencies
+nix develop
+
+# Now you have Python, pytest, ruff, etc.
+pytest tests/
+```
+
+### Integration Patterns
+
+**With direnv:**
+
+Create `.envrc` in your project:
+```bash
+use flake github:Priivacy-ai/spec-kitty
+```
+
+Then run `direnv allow`. The environment will automatically load when you `cd` into the directory.
+
+**As a flake overlay:**
+
+Add to your system `flake.nix`:
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    spec-kitty.url = "github:Priivacy-ai/spec-kitty";
+  };
+
+  outputs = { nixpkgs, spec-kitty, ... }: {
+    # Use in NixOS configuration
+    environment.systemPackages = [
+      spec-kitty.packages.x86_64-linux.default
+    ];
+  };
+}
+```
+
+**Custom devShell:**
+
+Extend the development environment with project-specific tools:
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    spec-kitty.url = "github:Priivacy-ai/spec-kitty";
+  };
+
+  outputs = { nixpkgs, spec-kitty, ... }: {
+    devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
+      inputsFrom = [ spec-kitty.devShells.x86_64-linux.default ];
+      buildInputs = [
+        # Add your project-specific tools
+        nixpkgs.legacyPackages.x86_64-linux.nodejs
+      ];
+    };
+  };
+}
+```
+
+### Wrapper Executables
+
+The Nix package provides three executables:
+
+**`spec-kitty`** - Main CLI entry point
+```bash
+spec-kitty --help
+```
+
+**`spec-kitty-python`** - Python interpreter with spec-kitty in PYTHONPATH
+```bash
+spec-kitty-python -c "from specify_cli import main"
+spec-kitty-python my_script.py
+```
+
+**`spec-kitty-bash`** - Bash shell with Git and other dependencies
+```bash
+spec-kitty-bash -c "git --version"
+```
+
+These wrappers ensure all runtime dependencies (Python packages, Git, etc.) are available without polluting your system.
+
+### Troubleshooting
+
+**Error: "command not found: nix"**
+
+Install Nix using the Determinate Systems installer:
+```bash
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+```
+
+**Error: "experimental feature 'nix-command' required"**
+
+Enable flakes in `~/.config/nix/nix.conf`:
+```
+experimental-features = nix-command flakes
+```
+
+**Error: "attribute 'spec-kitty' missing"**
+
+The package name in the flake is `spec-kitty`, not `spec-kitty-cli`:
+```bash
+# ✅ Correct
+nix build .#spec-kitty
+
+# ❌ Wrong
+nix build .#spec-kitty-cli
+```
+
+**Build fails with Python dependency errors**
+
+The flake pins all dependencies in `flake.lock`. Try updating:
+```bash
+nix flake update
+nix build .#spec-kitty
+```
+
+**Import errors at runtime**
+
+The Nix package patches hardcoded paths in the source. If you see `ModuleNotFoundError`, ensure you're using the wrapper executables (`spec-kitty`, not `python -m specify_cli`).
+
+### Background
+
+**Why wrappers?**
+
+Spec Kitty's Python code contains hardcoded paths like `~/.kittify/` and assumes certain tools (Git, Rich, etc.) are available. The Nix flake uses wrapper scripts to:
+
+1. Set `PYTHONPATH` to include the Nix store location
+2. Patch shebangs in scripts to use Nix-provided Python
+3. Make dependencies (Git, pytest, etc.) available without `nix develop`
+
+This allows the package to work both as a standalone tool (`nix run`) and a development environment (`nix develop`).
+
+**Why nixos-24.11?**
+
+The flake uses the stable `nixos-24.11` channel (November 2024 release) instead of `nixos-unstable` for:
+- Reproducible builds across time
+- Security updates without breaking changes
+- Compatibility with enterprise NixOS deployments
+
+### See Also
+
+- [Nix Manual](https://nixos.org/manual/nix/stable/)
+- [Nix Flakes Guide](https://nixos.wiki/wiki/Flakes)
+- [Determinate Systems Installer](https://github.com/DeterminateSystems/nix-installer)
+- [direnv documentation](https://direnv.net/)
+
 ## Background
 - [Spec-Driven Development](../explanation/spec-driven-development.md)
 - [Mission System](../explanation/mission-system.md)

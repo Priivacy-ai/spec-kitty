@@ -246,6 +246,8 @@ stateDiagram-v2
 pip install spec-kitty-cli
 # or
 uv tool install spec-kitty-cli
+# or with Nix
+nix profile install github:Priivacy-ai/spec-kitty
 
 # 2. Initialize your project
 spec-kitty init my-project --ai claude
@@ -257,6 +259,20 @@ spec-kitty verify-setup  # Checks that everything is configured correctly
 # 4. View your dashboard
 spec-kitty dashboard  # Opens http://localhost:3000-5000
 ```
+
+**Using Nix:**
+```bash
+# Try without installing
+nix run github:Priivacy-ai/spec-kitty
+
+# Install to user profile
+nix profile install github:Priivacy-ai/spec-kitty
+
+# Development environment with all dependencies
+nix develop github:Priivacy-ai/spec-kitty
+```
+
+See [Installation Guide: Nix](docs/how-to/install-spec-kitty.md#nix) for details.
 
 **What just happened:**
 - ✅ Created `.claude/commands/` (or `.gemini/`, `.cursor/`, etc.) with 13 slash commands

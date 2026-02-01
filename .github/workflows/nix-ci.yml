@@ -1,0 +1,108 @@
+name: Nix CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.github/workflows/nix-ci.yml'
+  push:
+    branches: [nix-flake]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nix-build:
+    name: Nix Build & Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v13
+
+      - name: Setup Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@v7
+
+      - name: Verify flake metadata
+        run: |
+          nix flake metadata
+          echo "::group::Checking nixos-24.11 channel"
+          nix flake metadata --json | grep -q "nixos-24.11" || {
+            echo "❌ ERROR: flake.nix must use nixos-24.11, not nixos-unstable"
+            exit 1
+          }
+          echo "✅ Using stable nixos-24.11 channel"
+          echo "::endgroup::"
+
+      - name: Run flake check
+        run: nix flake check --show-trace
+
+      - name: Build spec-kitty package
+        run: |
+          echo "::group::Building spec-kitty"
+          nix build .#spec-kitty --print-build-logs
+          echo "::endgroup::"
+
+      - name: Smoke tests - CLI
+        run: |
+          echo "::group::Testing CLI"
+          ./result/bin/spec-kitty --version
+          ./result/bin/spec-kitty --help | grep -q "Spec Kitty CLI" || {
+            echo "❌ CLI help output missing expected text"
+            exit 1
+          }
+          echo "✅ CLI works"
+          echo "::endgroup::"
+
+      - name: Smoke tests - Wrappers
+        run: |
+          echo "::group::Testing wrappers"
+          ./result/bin/spec-kitty-python --version
+          ./result/bin/spec-kitty-bash -c "command -v git"
+          echo "✅ Wrappers work"
+          echo "::endgroup::"
+
+      - name: Smoke tests - Python imports
+        run: |
+          echo "::group::Testing Python imports"
+          ./result/bin/spec-kitty-python -c "from specify_cli import main; print('✅ Main import OK')"
+          ./result/bin/spec-kitty-python -c "from specify_cli.guards import validate_worktree_location; print('✅ Guards import OK')"
+          echo "::endgroup::"
+
+      - name: Test devShell
+        run: |
+          echo "::group::Testing devShell"
+          nix develop --command bash -c "
+            python --version
+            pytest --version
+            echo '✅ DevShell tools available'
+          "
+          echo "::endgroup::"
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Nix Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**OS:** ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Flake Info" >> $GITHUB_STEP_SUMMARY
+          nix flake metadata --json | jq -r '
+            "- **Nixpkgs:** \(.locks.nodes.nixpkgs.locked.url // "unknown")",
+            "- **Flake Utils:** \(.locks.nodes["flake-utils"].locked.url // "unknown")"
+          ' >> $GITHUB_STEP_SUMMARY || echo "Metadata unavailable" >> $GITHUB_STEP_SUMMARY
