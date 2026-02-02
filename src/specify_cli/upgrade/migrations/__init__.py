@@ -23,7 +23,7 @@ def auto_discover_migrations() -> None:
     frequently forget to update.
 
     Handles both fresh imports and re-registration after MigrationRegistry.clear()
-    by reloading already-imported modules.
+    by reloading already-imported modules (only if they're not already registered).
     """
     import sys
 
@@ -42,9 +42,32 @@ def auto_discover_migrations() -> None:
 
                 # Check if module was already imported
                 if module_full_name in sys.modules:
-                    # Reload to re-execute @register decorators
-                    # This is needed after MigrationRegistry.clear() in tests
-                    importlib.reload(sys.modules[module_full_name])
+                    # Only reload if the migration isn't already registered
+                    # This handles test scenarios where MigrationRegistry.clear()
+                    # was called but modules are still in sys.modules
+                    # For normal use, if module is imported (e.g., for utility functions),
+                    # the migration is already registered so skip reload
+                    from ..registry import MigrationRegistry
+
+                    # Check if any migration from this module is already registered
+                    # If so, skip reload to avoid duplicate registration errors
+                    module = sys.modules[module_full_name]
+                    has_registered_migration = False
+
+                    for attr_name in dir(module):
+                        attr = getattr(module, attr_name)
+                        if (
+                            isinstance(attr, type)
+                            and hasattr(attr, "migration_id")
+                            and attr.migration_id in MigrationRegistry._migrations
+                        ):
+                            has_registered_migration = True
+                            break
+
+                    if not has_registered_migration:
+                        # Module imported but migration not registered (test scenario)
+                        importlib.reload(sys.modules[module_full_name])
+                    # else: Migration already registered, skip reload
                 else:
                     # Fresh import
                     importlib.import_module(f".{module_name}", package=__name__)
