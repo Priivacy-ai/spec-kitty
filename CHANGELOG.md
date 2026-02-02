@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.21] - 2026-02-02
+
+### 🐛 Fixed
+
+**Duplicate Migration Registration Warning**:
+- Fixed warning on startup: "Failed to import migration module m_0_9_1_complete_lane_migration: Duplicate migration ID"
+- Root cause: Migration module served dual purposes (migration + utilities), causing reload during auto-discovery
+- Solution: Extracted agent directory utilities to `agent_utils/directories.py` module
+- Changes:
+  - Created `agent_utils/directories.py` with `AGENT_DIRS`, `AGENT_DIR_TO_KEY`, `get_agent_dirs_for_project()`
+  - Updated `m_0_9_1_complete_lane_migration.py` to import from `agent_utils` (backward compatible)
+  - Fixed `auto_discover_migrations()` to skip reload if migration already registered
+- Impact: Clean startup without warnings, proper separation of concerns
+- Applies to both 1.x (main) and 2.x branches
+
 ## [0.13.20] - 2026-01-30
 
 ### 🐛 Fixed
