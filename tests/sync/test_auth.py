@@ -67,6 +67,15 @@ class TestObtainTokens:
 
             assert "Cannot reach server" in str(exc_info.value)
 
+    def test_rejects_non_https_server_url(self, auth_client):
+        """Non-HTTPS server URLs should be rejected."""
+        auth_client.config.get_server_url = lambda: "http://insecure.example.com"
+
+        with pytest.raises(AuthenticationError) as exc_info:
+            _ = auth_client.server_url
+
+        assert "https://" in str(exc_info.value)
+
 
 class TestRefreshTokens:
     """Tests for AuthClient.refresh_tokens()."""
@@ -105,6 +114,30 @@ class TestRefreshTokens:
             auth_client.refresh_tokens()
 
         assert "No valid refresh token" in str(exc_info.value)
+
+    def test_refresh_tokens_does_not_leak_token(self, auth_client):
+        """refresh_tokens() errors should not include token values."""
+        sensitive_token = "SECRET_REFRESH_TOKEN"
+        auth_client.credential_store.save(
+            access_token="old_access",
+            refresh_token=sensitive_token,
+            access_expires_at=datetime.utcnow() - timedelta(minutes=1),
+            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            username="user@example.com",
+            server_url="https://test.example.com",
+        )
+
+        mock_response = Mock()
+        mock_response.status_code = 401
+        mock_response.json.return_value = {"detail": "Token invalid"}
+
+        with patch.object(auth_client, "_get_http_client") as mock_client:
+            mock_client.return_value.post.return_value = mock_response
+
+            with pytest.raises(AuthenticationError) as exc_info:
+                auth_client.refresh_tokens()
+
+        assert sensitive_token not in str(exc_info.value)
 
 
 class TestGetAccessToken:
