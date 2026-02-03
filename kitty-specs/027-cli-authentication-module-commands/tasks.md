@@ -167,8 +167,8 @@
 - [x] T020 Create unit tests for `CredentialStore` in `tests/sync/test_credentials.py`
 - [x] T021 Create unit tests for `AuthClient` in `tests/sync/test_auth.py`
 - [x] T022 Create integration tests for CLI commands in `tests/cli/test_auth_commands.py`
-- [ ] T025 Add tests that reject non-HTTPS server URLs for auth requests
-- [ ] T026 Add tests ensuring token values are not present in error messages/log output
+- [x] T025 Add tests that reject non-HTTPS server URLs for auth requests
+- [x] T026 Add tests ensuring token values are not present in error messages/log output
 
 ### Implementation Notes
 - Use pytest (existing test framework)
