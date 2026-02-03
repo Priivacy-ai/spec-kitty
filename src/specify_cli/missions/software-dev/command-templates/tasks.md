@@ -24,22 +24,22 @@ description: Generate grouped work packages with actionable subtasks and matchin
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in MAIN repository
+## 📍 WORKING DIRECTORY: Stay in planning repository
 
-**IMPORTANT**: Tasks works in the main repository. NO worktrees created.
+**IMPORTANT**: Tasks works in the planning repository. NO worktrees created.
 
 ```bash
 # Run from project root (same directory as /spec-kitty.plan):
 # You should already be here if you just ran /spec-kitty.plan
 
 # Creates:
-# - kitty-specs/###-feature/tasks/WP01-*.md → In main repository
-# - kitty-specs/###-feature/tasks/WP02-*.md → In main repository
-# - Commits ALL to main branch
+# - kitty-specs/###-feature/tasks/WP01-*.md → In planning repository
+# - kitty-specs/###-feature/tasks/WP02-*.md → In planning repository
+# - Commits ALL to target branch
 # - NO worktrees created
 ```
 
-**Do NOT cd anywhere**. Stay in the main repository root.
+**Do NOT cd anywhere**. Stay in the planning repository root.
 
 **Worktrees created later**: After tasks are generated, use `spec-kitty implement WP##` to create workspace for each WP.
 
@@ -53,21 +53,21 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Check (0.11.0+)
 
-Before proceeding, verify you are in the main repository:
+Before proceeding, verify you are in the planning repository:
 
 **Check your current branch:**
 ```bash
 git branch --show-current
 ```
 
-**Expected output:** `main` (or `master`)
-**If you see a feature branch:** You're in the wrong place. Return to main:
+**Expected output:** the target branch (meta.json → target_branch), typically `main` or `2.x`
+**If you see a feature branch:** You're in the wrong place. Return to the target branch:
 ```bash
 cd $(git rev-parse --show-toplevel)
-git checkout main
+git checkout <target-branch>
 ```
 
-Work packages are generated directly in `kitty-specs/###-feature/` and committed to main. Worktrees are created later when implementing each work package.
+Work packages are generated directly in `kitty-specs/###-feature/` and committed to the target branch. Worktrees are created later when implementing each work package.
 
 ## Outline
 
@@ -159,7 +159,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Parse dependencies from tasks.md
    - Update WP frontmatter with dependencies field
    - Validate dependencies (check for cycles, invalid references)
-   - Commit all tasks to main branch
+   - Commit all tasks to target branch
 
    **CRITICAL**: Run this command from repo root:
    ```bash
@@ -169,7 +169,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    This step is MANDATORY for workspace-per-WP features. Without it:
    - Dependencies won't be in frontmatter
    - Agents won't know which --base flag to use
-   - Tasks won't be committed to main
+   - Tasks won't be committed to target branch
 
    **IMPORTANT - DO NOT COMMIT AGAIN AFTER THIS COMMAND**:
    - finalize-tasks COMMITS the files automatically
@@ -186,7 +186,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Parallelization highlights
    - MVP scope recommendation (usually Work Package 1)
    - Prompt generation stats (files written, directory structure, any skipped items with rationale)
-   - Finalization status (dependencies parsed, X WP files updated, committed to main)
+   - Finalization status (dependencies parsed, X WP files updated, committed to target branch)
    - Next suggested command (e.g., `/spec-kitty.analyze` or `/spec-kitty.implement`)
 
 Context for work-package planning: {ARGS}
@@ -426,7 +426,7 @@ Run `spec-kitty agent feature finalize-tasks --json` to:
 - Parse dependencies
 - Update frontmatter
 - Validate (cycles, invalid refs)
-- Commit to main
+- Commit to target branch
 
 **DO NOT run git commit after this** - finalize-tasks commits automatically.
 Check JSON output for "commit_created": true and "commit_hash" to verify.

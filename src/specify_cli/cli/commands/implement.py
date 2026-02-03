@@ -957,7 +957,7 @@ def implement(
         console.print(tracker.render())
         raise
 
-    # Step 4: Update WP lane to "doing" and auto-commit to main
+    # Step 4: Update WP lane to "doing" and auto-commit to target branch
     # This enables multi-agent synchronization - all agents see the claim immediately
     try:
         import os
@@ -974,9 +974,8 @@ def implement(
             updated_front = set_scalar(wp.frontmatter, "lane", "doing")
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
-            # Build and write updated document
+            # Build updated document (write after ensuring target branch)
             updated_doc = build_document(updated_front, wp.body, wp.padding)
-            wp.path.write_text(updated_doc, encoding="utf-8")
 
             # Auto-commit to target branch (respects two-branch strategy)
             from specify_cli.core.feature_detection import get_feature_target_branch
@@ -1030,43 +1029,36 @@ def implement(
                     check=False
                 )
                 if checkout_result.returncode != 0:
-                    console.print(f"[yellow]Warning:[/yellow] Could not checkout {target_branch}, committing to {current_branch}")
-                    target_branch = current_branch  # Fallback to current
+                    console.print(f"[yellow]Warning:[/yellow] Could not checkout {target_branch}: {checkout_result.stderr}")
+                    raise RuntimeError(f"Could not checkout target branch {target_branch}")
 
-            try:
-                # Stage and commit the file
-                subprocess.run(
-                    ["git", "add", str(wp.path.resolve())],
-                    cwd=repo_root,
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
+            # Write updated document after ensuring target branch
+            wp.path.write_text(updated_doc, encoding="utf-8")
 
-                commit_result = subprocess.run(
-                    ["git", "commit", "-m", commit_msg],
-                    cwd=repo_root,
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
+            # Stage and commit the file
+            subprocess.run(
+                ["git", "add", str(wp.path.resolve())],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
 
-                if commit_result.returncode == 0:
-                    console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {target_branch})[/cyan]")
-                else:
-                    # Commit failed - file might be unchanged or other issue
-                    console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
-                    if commit_result.stderr:
-                        console.print(f"  {commit_result.stderr.strip()}")
-            finally:
-                # Restore original branch
-                if current_branch != target_branch:
-                    subprocess.run(
-                        ["git", "checkout", current_branch],
-                        cwd=repo_root,
-                        capture_output=True,
-                        check=False
-                    )
+            commit_result = subprocess.run(
+                ["git", "commit", "-m", commit_msg],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+
+            if commit_result.returncode == 0:
+                console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {target_branch})[/cyan]")
+            else:
+                # Commit failed - file might be unchanged or other issue
+                console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
+                if commit_result.stderr:
+                    console.print(f"  {commit_result.stderr.strip()}")
 
     except Exception as e:
         # Non-fatal: workspace created but lane update failed

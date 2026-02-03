@@ -6,21 +6,21 @@ description: Execute the implementation planning workflow using the plan templat
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in MAIN repository
+## 📍 WORKING DIRECTORY: Stay in planning repository
 
-**IMPORTANT**: Plan works in the main repository. NO worktrees created.
+**IMPORTANT**: Plan works in the planning repository. NO worktrees created.
 
 ```bash
 # Run from project root (same directory as /spec-kitty.specify):
 # You should already be here if you just ran /spec-kitty.specify
 
 # Creates:
-# - kitty-specs/###-feature/plan.md → In main repository
-# - Commits to main branch
+# - kitty-specs/###-feature/plan.md → In planning repository
+# - Commits to target branch
 # - NO worktrees created
 ```
 
-**Do NOT cd anywhere**. Stay in the main repository root.
+**Do NOT cd anywhere**. Stay in the planning repository root.
 
 ## User Input
 
@@ -32,11 +32,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Check (0.11.0+)
 
-This command runs in the **main repository**, not in a worktree.
+This command runs in the **planning repository**, not in a worktree.
 
-- Verify you're on `main` (or `master`) before scaffolding plan.md
+- Verify you're on the target branch (meta.json → target_branch) before scaffolding plan.md
 - Planning artifacts live in `kitty-specs/###-feature/`
-- The plan template is committed to the main branch after generation
+- The plan template is committed to the target branch after generation
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
