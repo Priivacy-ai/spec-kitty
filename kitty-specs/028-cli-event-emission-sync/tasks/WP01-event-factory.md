@@ -10,12 +10,12 @@ subtasks:
   - "T007"
 title: "Event Factory Module"
 phase: "Phase 1 - Foundation"
-lane: "doing"
+lane: "planned"
 assignee: ""
 agent: "claude-opus"
 shell_pid: "64523"
-review_status: ""
-reviewed_by: ""
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 dependencies: []
 history:
   - timestamp: "2026-02-03T18:58:09Z"
@@ -29,11 +29,23 @@ history:
 
 ## Review Feedback
 
-> **Populated by `/spec-kitty.review`** - Reviewers add detailed feedback here when work needs changes. Implementation must address every item listed below before returning for re-review.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-02-03
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review. If you see feedback here, treat each item as a must-do before completion.]*
+**Issue 1: ULID generation still not per spec**
+Spec requires `ulid.new().str` for event IDs and causation IDs. The new `_generate_ulid()` wrapper still uses `str(ulid.ULID())`. Please update `_generate_ulid()` to use `ulid.new().str` (and handle compatibility if needed), and ensure both `event_id` and `generate_causation_id()` use it.
 
----
+**Issue 2: Payload validation is still incomplete vs events.schema.json**
+The new `_PAYLOAD_RULES` covers only a subset of schema constraints. Missing validations include:
+- `WPCreated.dependencies` array items must match `^WP\d{2}$`
+- `WPAssigned.retry_count` must be integer >= 0
+- `FeatureCreated.created_at` and `FeatureCompleted.completed_at` must be date-time strings when present
+- `FeatureCompleted.total_duration` must be string or null
+- `ErrorLogged.wp_id/stack_trace/agent_id` must be string or null
+- `HistoryAdded.author` should be string when present
+Also the envelope fields `event_id` and `causation_id` must match the ULID pattern. Right now the envelope validation only checks length via the vendored `Event` model and misses schema patterns. Please validate the full schema (either via JSON Schema validation using `contracts/events.schema.json` or by expanding `_PAYLOAD_RULES` + envelope rules to match it exactly).
+
 
 ## Markdown Formatting
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
@@ -251,3 +263,4 @@ To change a work package's lane, either:
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 - 2026-02-03T19:29:53Z – claude-opus – shell_pid=64523 – lane=doing – Started implementation via workflow command
+- 2026-02-03T20:11:43Z – claude-opus – shell_pid=64523 – lane=planned – Moved to planned
