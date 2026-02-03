@@ -158,7 +158,7 @@ A developer working in an active session needs queued events to sync automatical
 
 - **FR-001**: System MUST provide event factory at `src/specify_cli/sync/events.py` with builder functions for all 8 event types
 - **FR-002**: Event factory MUST generate events conforming to spec-kitty-events library schemas (Feature 003)
-- **FR-003**: Each event builder MUST accept domain parameters and return fully-formed event dict with: `event_id`, `event_type`, `aggregate_id`, `payload`, `node_id`, `lamport_clock`, `causation_id`, `timestamp`
+- **FR-003**: Each event builder MUST accept domain parameters and return fully-formed event dict with: `event_id`, `event_type`, `aggregate_id`, `payload`, `node_id`, `lamport_clock`, `causation_id`, `timestamp`, `project_uuid`, `project_slug` (if available)
 - **FR-004**: Event factory MUST use ULID for `event_id` generation (time-sortable, globally unique)
 - **FR-005**: Event factory MUST manage Lamport clock state via `~/.spec-kitty/clock.json` or equivalent persistent storage
 - **FR-006**: Event factory MUST increment Lamport clock on each event creation via `tick()` operation
@@ -200,6 +200,11 @@ A developer working in an active session needs queued events to sync automatical
 
 - **FR-028a**: `team_slug` MUST be sourced from the authenticated session (AuthClient credential store or token claims)
 - **FR-028b**: If `team_slug` is unavailable, `emit_event()` MUST warn and queue the event without attempting sync until `team_slug` becomes available
+
+#### Project Identity Resolution
+
+- **FR-028c**: `project_uuid` MUST be sourced from `.kittify/config.yaml` (or equivalent) for the current project root
+- **FR-028d**: If `project_uuid` is unavailable, `emit_event()` MUST warn and queue the event without attempting sync until identity is configured
 
 #### Background Sync Service
 
