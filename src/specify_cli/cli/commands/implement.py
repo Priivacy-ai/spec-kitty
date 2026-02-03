@@ -1060,6 +1060,15 @@ def implement(
                 if commit_result.stderr:
                     console.print(f"  {commit_result.stderr.strip()}")
 
+            # Restore original branch after committing to target
+            if current_branch != target_branch:
+                subprocess.run(
+                    ["git", "checkout", current_branch],
+                    cwd=repo_root,
+                    capture_output=True,
+                    check=False
+                )
+
     except Exception as e:
         # Non-fatal: workspace created but lane update failed
         console.print(f"[yellow]Warning:[/yellow] Could not update WP status: {e}")

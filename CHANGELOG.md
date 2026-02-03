@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `_ensure_target_branch_checked_out` mocks to 27 unit tests across 5 test files that run against tmp directories without git repos
 - Fixed integration test `test_race_condition_prevented` — merge planning files to target branch before status routing
 - Fixed integration test `test_creates_feature_from_existing_worktree` — assert worktree rejection instead of branch rejection
+- Fixed missing branch restoration in `implement` command after committing lane change to target branch — caused subsequent implement calls to fail with "Planning artifacts must be committed" error
 
 ## [0.13.21] - 2026-02-02
 
