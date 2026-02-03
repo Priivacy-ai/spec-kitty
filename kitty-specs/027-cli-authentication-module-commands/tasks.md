@@ -65,8 +65,8 @@
 - [x] T009 Implement `get_access_token()` with automatic silent refresh logic
 - [x] T010 Implement `is_authenticated()` checking stored credential validity
 - [x] T011 Implement `clear_credentials()` delegating to `CredentialStore`
-- [ ] T023 Enforce HTTPS-only server URLs for all auth requests (reject non-HTTPS with clear error)
-- [ ] T024 Ensure auth errors/logging never include token values (redact or omit sensitive fields)
+- [x] T023 Enforce HTTPS-only server URLs for all auth requests (reject non-HTTPS with clear error)
+- [x] T024 Ensure auth errors/logging never include token values (redact or omit sensitive fields)
 
 ### Implementation Notes
 - Use `httpx` for HTTP client (already in dependencies)
