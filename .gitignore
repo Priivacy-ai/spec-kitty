@@ -45,6 +45,7 @@ env/
 *.lock
 .worktrees/
 .kittify/.dashboard
+.kittify/workspaces/
 node_modules/
 
 # Spec Kit-specific files
