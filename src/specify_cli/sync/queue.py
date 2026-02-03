@@ -99,12 +99,14 @@ class OfflineQueue:
             limit: Maximum number of events to return
 
         Returns:
-            List of event dicts ordered by timestamp (FIFO)
+            List of event dicts ordered by timestamp, then id (FIFO)
         """
         conn = sqlite3.connect(self.db_path)
         try:
+            # Order by timestamp first, then by id for deterministic FIFO ordering
+            # when multiple events are queued within the same second
             cursor = conn.execute(
-                'SELECT event_id, data FROM queue ORDER BY timestamp ASC LIMIT ?',
+                'SELECT event_id, data FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?',
                 (limit,)
             )
             events = []
@@ -190,7 +192,7 @@ class OfflineQueue:
         conn = sqlite3.connect(self.db_path)
         try:
             cursor = conn.execute(
-                'SELECT event_id, data FROM queue WHERE retry_count < ? ORDER BY timestamp ASC',
+                'SELECT event_id, data FROM queue WHERE retry_count < ? ORDER BY timestamp ASC, id ASC',
                 (max_retries,)
             )
             events = []
