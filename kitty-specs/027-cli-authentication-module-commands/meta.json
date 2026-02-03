@@ -1,0 +1,12 @@
+{
+  "feature_number": "027",
+  "slug": "027-cli-authentication-module-commands",
+  "friendly_name": "CLI Authentication Module and Commands",
+  "mission": "software-dev",
+  "source_description": "CLI Auth Module and Commands: Implement the CLI-side authentication for spec-kitty sync. This includes: (1) sync/auth.py module with token obtain/store/refresh functions that call the existing SaaS endpoints (/api/v1/token/, /api/v1/ws-token/), (2) auth login command for user authentication, (3) auth logout command to clear credentials, (4) secure credential storage in ~/.spec-kitty/credentials. This is the P0 blocker extracted from Feature 009.",
+  "created_at": "2026-02-03T16:45:00Z",
+  "extracted_from": "009-cli-saas-event-sync-dashboards",
+  "priority": "P0",
+  "vcs": "git",
+  "vcs_locked_at": "2026-02-03T16:08:22.598513+00:00"
+}

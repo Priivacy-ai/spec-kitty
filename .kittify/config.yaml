@@ -2,7 +2,9 @@ vcs:
   type: git
 agents:
   available:
+  - claude
   - opencode
+  - codex
   selection:
     strategy: random
     preferred_implementer:
