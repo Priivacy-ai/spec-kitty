@@ -8,16 +8,20 @@ Provides real-time synchronization with spec-kitty-saas server via:
 - Batch sync for offline queue replay
 """
 
+from .auth import AuthClient, AuthenticationError, CredentialStore
+from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
 from .client import WebSocketClient
 from .config import SyncConfig
 from .queue import OfflineQueue
-from .batch import batch_sync, sync_all_queued_events, BatchSyncResult
 
 __all__ = [
-    'WebSocketClient',
-    'SyncConfig',
-    'OfflineQueue',
-    'batch_sync',
-    'sync_all_queued_events',
-    'BatchSyncResult',
+    "AuthClient",
+    "AuthenticationError",
+    "CredentialStore",
+    "WebSocketClient",
+    "SyncConfig",
+    "OfflineQueue",
+    "batch_sync",
+    "sync_all_queued_events",
+    "BatchSyncResult",
 ]
