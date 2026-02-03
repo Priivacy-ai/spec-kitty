@@ -35,7 +35,7 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(orchestrate_module.app, name="orchestrate")
     app.add_typer(repair_module.app, name="repair", help="Repair broken templates")
     app.command()(research_module.research)
-    app.command()(sync_module.sync)
+    app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
     app.command()(upgrade_module.upgrade)
     app.command(name="list-legacy-features")(upgrade_module.list_legacy_features)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
