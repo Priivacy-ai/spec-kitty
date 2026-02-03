@@ -80,6 +80,8 @@ def login(
         raise typer.Exit(1)
 
     client = AuthClient()
+    # Get raw URL for display (won't raise on non-HTTPS)
+    raw_server_url = client.config.get_server_url()
 
     try:
         if client.is_authenticated() and not force:
@@ -92,7 +94,7 @@ def login(
         console.print("✅ Login successful!")
         console.print(f"   Logged in as: {username}")
     except AuthenticationError as exc:
-        _handle_auth_error(str(exc), client.server_url)
+        _handle_auth_error(str(exc), raw_server_url)
         raise typer.Exit(1)
     except PermissionError:
         console.print("❌ Cannot access credentials file. Check permissions.")

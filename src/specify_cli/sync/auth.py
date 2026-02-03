@@ -257,8 +257,12 @@ class AuthClient:
         except KeyError as exc:
             raise AuthenticationError("Invalid server response") from exc
 
-        access_expires_at = datetime.utcnow() + timedelta(minutes=15)
-        refresh_expires_at = datetime.utcnow() + timedelta(days=7)
+        # Use server-provided expiry if available, else use defaults
+        # Server may return access_lifetime (seconds) or expires_in
+        access_lifetime = data.get("access_lifetime") or data.get("expires_in") or 900  # 15 min default
+        refresh_lifetime = data.get("refresh_lifetime") or data.get("refresh_expires_in") or 604800  # 7 days default
+        access_expires_at = datetime.utcnow() + timedelta(seconds=access_lifetime)
+        refresh_expires_at = datetime.utcnow() + timedelta(seconds=refresh_lifetime)
 
         self.credential_store.save(
             access_token=access_token,
@@ -315,8 +319,11 @@ class AuthClient:
         server_url = self.credential_store.get_server_url() or self.server_url
         server_url = self._validate_server_url(server_url)
 
-        access_expires_at = datetime.utcnow() + timedelta(minutes=15)
-        refresh_expires_at = datetime.utcnow() + timedelta(days=7)
+        # Use server-provided expiry if available, else use defaults
+        access_lifetime = data.get("access_lifetime") or data.get("expires_in") or 900  # 15 min default
+        refresh_lifetime = data.get("refresh_lifetime") or data.get("refresh_expires_in") or 604800  # 7 days default
+        access_expires_at = datetime.utcnow() + timedelta(seconds=access_lifetime)
+        refresh_expires_at = datetime.utcnow() + timedelta(seconds=refresh_lifetime)
 
         self.credential_store.save(
             access_token=new_access_token,
