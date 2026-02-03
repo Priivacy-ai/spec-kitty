@@ -1,12 +1,8 @@
-"""Sync command - synchronize workspace with upstream changes.
+"""Sync commands - workspace synchronization and connection status.
 
-This command updates a workspace with changes from its base branch or parent.
-For git workspaces, this performs a rebase. For jj workspaces, this updates
-the workspace revision.
-
-Key difference:
-- git: Sync may fail on conflicts (must be resolved before continuing)
-- jj: Sync always succeeds (conflicts are stored and can be resolved later)
+This module provides two groups of sync functionality:
+1. Workspace sync: updates workspace with changes from base branch
+2. Connection status: shows WebSocket sync connection state
 """
 
 from __future__ import annotations
@@ -30,6 +26,9 @@ from specify_cli.core.vcs import (
 )
 
 console = Console()
+
+# Create a Typer app for sync subcommands
+app = typer.Typer(help="Synchronization commands")
 
 
 def _detect_workspace_context() -> tuple[Path, str | None]:
@@ -213,7 +212,8 @@ def _jj_repair(workspace_path: Path) -> bool:
         return False
 
 
-def sync(
+@app.command(name="workspace")
+def sync_workspace(
     repair: bool = typer.Option(
         False,
         "--repair",
@@ -240,13 +240,13 @@ def sync(
 
     Examples:
         # Sync current workspace
-        spec-kitty sync
+        spec-kitty sync workspace
 
         # Sync with verbose output
-        spec-kitty sync --verbose
+        spec-kitty sync workspace --verbose
 
         # Attempt recovery from broken state
-        spec-kitty sync --repair
+        spec-kitty sync workspace --repair
     """
     console.print()
 
@@ -358,7 +358,54 @@ def sync(
 
         console.print()
         console.print("[dim]Try:[/dim]")
-        console.print("  spec-kitty sync --repair")
+        console.print("  spec-kitty sync workspace --repair")
         raise typer.Exit(1)
 
     console.print()
+
+
+@app.command()
+def status() -> None:
+    """Show WebSocket sync connection status.
+
+    Displays the current state of the WebSocket connection to the
+    spec-kitty-saas server, including:
+    - Server URL configuration
+    - Connection state (Connected/Offline/Reconnecting)
+    - Authentication status
+
+    Note: Active connection tracking is implemented in WP14-15.
+    This command shows configuration state.
+
+    Examples:
+        # Show sync status
+        spec-kitty sync status
+    """
+    from specify_cli.sync.config import SyncConfig
+
+    console.print()
+    console.print("[cyan]Spec Kitty Sync Status[/cyan]")
+    console.print()
+
+    # Load configuration
+    config = SyncConfig()
+    server_url = config.get_server_url()
+
+    # Display configuration
+    table = Table(show_header=False, box=None)
+    table.add_column("Key", style="dim")
+    table.add_column("Value")
+
+    table.add_row("Server URL", server_url)
+    table.add_row("Config File", str(config.config_file))
+    table.add_row("Connection", "[yellow]Offline[/yellow] (tracking in WP14-15)")
+
+    console.print(table)
+    console.print()
+
+    console.print("[dim]Note: Real-time connection status tracking will be "
+                  "available in WP14 (Offline Queue) and WP15 (Reconnection).[/dim]")
+    console.print()
+
+
+__all__ = ["app"]
