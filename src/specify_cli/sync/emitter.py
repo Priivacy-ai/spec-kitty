@@ -20,34 +20,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Valid enum values matching events.schema.json
-VALID_EVENT_TYPES = frozenset({
-    "WPStatusChanged",
-    "WPCreated",
-    "WPAssigned",
-    "FeatureCreated",
-    "FeatureCompleted",
-    "HistoryAdded",
-    "ErrorLogged",
-    "DependencyResolved",
-})
-
-VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Feature"})
-
-VALID_STATUSES = frozenset({"planned", "doing", "for_review", "done"})
-VALID_PHASES = frozenset({"implementation", "review"})
-VALID_ERROR_TYPES = frozenset({"validation", "runtime", "network", "auth", "unknown"})
-VALID_ENTRY_TYPES = frozenset({"note", "review", "error", "comment"})
-VALID_RESOLUTION_TYPES = frozenset({"completed", "skipped", "merged"})
-
-
 class ConnectionStatus:
-    """Connection status constants."""
+    """Connection status constants matching WP spec."""
 
     CONNECTED = "Connected"
     RECONNECTING = "Reconnecting"
     OFFLINE = "Offline"
-    BATCH_MODE = "Offline - Batch Mode"
+    BATCH_MODE = "OfflineBatchMode"
 
 
 @dataclass
@@ -340,40 +319,40 @@ class EventEmitter:
         return "local"
 
     def _validate_event(self, event: dict[str, Any]) -> bool:
-        """Validate event against schema constraints.
+        """Validate event against spec-kitty-events library schemas.
 
+        Uses the vendored Event Pydantic model for structural validation.
         Returns True if valid, False if invalid (logged and discarded).
         """
         try:
-            # Check required fields
-            required = {
-                "event_id", "event_type", "aggregate_id", "aggregate_type",
-                "payload", "node_id", "lamport_clock", "timestamp", "team_slug",
+            from specify_cli.spec_kitty_events import Event as EventModel
+
+            # Build the subset of fields the Event model expects.
+            # The Event model does not have aggregate_type or team_slug,
+            # so we validate those separately after model validation.
+            model_data = {
+                "event_id": event["event_id"],
+                "event_type": event["event_type"],
+                "aggregate_id": event["aggregate_id"],
+                "payload": event["payload"],
+                "timestamp": event["timestamp"],
+                "node_id": event["node_id"],
+                "lamport_clock": event["lamport_clock"],
+                "causation_id": event.get("causation_id"),
             }
-            missing = required - set(event.keys())
-            if missing:
-                logger.warning("Event missing required fields: %s", missing)
-                return False
 
-            # Check event_type is valid
-            if event["event_type"] not in VALID_EVENT_TYPES:
-                logger.warning("Invalid event_type: %s", event["event_type"])
-                return False
+            # Pydantic validates field types, lengths, and constraints
+            EventModel(**model_data)
 
-            # Check aggregate_type is valid
-            if event["aggregate_type"] not in VALID_AGGREGATE_TYPES:
-                logger.warning("Invalid aggregate_type: %s", event["aggregate_type"])
-                return False
-
-            # Check lamport_clock is non-negative integer
-            if not isinstance(event["lamport_clock"], int) or event["lamport_clock"] < 0:
-                logger.warning("Invalid lamport_clock: %s", event["lamport_clock"])
+            # Validate fields the library model doesn't cover
+            if not event.get("team_slug"):
+                logger.warning("Event missing team_slug")
                 return False
 
             return True
 
         except Exception as e:
-            logger.warning("Event validation error: %s", e)
+            logger.warning("Event validation failed: %s", e)
             return False
 
     def _route_event(self, event: dict[str, Any]) -> bool:
