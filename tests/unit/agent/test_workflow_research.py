@@ -62,15 +62,17 @@ Research literature on the topic.
 class TestResearchImplementCommand:
     """Tests for implement command with research missions."""
 
+    @patch("specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.workflow.locate_project_root")
     @patch("specify_cli.cli.commands.agent.workflow._find_feature_slug")
     def test_implement_shows_deliverables_path(
-        self, mock_slug: Mock, mock_root: Mock, research_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, research_task_file: Path
     ):
         """implement output should display deliverables_path for research missions."""
         repo_root = research_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-research-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(
@@ -81,15 +83,17 @@ class TestResearchImplementCommand:
         assert result.exit_code == 0
         assert "docs/research/008-research-feature/" in result.stdout or "research deliverables" in result.stdout.lower()
 
+    @patch("specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.workflow.locate_project_root")
     @patch("specify_cli.cli.commands.agent.workflow._find_feature_slug")
     def test_implement_warns_about_kitty_specs(
-        self, mock_slug: Mock, mock_root: Mock, research_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, research_task_file: Path
     ):
         """implement output should warn not to put deliverables in kitty-specs."""
         repo_root = research_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-research-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(
@@ -101,15 +105,17 @@ class TestResearchImplementCommand:
         # The warning appears in the temp file, not necessarily stdout
         # Check that output mentions research or deliverables
 
+    @patch("specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.workflow.locate_project_root")
     @patch("specify_cli.cli.commands.agent.workflow._find_feature_slug")
     def test_implement_detects_research_mission(
-        self, mock_slug: Mock, mock_root: Mock, research_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, research_task_file: Path
     ):
         """implement should correctly detect research mission from meta.json."""
         repo_root = research_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-research-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(
@@ -125,10 +131,11 @@ class TestResearchImplementCommand:
 class TestResearchMissionDetection:
     """Tests for mission detection in workflow commands."""
 
+    @patch("specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.workflow.locate_project_root")
     @patch("specify_cli.cli.commands.agent.workflow._find_feature_slug")
     def test_software_dev_does_not_show_deliverables(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Software-dev missions should not show deliverables_path."""
         repo_root = tmp_path / "repo"
@@ -166,6 +173,7 @@ Content
 
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-sw-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(
@@ -181,10 +189,11 @@ Content
 class TestDeliverablesPathInPrompt:
     """Tests for deliverables_path inclusion in generated prompts."""
 
+    @patch("specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.workflow.locate_project_root")
     @patch("specify_cli.cli.commands.agent.workflow._find_feature_slug")
     def test_prompt_file_contains_deliverables_path(
-        self, mock_slug: Mock, mock_root: Mock, research_task_file: Path, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, research_task_file: Path, tmp_path: Path
     ):
         """The generated prompt file should contain deliverables_path for research."""
         import tempfile
@@ -192,6 +201,7 @@ class TestDeliverablesPathInPrompt:
         repo_root = research_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-research-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(
@@ -217,10 +227,11 @@ class TestDeliverablesPathInPrompt:
             content = prompt_file_path.read_text()
             assert "docs/research/008-research-feature/" in content
 
+    @patch("specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.workflow.locate_project_root")
     @patch("specify_cli.cli.commands.agent.workflow._find_feature_slug")
     def test_default_deliverables_path_when_not_in_meta(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should use default deliverables path when not specified in meta.json."""
         repo_root = tmp_path / "repo"
@@ -259,6 +270,7 @@ Content
 
         mock_root.return_value = repo_root
         mock_slug.return_value = "009-research-no-path"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(

@@ -156,11 +156,11 @@ class TestCreateFeatureIntegration:
         )
         monkeypatch.chdir(worktree_path)
 
-        # Create feature from worktree should fail (must be on main/master)
+        # Create feature from worktree should fail (must be in planning repo, not worktree)
         result = runner.invoke(app, ["create-feature", "second-feature", "--json"])
         assert result.exit_code != 0
         error_output = result.stdout + result.stderr
-        assert "main branch" in error_output.lower()
+        assert "worktree" in error_output.lower()
 
 
 class TestCheckPrerequisitesIntegration:

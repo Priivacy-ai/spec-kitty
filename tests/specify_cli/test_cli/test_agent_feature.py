@@ -22,7 +22,7 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_creates_feature_with_json_output(
         self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
@@ -57,7 +57,7 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_creates_feature_with_human_output(
         self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
@@ -137,25 +137,30 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
-    def test_requires_main_branch(
-        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+    @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
+    def test_creates_feature_from_any_branch(
+        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
+        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
     ):
-        """Should require main branch for feature creation."""
-        # Setup: On wrong branch
+        """Should allow feature creation from any branch (not just main)."""
+        # Setup: On non-main branch
         mock_locate.return_value = tmp_path
         mock_is_git.return_value = True
         mock_branch.return_value = "develop"
+        mock_get_number.return_value = 1
+
+        # Create necessary directories
+        (tmp_path / ".kittify" / "templates").mkdir(parents=True)
+        (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
 
         # Execute
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
 
-        # Verify
-        assert result.exit_code == 1
-        # Parse only the first line (JSON output)
-        first_line = result.stdout.strip().split('\n')[0]
-        output = json.loads(first_line)
-        assert "error" in output
-        assert "main" in output["error"].lower()
+        # Verify - should succeed from any branch
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["result"] == "success"
 
 
 class TestCheckPrerequisitesCommand:
@@ -347,9 +352,12 @@ class TestSetupPlanCommand:
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
+    @patch("specify_cli.cli.commands.agent.feature._resolve_planning_branch")
+    @patch("specify_cli.cli.commands.agent.feature._ensure_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_scaffolds_plan_template_json(
-        self, mock_commit: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_commit: Mock, mock_ensure: Mock, mock_resolve: Mock,
+        mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should scaffold plan template and output JSON format."""
         # Setup
@@ -357,6 +365,7 @@ class TestSetupPlanCommand:
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
         mock_find.return_value = feature_dir
+        mock_resolve.return_value = "main"
 
         # Create template
         template_dir = tmp_path / ".kittify" / "templates"
@@ -384,9 +393,12 @@ class TestSetupPlanCommand:
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
+    @patch("specify_cli.cli.commands.agent.feature._resolve_planning_branch")
+    @patch("specify_cli.cli.commands.agent.feature._ensure_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_scaffolds_plan_template_human(
-        self, mock_commit: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_commit: Mock, mock_ensure: Mock, mock_resolve: Mock,
+        mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should scaffold plan template and output human-readable format."""
         # Setup
@@ -394,6 +406,7 @@ class TestSetupPlanCommand:
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
         mock_find.return_value = feature_dir
+        mock_resolve.return_value = "main"
 
         # Create template
         template_dir = tmp_path / ".kittify" / "templates"
@@ -410,9 +423,12 @@ class TestSetupPlanCommand:
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.feature._resolve_planning_branch")
+    @patch("specify_cli.cli.commands.agent.feature._ensure_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.feature.files")
     def test_errors_when_template_not_found(
-        self, mock_files: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_files: Mock, mock_ensure: Mock, mock_resolve: Mock,
+        mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should return error when plan template not found."""
         # Setup
@@ -420,6 +436,7 @@ class TestSetupPlanCommand:
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
         mock_find.return_value = feature_dir
+        mock_resolve.return_value = "main"
 
         # No template created and package template unavailable
         package_templates = Mock()

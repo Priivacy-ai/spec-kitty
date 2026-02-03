@@ -354,7 +354,6 @@ def implement(
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
 
         # Determine which WP to implement
         if wp_id:
@@ -780,6 +779,7 @@ def review(
             raise typer.Exit(1)
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
 
         # Determine which WP to review
         if wp_id:

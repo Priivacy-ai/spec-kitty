@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.22] - 2026-02-03
+
+### 🐛 Fixed
+
+**Target Branch Routing Test Failures (36 fixes)**:
+- Fixed missing `_ensure_target_branch_checked_out()` call in `review()` command — caused 5 test failures from undefined `main_repo_root` and `target_branch` variables
+- Removed duplicate `_ensure_target_branch_checked_out()` call in `implement()` — prevented double git operations at runtime
+- Fixed `sync` → `sync_workspace` rename in `test_sync.py` — function was renamed but test imports were not updated (1 collection error)
+- Fixed `_commit_to_main` → `_commit_to_branch` mock rename in `test_agent_feature.py` — 5 test failures from patching non-existent function
+- Updated branch policy tests to reflect new any-branch feature creation behavior — tests expected rejection on non-main branches but code now intentionally allows any branch
+- Added `_ensure_target_branch_checked_out` mocks to 27 unit tests across 5 test files that run against tmp directories without git repos
+- Fixed integration test `test_race_condition_prevented` — merge planning files to target branch before status routing
+- Fixed integration test `test_creates_feature_from_existing_worktree` — assert worktree rejection instead of branch rejection
+
 ## [0.13.21] - 2026-02-02
 
 ### 🐛 Fixed
