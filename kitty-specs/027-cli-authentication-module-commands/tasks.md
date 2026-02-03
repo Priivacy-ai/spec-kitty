@@ -135,8 +135,8 @@
 **Estimated Size**: ~250 lines
 
 ### Included Subtasks
-- [ ] T018 Update `WebSocketClient` in `src/specify_cli/sync/client.py` to use `AuthClient` for token retrieval
-- [ ] T019 Implement 401 response handling with automatic token refresh and retry
+- [x] T018 Update `WebSocketClient` in `src/specify_cli/sync/client.py` to use `AuthClient` for token retrieval
+- [x] T019 Implement 401 response handling with automatic token refresh and retry
 
 ### Implementation Notes
 - Current `WebSocketClient.__init__` takes `token` parameter directly
