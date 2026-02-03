@@ -24,12 +24,7 @@ _console = Console(stderr=True)
 
 # Load the contract schema once for payload-level validation
 _SCHEMA: dict | None = None
-_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "specify_cli"
-    / "sync"
-    / "_events_schema.json"
-)
+_SCHEMA_PATH = Path(__file__).resolve().parent / "_events_schema.json"
 
 
 def _load_contract_schema() -> dict | None:
@@ -56,38 +51,65 @@ def _load_contract_schema() -> dict | None:
 
 # Payload validation rules derived from contracts/events.schema.json
 # Each entry maps event_type -> (required_fields, field_validators)
+_ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
+_WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
+_FEATURE_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
+_FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")
+
+
+def _is_datetime_string(value: Any) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    try:
+        candidate = value.replace("Z", "+00:00")
+        datetime.fromisoformat(candidate)
+        return True
+    except ValueError:
+        return False
+
+
+def _is_nullable_string(value: Any) -> bool:
+    return value is None or (isinstance(value, str))
+
+
 _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     "WPStatusChanged": {
         "required": {"wp_id", "previous_status", "new_status"},
         "validators": {
-            "wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "previous_status": lambda v: v in {"planned", "doing", "for_review", "done"},
             "new_status": lambda v: v in {"planned", "doing", "for_review", "done"},
+            "changed_by": lambda v: isinstance(v, str) if v is not None else True,
+            "feature_slug": lambda v: _is_nullable_string(v),
         },
     },
     "WPCreated": {
         "required": {"wp_id", "title", "feature_slug"},
         "validators": {
-            "wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "title": lambda v: isinstance(v, str) and len(v) >= 1,
             "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "dependencies": lambda v: isinstance(v, list)
+            and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v),
         },
     },
     "WPAssigned": {
         "required": {"wp_id", "agent_id", "phase"},
         "validators": {
-            "wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "agent_id": lambda v: isinstance(v, str) and len(v) >= 1,
             "phase": lambda v: v in {"implementation", "review"},
+            "retry_count": lambda v: isinstance(v, int) and v >= 0,
         },
     },
     "FeatureCreated": {
         "required": {"feature_slug", "feature_number", "target_branch", "wp_count"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and bool(re.match(r"^\d{3}-[a-z0-9-]+$", v)),
-            "feature_number": lambda v: isinstance(v, str) and bool(re.match(r"^\d{3}$", v)),
+            "feature_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
+            "feature_number": lambda v: isinstance(v, str) and bool(_FEATURE_NUMBER_PATTERN.match(v)),
             "target_branch": lambda v: isinstance(v, str) and len(v) >= 1,
             "wp_count": lambda v: isinstance(v, int) and v >= 0,
+            "created_at": lambda v: _is_datetime_string(v),
         },
     },
     "FeatureCompleted": {
@@ -95,14 +117,17 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "validators": {
             "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "total_wps": lambda v: isinstance(v, int) and v >= 0,
+            "completed_at": lambda v: _is_datetime_string(v),
+            "total_duration": lambda v: _is_nullable_string(v),
         },
     },
     "HistoryAdded": {
         "required": {"wp_id", "entry_type", "entry_content"},
         "validators": {
-            "wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "entry_type": lambda v: v in {"note", "review", "error", "comment"},
             "entry_content": lambda v: isinstance(v, str) and len(v) >= 1,
+            "author": lambda v: isinstance(v, str) if v is not None else True,
         },
     },
     "ErrorLogged": {
@@ -110,13 +135,16 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "validators": {
             "error_type": lambda v: v in {"validation", "runtime", "network", "auth", "unknown"},
             "error_message": lambda v: isinstance(v, str) and len(v) >= 1,
+            "wp_id": _is_nullable_string,
+            "stack_trace": _is_nullable_string,
+            "agent_id": _is_nullable_string,
         },
     },
     "DependencyResolved": {
         "required": {"wp_id", "dependency_wp_id", "resolution_type"},
         "validators": {
-            "wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
-            "dependency_wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
+            "dependency_wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "resolution_type": lambda v: v in {"completed", "skipped", "merged"},
         },
     },
@@ -139,10 +167,11 @@ def _generate_ulid() -> str:
     """Generate a new ULID string.
 
     Uses python-ulid (the project dependency). The WP spec references
-    ulid.new().str which is the ulid-py package API; python-ulid uses
-    ULID() instead. This wrapper provides a single point to swap if the
-    underlying library changes.
+    ulid.new().str which is the ulid-py package API. We prefer that
+    when available, otherwise fall back to python-ulid's ULID().
     """
+    if hasattr(ulid, "new"):
+        return ulid.new().str
     return str(ulid.ULID())
 
 
@@ -475,6 +504,23 @@ class EventEmitter:
             if event_type not in VALID_EVENT_TYPES:
                 _console.print(
                     f"[yellow]Warning: Unknown event_type: {event_type}[/yellow]"
+                )
+                return False
+
+            # 3b. Validate ULID patterns for event_id and causation_id
+            event_id = event.get("event_id")
+            if not isinstance(event_id, str) or not _ULID_PATTERN.match(event_id):
+                _console.print(
+                    f"[yellow]Warning: Invalid event_id: {event_id!r}[/yellow]"
+                )
+                return False
+            causation_id = event.get("causation_id")
+            if causation_id is not None and (
+                not isinstance(causation_id, str)
+                or not _ULID_PATTERN.match(causation_id)
+            ):
+                _console.print(
+                    f"[yellow]Warning: Invalid causation_id: {causation_id!r}[/yellow]"
                 )
                 return False
 
