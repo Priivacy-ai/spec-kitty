@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -100,10 +100,15 @@ class CredentialStore:
         return self.credentials_path.exists()
 
     def _parse_expiry(self, value: str) -> Optional[datetime]:
+        """Parse expiry timestamp, normalizing to naive UTC datetime."""
         try:
             if isinstance(value, str) and value.endswith("Z"):
                 value = value[:-1] + "+00:00"
-            return datetime.fromisoformat(value)
+            parsed = datetime.fromisoformat(value)
+            # Normalize to naive UTC for consistent comparison with utcnow()
+            if parsed.tzinfo is not None:
+                parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+            return parsed
         except (TypeError, ValueError):
             return None
 
@@ -194,6 +199,15 @@ class AuthClient:
             )
         return url
 
+    def _coerce_lifetime(self, value: Optional[str | int], default: int) -> int:
+        """Coerce lifetime value to int, handling string responses from server."""
+        if value is None:
+            return default
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
     @property
     def server_url(self) -> str:
         """Get server URL from config."""
@@ -258,9 +272,13 @@ class AuthClient:
             raise AuthenticationError("Invalid server response") from exc
 
         # Use server-provided expiry if available, else use defaults
-        # Server may return access_lifetime (seconds) or expires_in
-        access_lifetime = data.get("access_lifetime") or data.get("expires_in") or 900  # 15 min default
-        refresh_lifetime = data.get("refresh_lifetime") or data.get("refresh_expires_in") or 604800  # 7 days default
+        # Server may return access_lifetime (seconds) or expires_in (possibly as strings)
+        access_lifetime = self._coerce_lifetime(
+            data.get("access_lifetime") or data.get("expires_in"), default=900  # 15 min
+        )
+        refresh_lifetime = self._coerce_lifetime(
+            data.get("refresh_lifetime") or data.get("refresh_expires_in"), default=604800  # 7 days
+        )
         access_expires_at = datetime.utcnow() + timedelta(seconds=access_lifetime)
         refresh_expires_at = datetime.utcnow() + timedelta(seconds=refresh_lifetime)
 
@@ -320,8 +338,12 @@ class AuthClient:
         server_url = self._validate_server_url(server_url)
 
         # Use server-provided expiry if available, else use defaults
-        access_lifetime = data.get("access_lifetime") or data.get("expires_in") or 900  # 15 min default
-        refresh_lifetime = data.get("refresh_lifetime") or data.get("refresh_expires_in") or 604800  # 7 days default
+        access_lifetime = self._coerce_lifetime(
+            data.get("access_lifetime") or data.get("expires_in"), default=900  # 15 min
+        )
+        refresh_lifetime = self._coerce_lifetime(
+            data.get("refresh_lifetime") or data.get("refresh_expires_in"), default=604800  # 7 days
+        )
         access_expires_at = datetime.utcnow() + timedelta(seconds=access_lifetime)
         refresh_expires_at = datetime.utcnow() + timedelta(seconds=refresh_lifetime)
 
