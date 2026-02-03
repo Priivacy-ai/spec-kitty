@@ -58,13 +58,13 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T005 Create `AuthClient` class in `src/specify_cli/sync/auth.py` with `SyncConfig` integration
-- [ ] T006 Implement `obtain_tokens(username, password)` calling `/api/v1/token/`
-- [ ] T007 Implement `refresh_tokens(refresh_token)` calling `/api/v1/token/refresh/`
-- [ ] T008 Implement `obtain_ws_token(access_token)` calling `/api/v1/ws-token/`
-- [ ] T009 Implement `get_access_token()` with automatic silent refresh logic
-- [ ] T010 Implement `is_authenticated()` checking stored credential validity
-- [ ] T011 Implement `clear_credentials()` delegating to `CredentialStore`
+- [x] T005 Create `AuthClient` class in `src/specify_cli/sync/auth.py` with `SyncConfig` integration
+- [x] T006 Implement `obtain_tokens(username, password)` calling `/api/v1/token/`
+- [x] T007 Implement `refresh_tokens(refresh_token)` calling `/api/v1/token/refresh/`
+- [x] T008 Implement `obtain_ws_token(access_token)` calling `/api/v1/ws-token/`
+- [x] T009 Implement `get_access_token()` with automatic silent refresh logic
+- [x] T010 Implement `is_authenticated()` checking stored credential validity
+- [x] T011 Implement `clear_credentials()` delegating to `CredentialStore`
 - [ ] T023 Enforce HTTPS-only server URLs for all auth requests (reject non-HTTPS with clear error)
 - [ ] T024 Ensure auth errors/logging never include token values (redact or omit sensitive fields)
 
