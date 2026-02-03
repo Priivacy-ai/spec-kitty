@@ -365,21 +365,30 @@ def sync_workspace(
 
 
 @app.command()
-def status() -> None:
+def status(
+    check_connection: bool = typer.Option(
+        False,
+        "--check",
+        "-c",
+        help="Test connection to server (may be slow if server is unreachable)",
+    ),
+) -> None:
     """Show WebSocket sync connection status.
 
-    Displays the current state of the WebSocket connection to the
-    spec-kitty-saas server, including:
+    Displays the configuration for WebSocket sync connection to the
+    spec-kitty-saas server:
     - Server URL configuration
-    - Connection state (Connected/Offline/Unreachable)
-    - Authentication status
+    - Config file location
 
-    Performs a quick connection test to determine actual connectivity.
+    Use --check to test actual connectivity (adds 3s timeout if server unreachable).
     Note: Persistent connection tracking is implemented in WP14-15.
 
     Examples:
-        # Show sync status
+        # Show configuration only (fast)
         spec-kitty sync status
+
+        # Test connection to server
+        spec-kitty sync status --check
     """
     import asyncio
     from specify_cli.sync.config import SyncConfig
@@ -393,57 +402,63 @@ def status() -> None:
     config = SyncConfig()
     server_url = config.get_server_url()
 
-    # Attempt quick connection test to determine actual status
-    connection_status = "[yellow]Unknown[/yellow]"
-    connection_note = ""
-
-    async def test_connection():
-        """Quick connection test (non-blocking)"""
-        try:
-            # Convert https to wss for WebSocket
-            ws_url = server_url.replace("https://", "wss://").replace("http://", "ws://")
-
-            # Try to connect with a test token (will fail auth but tests connectivity)
-            client = WebSocketClient(ws_url, "test-token")
-
-            # Set a short timeout for the connection test
-            try:
-                await asyncio.wait_for(client.connect(), timeout=3.0)
-                await client.disconnect()
-                return "[green]Connected[/green]", "Successfully reached server"
-            except asyncio.TimeoutError:
-                return "[red]Unreachable[/red]", "Connection timeout (server may be down)"
-            except Exception as e:
-                error_msg = str(e)
-                if "401" in error_msg or "Invalid token" in error_msg:
-                    return "[yellow]Reachable[/yellow]", "Server online (auth required)"
-                elif "refused" in error_msg.lower():
-                    return "[red]Unreachable[/red]", "Connection refused"
-                else:
-                    return "[yellow]Unknown[/yellow]", f"Error: {error_msg[:50]}"
-        except Exception as e:
-            return "[red]Error[/red]", f"Test failed: {str(e)[:50]}"
-
-    # Run the async connection test
-    try:
-        connection_status, connection_note = asyncio.run(test_connection())
-    except Exception as e:
-        connection_status = "[red]Error[/red]"
-        connection_note = f"Status check failed: {str(e)[:50]}"
-
-    # Display configuration and status
+    # Display configuration
     table = Table(show_header=False, box=None)
     table.add_column("Key", style="dim")
     table.add_column("Value")
 
     table.add_row("Server URL", server_url)
     table.add_row("Config File", str(config.config_file))
-    table.add_row("Connection", connection_status)
-    if connection_note:
-        table.add_row("Note", f"[dim]{connection_note}[/dim]")
+
+    # Optionally test connection if --check flag is provided
+    if check_connection:
+        async def test_connection():
+            """Quick connection test (non-blocking)"""
+            try:
+                # Convert https to wss for WebSocket
+                ws_url = server_url.replace("https://", "wss://").replace("http://", "ws://")
+
+                # Try to connect with a test token (will fail auth but tests connectivity)
+                client = WebSocketClient(ws_url, "test-token")
+
+                # Set a short timeout for the connection test
+                try:
+                    await asyncio.wait_for(client.connect(), timeout=3.0)
+                    await client.disconnect()
+                    return "[green]Connected[/green]", "Successfully reached server"
+                except asyncio.TimeoutError:
+                    return "[red]Unreachable[/red]", "Connection timeout (server may be down)"
+                except Exception as e:
+                    error_msg = str(e)
+                    if "401" in error_msg or "Invalid token" in error_msg:
+                        return "[yellow]Reachable[/yellow]", "Server online (auth required)"
+                    elif "403" in error_msg:
+                        return "[yellow]Reachable[/yellow]", "Server online (access forbidden)"
+                    elif "refused" in error_msg.lower():
+                        return "[red]Unreachable[/red]", "Connection refused"
+                    else:
+                        return "[yellow]Unknown[/yellow]", f"Error: {error_msg[:50]}"
+            except Exception as e:
+                return "[red]Error[/red]", f"Test failed: {str(e)[:50]}"
+
+        # Run the async connection test
+        try:
+            connection_status, connection_note = asyncio.run(test_connection())
+            table.add_row("Connection", connection_status)
+            if connection_note:
+                table.add_row("", f"[dim]{connection_note}[/dim]")
+        except Exception as e:
+            table.add_row("Connection", "[red]Error[/red]")
+            table.add_row("", f"[dim]Status check failed: {str(e)[:50]}[/dim]")
+    else:
+        table.add_row("Connection", "[dim]Not checked (use --check to test)[/dim]")
 
     console.print(table)
     console.print()
+
+    if not check_connection:
+        console.print("[dim]Use 'spec-kitty sync status --check' to test connection.[/dim]")
+        console.print()
 
     console.print("[dim]Persistent connection tracking and offline queue will be "
                   "available in WP14 (Offline Queue) and WP15 (Reconnection).[/dim]")
