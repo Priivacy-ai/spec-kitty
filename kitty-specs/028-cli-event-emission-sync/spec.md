@@ -55,6 +55,7 @@ An agent using `spec-kitty agent tasks move-task WP01 --to for_review` needs the
 2. **Given** WP01 lane change succeeds, **When** event is emitted, **Then** event contains correct `team_slug` from auth context for multi-tenant routing
 3. **Given** WP01 lane change is triggered by merge command, **When** merge completes, **Then** `WPStatusChanged` event is emitted with `doing→for_review` transition
 4. **Given** multiple task commands run in sequence, **When** each command completes, **Then** Lamport clock is incremented correctly for each event (monotonically increasing)
+5. **Given** a task command fails with a validation/runtime error, **When** the error is handled, **Then** an `ErrorLogged` event is emitted with `error_type`, `error_message`, and `agent_id` (if available)
 
 ---
 
@@ -89,6 +90,7 @@ A developer running `spec-kitty orchestrate --feature 028-cli-event-emission-syn
 2. **Given** WP01 implementation completes and review starts, **When** reviewer agent is assigned, **Then** second `WPAssigned` event is emitted with `phase=review`
 3. **Given** agent fails and orchestrator retries with fallback agent, **When** new agent is assigned, **Then** `WPAssigned` event is emitted with new `agent_id` and `retry_count` metadata
 4. **Given** orchestration completes all WPs, **When** feature is done, **Then** `FeatureCompleted` event is emitted with summary metadata
+5. **Given** WP01 completes and unblocks WP02, **When** the dependency is resolved, **Then** a `DependencyResolved` event is emitted with `wp_id`, `dependency_wp_id`, and `resolution_type`
 
 ---
 
@@ -194,6 +196,11 @@ A developer working in an active session needs queued events to sync automatical
 - **FR-029**: System MUST NOT block CLI command execution when event emission fails
 - **FR-030**: System MUST log event emission failures to console as warnings (not errors that halt execution)
 
+#### Team Slug Resolution
+
+- **FR-028a**: `team_slug` MUST be sourced from the authenticated session (AuthClient credential store or token claims)
+- **FR-028b**: If `team_slug` is unavailable, `emit_event()` MUST warn and queue the event without attempting sync until `team_slug` becomes available
+
 #### Background Sync Service
 
 - **FR-031**: System MUST provide background sync capability that periodically flushes queue
@@ -234,6 +241,8 @@ A developer working in an active session needs queued events to sync automatical
 - **SC-008**: CLI commands complete successfully even when event emission fails (non-blocking behavior verified)
 - **SC-009**: Lamport clock increments correctly across commands (verified via event inspection)
 - **SC-010**: Events include correct `team_slug` for multi-tenant routing (verified via event inspection)
+- **SC-011**: ErrorLogged events are emitted on command errors (verified via task command tests)
+- **SC-012**: DependencyResolved events are emitted when dependencies are unblocked (verified via orchestrate tests)
 
 ---
 
@@ -254,7 +263,7 @@ A developer working in an active session needs queued events to sync automatical
 - **New authentication flows** - Uses existing Feature 027 auth; no new auth work
 - **SaaS server modifications** - Server already implements Feature 008 contract
 - **Event schema changes** - Uses existing spec-kitty-events schemas
-- **WebSocket real-time streaming** - Focus is on queue/batch sync; WebSocket enhancement is future work
+- **WebSocket real-time streaming enhancements** - Use existing WebSocketClient for best-effort realtime when available; no new streaming features in this scope
 - **Conflict resolution logic** - Server handles merges per Feature 003; CLI just emits events
 - **Advanced telemetry** - Basic events only; detailed telemetry is Phase 4
 

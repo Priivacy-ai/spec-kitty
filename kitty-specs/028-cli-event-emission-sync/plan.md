@@ -78,6 +78,7 @@ src/specify_cli/
 │   ├── batch.py             # EXISTING: batch_sync function
 │   ├── client.py            # EXISTING: WebSocketClient
 │   ├── config.py            # EXISTING: SyncConfig
+│   ├── auth.py              # EXISTING: AuthClient (Feature 027)
 │   └── background.py        # NEW: Background sync service
 ├── cli/commands/
 │   ├── implement.py         # MODIFY: Add event emission
@@ -87,9 +88,6 @@ src/specify_cli/
 │   └── agent/
 │       ├── tasks.py         # MODIFY: Add event emission (move-task, mark-status, add-history)
 │       └── feature.py       # MODIFY: Add event emission (finalize-tasks)
-└── auth/
-    └── client.py            # EXISTING: AuthClient (Feature 027)
-
 tests/
 ├── sync/
 │   ├── test_events.py       # NEW: Unit tests for EventEmitter
@@ -139,7 +137,7 @@ tests/
 │                                  ▼                                      │
 │                    ┌─────────────────────────┐                         │
 │                    │  SaaS Server            │                         │
-│                    │  POST /api/v1/events/   │                         │
+│                    │  POST /api/v1/events/batch/ │                      │
 │                    └─────────────────────────┘                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
