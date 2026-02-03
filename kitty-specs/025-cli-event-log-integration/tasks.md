@@ -203,7 +203,7 @@ def move_task(wp_id: str, lane: str, event_store: EventStore):
 
 ### Included Subtasks
 
-- [ ] T019 - Create EventIndex class with SQLite schema (events table + indices)
+- [x] T019 - Create EventIndex class with SQLite schema (events table + indices)
 - [ ] T020 - Implement `update()` method for inline index updates during emit
 - [ ] T021 - Implement `query()` method with filters (entity_id, event_type, since_clock)
 - [ ] T022 - Implement `rebuild()` method for corruption recovery
