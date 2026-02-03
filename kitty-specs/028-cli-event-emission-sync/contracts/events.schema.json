@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.dev/schemas/events.json",
+  "title": "Spec Kitty CLI Events",
+  "description": "Event schemas for CLI-to-SaaS synchronization",
+  "definitions": {
+    "Event": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "event_type",
+        "aggregate_id",
+        "aggregate_type",
+        "payload",
+        "node_id",
+        "lamport_clock",
+        "timestamp",
+        "team_slug"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+          "description": "ULID - 26 character base32 encoded"
+        },
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "WPStatusChanged",
+            "WPCreated",
+            "WPAssigned",
+            "FeatureCreated",
+            "FeatureCompleted",
+            "HistoryAdded",
+            "ErrorLogged",
+            "DependencyResolved"
+          ]
+        },
+        "aggregate_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Entity being modified (e.g., 'WP01', 'feature-slug')"
+        },
+        "aggregate_type": {
+          "type": "string",
+          "enum": ["WorkPackage", "Feature"]
+        },
+        "payload": {
+          "type": "object",
+          "description": "Event-specific data"
+        },
+        "node_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable machine identifier (hashed)"
+        },
+        "lamport_clock": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Causal ordering counter"
+        },
+        "causation_id": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+          "description": "Parent event ULID if this event was caused by another"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO8601 timestamp (informational)"
+        },
+        "team_slug": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Multi-tenant routing identifier"
+        }
+      }
+    },
+    "WPStatusChangedPayload": {
+      "type": "object",
+      "required": ["wp_id", "previous_status", "new_status"],
+      "properties": {
+        "wp_id": {
+          "type": "string",
+          "pattern": "^WP\\d{2}$",
+          "description": "Work package ID (e.g., 'WP01')"
+        },
+        "previous_status": {
+          "type": "string",
+          "enum": ["planned", "doing", "for_review", "done"]
+        },
+        "new_status": {
+          "type": "string",
+          "enum": ["planned", "doing", "for_review", "done"]
+        },
+        "changed_by": {
+          "type": "string",
+          "default": "user",
+          "description": "'user' or agent name"
+        },
+        "feature_slug": {
+          "type": ["string", "null"],
+          "description": "Optional feature context"
+        }
+      }
+    },
+    "WPCreatedPayload": {
+      "type": "object",
+      "required": ["wp_id", "title", "feature_slug"],
+      "properties": {
+        "wp_id": {
+          "type": "string",
+          "pattern": "^WP\\d{2}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^WP\\d{2}$"
+          },
+          "default": []
+        },
+        "feature_slug": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "WPAssignedPayload": {
+      "type": "object",
+      "required": ["wp_id", "agent_id", "phase"],
+      "properties": {
+        "wp_id": {
+          "type": "string",
+          "pattern": "^WP\\d{2}$"
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Agent name (e.g., 'claude', 'codex', 'opencode')"
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["implementation", "review"]
+        },
+        "retry_count": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        }
+      }
+    },
+    "FeatureCreatedPayload": {
+      "type": "object",
+      "required": ["feature_slug", "feature_number", "target_branch", "wp_count"],
+      "properties": {
+        "feature_slug": {
+          "type": "string",
+          "pattern": "^\\d{3}-[a-z0-9-]+$",
+          "description": "e.g., '028-cli-event-emission-sync'"
+        },
+        "feature_number": {
+          "type": "string",
+          "pattern": "^\\d{3}$"
+        },
+        "target_branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wp_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "FeatureCompletedPayload": {
+      "type": "object",
+      "required": ["feature_slug", "total_wps"],
+      "properties": {
+        "feature_slug": {
+          "type": "string"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "total_wps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_duration": {
+          "type": ["string", "null"],
+          "description": "ISO8601 duration or human-readable"
+        }
+      }
+    },
+    "HistoryAddedPayload": {
+      "type": "object",
+      "required": ["wp_id", "entry_type", "entry_content"],
+      "properties": {
+        "wp_id": {
+          "type": "string",
+          "pattern": "^WP\\d{2}$"
+        },
+        "entry_type": {
+          "type": "string",
+          "enum": ["note", "review", "error", "comment"]
+        },
+        "entry_content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author": {
+          "type": "string",
+          "default": "user"
+        }
+      }
+    },
+    "ErrorLoggedPayload": {
+      "type": "object",
+      "required": ["error_type", "error_message"],
+      "properties": {
+        "wp_id": {
+          "type": ["string", "null"]
+        },
+        "error_type": {
+          "type": "string",
+          "enum": ["validation", "runtime", "network", "auth", "unknown"]
+        },
+        "error_message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stack_trace": {
+          "type": ["string", "null"]
+        },
+        "agent_id": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "DependencyResolvedPayload": {
+      "type": "object",
+      "required": ["wp_id", "dependency_wp_id", "resolution_type"],
+      "properties": {
+        "wp_id": {
+          "type": "string",
+          "pattern": "^WP\\d{2}$",
+          "description": "Dependent WP"
+        },
+        "dependency_wp_id": {
+          "type": "string",
+          "pattern": "^WP\\d{2}$",
+          "description": "Dependency WP"
+        },
+        "resolution_type": {
+          "type": "string",
+          "enum": ["completed", "skipped", "merged"]
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "allOf": [
+        { "$ref": "#/definitions/Event" },
+        {
+          "properties": {
+            "event_type": { "const": "WPStatusChanged" },
+            "payload": { "$ref": "#/definitions/WPStatusChangedPayload" }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/definitions/Event" },
+        {
+          "properties": {
+            "event_type": { "const": "WPCreated" },
+            "payload": { "$ref": "#/definitions/WPCreatedPayload" }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/definitions/Event" },
+        {
+          "properties": {
+            "event_type": { "const": "WPAssigned" },
+            "payload": { "$ref": "#/definitions/WPAssignedPayload" }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/definitions/Event" },
+        {
+          "properties": {
+            "event_type": { "const": "FeatureCreated" },
+            "payload": { "$ref": "#/definitions/FeatureCreatedPayload" }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/definitions/Event" },
+        {
+          "properties": {
+            "event_type": { "const": "FeatureCompleted" },
+            "payload": { "$ref": "#/definitions/FeatureCompletedPayload" }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/definitions/Event" },
+        {
+          "properties": {
+            "event_type": { "const": "HistoryAdded" },
+            "payload": { "$ref": "#/definitions/HistoryAddedPayload" }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/definitions/Event" },
+        {
+          "properties": {
+            "event_type": { "const": "ErrorLogged" },
+            "payload": { "$ref": "#/definitions/ErrorLoggedPayload" }
+          }
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "#/definitions/Event" },
+        {
+          "properties": {
+            "event_type": { "const": "DependencyResolved" },
+            "payload": { "$ref": "#/definitions/DependencyResolvedPayload" }
+          }
+        }
+      ]
+    }
+  ]
+}

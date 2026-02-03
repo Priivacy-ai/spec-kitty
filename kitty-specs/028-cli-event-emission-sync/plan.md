@@ -1,108 +1,310 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: CLI Event Emission + Sync
 
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+**Branch**: `028-cli-event-emission-sync` | **Date**: 2026-02-03 | **Spec**: [spec.md](spec.md)
+**Input**: Wire real event emission into 8 CLI commands and ensure events are queued and synced to SaaS via the Feature 008 contract.
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+This feature implements a singleton `EventEmitter` class that manages event creation, Lamport clock state, authentication context, and queue/sync decisions for all CLI commands. Events are emitted from 8 CLI commands (implement, merge, accept, move-task, mark-status, add-history, finalize-tasks, orchestrate) and either sent via WebSocket or queued to SQLite for offline batch sync. The design is non-blocking - event emission failures never prevent CLI command completion.
+
+**Architecture Decision**: Singleton EventEmitter class with `get_emitter()` accessor and optional `SyncContext` wrapper for scoped lifecycle management.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+**Language/Version**: Python 3.11+ (spec-kitty existing requirement)
+**Primary Dependencies**:
+- spec-kitty-events (Feature 003) - Lamport clocks, event schemas, validation
+- typer - CLI framework
+- rich - Console output
+- httpx/requests - HTTP batch sync
+- websockets - Real-time sync
+- python-ulid - Event ID generation
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Storage**: SQLite (`~/.spec-kitty/queue.db`) for offline queue, JSON (`~/.spec-kitty/clock.json`) for Lamport clock state
+**Testing**: pytest with 90%+ coverage, mypy --strict
+**Target Platform**: Cross-platform (Linux, macOS, Windows 10+)
+**Project Type**: Single CLI project (extends existing `src/specify_cli/sync/`)
+**Performance Goals**: <100ms event emission overhead, >33 events/sec batch sync throughput
+**Constraints**: Offline-first (never block on network), multi-tenant routing via team_slug
+**Scale/Scope**: ~1150 lines across 7 work packages
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+| Gate | Status | Notes |
+|------|--------|-------|
+| Python 3.11+ | ✅ Pass | Existing codebase requirement |
+| spec-kitty-events integration | ✅ Pass | Uses Git dependency per ADR-11 |
+| Target branch 2.x | ✅ Pass | Active development branch per constitution |
+| pytest 90%+ coverage | ✅ WP07 | Tests planned in final work package |
+| mypy --strict | ✅ Ongoing | All new code will have type hints |
+| Cross-platform | ✅ Pass | No platform-specific code |
+| Offline-first | ✅ Pass | Core design principle |
+
+**No constitution violations identified.** Feature aligns with:
+- ADR-11: Dual-Repository Pattern (spec-kitty-events integration)
+- ADR-12: Two-Branch Strategy (targets 2.x branch)
+- Private dependency workflow (events library via Git commit pin)
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/028-cli-event-emission-sync/
+├── plan.md              # This file
+├── spec.md              # Feature specification
+├── research.md          # Phase 0 research output
+├── data-model.md        # Phase 1 data model
+├── quickstart.md        # Phase 1 developer quickstart
+├── contracts/           # Phase 1 API contracts
+│   └── events.schema.json
+├── checklists/
+│   └── requirements.md  # Specification quality checklist
+└── tasks/               # Work package files (generated by /spec-kitty.tasks)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+src/specify_cli/
+├── sync/
+│   ├── __init__.py          # Exports EventEmitter, get_emitter
+│   ├── events.py            # NEW: EventEmitter singleton, event builders
+│   ├── emitter.py           # NEW: Core emitter implementation
+│   ├── clock.py             # NEW: LamportClock persistence wrapper
+│   ├── queue.py             # EXISTING: OfflineQueue
+│   ├── batch.py             # EXISTING: batch_sync function
+│   ├── client.py            # EXISTING: WebSocketClient
+│   ├── config.py            # EXISTING: SyncConfig
+│   └── background.py        # NEW: Background sync service
+├── cli/commands/
+│   ├── implement.py         # MODIFY: Add event emission
+│   ├── merge.py             # MODIFY: Add event emission
+│   ├── accept.py            # MODIFY: Add event emission
+│   ├── orchestrate.py       # MODIFY: Add event emission
+│   └── agent/
+│       ├── tasks.py         # MODIFY: Add event emission (move-task, mark-status, add-history)
+│       └── feature.py       # MODIFY: Add event emission (finalize-tasks)
+└── auth/
+    └── client.py            # EXISTING: AuthClient (Feature 027)
 
 tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+├── sync/
+│   ├── test_events.py       # NEW: Unit tests for EventEmitter
+│   ├── test_clock.py        # NEW: Unit tests for LamportClock
+│   ├── test_background.py   # NEW: Unit tests for background sync
+│   └── test_integration.py  # NEW: Integration tests with mock server
+└── cli/commands/
+    └── test_event_emission.py  # NEW: Integration tests for command wiring
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: Extends existing `src/specify_cli/sync/` module with new files. No new top-level directories. Follows existing patterns established by Feature 027 (auth module).
+
+## Architecture
+
+### Component Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              CLI Commands                                │
+│  ┌──────────┐ ┌───────┐ ┌────────┐ ┌──────────┐ ┌─────────┐ ┌─────────┐│
+│  │implement │ │ merge │ │ accept │ │move-task │ │finalize │ │orchestr.││
+│  └────┬─────┘ └───┬───┘ └───┬────┘ └────┬─────┘ └────┬────┘ └────┬────┘│
+│       │           │         │           │            │           │      │
+│       └───────────┴─────────┴───────────┴────────────┴───────────┘      │
+│                                    │                                     │
+│                          get_emitter()                                   │
+│                                    ▼                                     │
+│  ┌─────────────────────────────────────────────────────────────────────┐│
+│  │                        EventEmitter (Singleton)                      ││
+│  │  ┌──────────────┐  ┌─────────────┐  ┌────────────┐  ┌────────────┐ ││
+│  │  │ LamportClock │  │ AuthClient  │  │ SyncConfig │  │ emit_event │ ││
+│  │  │ (clock.json) │  │ (Feature027)│  │            │  │   logic    │ ││
+│  │  └──────────────┘  └─────────────┘  └────────────┘  └────────────┘ ││
+│  └─────────────────────────────────────────────────────────────────────┘│
+│                                    │                                     │
+│              ┌─────────────────────┼─────────────────────┐              │
+│              │                     │                     │              │
+│              ▼                     ▼                     ▼              │
+│  ┌───────────────────┐  ┌─────────────────┐  ┌─────────────────────┐   │
+│  │   OfflineQueue    │  │ WebSocketClient │  │  BackgroundSync     │   │
+│  │   (queue.db)      │  │   (optional)    │  │  (auto-flush)       │   │
+│  └─────────┬─────────┘  └────────┬────────┘  └──────────┬──────────┘   │
+│            │                     │                      │              │
+│            └─────────────────────┴──────────────────────┘              │
+│                                  │                                      │
+│                           batch_sync()                                  │
+│                                  ▼                                      │
+│                    ┌─────────────────────────┐                         │
+│                    │  SaaS Server            │                         │
+│                    │  POST /api/v1/events/   │                         │
+│                    └─────────────────────────┘                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### EventEmitter Singleton Design
+
+```python
+# src/specify_cli/sync/events.py
+
+from __future__ import annotations
+from typing import TYPE_CHECKING
+import threading
+
+if TYPE_CHECKING:
+    from .emitter import EventEmitter
+
+_emitter: EventEmitter | None = None
+_lock = threading.Lock()
+
+def get_emitter() -> EventEmitter:
+    """Get the singleton EventEmitter instance.
+
+    Thread-safe lazy initialization. Creates emitter on first access.
+    """
+    global _emitter
+    if _emitter is None:
+        with _lock:
+            if _emitter is None:  # Double-check locking
+                from .emitter import EventEmitter
+                _emitter = EventEmitter()
+    return _emitter
+
+# Convenience functions delegating to singleton
+def emit_wp_status_changed(
+    wp_id: str,
+    previous_status: str,
+    new_status: str,
+    changed_by: str = "user",
+    feature_slug: str | None = None,
+) -> None:
+    """Emit WPStatusChanged event."""
+    get_emitter().emit_wp_status_changed(
+        wp_id=wp_id,
+        previous_status=previous_status,
+        new_status=new_status,
+        changed_by=changed_by,
+        feature_slug=feature_slug,
+    )
+
+# Similar helpers for other event types...
+```
+
+### Event Flow
+
+1. **Command executes** (e.g., `spec-kitty implement WP01`)
+2. **Command calls** `emit_wp_status_changed("WP01", "planned", "doing")`
+3. **EventEmitter**:
+   - Checks auth status via `AuthClient`
+   - Increments Lamport clock
+   - Builds event dict with all metadata
+   - Validates against spec-kitty-events schema
+4. **Sync decision**:
+   - If authenticated + WebSocket connected → send immediately
+   - If authenticated + WebSocket unavailable → queue for batch sync
+   - If not authenticated → queue locally (will sync after login)
+5. **Non-blocking return** - command continues regardless of sync outcome
+6. **Background sync** (optional) - periodically flushes queue
+
+### Event Schema (from spec-kitty-events)
+
+```json
+{
+  "event_id": "01HX...",           // ULID
+  "event_type": "WPStatusChanged",
+  "aggregate_id": "WP01",
+  "aggregate_type": "WorkPackage",
+  "payload": {
+    "wp_id": "WP01",
+    "previous_status": "planned",
+    "new_status": "doing",
+    "changed_by": "user",
+    "feature_slug": "028-cli-event-emission-sync"
+  },
+  "node_id": "alice-laptop-abc123",
+  "lamport_clock": 42,
+  "causation_id": null,           // or parent event ULID
+  "timestamp": "2026-02-03T12:00:00Z",
+  "team_slug": "acme-corp"        // Multi-tenant routing
+}
+```
+
+## Work Package Dependency Graph
+
+```
+                    WP01 (Event Factory)
+                           │
+           ┌───────────────┼───────────────┬───────────────┐
+           ▼               ▼               ▼               ▼
+     WP02 (impl/     WP03 (task      WP04 (finalize-  WP05 (orchestrate)
+     merge/accept)   commands)        tasks)                 │
+           │               │               │                 │
+           └───────────────┴───────────────┴─────────────────┤
+                                                             ▼
+                                                   WP06 (Background Sync)
+                                                             │
+                                                             ▼
+                                                   WP07 (Tests)
+```
+
+**Parallelization**: After WP01 completes, WP02-WP05 can run in parallel (4 agents simultaneously).
+
+## Risk Analysis
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| spec-kitty-events API changes | Low | High | Pin to specific commit per ADR-11 |
+| Feature 027 AuthClient not ready | Low | High | Spec says A-001 complete; verify before WP01 |
+| SQLite locking under concurrent access | Medium | Medium | SQLite handles this natively; add retry logic |
+| Lamport clock persistence corruption | Low | Medium | Atomic writes, backup recovery |
+| WebSocket unavailable at runtime | Expected | Low | Design is offline-first; queuing handles this |
+
+## Test Strategy
+
+### Unit Tests (WP07)
+- `test_events.py`: EventEmitter methods, event builders, validation
+- `test_clock.py`: LamportClock persistence, tick(), receive()
+- `test_background.py`: Background sync scheduling, exponential backoff
+
+### Integration Tests (WP07)
+- `test_integration.py`: Full flow with mock SaaS server
+  - Event emission → queue → batch sync
+  - Auth token refresh during sync
+  - Lamport clock reconciliation
+- `test_event_emission.py`: CLI commands emit correct events
+  - `implement WP01` → WPStatusChanged
+  - `merge` → WPStatusChanged
+  - `finalize-tasks` → FeatureCreated + WPCreated batch
+
+### Coverage Target
+- 90%+ line coverage for new code
+- All event types have dedicated test cases
+- Edge cases from spec covered (network failure, queue overflow, clock desync)
+
+## Implementation Order
+
+| Phase | Work Packages | Parallelizable | Notes |
+|-------|---------------|----------------|-------|
+| 1 | WP01 | No | Foundation - all others depend on this |
+| 2 | WP02, WP03, WP04, WP05 | Yes (4 parallel) | Can run simultaneously after WP01 |
+| 3 | WP06 | No | Depends on WP05 patterns established |
+| 4 | WP07 | No | Final validation of all components |
+
+**Estimated Timeline**: With parallelization, phases 1-4 can complete in approximately 4 sequential units of work (vs 7 sequential without parallelization).
 
 ## Complexity Tracking
 
-*Fill ONLY if Constitution Check has violations that must be justified*
+*No constitution violations requiring justification.*
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+---
+
+**END OF IMPLEMENTATION PLAN**
+
+## Next Steps
+
+1. Run `/spec-kitty.tasks` to generate work package files
+2. Implement WP01 (Event Factory) first
+3. Parallelize WP02-WP05 after WP01 completes
+4. Complete WP06-WP07 sequentially
