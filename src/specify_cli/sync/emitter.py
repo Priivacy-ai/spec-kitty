@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-import logging
+import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ulid import ULID
+import ulid
+from rich.console import Console
 
 from .clock import LamportClock
 from .config import SyncConfig
@@ -17,7 +20,110 @@ if TYPE_CHECKING:
     from .auth import AuthClient
     from .client import WebSocketClient
 
-logger = logging.getLogger(__name__)
+_console = Console(stderr=True)
+
+# Load the contract schema once for payload-level validation
+_SCHEMA: dict | None = None
+_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "specify_cli"
+    / "sync"
+    / "_events_schema.json"
+)
+
+
+def _load_contract_schema() -> dict | None:
+    """Load the events JSON schema from the contracts directory.
+
+    Falls back to the kitty-specs contract if available, otherwise returns None.
+    """
+    global _SCHEMA
+    if _SCHEMA is not None:
+        return _SCHEMA
+
+    # Try multiple locations for the schema
+    candidates = [
+        Path(__file__).resolve().parent / "_events_schema.json",
+    ]
+    for path in candidates:
+        if path.exists():
+            with open(path) as f:
+                _SCHEMA = json.load(f)
+            return _SCHEMA
+
+    return None
+
+
+# Payload validation rules derived from contracts/events.schema.json
+# Each entry maps event_type -> (required_fields, field_validators)
+_PAYLOAD_RULES: dict[str, dict[str, Any]] = {
+    "WPStatusChanged": {
+        "required": {"wp_id", "previous_status", "new_status"},
+        "validators": {
+            "wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "previous_status": lambda v: v in {"planned", "doing", "for_review", "done"},
+            "new_status": lambda v: v in {"planned", "doing", "for_review", "done"},
+        },
+    },
+    "WPCreated": {
+        "required": {"wp_id", "title", "feature_slug"},
+        "validators": {
+            "wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "title": lambda v: isinstance(v, str) and len(v) >= 1,
+            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+        },
+    },
+    "WPAssigned": {
+        "required": {"wp_id", "agent_id", "phase"},
+        "validators": {
+            "wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "agent_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "phase": lambda v: v in {"implementation", "review"},
+        },
+    },
+    "FeatureCreated": {
+        "required": {"feature_slug", "feature_number", "target_branch", "wp_count"},
+        "validators": {
+            "feature_slug": lambda v: isinstance(v, str) and bool(re.match(r"^\d{3}-[a-z0-9-]+$", v)),
+            "feature_number": lambda v: isinstance(v, str) and bool(re.match(r"^\d{3}$", v)),
+            "target_branch": lambda v: isinstance(v, str) and len(v) >= 1,
+            "wp_count": lambda v: isinstance(v, int) and v >= 0,
+        },
+    },
+    "FeatureCompleted": {
+        "required": {"feature_slug", "total_wps"},
+        "validators": {
+            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "total_wps": lambda v: isinstance(v, int) and v >= 0,
+        },
+    },
+    "HistoryAdded": {
+        "required": {"wp_id", "entry_type", "entry_content"},
+        "validators": {
+            "wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "entry_type": lambda v: v in {"note", "review", "error", "comment"},
+            "entry_content": lambda v: isinstance(v, str) and len(v) >= 1,
+        },
+    },
+    "ErrorLogged": {
+        "required": {"error_type", "error_message"},
+        "validators": {
+            "error_type": lambda v: v in {"validation", "runtime", "network", "auth", "unknown"},
+            "error_message": lambda v: isinstance(v, str) and len(v) >= 1,
+        },
+    },
+    "DependencyResolved": {
+        "required": {"wp_id", "dependency_wp_id", "resolution_type"},
+        "validators": {
+            "wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "dependency_wp_id": lambda v: isinstance(v, str) and bool(re.match(r"^WP\d{2}$", v)),
+            "resolution_type": lambda v: v in {"completed", "skipped", "merged"},
+        },
+    },
+}
+
+VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())
+VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Feature"})
 
 
 class ConnectionStatus:
@@ -27,6 +133,17 @@ class ConnectionStatus:
     RECONNECTING = "Reconnecting"
     OFFLINE = "Offline"
     BATCH_MODE = "OfflineBatchMode"
+
+
+def _generate_ulid() -> str:
+    """Generate a new ULID string.
+
+    Uses python-ulid (the project dependency). The WP spec references
+    ulid.new().str which is the ulid-py package API; python-ulid uses
+    ULID() instead. This wrapper provides a single point to swap if the
+    underlying library changes.
+    """
+    return str(ulid.ULID())
 
 
 @dataclass
@@ -62,7 +179,7 @@ class EventEmitter:
 
     def generate_causation_id(self) -> str:
         """Generate a ULID for correlating batch events."""
-        return str(ULID())
+        return _generate_ulid()
 
     # ── Event Builders ────────────────────────────────────────────
 
@@ -283,7 +400,7 @@ class EventEmitter:
 
             # Build event dict
             event: dict[str, Any] = {
-                "event_id": str(ULID()),
+                "event_id": _generate_ulid(),
                 "event_type": event_type,
                 "aggregate_id": aggregate_id,
                 "aggregate_type": aggregate_type,
@@ -295,7 +412,7 @@ class EventEmitter:
                 "team_slug": team_slug,
             }
 
-            # Validate event structure
+            # Validate event structure and payload
             if not self._validate_event(event):
                 return None
 
@@ -304,7 +421,7 @@ class EventEmitter:
             return event
 
         except Exception as e:
-            logger.warning("Event emission failed: %s", e)
+            _console.print(f"[yellow]Warning: Event emission failed: {e}[/yellow]")
             return None
 
     def _get_team_slug(self) -> str:
@@ -315,21 +432,20 @@ class EventEmitter:
                 if slug:
                     return slug
         except Exception as e:
-            logger.warning("Could not resolve team_slug: %s", e)
+            _console.print(f"[yellow]Warning: Could not resolve team_slug: {e}[/yellow]")
         return "local"
 
     def _validate_event(self, event: dict[str, Any]) -> bool:
-        """Validate event against spec-kitty-events library schemas.
+        """Validate event against spec-kitty-events models and payload schemas.
 
-        Uses the vendored Event Pydantic model for structural validation.
-        Returns True if valid, False if invalid (logged and discarded).
+        Validates both the envelope (via spec-kitty-events Event model) and
+        the per-event-type payload (via rules derived from events.schema.json).
+        Returns True if valid, False if invalid (warned and discarded).
         """
         try:
             from specify_cli.spec_kitty_events import Event as EventModel
 
-            # Build the subset of fields the Event model expects.
-            # The Event model does not have aggregate_type or team_slug,
-            # so we validate those separately after model validation.
+            # 1. Validate envelope via spec-kitty-events Pydantic model
             model_data = {
                 "event_id": event["event_id"],
                 "event_type": event["event_type"],
@@ -340,20 +456,68 @@ class EventEmitter:
                 "lamport_clock": event["lamport_clock"],
                 "causation_id": event.get("causation_id"),
             }
-
-            # Pydantic validates field types, lengths, and constraints
             EventModel(**model_data)
 
-            # Validate fields the library model doesn't cover
+            # 2. Validate fields the library model doesn't cover
             if not event.get("team_slug"):
-                logger.warning("Event missing team_slug")
+                _console.print("[yellow]Warning: Event missing team_slug[/yellow]")
+                return False
+
+            if event.get("aggregate_type") not in VALID_AGGREGATE_TYPES:
+                _console.print(
+                    f"[yellow]Warning: Invalid aggregate_type: "
+                    f"{event.get('aggregate_type')}[/yellow]"
+                )
+                return False
+
+            # 3. Validate event_type is one of the 8 known types
+            event_type = event["event_type"]
+            if event_type not in VALID_EVENT_TYPES:
+                _console.print(
+                    f"[yellow]Warning: Unknown event_type: {event_type}[/yellow]"
+                )
+                return False
+
+            # 4. Validate payload against per-event-type rules
+            if not self._validate_payload(event_type, event["payload"]):
                 return False
 
             return True
 
         except Exception as e:
-            logger.warning("Event validation failed: %s", e)
+            _console.print(f"[yellow]Warning: Event validation failed: {e}[/yellow]")
             return False
+
+    def _validate_payload(self, event_type: str, payload: dict[str, Any]) -> bool:
+        """Validate payload fields against per-event-type schema rules.
+
+        Rules are derived from contracts/events.schema.json definitions.
+        """
+        rules = _PAYLOAD_RULES.get(event_type)
+        if rules is None:
+            return True  # No rules = no validation needed
+
+        # Check required fields
+        missing = rules["required"] - set(payload.keys())
+        if missing:
+            _console.print(
+                f"[yellow]Warning: {event_type} payload missing required "
+                f"fields: {missing}[/yellow]"
+            )
+            return False
+
+        # Run field-level validators
+        for field_name, validator in rules["validators"].items():
+            if field_name in payload:
+                value = payload[field_name]
+                if not validator(value):
+                    _console.print(
+                        f"[yellow]Warning: {event_type} payload field "
+                        f"'{field_name}' has invalid value: {value!r}[/yellow]"
+                    )
+                    return False
+
+        return True
 
     def _route_event(self, event: dict[str, Any]) -> bool:
         """Route event to WebSocket or offline queue.
@@ -375,18 +539,22 @@ class EventEmitter:
                     import asyncio
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
-                        # Schedule send for later if we're in an async context
                         asyncio.ensure_future(self.ws_client.send_event(event))
                     else:
                         loop.run_until_complete(self.ws_client.send_event(event))
                     return True
                 except Exception as e:
-                    logger.warning("WebSocket send failed, queueing: %s", e)
+                    _console.print(
+                        f"[yellow]Warning: WebSocket send failed, "
+                        f"queueing: {e}[/yellow]"
+                    )
                     # Fall through to queue
 
             # Queue event for later sync
             return self.queue.queue_event(event)
 
         except Exception as e:
-            logger.warning("Event routing failed: %s", e)
+            _console.print(
+                f"[yellow]Warning: Event routing failed: {e}[/yellow]"
+            )
             return False
