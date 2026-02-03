@@ -1,6 +1,7 @@
-"""WebSocket client for real-time sync"""
+"""WebSocket client for real-time sync with exponential backoff reconnection"""
 import asyncio
 import json
+import random
 from typing import Optional, Callable
 import websockets
 from websockets import ConnectionClosed
@@ -23,7 +24,14 @@ class WebSocketClient:
     - Authentication
     - Event sending/receiving
     - Heartbeat (pong responses)
+    - Automatic reconnection with exponential backoff
     """
+
+    # Reconnection configuration
+    MAX_RECONNECT_ATTEMPTS = 10
+    BASE_DELAY_SECONDS = 0.5  # 500ms
+    MAX_DELAY_SECONDS = 30.0
+    JITTER_RANGE = 1.0  # +/- 1 second
 
     def __init__(self, server_url: str, token: str):
         """
@@ -39,6 +47,7 @@ class WebSocketClient:
         self.connected = False
         self.status = ConnectionStatus.OFFLINE
         self.message_handler: Optional[Callable] = None
+        self.reconnect_attempts = 0
 
     async def connect(self):
         """Establish WebSocket connection with authentication"""
@@ -83,6 +92,65 @@ class WebSocketClient:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
             print("Disconnected from sync server")
+
+    async def reconnect(self) -> bool:
+        """
+        Reconnect with exponential backoff.
+
+        Formula: delay = min(500ms * 2^attempt, 30s) + jitter
+
+        Returns:
+            True if reconnected successfully, False if max attempts reached
+        """
+        self.status = ConnectionStatus.RECONNECTING
+
+        while self.reconnect_attempts < self.MAX_RECONNECT_ATTEMPTS:
+            # Calculate exponential backoff delay
+            delay = min(
+                self.BASE_DELAY_SECONDS * (2 ** self.reconnect_attempts),
+                self.MAX_DELAY_SECONDS
+            )
+            # Add jitter to prevent thundering herd
+            jitter = random.uniform(-self.JITTER_RANGE, self.JITTER_RANGE)
+            delay = max(0, delay + jitter)
+
+            attempt_num = self.reconnect_attempts + 1
+            print(f"🔄 Reconnecting... ({attempt_num}/{self.MAX_RECONNECT_ATTEMPTS})")
+
+            await asyncio.sleep(delay)
+
+            try:
+                await self.connect()
+                # Success - reset attempt counter
+                self.reconnect_attempts = 0
+                return True
+            except Exception:
+                self.reconnect_attempts += 1
+
+        # Max attempts reached - switch to batch mode
+        self.status = ConnectionStatus.BATCH_MODE
+        print("⚠️  Max reconnection attempts reached. Switched to batch sync mode.")
+        print("    Events will be queued locally and synced when connection is restored.")
+        return False
+
+    def reset_reconnect_attempts(self):
+        """Reset the reconnection attempt counter"""
+        self.reconnect_attempts = 0
+
+    def get_reconnect_delay(self, attempt: int) -> float:
+        """
+        Calculate reconnect delay for a given attempt number.
+
+        Args:
+            attempt: The attempt number (0-indexed)
+
+        Returns:
+            Delay in seconds (without jitter)
+        """
+        return min(
+            self.BASE_DELAY_SECONDS * (2 ** attempt),
+            self.MAX_DELAY_SECONDS
+        )
 
     async def send_event(self, event: dict):
         """
@@ -161,3 +229,7 @@ class WebSocketClient:
     def get_status(self) -> str:
         """Get current connection status"""
         return self.status
+
+    def is_in_batch_mode(self) -> bool:
+        """Check if client is in batch sync mode after max reconnection attempts"""
+        return self.status == ConnectionStatus.BATCH_MODE
