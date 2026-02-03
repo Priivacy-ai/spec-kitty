@@ -26,13 +26,13 @@
 **Prompt**: `/tasks/WP01-event-factory.md`
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/sync/clock.py` with LamportClock class and JSON persistence
-- [ ] T002 Create `src/specify_cli/sync/emitter.py` with EventEmitter class (singleton pattern)
-- [ ] T003 [P] Create `src/specify_cli/sync/events.py` with get_emitter() accessor and convenience emit functions
-- [ ] T004 [P] Implement node_id generation (hostname + username hash)
-- [ ] T005 Implement event builders for all 8 event types (WPStatusChanged, WPCreated, WPAssigned, FeatureCreated, FeatureCompleted, HistoryAdded, ErrorLogged, DependencyResolved)
-- [ ] T006 Implement emit_event() routing logic (WebSocket vs queue decision)
-- [ ] T007 Add schema validation using spec-kitty-events library
+- [x] T001 Create `src/specify_cli/sync/clock.py` with LamportClock class and JSON persistence
+- [x] T002 Create `src/specify_cli/sync/emitter.py` with EventEmitter class (singleton pattern)
+- [x] T003 [P] Create `src/specify_cli/sync/events.py` with get_emitter() accessor and convenience emit functions
+- [x] T004 [P] Implement node_id generation (hostname + username hash)
+- [x] T005 Implement event builders for all 8 event types (WPStatusChanged, WPCreated, WPAssigned, FeatureCreated, FeatureCompleted, HistoryAdded, ErrorLogged, DependencyResolved)
+- [x] T006 Implement emit_event() routing logic (WebSocket vs queue decision)
+- [x] T007 Add schema validation using spec-kitty-events library
 
 ### Implementation Notes
 - Use `~/.spec-kitty/clock.json` for Lamport clock persistence (atomic writes via temp file + rename)
