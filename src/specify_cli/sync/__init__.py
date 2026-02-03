@@ -9,5 +9,6 @@ Provides real-time synchronization with spec-kitty-saas server via:
 
 from .client import WebSocketClient
 from .config import SyncConfig
+from .queue import OfflineQueue
 
-__all__ = ['WebSocketClient', 'SyncConfig']
+__all__ = ['WebSocketClient', 'SyncConfig', 'OfflineQueue']
