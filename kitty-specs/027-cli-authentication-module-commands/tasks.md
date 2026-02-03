@@ -100,12 +100,12 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T012 Create `auth` command group in `src/specify_cli/cli/commands/auth.py`
-- [ ] T013 Implement `auth login` command with username prompt and hidden password input
-- [ ] T014 Implement `auth logout` command to clear stored credentials
-- [ ] T015 Implement `auth status` command to display authentication state
-- [ ] T016 Register `auth` command group in `src/specify_cli/cli.py`
-- [ ] T017 Add user-friendly error messages for all auth failure modes
+- [x] T012 Create `auth` command group in `src/specify_cli/cli/commands/auth.py`
+- [x] T013 Implement `auth login` command with username prompt and hidden password input
+- [x] T014 Implement `auth logout` command to clear stored credentials
+- [x] T015 Implement `auth status` command to display authentication state
+- [x] T016 Register `auth` command group in `src/specify_cli/cli.py`
+- [x] T017 Add user-friendly error messages for all auth failure modes
 
 ### Implementation Notes
 - Use Click framework (existing CLI pattern)
