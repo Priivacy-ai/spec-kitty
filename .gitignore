@@ -46,6 +46,7 @@ env/
 .worktrees/
 .kittify/.dashboard
 .kittify/workspaces/
+.kittify/missions/
 node_modules/
 
 # Spec Kit-specific files
