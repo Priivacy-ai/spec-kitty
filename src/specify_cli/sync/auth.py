@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 import toml
@@ -185,10 +186,18 @@ class AuthClient:
         self.config = SyncConfig()
         self._http_client: Optional[httpx.Client] = None
 
+    def _validate_server_url(self, url: str) -> str:
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            raise AuthenticationError(
+                "Authentication requires an HTTPS server URL. Please update sync server URL to use https://"
+            )
+        return url
+
     @property
     def server_url(self) -> str:
         """Get server URL from config."""
-        return self.config.get_server_url()
+        return self._validate_server_url(self.config.get_server_url())
 
     def _get_http_client(self) -> httpx.Client:
         """Get or create HTTP client."""
@@ -304,6 +313,7 @@ class AuthClient:
 
         username = self.credential_store.get_username() or "unknown"
         server_url = self.credential_store.get_server_url() or self.server_url
+        server_url = self._validate_server_url(server_url)
 
         access_expires_at = datetime.utcnow() + timedelta(minutes=15)
         refresh_expires_at = datetime.utcnow() + timedelta(days=7)
