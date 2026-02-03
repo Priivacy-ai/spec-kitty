@@ -100,9 +100,9 @@ Planning artifacts in `kitty-specs/{{feature_slug}}/research/` are:
 - `source-register.csv` - Sources cited DURING PLANNING
 
 **If you need to update these** (rare during implementation):
-- They're in the main repo (sparse-excluded from worktrees)
-- Edit them directly in the main repository
-- Commit to main before moving status
+- They're in the planning repo (sparse-excluded from worktrees)
+- Edit them directly in the planning repository
+- Commit to the target branch before moving status
 
 **Most research WPs only produce deliverables, not planning updates.**
 
