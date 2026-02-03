@@ -371,17 +371,19 @@ def status() -> None:
     Displays the current state of the WebSocket connection to the
     spec-kitty-saas server, including:
     - Server URL configuration
-    - Connection state (Connected/Offline/Reconnecting)
+    - Connection state (Connected/Offline/Unreachable)
     - Authentication status
 
-    Note: Active connection tracking is implemented in WP14-15.
-    This command shows configuration state.
+    Performs a quick connection test to determine actual connectivity.
+    Note: Persistent connection tracking is implemented in WP14-15.
 
     Examples:
         # Show sync status
         spec-kitty sync status
     """
+    import asyncio
     from specify_cli.sync.config import SyncConfig
+    from specify_cli.sync.client import WebSocketClient
 
     console.print()
     console.print("[cyan]Spec Kitty Sync Status[/cyan]")
@@ -391,19 +393,59 @@ def status() -> None:
     config = SyncConfig()
     server_url = config.get_server_url()
 
-    # Display configuration
+    # Attempt quick connection test to determine actual status
+    connection_status = "[yellow]Unknown[/yellow]"
+    connection_note = ""
+
+    async def test_connection():
+        """Quick connection test (non-blocking)"""
+        try:
+            # Convert https to wss for WebSocket
+            ws_url = server_url.replace("https://", "wss://").replace("http://", "ws://")
+
+            # Try to connect with a test token (will fail auth but tests connectivity)
+            client = WebSocketClient(ws_url, "test-token")
+
+            # Set a short timeout for the connection test
+            try:
+                await asyncio.wait_for(client.connect(), timeout=3.0)
+                await client.disconnect()
+                return "[green]Connected[/green]", "Successfully reached server"
+            except asyncio.TimeoutError:
+                return "[red]Unreachable[/red]", "Connection timeout (server may be down)"
+            except Exception as e:
+                error_msg = str(e)
+                if "401" in error_msg or "Invalid token" in error_msg:
+                    return "[yellow]Reachable[/yellow]", "Server online (auth required)"
+                elif "refused" in error_msg.lower():
+                    return "[red]Unreachable[/red]", "Connection refused"
+                else:
+                    return "[yellow]Unknown[/yellow]", f"Error: {error_msg[:50]}"
+        except Exception as e:
+            return "[red]Error[/red]", f"Test failed: {str(e)[:50]}"
+
+    # Run the async connection test
+    try:
+        connection_status, connection_note = asyncio.run(test_connection())
+    except Exception as e:
+        connection_status = "[red]Error[/red]"
+        connection_note = f"Status check failed: {str(e)[:50]}"
+
+    # Display configuration and status
     table = Table(show_header=False, box=None)
     table.add_column("Key", style="dim")
     table.add_column("Value")
 
     table.add_row("Server URL", server_url)
     table.add_row("Config File", str(config.config_file))
-    table.add_row("Connection", "[yellow]Offline[/yellow] (tracking in WP14-15)")
+    table.add_row("Connection", connection_status)
+    if connection_note:
+        table.add_row("Note", f"[dim]{connection_note}[/dim]")
 
     console.print(table)
     console.print()
 
-    console.print("[dim]Note: Real-time connection status tracking will be "
+    console.print("[dim]Persistent connection tracking and offline queue will be "
                   "available in WP14 (Offline Queue) and WP15 (Reconnection).[/dim]")
     console.print()
 

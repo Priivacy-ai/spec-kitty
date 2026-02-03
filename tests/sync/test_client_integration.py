@@ -1,6 +1,5 @@
 """Integration tests for WebSocket client"""
 import pytest
-import asyncio
 from specify_cli.sync.client import WebSocketClient, ConnectionStatus
 
 
