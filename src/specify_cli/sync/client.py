@@ -6,6 +6,8 @@ from typing import Optional, Callable
 import websockets
 from websockets import ConnectionClosed
 
+from specify_cli.sync.auth import AuthClient, AuthenticationError
+
 
 class ConnectionStatus:
     """Connection status constants"""
@@ -33,57 +35,109 @@ class WebSocketClient:
     MAX_DELAY_SECONDS = 30.0
     JITTER_RANGE = 1.0  # +/- 1 second
 
-    def __init__(self, server_url: str, token: str):
+    def __init__(
+        self,
+        server_url: str,
+        token: Optional[str] = None,
+        auth_client: Optional[AuthClient] = None,
+    ):
         """
         Initialize WebSocket client.
 
         Args:
             server_url: Server URL (e.g., wss://spec-kitty-dev.fly.dev)
-            token: Ephemeral WebSocket token
+            token: Direct token (deprecated, for backward compatibility)
+            auth_client: AuthClient instance for automatic token management
+
+        Note:
+            If auth_client is provided, it will be used to obtain tokens.
+            If token is provided directly, it will be used as-is (legacy mode).
+            If neither is provided, auth_client will be created automatically.
         """
         self.server_url = server_url
-        self.token = token
+        self._direct_token = token
+        self._auth_client = auth_client
         self.ws: Optional[websockets.ClientConnection] = None
         self.connected = False
         self.status = ConnectionStatus.OFFLINE
         self.message_handler: Optional[Callable] = None
         self.reconnect_attempts = 0
 
+    def _get_ws_token(self) -> str:
+        """
+        Get WebSocket token for authentication.
+
+        Returns:
+            WebSocket token string
+
+        Raises:
+            AuthenticationError: If not authenticated
+        """
+        if self._direct_token:
+            return self._direct_token
+
+        if self._auth_client is None:
+            self._auth_client = AuthClient()
+
+        return self._auth_client.obtain_ws_token()
+
     async def connect(self):
         """Establish WebSocket connection with authentication"""
         uri = f"{self.server_url}/ws/v1/events/"
-        headers = {"Authorization": f"Bearer {self.token}"}
 
-        try:
-            self.ws = await websockets.connect(
-                uri,
-                additional_headers=headers,
-                ping_interval=None,  # We handle heartbeat manually
-                ping_timeout=None
-            )
-            self.connected = True
-            self.status = ConnectionStatus.CONNECTED
+        retry_count = 0
+        max_retries = 1
 
-            # Receive initial snapshot
-            await self._receive_snapshot()
+        while retry_count <= max_retries:
+            try:
+                ws_token = self._get_ws_token()
+                headers = {"Authorization": f"Bearer {ws_token}"}
 
-            # Start message listener
-            asyncio.create_task(self._listen())
+                self.ws = await websockets.connect(
+                    uri,
+                    additional_headers=headers,
+                    ping_interval=None,  # We handle heartbeat manually
+                    ping_timeout=None
+                )
+                self.connected = True
+                self.status = ConnectionStatus.CONNECTED
 
-            print("✅ Connected to sync server")
+                # Receive initial snapshot
+                await self._receive_snapshot()
 
-        except websockets.InvalidStatus as e:
-            if e.response.status_code == 401:
-                print("❌ Authentication failed: Invalid token")
-            else:
-                print(f"❌ Connection failed: HTTP {e.response.status_code}")
-            self.status = ConnectionStatus.OFFLINE
-            raise
-        except Exception as e:
-            self.connected = False
-            self.status = ConnectionStatus.OFFLINE
-            print(f"❌ Connection failed: {e}")
-            raise
+                # Start message listener
+                asyncio.create_task(self._listen())
+
+                print("✅ Connected to sync server")
+                return
+
+            except websockets.InvalidStatus as e:
+                if e.response.status_code == 401:
+                    if retry_count < max_retries and self._auth_client and not self._direct_token:
+                        print("🔄 Token expired, refreshing...")
+                        retry_count += 1
+                        try:
+                            self._auth_client.refresh_tokens()
+                            continue
+                        except AuthenticationError:
+                            print("❌ Session expired. Please log in again.")
+                            self.status = ConnectionStatus.OFFLINE
+                            raise
+                    print("❌ Authentication failed: Invalid token")
+                else:
+                    print(f"❌ Connection failed: HTTP {e.response.status_code}")
+                self.status = ConnectionStatus.OFFLINE
+                raise
+            except AuthenticationError as e:
+                self.connected = False
+                self.status = ConnectionStatus.OFFLINE
+                print(f"❌ Authentication failed: {e}")
+                raise
+            except Exception as e:
+                self.connected = False
+                self.status = ConnectionStatus.OFFLINE
+                print(f"❌ Connection failed: {e}")
+                raise
 
     async def disconnect(self):
         """Close WebSocket connection"""
@@ -124,6 +178,10 @@ class WebSocketClient:
                 # Success - reset attempt counter
                 self.reconnect_attempts = 0
                 return True
+            except AuthenticationError:
+                self.status = ConnectionStatus.BATCH_MODE
+                print("⚠️  Authentication failed. Please run 'spec-kitty auth login'")
+                return False
             except Exception:
                 self.reconnect_attempts += 1
 
