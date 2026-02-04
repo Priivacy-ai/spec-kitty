@@ -51,6 +51,7 @@ As a documentation-mission user, I want gap analysis and documentation state to 
 1. **Given** a documentation mission feature, **When** planning or research is run, **Then** a gap analysis report is generated and stored for the feature.
 2. **Given** a documentation mission feature, **When** validation or acceptance runs, **Then** it checks for a recent gap analysis and documentation state metadata.
 3. **Given** a non-documentation mission feature, **When** planning, research, validation, or acceptance runs, **Then** documentation tooling is not invoked and no documentation-specific artifacts are created.
+4. **Given** a documentation mission feature, **When** generator tools (Sphinx/JSDoc/Rustdoc) are missing, **Then** the system warns with clear guidance and continues without failing the flow.
 
 ---
 
@@ -70,7 +71,7 @@ As a documentation-mission user, I want gap analysis and documentation state to 
 - **FR-005**: Documentation mission state MUST be initialized during specification for documentation mission features.
 - **FR-006**: Documentation mission gap analysis MUST execute during planning and research flows when applicable and write to a canonical path: `kitty-specs/<feature>/gap-analysis.md`.
 - **FR-007**: Documentation mission validation/acceptance MUST verify presence and recency of gap analysis artifacts and state metadata using the rules in **Documentation State & Recency Rules**.
-- **FR-008**: Base planning templates MUST be aligned with mission templates to avoid drift in feature detection guidance.
+- **FR-008**: Base planning template `src/specify_cli/templates/command-templates/plan.md` MUST be aligned with the software-dev mission template for feature detection guidance.
 - **FR-009**: If documentation generator tools are missing, planning/research MUST warn with clear guidance and continue (no hard-fail).
 
 ### Key Entities *(include if feature involves data)*
@@ -96,6 +97,8 @@ As a documentation-mission user, I want gap analysis and documentation state to 
 
 **Mission gating source**: the feature `meta.json` `mission` value is the primary gate; mission config may be used as a secondary confirmation, but tooling must only run when `mission == "documentation"`.
 
+**Terminology**: “Validation” refers to `spec-kitty validate` (including validate-tasks) while “Acceptance” refers to `spec-kitty accept` and `spec-kitty agent feature accept`. Both must enforce documentation mission rules when mission-gated.
+
 ### Assumptions
 
 - The cleanup targets `main` for a 0.13.29 release and will be cherry-picked into `2.x` after release readiness.
@@ -109,3 +112,4 @@ As a documentation-mission user, I want gap analysis and documentation state to 
 - **SC-002**: Task and acceptance commands produce the same outcomes when run from a main repo or a worktree checkout.
 - **SC-003**: Documentation mission planning or research produces a gap analysis report for 100% of documentation mission features that request it.
 - **SC-004**: Documentation mission acceptance/validation fails if required documentation state or gap analysis artifacts are missing.
+- **SC-005**: CI passes with `mypy --strict` and new/modified modules meet the 90%+ coverage requirement.

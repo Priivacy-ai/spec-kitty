@@ -62,6 +62,7 @@ Clean up duplicated script entrypoints, consolidate task/acceptance helpers into
 - **Cross-platform**: Changes must avoid symlinks and keep path handling portable.
 - **Two-branch strategy**: **Violation/Exception required**. Constitution says new features target 2.x, but this release targets `main` (0.13.29) before cherry-picking to `2.x`.
 - **Exception approval step**: Record a brief approval note in the PR/issue referencing this planned exception and the 0.13.29 release need.
+- **Exception formalization**: If required by maintainers, add an ADR or explicit PR review note referencing this exception and the two-branch policy.
 
 ## Project Structure
 
@@ -82,6 +83,9 @@ kitty-specs/029-mission-aware-cleanup-docs-wiring/
 ```
 src/
 └── specify_cli/
+    ├── core/
+    │   ├── task_helpers.py
+    │   └── acceptance_core.py
     ├── cli/
     │   └── commands/
     ├── missions/
@@ -109,7 +113,9 @@ tests/
 ## Module Touchpoints
 
 - `src/specify_cli/acceptance.py`
+- `src/specify_cli/core/acceptance_core.py`
 - `src/specify_cli/tasks_support.py`
+- `src/specify_cli/core/task_helpers.py`
 - `src/specify_cli/scripts/tasks/task_helpers.py`
 - `src/specify_cli/scripts/tasks/tasks_cli.py`
 - `src/specify_cli/scripts/tasks/acceptance_support.py`
@@ -134,6 +140,7 @@ tests/
 - **FR-005/FR-006/SC-003**: Documentation mission plan/research runs gap analysis and updates `documentation_state`.
 - **FR-007/SC-004**: Validation/acceptance fails for missing/stale doc state or gap analysis; passes for fresh state.
 - **Non-doc regression**: Plan/research/validate/accept must not invoke doc tooling for software-dev missions.
+- **SC-005**: CI passes with `mypy --strict` and 90%+ coverage for new/modified modules.
 
 ## Complexity Tracking
 

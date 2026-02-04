@@ -26,7 +26,7 @@
   - `framework_detected`
   - `coverage_matrix`
   - `gaps_prioritized`
-  - `generated_at`
+  - `generated_at` (ISO 8601 timestamp)
 - **Relationships**: Generated during plan/research; required for acceptance validation.
 
 ### Mission Type
