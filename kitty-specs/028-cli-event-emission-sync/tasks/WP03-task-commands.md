@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Task Command Integration
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 028-cli-event-emission-sync-WP01
 base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
@@ -14,7 +14,7 @@ subtasks:
 - T017
 phase: Phase 2 - Command Wiring
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "36901"
 review_status: ''
 reviewed_by: ''
@@ -267,3 +267,4 @@ To change a work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP03 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+- 2026-02-04T11:37:22Z – claude-opus – shell_pid=36901 – lane=for_review – Ready for review: Event emission wired into move-task (WPStatusChanged), mark-status (HistoryAdded), add-history (HistoryAdded), and error handlers (ErrorLogged). Lamport clock verified monotonically increasing. All 140 existing tests pass.
