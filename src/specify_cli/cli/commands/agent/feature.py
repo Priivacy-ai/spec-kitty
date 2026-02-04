@@ -36,6 +36,7 @@ from specify_cli.core.worktree import (
     validate_feature_structure,
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
+from specify_cli.sync.events import emit_feature_created, emit_wp_created, get_emitter
 
 app = typer.Typer(
     name="feature",
@@ -914,6 +915,7 @@ def finalize_tasks(
         # Update each WP file's frontmatter with dependencies
         wp_files = list(tasks_dir.glob("WP*.md"))
         updated_count = 0
+        work_packages: list[dict[str, object]] = []
 
         for wp_file in wp_files:
             # Extract WP ID from filename
@@ -943,6 +945,14 @@ def finalize_tasks(
 
             # Get dependencies for this WP (default to empty list)
             deps = wp_dependencies.get(wp_id, [])
+            title = (frontmatter.get("title") or "").strip() or wp_id
+            work_packages.append(
+                {
+                    "id": wp_id,
+                    "title": title,
+                    "dependencies": deps,
+                }
+            )
 
             # Update frontmatter with dependencies
             if not has_dependencies_line or frontmatter.get("dependencies") != deps:
@@ -952,8 +962,21 @@ def finalize_tasks(
                 write_frontmatter(wp_file, frontmatter, body)
                 updated_count += 1
 
-        # Commit tasks.md and WP files to target branch
+        # Prepare metadata for event emission
         feature_slug = feature_dir.name
+        meta_path = feature_dir / "meta.json"
+        meta = None
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                console.print(
+                    f"[yellow]Warning:[/yellow] Failed to read meta.json for event emission: {exc}"
+                )
+        else:
+            console.print("[yellow]Warning:[/yellow] meta.json missing; skipping FeatureCreated emission")
+
+        # Commit tasks.md and WP files to target branch
         commit_created = False
         commit_hash = None
         files_committed = []
@@ -1029,6 +1052,44 @@ def finalize_tasks(
             else:
                 console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(1)
+
+        # Emit FeatureCreated and WPCreated events (non-blocking)
+        causation_id = get_emitter().generate_causation_id()
+        if meta is not None:
+            feature_number = meta.get("feature_number")
+            target_branch = meta.get("target_branch")
+            meta_slug = meta.get("slug", feature_slug)
+            if feature_number and target_branch:
+                try:
+                    emit_feature_created(
+                        feature_slug=meta_slug,
+                        feature_number=feature_number,
+                        target_branch=target_branch,
+                        wp_count=len(work_packages),
+                        causation_id=causation_id,
+                    )
+                except Exception as exc:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] FeatureCreated emission failed: {exc}"
+                    )
+            else:
+                console.print(
+                    "[yellow]Warning:[/yellow] meta.json missing required fields; skipping FeatureCreated emission"
+                )
+
+        for wp in work_packages:
+            try:
+                emit_wp_created(
+                    wp_id=str(wp["id"]),
+                    title=str(wp["title"]),
+                    dependencies=list(wp["dependencies"]),
+                    feature_slug=feature_slug,
+                    causation_id=causation_id,
+                )
+            except Exception as exc:
+                console.print(
+                    f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}"
+                )
 
         if json_output:
             print(json.dumps({
