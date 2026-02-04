@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Test Suite
-lane: "doing"
+lane: "planned"
 dependencies: [WP06]
 base_branch: 028-cli-event-emission-sync-WP06
 base_commit: 0eb801bdecc083e0b4413d391270dbfff605a2ed
@@ -19,8 +19,8 @@ phase: Phase 4 - Validation
 assignee: ''
 agent: "codex"
 shell_pid: "25757"
-review_status: ''
-reviewed_by: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned
@@ -33,11 +33,16 @@ history:
 
 ## Review Feedback
 
-> **Populated by `/spec-kitty.review`** - Reviewers add detailed feedback here when work needs changes. Implementation must address every item listed below before returning for re-review.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-02-04
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review. If you see feedback here, treat each item as a must-do before completion.]*
+**Issue 1: SC-001–SC-005 and SC-011/SC-012 are not tested via CLI commands as required.**
+The spec explicitly ties these success criteria to running CLI commands (implement/merge/accept/finalize-tasks/orchestrate) and task command tests. The current `tests/sync/test_event_emission.py` exercises the `EventEmitter` directly, which does not validate CLI wiring. Please add CLI-level tests using Typer `CliRunner` that invoke the actual commands and assert emissions (mocking the emitter/queue as needed). The WP prompt asked for `tests/cli/commands/test_event_emission.py` and CLI fixtures; those are missing.
 
----
+**Issue 2: Coverage target not met (90%+ for new sync code).**
+The commit message reports `clock.py` at 89% and `emitter.py` at 87%, below the required 90%+ line coverage for new code under `src/specify_cli/sync/`. Please add tests to raise coverage and include a `pytest --cov=src/specify_cli/sync` report in your verification notes.
+
 
 ## Markdown Formatting
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
@@ -521,3 +526,4 @@ To change a work package's lane, either:
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 - 2026-02-04T13:07:50Z – unknown – shell_pid=58254 – lane=for_review – Ready for review: 143 tests covering all 8 event types, SC-001 through SC-012, edge cases (queue overflow, concurrent emission, non-blocking, clock desync). Coverage: events.py 100%, background.py 90%, clock.py 89%, emitter.py 87%.
 - 2026-02-04T13:08:04Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
+- 2026-02-04T13:10:14Z – codex – shell_pid=25757 – lane=planned – Moved to planned
