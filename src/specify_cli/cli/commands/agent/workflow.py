@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -701,6 +702,91 @@ def implement(
         raise typer.Exit(1)
 
 
+def _resolve_review_context(
+    workspace_path: Path,
+    repo_root: Path,
+    feature_slug: str,
+    wp_frontmatter: str,
+) -> dict:
+    """Resolve git branch and base context for review prompts.
+
+    Determines the WP's branch name, its base branch (what it was branched
+    from), and the number of commits unique to this WP so reviewers know
+    exactly what to diff against instead of guessing.
+
+    Strategy:
+    1. Get actual branch name from the worktree
+    2. Extract WP dependencies from frontmatter to try dependency branches
+    3. Also try common base branches (main, 2.x, master, develop)
+    4. Pick the candidate with fewest commits ahead (closest ancestor)
+    """
+    ctx: dict = {
+        "branch_name": "unknown",
+        "base_branch": "unknown",
+        "commit_count": 0,
+    }
+
+    if not workspace_path.exists():
+        return ctx
+
+    # Get actual branch name from worktree
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=workspace_path, capture_output=True, text=True, check=False,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        ctx["branch_name"] = result.stdout.strip()
+    else:
+        return ctx
+
+    branch = ctx["branch_name"]
+
+    # Build candidate base branches
+    candidates: list[str] = []
+
+    # From WP dependencies (e.g., dependencies: ["WP01"])
+    dep_match = re.search(r'dependencies:\s*\[([^\]]*)\]', wp_frontmatter)
+    if dep_match:
+        dep_content = dep_match.group(1).strip()
+        if dep_content:
+            dep_ids = re.findall(r'"?(WP\d+)"?', dep_content)
+            for dep_id in dep_ids:
+                candidates.append(f"{feature_slug}-{dep_id}")
+
+    # Common base branches
+    candidates.extend(["main", "2.x", "master", "develop"])
+
+    # Find closest ancestor (fewest commits ahead = most specific base)
+    best_base = None
+    best_count = -1
+
+    for candidate in candidates:
+        mb = subprocess.run(
+            ["git", "merge-base", branch, candidate],
+            cwd=repo_root, capture_output=True, text=True, check=False,
+        )
+        if mb.returncode != 0:
+            continue
+
+        count_r = subprocess.run(
+            ["git", "rev-list", "--count", f"{mb.stdout.strip()}..{branch}"],
+            cwd=repo_root, capture_output=True, text=True, check=False,
+        )
+        if count_r.returncode != 0:
+            continue
+
+        count = int(count_r.stdout.strip())
+        if best_count == -1 or count < best_count:
+            best_count = count
+            best_base = candidate
+
+    if best_base:
+        ctx["base_branch"] = best_base
+        ctx["commit_count"] = best_count
+
+    return ctx
+
+
 def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
     """Find the first WP file with lane: "for_review".
 
@@ -914,6 +1000,11 @@ def review(
         if workspace_path.exists():
             _ensure_sparse_checkout(workspace_path)
 
+        # Resolve git context (branch name, base branch, commit count)
+        review_ctx = _resolve_review_context(
+            workspace_path, repo_root, feature_slug, wp.frontmatter
+        )
+
         # Capture dependency warning for both file and summary
         dependents_warning = []
         feature_dir = repo_root / "kitty-specs" / feature_slug
@@ -969,6 +1060,21 @@ def review(
         lines.append("║       Git commits from other WPs are other agents - ignore them.        ║")
         lines.append("╚" + "=" * 78 + "╝")
         lines.append("")
+
+        # Git review context — tells reviewer exactly what to diff against
+        if review_ctx["base_branch"] != "unknown":
+            base = review_ctx["base_branch"]
+            lines.append("─── GIT REVIEW CONTEXT " + "─" * 57)
+            lines.append(f"Branch:      {review_ctx['branch_name']}")
+            lines.append(f"Base branch: {base} ({review_ctx['commit_count']} commits ahead)")
+            lines.append("")
+            lines.append("Review commands (run in the workspace):")
+            lines.append(f"  cd {workspace_path}")
+            lines.append(f"  git log {base}..HEAD --oneline           # WP commits only")
+            lines.append(f"  git diff {base}..HEAD --stat             # Changed files")
+            lines.append(f"  git diff {base}..HEAD                    # Full diff")
+            lines.append("─" * 80)
+            lines.append("")
 
         # Next steps
         lines.append("=" * 80)
@@ -1049,6 +1155,10 @@ def review(
                 print(line)
             print()
         print(f"📍 Workspace: cd {workspace_path}")
+        if review_ctx["base_branch"] != "unknown":
+            base = review_ctx["base_branch"]
+            print(f"🔀 Branch: {review_ctx['branch_name']} (based on {base}, {review_ctx['commit_count']} commits)")
+            print(f"   Review diff: git log {base}..HEAD --oneline")
         print()
         print("▶▶▶ NEXT STEP: Read the full prompt file now:")
         print(f"    cat {prompt_file}")

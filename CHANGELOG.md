@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.24] - 2026-02-04
+
+### 🔧 Improved
+
+**Review workflow shows git context for reviewers**:
+- `spec-kitty agent workflow review` now displays the WP's branch name, base branch, and commit count
+- Reviewers see exactly which commits belong to the WP vs inherited history
+- Provides ready-to-use `git log <base>..HEAD` and `git diff <base>..HEAD` commands
+- Base branch auto-detected from WP dependencies (tries dependency branches first, then main/2.x)
+- Prevents reviewers from accidentally diffing against the wrong base (e.g., `main` instead of `2.x`)
+
 ## [0.13.20] - 2026-01-30
 
 ### 🐛 Fixed
