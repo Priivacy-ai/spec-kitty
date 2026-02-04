@@ -66,6 +66,15 @@ from specify_cli.orchestrator.state import (
     WPExecution,
     save_state,
 )
+from specify_cli.sync.events import (
+    emit_wp_assigned,
+    emit_feature_completed,
+    emit_dependency_resolved,
+)
+from specify_cli.core.dependency_graph import (
+    build_dependency_graph,
+    get_dependents,
+)
 
 if TYPE_CHECKING:
     pass
@@ -457,6 +466,19 @@ async def process_wp_implementation(
     state.total_agent_invocations += 1
     save_state(state, repo_root)
 
+    # Emit WPAssigned event (T023/T024/T026)
+    # retry_count combines review-rejection retries + fallback agent attempts
+    retry_count = wp.implementation_retries + len(wp.fallback_agents_tried)
+    try:
+        emit_wp_assigned(
+            wp_id=wp_id,
+            agent_id=agent_id,
+            phase="implementation",
+            retry_count=retry_count,
+        )
+    except Exception as e:
+        logger.warning(f"WPAssigned emission failed for {wp_id}: {e}")
+
     # Update lane
     await transition_wp_lane(wp, "start_implementation", repo_root)
 
@@ -467,8 +489,6 @@ async def process_wp_implementation(
     if not worktree_path.exists():
         try:
             # Determine base WP from dependencies
-            from specify_cli.core.dependency_graph import build_dependency_graph
-
             graph = build_dependency_graph(feature_dir)
             deps = graph.get(wp_id, [])
 
@@ -694,6 +714,17 @@ async def process_wp_review(
     wp.review_started = datetime.now(timezone.utc)
     state.total_agent_invocations += 1
     save_state(state, repo_root)
+
+    # Emit WPAssigned event for review phase (T025/T026)
+    try:
+        emit_wp_assigned(
+            wp_id=wp_id,
+            agent_id=agent_id,
+            phase="review",
+            retry_count=wp.review_retries,
+        )
+    except Exception as e:
+        logger.warning(f"WPAssigned (review) emission failed for {wp_id}: {e}")
 
     # Update lane
     await transition_wp_lane(wp, "complete_implementation", repo_root)
@@ -1093,6 +1124,19 @@ async def run_orchestration_loop(
             state.completed_at = datetime.now(timezone.utc)
             save_state(state, repo_root)
 
+            # Emit FeatureCompleted if all WPs are done (T027)
+            if state.status == OrchestrationStatus.COMPLETED and state.wps_failed == 0:
+                duration = (state.completed_at - state.started_at).total_seconds()
+                try:
+                    emit_feature_completed(
+                        feature_slug=state.feature_slug,
+                        total_wps=state.wps_total,
+                        completed_at=state.completed_at.isoformat(),
+                        total_duration=f"{duration:.1f}s",
+                    )
+                except Exception as e:
+                    logger.warning(f"FeatureCompleted emission failed: {e}")
+
         # Print summary
         print_summary(state, console)
 
@@ -1185,6 +1229,23 @@ async def _orchestration_main_loop(
                 task.result()  # Raises if task failed
             except Exception as e:
                 logger.error(f"Task for {wp_id} raised exception: {e}")
+
+            # Emit DependencyResolved for dependents (T028)
+            wp_state = state.work_packages.get(wp_id)
+            if wp_state and wp_state.status == WPStatus.COMPLETED:
+                dependents = get_dependents(wp_id, graph)
+                for dependent_wp in dependents:
+                    try:
+                        emit_dependency_resolved(
+                            wp_id=dependent_wp,
+                            dependency_wp_id=wp_id,
+                            resolution_type="completed",
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"DependencyResolved emission failed for "
+                            f"{dependent_wp} (unblocked by {wp_id}): {e}"
+                        )
 
         # Check if nothing can progress
         if not ready and not running_tasks:
