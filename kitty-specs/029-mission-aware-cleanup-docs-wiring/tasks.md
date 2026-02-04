@@ -110,10 +110,10 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 **Prompt**: `/tasks/WP04-doc-mission-state-gap-analysis.md`
 
 ### Included Subtasks
-- [ ] T013 Wire documentation state initialization into specification flow for documentation missions with schema defaults.
-- [ ] T014 Invoke gap analysis during documentation mission planning and persist report to `kitty-specs/<feature>/gap-analysis.md`.
-- [ ] T015 Invoke gap analysis during documentation mission research and update documentation state metadata.
-- [ ] T016 Integrate documentation generator detection/configuration into the plan flow and record configured generators in state.
+- [x] T013 Wire documentation state initialization into specification flow for documentation missions with schema defaults.
+- [x] T014 Invoke gap analysis during documentation mission planning and persist report to `kitty-specs/<feature>/gap-analysis.md`.
+- [x] T015 Invoke gap analysis during documentation mission research and update documentation state metadata.
+- [x] T016 Integrate documentation generator detection/configuration into the plan flow and record configured generators in state.
 
 ### Implementation Notes
 - Ensure mission gating so software-dev flows remain untouched.
