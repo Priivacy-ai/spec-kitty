@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Test Suite
-lane: "doing"
+lane: "for_review"
 dependencies: [WP06]
 base_branch: 028-cli-event-emission-sync-WP06
 base_commit: 0eb801bdecc083e0b4413d391270dbfff605a2ed
@@ -528,3 +528,4 @@ To change a work package's lane, either:
 - 2026-02-04T13:08:04Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
 - 2026-02-04T13:10:14Z – codex – shell_pid=25757 – lane=planned – Moved to planned
 - 2026-02-04T13:12:34Z – codex – shell_pid=25757 – lane=doing – Started implementation via workflow command
+- 2026-02-04T13:32:38Z – codex – shell_pid=25757 – lane=for_review – Ready for review: added CLI event-emission tests, added emit hooks in implement/merge/accept/finalize-tasks, boosted sync coverage (emitter 95%). Ran pytest tests/sync -k 'not client_integration' with --cov.
