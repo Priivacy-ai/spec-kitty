@@ -776,7 +776,18 @@ def implement(
                     console.print(f"\n[yellow]Conflicts in:[/yellow]")
                     for conflict_file in merge_result.conflicts:
                         console.print(f"  - {conflict_file}")
-                    console.print(f"\n[dim]Resolve conflicts manually, then re-run implement[/dim]")
+
+                console.print(f"\n[yellow]Recovery options:[/yellow]")
+                console.print("1. Pick a dependency as the base, then merge the others in the worktree:")
+                console.print(f"   spec-kitty implement {wp_id} --base <WPxx>")
+                console.print(f"   cd .worktrees/{feature_slug}-{wp_id}")
+                console.print(f"   git merge {feature_slug}-<WPy>")
+                console.print("   # Resolve conflicts, then commit")
+                console.print("2. If you're using agent workflow:")
+                console.print(f"   spec-kitty agent workflow implement {wp_id} --base <WPxx> --agent <name>")
+                console.print("   # Then merge other dependency branches in the worktree")
+                console.print("\n[dim]Note:[/dim] There is no `spec-kitty agent workflow merge` command.")
+                console.print("      Feature merges use: spec-kitty agent feature merge")
 
                 raise typer.Exit(1)
 
