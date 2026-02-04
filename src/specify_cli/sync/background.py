@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from .auth import AuthClient
-from .batch import BatchSyncResult, batch_sync
+from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
 from .config import SyncConfig
 from .queue import OfflineQueue
 
@@ -79,8 +79,13 @@ class BackgroundSyncService:
         return self._running
 
     def sync_now(self) -> BatchSyncResult:
-        """Trigger an immediate sync, bypassing the timer."""
-        return self._perform_sync()
+        """Trigger an immediate sync, draining all queued events.
+
+        Unlike the periodic timer (which syncs a single batch), this
+        loops until the queue is empty or all remaining events have
+        exceeded their retry limit.
+        """
+        return self._perform_full_sync()
 
     # ── Internal ──────────────────────────────────────────────────
 
@@ -107,10 +112,56 @@ class BackgroundSyncService:
         self._schedule_next_sync()
 
     def _perform_sync(self) -> BatchSyncResult:
-        """Execute a single batch sync operation.
+        """Execute a single batch sync operation (up to 1000 events).
+
+        Thread-safe: acquires _lock so timer callbacks and sync_now()
+        cannot overlap.
 
         On success resets backoff; on failure doubles backoff (capped at 30s).
         """
+        with self._lock:
+            return self._sync_once()
+
+    def _perform_full_sync(self) -> BatchSyncResult:
+        """Drain the entire queue across multiple batches.
+
+        Thread-safe: holds _lock for the full duration so background
+        timer ticks are serialised.
+        """
+        with self._lock:
+            access_token = self.auth.get_access_token()
+            if access_token is None:
+                logger.warning("Not authenticated, skipping sync")
+                return BatchSyncResult()
+
+            try:
+                result = sync_all_queued_events(
+                    queue=self.queue,
+                    auth_token=access_token,
+                    server_url=self.config.get_server_url(),
+                    batch_size=1000,
+                    show_progress=False,
+                )
+                self._consecutive_failures = 0
+                self._backoff_seconds = 0.5
+                self._last_sync = datetime.now(timezone.utc)
+                return result
+            except Exception as exc:
+                self._consecutive_failures += 1
+                self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
+                logger.warning(
+                    "Full sync failed (attempt %d, next backoff %.1fs): %s",
+                    self._consecutive_failures,
+                    self._backoff_seconds,
+                    exc,
+                )
+                result = BatchSyncResult()
+                result.error_count = 1
+                result.error_messages.append(str(exc))
+                return result
+
+    def _sync_once(self) -> BatchSyncResult:
+        """Internal: single-batch sync (caller must hold _lock)."""
         access_token = self.auth.get_access_token()
         if access_token is None:
             logger.warning("Not authenticated, skipping sync")
@@ -165,6 +216,7 @@ def get_sync_service() -> BackgroundSyncService:
                     auth=AuthClient(),
                     config=SyncConfig(),
                 )
+                _service.start()
                 atexit.register(_service.stop)
     return _service
 
