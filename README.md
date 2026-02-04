@@ -336,13 +336,15 @@ The upgrade command is **idempotent** - safe to run multiple times. It automatic
 ### Phase 2: Start Your AI Agent (Terminal)
 
 ```bash
-# Launch your chosen AI coding agent
-claude   # For Claude Code
+# Launch your chosen AI coding agent (12 agents supported)
+claude   # Eg. for Claude Code
 # or
-gemini   # For Gemini CLI
+gemini   # Eg. for Gemini CLI
 # or
-code     # For GitHub Copilot / Cursor
+code     # Eg. for GitHub Copilot / Cursor
 ```
+
+(You can choose which agents you work with by running `spec-kitty init`, and it is safe to run that command on existing projects, or to run it multiple times) 
 
 **Verify slash commands loaded:**
 Type `/spec-kitty` and you should see autocomplete with all 13 commands.
