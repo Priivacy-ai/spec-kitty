@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Test Suite
-lane: "for_review"
+lane: "doing"
 dependencies: [WP06]
 base_branch: 028-cli-event-emission-sync-WP06
 base_commit: 0eb801bdecc083e0b4413d391270dbfff605a2ed
@@ -17,8 +17,8 @@ subtasks:
 - T043
 phase: Phase 4 - Validation
 assignee: ''
-agent: ''
-shell_pid: "58254"
+agent: "codex"
+shell_pid: "25757"
 review_status: ''
 reviewed_by: ''
 history:
@@ -520,3 +520,4 @@ To change a work package's lane, either:
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 - 2026-02-04T13:07:50Z – unknown – shell_pid=58254 – lane=for_review – Ready for review: 143 tests covering all 8 event types, SC-001 through SC-012, edge cases (queue overflow, concurrent emission, non-blocking, clock desync). Coverage: events.py 100%, background.py 90%, clock.py 89%, emitter.py 87%.
+- 2026-02-04T13:08:04Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
