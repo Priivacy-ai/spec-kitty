@@ -41,7 +41,11 @@ architecture/
     ├── 2026-01-29-13-target-branch-routing-for-status-commits.md
     ├── 2026-01-29-14-explicit-metadata-fields-over-implicit-defaults.md
     ├── 2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md
-    └── 2026-01-29-16-rich-json-outputs-for-agent-commands.md
+    ├── 2026-01-29-16-rich-json-outputs-for-agent-commands.md
+    ├── 2026-01-29-17-auto-create-target-branch-on-first-implement.md
+    ├── 2026-01-30-18-auto-detect-merged-single-parent-dependencies.md
+    ├── 2026-01-30-19-auto-discover-migrations-from-filesystem.md
+    └── 2026-02-04-21-done-means-review-complete-not-merged.md
 ```
 
 **Note:** Implementation details are documented in code, tests, and docstrings. ADRs focus on decisions and link directly to code.
@@ -134,17 +138,23 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-01-27-12](adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md) | Two-Branch Strategy for SaaS Transformation | Accepted | Release Strategy |
 | [2026-01-29-13](adrs/2026-01-29-13-target-branch-routing-for-status-commits.md) | Target Branch Routing for Status Commits | Accepted | Git Repository Management |
 | [2026-01-29-14](adrs/2026-01-29-14-explicit-metadata-fields-over-implicit-defaults.md) | Explicit Metadata Fields Over Implicit Defaults | Accepted | Metadata & Configuration |
-| [2026-01-29-15](adrs/2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md) | Merge-First Suggestion for Completed Dependencies | Accepted | Git Repository Management |
+| [2026-01-29-15](adrs/2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md) | Merge-First Suggestion for Completed Dependencies | Superseded (ADR-21) | Git Repository Management |
 | [2026-01-29-16](adrs/2026-01-29-16-rich-json-outputs-for-agent-commands.md) | Rich JSON Outputs for Agent Commands | Accepted | Agent Experience |
+| [2026-01-29-17](adrs/2026-01-29-17-auto-create-target-branch-on-first-implement.md) | Auto-Create Target Branch on First Implement | Accepted | Git Repository Management |
+| [2026-01-30-18](adrs/2026-01-30-18-auto-detect-merged-single-parent-dependencies.md) | Auto-Detect Merged Single-Parent Dependencies | Superseded (ADR-21) | Git Repository Management |
+| [2026-01-30-19](adrs/2026-01-30-19-auto-discover-migrations-from-filesystem.md) | Auto-Discover Migrations from Filesystem | Accepted | Upgrade System |
+| [2026-02-04-21](adrs/2026-02-04-21-done-means-review-complete-not-merged.md) | "Done" Means Review-Complete, Not Merged | Accepted | Git Repository Management |
 
 ### By Topic
 
-**Git Repository Management** (ADRs 2, 4, 9, 13, 15)
+**Git Repository Management** (ADRs 2, 4, 5, 9, 13, 15, 17, 18, 21)
 - Base branch visibility and tracking (ADR-2)
-- Multi-parent dependency handling (ADR-4, ADR-15)
+- Multi-parent dependency handling (ADR-4, ~~ADR-15~~ superseded)
 - Worktree lifecycle management (ADR-9)
 - Dual-branch status routing (ADR-13)
 - Runtime context enforcement (ADR-5)
+- Auto-create target branch (ADR-17)
+- "Done" lane semantics (ADR-21, supersedes ADR-15 and ADR-18)
 
 **Metadata & Configuration** (ADRs 3, 6, 14)
 - Workspace context storage (ADR-3)

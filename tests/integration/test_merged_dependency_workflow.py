@@ -1,14 +1,15 @@
-"""Integration tests for implementing WPs after dependencies are merged (ADR-18).
+"""Integration tests for implementing WPs after dependencies are done.
 
 Simulates real workflow:
-1. Implement WP01
-2. Merge WP01 to target branch (2.x)
-3. Clean up WP01 workspace (per ADR-9)
+1. Implement WP01 (creates worktree on branch feature-WP01)
+2. WP01 completes review, lane set to "done"
+3. Worktree cleaned up but branch still exists
 4. Implement WP02 (depends on WP01)
-   - Should branch from 2.x (contains WP01's changes)
+   - Should branch from WP01's branch (contains WP01's changes)
    - Should NOT error about missing WP01 workspace
 
-This validates the fix in ADR-18 (Auto-Detect Merged Single-Parent Dependencies).
+Note: "done" means review-complete, NOT merged to target. Per-WP merging to
+target happens at feature level via `spec-kitty merge`.
 """
 
 from __future__ import annotations
@@ -20,13 +21,17 @@ import pytest
 
 
 @pytest.fixture
-def feature_with_merged_dependency(test_project: Path, run_cli):
-    """Create a feature with WP01 merged and WP02 waiting to be implemented.
+def feature_with_done_dependency(test_project: Path, run_cli):
+    """Create a feature with WP01 done (review-complete) and WP02 waiting.
 
-    Simulates Feature 025 scenario where:
-    - WP01 is merged to 2.x branch
-    - WP01 workspace is cleaned up
-    - WP02 depends on WP01 (should branch from 2.x)
+    Simulates real workflow where:
+    - WP01 was implemented (branch exists with implementation code)
+    - WP01 completed review → lane set to "done"
+    - WP01 worktree cleaned up, but branch still exists
+    - WP02 depends on WP01 (should branch from WP01's branch)
+
+    Note: "done" does NOT mean merged to target. Merging happens at
+    feature level via `spec-kitty merge`.
     """
     # Create target branch (2.x)
     subprocess.run(["git", "checkout", "-b", "2.x"], cwd=test_project, check=True)
@@ -49,7 +54,7 @@ def feature_with_merged_dependency(test_project: Path, run_cli):
         encoding="utf-8"
     )
 
-    # Create WP01 in 'done' lane (merged)
+    # Create WP01 in 'done' lane (review-complete, NOT merged to target)
     wp01_file = tasks_dir / "WP01-event-infrastructure.md"
     wp01_file.write_text(
         "---\n"
@@ -102,8 +107,12 @@ def feature_with_merged_dependency(test_project: Path, run_cli):
         check=True
     )
 
-    # Simulate WP01 merged to 2.x
-    subprocess.run(["git", "checkout", "2.x"], cwd=test_project, check=True)
+    # Simulate WP01's implementation branch (created during implement, persists after done)
+    wp01_branch = f"{feature_slug}-WP01"
+    subprocess.run(
+        ["git", "checkout", "-b", wp01_branch],
+        cwd=test_project, check=True
+    )
     (test_project / "src" / "specify_cli" / "events").mkdir(parents=True)
     events_file = test_project / "src" / "specify_cli" / "events" / "__init__.py"
     events_file.write_text(
@@ -112,86 +121,88 @@ def feature_with_merged_dependency(test_project: Path, run_cli):
     )
     subprocess.run(["git", "add", "."], cwd=test_project, check=True)
     subprocess.run(
-        ["git", "commit", "-m", "Merge WP01: Event infrastructure"],
+        ["git", "commit", "-m", "feat(WP01): Event infrastructure implementation"],
         cwd=test_project,
         check=True
     )
     subprocess.run(["git", "checkout", "main"], cwd=test_project, check=True)
 
-    # Merge 2.x changes to main (keep both in sync)
-    subprocess.run(["git", "merge", "2.x", "--no-ff", "-m", "Merge 2.x to main"], cwd=test_project, check=True)
-
     return test_project
 
 
-def test_implement_after_single_dependency_merged(feature_with_merged_dependency, run_cli):
-    """Test implementing WP02 after WP01 is merged.
+def test_implement_after_single_dependency_done(feature_with_done_dependency, run_cli):
+    """Test implementing WP02 after WP01 is done (review-complete).
 
     Expected:
     - Detects WP01 is in 'done' lane
-    - Branches from 2.x (contains WP01's changes)
+    - Branches from WP01's branch (contains WP01's implementation)
     - Does NOT error about missing WP01 workspace
     - Creates WP02 workspace successfully
     """
-    project = feature_with_merged_dependency
+    project = feature_with_done_dependency
+    feature_slug = "025-cli-event-log-integration"
+    wp01_branch = f"{feature_slug}-WP01"
 
     # Run implement command for WP02
-    result = run_cli(project, "implement", "WP02", "--feature", "025-cli-event-log-integration")
+    result = run_cli(project, "implement", "WP02", "--feature", feature_slug)
 
     # Should succeed
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
-    # Should mention branching from target (2.x)
-    assert "2.x" in result.stdout or "2.x" in result.stderr, "Should mention target branch"
-    assert "done (merged)" in result.stdout or "done (merged)" in result.stderr, "Should detect WP01 is merged"
+    # Should mention branching from WP01's branch (not target)
+    output = result.stdout + result.stderr
+    assert wp01_branch in output, f"Should mention WP01 branch, got: {output}"
+    assert "done" in output.lower(), "Should detect WP01 is done"
 
     # Should NOT mention "Base workspace WP01 does not exist"
-    assert "does not exist" not in result.stdout.lower()
-    assert "does not exist" not in result.stderr.lower()
+    assert "does not exist" not in output.lower()
 
     # Verify workspace created
-    workspace_path = project / ".worktrees" / "025-cli-event-log-integration-WP02"
+    workspace_path = project / ".worktrees" / f"{feature_slug}-WP02"
     assert workspace_path.exists(), "Workspace should be created"
 
-    # Verify workspace contains WP01's changes (events/ directory from 2.x)
+    # Verify workspace contains WP01's changes (events/ directory from WP01's branch)
     events_dir = workspace_path / "src" / "specify_cli" / "events"
-    assert events_dir.exists(), "Should inherit WP01's changes from 2.x"
+    assert events_dir.exists(), "Should inherit WP01's changes from WP01 branch"
 
 
-def test_implement_second_dependent_after_merge(feature_with_merged_dependency, run_cli):
-    """Test implementing WP08 after WP01 is merged (parallel to WP02).
+def test_implement_second_dependent_after_done(feature_with_done_dependency, run_cli):
+    """Test implementing WP08 after WP01 is done (parallel to WP02).
 
     Expected:
     - Also detects WP01 is in 'done' lane
-    - Branches from 2.x independently
+    - Branches from WP01's branch independently
     - Creates WP08 workspace successfully
     """
-    project = feature_with_merged_dependency
+    project = feature_with_done_dependency
+    feature_slug = "025-cli-event-log-integration"
+    wp01_branch = f"{feature_slug}-WP01"
 
     # Run implement command for WP08
-    result = run_cli(project, "implement", "WP08", "--feature", "025-cli-event-log-integration")
+    result = run_cli(project, "implement", "WP08", "--feature", feature_slug)
 
     # Should succeed
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
-    # Should mention branching from target (2.x)
-    assert "2.x" in result.stdout or "2.x" in result.stderr, "Should mention target branch"
+    # Should mention branching from WP01's branch
+    output = result.stdout + result.stderr
+    assert wp01_branch in output, f"Should mention WP01 branch, got: {output}"
 
     # Verify workspace created
-    workspace_path = project / ".worktrees" / "025-cli-event-log-integration-WP08"
+    workspace_path = project / ".worktrees" / f"{feature_slug}-WP08"
     assert workspace_path.exists(), "Workspace should be created"
 
     # Verify workspace contains WP01's changes
     events_dir = workspace_path / "src" / "specify_cli" / "events"
-    assert events_dir.exists(), "Should inherit WP01's changes from 2.x"
+    assert events_dir.exists(), "Should inherit WP01's changes from WP01 branch"
 
 
-def test_implement_multi_parent_all_done_uses_target(test_project, run_cli):
+def test_implement_multi_parent_all_done_creates_merge_base(test_project, run_cli):
     """Test implementing WP04 when all multi-parent dependencies are done.
 
     Expected:
     - Detects WP01, WP02, WP03 all in 'done' lane
-    - Branches from main (optimization, skips merge base)
+    - Creates merge base from their branches (not from target)
     - Creates WP04 workspace successfully
     """
     # Create feature directory
@@ -248,6 +259,26 @@ def test_implement_multi_parent_all_done_uses_target(test_project, run_cli):
         check=True
     )
 
+    # Create WP branches with implementation code (simulating done WPs)
+    for i in range(1, 4):
+        wp_branch = f"{feature_slug}-WP0{i}"
+        subprocess.run(
+            ["git", "checkout", "-b", wp_branch],
+            cwd=test_project, check=True
+        )
+        comp_dir = test_project / "src" / f"component_{i}"
+        comp_dir.mkdir(parents=True, exist_ok=True)
+        (comp_dir / "__init__.py").write_text(
+            f'"""Component {i} implementation."""\n',
+            encoding="utf-8"
+        )
+        subprocess.run(["git", "add", "."], cwd=test_project, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", f"feat(WP0{i}): Component {i} implementation"],
+            cwd=test_project, check=True
+        )
+        subprocess.run(["git", "checkout", "main"], cwd=test_project, check=True)
+
     # Run implement command for WP04 (should auto-detect multi-parent all done)
     result = run_cli(test_project, "implement", "WP04", "--feature", "010-workspace-per-wp", "--force")
 
@@ -255,8 +286,8 @@ def test_implement_multi_parent_all_done_uses_target(test_project, run_cli):
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
     # Should mention all dependencies are done
-    assert "done (merged)" in result.stdout or "done (merged)" in result.stderr, "Should detect all deps merged"
-    assert "main" in result.stdout or "main" in result.stderr, "Should mention target branch"
+    output = result.stdout + result.stderr
+    assert "done" in output.lower(), "Should detect all deps done"
 
     # Verify workspace created
     workspace_path = test_project / ".worktrees" / "010-workspace-per-wp-WP04"

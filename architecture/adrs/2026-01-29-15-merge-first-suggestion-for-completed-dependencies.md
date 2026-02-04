@@ -2,13 +2,21 @@
 
 **Filename:** `2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md`
 
-**Status:** Accepted
+**Status:** SUPERSEDED by [ADR-21: "Done" Means Review-Complete, Not Merged](2026-02-04-21-done-means-review-complete-not-merged.md)
 
 **Date:** 2026-01-29
 
 **Deciders:** Robert Douglass
 
 **Technical Story:** Enhances ADR-4's auto-merge behavior with proactive guidance when all multi-parent dependencies are completed, preventing auto-merge conflicts by suggesting merge-first workflow.
+
+---
+
+> **DEPRECATED** - This ADR recommended merging completed dependencies to the target branch before implementing the dependent WP. This was based on the incorrect assumption that "done" means the work should go to the target branch. In reality, "done" means review-complete; WP branches persist and are NOT merged to target until `spec-kitty merge` runs at the feature level.
+>
+> **What changed:** The `--force` flag now creates a merge base directly from the WP branches (whether "doing" or "done"), without merging anything to the target branch first. The conflict detection logic from this ADR is still used, but the recommended workflow ("merge to main first") is no longer correct.
+>
+> **See [ADR-21](2026-02-04-21-done-means-review-complete-not-merged.md) for the corrected position.**
 
 ---
 

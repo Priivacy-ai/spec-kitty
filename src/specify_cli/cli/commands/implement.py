@@ -609,9 +609,25 @@ def implement(
                 raise typer.Exit(1)
 
             if base_lane == "done":
-                # Base is merged - will branch from target branch (no workspace validation needed)
-                # This is handled in "Create workspace" step
-                pass
+                # Base is done (review complete) but NOT merged to target yet.
+                # Merging happens at feature level via `spec-kitty merge`.
+                # The WP's branch should still exist even if worktree was cleaned up.
+                base_branch_name = f"{feature_slug}-{base}"
+                result = subprocess.run(
+                    ["git", "rev-parse", "--verify", base_branch_name],
+                    cwd=repo_root,
+                    capture_output=True,
+                    check=False
+                )
+                if result.returncode != 0:
+                    tracker.error("validate", f"base branch {base_branch_name} not found")
+                    console.print(tracker.render())
+                    console.print(f"\n[red]Error:[/red] Branch {base_branch_name} does not exist")
+                    console.print(f"Status: {base} is 'done' but its branch was not found")
+                    console.print(f"\nPossible causes:")
+                    console.print(f"  - {base} was already merged and branch deleted")
+                    console.print(f"  - Branch was manually deleted")
+                    raise typer.Exit(1)
             else:
                 # Base is in-progress - validate workspace exists
                 base_workspace = repo_root / ".worktrees" / f"{feature_slug}-{base}"
@@ -735,40 +751,37 @@ def implement(
             dep_status = check_dependency_status(feature_dir, wp_id, declared_deps)
 
             if dep_status.all_done:
-                # All merged - branch from target (skip expensive merge base creation)
-                from specify_cli.core.feature_detection import get_feature_target_branch
-
-                target_branch = get_feature_target_branch(repo_root, feature_slug)
+                # All done (review complete) - still need to merge their branches.
+                # "done" does NOT mean "merged to target" - merging happens at
+                # feature level via `spec-kitty merge`.
                 deps_str = ", ".join(declared_deps)
-                console.print(f"\n[cyan]→ All dependencies ({deps_str}) are done (merged)[/cyan]")
-                console.print(f"[cyan]→ Branching from {target_branch} (contains all changes)[/cyan]")
-                base_branch = target_branch
-                auto_merge_base = False  # Skip merge base creation
-            else:
-                # Create merge base combining in-progress dependencies
-                merge_result = create_multi_parent_base(
-                    feature_slug=feature_slug,
-                    wp_id=wp_id,
-                    dependencies=declared_deps,
-                    repo_root=repo_root,
-                )
+                console.print(f"\n[cyan]→ All dependencies ({deps_str}) are done[/cyan]")
+                console.print(f"[cyan]→ Creating merge base from their branches...[/cyan]")
 
-                if not merge_result.success:
-                    tracker.error("create", "merge base creation failed")
-                    console.print(tracker.render())
-                    console.print(f"\n[red]Error:[/red] Failed to create merge base")
-                    console.print(f"Reason: {merge_result.error}")
+            # Create merge base combining dependency branches (whether in-progress or done)
+            merge_result = create_multi_parent_base(
+                feature_slug=feature_slug,
+                wp_id=wp_id,
+                dependencies=declared_deps,
+                repo_root=repo_root,
+            )
 
-                    if merge_result.conflicts:
-                        console.print(f"\n[yellow]Conflicts in:[/yellow]")
-                        for conflict_file in merge_result.conflicts:
-                            console.print(f"  - {conflict_file}")
-                        console.print(f"\n[dim]Resolve conflicts manually, then re-run implement[/dim]")
+            if not merge_result.success:
+                tracker.error("create", "merge base creation failed")
+                console.print(tracker.render())
+                console.print(f"\n[red]Error:[/red] Failed to create merge base")
+                console.print(f"Reason: {merge_result.error}")
 
-                    raise typer.Exit(1)
+                if merge_result.conflicts:
+                    console.print(f"\n[yellow]Conflicts in:[/yellow]")
+                    for conflict_file in merge_result.conflicts:
+                        console.print(f"  - {conflict_file}")
+                    console.print(f"\n[dim]Resolve conflicts manually, then re-run implement[/dim]")
 
-                # Use merge base branch
-                base_branch = merge_result.branch_name
+                raise typer.Exit(1)
+
+            # Use merge base branch
+            base_branch = merge_result.branch_name
 
         elif base is None:
             # No dependencies - branch from target branch (or primary if target not set)
@@ -830,12 +843,11 @@ def implement(
                 raise typer.Exit(1)
 
             if base_lane == "done":
-                # Base merged - use target branch (contains base's changes already)
-                from specify_cli.core.feature_detection import get_feature_target_branch
-
-                target_branch = get_feature_target_branch(repo_root, feature_slug)
-                console.print(f"\n[cyan]→ Base {base} is done (merged) - branching from {target_branch}[/cyan]")
-                base_branch = target_branch
+                # Base is done (review complete) - branch from its WP branch.
+                # "done" does NOT mean "merged to target" - merging happens at
+                # feature level via `spec-kitty merge`.
+                base_branch = f"{feature_slug}-{base}"
+                console.print(f"\n[cyan]→ Base {base} is done - branching from {base_branch}[/cyan]")
             else:
                 # Base in progress - use workspace branch
                 base_branch = f"{feature_slug}-{base}"
@@ -992,17 +1004,21 @@ def implement(
             )
             current_branch = current_branch_result.stdout.strip()
 
-            # Auto-create target branch if it doesn't exist (same as move-task logic)
-            if target_branch not in ["main", "master"]:
-                branch_exists_result = subprocess.run(
-                    ["git", "rev-parse", "--verify", target_branch],
-                    cwd=repo_root,
-                    capture_output=True,
-                    check=False
-                )
+            # Verify target branch exists; fall back to primary if needed
+            branch_exists_result = subprocess.run(
+                ["git", "rev-parse", "--verify", target_branch],
+                cwd=repo_root,
+                capture_output=True,
+                check=False
+            )
 
-                if branch_exists_result.returncode != 0:
-                    # Target branch doesn't exist - auto-create from primary
+            if branch_exists_result.returncode != 0:
+                if target_branch in ["main", "master"]:
+                    # Default target doesn't exist (e.g., "main" default but repo uses "master")
+                    # Fall back to whichever primary branch exists
+                    target_branch = resolve_primary_branch(repo_root)
+                else:
+                    # Custom target branch - auto-create from primary
                     primary_branch = resolve_primary_branch(repo_root)
                     console.print(f"[cyan]Target branch '{target_branch}' doesn't exist - creating from {primary_branch}[/cyan]")
 

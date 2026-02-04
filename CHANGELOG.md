@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.23] - 2026-02-04
+
+### 🐛 Fixed
+
+**"Done" Lane Semantics — Branch from WP Branch, Not Target (ADR-21)**:
+- Fixed critical bug where `implement --base WP01` branched from the target branch when WP01 was "done", missing all of WP01's implementation code
+- Root cause: Three locations in `implement.py` incorrectly treated "done" lane as "merged to target branch". In reality, "done" means review-complete — WP branches persist and are NOT merged to target until `spec-kitty merge` runs at the feature level
+- Fix 1 (validation): When base WP is "done", verify its branch exists instead of skipping validation
+- Fix 2 (create workspace): When base WP is "done", branch from `{feature}-{WP}` branch instead of target
+- Fix 3 (multi-parent): When all dependencies are "done", create merge base from their WP branches instead of short-circuiting to target
+- Fix 4 (CI): Fall back to `resolve_primary_branch()` when default "main" target doesn't exist (repos using "master")
+- Updated `dependency_resolver.py` messaging to stop claiming "done = merged"
+- Updated integration tests to match corrected semantics
+
+### 📝 Architecture
+
+- **ADR-21**: "Done" Means Review-Complete, Not Merged — establishes authoritative lane lifecycle
+- **Supersedes ADR-15 and ADR-18** which incorrectly conflated "done" with "merged to target"
+- Updated ADR-4 with cross-reference to ADR-21
+- Updated architecture README index with ADRs 17-21
+
 ## [0.13.22] - 2026-02-03
 
 ### 🐛 Fixed

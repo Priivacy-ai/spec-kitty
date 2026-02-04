@@ -2,13 +2,19 @@
 
 **Filename:** `2026-01-30-18-auto-detect-merged-single-parent-dependencies.md`
 
-**Status:** Accepted
+**Status:** SUPERSEDED by [ADR-21: "Done" Means Review-Complete, Not Merged](2026-02-04-21-done-means-review-complete-not-merged.md)
 
 **Date:** 2026-01-30
 
 **Deciders:** Robert Douglass
 
 **Technical Story:** Fixes workflow gap where `spec-kitty implement` fails when a single-parent dependency (WP01) has been merged to the target branch, causing dependent WPs (WP02, WP08) to block on non-existent workspace branches.
+
+---
+
+> **DEPRECATED** - This ADR contains a fundamental semantic error: it equates `lane == "done"` with "merged to target branch." In reality, "done" means review-complete. WP branches persist after review and are NOT merged to the target branch until `spec-kitty merge` runs at the feature level. This error caused bugs where `implement` branched from the target branch (missing the dependency's code) instead of from the WP's implementation branch.
+>
+> **See [ADR-21](2026-02-04-21-done-means-review-complete-not-merged.md) for the corrected position.**
 
 ---
 
