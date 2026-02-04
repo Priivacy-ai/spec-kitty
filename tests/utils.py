@@ -8,7 +8,7 @@ from typing import Optional
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-TASKS_DIR = REPO_ROOT / "scripts" / "tasks"
+TASKS_DIR = REPO_ROOT / "src" / "specify_cli" / "scripts" / "tasks"
 
 if str(TASKS_DIR) not in sys.path:
     sys.path.insert(0, str(TASKS_DIR))
