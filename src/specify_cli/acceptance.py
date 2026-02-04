@@ -6,6 +6,7 @@ All core logic is delegated to ``specify_cli.core.acceptance_core``.
 
 This module adds:
 - Mission-aware path validation (``path_violations``).
+- Documentation mission validation (``validate_documentation_mission``).
 - Centralized feature detection via ``specify_cli.core.feature_detection``.
 """
 
@@ -34,6 +35,7 @@ from specify_cli.core.feature_detection import (
     detect_feature_slug as centralized_detect_feature_slug,
 )
 from specify_cli.mission import MissionError, get_mission_for_feature
+from specify_cli.validators.documentation import validate_documentation_mission
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 
 
@@ -79,7 +81,8 @@ def collect_feature_summary(
     """Collect feature readiness information with mission-aware path validation.
 
     Delegates to the shared core and then augments the result with
-    ``path_violations`` derived from the feature's mission configuration.
+    ``path_violations`` derived from the feature's mission configuration,
+    and documentation mission validation when applicable.
 
     Args:
         repo_root: Repository root path.
@@ -111,6 +114,15 @@ def collect_feature_summary(
         summary.path_violations = path_violations
         if "Path conventions not satisfied." not in summary.warnings:
             summary.warnings.append("Path conventions not satisfied.")
+
+    # Documentation mission validation (mission-scoped)
+    doc_result = validate_documentation_mission(summary.feature_dir)
+    if doc_result.is_documentation_mission and doc_result.has_errors:
+        summary.missing_artifacts.extend(doc_result.error_messages())
+    if doc_result.is_documentation_mission and doc_result.warning_count > 0:
+        for issue in doc_result.issues:
+            if issue.issue_type == "warning":
+                summary.warnings.append(f"[doc-validation] {issue.message}")
 
     return summary
 
