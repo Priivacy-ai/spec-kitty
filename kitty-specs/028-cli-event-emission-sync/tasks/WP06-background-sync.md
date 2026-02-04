@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Background Sync Service
-lane: "for_review"
+lane: "doing"
 dependencies: [WP05]
 base_branch: 028-cli-event-emission-sync-WP05
 base_commit: ae915e0bb3c9337f117e99548da44735bc7ab284
@@ -16,8 +16,8 @@ subtasks:
 - T035
 phase: Phase 3 - Infrastructure
 assignee: ''
-agent: ''
-shell_pid: "53403"
+agent: "codex"
+shell_pid: "25757"
 review_status: ''
 reviewed_by: ''
 history:
@@ -401,3 +401,4 @@ To change a work package's lane, either:
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 - 2026-02-04T12:41:03Z – unknown – shell_pid=53403 – lane=for_review – Ready for review: BackgroundSyncService with periodic timer, exponential backoff, graceful shutdown, sync now and sync status CLI commands
+- 2026-02-04T12:41:19Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
