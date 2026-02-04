@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-02-04
+
+### 🐛 Fixed
+
+- **Broken import in 0.14.0 migration**: Fixed `ModuleNotFoundError` in `m_0_14_0_centralized_feature_detection` - corrected import paths for `load_agent_config` and `AGENT_DIR_TO_KEY`.
+- **Integration test fixture**: Fixed `clean_project` fixture failing to copy source missions when `.kittify/missions/` already existed with stale leftovers.
+- **Stale mission directory**: Removed orphaned `.kittify/missions/research/` that was left behind when missions were untracked from git.
+
 ## [0.14.0] - 2026-02-04
 
 ### ✨ Added
