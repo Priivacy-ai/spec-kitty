@@ -56,9 +56,9 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 **Prompt**: `/tasks/WP02-consolidate-task-helpers.md`
 
 ### Included Subtasks
-- [ ] T005 Create a shared task helper module (worktree-aware `find_repo_root`, conflict detection, shared frontmatter utilities).
+- [ ] T005 Create a shared task helper module at `src/specify_cli/core/task_helpers.py` (worktree-aware `find_repo_root`, conflict detection, shared frontmatter utilities).
 - [ ] T006 Update `src/specify_cli/tasks_support.py` and `src/specify_cli/scripts/tasks/task_helpers.py` to delegate to the shared module.
-- [ ] T007 Update `tasks_cli.py` paths/logic to rely on the consolidated helpers.
+- [ ] T007 Update `src/specify_cli/scripts/tasks/tasks_cli.py` to rely on the consolidated helpers.
 - [ ] T008 Add/adjust tests for worktree-aware detection and conflict handling parity.
 
 ### Implementation Notes
@@ -84,10 +84,10 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 **Prompt**: `/tasks/WP03-unify-acceptance-logic.md`
 
 ### Included Subtasks
-- [ ] T009 Extract shared acceptance core logic into a new non-deprecated module.
+- [ ] T009 Extract shared acceptance core logic into `src/specify_cli/core/acceptance_core.py`.
 - [ ] T010 Update `src/specify_cli/acceptance.py` to use the shared core and remove dependency on deprecated helpers.
 - [ ] T011 Update `src/specify_cli/scripts/tasks/acceptance_support.py` to use the shared core.
-- [ ] T012 Add/adjust acceptance tests to verify parity between CLI and script entrypoints.
+- [ ] T012 Add/adjust acceptance tests to verify parity between CLI and script entrypoints, including a worktree integration test for consistent `find_repo_root` across task + acceptance flows.
 
 ### Implementation Notes
 - Ensure both acceptance entrypoints surface consistent errors and JSON output.
@@ -143,6 +143,7 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 
 ### Implementation Notes
 - Ensure acceptance/validation errors are actionable and mention remediation steps.
+- Validation refers to `spec-kitty validate` (including validate-tasks); acceptance refers to `spec-kitty accept` and `spec-kitty agent feature accept`.
 
 ### Parallel Opportunities
 - T016 and T017 can proceed in parallel after understanding existing validation hooks.
@@ -157,8 +158,8 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 
 ## Dependency & Execution Summary
 
-- **Sequence**: WP01 → WP02 → WP03 → WP04 → WP05.
-- **Parallelization**: WP04 can proceed in parallel with WP02/WP03 if needed, but WP05 depends on WP03 + WP04.
+- **Sequence**: WP01 → WP02 → WP03 and WP04 → WP05.
+- **Parallelization**: WP04 is independent and can proceed in parallel with WP01–WP03; WP05 depends on WP03 + WP04.
 - **MVP Scope**: WP01 + WP02 + WP03 (cleanup and consolidation). Documentation mission wiring is P2.
 
 ---
@@ -171,14 +172,14 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 | T002 | Repo-wide audit for scripts references | WP01 | P1 | No |
 | T003 | Remove root scripts and update docs/help text | WP01 | P1 | No |
 | T004 | Align base plan template guidance | WP01 | P1 | Yes |
-| T005 | Create shared task helper module | WP02 | P1 | No |
+| T005 | Create shared task helper module (`src/specify_cli/core/task_helpers.py`) | WP02 | P1 | No |
 | T006 | Update tasks_support + scripts task_helpers to use shared module | WP02 | P1 | Yes |
-| T007 | Update tasks_cli usage to consolidated helpers | WP02 | P1 | Yes |
+| T007 | Update `src/specify_cli/scripts/tasks/tasks_cli.py` to use consolidated helpers | WP02 | P1 | Yes |
 | T008 | Add tests for worktree/conflict parity | WP02 | P1 | No |
-| T009 | Extract shared acceptance core | WP03 | P1 | No |
+| T009 | Extract shared acceptance core (`src/specify_cli/core/acceptance_core.py`) | WP03 | P1 | No |
 | T010 | Update acceptance.py to use core | WP03 | P1 | Yes |
 | T011 | Update acceptance_support.py to use core | WP03 | P1 | Yes |
-| T012 | Add acceptance parity tests | WP03 | P1 | No |
+| T012 | Add acceptance parity + cross-flow worktree tests | WP03 | P1 | No |
 | T013 | Initialize documentation state during specify | WP04 | P2 | No |
 | T014 | Run gap analysis during plan | WP04 | P2 | Yes |
 | T015 | Run gap analysis during research | WP04 | P2 | Yes |
