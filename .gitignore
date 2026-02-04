@@ -56,7 +56,8 @@ node_modules/
 sdd-*/
 
 # Added by Spec Kitty CLI (auto-managed)
-.claude/
+.claude/*
+!.claude/skills/
 .opencode/
 .windsurf/
 .gemini/

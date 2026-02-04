@@ -133,130 +133,189 @@ When working on spec-kitty:
 
 Spec Kitty follows a structured release process using GitHub Actions for automated PyPI publishing.
 
-### Release Workflow
+> **For AI agents**: Use the `/release` skill (`.claude/skills/release/SKILL.md`) for a step-by-step guide.
+
+### Branch Strategy
+
+Spec Kitty maintains two long-lived branches:
+
+- **`main`** — The release branch. All tags MUST be created from `main`.
+- **`2.x`** — Development branch for the next major version.
+
+If changes are made on `2.x`, cherry-pick them to `main` before releasing. The `2.x` branch may have test failures that do not affect `main`.
+
+### Quick Release (Patch)
+
+For simple bug fixes or improvements already committed to `main`:
+
+```bash
+# 1. Bump version and update changelog
+#    Edit pyproject.toml: version = "X.Y.Z"
+#    Edit CHANGELOG.md: add section after [Unreleased]
+
+# 2. Commit
+git add pyproject.toml CHANGELOG.md
+git commit -m "chore: Bump version to X.Y.Z"
+git push origin main
+
+# 3. Tag and push
+git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
+git push origin vX.Y.Z
+
+# 4. Monitor
+unset GITHUB_TOKEN && gh run list --workflow=release.yml --limit=1
+unset GITHUB_TOKEN && gh run watch <run-id>
+
+# 5. Verify
+unset GITHUB_TOKEN && gh release view vX.Y.Z
+pip install spec-kitty-cli==X.Y.Z
+```
+
+### Full Release (Minor/Major)
+
+For larger releases with multiple changes:
 
 1. **Create a release branch**
    ```bash
-   git checkout -b release/X.Y.Z
+   git checkout -b release/X.Y.Z main
    ```
 
-2. **Update version number**
-   - Edit `pyproject.toml` and update the `version` field
+2. **Update version number** in `pyproject.toml`
    - Use [Semantic Versioning](https://semver.org/):
      - **Patch** (X.Y.Z): Bug fixes, small improvements
      - **Minor** (X.Y.0): New features, backward compatible
      - **Major** (X.0.0): Breaking changes
 
 3. **Update CHANGELOG.md**
-   - Add a new version section under `## [Unreleased]`:
+   - Add a new version section immediately after `## [Unreleased]`:
      ```markdown
      ## [X.Y.Z] - YYYY-MM-DD
 
-     ### Added
-     - New features go here
+     ### <emoji> <Category>
 
-     ### Fixed
-     - Bug fixes go here
-
-     ### Changed
-     - Breaking changes or major updates
+     **Short bold summary**:
+     - Bullet point details
      ```
-   - Follow the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format
-   - Be specific about what changed and why it matters
+   - Categories used in this project (with emoji headings):
+     - `### ✨ Added` — New features
+     - `### 🔧 Improved` — Enhancements to existing features
+     - `### 🐛 Fixed` — Bug fixes
+     - `### 💥 Breaking` — Breaking changes
+     - `### 📝 Architecture` — ADRs, design decisions
+     - `### 🧹 Maintenance` — Refactoring, dependency updates
+   - Use ISO date format: `YYYY-MM-DD`
 
-4. **Commit the version bump**
-   ```bash
-   git add pyproject.toml CHANGELOG.md
-   git commit -m "chore: Bump version to X.Y.Z"
-   ```
-
-5. **Push and create a pull request**
+4. **Create a pull request**
    ```bash
    git push origin release/X.Y.Z
-   gh pr create --title "Release X.Y.Z: Brief description" \
-                --body "Release notes..." \
-                --base main
+   gh pr create --title "Release X.Y.Z: Brief description" --base main
    ```
 
-6. **Wait for PR approval and merge**
-   - The Release Readiness Check workflow will validate:
-     - Version is properly bumped
-     - CHANGELOG.md has an entry for the new version
-     - Tests pass
-     - Package builds successfully
+5. **Wait for PR checks and merge**
+   - The Release Readiness Check workflow validates version, changelog, and tests
    - Get approval from a maintainer
    - Merge the PR (use "Merge commit" strategy, not squash)
 
-7. **Create and push the release tag**
+6. **Create and push the release tag**
    ```bash
-   git checkout main
-   git pull origin main
-   git tag -a vX.Y.Z -m "Release vX.Y.Z
-
-   Brief description of what's in this release.
-   "
+   git checkout main && git pull origin main
+   git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
    git push origin vX.Y.Z
    ```
 
-8. **Automated publishing**
-   - Pushing the tag triggers `.github/workflows/release.yml`
-   - The workflow will:
-     - Run all tests
-     - Validate release metadata
-     - Build wheel and source distributions
-     - Publish to PyPI (requires `PYPI_API_TOKEN` secret)
-     - Create a GitHub Release with artifacts
-   - Monitor the workflow: `gh run watch`
-
-9. **Verify the release**
+7. **Monitor the workflow**
    ```bash
-   # Check the GitHub release
-   gh release view vX.Y.Z
+   unset GITHUB_TOKEN && gh run list --workflow=release.yml --limit=1
+   unset GITHUB_TOKEN && gh run watch <run-id>
+   ```
+   Note: `unset GITHUB_TOKEN` is needed because the env var token may have limited scopes (e.g., only `copilot`). The keyring token has full `repo` scope.
 
-   # Verify PyPI upload
-   pip install --upgrade spec-kitty-cli
-   spec-kitty --version  # Should show X.Y.Z
+8. **Verify the release**
+   ```bash
+   unset GITHUB_TOKEN && gh release view vX.Y.Z
+   pip install spec-kitty-cli==X.Y.Z
    ```
 
-10. **Clean up**
-    ```bash
-    git branch -d release/X.Y.Z
-    git push origin --delete release/X.Y.Z
-    ```
+9. **Clean up**
+   ```bash
+   git branch -d release/X.Y.Z
+   git push origin --delete release/X.Y.Z
+   ```
+
+### What the Release Workflow Does
+
+Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`, which:
+
+1. Checks out the tagged commit
+2. Installs dependencies (including private `spec-kitty-events` via SSH deploy key)
+3. Verifies no version mismatch between source and installed package
+4. **Runs the full test suite** (2000+ tests)
+5. Validates release metadata (`scripts/release/validate_release.py --mode tag`)
+6. Validates repository URLs match `pyproject.toml`
+7. Builds wheel and source distributions
+8. Verifies wheel contains all migration files
+9. Extracts changelog for release notes
+10. Publishes to PyPI
+11. Creates a GitHub Release with artifacts
 
 ### Release Checklist
 
-Before creating a release PR, ensure:
+Before tagging a release, ensure:
 
-- [ ] All intended changes are merged to main
+- [ ] You are on the `main` branch (not `2.x`)
 - [ ] Version number follows semantic versioning
-- [ ] CHANGELOG.md is updated with clear, user-focused descriptions
-- [ ] All tests pass locally: `pytest tests/`
-- [ ] Package builds without errors: `python -m build`
-- [ ] No direct commits to main (always use PRs)
+- [ ] CHANGELOG.md is updated with emoji category headings
+- [ ] Tests pass locally: `pytest tests/`
+- [ ] If changes were on `2.x`, they have been cherry-picked to `main`
 
 ### Important Notes
 
-- **Never push directly to main** - Always create a PR for version bumps
-- **Don't skip the PR review** - The Release Readiness Check validates release metadata
-- **Tag after merge, not before** - Create the tag only after the version bump PR is merged
-- **Use annotated tags** - Always use `git tag -a`, not `git tag`
-- **Monitor the release workflow** - Watch for failures and be ready to fix issues
-- **PyPI is immutable** - Once published, a version cannot be changed (only yanked)
+- **Tags MUST be created from `main`** — the `2.x` branch has pre-existing test failures that cause the release workflow to fail
+- **Use annotated tags** — always use `git tag -a`, not `git tag`
+- **Monitor the release workflow** — watch for failures and be ready to fix issues
+- **PyPI is immutable** — once published, a version cannot be changed (only yanked)
+- **PyPI CDN caching** — `pip install --upgrade` may not find the new version immediately; use `pip install spec-kitty-cli==X.Y.Z` instead
 
 ### Troubleshooting Releases
 
-#### Release workflow fails with "Version already exists on PyPI"
+#### Release workflow fails — check the actual error first
+
+The workflow prints a generic error listing three possible causes ("PYPI_API_TOKEN", "version/changelog mismatch", "Tests failed") whenever ANY step fails. Check the actual failing step:
+
+```bash
+unset GITHUB_TOKEN && gh run view <run-id> --log-failed | head -80
+```
+
+#### Tests fail in the release workflow
+
+The most common cause. To fix:
+
+```bash
+# 1. Fix the failing test
+# 2. Commit and push to main
+# 3. Delete the broken tag
+git tag -d vX.Y.Z
+git push origin :refs/tags/vX.Y.Z
+# 4. Re-tag from the fixed commit
+git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
+git push origin vX.Y.Z
+```
+
+#### Tag was created from wrong branch
+
+If you accidentally tagged from `2.x` instead of `main`:
+
+```bash
+git tag -d vX.Y.Z
+git push origin :refs/tags/vX.Y.Z
+git checkout main
+git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
+git push origin vX.Y.Z
+```
+
+#### Version already exists on PyPI
 - You attempted to release a version that's already published
 - Bump to the next version number and retry
-
-#### Release workflow fails with "PYPI_API_TOKEN not configured"
-- The GitHub Actions secret is missing or invalid
-- Contact a repository maintainer to configure the secret
-
-#### Tests fail in release workflow
-- Fix the failing tests and push to the release branch
-- The workflow will re-run on the updated branch
 
 #### Changelog validation fails
 - Ensure CHANGELOG.md has a section matching the version in pyproject.toml
