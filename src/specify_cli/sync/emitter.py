@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+logger = logging.getLogger(__name__)
 
 import ulid
 from rich.console import Console
@@ -423,6 +426,10 @@ class EventEmitter:
         try:
             # Tick clock for causal ordering
             clock_value = self.clock.tick()
+            logger.debug(
+                "Emitting %s event with Lamport clock: %d",
+                event_type, clock_value,
+            )
 
             # Resolve team_slug from auth
             team_slug = self._get_team_slug()
