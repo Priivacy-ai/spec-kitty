@@ -213,14 +213,14 @@
 **Prompt**: `/tasks/WP07-tests.md`
 
 ### Included Subtasks
-- [ ] T036 Create `tests/sync/test_events.py` - unit tests for EventEmitter
-- [ ] T037 [P] Create `tests/sync/test_clock.py` - unit tests for LamportClock persistence
-- [ ] T038 [P] Create `tests/sync/test_background.py` - unit tests for BackgroundSyncService
-- [ ] T039 Create `tests/sync/test_integration.py` - integration tests with mock server
-- [ ] T040 [P] Create `tests/cli/commands/test_event_emission.py` - command integration tests
-- [ ] T041 Add test fixtures for event validation, mock AuthClient, mock queue
-- [ ] T042 Verify all success criteria (SC-001 through SC-010) via tests
-- [ ] T043 Add edge case tests: offline queue, schema validation errors, clock desync
+- [x] T036 Create `tests/sync/test_events.py` - unit tests for EventEmitter
+- [x] T037 [P] Create `tests/sync/test_clock.py` - unit tests for LamportClock persistence
+- [x] T038 [P] Create `tests/sync/test_background.py` - unit tests for BackgroundSyncService
+- [x] T039 Create `tests/sync/test_integration.py` - integration tests with mock server
+- [x] T040 [P] Create `tests/cli/commands/test_event_emission.py` - command integration tests
+- [x] T041 Add test fixtures for event validation, mock AuthClient, mock queue
+- [x] T042 Verify all success criteria (SC-001 through SC-010) via tests
+- [x] T043 Add edge case tests: offline queue, schema validation errors, clock desync
 
 ### Implementation Notes
 - Use pytest with 90%+ coverage requirement
