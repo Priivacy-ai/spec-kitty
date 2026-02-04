@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Workflow Command Integration
+lane: "for_review"
+dependencies: [WP01]
+base_branch: 028-cli-event-emission-sync-WP01
+base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
+created_at: '2026-02-04T11:10:57.370962+00:00'
 subtasks:
-  - "T008"
-  - "T009"
-  - "T010"
-  - "T011"
-  - "T012"
-title: "Workflow Command Integration"
-phase: "Phase 2 - Command Wiring"
-lane: "doing"
-assignee: ""
-agent: "test-reviewer"
-shell_pid: "13661"
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01"]
+- T008
+- T009
+- T010
+- T011
+- T012
+phase: Phase 2 - Command Wiring
+assignee: ''
+agent: test-reviewer
+shell_pid: '13661'
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-03T18:58:09Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-03T18:58:09Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 - Workflow Command Integration
@@ -253,3 +256,4 @@ To change a work package's lane, either:
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 - 2026-02-04T08:29:05Z – test-reviewer – shell_pid=13661 – lane=doing – Started review via workflow command
+- 2026-02-04T11:14:31Z – test-reviewer – shell_pid=13661 – lane=for_review – Ready for review: emit WPStatusChanged in implement/merge/accept with safe warnings
