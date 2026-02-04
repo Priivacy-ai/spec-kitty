@@ -1,9 +1,4 @@
-"""Sync commands - workspace synchronization and connection status.
-
-This module provides two groups of sync functionality:
-1. Workspace sync: updates workspace with changes from base branch
-2. Connection status: shows WebSocket sync connection state
-"""
+"""Sync commands - workspace synchronization."""
 
 from __future__ import annotations
 
@@ -13,7 +8,6 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.core.vcs import (
@@ -28,7 +22,7 @@ from specify_cli.core.vcs import (
 console = Console()
 
 # Create a Typer app for sync subcommands
-app = typer.Typer(help="Synchronization commands")
+app = typer.Typer(help="Workspace synchronization commands")
 
 
 def _detect_workspace_context() -> tuple[Path, str | None]:
@@ -361,107 +355,6 @@ def sync_workspace(
         console.print("  spec-kitty sync workspace --repair")
         raise typer.Exit(1)
 
-    console.print()
-
-
-@app.command()
-def status(
-    check_connection: bool = typer.Option(
-        False,
-        "--check",
-        "-c",
-        help="Test connection to server (may be slow if server is unreachable)",
-    ),
-) -> None:
-    """Show WebSocket sync connection status.
-
-    Displays the configuration for WebSocket sync connection to the
-    spec-kitty-saas server:
-    - Server URL configuration
-    - Config file location
-
-    Use --check to test actual connectivity (adds 3s timeout if server unreachable).
-    Note: Persistent connection tracking is implemented in WP14-15.
-
-    Examples:
-        # Show configuration only (fast)
-        spec-kitty sync status
-
-        # Test connection to server
-        spec-kitty sync status --check
-    """
-    import asyncio
-    from specify_cli.sync.config import SyncConfig
-    from specify_cli.sync.client import WebSocketClient
-
-    console.print()
-    console.print("[cyan]Spec Kitty Sync Status[/cyan]")
-    console.print()
-
-    # Load configuration
-    config = SyncConfig()
-    server_url = config.get_server_url()
-
-    # Display configuration
-    table = Table(show_header=False, box=None)
-    table.add_column("Key", style="dim")
-    table.add_column("Value")
-
-    table.add_row("Server URL", server_url)
-    table.add_row("Config File", str(config.config_file))
-
-    # Optionally test connection if --check flag is provided
-    if check_connection:
-        async def test_connection():
-            """Quick connection test (non-blocking)"""
-            try:
-                # Convert https to wss for WebSocket
-                ws_url = server_url.replace("https://", "wss://").replace("http://", "ws://")
-
-                # Try to connect with a test token (will fail auth but tests connectivity)
-                client = WebSocketClient(ws_url, "test-token")
-
-                # Set a short timeout for the connection test
-                try:
-                    await asyncio.wait_for(client.connect(), timeout=3.0)
-                    await client.disconnect()
-                    return "[green]Connected[/green]", "Successfully reached server"
-                except asyncio.TimeoutError:
-                    return "[red]Unreachable[/red]", "Connection timeout (server may be down)"
-                except Exception as e:
-                    error_msg = str(e)
-                    if "401" in error_msg or "Invalid token" in error_msg:
-                        return "[yellow]Reachable[/yellow]", "Server online (auth required)"
-                    elif "403" in error_msg:
-                        return "[yellow]Reachable[/yellow]", "Server online (access forbidden)"
-                    elif "refused" in error_msg.lower():
-                        return "[red]Unreachable[/red]", "Connection refused"
-                    else:
-                        return "[yellow]Unknown[/yellow]", f"Error: {error_msg[:50]}"
-            except Exception as e:
-                return "[red]Error[/red]", f"Test failed: {str(e)[:50]}"
-
-        # Run the async connection test
-        try:
-            connection_status, connection_note = asyncio.run(test_connection())
-            table.add_row("Connection", connection_status)
-            if connection_note:
-                table.add_row("", f"[dim]{connection_note}[/dim]")
-        except Exception as e:
-            table.add_row("Connection", "[red]Error[/red]")
-            table.add_row("", f"[dim]Status check failed: {str(e)[:50]}[/dim]")
-    else:
-        table.add_row("Connection", "[dim]Not checked (use --check to test)[/dim]")
-
-    console.print(table)
-    console.print()
-
-    if not check_connection:
-        console.print("[dim]Use 'spec-kitty sync status --check' to test connection.[/dim]")
-        console.print()
-
-    console.print("[dim]Persistent connection tracking and offline queue will be "
-                  "available in WP14 (Offline Queue) and WP15 (Reconnection).[/dim]")
     console.print()
 
 

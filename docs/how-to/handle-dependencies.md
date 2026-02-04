@@ -58,11 +58,11 @@ git merge ###-feature-WP02
 
 ## Keeping Dependencies Updated
 
-When a dependency changes after you've started work, use `spec-kitty sync` to update your workspace:
+When a dependency changes after you've started work, use `spec-kitty sync workspace` to update your workspace:
 
 ```bash
 cd .worktrees/###-feature-WP02
-spec-kitty sync
+spec-kitty sync workspace
 ```
 
 You may need to resolve conflicts during sync. See [Sync Workspaces](sync-workspaces.md).

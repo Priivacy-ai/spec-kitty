@@ -199,11 +199,11 @@ spec-kitty implement WP01 --json
 
 ---
 
-## spec-kitty sync
+## spec-kitty sync workspace
 
-**Synopsis**: `spec-kitty sync [OPTIONS]`
+**Synopsis**: `spec-kitty sync workspace [OPTIONS]`
 
-**Description**: Synchronize workspace with upstream changes. Updates the current workspace with changes from its base branch or parent using `git rebase <base-branch>`.
+**Description**: Synchronize the current workspace with upstream changes. Updates the current workspace with changes from its base branch or parent using `git rebase <base-branch>`.
 
 **Options**:
 | Flag | Description |
@@ -214,9 +214,9 @@ spec-kitty implement WP01 --json
 
 **Examples**:
 ```bash
-spec-kitty sync
-spec-kitty sync --verbose
-spec-kitty sync --repair
+spec-kitty sync workspace
+spec-kitty sync workspace --verbose
+spec-kitty sync workspace --repair
 ```
 
 > **Note**: Sync may fail on conflicts. You must resolve conflicts before continuing.

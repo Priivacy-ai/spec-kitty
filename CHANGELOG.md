@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.27] - 2026-02-04
+
+### 🧹 Removed
+
+**Sync module and WebSocket sync tooling**:
+- Removed `specify_cli.sync` package from mainline 0.13.x
+- Dropped WebSocket sync status command and related dependencies
+- Updated workspace sync docs to use `spec-kitty sync workspace`
+
 ## [0.13.26] - 2026-02-04
 
 ### 🛠️ Refactored
