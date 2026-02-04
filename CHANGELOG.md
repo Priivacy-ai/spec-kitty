@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.28] - 2026-02-04
+
+### 🐛 Fixed
+
+**Workflow implement now tolerates non-git test repos**:
+- If a workflow prompt is generated in a minimal test repo without `.git`, the command skips workspace creation and still completes
+- Prevents workflow tests from failing on repo scaffolds that only include `.kittify`
+
 ## [0.13.27] - 2026-02-04
 
 ### 🧹 Removed

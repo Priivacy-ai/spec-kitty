@@ -36,6 +36,22 @@ from specify_cli.tasks_support import (
 )
 
 
+def _is_git_repo(path: Path) -> bool:
+    """Return True if path is inside a git repository."""
+    git_dir = path / ".git"
+    if git_dir.exists():
+        return True
+
+    result = subprocess.run(
+        ["git", "rev-parse", "--git-dir"],
+        cwd=path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def _write_prompt_to_file(
     command_type: str,
     wp_id: str,
@@ -409,20 +425,23 @@ def implement(
                 print(f"  spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
                 raise typer.Exit(1)
 
-            print(f"Creating workspace for {normalized_wp_id}...")
-            try:
-                top_level_implement(
-                    wp_id=normalized_wp_id,
-                    base=resolved_base,  # None for auto-merge or no deps
-                    feature=feature_slug,
-                    json_output=False
-                )
-            except typer.Exit:
-                # Worktree creation failed - propagate error
-                raise
-            except Exception as e:
-                print(f"Error creating worktree: {e}")
-                raise typer.Exit(1)
+            if not _is_git_repo(repo_root):
+                print("Warning: No git repository detected. Skipping workspace creation.")
+            else:
+                print(f"Creating workspace for {normalized_wp_id}...")
+                try:
+                    top_level_implement(
+                        wp_id=normalized_wp_id,
+                        base=resolved_base,  # None for auto-merge or no deps
+                        feature=feature_slug,
+                        json_output=False
+                    )
+                except typer.Exit:
+                    # Worktree creation failed - propagate error
+                    raise
+                except Exception as e:
+                    print(f"Error creating worktree: {e}")
+                    raise typer.Exit(1)
 
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
