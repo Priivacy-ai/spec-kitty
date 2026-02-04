@@ -1,28 +1,31 @@
 ---
-work_package_id: "WP06"
+work_package_id: WP06
+title: Background Sync Service
+lane: "doing"
+dependencies: [WP05]
+base_branch: 028-cli-event-emission-sync-WP05
+base_commit: ae915e0bb3c9337f117e99548da44735bc7ab284
+created_at: '2026-02-04T12:36:54.711166+00:00'
 subtasks:
-  - "T029"
-  - "T030"
-  - "T031"
-  - "T032"
-  - "T033"
-  - "T034"
-  - "T035"
-title: "Background Sync Service"
-phase: "Phase 3 - Infrastructure"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP05"]
+- T029
+- T030
+- T031
+- T032
+- T033
+- T034
+- T035
+phase: Phase 3 - Infrastructure
+assignee: ''
+agent: ''
+shell_pid: "53403"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-03T18:58:09Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-03T18:58:09Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 - Background Sync Service
