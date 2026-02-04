@@ -85,6 +85,12 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
         tasks_src = scripts_src / "tasks"
         if tasks_src.exists():
             shutil.copytree(tasks_src, scripts_dest / "tasks")
+        # Copy task_helpers_shared.py into deployed tasks/ directory so the
+        # standalone scripts can import it without requiring an installed package.
+        shared_helper = scripts_src.parent / "task_helpers_shared.py"
+        tasks_dest = scripts_dest / "tasks"
+        if shared_helper.is_file() and tasks_dest.is_dir():
+            shutil.copy2(shared_helper, tasks_dest / "task_helpers_shared.py")
         for item in scripts_src.iterdir():
             if item.is_file():
                 shutil.copy2(item, scripts_dest / item.name)
@@ -154,6 +160,15 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
         tasks_resource = scripts_resource.joinpath("tasks")
         if tasks_resource.exists():
             copy_package_tree(tasks_resource, scripts_dest / "tasks")
+        # Copy task_helpers_shared.py into deployed tasks/ directory so the
+        # standalone scripts can import it without requiring an installed package.
+        shared_helper_resource = data_root.joinpath("task_helpers_shared.py")
+        tasks_dest_pkg = scripts_dest / "tasks"
+        if shared_helper_resource.exists() and tasks_dest_pkg.is_dir():
+            with shared_helper_resource.open("rb") as src, open(
+                tasks_dest_pkg / "task_helpers_shared.py", "wb"
+            ) as dst:
+                shutil.copyfileobj(src, dst)
         for resource_file in scripts_resource.iterdir():
             if resource_file.is_file():
                 with resource_file.open("rb") as src, open(
