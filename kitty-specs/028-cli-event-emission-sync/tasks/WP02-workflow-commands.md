@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Workflow Command Integration
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 028-cli-event-emission-sync-WP01
 base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
@@ -261,3 +261,4 @@ To change a work package's lane, either:
 - 2026-02-04T11:27:11Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
 - 2026-02-04T11:28:42Z – codex – shell_pid=25757 – lane=planned – Moved to planned
 - 2026-02-04T11:31:38Z – claude-opus – shell_pid=36397 – lane=doing – Started implementation via workflow command
+- 2026-02-04T11:34:27Z – claude-opus – shell_pid=36397 – lane=for_review – Ready for review: WP01 merged to 2.x, WP02 rebased. Emits WPStatusChanged in implement (planned->doing), merge (doing->for_review), accept (for_review->done). All emissions wrapped in try/except with Rich warnings.
