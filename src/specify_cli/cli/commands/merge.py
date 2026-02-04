@@ -33,6 +33,27 @@ from specify_cli.merge.state import (
     load_state,
 )
 from specify_cli.tasks_support import TaskCliError, find_repo_root
+from specify_cli.sync.events import emit_wp_status_changed
+
+
+def _safe_emit_wp_status_changed(
+    wp_id: str,
+    previous_status: str,
+    new_status: str,
+    feature_slug: str | None,
+) -> None:
+    try:
+        emit_wp_status_changed(
+            wp_id=wp_id,
+            previous_status=previous_status,
+            new_status=new_status,
+            changed_by="user",
+            feature_slug=feature_slug,
+        )
+    except Exception as exc:
+        console.print(
+            f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}"
+        )
 
 
 def get_main_repo_root(repo_root: Path) -> Path:
@@ -311,6 +332,12 @@ def merge_workspace_per_wp(
                 run_command(["git", "merge", "--no-ff", branch, "-m", f"Merge {wp_id} from {feature_slug}"])
 
             console.print(f"[green]✓[/green] {wp_id} merged")
+            _safe_emit_wp_status_changed(
+                wp_id=wp_id,
+                previous_status="doing",
+                new_status="for_review",
+                feature_slug=feature_slug,
+            )
 
         tracker.complete("merge", f"merged {len(wp_workspaces)} work packages")
     except Exception as exc:

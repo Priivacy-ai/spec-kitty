@@ -20,6 +20,7 @@ from specify_cli.acceptance import (
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.tasks_support import LANES, TaskCliError, find_repo_root
+from specify_cli.sync.events import emit_wp_status_changed
 
 
 def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
@@ -79,6 +80,24 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
         console.print("\n[bold]Notes[/bold]")
         for note in result.notes:
             console.print(f"  - {note}")
+
+
+def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
+    if not wp_ids:
+        return
+    for wp_id in wp_ids:
+        try:
+            emit_wp_status_changed(
+                wp_id=wp_id,
+                previous_status="for_review",
+                new_status="done",
+                changed_by="user",
+                feature_slug=feature_slug,
+            )
+        except Exception as exc:
+            console.print(
+                f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {exc}"
+            )
 
 
 def accept(
@@ -173,6 +192,8 @@ def accept(
             console.print(tracker.render())
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
+
+    _emit_acceptance_events(feature_slug, result.summary.lanes.get("for_review", []))
 
     tracker.start("guide")
     tracker.complete("guide", "instructions ready")
