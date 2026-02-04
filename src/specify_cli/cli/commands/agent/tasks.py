@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import subprocess
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Tuple, List
@@ -12,6 +14,12 @@ from typing import Optional, Tuple, List
 import typer
 from rich.console import Console
 from typing_extensions import Annotated
+
+from specify_cli.sync.events import (
+    emit_wp_status_changed,
+    emit_history_added,
+    emit_error_logged,
+)
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
@@ -57,6 +65,8 @@ from specify_cli.tasks_support import (
     set_scalar,
     split_frontmatter,
 )
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     name="tasks",
@@ -835,6 +845,18 @@ def move_task(
             # No auto-commit - just write the file
             wp.path.write_text(updated_doc, encoding="utf-8")
 
+        # Emit WPStatusChanged event (T013 - FR-019)
+        try:
+            emit_wp_status_changed(
+                wp_id=task_id,
+                previous_status=old_lane,
+                new_status=target_lane,
+                changed_by=agent or "user",
+                feature_slug=feature_slug,
+            )
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
+
         # Output result
         result = {
             "result": "success",
@@ -854,6 +876,17 @@ def move_task(
         _check_dependent_warnings(repo_root, feature_slug, task_id, target_lane, json_output)
 
     except Exception as e:
+        # Emit ErrorLogged event (T016)
+        try:
+            emit_error_logged(
+                error_type="runtime",
+                error_message=str(e),
+                wp_id=task_id if 'task_id' in dir() else None,
+                stack_trace=traceback.format_exc(),
+                agent_id=agent if 'agent' in dir() else None,
+            )
+        except Exception:
+            pass  # Don't block on error logging
         _output_error(json_output, str(e))
         raise typer.Exit(1)
 
@@ -994,6 +1027,18 @@ def mark_status(
                 if not json_output:
                     console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
 
+        # Emit HistoryAdded event for subtask status changes (T014)
+        try:
+            task_list_str = ", ".join(updated_tasks)
+            emit_history_added(
+                wp_id=updated_tasks[0].replace("T", "WP")[:4] if updated_tasks else "WP00",
+                entry_type="note",
+                entry_content=f"Subtask(s) {task_list_str} marked as {status}",
+                author="user",
+            )
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
+
         # Build result
         result = {
             "result": "success",
@@ -1015,6 +1060,15 @@ def mark_status(
         _output_result(json_output, result, success_msg)
 
     except Exception as e:
+        # Emit ErrorLogged event (T016)
+        try:
+            emit_error_logged(
+                error_type="runtime",
+                error_message=str(e),
+                stack_trace=traceback.format_exc(),
+            )
+        except Exception:
+            pass  # Don't block on error logging
         _output_error(json_output, str(e))
         raise typer.Exit(1)
 
@@ -1137,6 +1191,17 @@ def add_history(
         updated_doc = build_document(wp.frontmatter, updated_body, wp.padding)
         wp.path.write_text(updated_doc, encoding="utf-8")
 
+        # Emit HistoryAdded event (T015 - FR-021)
+        try:
+            emit_history_added(
+                wp_id=task_id,
+                entry_type="note",
+                entry_content=note,
+                author=agent or "user",
+            )
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
+
         result = {
             "result": "success",
             "task_id": task_id,
@@ -1150,6 +1215,17 @@ def add_history(
         )
 
     except Exception as e:
+        # Emit ErrorLogged event (T016)
+        try:
+            emit_error_logged(
+                error_type="runtime",
+                error_message=str(e),
+                wp_id=task_id if 'task_id' in dir() else None,
+                stack_trace=traceback.format_exc(),
+                agent_id=agent if 'agent' in dir() else None,
+            )
+        except Exception:
+            pass  # Don't block on error logging
         _output_error(json_output, str(e))
         raise typer.Exit(1)
 
@@ -1271,6 +1347,15 @@ def finalize_tasks(
         )
 
     except Exception as e:
+        # Emit ErrorLogged event (T016)
+        try:
+            emit_error_logged(
+                error_type="runtime",
+                error_message=str(e),
+                stack_trace=traceback.format_exc(),
+            )
+        except Exception:
+            pass
         _output_error(json_output, str(e))
         raise typer.Exit(1)
 
@@ -1352,6 +1437,16 @@ def validate_workflow(
                     console.print(f"  [yellow]•[/yellow] {warning}")
 
     except Exception as e:
+        # Emit ErrorLogged event (T016)
+        try:
+            emit_error_logged(
+                error_type="validation",
+                error_message=str(e),
+                wp_id=task_id if 'task_id' in dir() else None,
+                stack_trace=traceback.format_exc(),
+            )
+        except Exception:
+            pass
         _output_error(json_output, str(e))
         raise typer.Exit(1)
 
