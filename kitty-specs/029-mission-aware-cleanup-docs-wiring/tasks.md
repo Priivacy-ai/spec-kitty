@@ -30,15 +30,16 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 
 ### Included Subtasks
 - [ ] T001 Update tests/utilities to use `src/specify_cli/scripts` as the script source of truth (remove `scripts/` path assumptions).
-- [ ] T002 Remove root `scripts/` duplicates and update any docs/help text that still references them.
-- [ ] T003 Align `src/specify_cli/templates/command-templates/plan.md` feature-detection guidance with the software-dev mission template.
+- [ ] T002 Perform a repo-wide audit for `scripts/` references (including `.github/`, `run_tests.sh`, `package.json`, docs) and update before removal.
+- [ ] T003 Remove root `scripts/` duplicates and update any docs/help text that still references them.
+- [ ] T004 Align `src/specify_cli/templates/command-templates/plan.md` feature-detection guidance with the software-dev mission template.
 
 ### Implementation Notes
 - Focus on removing duplication without introducing symlinks.
 - Ensure any developer-facing docs or help text point to the packaged path.
 
 ### Parallel Opportunities
-- T001 and T003 can run in parallel once file locations are confirmed.
+- T001 and T004 can run in parallel once file locations are confirmed.
 
 ### Dependencies
 - None.
@@ -55,10 +56,10 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 **Prompt**: `/tasks/WP02-consolidate-task-helpers.md`
 
 ### Included Subtasks
-- [ ] T004 Create a shared task helper module (worktree-aware `find_repo_root`, conflict detection, shared frontmatter utilities).
-- [ ] T005 Update `src/specify_cli/tasks_support.py` and `src/specify_cli/scripts/tasks/task_helpers.py` to delegate to the shared module.
-- [ ] T006 Update `tasks_cli.py` paths/logic to rely on the consolidated helpers.
-- [ ] T007 Add/adjust tests for worktree-aware detection and conflict handling parity.
+- [ ] T005 Create a shared task helper module (worktree-aware `find_repo_root`, conflict detection, shared frontmatter utilities).
+- [ ] T006 Update `src/specify_cli/tasks_support.py` and `src/specify_cli/scripts/tasks/task_helpers.py` to delegate to the shared module.
+- [ ] T007 Update `tasks_cli.py` paths/logic to rely on the consolidated helpers.
+- [ ] T008 Add/adjust tests for worktree-aware detection and conflict handling parity.
 
 ### Implementation Notes
 - Keep compatibility with existing scripts by importing from the shared module through the installed package.
@@ -83,10 +84,10 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 **Prompt**: `/tasks/WP03-unify-acceptance-logic.md`
 
 ### Included Subtasks
-- [ ] T008 Extract shared acceptance core logic into a new non-deprecated module.
-- [ ] T009 Update `src/specify_cli/acceptance.py` to use the shared core and remove dependency on deprecated helpers.
-- [ ] T010 Update `src/specify_cli/scripts/tasks/acceptance_support.py` to use the shared core.
-- [ ] T011 Add/adjust acceptance tests to verify parity between CLI and script entrypoints.
+- [ ] T009 Extract shared acceptance core logic into a new non-deprecated module.
+- [ ] T010 Update `src/specify_cli/acceptance.py` to use the shared core and remove dependency on deprecated helpers.
+- [ ] T011 Update `src/specify_cli/scripts/tasks/acceptance_support.py` to use the shared core.
+- [ ] T012 Add/adjust acceptance tests to verify parity between CLI and script entrypoints.
 
 ### Implementation Notes
 - Ensure both acceptance entrypoints surface consistent errors and JSON output.
@@ -105,18 +106,18 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 ## Work Package WP04: Documentation Mission State & Gap Analysis Wiring (Priority: P2)
 
 **Goal**: Wire documentation mission state initialization and gap analysis execution into existing flows without adding new public commands.
-**Independent Test**: Documentation mission features generate gap analysis during plan/research and update documentation state in `meta.json`.
+**Independent Test**: Documentation mission features generate `kitty-specs/<feature>/gap-analysis.md` during plan/research and update documentation state in `meta.json`.
 **Prompt**: `/tasks/WP04-doc-mission-state-gap-analysis.md`
 
 ### Included Subtasks
-- [ ] T012 Wire documentation state initialization into specification flow for documentation missions.
-- [ ] T013 Invoke gap analysis during documentation mission planning and persist report paths.
-- [ ] T014 Invoke gap analysis during documentation mission research and update documentation state metadata.
-- [ ] T015 Integrate documentation generator detection/configuration into the plan flow and record configured generators in state.
+- [ ] T013 Wire documentation state initialization into specification flow for documentation missions with schema defaults.
+- [ ] T014 Invoke gap analysis during documentation mission planning and persist report to `kitty-specs/<feature>/gap-analysis.md`.
+- [ ] T015 Invoke gap analysis during documentation mission research and update documentation state metadata.
+- [ ] T016 Integrate documentation generator detection/configuration into the plan flow and record configured generators in state.
 
 ### Implementation Notes
 - Ensure mission gating so software-dev flows remain untouched.
-- Persist gap analysis output in a stable, discoverable location within the feature directory.
+- Use canonical gap analysis path and recency rule from `spec.md`.
 
 ### Parallel Opportunities
 - T012 can land independently; T013-T015 can be developed in parallel with shared helpers.
@@ -132,13 +133,13 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 ## Work Package WP05: Documentation Mission Validation & Tests (Priority: P2)
 
 **Goal**: Enforce documentation mission requirements during validation and acceptance, with tests.
-**Independent Test**: Validation/acceptance fails when documentation state or gap analysis artifacts are missing.
+**Independent Test**: Validation/acceptance fails when documentation state is missing or when `gap-analysis.md` is missing/stale; passes for fresh state. Non-doc missions must skip doc checks.
 **Prompt**: `/tasks/WP05-doc-mission-validation-tests.md`
 
 ### Included Subtasks
-- [ ] T016 Add documentation-mission checks to validation and acceptance flows (presence/recency of state + gap analysis).
-- [ ] T017 Update mission configuration or validators to surface documentation-specific requirements.
-- [ ] T018 Add/adjust tests covering documentation mission validation and acceptance behavior.
+- [ ] T017 Add documentation-mission checks to validation and acceptance flows (presence/recency of state + gap analysis path).
+- [ ] T018 Update mission configuration or validators to surface documentation-specific requirements and gating source.
+- [ ] T019 Add/adjust tests covering documentation mission validation and acceptance behavior, including non-doc mission negative tests.
 
 ### Implementation Notes
 - Ensure acceptance/validation errors are actionable and mention remediation steps.
@@ -147,7 +148,7 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 - T016 and T017 can proceed in parallel after understanding existing validation hooks.
 
 ### Dependencies
-- Depends on WP04.
+- Depends on WP03 and WP04.
 
 ### Risks & Mitigations
 - Risk: Overly strict validation blocks workflows. Mitigation: keep checks mission-scoped and allow explicit bypass if existing CLI supports it.
@@ -157,7 +158,7 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 ## Dependency & Execution Summary
 
 - **Sequence**: WP01 → WP02 → WP03 → WP04 → WP05.
-- **Parallelization**: WP04 can proceed in parallel with WP02/WP03 if needed, but WP05 depends on WP04.
+- **Parallelization**: WP04 can proceed in parallel with WP02/WP03 if needed, but WP05 depends on WP03 + WP04.
 - **MVP Scope**: WP01 + WP02 + WP03 (cleanup and consolidation). Documentation mission wiring is P2.
 
 ---
@@ -167,20 +168,21 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 | Subtask ID | Summary | Work Package | Priority | Parallel? |
 |------------|---------|--------------|----------|-----------|
 | T001 | Update tests/utilities to use packaged script paths | WP01 | P1 | Yes |
-| T002 | Remove root scripts and update docs/help text | WP01 | P1 | No |
-| T003 | Align base plan template guidance | WP01 | P1 | Yes |
-| T004 | Create shared task helper module | WP02 | P1 | No |
-| T005 | Update tasks_support + scripts task_helpers to use shared module | WP02 | P1 | Yes |
-| T006 | Update tasks_cli usage to consolidated helpers | WP02 | P1 | Yes |
-| T007 | Add tests for worktree/conflict parity | WP02 | P1 | No |
-| T008 | Extract shared acceptance core | WP03 | P1 | No |
-| T009 | Update acceptance.py to use core | WP03 | P1 | Yes |
-| T010 | Update acceptance_support.py to use core | WP03 | P1 | Yes |
-| T011 | Add acceptance parity tests | WP03 | P1 | No |
-| T012 | Initialize documentation state during specify | WP04 | P2 | No |
-| T013 | Run gap analysis during plan | WP04 | P2 | Yes |
-| T014 | Run gap analysis during research | WP04 | P2 | Yes |
-| T015 | Add generator detection/config to plan | WP04 | P2 | Yes |
-| T016 | Add validation/acceptance checks for doc missions | WP05 | P2 | No |
-| T017 | Update mission config/validators for doc mission checks | WP05 | P2 | Yes |
-| T018 | Add doc mission validation/accept tests | WP05 | P2 | No |
+| T002 | Repo-wide audit for scripts references | WP01 | P1 | No |
+| T003 | Remove root scripts and update docs/help text | WP01 | P1 | No |
+| T004 | Align base plan template guidance | WP01 | P1 | Yes |
+| T005 | Create shared task helper module | WP02 | P1 | No |
+| T006 | Update tasks_support + scripts task_helpers to use shared module | WP02 | P1 | Yes |
+| T007 | Update tasks_cli usage to consolidated helpers | WP02 | P1 | Yes |
+| T008 | Add tests for worktree/conflict parity | WP02 | P1 | No |
+| T009 | Extract shared acceptance core | WP03 | P1 | No |
+| T010 | Update acceptance.py to use core | WP03 | P1 | Yes |
+| T011 | Update acceptance_support.py to use core | WP03 | P1 | Yes |
+| T012 | Add acceptance parity tests | WP03 | P1 | No |
+| T013 | Initialize documentation state during specify | WP04 | P2 | No |
+| T014 | Run gap analysis during plan | WP04 | P2 | Yes |
+| T015 | Run gap analysis during research | WP04 | P2 | Yes |
+| T016 | Add generator detection/config to plan | WP04 | P2 | Yes |
+| T017 | Add validation/acceptance checks for doc missions | WP05 | P2 | No |
+| T018 | Update mission config/validators for doc mission checks | WP05 | P2 | Yes |
+| T019 | Add doc mission validation/accept tests | WP05 | P2 | No |
