@@ -26,6 +26,7 @@ from .tasks_support import (
 )
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
+from specify_cli.validators.documentation import validate_documentation_mission
 from specify_cli.core.feature_detection import (
     detect_feature_slug as centralized_detect_feature_slug,
     FeatureDetectionError,
@@ -432,6 +433,13 @@ def collect_feature_summary(
             message = exc.result.format_errors() or str(exc)
             path_violations.append(message)
 
+    # Documentation mission validation (mission-scoped)
+    doc_validation_issues: List[str] = []
+    doc_result = validate_documentation_mission(feature_dir)
+    if doc_result.is_documentation_mission and doc_result.has_errors:
+        doc_validation_issues = doc_result.error_messages()
+        missing_required.extend(doc_validation_issues)
+
     warnings: List[str] = []
     if missing_optional:
         warnings.append(
@@ -439,6 +447,10 @@ def collect_feature_summary(
         )
     if path_violations:
         warnings.append("Path conventions not satisfied.")
+    if doc_result.is_documentation_mission and doc_result.warning_count > 0:
+        for issue in doc_result.issues:
+            if issue.issue_type == "warning":
+                warnings.append(f"[doc-validation] {issue.message}")
 
     return AcceptanceSummary(
         feature=feature,
