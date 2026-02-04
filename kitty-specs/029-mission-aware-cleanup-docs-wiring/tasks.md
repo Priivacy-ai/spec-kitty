@@ -137,9 +137,9 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 **Prompt**: `/tasks/WP05-doc-mission-validation-tests.md`
 
 ### Included Subtasks
-- [ ] T017 Add documentation-mission checks to validation and acceptance flows (presence/recency of state + gap analysis path).
-- [ ] T018 Update mission configuration or validators to surface documentation-specific requirements and gating source.
-- [ ] T019 Add/adjust tests covering documentation mission validation and acceptance behavior, including non-doc mission negative tests.
+- [x] T017 Add documentation-mission checks to validation and acceptance flows (presence/recency of state + gap analysis path).
+- [x] T018 Update mission configuration or validators to surface documentation-specific requirements and gating source.
+- [x] T019 Add/adjust tests covering documentation mission validation and acceptance behavior, including non-doc mission negative tests.
 
 ### Implementation Notes
 - Ensure acceptance/validation errors are actionable and mention remediation steps.
