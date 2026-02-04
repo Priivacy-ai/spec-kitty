@@ -29,10 +29,10 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 **Prompt**: `/tasks/WP01-script-cleanup-template-alignment.md`
 
 ### Included Subtasks
-- [ ] T001 Update tests/utilities to use `src/specify_cli/scripts` as the script source of truth (remove `scripts/` path assumptions).
-- [ ] T002 Perform a repo-wide audit for `scripts/` references (including `.github/`, `run_tests.sh`, `package.json`, docs) and update before removal.
-- [ ] T003 Remove root `scripts/` duplicates and update any docs/help text that still references them.
-- [ ] T004 Align `src/specify_cli/templates/command-templates/plan.md` feature-detection guidance with the software-dev mission template.
+- [x] T001 Update tests/utilities to use `src/specify_cli/scripts` as the script source of truth (remove `scripts/` path assumptions).
+- [x] T002 Perform a repo-wide audit for `scripts/` references (including `.github/`, `run_tests.sh`, `package.json`, docs) and update before removal.
+- [x] T003 Remove root `scripts/` duplicates and update any docs/help text that still references them.
+- [x] T004 Align `src/specify_cli/templates/command-templates/plan.md` feature-detection guidance with the software-dev mission template.
 
 ### Implementation Notes
 - Focus on removing duplication without introducing symlinks.
