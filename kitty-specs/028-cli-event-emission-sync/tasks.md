@@ -180,13 +180,13 @@
 **Prompt**: `/tasks/WP06-background-sync.md`
 
 ### Included Subtasks
-- [ ] T029 Create `src/specify_cli/sync/background.py` with BackgroundSyncService class
-- [ ] T030 Implement periodic sync timer (default 5 minutes, configurable)
-- [ ] T031 Implement exponential backoff on repeated failures (500ms -> 30s)
-- [ ] T032 Add graceful shutdown handling (cleanup on CLI session end)
-- [ ] T033 Integrate with existing batch_sync() function
-- [ ] T034 Add `spec-kitty sync now` command for manual immediate sync
-- [ ] T035 Add `spec-kitty sync status` command showing queue size, connection state, last sync
+- [x] T029 Create `src/specify_cli/sync/background.py` with BackgroundSyncService class
+- [x] T030 Implement periodic sync timer (default 5 minutes, configurable)
+- [x] T031 Implement exponential backoff on repeated failures (500ms -> 30s)
+- [x] T032 Add graceful shutdown handling (cleanup on CLI session end)
+- [x] T033 Integrate with existing batch_sync() function
+- [x] T034 Add `spec-kitty sync now` command for manual immediate sync
+- [x] T035 Add `spec-kitty sync status` command showing queue size, connection state, last sync
 
 ### Implementation Notes
 - Use threading or asyncio for background operation (match existing CLI patterns)
