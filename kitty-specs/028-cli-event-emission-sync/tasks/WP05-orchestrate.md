@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Orchestrate Integration
-lane: "for_review"
+lane: "doing"
 dependencies: [WP01]
 base_branch: 028-cli-event-emission-sync-WP01
 base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
@@ -15,8 +15,8 @@ subtasks:
 - T028
 phase: Phase 2 - Command Wiring
 assignee: ''
-agent: ''
-shell_pid: "37428"
+agent: "codex"
+shell_pid: "25757"
 review_status: ''
 reviewed_by: ''
 history:
@@ -283,3 +283,4 @@ To change a work package's lane, either:
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 - 2026-02-04T11:41:17Z – unknown – shell_pid=37428 – lane=for_review – Ready for review: Added event emissions (WPAssigned, FeatureCompleted, DependencyResolved) to orchestrator integration module. All 286 orchestrator tests pass.
+- 2026-02-04T12:10:53Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
