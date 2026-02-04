@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: Finalize-Tasks Integration
+lane: "doing"
+dependencies: [WP01]
+base_branch: 028-cli-event-emission-sync-WP01
+base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
+created_at: '2026-02-04T11:32:50.394762+00:00'
 subtasks:
-  - "T018"
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-title: "Finalize-Tasks Integration"
-phase: "Phase 2 - Command Wiring"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01"]
+- T018
+- T019
+- T020
+- T021
+- T022
+phase: Phase 2 - Command Wiring
+assignee: ''
+agent: ''
+shell_pid: "25757"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-03T18:58:09Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-03T18:58:09Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 - Finalize-Tasks Integration
