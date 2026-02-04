@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Workflow Command Integration
-lane: "doing"
+lane: "planned"
 dependencies: [WP01]
 base_branch: 028-cli-event-emission-sync-WP01
 base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
@@ -16,8 +16,8 @@ phase: Phase 2 - Command Wiring
 assignee: ''
 agent: "codex"
 shell_pid: "25757"
-review_status: ''
-reviewed_by: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned
@@ -30,11 +30,12 @@ history:
 
 ## Review Feedback
 
-> **Populated by `/spec-kitty.review`** - Reviewers add detailed feedback here when work needs changes. Implementation must address every item listed below before returning for re-review.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-02-04
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review. If you see feedback here, treat each item as a must-do before completion.]*
+**Issue 1**: Dependency check failed. WP02 depends on WP01, but the WP01 base commit `9803132cccfd6602b0c5e16c535bb105439b00ce` is not contained in `2.x` (only in branch `028-cli-event-emission-sync-WP01`). Please merge WP01 to `2.x` and rebase WP02 onto `2.x` (or the merged WP01) before resubmitting for review.
 
----
 
 ## Markdown Formatting
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
@@ -258,3 +259,4 @@ To change a work package's lane, either:
 - 2026-02-04T08:29:05Z – test-reviewer – shell_pid=13661 – lane=doing – Started review via workflow command
 - 2026-02-04T11:14:31Z – test-reviewer – shell_pid=13661 – lane=for_review – Ready for review: emit WPStatusChanged in implement/merge/accept with safe warnings
 - 2026-02-04T11:27:11Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
+- 2026-02-04T11:28:42Z – codex – shell_pid=25757 – lane=planned – Moved to planned
