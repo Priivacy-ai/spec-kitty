@@ -144,6 +144,22 @@ class TestAtomicWrite:
         tmp_files = list(tmp_path.glob("*.tmp"))
         assert len(tmp_files) == 0
 
+    def test_save_cleans_up_temp_on_failure(self, tmp_path: Path, monkeypatch):
+        """Temp file is removed if atomic replace fails."""
+        path = tmp_path / "c.json"
+        clock = LamportClock(value=0, node_id="test", _storage_path=path)
+
+        def fail_replace(_src, _dst):
+            raise OSError("replace failed")
+
+        monkeypatch.setattr(os, "replace", fail_replace)
+
+        with pytest.raises(OSError):
+            clock.save()
+
+        tmp_files = list(tmp_path.glob("*.tmp"))
+        assert len(tmp_files) == 0
+
 
 class TestMissingFile:
     """Test load() with missing or corrupt files."""

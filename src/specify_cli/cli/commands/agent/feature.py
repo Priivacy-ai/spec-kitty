@@ -914,6 +914,7 @@ def finalize_tasks(
         # Update each WP file's frontmatter with dependencies
         wp_files = list(tasks_dir.glob("WP*.md"))
         updated_count = 0
+        wp_event_payloads: dict[str, dict[str, object]] = {}
 
         for wp_file in wp_files:
             # Extract WP ID from filename
@@ -951,6 +952,11 @@ def finalize_tasks(
                 # Write updated frontmatter
                 write_frontmatter(wp_file, frontmatter, body)
                 updated_count += 1
+
+            wp_event_payloads[wp_id] = {
+                "title": frontmatter.get("title") or wp_id,
+                "dependencies": deps,
+            }
 
         # Commit tasks.md and WP files to target branch
         feature_slug = feature_dir.name
@@ -1029,6 +1035,36 @@ def finalize_tasks(
             else:
                 console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(1)
+
+        # Emit FeatureCreated + WPCreated events (SC-004)
+        try:
+            from specify_cli.sync.events import get_emitter, emit_feature_created, emit_wp_created
+
+            emitter = get_emitter()
+            causation_id = emitter.generate_causation_id()
+            feature_number_match = re.match(r"^(\d{3})-", feature_slug)
+            feature_number = feature_number_match.group(1) if feature_number_match else "000"
+
+            emit_feature_created(
+                feature_slug=feature_slug,
+                feature_number=feature_number,
+                target_branch=target_branch,
+                wp_count=len(wp_event_payloads),
+                causation_id=causation_id,
+            )
+
+            for wp_id, payload in sorted(wp_event_payloads.items()):
+                emit_wp_created(
+                    wp_id=wp_id,
+                    title=str(payload.get("title") or wp_id),
+                    feature_slug=feature_slug,
+                    dependencies=list(payload.get("dependencies") or []),
+                    causation_id=causation_id,
+                )
+        except Exception as emit_exc:
+            console.print(
+                f"[yellow]Warning:[/yellow] Could not emit finalize-tasks events: {emit_exc}"
+            )
 
         if json_output:
             print(json.dumps({

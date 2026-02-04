@@ -22,6 +22,7 @@ from specify_cli.sync.emitter import (
     VALID_AGGREGATE_TYPES,
     _ULID_PATTERN,
     _WP_ID_PATTERN,
+    _load_contract_schema,
 )
 from specify_cli.sync.events import (
     get_emitter,
@@ -617,3 +618,131 @@ class TestInternalValidation:
             # Access the auth property - triggers lazy creation
             auth = em.auth
             assert auth is mock_instance
+
+    def test_missing_team_slug_fails_validation(self, emitter: EventEmitter, temp_queue):
+        """Events missing team_slug are rejected."""
+        event_id = emitter.generate_causation_id()
+        event = {
+            "event_id": event_id,
+            "event_type": "WPStatusChanged",
+            "aggregate_id": "WP01",
+            "aggregate_type": "WorkPackage",
+            "payload": {"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            "node_id": "test-node-id",
+            "lamport_clock": 1,
+            "causation_id": None,
+            "timestamp": "2026-02-04T12:00:00+00:00",
+            "team_slug": "",
+        }
+        assert emitter._validate_event(event) is False
+
+    def test_invalid_event_id_fails_validation(self, emitter: EventEmitter, temp_queue):
+        """Invalid event_id causes validation failure."""
+        event = {
+            "event_id": "a" * 26,
+            "event_type": "WPStatusChanged",
+            "aggregate_id": "WP01",
+            "aggregate_type": "WorkPackage",
+            "payload": {"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            "node_id": "test-node-id",
+            "lamport_clock": 1,
+            "causation_id": None,
+            "timestamp": "2026-02-04T12:00:00+00:00",
+            "team_slug": "test-team",
+        }
+        assert emitter._validate_event(event) is False
+
+    def test_invalid_causation_id_fails_validation(self, emitter: EventEmitter, temp_queue):
+        """Invalid causation_id format causes validation failure."""
+        event = {
+            "event_id": emitter.generate_causation_id(),
+            "event_type": "WPStatusChanged",
+            "aggregate_id": "WP01",
+            "aggregate_type": "WorkPackage",
+            "payload": {"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            "node_id": "test-node-id",
+            "lamport_clock": 1,
+            "causation_id": "b" * 26,
+            "timestamp": "2026-02-04T12:00:00+00:00",
+            "team_slug": "test-team",
+        }
+        assert emitter._validate_event(event) is False
+
+    def test_validate_payload_missing_required_fields(self, emitter: EventEmitter):
+        """Missing required payload fields are rejected."""
+        assert emitter._validate_payload("WPStatusChanged", {"wp_id": "WP01"}) is False
+
+    def test_load_contract_schema_caches(self):
+        """Schema loader returns cached data on subsequent calls."""
+        schema1 = _load_contract_schema()
+        schema2 = _load_contract_schema()
+        assert schema1 == schema2
+
+
+class TestRouteEvent:
+    """Test _route_event behavior with WebSocket integration."""
+
+    def test_ws_send_with_running_loop(self, emitter: EventEmitter):
+        """WebSocket send uses ensure_future when loop is running."""
+        import asyncio
+
+        mock_ws = MagicMock()
+        mock_ws.connected = True
+        mock_ws.send_event = MagicMock()
+        emitter.ws_client = mock_ws
+        emitter._auth.is_authenticated.return_value = True
+        emitter.queue = MagicMock()
+
+        class DummyLoop:
+            def is_running(self):
+                return True
+
+        ensured = []
+
+        def fake_ensure_future(coro):
+            ensured.append(coro)
+
+        event = {
+            "event_id": emitter.generate_causation_id(),
+            "event_type": "WPStatusChanged",
+            "aggregate_id": "WP01",
+            "aggregate_type": "WorkPackage",
+            "payload": {"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            "node_id": "test-node-id",
+            "lamport_clock": 1,
+            "causation_id": None,
+            "timestamp": "2026-02-04T12:00:00+00:00",
+            "team_slug": "test-team",
+        }
+
+        original_get_event_loop = asyncio.get_event_loop
+        original_ensure_future = asyncio.ensure_future
+        try:
+            asyncio.get_event_loop = lambda: DummyLoop()
+            asyncio.ensure_future = fake_ensure_future
+            assert emitter._route_event(event) is True
+            assert ensured, "Expected ensure_future to be called"
+        finally:
+            asyncio.get_event_loop = original_get_event_loop
+            asyncio.ensure_future = original_ensure_future
+
+    def test_auth_exception_falls_back_to_queue(self, emitter: EventEmitter):
+        """Auth failures do not prevent queueing."""
+        emitter.ws_client = None
+        emitter._auth.is_authenticated.side_effect = Exception("auth failure")
+        emitter.queue = MagicMock()
+        emitter.queue.queue_event.return_value = True
+        event = {
+            "event_id": emitter.generate_causation_id(),
+            "event_type": "WPStatusChanged",
+            "aggregate_id": "WP01",
+            "aggregate_type": "WorkPackage",
+            "payload": {"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            "node_id": "test-node-id",
+            "lamport_clock": 1,
+            "causation_id": None,
+            "timestamp": "2026-02-04T12:00:00+00:00",
+            "team_slug": "test-team",
+        }
+        assert emitter._route_event(event) is True
+        emitter.queue.queue_event.assert_called_once()

@@ -963,6 +963,7 @@ def implement(
         import os
 
         wp = locate_work_package(repo_root, feature_slug, wp_id)
+        lane_changed = False
 
         # Only update if currently planned (avoid overwriting existing doing/review state)
         current_lane = wp.lane or "planned"
@@ -1034,6 +1035,7 @@ def implement(
 
             # Write updated document after ensuring target branch
             wp.path.write_text(updated_doc, encoding="utf-8")
+            lane_changed = True
 
             # Stage and commit the file
             subprocess.run(
@@ -1059,6 +1061,21 @@ def implement(
                 console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
                 if commit_result.stderr:
                     console.print(f"  {commit_result.stderr.strip()}")
+
+        if lane_changed:
+            try:
+                from specify_cli.sync.events import emit_wp_status_changed
+
+                emit_wp_status_changed(
+                    wp_id=wp_id,
+                    previous_status=current_lane,
+                    new_status="doing",
+                    feature_slug=feature_slug,
+                )
+            except Exception as emit_exc:
+                console.print(
+                    f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}"
+                )
 
     except Exception as e:
         # Non-fatal: workspace created but lane update failed

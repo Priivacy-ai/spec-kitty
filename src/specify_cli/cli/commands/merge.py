@@ -311,6 +311,19 @@ def merge_workspace_per_wp(
                 run_command(["git", "merge", "--no-ff", branch, "-m", f"Merge {wp_id} from {feature_slug}"])
 
             console.print(f"[green]✓[/green] {wp_id} merged")
+            try:
+                from specify_cli.sync.events import emit_wp_status_changed
+
+                emit_wp_status_changed(
+                    wp_id=wp_id,
+                    previous_status="doing",
+                    new_status="for_review",
+                    feature_slug=feature_slug,
+                )
+            except Exception as emit_exc:
+                console.print(
+                    f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}"
+                )
 
         tracker.complete("merge", f"merged {len(wp_workspaces)} work packages")
     except Exception as exc:

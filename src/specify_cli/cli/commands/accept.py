@@ -22,6 +22,16 @@ from specify_cli.cli.helpers import check_version_compatibility, console, show_b
 from specify_cli.tasks_support import LANES, TaskCliError, find_repo_root
 
 
+def _safe_emit_error_logged(message: str) -> None:
+    try:
+        from specify_cli.sync.events import emit_error_logged
+
+        emit_error_logged(error_type="runtime", error_message=message)
+    except Exception:
+        # Non-blocking: never fail the command on emission errors
+        pass
+
+
 def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
     table = Table(title="Work Packages by Lane", header_style="cyan")
     table.add_column("Lane")
@@ -112,6 +122,7 @@ def accept(
     try:
         feature_slug = (feature or detect_feature_slug(repo_root)).strip()
     except AcceptanceError as exc:
+        _safe_emit_error_logged(str(exc))
         tracker.error("detect", str(exc))
         console.print(tracker.render())
         console.print(f"[red]Error:[/red] {exc}")
@@ -126,11 +137,18 @@ def accept(
     tracker.add("guide", "Share next steps")
 
     tracker.start("verify")
-    summary = collect_feature_summary(
-        repo_root,
-        feature_slug,
-        strict_metadata=not lenient,
-    )
+    try:
+        summary = collect_feature_summary(
+            repo_root,
+            feature_slug,
+            strict_metadata=not lenient,
+        )
+    except AcceptanceError as exc:
+        _safe_emit_error_logged(str(exc))
+        tracker.error("verify", str(exc))
+        console.print(tracker.render())
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
     tracker.complete("verify", "ready" if summary.ok else "issues found")
 
     if actual_mode == "checklist":
@@ -146,6 +164,7 @@ def accept(
         else:
             _print_acceptance_summary(summary)
         if not allow_fail:
+            _safe_emit_error_logged("Outstanding acceptance issues detected")
             console.print(
                 "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"
             )
@@ -168,6 +187,7 @@ def accept(
             detail = "commit created" if result.commit_created else "no changes"
             tracker.complete("commit", detail)
     except AcceptanceError as exc:
+        _safe_emit_error_logged(str(exc))
         if commit_required:
             tracker.error("commit", str(exc))
             console.print(tracker.render())
@@ -181,6 +201,22 @@ def accept(
     if json_output:
         console.print(json.dumps(result.to_dict(), indent=2))
         return
+
+    # Emit WPStatusChanged for WPs moving from for_review -> done (SC-003)
+    try:
+        from specify_cli.sync.events import emit_wp_status_changed
+
+        for wp_id in result.summary.lanes.get("for_review", []):
+            emit_wp_status_changed(
+                wp_id=wp_id,
+                previous_status="for_review",
+                new_status="done",
+                feature_slug=result.summary.feature,
+            )
+    except Exception as emit_exc:
+        console.print(
+            f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}"
+        )
 
     _print_acceptance_summary(result.summary)
     _print_acceptance_result(result)
