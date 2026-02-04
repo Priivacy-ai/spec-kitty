@@ -120,11 +120,11 @@
 **Prompt**: `/tasks/WP04-finalize-tasks.md`
 
 ### Included Subtasks
-- [ ] T018 Modify `src/specify_cli/cli/commands/agent/feature.py` finalize-tasks to emit FeatureCreated
-- [ ] T019 Emit WPCreated event for each work package in tasks.md
-- [ ] T020 Generate shared causation_id for batch events (linking all events to single finalize-tasks action)
-- [ ] T021 Include dependency information in WPCreated payload
-- [ ] T022 Extract metadata from meta.json for FeatureCreated payload
+- [x] T018 Modify `src/specify_cli/cli/commands/agent/feature.py` finalize-tasks to emit FeatureCreated
+- [x] T019 Emit WPCreated event for each work package in tasks.md
+- [x] T020 Generate shared causation_id for batch events (linking all events to single finalize-tasks action)
+- [x] T021 Include dependency information in WPCreated payload
+- [x] T022 Extract metadata from meta.json for FeatureCreated payload
 
 ### Implementation Notes
 - Use get_emitter().generate_causation_id() for batch correlation
