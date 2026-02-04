@@ -13,7 +13,7 @@ This module adds:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Sequence
+from typing import List, Mapping, Optional
 
 # Re-export core data structures so existing callers keep working.
 from specify_cli.core.acceptance_core import (

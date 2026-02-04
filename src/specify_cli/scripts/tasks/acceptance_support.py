@@ -20,11 +20,10 @@ import re
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import List, Mapping, Optional
+from typing import Mapping, Optional
 
 from task_helpers import (
     TaskCliError,
-    find_repo_root,
     run_git,
 )
 

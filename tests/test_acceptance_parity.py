@@ -369,12 +369,10 @@ class TestFindRepoRootParity:
     ) -> None:
         """task_helpers_shared.find_repo_root is the single implementation for all."""
         from specify_cli.task_helpers_shared import find_repo_root as shared_find
+        from specify_cli.tasks_support import find_repo_root as support_find
 
-        # Core imports find_repo_root from task_helpers_shared, so the function
-        # objects should be identical.
-        from specify_cli.core.acceptance_core import find_repo_root as core_find
-
-        assert core_find(feature_repo) == shared_find(feature_repo)
+        # Both tasks_support and task_helpers_shared expose the same function.
+        assert support_find is shared_find
 
     def test_find_repo_root_from_worktree(
         self, feature_repo: Path, feature_slug: str
@@ -409,11 +407,11 @@ class TestFindRepoRootParity:
         # Via task_helpers (script path)
         task_root = th.find_repo_root(worktree_dir)
 
-        # Via acceptance_core (package path)
-        from specify_cli.core.acceptance_core import find_repo_root as core_find
-        core_root = core_find(worktree_dir)
+        # Via tasks_support (package path, re-exports from task_helpers_shared)
+        from specify_cli.tasks_support import find_repo_root as support_find
+        support_root = support_find(worktree_dir)
 
-        assert task_root == core_root == feature_repo
+        assert task_root == support_root == feature_repo
 
 
 # ---------------------------------------------------------------------------

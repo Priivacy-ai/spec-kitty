@@ -20,19 +20,16 @@ from specify_cli.cli.commands.accept import accept as top_level_accept
 from specify_cli.cli.commands.merge import merge as top_level_merge
 from specify_cli.core.dependency_graph import (
     detect_cycles,
-    parse_wp_dependencies,
     validate_dependencies,
 )
 from specify_cli.core.git_ops import get_current_branch, is_git_repo, run_command
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.core.feature_detection import (
-    detect_feature,
     detect_feature_directory,
     FeatureDetectionError,
 )
 from specify_cli.core.worktree import (
     get_next_feature_number,
-    setup_feature_directory,
     validate_feature_structure,
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
@@ -251,7 +248,7 @@ def create_feature(
                 for i, part in enumerate(cwd.parts):
                     if part == ".worktrees":
                         main_repo = Path(*cwd.parts[:i])
-                        console.print(f"\n[cyan]Run from the main repository instead:[/cyan]")
+                        console.print("\n[cyan]Run from the main repository instead:[/cyan]")
                         console.print(f"  cd {main_repo}")
                         console.print(f"  spec-kitty agent create-feature {feature_slug}")
                         break
@@ -902,7 +899,7 @@ def accept_feature(
             no_commit=no_commit,
             allow_fail=False,  # Agent commands use strict validation
         )
-    except typer.Exit as e:
+    except typer.Exit:
         # Propagate typer.Exit cleanly
         raise
     except Exception as e:
@@ -1128,7 +1125,7 @@ def finalize_tasks(
                 if json_output:
                     print(json.dumps({"error": error_msg, "cycles": cycles}))
                 else:
-                    console.print(f"[red]Error:[/red] Circular dependencies detected:")
+                    console.print("[red]Error:[/red] Circular dependencies detected:")
                     for cycle in cycles:
                         console.print(f"  {' → '.join(cycle)}")
                 raise typer.Exit(1)
@@ -1247,7 +1244,7 @@ def finalize_tasks(
                 commit_hash = None
 
                 if not json_output:
-                    console.print(f"[dim]Tasks unchanged, no commit needed[/dim]")
+                    console.print("[dim]Tasks unchanged, no commit needed[/dim]")
             else:
                 # Real error
                 error_output = stderr_commit if stderr_commit else stdout_commit
