@@ -258,12 +258,12 @@ CREATE TABLE events (
 
 ### Included Subtasks
 
-- [ ] T025 - Implement EventStore.read() with optional filters (delegates to index)
-- [ ] T026 - Implement event sorting by Lamport clock (causal ordering)
-- [ ] T027 - Implement graceful degradation (skip invalid JSON lines with warnings)
-- [ ] T028 - Create state reconstruction logic (replay events to derive current status)
-- [ ] T029 - Integrate event reading into `spec-kitty status` command
-- [ ] T030 - Add fallback to direct JSONL reading when index unavailable
+- [x] T025 - Implement EventStore.read() with optional filters (delegates to index)
+- [x] T026 - Implement event sorting by Lamport clock (causal ordering)
+- [x] T027 - Implement graceful degradation (skip invalid JSON lines with warnings)
+- [x] T028 - Create state reconstruction logic (replay events to derive current status)
+- [x] T029 - Integrate event reading into `spec-kitty status` command
+- [x] T030 - Add fallback to direct JSONL reading when index unavailable
 
 ### Implementation Notes
 
@@ -306,11 +306,11 @@ CREATE TABLE events (
 
 ### Included Subtasks
 
-- [ ] T031 - Implement conflict detection (group events by Lamport clock, find duplicates)
-- [ ] T032 - Implement Last-Write-Wins merge rule (lexicographic ULID sorting)
-- [ ] T033 - Integrate conflict detection into state reconstruction (T028 enhancement)
-- [ ] T034 - Add conflict warning output to `spec-kitty status` command
-- [ ] T035 - Log conflict resolutions to stderr with explanation
+- [x] T031 - Implement conflict detection (group events by Lamport clock, find duplicates)
+- [x] T032 - Implement Last-Write-Wins merge rule (lexicographic ULID sorting)
+- [x] T033 - Integrate conflict detection into state reconstruction (T028 enhancement)
+- [x] T034 - Add conflict warning output to `spec-kitty status` command
+- [x] T035 - Log conflict resolutions to stderr with explanation
 
 ### Implementation Notes
 
@@ -354,11 +354,11 @@ for clock, clock_events in events_by_clock.items():
 
 ### Included Subtasks
 
-- [ ] T036 - Create ErrorEvent dataclass (error_id ULID, error_type, entity_id, reason, context)
-- [ ] T037 - Create ErrorStorage class with daily JSONL logging (parallel to EventStore)
-- [ ] T038 - Create `@with_error_storage` AOP decorator
-- [ ] T039 - Integrate error logging into validation failures (state transition errors)
-- [ ] T040 - Add best-effort error handling (don't block operations if error log fails)
+- [x] T036 - Create ErrorEvent dataclass (error_id ULID, error_type, entity_id, reason, context)
+- [x] T037 - Create ErrorStorage class with daily JSONL logging (parallel to EventStore)
+- [x] T038 - Create `@with_error_storage` AOP decorator
+- [x] T039 - Integrate error logging into validation failures (state transition errors)
+- [x] T040 - Add best-effort error handling (don't block operations if error log fails)
 
 ### Implementation Notes
 
@@ -406,11 +406,11 @@ class ErrorEvent:
 
 ### Included Subtasks
 
-- [ ] T041 - Pin spec-kitty-events to specific commit hash in pyproject.toml
-- [ ] T042 - Update GitHub Actions workflow with SSH setup steps
-- [ ] T043 - Test CI build end-to-end (trigger workflow, verify library installs)
-- [ ] T044 - Document dependency update process in CONTRIBUTING.md
-- [ ] T045 - Add spec-kitty-events version to `spec-kitty --version` output
+- [x] T041 - Pin spec-kitty-events to specific commit hash in pyproject.toml
+- [x] T042 - Update GitHub Actions workflow with SSH setup steps
+- [x] T043 - Test CI build end-to-end (trigger workflow, verify library installs)
+- [x] T044 - Document dependency update process in CONTRIBUTING.md
+- [x] T045 - Add spec-kitty-events version to `spec-kitty --version` output
 
 ### Implementation Notes
 

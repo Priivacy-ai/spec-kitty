@@ -6,5 +6,6 @@
   "source_description": "Documentation feature sprint to document jujutsu as carefully and accurately as the rest of Spec Kitty and ensure that the github pages correctly updates with the new end user documentation",
   "created_at": "2026-01-17T18:44:00Z",
   "vcs": "jj",
-  "vcs_locked_at": "2026-01-17T18:46:05.439603+00:00"
+  "vcs_locked_at": "2026-01-17T18:46:05.439603+00:00",
+  "target_branch": "main"
 }

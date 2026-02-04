@@ -14,7 +14,7 @@ class ConnectionStatus:
     CONNECTED = "Connected"
     RECONNECTING = "Reconnecting"
     OFFLINE = "Offline"
-    BATCH_MODE = "Offline - Batch Mode"
+    BATCH_MODE = "OfflineBatchMode"
 
 
 class WebSocketClient:

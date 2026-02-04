@@ -1,0 +1,9 @@
+{
+  "feature_number": "026",
+  "slug": "026-agent-directory-centralization-architecture-research",
+  "friendly_name": "Agent Directory Centralization Architecture Research",
+  "mission": "research",
+  "source_description": "Research whether Spec Kitty's agent directories should be centralized at user-level instead of duplicated per project",
+  "created_at": "2026-02-01T00:00:00Z",
+  "deliverables_path": "docs/research/026-agent-directory-centralization"
+}

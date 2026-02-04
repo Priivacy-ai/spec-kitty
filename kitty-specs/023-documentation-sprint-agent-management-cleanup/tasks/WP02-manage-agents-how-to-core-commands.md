@@ -10,11 +10,11 @@ subtasks:
   - "T010"
 title: "Manage Agents How-To Guide - Core Commands"
 phase: "Phase 1 - Core Documentation"
-lane: "done"
+lane: "planned"
 assignee: ""
-agent: "Claude"
-shell_pid: "19176"
-review_status: "approved"
+agent: "codex"
+shell_pid: "24794"
+review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 dependencies: ["WP01"]
 history:
@@ -40,11 +40,20 @@ history:
 
 ## Review Feedback
 
-> **Populated by `/spec-kitty.review`** – Reviewers add detailed feedback here when work needs changes. Implementation must address every item listed below before returning for re-review.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-26
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review. If you see feedback here, treat each item as a must-do before completion.]*
+**Issue 1 (requirements - length)**: File exceeds the 600-line limit (631 lines per `wc -l`). The WP requires “keep under 600 lines (target ~500)”. Please trim content (e.g., tighten examples, remove redundancy, or move secondary material to WP03).
 
----
+**Issue 2 (broken link)**: Overview links to Getting Started at `../getting-started.md` (line 9), which doesn’t exist. Use `../tutorials/getting-started.md` or another valid target.
+
+**Issue 3 (invalid upgrade link)**: The “Upgrading to 0.12.0” links use `upgrade-to-0-11-0.md#upgrading-to-0120` (lines ~75 and ~626), but that anchor doesn’t exist in `docs/how-to/upgrade-to-0-11-0.md`. Point to an existing section or update the upgrade guide link.
+
+**Issue 4 (incorrect behavior)**: “Corrupt or Missing config.yaml” says commands treat all 12 agents as configured (legacy fallback) (line ~550). Actual behavior is empty `agents.available` when config is missing/invalid (see `load_agent_config`), and `spec-kitty agent config list` reports “No agents configured.” Please correct the description.
+
+**Issue 5 (placeholder URL)**: “spec-kitty GitHub Issues” link uses `https://github.com/yourusername/spec-kitty/issues` (line ~602). Replace with the real repo URL (e.g., `https://github.com/Priivacy-ai/spec-kitty/issues`, consistent with other docs).
+
 
 ## ⚠️ Dependency Rebase Guidance
 
@@ -891,6 +900,8 @@ The CLI command updates both frontmatter and activity log automatically.
 - 2026-01-23T10:58:56Z – claude – shell_pid=15781 – lane=for_review – Ready for review: Comprehensive 461-line how-to guide covering all 5 agent config commands (list, add, remove, status, sync) with concrete examples, error handling, and common scenarios. Includes config-driven model explanation and cross-references to migration guide and ADR #6.
 - 2026-01-23T10:59:40Z – Claude – shell_pid=19176 – lane=doing – Started review via workflow command
 - 2026-01-23T10:59:54Z – Claude – shell_pid=19176 – lane=done – Review passed: Comprehensive how-to guide for managing agents covering all 5 core commands with examples, error handling, and common scenarios.
+- 2026-01-26T08:56:02Z – codex – shell_pid=24794 – lane=doing – Started review via workflow command
+- 2026-01-26T09:00:19Z – codex – shell_pid=24794 – lane=planned – Moved to planned
 
 ## Implementation Command
 

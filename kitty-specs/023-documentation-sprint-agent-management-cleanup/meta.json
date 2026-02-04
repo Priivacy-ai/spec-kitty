@@ -4,5 +4,6 @@
   "friendly_name": "Documentation Sprint: Agent Management and Cleanup",
   "mission": "software-dev",
   "source_description": "a documentation sprint to bring the user docs in line with the actual current implementation. Check the git history for our ./docs - they were mostly written in a sprint a few days ago. Look at git history in the meantime and read our ./architectur adrs. Then find the documentation (eg jujutsu) that must be removed, and the documentation that has to be adjusted based on user facing api changes like the new agent management architecture.",
-  "created_at": "2026-01-23T09:31:00Z"
+  "created_at": "2026-01-23T09:31:00Z",
+  "target_branch": "main"
 }

@@ -38,51 +38,73 @@ def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
 class TestDetectFeatureContext:
     """Tests for detect_feature_context()."""
 
-    def test_detect_from_feature_branch(self):
+    def test_detect_from_feature_branch(self, tmp_path):
         """Test detection from feature branch (###-feature-name)."""
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="010-workspace-per-wp\n"
-            )
+        # Create minimal repo structure
+        (tmp_path / ".kittify").mkdir()
+        feature_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
+        feature_dir.mkdir(parents=True)
 
-            number, slug = detect_feature_context()
+        with patch("specify_cli.tasks_support.find_repo_root") as mock_find_root:
+            mock_find_root.return_value = tmp_path
 
-            assert number == "010"
-            assert slug == "010-workspace-per-wp"
+            with patch("specify_cli.core.feature_detection._get_main_repo_root") as mock_main_root:
+                mock_main_root.return_value = tmp_path
 
-    def test_detect_from_wp_branch(self):
+                with patch("specify_cli.core.feature_detection._detect_from_git_branch") as mock_git:
+                    mock_git.return_value = "010-workspace-per-wp"
+
+                    number, slug = detect_feature_context()
+
+                    assert number == "010"
+                    assert slug == "010-workspace-per-wp"
+
+    def test_detect_from_wp_branch(self, tmp_path):
         """Test detection from WP branch (###-feature-name-WP##)."""
-        with patch("subprocess.run") as mock_run:
-            # WP branch pattern includes WP suffix
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="010-workspace-per-wp-WP01\n"
-            )
+        # Create minimal repo structure
+        (tmp_path / ".kittify").mkdir()
+        feature_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
+        feature_dir.mkdir(parents=True)
 
-            number, slug = detect_feature_context()
+        with patch("specify_cli.tasks_support.find_repo_root") as mock_find_root:
+            mock_find_root.return_value = tmp_path
 
-            assert number == "010"
-            # When on a WP branch, the full branch name is NOT returned,
-            # only the feature slug (minus -WP##)
-            # But looking at the implementation, it actually returns the full match
-            # Let me check the actual behavior...
-            # Pattern 2 extracts the feature slug without -WP##
-            assert slug == "010-workspace-per-wp"
+            with patch("specify_cli.core.feature_detection._get_main_repo_root") as mock_main_root:
+                mock_main_root.return_value = tmp_path
 
-    def test_detect_from_directory(self):
+                with patch("specify_cli.core.feature_detection._detect_from_git_branch") as mock_git:
+                    # Git detection strips -WP## suffix automatically
+                    mock_git.return_value = "010-workspace-per-wp"
+
+                    number, slug = detect_feature_context()
+
+                    assert number == "010"
+                    # When on a WP branch, the full branch name is NOT returned,
+                    # only the feature slug (minus -WP##)
+                    # Pattern 2 extracts the feature slug without -WP##
+                    assert slug == "010-workspace-per-wp"
+
+    def test_detect_from_directory(self, tmp_path):
         """Test detection from current directory path."""
-        with patch("subprocess.run") as mock_run:
-            # Git command fails
-            mock_run.return_value = MagicMock(returncode=1, stdout="")
+        # Create minimal repo structure
+        (tmp_path / ".kittify").mkdir()
+        feature_dir = tmp_path / "kitty-specs" / "010-test-feature" / "tasks"
+        feature_dir.mkdir(parents=True)
 
-            with patch("pathlib.Path.cwd") as mock_cwd:
-                mock_cwd.return_value = Path("/repo/kitty-specs/010-test-feature/tasks")
+        with patch("specify_cli.tasks_support.find_repo_root") as mock_find_root:
+            mock_find_root.return_value = tmp_path
 
-                number, slug = detect_feature_context()
+            with patch("subprocess.run") as mock_run:
+                # Git command fails
+                mock_run.return_value = MagicMock(returncode=1, stdout="")
 
-                assert number == "010"
-                assert slug == "010-test-feature"
+                with patch("pathlib.Path.cwd") as mock_cwd:
+                    mock_cwd.return_value = feature_dir
+
+                    number, slug = detect_feature_context()
+
+                    assert number == "010"
+                    assert slug == "010-test-feature"
 
     def test_detect_failure(self):
         """Test failure when context cannot be detected."""

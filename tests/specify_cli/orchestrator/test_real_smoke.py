@@ -116,6 +116,7 @@ class TestRealAgentInvocation:
         assert "Hello from Codex" in content, f"Unexpected content: {content}"
 
     @pytest.mark.timeout(120)
+    @pytest.mark.xfail(reason="Flaky: Depends on external Gemini API quotas")
     def test_gemini_can_create_file(self, temp_workdir: Path):
         """Gemini should be able to create a simple file.
 

@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP04"
-title: "SQLite Query Index"
-phase: "Phase 1 - Core Event Infrastructure"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP03"]
+work_package_id: WP04
+title: SQLite Query Index
+lane: "done"
+dependencies: [WP03]
+base_branch: 2.x
+base_commit: 033571b9334a4d44e4858abdd9f4fffd6bf5dfa7
+created_at: '2026-01-30T11:22:42.807853+00:00'
 subtasks:
-  - "T019"
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
+- T019
+- T020
+- T021
+- T022
+- T023
+- T024
+phase: Phase 1 - Core Event Infrastructure
+assignee: ''
+agent: "claude-wp04-final-reviewer"
+shell_pid: "3709"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
-  - timestamp: "2026-01-27T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-27T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – SQLite Query Index
@@ -39,9 +42,183 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate if work needs changes.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-30
+
+**Issue 1 (critical): API regression in events __init__ exports**
+
+`src/specify_cli/events/__init__.py` dropped WP03 exports (`EventStore`, `with_event_store`, `generate_ulid`). This breaks public imports and any CLI commands using the decorator. Please restore the prior exports and add `EventIndex` without removing existing symbols.
+
+Expected pattern:
+```python
+from .adapter import Event, EventAdapter, HAS_LIBRARY, LamportClock, generate_ulid
+from .index import EventIndex
+from .middleware import with_event_store
+from .store import EventStore
+
+__all__ = [
+    "Event",
+    "LamportClock",
+    "EventAdapter",
+    "EventStore",
+    "EventIndex",
+    "HAS_LIBRARY",
+    "generate_ulid",
+    "with_event_store",
+]
+```
+
+Please verify imports:
+```python
+from specify_cli.events import EventStore, EventIndex, with_event_store, generate_ulid
+```
+
+
+## Critical Issue: API Regression - Missing Exports in __init__.py
+
+**Problem**: The WP04 commit (83ff47a1) modified `src/specify_cli/events/__init__.py` and **removed** the exports that were added in WP03, breaking the public API.
+
+**Evidence**:
+
+**Before WP04 (from WP03 - commit 438669af)**:
+```python
+# src/specify_cli/events/__init__.py
+from .adapter import Event, EventAdapter, HAS_LIBRARY, LamportClock, generate_ulid
+from .middleware import with_event_store
+from .store import EventStore
+
+__all__ = [
+    "Event",
+    "LamportClock",
+    "EventAdapter",
+    "EventStore",
+    "HAS_LIBRARY",
+    "generate_ulid",
+    "with_event_store",
+]
+```
+
+**After WP04 (commit 83ff47a1)**:
+```python
+# src/specify_cli/events/__init__.py
+from .adapter import Event, EventAdapter, HAS_LIBRARY, LamportClock
+from .index import EventIndex
+
+__all__ = ["Event", "LamportClock", "EventAdapter", "EventIndex", "HAS_LIBRARY"]
+```
+
+**What got removed**:
+- `EventStore` (core WP03 functionality!)
+- `generate_ulid` (needed for event creation)
+- `with_event_store` (decorator for CLI commands)
+
+**Impact**:
+1. Code that worked in WP03 will break in WP04
+2. The following imports will fail:
+   ```python
+   from specify_cli.events import EventStore  # ImportError!
+   from specify_cli.events import with_event_store  # ImportError!
+   from specify_cli.events import generate_ulid  # ImportError!
+   ```
+3. CLI commands decorated with `@with_event_store` will fail
+4. Any code trying to create events using `generate_ulid()` will fail
 
 ---
+
+## How to Fix
+
+Update `src/specify_cli/events/__init__.py` to **include** both WP03 exports AND the new WP04 export:
+
+```python
+"""Event log integration package."""
+
+from .adapter import Event, EventAdapter, HAS_LIBRARY, LamportClock, generate_ulid
+from .index import EventIndex
+from .middleware import with_event_store
+from .store import EventStore
+
+__all__ = [
+    "Event",
+    "LamportClock",
+    "EventAdapter",
+    "EventStore",
+    "EventIndex",
+    "HAS_LIBRARY",
+    "generate_ulid",
+    "with_event_store",
+]
+```
+
+**Note**: Just add `EventIndex` to the existing exports, don't remove the WP03 ones!
+
+---
+
+## What's Working Well
+
+The actual WP04 implementation is excellent:
+
+✅ **EventIndex class** (`src/specify_cli/events/index.py`):
+- Proper SQLite schema with `events` table
+- Three indices: `idx_entity`, `idx_type`, `idx_date` (matches spec)
+- Idempotent `update()` with `INSERT OR IGNORE`
+- Batch update for rebuild efficiency
+- `query()` method with flexible filters
+- `rebuild()` from JSONL files with error handling
+- `check_integrity()` for health checks
+
+✅ **EventStore integration** (`src/specify_cli/events/store.py`):
+- Index updates inline during `emit()` (synchronous as planned)
+- Automatic rebuild on corruption/missing
+- Graceful fallback to JSONL reading if index fails
+- `get_affected_dates()` optimization for targeted JSONL reads
+
+✅ **Code quality**:
+- Clean separation of concerns
+- Good error handling
+- Helpful warning messages
+- Proper connection management (try/finally)
+
+---
+
+## Dependency Check
+
+✅ WP03 is merged to 2.x (confirmed via git log)
+⚠️ WP05 depends on WP04 - they'll need to know about this fix
+
+---
+
+## Root Cause
+
+This likely happened because:
+1. WP04 was branched from 2.x before WP03 was merged
+2. OR WP04 was based on an old commit and didn't properly merge WP03's changes
+3. The implementer only added their new export (`EventIndex`) without preserving existing ones
+
+**Prevention**: Always base work packages on the latest merged dependencies and verify no regressions in shared files.
+
+---
+
+## Verification
+
+After fixing, verify all exports work:
+
+```python
+# This should succeed
+from specify_cli.events import (
+    Event,
+    LamportClock,
+    EventAdapter,
+    EventStore,
+    EventIndex,
+    HAS_LIBRARY,
+    generate_ulid,
+    with_event_store,
+)
+
+print("✓ All exports available")
+```
+
 
 ## Objectives & Success Criteria
 
@@ -894,6 +1071,15 @@ print(f"Full scan ({len(all_events)} events): {elapsed_ms:.2f}ms")
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+- 2026-01-30T11:31:51Z – unknown – shell_pid=14744 – lane=for_review – Ready for review: add SQLite index, JSONL query path, and EventStore integration
+- 2026-01-30T12:44:29Z – claude-wp04-reviewer – shell_pid=96881 – lane=doing – Started review via workflow command
+- 2026-01-30T12:46:42Z – claude-wp04-reviewer – shell_pid=96881 – lane=planned – Moved to planned
+- 2026-01-30T12:56:20Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
+- 2026-01-30T12:57:06Z – codex – shell_pid=14744 – lane=planned – Moved to planned
+- 2026-01-30T13:06:15Z – codex – shell_pid=14744 – lane=doing – Started implementation via workflow command
+- 2026-01-30T13:06:56Z – codex – shell_pid=14744 – lane=for_review – Ready for review: restore events exports and include EventIndex
+- 2026-01-30T13:08:08Z – claude-wp04-final-reviewer – shell_pid=3709 – lane=doing – Started review via workflow command
+- 2026-01-30T13:09:47Z – claude-wp04-final-reviewer – shell_pid=3709 – lane=done – Review passed: EventIndex fully implemented with proper SQLite schema and 3 indices. __init__.py exports restored (all WP03 exports preserved + EventIndex added). EventStore.read() uses index with automatic rebuild and JSONL fallback. Clean architecture.
 
 ## Implementation Command
 
