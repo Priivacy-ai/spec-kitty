@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Background Sync Service
-lane: "doing"
+lane: "planned"
 dependencies: [WP05]
 base_branch: 028-cli-event-emission-sync-WP05
 base_commit: ae915e0bb3c9337f117e99548da44735bc7ab284
@@ -18,8 +18,8 @@ phase: Phase 3 - Infrastructure
 assignee: ''
 agent: "codex"
 shell_pid: "25757"
-review_status: ''
-reviewed_by: ''
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned
@@ -32,11 +32,16 @@ history:
 
 ## Review Feedback
 
-> **Populated by `/spec-kitty.review`** - Reviewers add detailed feedback here when work needs changes. Implementation must address every item listed below before returning for re-review.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-02-04
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review. If you see feedback here, treat each item as a must-do before completion.]*
+**Issue 1 (blocking)**: Background sync never starts, so the periodic auto-flush requirement isn’t met. `BackgroundSyncService.start()` is never called anywhere. Please start the service at app/emitter initialization (singletons), or in a CLI startup hook, and ensure it is only started once. This is required for “auto-flush queue periodically (default 5 minutes)” and FR-031/FR-035.
 
----
+**Issue 2 (blocking)**: Sync operations can overlap (timer thread + `sync now`) because `_perform_sync()` is not locked. That can race on the SQLite queue and duplicate work. Please guard `_perform_sync()` with a lock/flag to prevent concurrent syncs, and ensure timer reschedule waits for sync completion. This addresses the thread-safety risk explicitly called out in the spec.
+
+**Issue 3 (needs decision)**: `spec-kitty sync now` only syncs a single batch (max 1000). If the queue has >1000 events, it leaves the remainder, which conflicts with “sync now triggers immediate sync of queued events.” Consider looping with `sync_all_queued_events()` (or a custom loop) and enforce the 1 batch / 5s rate limit between batches if required. If the intended behavior is “one batch only,” please update the command help text/spec to be explicit.
+
 
 ## Markdown Formatting
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
@@ -402,3 +407,4 @@ To change a work package's lane, either:
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
 - 2026-02-04T12:41:03Z – unknown – shell_pid=53403 – lane=for_review – Ready for review: BackgroundSyncService with periodic timer, exponential backoff, graceful shutdown, sync now and sync status CLI commands
 - 2026-02-04T12:41:19Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
+- 2026-02-04T12:43:47Z – codex – shell_pid=25757 – lane=planned – Moved to planned
