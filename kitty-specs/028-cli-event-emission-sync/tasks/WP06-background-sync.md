@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Background Sync Service
-lane: "doing"
+lane: "done"
 dependencies: [WP05]
 base_branch: 028-cli-event-emission-sync-WP05
 base_commit: ae915e0bb3c9337f117e99548da44735bc7ab284
@@ -411,3 +411,4 @@ To change a work package's lane, either:
 - 2026-02-04T12:46:38Z – codex – shell_pid=25757 – lane=doing – Addressing review feedback: start service, lock sync, drain full queue
 - 2026-02-04T12:47:21Z – codex – shell_pid=25757 – lane=for_review – Review feedback addressed: (1) start() called in singleton, (2) _lock guards _perform_sync, (3) sync_now drains full queue via sync_all_queued_events
 - 2026-02-04T12:48:15Z – claude-opus – shell_pid=56464 – lane=doing – Started review via workflow command
+- 2026-02-04T12:49:51Z – claude-opus – shell_pid=56464 – lane=done – Review passed: All 3 previous review issues addressed (service startup, lock-guarded sync, full queue drain). Thread-safe singleton, exponential backoff, graceful shutdown, CLI commands all meet FR-031 through FR-037.
