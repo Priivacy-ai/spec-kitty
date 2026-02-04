@@ -9,9 +9,9 @@ This utility helps prevent UnicodeDecodeError issues by:
 4. Reporting encoding issues with specific positions
 
 Usage:
-    python scripts/validate_encoding.py --check kitty-specs/
-    python scripts/validate_encoding.py --fix kitty-specs/001-feature/
-    python scripts/validate_encoding.py --scan-all
+    python src/specify_cli/scripts/validate_encoding.py --check kitty-specs/
+    python src/specify_cli/scripts/validate_encoding.py --fix kitty-specs/001-feature/
+    python src/specify_cli/scripts/validate_encoding.py --scan-all
 """
 
 import argparse
