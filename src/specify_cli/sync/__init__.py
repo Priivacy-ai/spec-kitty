@@ -26,6 +26,7 @@ from .events import (
     emit_error_logged,
     emit_dependency_resolved,
 )
+from .background import BackgroundSyncService, get_sync_service, reset_sync_service
 from .queue import OfflineQueue
 
 __all__ = [
@@ -50,4 +51,7 @@ __all__ = [
     "emit_history_added",
     "emit_error_logged",
     "emit_dependency_resolved",
+    "BackgroundSyncService",
+    "get_sync_service",
+    "reset_sync_service",
 ]

@@ -365,6 +365,39 @@ def sync_workspace(
 
 
 @app.command()
+def now() -> None:
+    """Trigger immediate sync of all queued events.
+
+    Drains the offline queue completely, uploading events to the server
+    in batches of 1000 until the queue is empty or all remaining events
+    have exceeded their retry limit.
+
+    Examples:
+        spec-kitty sync now
+    """
+    from specify_cli.sync.background import get_sync_service
+
+    service = get_sync_service()
+    queue_size = service.queue.size()
+
+    if queue_size == 0:
+        console.print("[dim]Queue is empty, nothing to sync.[/dim]")
+        return
+
+    console.print(f"Syncing {queue_size} queued event(s)...")
+    result = service.sync_now()
+
+    console.print(
+        f"[green]Synced:[/green] {result.synced_count}  "
+        f"[dim]Duplicates:[/dim] {result.duplicate_count}  "
+        f"[red]Errors:[/red] {result.error_count}"
+    )
+    if result.error_messages:
+        for err in result.error_messages:
+            console.print(f"  [red]Error:[/red] {err}")
+
+
+@app.command()
 def status(
     check_connection: bool = typer.Option(
         False,
@@ -373,18 +406,19 @@ def status(
         help="Test connection to server (may be slow if server is unreachable)",
     ),
 ) -> None:
-    """Show WebSocket sync connection status.
+    """Show sync queue status, connection state, and auth info.
 
-    Displays the configuration for WebSocket sync connection to the
-    spec-kitty-saas server:
+    Displays:
+    - Offline queue size
+    - Connection / emitter status
+    - Last sync timestamp
+    - Auth status
     - Server URL configuration
-    - Config file location
 
     Use --check to test actual connectivity (adds 3s timeout if server unreachable).
-    Note: Persistent connection tracking is implemented in WP14-15.
 
     Examples:
-        # Show configuration only (fast)
+        # Show status (fast)
         spec-kitty sync status
 
         # Test connection to server
@@ -393,6 +427,8 @@ def status(
     import asyncio
     from specify_cli.sync.config import SyncConfig
     from specify_cli.sync.client import WebSocketClient
+    from specify_cli.sync.events import get_emitter
+    from specify_cli.sync.background import get_sync_service
 
     console.print()
     console.print("[cyan]Spec Kitty Sync Status[/cyan]")
@@ -402,11 +438,43 @@ def status(
     config = SyncConfig()
     server_url = config.get_server_url()
 
-    # Display configuration
+    emitter = get_emitter()
+    service = get_sync_service()
+
+    # Display status
     table = Table(show_header=False, box=None)
     table.add_column("Key", style="dim")
     table.add_column("Value")
 
+    # Queue size
+    queue_size = service.queue.size()
+    queue_color = "green" if queue_size == 0 else "yellow"
+    table.add_row("Queue", f"[{queue_color}]{queue_size} event(s)[/{queue_color}]")
+
+    # Connection status
+    conn_status = emitter.get_connection_status()
+    conn_color = "green" if conn_status == "Connected" else "yellow"
+    table.add_row("Connection", f"[{conn_color}]{conn_status}[/{conn_color}]")
+
+    # Last sync
+    if service.last_sync:
+        table.add_row("Last Sync", service.last_sync.strftime("%Y-%m-%d %H:%M:%S UTC"))
+    else:
+        table.add_row("Last Sync", "[dim]Never[/dim]")
+
+    # Background service
+    bg_status = "[green]Running[/green]" if service.is_running else "[dim]Stopped[/dim]"
+    table.add_row("Background", bg_status)
+
+    if service.consecutive_failures > 0:
+        table.add_row("Failures", f"[yellow]{service.consecutive_failures} consecutive[/yellow]")
+
+    # Auth status
+    auth_ok = emitter.auth.is_authenticated()
+    auth_text = "[green]Authenticated[/green]" if auth_ok else "[yellow]Not authenticated[/yellow]"
+    table.add_row("Auth", auth_text)
+
+    # Server URL
     table.add_row("Server URL", server_url)
     table.add_row("Config File", str(config.config_file))
 
@@ -444,25 +512,19 @@ def status(
         # Run the async connection test
         try:
             connection_status, connection_note = asyncio.run(test_connection())
-            table.add_row("Connection", connection_status)
+            table.add_row("Ping", connection_status)
             if connection_note:
                 table.add_row("", f"[dim]{connection_note}[/dim]")
         except Exception as e:
-            table.add_row("Connection", "[red]Error[/red]")
+            table.add_row("Ping", "[red]Error[/red]")
             table.add_row("", f"[dim]Status check failed: {str(e)[:50]}[/dim]")
-    else:
-        table.add_row("Connection", "[dim]Not checked (use --check to test)[/dim]")
 
     console.print(table)
     console.print()
 
     if not check_connection:
-        console.print("[dim]Use 'spec-kitty sync status --check' to test connection.[/dim]")
+        console.print("[dim]Use 'spec-kitty sync status --check' to test connectivity.[/dim]")
         console.print()
-
-    console.print("[dim]Persistent connection tracking and offline queue will be "
-                  "available in WP14 (Offline Queue) and WP15 (Reconnection).[/dim]")
-    console.print()
 
 
 __all__ = ["app"]
