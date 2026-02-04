@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Test Suite
-lane: "doing"
+lane: "for_review"
 dependencies: [WP06]
 base_branch: 028-cli-event-emission-sync-WP06
 base_commit: 0eb801bdecc083e0b4413d391270dbfff605a2ed
@@ -519,3 +519,4 @@ To change a work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP07 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+- 2026-02-04T13:07:50Z – unknown – shell_pid=58254 – lane=for_review – Ready for review: 143 tests covering all 8 event types, SC-001 through SC-012, edge cases (queue overflow, concurrent emission, non-blocking, clock desync). Coverage: events.py 100%, background.py 90%, clock.py 89%, emitter.py 87%.
