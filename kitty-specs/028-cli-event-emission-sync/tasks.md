@@ -150,12 +150,12 @@
 **Prompt**: `/tasks/WP05-orchestrate.md`
 
 ### Included Subtasks
-- [ ] T023 Modify `src/specify_cli/cli/commands/orchestrate.py` to emit WPAssigned on agent assignment
-- [ ] T024 Emit WPAssigned with phase=implementation when implementation agent starts
-- [ ] T025 [P] Emit WPAssigned with phase=review when review agent starts
-- [ ] T026 Track retry_count in WPAssigned when fallback agents are used
-- [ ] T027 Emit FeatureCompleted when all WPs reach done status
-- [ ] T028 [P] Emit DependencyResolved when WP completes and unblocks dependents
+- [x] T023 Modify `src/specify_cli/cli/commands/orchestrate.py` to emit WPAssigned on agent assignment
+- [x] T024 Emit WPAssigned with phase=implementation when implementation agent starts
+- [x] T025 [P] Emit WPAssigned with phase=review when review agent starts
+- [x] T026 Track retry_count in WPAssigned when fallback agents are used
+- [x] T027 Emit FeatureCompleted when all WPs reach done status
+- [x] T028 [P] Emit DependencyResolved when WP completes and unblocks dependents
 
 ### Implementation Notes
 - Orchestrator manages multiple agents, so events track which agent is assigned
