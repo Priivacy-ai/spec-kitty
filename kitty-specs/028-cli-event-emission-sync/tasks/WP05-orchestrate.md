@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: Orchestrate Integration
+lane: "doing"
+dependencies: [WP01]
+base_branch: 028-cli-event-emission-sync-WP01
+base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
+created_at: '2026-02-04T11:33:00.095460+00:00'
 subtasks:
-  - "T023"
-  - "T024"
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-title: "Orchestrate Integration"
-phase: "Phase 2 - Command Wiring"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01"]
+- T023
+- T024
+- T025
+- T026
+- T027
+- T028
+phase: Phase 2 - Command Wiring
+assignee: ''
+agent: ''
+shell_pid: "37428"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-03T18:58:09Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-03T18:58:09Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 - Orchestrate Integration
