@@ -91,11 +91,11 @@
 **Prompt**: `/tasks/WP03-task-commands.md`
 
 ### Included Subtasks
-- [ ] T013 Modify `src/specify_cli/cli/commands/agent/tasks.py` move-task to emit WPStatusChanged
-- [ ] T014 [P] Modify `src/specify_cli/cli/commands/agent/tasks.py` mark-status to emit WPStatusChanged
-- [ ] T015 [P] Modify `src/specify_cli/cli/commands/agent/tasks.py` add-history to emit HistoryAdded
-- [ ] T016 Add error logging: emit ErrorLogged event when command encounters errors
-- [ ] T017 Ensure Lamport clock increments correctly for sequential commands
+- [x] T013 Modify `src/specify_cli/cli/commands/agent/tasks.py` move-task to emit WPStatusChanged
+- [x] T014 [P] Modify `src/specify_cli/cli/commands/agent/tasks.py` mark-status to emit WPStatusChanged
+- [x] T015 [P] Modify `src/specify_cli/cli/commands/agent/tasks.py` add-history to emit HistoryAdded
+- [x] T016 Add error logging: emit ErrorLogged event when command encounters errors
+- [x] T017 Ensure Lamport clock increments correctly for sequential commands
 
 ### Implementation Notes
 - Task commands update frontmatter AND emit events
