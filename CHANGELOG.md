@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.26] - 2026-02-04
+
+### 🛠️ Refactored
+
+**Consolidated workflow implement workspace creation**:
+- `spec-kitty agent workflow implement` now delegates workspace creation to `spec-kitty implement` when needed
+- Removes duplicated worktree/sparse-checkout setup in the agent command
+- Prevents agents from creating worktrees from inside another worktree
+
+### 🐛 Fixed
+
+**Clearer recovery guidance for multi-parent merge failures**:
+- When auto-merge fails, instructions now show concrete recovery steps
+- Explicitly warns there is no `spec-kitty agent workflow merge` command
+- Points agents to the correct `spec-kitty agent feature merge` command
+
 ## [0.13.25] - 2026-02-04
 
 ### 🐛 Fixed

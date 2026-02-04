@@ -19,7 +19,7 @@ from specify_cli.core.implement_validation import (
     validate_and_resolve_base,
     validate_base_workspace_exists,
 )
-from specify_cli.core.paths import locate_project_root, get_main_repo_root
+from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.feature_detection import (
     detect_feature_slug,
     FeatureDetectionError,
@@ -397,10 +397,19 @@ def implement(
         if resolved_base:
             validate_base_workspace_exists(resolved_base, feature_slug, repo_root)
 
-        # Create worktree only if explicitly requested via --base or auto-merge
-        # Don't auto-create workspaces for WPs with no dependencies and no --base
-        # (user can create manually later or provide --base explicitly)
-        if base is not None or auto_merge:
+        # Calculate workspace path
+        workspace_name = f"{feature_slug}-{normalized_wp_id}"
+        workspace_path = repo_root / ".worktrees" / workspace_name
+
+        # Ensure workspace exists (delegate to top-level implement for creation)
+        if not workspace_path.exists():
+            cwd = Path.cwd().resolve()
+            if is_worktree_context(cwd):
+                print("Error: Workspace does not exist and cannot be created from a worktree.")
+                print("Run this command from the main repository:")
+                print(f"  spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
+                raise typer.Exit(1)
+
             print(f"Creating workspace for {normalized_wp_id}...")
             try:
                 top_level_implement(
@@ -419,18 +428,25 @@ def implement(
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
 
-        # Move to "doing" lane if not already there
+        # Move to "doing" lane if not already there, and ensure agent is recorded
         current_lane = extract_scalar(wp.frontmatter, "lane") or "planned"
-        if current_lane != "doing":
+        current_agent = extract_scalar(wp.frontmatter, "agent")
+        needs_agent_assignment = current_agent is None or str(current_agent).strip() == ""
+
+        if current_lane != "doing" or needs_agent_assignment:
             # Require --agent parameter to track who is working
             if not agent:
-                print("Error: --agent parameter required when starting implementation.")
-                print(f"  Usage: spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
-                print("  Example: spec-kitty agent workflow implement WP01 --agent claude")
-                print()
-                print("If you're using a generated agent command file, --agent is already included.")
-                print("This tracks WHO is working on the WP (prevents abandoned tasks).")
-                raise typer.Exit(1)
+                if current_lane == "doing" and not needs_agent_assignment:
+                    # Already in doing with an agent; allow prompt display
+                    pass
+                else:
+                    print("Error: --agent parameter required when starting implementation.")
+                    print(f"  Usage: spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
+                    print("  Example: spec-kitty agent workflow implement WP01 --agent claude")
+                    print()
+                    print("If you're using a generated agent command file, --agent is already included.")
+                    print("This tracks WHO is working on the WP (prevents abandoned tasks).")
+                    raise typer.Exit(1)
 
             from datetime import datetime, timezone
             import os
@@ -439,13 +455,18 @@ def implement(
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
             # Update lane, agent, and shell_pid in frontmatter
-            updated_front = set_scalar(wp.frontmatter, "lane", "doing")
+            updated_front = wp.frontmatter
+            if current_lane != "doing":
+                updated_front = set_scalar(updated_front, "lane", "doing")
             updated_front = set_scalar(updated_front, "agent", agent)
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
             # Build history entry
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started implementation via workflow command"
+            if current_lane != "doing":
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started implementation via workflow command"
+            else:
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Assigned agent via workflow command"
 
             # Add history entry to body
             updated_body = append_activity_log(wp.body, history_entry)
@@ -487,63 +508,6 @@ def implement(
         deliverables_path = None
         if mission_key == "research":
             deliverables_path = get_deliverables_path(feature_dir, feature_slug)
-
-        # Calculate workspace path
-        workspace_name = f"{feature_slug}-{normalized_wp_id}"
-        workspace_path = repo_root / ".worktrees" / workspace_name
-
-        # Ensure workspace exists (create if needed)
-        if not workspace_path.exists():
-            import subprocess
-
-            # Ensure .worktrees directory exists
-            worktrees_dir = repo_root / ".worktrees"
-            worktrees_dir.mkdir(parents=True, exist_ok=True)
-
-            # Create worktree with sparse-checkout
-            branch_name = workspace_name
-            result = subprocess.run(
-                ["git", "worktree", "add", str(workspace_path), "-b", branch_name],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=False
-            )
-
-            if result.returncode != 0:
-                print(f"Warning: Could not create workspace: {result.stderr}")
-            else:
-                # Configure sparse-checkout to exclude kitty-specs/
-                sparse_checkout_result = subprocess.run(
-                    ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
-                    cwd=workspace_path,
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
-                if sparse_checkout_result.returncode == 0:
-                    sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
-                    subprocess.run(["git", "config", "core.sparseCheckout", "true"], cwd=workspace_path, capture_output=True, check=False)
-                    subprocess.run(["git", "config", "core.sparseCheckoutCone", "false"], cwd=workspace_path, capture_output=True, check=False)
-                    sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-                    sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
-                    subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
-
-                    # Add .gitignore to block WP status files but allow research artifacts
-                    gitignore_path = workspace_path / ".gitignore"
-                    gitignore_entry = "# Block WP status files (managed in planning branch, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
-                    if gitignore_path.exists():
-                        content = gitignore_path.read_text(encoding="utf-8")
-                        if "kitty-specs/**/tasks/*.md" not in content:
-                            # Remove old blanket rule if present
-                            if "kitty-specs/\n" in content:
-                                content = content.replace("# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n", "")
-                                content = content.replace("kitty-specs/\n", "")
-                            gitignore_path.write_text(content.rstrip() + "\n" + gitignore_entry, encoding="utf-8")
-                    else:
-                        gitignore_path.write_text(gitignore_entry, encoding="utf-8")
-
-                print(f"✓ Created workspace: {workspace_path}")
 
         # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
         # without sparse-checkout or where setup failed silently)
