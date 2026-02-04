@@ -60,11 +60,11 @@
 **Prompt**: `/tasks/WP02-workflow-commands.md`
 
 ### Included Subtasks
-- [ ] T008 Modify `src/specify_cli/cli/commands/implement.py` to emit WPStatusChanged(planned->doing)
-- [ ] T009 [P] Modify `src/specify_cli/cli/commands/merge.py` to emit WPStatusChanged(doing->for_review)
-- [ ] T010 [P] Modify `src/specify_cli/cli/commands/accept.py` to emit WPStatusChanged(for_review->done)
-- [ ] T011 Add try/except wrappers to ensure non-blocking event emission
-- [ ] T012 Add console warnings (via Rich) when event emission fails
+- [x] T008 Modify `src/specify_cli/cli/commands/implement.py` to emit WPStatusChanged(planned->doing)
+- [x] T009 [P] Modify `src/specify_cli/cli/commands/merge.py` to emit WPStatusChanged(doing->for_review)
+- [x] T010 [P] Modify `src/specify_cli/cli/commands/accept.py` to emit WPStatusChanged(for_review->done)
+- [x] T011 Add try/except wrappers to ensure non-blocking event emission
+- [x] T012 Add console warnings (via Rich) when event emission fails
 
 ### Implementation Notes
 - Import from `specify_cli.sync.events` module
