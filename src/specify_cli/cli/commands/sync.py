@@ -366,10 +366,11 @@ def sync_workspace(
 
 @app.command()
 def now() -> None:
-    """Trigger immediate sync of queued events.
+    """Trigger immediate sync of all queued events.
 
-    Drains the offline queue and uploads events to the server in a single
-    batch.  Works even if the background sync service is not running.
+    Drains the offline queue completely, uploading events to the server
+    in batches of 1000 until the queue is empty or all remaining events
+    have exceeded their retry limit.
 
     Examples:
         spec-kitty sync now
