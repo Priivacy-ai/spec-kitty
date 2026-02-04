@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-02-04
+
+### ✨ Added
+
+**Mission-aware cleanup, docs wiring, and module consolidation** (Feature 029):
+
+- **Documentation mission state initialization**: `spec-kitty agent create-feature --mission documentation` now initializes `documentation_state` in `meta.json` with spec-compliant defaults. New `init-doc-state` command for existing features.
+- **Gap analysis wiring**: Automatically runs gap analysis during `/spec-kitty.plan` and `/spec-kitty.research` for documentation missions in `gap_filling` or `feature_specific` mode. Writes `gap-analysis.md` and updates audit metadata.
+- **Generator auto-detection**: Detects JSDoc, Sphinx, and Rustdoc generators during plan setup for documentation missions. Persists configuration to `documentation_state.generators_configured`.
+- **Documentation validation checks**: New `validators/documentation.py` with 3 checks (`documentation_state_exists`, `gap_analysis_exists`, `audit_recency`). Integrated into acceptance flow - doc validation errors block acceptance.
+- **Shared task helpers module**: `task_helpers_shared.py` consolidates duplicated logic from `tasks_support.py` and `scripts/tasks/task_helpers.py` into a single source of truth (~900 lines of duplication removed).
+- **Shared acceptance core module**: `core/acceptance_core.py` extracts shared acceptance workflow logic from `acceptance.py` and `scripts/tasks/acceptance_support.py`, enabling both to delegate to a single implementation.
+- **Base plan template alignment**: Added feature detection guidance (steps 2a-2d) to the base plan template, matching the software-dev mission template.
+
+### 🧹 Removed
+
+- **Root script duplicates**: Removed `scripts/validate_encoding.py`, `scripts/debug-dashboard-scan.py`, and `scripts/tasks/` which duplicated files already in `src/specify_cli/scripts/`.
+
+### 🐛 Fixed
+
+- **Merge command worktree detection**: Fixed `merge_command` to use the current working directory for branch detection instead of the resolved main repo root, preventing false "Already on target branch" errors when merging from worktrees.
+
 ## [0.13.28] - 2026-02-04
 
 ### 🐛 Fixed
