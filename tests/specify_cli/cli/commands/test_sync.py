@@ -14,7 +14,7 @@ from specify_cli.cli.commands.sync import (
     _display_conflicts,
     _git_repair,
     _jj_repair,
-    sync,
+    sync_workspace,
 )
 from specify_cli.core.vcs import (
     ChangeInfo,
@@ -201,7 +201,7 @@ class TestSyncCommand:
                 mock_get_vcs.return_value = mock_vcs
 
                 # Run sync - should not raise (explicitly pass repair=False)
-                sync(repair=False)
+                sync_workspace(repair=False)
 
                 mock_vcs.sync_workspace.assert_called_once()
 
@@ -225,7 +225,7 @@ class TestSyncCommand:
                 )
                 mock_get_vcs.return_value = mock_vcs
 
-                sync(repair=False)
+                sync_workspace(repair=False)
 
                 mock_vcs.sync_workspace.assert_called_once()
 
@@ -266,7 +266,7 @@ class TestSyncWithConflicts:
                 mock_get_vcs.return_value = mock_vcs
 
                 # jj: sync completes without raising
-                sync(repair=False)
+                sync_workspace(repair=False)
 
                 mock_vcs.sync_workspace.assert_called_once()
 
@@ -303,7 +303,7 @@ class TestSyncWithConflicts:
 
                 # git: sync fails with exit code
                 with pytest.raises(typer.Exit) as exc:
-                    sync(repair=False)
+                    sync_workspace(repair=False)
 
                 assert exc.value.exit_code == 1
 
@@ -330,7 +330,7 @@ class TestSyncRepair:
                 with patch(f"specify_cli.cli.commands.sync.{repair_func}") as mock_repair:
                     mock_repair.return_value = True
 
-                    sync(repair=True)
+                    sync_workspace(repair=True)
 
                     mock_repair.assert_called_once()
 
@@ -354,7 +354,7 @@ class TestSyncRepair:
                     mock_repair.return_value = False
 
                     with pytest.raises(typer.Exit) as exc:
-                        sync(repair=True)
+                        sync_workspace(repair=True)
 
                     assert exc.value.exit_code == 1
 
@@ -369,6 +369,6 @@ class TestSyncNotInWorkspace:
                 mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
 
                 with pytest.raises(typer.Exit) as exc:
-                    sync(repair=False)
+                    sync_workspace(repair=False)
 
                 assert exc.value.exit_code == 1
