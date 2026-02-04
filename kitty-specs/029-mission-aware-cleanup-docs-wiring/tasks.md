@@ -56,10 +56,10 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 **Prompt**: `/tasks/WP02-consolidate-task-helpers.md`
 
 ### Included Subtasks
-- [ ] T005 Create a shared task helper module at `src/specify_cli/core/task_helpers.py` (worktree-aware `find_repo_root`, conflict detection, shared frontmatter utilities).
-- [ ] T006 Update `src/specify_cli/tasks_support.py` and `src/specify_cli/scripts/tasks/task_helpers.py` to delegate to the shared module.
-- [ ] T007 Update `src/specify_cli/scripts/tasks/tasks_cli.py` to rely on the consolidated helpers.
-- [ ] T008 Add/adjust tests for worktree-aware detection and conflict handling parity.
+- [x] T005 Create a shared task helper module at `src/specify_cli/core/task_helpers.py` (worktree-aware `find_repo_root`, conflict detection, shared frontmatter utilities).
+- [x] T006 Update `src/specify_cli/tasks_support.py` and `src/specify_cli/scripts/tasks/task_helpers.py` to delegate to the shared module.
+- [x] T007 Update `src/specify_cli/scripts/tasks/tasks_cli.py` to rely on the consolidated helpers.
+- [x] T008 Add/adjust tests for worktree-aware detection and conflict handling parity.
 
 ### Implementation Notes
 - Keep compatibility with existing scripts by importing from the shared module through the installed package.
