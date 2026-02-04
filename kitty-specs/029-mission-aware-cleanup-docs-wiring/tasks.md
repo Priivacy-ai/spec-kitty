@@ -84,10 +84,10 @@ description: "Work packages for Mission-Aware Cleanup & Docs Wiring"
 **Prompt**: `/tasks/WP03-unify-acceptance-logic.md`
 
 ### Included Subtasks
-- [ ] T009 Extract shared acceptance core logic into `src/specify_cli/core/acceptance_core.py`.
-- [ ] T010 Update `src/specify_cli/acceptance.py` to use the shared core and remove dependency on deprecated helpers.
-- [ ] T011 Update `src/specify_cli/scripts/tasks/acceptance_support.py` to use the shared core.
-- [ ] T012 Add/adjust acceptance tests to verify parity between CLI and script entrypoints, including a worktree integration test for consistent `find_repo_root` across task + acceptance flows.
+- [x] T009 Extract shared acceptance core logic into `src/specify_cli/core/acceptance_core.py`.
+- [x] T010 Update `src/specify_cli/acceptance.py` to use the shared core and remove dependency on deprecated helpers.
+- [x] T011 Update `src/specify_cli/scripts/tasks/acceptance_support.py` to use the shared core.
+- [x] T012 Add/adjust acceptance tests to verify parity between CLI and script entrypoints, including a worktree integration test for consistent `find_repo_root` across task + acceptance flows.
 
 ### Implementation Notes
 - Ensure both acceptance entrypoints surface consistent errors and JSON output.
