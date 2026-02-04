@@ -91,6 +91,11 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
         tasks_dest = scripts_dest / "tasks"
         if shared_helper.is_file() and tasks_dest.is_dir():
             shutil.copy2(shared_helper, tasks_dest / "task_helpers_shared.py")
+        # Copy acceptance_core.py into deployed tasks/ directory so the
+        # standalone acceptance_support.py can import it.
+        acceptance_core = scripts_src.parent / "core" / "acceptance_core.py"
+        if acceptance_core.is_file() and tasks_dest.is_dir():
+            shutil.copy2(acceptance_core, tasks_dest / "acceptance_core.py")
         for item in scripts_src.iterdir():
             if item.is_file():
                 shutil.copy2(item, scripts_dest / item.name)
@@ -167,6 +172,14 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
         if shared_helper_resource.exists() and tasks_dest_pkg.is_dir():
             with shared_helper_resource.open("rb") as src, open(
                 tasks_dest_pkg / "task_helpers_shared.py", "wb"
+            ) as dst:
+                shutil.copyfileobj(src, dst)
+        # Copy acceptance_core.py into deployed tasks/ directory so the
+        # standalone acceptance_support.py can import it.
+        acceptance_core_resource = data_root.joinpath("core").joinpath("acceptance_core.py")
+        if acceptance_core_resource.exists() and tasks_dest_pkg.is_dir():
+            with acceptance_core_resource.open("rb") as src, open(
+                tasks_dest_pkg / "acceptance_core.py", "wb"
             ) as dst:
                 shutil.copyfileobj(src, dst)
         for resource_file in scripts_resource.iterdir():
