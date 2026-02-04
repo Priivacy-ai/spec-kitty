@@ -77,6 +77,13 @@ class MigrationRunner:
         migrations = MigrationRegistry.get_applicable(from_version, target_version, project_path=self.project_path)
 
         if not migrations:
+            # Still update version stamp even when no migrations needed
+            metadata = ProjectMetadata.load(self.kittify_dir)
+            if metadata and not dry_run and metadata.version != target_version:
+                metadata.version = target_version
+                metadata.last_upgraded_at = datetime.now()
+                metadata.save(self.kittify_dir)
+
             result.warnings.append(
                 f"No migrations needed from {from_version} to {target_version}"
             )

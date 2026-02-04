@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.25] - 2026-02-04
+
+### 🐛 Fixed
+
+**`spec-kitty upgrade` not bumping version when no migrations needed**:
+- When `spec-kitty upgrade` found no applicable migrations, it returned early without updating the version in `.kittify/metadata.yaml`
+- This left the project stuck at its old version (e.g., 0.13.21) even though the CLI was newer (0.13.24)
+- The dashboard then blocked with a version mismatch error
+- Fixed both `upgrade.py` (CLI command path) and `runner.py` (programmatic path) to stamp the version even when no migrations are needed
+
 ## [0.13.24] - 2026-02-04
 
 ### 🔧 Improved
