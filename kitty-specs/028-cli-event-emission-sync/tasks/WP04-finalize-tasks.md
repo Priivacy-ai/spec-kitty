@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Finalize-Tasks Integration
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 028-cli-event-emission-sync-WP01
 base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
@@ -271,3 +271,4 @@ To change a work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP04 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+- 2026-02-04T11:34:52Z – unknown – shell_pid=25757 – lane=for_review – Ready for review: emit FeatureCreated/WPCreated in finalize-tasks
