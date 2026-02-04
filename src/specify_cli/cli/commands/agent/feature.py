@@ -36,6 +36,7 @@ from specify_cli.core.worktree import (
     validate_feature_structure,
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
+from specify_cli.mission import get_feature_mission_key
 
 app = typer.Typer(
     name="feature",
@@ -226,6 +227,7 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
 @app.command(name="create-feature")
 def create_feature(
     feature_slug: Annotated[str, typer.Argument(help="Feature slug (e.g., 'user-auth')")],
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Create new feature directory structure in planning repository.
@@ -393,6 +395,35 @@ spec-kitty agent tasks move-task WP01 --to doing
         # Commit spec.md to planning branch
         _commit_to_branch(spec_file, feature_slug_formatted, "spec", repo_root, planning_branch, json_output)
 
+        # T013: Initialize documentation state if mission is documentation
+        if mission == "documentation":
+            meta_file = feature_dir / "meta.json"
+            # Create or update meta.json with documentation_state
+            meta = {}
+            if meta_file.exists():
+                try:
+                    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    meta = {}
+            meta.setdefault("mission", "documentation")
+            if "documentation_state" not in meta:
+                meta["documentation_state"] = {
+                    "iteration_mode": "initial",
+                    "divio_types_selected": [],
+                    "generators_configured": [],
+                    "target_audience": "developers",
+                    "last_audit_date": None,
+                    "coverage_percentage": 0.0,
+                }
+            meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+            # Commit meta.json
+            try:
+                _commit_to_branch(meta_file, feature_slug_formatted, "meta", repo_root, planning_branch, json_output)
+            except Exception:
+                pass  # Non-fatal: agent can commit meta.json separately
+            if not json_output:
+                console.print("[cyan]→ Documentation state initialized in meta.json[/cyan]")
+
         if json_output:
             print(json.dumps({
                 "result": "success",
@@ -528,12 +559,124 @@ def setup_plan(
         feature_slug = feature_dir.name
         _commit_to_branch(plan_file, feature_slug, "plan", repo_root, target_branch, json_output)
 
+        # T014 + T016: Documentation mission wiring for plan
+        mission_key = get_feature_mission_key(feature_dir)
+        gap_analysis_path = None
+        generators_detected = []
+
+        if mission_key == "documentation":
+            from specify_cli.doc_state import (
+                read_documentation_state,
+                set_audit_metadata,
+                set_generators_configured,
+            )
+            from specify_cli.gap_analysis import generate_gap_analysis_report
+            from specify_cli.doc_generators import (
+                JSDocGenerator,
+                SphinxGenerator,
+                RustdocGenerator,
+            )
+
+            meta_file = feature_dir / "meta.json"
+
+            # T014: Run gap analysis for gap_filling or feature_specific modes
+            if meta_file.exists():
+                doc_state = read_documentation_state(meta_file)
+                iteration_mode = doc_state.get("iteration_mode", "initial") if doc_state else "initial"
+
+                if iteration_mode in ("gap_filling", "feature_specific"):
+                    docs_dir = repo_root / "docs"
+                    if docs_dir.exists():
+                        gap_analysis_output = feature_dir / "gap-analysis.md"
+                        try:
+                            analysis = generate_gap_analysis_report(
+                                docs_dir, gap_analysis_output, project_root=repo_root
+                            )
+                            gap_analysis_path = str(gap_analysis_output)
+                            # Update documentation state with audit metadata
+                            set_audit_metadata(
+                                meta_file,
+                                last_audit_date=analysis.analysis_date,
+                                coverage_percentage=analysis.coverage_matrix.get_coverage_percentage(),
+                            )
+                            # Commit gap analysis and updated meta.json
+                            try:
+                                run_command(
+                                    ["git", "add", str(gap_analysis_output), str(meta_file)],
+                                    check_return=True, capture=True, cwd=repo_root,
+                                )
+                                run_command(
+                                    ["git", "commit", "-m", f"Add gap analysis for feature {feature_slug}"],
+                                    check_return=True, capture=True, cwd=repo_root,
+                                )
+                            except Exception:
+                                pass  # Non-fatal: agent can commit separately
+                            if not json_output:
+                                coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
+                                console.print(
+                                    f"[cyan]→ Gap analysis generated: {gap_analysis_output.name} "
+                                    f"(coverage: {coverage_pct:.1f}%)[/cyan]"
+                                )
+                        except Exception as gap_err:
+                            if not json_output:
+                                console.print(
+                                    f"[yellow]Warning:[/yellow] Gap analysis failed: {gap_err}"
+                                )
+                    else:
+                        if not json_output:
+                            console.print(
+                                "[yellow]Warning:[/yellow] No docs/ directory found, skipping gap analysis"
+                            )
+
+            # T016: Detect and configure generators
+            all_generators = [JSDocGenerator(), SphinxGenerator(), RustdocGenerator()]
+            for gen in all_generators:
+                try:
+                    if gen.detect(repo_root):
+                        generators_detected.append({
+                            "name": gen.name,
+                            "language": gen.languages[0],
+                            "config_path": "",
+                        })
+                        if not json_output:
+                            console.print(
+                                f"[cyan]→ Detected {gen.name} generator "
+                                f"(languages: {', '.join(gen.languages)})[/cyan]"
+                            )
+                except Exception:
+                    pass  # Skip generators that fail detection
+
+            if generators_detected and meta_file.exists():
+                try:
+                    set_generators_configured(meta_file, generators_detected)
+                    try:
+                        run_command(
+                            ["git", "add", str(meta_file)],
+                            check_return=True, capture=True, cwd=repo_root,
+                        )
+                        run_command(
+                            ["git", "commit", "-m", f"Update generator config for feature {feature_slug}"],
+                            check_return=True, capture=True, cwd=repo_root,
+                        )
+                    except Exception:
+                        pass  # Non-fatal
+                except Exception as gen_err:
+                    if not json_output:
+                        console.print(
+                            f"[yellow]Warning:[/yellow] Failed to save generator config: {gen_err}"
+                        )
+
         if json_output:
-            print(json.dumps({
+            result = {
                 "result": "success",
                 "plan_file": str(plan_file),
-                "feature_dir": str(feature_dir)
-            }))
+                "feature_dir": str(feature_dir),
+            }
+            if gap_analysis_path:
+                result["gap_analysis"] = gap_analysis_path
+            if generators_detected:
+                result["generators_detected"] = generators_detected
+            print(json.dumps(result))
         else:
             console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
 
@@ -543,6 +686,98 @@ def setup_plan(
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
+
+@app.command(name="init-doc-state")
+def init_doc_state(
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    iteration_mode: Annotated[str, typer.Option("--iteration-mode", help="Iteration mode: initial, gap_filling, feature_specific")] = "initial",
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """Initialize documentation state in an existing feature's meta.json.
+
+    Call this after creating meta.json for a documentation mission feature
+    to ensure the documentation_state field is properly initialized.
+
+    Examples:
+        spec-kitty agent feature init-doc-state --feature 030-doc-project --json
+        spec-kitty agent feature init-doc-state --iteration-mode gap_filling
+    """
+    try:
+        repo_root = locate_project_root()
+        if repo_root is None:
+            error_msg = "Could not locate project root."
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        cwd = Path.cwd().resolve()
+        feature_dir = _find_feature_directory(repo_root, cwd, explicit_feature=feature)
+        meta_file = feature_dir / "meta.json"
+
+        if not meta_file.exists():
+            error_msg = f"meta.json not found in {feature_dir}. Create it first."
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        # Read existing meta.json
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        mission = meta.get("mission", "software-dev")
+
+        if mission != "documentation":
+            error_msg = f"Feature mission is '{mission}', not 'documentation'. Documentation state only applies to documentation missions."
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        # Initialize documentation_state if not present
+        valid_modes = {"initial", "gap_filling", "feature_specific"}
+        if iteration_mode not in valid_modes:
+            error_msg = f"Invalid iteration_mode: {iteration_mode}. Must be one of: {valid_modes}"
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        if "documentation_state" not in meta:
+            meta["documentation_state"] = {
+                "iteration_mode": iteration_mode,
+                "divio_types_selected": [],
+                "generators_configured": [],
+                "target_audience": "developers",
+                "last_audit_date": None,
+                "coverage_percentage": 0.0,
+            }
+        else:
+            # Update iteration_mode if explicitly provided
+            meta["documentation_state"]["iteration_mode"] = iteration_mode
+
+        meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+        if json_output:
+            print(json.dumps({
+                "result": "success",
+                "feature_dir": str(feature_dir),
+                "documentation_state": meta["documentation_state"],
+            }))
+        else:
+            console.print(f"[green]✓[/green] Documentation state initialized in {meta_file}")
+            console.print(f"   Iteration mode: {iteration_mode}")
+
+    except Exception as e:
+        if json_output:
+            print(json.dumps({"error": str(e)}))
+        else:
+            console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+
 
 def _find_latest_feature_worktree(repo_root: Path) -> Optional[Path]:
     """Find the latest feature worktree by number.
