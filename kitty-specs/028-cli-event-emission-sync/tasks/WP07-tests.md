@@ -1,29 +1,32 @@
 ---
-work_package_id: "WP07"
+work_package_id: WP07
+title: Test Suite
+lane: "doing"
+dependencies: [WP06]
+base_branch: 028-cli-event-emission-sync-WP06
+base_commit: 0eb801bdecc083e0b4413d391270dbfff605a2ed
+created_at: '2026-02-04T12:56:34.264887+00:00'
 subtasks:
-  - "T036"
-  - "T037"
-  - "T038"
-  - "T039"
-  - "T040"
-  - "T041"
-  - "T042"
-  - "T043"
-title: "Test Suite"
-phase: "Phase 4 - Validation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP06"]
+- T036
+- T037
+- T038
+- T039
+- T040
+- T041
+- T042
+- T043
+phase: Phase 4 - Validation
+assignee: ''
+agent: ''
+shell_pid: "58254"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-03T18:58:09Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-03T18:58:09Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP07 - Test Suite
