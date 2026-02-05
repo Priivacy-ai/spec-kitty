@@ -55,7 +55,7 @@
 
 ### Included Subtasks
 - [x] T007 Add server URL configuration section (`~/.spec-kitty/config.toml` format, fields, defaults)
-- [ ] T008 Add credential storage section (`~/.spec-kitty/credentials.json` format, token types, expiry)
+- [x] T008 Add credential storage section (`~/.spec-kitty/credentials.json` format, token types, expiry)
 - [ ] T009 Add WebSocket token section (ephemeral token, exchange flow, not user-managed)
 - [ ] T010 Update See Also links in configuration.md to reference new auth/sync docs
 
