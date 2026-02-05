@@ -115,12 +115,12 @@
 **Estimated Size**: ~300 lines
 
 ### Included Subtasks
-- [ ] T017 Write prerequisites section (spec-kitty 2.x installed, server URL configured, valid credentials)
-- [ ] T018 Write login procedure (`auth login`, interactive prompts, `--force` re-auth)
-- [ ] T019 Write status check section (`auth status`, interpreting token expiry output)
-- [ ] T020 Write logout procedure (`auth logout`, credential cleanup)
-- [ ] T021 Write troubleshooting section (invalid credentials, server unreachable, expired tokens, permission errors)
-- [ ] T022 Write See Also links (reference/cli-commands, reference/configuration, tutorial/server-connection)
+- [x] T017 Write prerequisites section (spec-kitty 2.x installed, server URL configured, valid credentials)
+- [x] T018 Write login procedure (`auth login`, interactive prompts, `--force` re-auth)
+- [x] T019 Write status check section (`auth status`, interpreting token expiry output)
+- [x] T020 Write logout procedure (`auth logout`, credential cleanup)
+- [x] T021 Write troubleshooting section (invalid credentials, server unreachable, expired tokens, permission errors)
+- [x] T022 Write See Also links (reference/cli-commands, reference/configuration, tutorial/server-connection)
 
 ### Implementation Notes
 - Follow existing how-to style (see `install-spec-kitty.md`): problem statement, prerequisites, steps, troubleshooting, See Also
