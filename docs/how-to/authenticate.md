@@ -167,4 +167,4 @@ Ensure the `~/.spec-kitty/` directory exists and is owned by your user.
 - [CLI Commands: `spec-kitty auth`](../reference/cli-commands.md#spec-kitty-auth) -- Detailed flag reference
 - [Configuration: Server & Credentials](../reference/configuration.md#server-configuration-2x) -- Config file formats
 - [Server Connection Tutorial](../tutorials/server-connection.md) -- End-to-end setup guide
-- [Sync Architecture](../explanations/sync-architecture.md) -- How authentication fits into sync
+- [Sync Architecture](../explanation/sync-architecture.md) -- How authentication fits into sync
