@@ -64,6 +64,7 @@ dependencies = [
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing
     "filelock>=3.13.0",  # Credential storage locking
+    "requests>=2.31.0",  # HTTP client for batch sync
 ]
 
 [project.urls]
