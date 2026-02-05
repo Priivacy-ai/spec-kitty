@@ -16,3 +16,5 @@
   href: documentation-mission.md
 - name: Multi-Agent Orchestration
   href: multi-agent-orchestration.md
+- name: Sync Architecture
+  href: sync-architecture.md
