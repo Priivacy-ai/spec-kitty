@@ -1,5 +1,7 @@
 - name: Install & Upgrade
   href: install-spec-kitty.md
+- name: Authenticate
+  href: authenticate.md
 - name: Create a Specification
   href: create-specification.md
 - name: Create a Plan
