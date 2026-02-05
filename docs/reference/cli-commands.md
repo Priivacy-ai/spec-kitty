@@ -318,6 +318,24 @@ spec-kitty auth status
 
 ---
 
+## spec-kitty sync
+
+**Synopsis**: `spec-kitty sync [OPTIONS] COMMAND [ARGS]...`
+
+**Description**: Synchronization commands for workspaces and server connectivity.
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--help` | Show this message and exit |
+
+**Commands**:
+- `workspace` - Sync workspace with upstream changes (local)
+- `now` - Push and pull events with the server (remote)
+- `status` - Show sync configuration and connection state
+
+---
+
 ## spec-kitty sync workspace
 
 **Synopsis**: `spec-kitty sync workspace [OPTIONS]`

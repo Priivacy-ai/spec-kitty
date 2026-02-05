@@ -32,6 +32,8 @@
   href: switch-missions.md
 - name: Use the Dashboard
   href: use-dashboard.md
+- name: Use the SaaS Dashboard
+  href: use-saas-dashboard.md
 - name: Upgrade to 0.11.0
   href: upgrade-to-0-11-0.md
 - name: Non-Interactive Init

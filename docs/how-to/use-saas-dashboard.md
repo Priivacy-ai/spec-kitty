@@ -84,5 +84,5 @@ The activity feed is useful for tracking what happened and when, especially for 
 ## See Also
 
 - [Authentication How-To](authenticate.md) -- Log in to the CLI (separate from web login)
-- [Sync Architecture](../explanations/sync-architecture.md) -- How data flows from CLI to dashboard
+- [Sync Architecture](../explanation/sync-architecture.md) -- How data flows from CLI to dashboard
 - [Server Sync How-To](sync-to-server.md) -- Push events so they appear in the dashboard

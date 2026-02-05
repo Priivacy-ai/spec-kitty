@@ -2,6 +2,8 @@
   href: getting-started.md
 - name: Your First Feature
   href: your-first-feature.md
+- name: Connect to a Server
+  href: server-connection.md
 - name: Multi-Agent Workflow
   href: multi-agent-workflow.md
 - name: Missions Overview
