@@ -181,7 +181,7 @@
 - [x] T030 Write overview view section (project/feature/WP counts, status breakdown, recent events)
 - [x] T031 Write board view section (kanban columns, status filters, project/feature filters)
 - [x] T032 Write activity view section (event feed, pagination, HTMX infinite scroll)
-- [ ] T033 Write See Also links (how-to/authenticate, explanations/sync-architecture)
+- [x] T033 Write See Also links (how-to/authenticate, explanations/sync-architecture)
 
 ### Implementation Notes
 - Dashboard is accessed via browser, not CLI — document the URL pattern `/a/<team>/dashboards/`
