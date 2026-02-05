@@ -207,12 +207,12 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T034 Write introduction: what you'll learn, time estimate, prerequisites
-- [ ] T035 Write step 1: configure server URL (`~/.spec-kitty/config.toml`)
-- [ ] T036 Write step 2: authenticate with `auth login`
-- [ ] T037 Write step 3: verify connection with `auth status` and `sync status --check`
-- [ ] T038 Write step 4: run first sync with `sync now`
-- [ ] T039 Write next steps section (links to how-to guides, dashboard, sync architecture)
+- [x] T034 Write introduction: what you'll learn, time estimate, prerequisites
+- [x] T035 Write step 1: configure server URL (`~/.spec-kitty/config.toml`)
+- [x] T036 Write step 2: authenticate with `auth login`
+- [x] T037 Write step 3: verify connection with `auth status` and `sync status --check`
+- [x] T038 Write step 4: run first sync with `sync now`
+- [x] T039 Write next steps section (links to how-to guides, dashboard, sync architecture)
 
 ### Implementation Notes
 - Tutorial style: learning-oriented, step-by-step, show expected output at each step
@@ -239,12 +239,12 @@
 **Estimated Size**: ~250 lines
 
 ### Included Subtasks
-- [ ] T040 Update `docs/tutorials/toc.yml` with `server-connection.md` entry
-- [ ] T041 Update `docs/how-to/toc.yml` with `authenticate.md`, `sync-to-server.md`, `use-saas-dashboard.md`
-- [ ] T042 Create `docs/explanations/toc.yml` with `sync-architecture.md` entry
-- [ ] T043 Verify cross-page See Also links in all new and updated pages
-- [ ] T044 Verify all internal links resolve (no broken relative paths)
-- [ ] T045 Run `docfx build` and confirm zero warnings (if DocFX is available)
+- [x] T040 Update `docs/tutorials/toc.yml` with `server-connection.md` entry
+- [x] T041 Update `docs/how-to/toc.yml` with `authenticate.md`, `sync-to-server.md`, `use-saas-dashboard.md`
+- [x] T042 Create `docs/explanations/toc.yml` with `sync-architecture.md` entry
+- [x] T043 Verify cross-page See Also links in all new and updated pages
+- [x] T044 Verify all internal links resolve (no broken relative paths)
+- [x] T045 Run `docfx build` and confirm zero warnings (if DocFX is available)
 
 ### Implementation Notes
 - Follow existing toc.yml format from tutorials/toc.yml and how-to/toc.yml
