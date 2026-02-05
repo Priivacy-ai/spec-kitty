@@ -86,7 +86,7 @@
 - [x] T011 Create `docs/explanations/` directory and `toc.yml`
 - [x] T012 Write introduction: why event sourcing, what problems it solves for distributed dev tools
 - [x] T013 Write event model section: event_id, event_type, aggregate, lamport_clock, node_id, payload
-- [ ] T014 Write WebSocket real-time sync path: connection lifecycle, heartbeat, team isolation
+- [x] T014 Write WebSocket real-time sync path: connection lifecycle, heartbeat, team isolation
 - [ ] T015 Write offline queue + batch sync path: SQLite queue, `sync now`, gzip batch upload
 - [ ] T016 Write authentication flow section: JWT lifecycle, token refresh, WS token exchange
 
