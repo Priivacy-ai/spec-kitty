@@ -83,7 +83,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T011 Create `docs/explanations/` directory and `toc.yml`
+- [x] T011 Create `docs/explanations/` directory and `toc.yml`
 - [ ] T012 Write introduction: why event sourcing, what problems it solves for distributed dev tools
 - [ ] T013 Write event model section: event_id, event_type, aggregate, lamport_clock, node_id, payload
 - [ ] T014 Write WebSocket real-time sync path: connection lifecycle, heartbeat, team isolation
