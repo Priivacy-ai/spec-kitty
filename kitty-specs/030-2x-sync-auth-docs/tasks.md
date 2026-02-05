@@ -178,7 +178,7 @@
 
 ### Included Subtasks
 - [x] T029 Write introduction: what the dashboard is, how to access it (URL pattern)
-- [ ] T030 Write overview view section (project/feature/WP counts, status breakdown, recent events)
+- [x] T030 Write overview view section (project/feature/WP counts, status breakdown, recent events)
 - [ ] T031 Write board view section (kanban columns, status filters, project/feature filters)
 - [ ] T032 Write activity view section (event feed, pagination, HTMX infinite scroll)
 - [ ] T033 Write See Also links (how-to/authenticate, explanations/sync-architecture)
