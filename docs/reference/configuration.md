@@ -329,7 +329,7 @@ During sync, JWT tokens are exchanged for short-lived WebSocket tokens via `POST
 
 This is handled automatically by the CLI — users do not need to manage WebSocket tokens.
 
-See [Sync Architecture](../explanations/sync-architecture.md) for details on the full sync flow.
+See [Sync Architecture](../explanation/sync-architecture.md) for details on the full sync flow.
 
 ---
 
@@ -571,7 +571,7 @@ If you see this file in older projects, it will be ignored. The mission in each 
 - [CLI Commands](cli-commands.md) — Command reference including `--vcs` flag
 - [Authentication How-To](../how-to/authenticate.md) — Login, status, logout
 - [Server Sync How-To](../how-to/sync-to-server.md) — Pushing/pulling events
-- [Sync Architecture](../explanations/sync-architecture.md) — How sync works
+- [Sync Architecture](../explanation/sync-architecture.md) — How sync works
 
 ## Getting Started
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
