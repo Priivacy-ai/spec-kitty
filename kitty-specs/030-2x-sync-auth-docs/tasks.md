@@ -22,12 +22,12 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T001 Add `spec-kitty auth` command group header and description
-- [ ] T002 Add `spec-kitty auth login` reference (flags: `--username/-u`, `--password/-p`, `--force/-f`)
-- [ ] T003 Add `spec-kitty auth logout` reference
-- [ ] T004 Add `spec-kitty auth status` reference (token expiry display)
-- [ ] T005 Add `spec-kitty sync status` reference (flags: `--check/-c`)
-- [ ] T006 Add `spec-kitty sync now` reference (inferred flags: `--verbose/-v`, `--dry-run/-n`)
+- [x] T001 Add `spec-kitty auth` command group header and description
+- [x] T002 Add `spec-kitty auth login` reference (flags: `--username/-u`, `--password/-p`, `--force/-f`)
+- [x] T003 Add `spec-kitty auth logout` reference
+- [x] T004 Add `spec-kitty auth status` reference (token expiry display)
+- [x] T005 Add `spec-kitty sync status` reference (flags: `--check/-c`)
+- [x] T006 Add `spec-kitty sync now` reference (inferred flags: `--verbose/-v`, `--dry-run/-n`)
 
 ### Implementation Notes
 - Follow the exact format used by existing CLI reference entries in `cli-commands.md` (Synopsis, Description, Options table, Examples)
