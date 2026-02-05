@@ -146,12 +146,12 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T023 Write introduction: distinguish server sync from local workspace sync (`sync-workspaces.md`)
-- [ ] T024 Write batch sync procedure (`sync now`, what gets pushed/pulled, expected output)
-- [ ] T025 Write sync status procedure (`sync status`, `--check` for connectivity test)
-- [ ] T026 Write offline workflow section (working offline, queue accumulation, reconnection)
-- [ ] T027 Write troubleshooting section (server unreachable, auth expired, queue errors, partial sync)
-- [ ] T028 Write See Also links (reference/cli-commands, how-to/authenticate, explanations/sync-architecture)
+- [x] T023 Write introduction: distinguish server sync from local workspace sync (`sync-workspaces.md`)
+- [x] T024 Write batch sync procedure (`sync now`, what gets pushed/pulled, expected output)
+- [x] T025 Write sync status procedure (`sync status`, `--check` for connectivity test)
+- [x] T026 Write offline workflow section (working offline, queue accumulation, reconnection)
+- [x] T027 Write troubleshooting section (server unreachable, auth expired, queue errors, partial sync)
+- [x] T028 Write See Also links (reference/cli-commands, how-to/authenticate, explanations/sync-architecture)
 
 ### Implementation Notes
 - **CRITICAL**: First section must explicitly distinguish this from `docs/how-to/sync-workspaces.md` (local worktree rebase)
