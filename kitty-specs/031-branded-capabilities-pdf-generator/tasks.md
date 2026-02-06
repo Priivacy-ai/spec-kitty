@@ -53,7 +53,7 @@
 **Estimated prompt size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T006 Define curated capability content constants (6 blocks: titles + 2-3 line descriptions)
+- [x] T006 Define curated capability content constants (6 blocks: titles + 2-3 line descriptions)
 - [ ] T007 Build Page 2 layout: section heading + 6 capability blocks in 2-column grid with colored left-border accents
 - [ ] T008 Add page footers (version number, URL) to both pages
 - [ ] T009 Assemble both pages into the final 2-page document and enforce the 2-page constraint
