@@ -20,7 +20,7 @@
 **Estimated prompt size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T001 Create `generate_pdf.py` with imports, brand color constants, and argparse CLI
+- [x] T001 Create `generate_pdf.py` with imports, brand color constants, and argparse CLI
 - [ ] T002 Implement version extraction from `pyproject.toml`
 - [ ] T003 Implement input validation (logo file, docs/ directory existence) with hard failures
 - [ ] T004 Build Page 1 layout: logo placement, title, tagline, 3 stat accent boxes, problem/solution paragraph
