@@ -57,7 +57,7 @@
 - [x] T007 Build Page 2 layout: section heading + 6 capability blocks in 2-column grid with colored left-border accents
 - [x] T008 Add page footers (version number, URL) to both pages
 - [x] T009 Assemble both pages into the final 2-page document and enforce the 2-page constraint
-- [ ] T010 End-to-end validation: run the script, open the PDF, verify branding, content, and page count
+- [x] T010 End-to-end validation: run the script, open the PDF, verify branding, content, and page count
 
 ### Implementation Notes
 - Each capability block is a small table cell with a colored left border, bold title, and body text.
