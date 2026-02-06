@@ -22,6 +22,7 @@ try:
         Image,
         Table,
         TableStyle,
+        PageBreak,
     )
 except ImportError:
     print(
@@ -41,6 +42,66 @@ SOFT_PEACH = HexColor("#FFD8B1")
 CREAMY_WHITE = HexColor("#FFFDF7")
 DARK_TEXT = HexColor("#2c3e50")
 WHITE = HexColor("#FFFFFF")
+
+# ---------------------------------------------------------------------------
+# T006 - Curated capability content constants
+# ---------------------------------------------------------------------------
+CAPABILITIES = [
+    {
+        "title": "Multi-Agent Orchestration",
+        "color": BABY_BLUE,
+        "description": (
+            "Coordinate 12 AI coding agents simultaneously \u2014 Claude, Copilot, Gemini, "
+            "Cursor, Codex, and more. Each agent works in an isolated Git worktree "
+            "with dedicated branch, eliminating conflicts and context loss."
+        ),
+    },
+    {
+        "title": "Spec-Driven Workflow",
+        "color": GRASSY_GREEN,
+        "description": (
+            "Executable specifications drive every phase: specify requirements, "
+            "plan architecture, break into work packages, implement, review, and merge. "
+            "AI agents follow your spec \u2014 not the other way around."
+        ),
+    },
+    {
+        "title": "Live Kanban Dashboard",
+        "color": SUNNY_YELLOW,
+        "description": (
+            "Real-time browser dashboard tracks every work package across four lanes: "
+            "planned, doing, for review, and done. See which agents are working on what, "
+            "monitor progress, and catch bottlenecks instantly."
+        ),
+    },
+    {
+        "title": "Parallel Development",
+        "color": LAVENDER,
+        "description": (
+            "Workspace-per-work-package model enables true parallelization. "
+            "Multiple agents implement different work packages simultaneously, "
+            "delivering features up to 40% faster than serial development."
+        ),
+    },
+    {
+        "title": "Mission System",
+        "color": SOFT_PEACH,
+        "description": (
+            "Purpose-built workflows for software development, research investigations, "
+            "and documentation projects. Each mission type provides tailored phases, "
+            "templates, and quality gates for its domain."
+        ),
+    },
+    {
+        "title": "Quality Gates & Merge",
+        "color": BABY_BLUE,
+        "description": (
+            "Pre-flight validation forecasts merge conflicts before they happen. "
+            "Constitutional frameworks enforce architectural standards. "
+            "Automated acceptance checks ensure every work package meets its spec."
+        ),
+    },
+]
 
 # ---------------------------------------------------------------------------
 # Path constants
@@ -274,10 +335,139 @@ def build_page1() -> list:
 
 
 # ---------------------------------------------------------------------------
-# T005 - Main entry point
+# T007 - Build capability block with colored left-border accent
+# ---------------------------------------------------------------------------
+def build_capability_block(cap: dict) -> Table:
+    """Build a single capability block with colored left stripe and content."""
+    title_para = Paragraph(
+        f"<b>{cap['title']}</b>",
+        ParagraphStyle(
+            "CapTitle",
+            fontName="Helvetica-Bold",
+            fontSize=11,
+            textColor=DARK_TEXT,
+            spaceAfter=2 * mm,
+        ),
+    )
+    desc_para = Paragraph(
+        cap["description"],
+        ParagraphStyle(
+            "CapDesc",
+            fontName="Helvetica",
+            fontSize=9,
+            textColor=DARK_TEXT,
+            leading=12,
+        ),
+    )
+    content = Table(
+        [[title_para], [desc_para]],
+        colWidths=[75 * mm],
+        rowHeights=[None, None],
+    )
+    content.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 3 * mm),
+                ("TOPPADDING", (0, 0), (0, 0), 2 * mm),
+                ("BOTTOMPADDING", (0, -1), (0, -1), 2 * mm),
+            ]
+        )
+    )
+
+    # Wrap with colored left border
+    block = Table(
+        [[None, content]],
+        colWidths=[3 * mm, 75 * mm],
+    )
+    block.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, 0), cap["color"]),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    return block
+
+
+# ---------------------------------------------------------------------------
+# T007 - Build Page 2: Core Capabilities grid
+# ---------------------------------------------------------------------------
+def build_page2() -> list:
+    """Build Page 2 with section heading and 6 capability blocks in 2x3 grid."""
+    elements: list = []
+
+    # --- Section heading ---
+    heading_style = ParagraphStyle(
+        name="CapabilitiesHeading",
+        fontName="Helvetica-Bold",
+        fontSize=20,
+        textColor=GRASSY_GREEN,
+        alignment=1,  # CENTER
+        spaceAfter=2 * mm,
+    )
+    elements.append(Paragraph("Core Capabilities", heading_style))
+
+    # --- Spacer ---
+    elements.append(Spacer(1, 6 * mm))
+
+    # --- 2x3 capability grid ---
+    blocks = [build_capability_block(cap) for cap in CAPABILITIES]
+    grid_data = [
+        [blocks[0], blocks[1]],
+        [blocks[2], blocks[3]],
+        [blocks[4], blocks[5]],
+    ]
+    grid = Table(
+        grid_data,
+        colWidths=[82 * mm, 82 * mm],
+        rowHeights=[None, None, None],
+    )
+    grid.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2 * mm),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2 * mm),
+                ("TOPPADDING", (0, 0), (-1, -1), 3 * mm),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3 * mm),
+            ]
+        )
+    )
+    elements.append(grid)
+
+    return elements
+
+
+# ---------------------------------------------------------------------------
+# T008 - Page footer callback
+# ---------------------------------------------------------------------------
+def add_footer(canvas, doc):
+    """Draw footer on every page with version, URL, and install command."""
+    canvas.saveState()
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(HexColor("#546e7a"))
+
+    page_width = A4[0]
+    footer_y = 12 * mm
+
+    version = get_version()
+    footer_text = f"Spec Kitty v{version}  |  spec-kitty.dev  |  pip install spec-kitty-cli"
+    canvas.drawCentredString(page_width / 2, footer_y, footer_text)
+
+    canvas.restoreState()
+
+
+# ---------------------------------------------------------------------------
+# T005/T009 - Main entry point
 # ---------------------------------------------------------------------------
 def main(output_path: Path) -> None:
-    """Generate the branded capabilities PDF."""
+    """Generate the branded 2-page capabilities PDF."""
     validate_inputs()
     version = get_version()
 
@@ -294,9 +484,10 @@ def main(output_path: Path) -> None:
 
     elements: list = []
     elements.extend(build_page1())
-    # Page 2 will be added in WP02
+    elements.append(PageBreak())
+    elements.extend(build_page2())
 
-    doc.build(elements)
+    doc.build(elements, onFirstPage=add_footer, onLaterPages=add_footer)
     print(f"PDF generated: {output_path.resolve()}")
 
 
