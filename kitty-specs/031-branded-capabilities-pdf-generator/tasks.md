@@ -56,7 +56,7 @@
 - [x] T006 Define curated capability content constants (6 blocks: titles + 2-3 line descriptions)
 - [x] T007 Build Page 2 layout: section heading + 6 capability blocks in 2-column grid with colored left-border accents
 - [x] T008 Add page footers (version number, URL) to both pages
-- [ ] T009 Assemble both pages into the final 2-page document and enforce the 2-page constraint
+- [x] T009 Assemble both pages into the final 2-page document and enforce the 2-page constraint
 - [ ] T010 End-to-end validation: run the script, open the PDF, verify branding, content, and page count
 
 ### Implementation Notes
