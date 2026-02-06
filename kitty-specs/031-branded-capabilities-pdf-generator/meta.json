@@ -1,0 +1,10 @@
+{
+  "feature_number": "031",
+  "slug": "031-branded-capabilities-pdf-generator",
+  "friendly_name": "Branded Capabilities PDF Generator",
+  "mission": "software-dev",
+  "source_description": "This sofware mission but the output is going to be a PDF. I want a script that creates a 2 page PDF in Spec Kitty branding (logo colors) that describe the latest capabilities in any language I specify.",
+  "created_at": "2026-02-06T12:00:00Z",
+  "target_branch": "main",
+  "vcs": "git"
+}
