@@ -74,3 +74,6 @@ sdd-*/
 # Block WP status files (managed in main repo, prevents merge conflicts)
 # Research artifacts in kitty-specs/**/research/ are allowed
 kitty-specs/**/tasks/*.md
+
+# Generated PDF brochures (output of generate_pdf.py)
+spec-kitty-capabilities.pdf
