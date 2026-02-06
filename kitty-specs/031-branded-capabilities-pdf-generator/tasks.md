@@ -24,7 +24,7 @@
 - [x] T002 Implement version extraction from `pyproject.toml`
 - [x] T003 Implement input validation (logo file, docs/ directory existence) with hard failures
 - [x] T004 Build Page 1 layout: logo placement, title, tagline, 3 stat accent boxes, problem/solution paragraph
-- [ ] T005 Wire up the main entry point to generate a 1-page PDF and verify it opens correctly
+- [x] T005 Wire up the main entry point to generate a 1-page PDF and verify it opens correctly
 
 ### Implementation Notes
 - Start with the full script structure: imports, constants, functions, `if __name__ == "__main__"` block.
