@@ -15,7 +15,7 @@ subtasks:
 - T021
 phase: Phase 2 - Runtime Bootstrap
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "42083"
 review_status: ''
 reviewed_by: ''
@@ -368,3 +368,4 @@ pytest tests/sync/test_runtime.py -v
 ## Activity Log
 
 - 2026-02-07T00:00:00Z – system – lane=planned – Prompt created.
+- 2026-02-07T07:43:35Z – claude-opus – shell_pid=42083 – lane=doing – Assigned agent via workflow command
