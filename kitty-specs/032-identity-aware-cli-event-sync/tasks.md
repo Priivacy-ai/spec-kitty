@@ -56,11 +56,11 @@
 **Estimated Size**: ~300 lines
 
 ### Included Subtasks
-- [ ] T007 Import ProjectIdentity into `sync/emitter.py`
-- [ ] T008 Add identity injection in `EventEmitter._emit()`
-- [ ] T009 Add validation: warn and queue-only if identity missing
-- [ ] T010 Update `get_emitter()` to call `ensure_identity()` on first access
-- [ ] T011 Update `tests/sync/test_event_emission.py` with identity verification
+- [x] T007 Import ProjectIdentity into `sync/emitter.py`
+- [x] T008 Add identity injection in `EventEmitter._emit()`
+- [x] T009 Add validation: warn and queue-only if identity missing
+- [x] T010 Update `get_emitter()` to call `ensure_identity()` on first access
+- [x] T011 Update `tests/sync/test_event_emission.py` with identity verification
 
 ### Implementation Notes
 1. Call `get_project_identity()` at start of `_emit()` (not in each emit_* method)
