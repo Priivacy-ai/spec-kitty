@@ -88,7 +88,7 @@
 - [x] T013 [P] Test branch/SHA resolution from subprocess (normal branch, detached HEAD, worktree)
 - [x] T014 [P] Test TTL cache behavior (cache hit within 2s, cache miss after 2s, cache refresh)
 - [x] T015 [P] Test repo slug derivation (SSH, HTTPS, no `.git` suffix, GitLab subgroups, no remote)
-- [ ] T016 [P] Test repo slug validation and config override precedence
+- [x] T016 [P] Test repo slug validation and config override precedence
 - [ ] T017 [P] Test graceful degradation (no git binary, not in repo, subprocess timeout, permission error)
 
 ### Implementation Notes
