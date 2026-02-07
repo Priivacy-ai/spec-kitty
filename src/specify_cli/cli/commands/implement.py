@@ -1093,20 +1093,6 @@ def implement(
         # Non-fatal: workspace created but lane update failed
         console.print(f"[yellow]Warning:[/yellow] Could not update WP status: {e}")
 
-    # Emit WPStatusChanged event (planned -> doing) after workspace creation
-    try:
-        emit_wp_status_changed(
-            wp_id=wp_id,
-            previous_status="planned",
-            new_status="doing",
-            changed_by="user",
-            feature_slug=feature_slug,
-        )
-    except Exception as e:
-        console.print(
-            f"[yellow]Warning:[/yellow] Failed to emit WPStatusChanged for {wp_id}: {e}"
-        )
-
     # Success
     if json_output:
         # JSON output for scripting
