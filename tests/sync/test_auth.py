@@ -221,3 +221,134 @@ class TestClearCredentials:
         auth_client.clear_credentials()
 
         assert auth_client.is_authenticated() is False
+
+
+class TestGetTeamSlug:
+    """Tests for AuthClient.get_team_slug()."""
+
+    def test_get_team_slug_authenticated_with_slug(self, auth_client):
+        """get_team_slug() returns stored slug when authenticated."""
+        auth_client.credential_store.save(
+            access_token="test",
+            refresh_token="test",
+            access_expires_at=datetime.utcnow() + timedelta(minutes=15),
+            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            username="user@example.com",
+            server_url="https://test.example.com",
+            team_slug="my-team",
+        )
+
+        assert auth_client.get_team_slug() == "my-team"
+
+    def test_get_team_slug_unauthenticated(self, auth_client):
+        """get_team_slug() returns None when not authenticated."""
+        assert auth_client.get_team_slug() is None
+
+    def test_get_team_slug_missing_from_creds(self, auth_client):
+        """get_team_slug() returns None when field missing from creds."""
+        # Authenticated but no team_slug field
+        auth_client.credential_store.save(
+            access_token="test",
+            refresh_token="test",
+            access_expires_at=datetime.utcnow() + timedelta(minutes=15),
+            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            username="user@example.com",
+            server_url="https://test.example.com",
+            # team_slug not provided
+        )
+
+        assert auth_client.get_team_slug() is None
+
+    def test_obtain_tokens_stores_team_slug(self, auth_client):
+        """obtain_tokens() stores team_slug from server response."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "access": "new_access_token",
+            "refresh": "new_refresh_token",
+            "team_slug": "server-provided-team",
+        }
+
+        with patch.object(auth_client, "_get_http_client") as mock_client:
+            mock_client.return_value.post.return_value = mock_response
+
+            auth_client.obtain_tokens("user@example.com", "password")
+
+            assert auth_client.get_team_slug() == "server-provided-team"
+
+    def test_obtain_tokens_no_team_slug_from_server(self, auth_client):
+        """obtain_tokens() handles missing team_slug from server gracefully."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "access": "new_access_token",
+            "refresh": "new_refresh_token",
+            # No team_slug in response
+        }
+
+        with patch.object(auth_client, "_get_http_client") as mock_client:
+            mock_client.return_value.post.return_value = mock_response
+
+            auth_client.obtain_tokens("user@example.com", "password")
+
+            # Should still authenticate successfully, team_slug will be None
+            assert auth_client.is_authenticated() is True
+            assert auth_client.get_team_slug() is None
+
+    def test_refresh_tokens_preserves_team_slug(self, auth_client):
+        """refresh_tokens() preserves existing team_slug."""
+        # First, save credentials with team_slug
+        auth_client.credential_store.save(
+            access_token="old_access",
+            refresh_token="old_refresh",
+            access_expires_at=datetime.utcnow() - timedelta(minutes=1),
+            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            username="user@example.com",
+            server_url="https://test.example.com",
+            team_slug="existing-team",
+        )
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "access": "new_access_token",
+            "refresh": "new_refresh_token",
+            # Server doesn't include team_slug in refresh response
+        }
+
+        with patch.object(auth_client, "_get_http_client") as mock_client:
+            mock_client.return_value.post.return_value = mock_response
+
+            auth_client.refresh_tokens()
+
+            # team_slug should be preserved
+            assert auth_client.get_team_slug() == "existing-team"
+
+    def test_refresh_tokens_updates_team_slug_if_provided(self, auth_client):
+        """refresh_tokens() updates team_slug if server provides it."""
+        # First, save credentials with old team_slug
+        auth_client.credential_store.save(
+            access_token="old_access",
+            refresh_token="old_refresh",
+            access_expires_at=datetime.utcnow() - timedelta(minutes=1),
+            refresh_expires_at=datetime.utcnow() + timedelta(days=7),
+            username="user@example.com",
+            server_url="https://test.example.com",
+            team_slug="old-team",
+        )
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "access": "new_access_token",
+            "refresh": "new_refresh_token",
+            "team_slug": "new-team",  # Server provides updated team_slug
+        }
+
+        with patch.object(auth_client, "_get_http_client") as mock_client:
+            mock_client.return_value.post.return_value = mock_response
+
+            auth_client.refresh_tokens()
+
+            # team_slug should be updated to new value
+            assert auth_client.get_team_slug() == "new-team"
