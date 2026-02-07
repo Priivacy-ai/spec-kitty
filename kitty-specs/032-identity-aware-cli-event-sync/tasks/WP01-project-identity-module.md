@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-  - "T004"
-  - "T005"
-  - "T006"
-title: "ProjectIdentity Module"
-phase: "Phase 0 - Foundation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP01
+title: ProjectIdentity Module
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: fe5dd26eb9160377ee55f83b072f5dc3db322843
+created_at: '2026-02-07T07:23:14.221357+00:00'
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+- T006
+phase: Phase 0 - Foundation
+assignee: ''
+agent: ''
+shell_pid: "33592"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – ProjectIdentity Module
