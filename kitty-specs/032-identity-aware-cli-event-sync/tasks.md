@@ -19,12 +19,12 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T001 Create ProjectIdentity dataclass in `sync/project_identity.py`
-- [ ] T002 Implement identity generation helpers (uuid4, slug from dir/remote, node_id)
-- [ ] T003 Implement atomic config.yaml persistence (temp file + rename)
-- [ ] T004 Implement graceful backfill via ensure_identity()
-- [ ] T005 Add read-only fallback (in-memory identity with warning)
-- [ ] T006 Write unit tests in `tests/sync/test_project_identity.py`
+- [x] T001 Create ProjectIdentity dataclass in `sync/project_identity.py`
+- [x] T002 Implement identity generation helpers (uuid4, slug from dir/remote, node_id)
+- [x] T003 Implement atomic config.yaml persistence (temp file + rename)
+- [x] T004 Implement graceful backfill via ensure_identity()
+- [x] T005 Add read-only fallback (in-memory identity with warning)
+- [x] T006 Write unit tests in `tests/sync/test_project_identity.py`
 
 ### Implementation Notes
 1. Use `uuid.uuid4()` for `project_uuid`; use `sync.clock.generate_node_id()` for stable `node_id`
