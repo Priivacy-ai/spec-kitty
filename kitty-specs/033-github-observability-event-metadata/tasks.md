@@ -89,7 +89,7 @@
 - [x] T014 [P] Test TTL cache behavior (cache hit within 2s, cache miss after 2s, cache refresh)
 - [x] T015 [P] Test repo slug derivation (SSH, HTTPS, no `.git` suffix, GitLab subgroups, no remote)
 - [x] T016 [P] Test repo slug validation and config override precedence
-- [ ] T017 [P] Test graceful degradation (no git binary, not in repo, subprocess timeout, permission error)
+- [x] T017 [P] Test graceful degradation (no git binary, not in repo, subprocess timeout, permission error)
 
 ### Implementation Notes
 - New file `tests/sync/test_git_metadata.py` (~300 lines)
