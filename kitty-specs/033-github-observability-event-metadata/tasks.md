@@ -54,7 +54,7 @@
 
 ### Included Subtasks
 - [x] T008 Add `_git_resolver` field to `EventEmitter` dataclass
-- [ ] T009 Add `_get_git_metadata()` lazy-loading method to `EventEmitter`
+- [x] T009 Add `_get_git_metadata()` lazy-loading method to `EventEmitter`
 - [ ] T010 Inject `git_branch`, `head_commit_sha`, `repo_slug` into `_emit()` event dict
 - [ ] T011 Update test fixtures in `tests/sync/conftest.py` for git resolver mock
 
