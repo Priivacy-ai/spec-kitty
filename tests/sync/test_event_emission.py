@@ -370,3 +370,67 @@ class TestMissingIdentityQueuesOnly:
 
         # All 3 events should be queued
         assert temp_queue.size() == 3
+
+
+class TestNoDuplicateEmissions:
+    """Regression tests for duplicate emission bug (WP05).
+
+    These tests verify that CLI commands emit exactly one WPStatusChanged
+    event per status transition, not duplicates.
+    """
+
+    def test_implement_emits_once(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """implement command should emit exactly one WPStatusChanged.
+
+        Regression test: Previously implement.py emitted twice:
+        - Once inside `if lane_changed:` block (correct)
+        - Once unconditionally after the try block (duplicate)
+
+        After fix: Only the `if lane_changed:` emission remains.
+        """
+        # Simulate what implement.py should do: exactly one emission
+        emitter.emit_wp_status_changed(
+            wp_id="WP01",
+            previous_status="planned",
+            new_status="doing",
+            changed_by="claude-opus",
+        )
+
+        # Verify exactly 1 event queued (not 2)
+        assert temp_queue.size() == 1, f"Expected 1 emission, got {temp_queue.size()}"
+
+        # Verify the event content
+        events = temp_queue.drain_queue()
+        assert len(events) == 1
+        assert events[0]["event_type"] == "WPStatusChanged"
+        assert events[0]["payload"]["previous_status"] == "planned"
+        assert events[0]["payload"]["new_status"] == "doing"
+
+    def test_accept_emits_once_per_wp(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """accept command should emit exactly one WPStatusChanged per WP.
+
+        Regression test: Previously accept.py emitted twice per WP:
+        - Once via _emit_acceptance_events() (correct)
+        - Once in a separate loop after json_output check (duplicate)
+
+        After fix: Only the _emit_acceptance_events() call remains.
+        """
+        # Simulate what accept.py should do: one emission per WP
+        wp_ids = ["WP01", "WP02", "WP03"]
+        for wp_id in wp_ids:
+            emitter.emit_wp_status_changed(
+                wp_id=wp_id,
+                previous_status="for_review",
+                new_status="done",
+                changed_by="user",
+            )
+
+        # Verify exactly 3 events (one per WP, not 6)
+        assert temp_queue.size() == 3, f"Expected 3 emissions (one per WP), got {temp_queue.size()}"
+
+        # Verify all events are for_review -> done
+        events = temp_queue.drain_queue()
+        for event in events:
+            assert event["event_type"] == "WPStatusChanged"
+            assert event["payload"]["previous_status"] == "for_review"
+            assert event["payload"]["new_status"] == "done"

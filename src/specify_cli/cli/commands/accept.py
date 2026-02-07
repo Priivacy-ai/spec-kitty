@@ -223,22 +223,6 @@ def accept(
         console.print(json.dumps(result.to_dict(), indent=2))
         return
 
-    # Emit WPStatusChanged for WPs moving from for_review -> done (SC-003)
-    try:
-        from specify_cli.sync.events import emit_wp_status_changed
-
-        for wp_id in result.summary.lanes.get("for_review", []):
-            emit_wp_status_changed(
-                wp_id=wp_id,
-                previous_status="for_review",
-                new_status="done",
-                feature_slug=result.summary.feature,
-            )
-    except Exception as emit_exc:
-        console.print(
-            f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}"
-        )
-
     _print_acceptance_summary(result.summary)
     _print_acceptance_result(result)
 
