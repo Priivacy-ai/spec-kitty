@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Integration Tests
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01, WP02, WP04, WP05]
 base_branch: 032-identity-aware-cli-event-sync-WP05
 base_commit: d33c73c5a1e39aeb7f97aefec13efba66c6287fe
@@ -365,3 +365,4 @@ mypy tests/integration/test_sync_e2e.py
 
 - 2026-02-07T00:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-07T08:27:34Z – claude-opus – shell_pid=51522 – lane=doing – Assigned agent via workflow command
+- 2026-02-07T08:33:09Z – claude-opus – shell_pid=51522 – lane=for_review – Ready for review: Complete integration test suite for identity-aware CLI sync (17 passing tests)
