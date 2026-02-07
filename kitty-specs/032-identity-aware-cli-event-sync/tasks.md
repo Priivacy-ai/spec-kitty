@@ -90,10 +90,10 @@
 **Estimated Size**: ~250 lines
 
 ### Included Subtasks
-- [ ] T012 Add `get_team_slug()` method to AuthClient
-- [ ] T013 Store team_slug in credentials during login flow
-- [ ] T014 Handle unauthenticated case (return "local")
-- [ ] T015 Write tests for get_team_slug in `tests/sync/test_auth.py`
+- [x] T012 Add `get_team_slug()` method to AuthClient
+- [x] T013 Store team_slug in credentials during login flow
+- [x] T014 Handle unauthenticated case (return "local")
+- [x] T015 Write tests for get_team_slug in `tests/sync/test_auth.py`
 
 ### Implementation Notes
 1. Team slug comes from SaaS during OAuth/login flow
