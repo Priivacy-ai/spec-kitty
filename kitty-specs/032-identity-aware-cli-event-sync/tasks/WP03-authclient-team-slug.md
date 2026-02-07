@@ -1,25 +1,28 @@
 ---
-work_package_id: "WP03"
-subtasks:
-  - "T012"
-  - "T013"
-  - "T014"
-  - "T015"
-title: "AuthClient Team Slug"
-phase: "Phase 1 - Core Implementation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP03
+title: AuthClient Team Slug
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: 17494c989889e7f168aad99f859d99995d2850f2
+created_at: '2026-02-07T07:37:51.306699+00:00'
+subtasks:
+- T012
+- T013
+- T014
+- T015
+phase: Phase 1 - Core Implementation
+assignee: ''
+agent: ''
+shell_pid: "39864"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – AuthClient Team Slug
