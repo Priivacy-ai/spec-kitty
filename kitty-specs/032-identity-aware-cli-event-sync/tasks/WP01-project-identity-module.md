@@ -15,7 +15,7 @@ subtasks:
 - T006
 phase: Phase 0 - Foundation
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "33592"
 review_status: ''
 reviewed_by: ''
@@ -361,3 +361,4 @@ mypy src/specify_cli/sync/project_identity.py --strict
 ## Activity Log
 
 - 2026-02-07T00:00:00Z – system – lane=planned – Prompt created.
+- 2026-02-07T07:23:14Z – claude-opus – shell_pid=33592 – lane=doing – Assigned agent via workflow command
