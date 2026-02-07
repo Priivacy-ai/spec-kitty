@@ -9,6 +9,8 @@ Covers:
 - SC-008: Emission failure does not block command
 - SC-011: ErrorLogged emitted on errors
 - SC-012: DependencyResolved emitted
+- Identity injection: events include project_uuid and project_slug
+- Missing identity: events queued locally only (no WebSocket send)
 
 These tests verify that the emit_* functions are called correctly
 by testing them through the EventEmitter API directly (since the
@@ -22,6 +24,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.sync.emitter import EventEmitter
+from specify_cli.sync.project_identity import ProjectIdentity
 from specify_cli.sync.queue import OfflineQueue
 
 
@@ -256,3 +259,114 @@ class TestDependencyResolvedEmission:
         )
         assert event is not None
         assert event["payload"]["resolution_type"] == "merged"
+
+
+class TestIdentityInjection:
+    """Tests for project_uuid and project_slug injection in events."""
+
+    def test_wp_status_changed_includes_identity(
+        self, emitter: EventEmitter, temp_queue: OfflineQueue
+    ):
+        """WPStatusChanged event includes project_uuid."""
+        event = emitter.emit_wp_status_changed(
+            wp_id="WP01",
+            previous_status="planned",
+            new_status="doing",
+        )
+        assert event is not None
+        assert "project_uuid" in event
+        assert event["project_uuid"] is not None
+        assert "project_slug" in event
+        assert event["project_slug"] == "test-project"
+
+    def test_feature_created_includes_identity(
+        self, emitter: EventEmitter, temp_queue: OfflineQueue
+    ):
+        """FeatureCreated event includes project_uuid."""
+        event = emitter.emit_feature_created(
+            feature_slug="032-identity-aware",
+            feature_number="032",
+            target_branch="main",
+            wp_count=5,
+        )
+        assert event is not None
+        assert "project_uuid" in event
+        assert event["project_uuid"] is not None
+
+    def test_wp_created_includes_identity(
+        self, emitter: EventEmitter, temp_queue: OfflineQueue
+    ):
+        """WPCreated event includes project_uuid."""
+        event = emitter.emit_wp_created(
+            wp_id="WP01",
+            title="Test WP",
+            feature_slug="032-identity-aware",
+        )
+        assert event is not None
+        assert "project_uuid" in event
+        assert event["project_uuid"] is not None
+
+    def test_identity_is_cached(
+        self, emitter: EventEmitter, temp_queue: OfflineQueue, mock_identity: ProjectIdentity
+    ):
+        """Identity is resolved once and cached for subsequent events."""
+        # Emit multiple events
+        emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        emitter.emit_wp_status_changed("WP02", "planned", "doing")
+        emitter.emit_wp_status_changed("WP03", "planned", "doing")
+
+        # All should have the same identity (from cache)
+        events = temp_queue.drain_queue()
+        uuid_values = [e["project_uuid"] for e in events]
+        assert len(set(uuid_values)) == 1  # All same UUID
+
+
+class TestMissingIdentityQueuesOnly:
+    """Tests for events without identity being queued locally only."""
+
+    def test_missing_identity_queues_only(
+        self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue
+    ):
+        """Events without project_uuid are queued but not sent via WebSocket."""
+        event = emitter_without_identity.emit_wp_status_changed(
+            wp_id="WP01",
+            previous_status="planned",
+            new_status="doing",
+        )
+
+        # Event is still created (not None)
+        assert event is not None
+
+        # Event is queued
+        assert temp_queue.size() == 1
+
+        # Event has None project_uuid
+        assert event.get("project_uuid") is None
+
+    def test_missing_identity_warning_shown(
+        self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue, capsys
+    ):
+        """Warning is logged when identity is missing."""
+        emitter_without_identity.emit_wp_status_changed(
+            wp_id="WP01",
+            previous_status="planned",
+            new_status="doing",
+        )
+
+        # Capture stderr (Rich console output goes to stderr)
+        captured = capsys.readouterr()
+        assert "missing project_uuid" in captured.err or "queued locally only" in captured.err
+
+    def test_multiple_events_without_identity_all_queued(
+        self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue
+    ):
+        """Multiple events without identity are all queued."""
+        for i in range(1, 4):
+            emitter_without_identity.emit_wp_status_changed(
+                wp_id=f"WP{i:02d}",
+                previous_status="planned",
+                new_status="doing",
+            )
+
+        # All 3 events should be queued
+        assert temp_queue.size() == 3

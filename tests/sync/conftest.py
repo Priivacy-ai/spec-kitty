@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 
@@ -12,6 +13,7 @@ from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.clock import LamportClock
 from specify_cli.sync.config import SyncConfig
+from specify_cli.sync.project_identity import ProjectIdentity
 
 
 @pytest.fixture
@@ -47,13 +49,56 @@ def mock_config() -> MagicMock:
 
 
 @pytest.fixture
-def emitter(temp_queue: OfflineQueue, mock_auth: MagicMock, temp_clock: LamportClock, mock_config: MagicMock) -> EventEmitter:
-    """EventEmitter wired to temp queue, mock auth, and isolated clock."""
+def mock_identity() -> ProjectIdentity:
+    """Mock project identity with all fields populated."""
+    return ProjectIdentity(
+        project_uuid=uuid4(),
+        project_slug="test-project",
+        node_id="test-node-123",
+    )
+
+
+@pytest.fixture
+def empty_identity() -> ProjectIdentity:
+    """Empty project identity (no fields populated)."""
+    return ProjectIdentity()
+
+
+@pytest.fixture
+def emitter(
+    temp_queue: OfflineQueue,
+    mock_auth: MagicMock,
+    temp_clock: LamportClock,
+    mock_config: MagicMock,
+    mock_identity: ProjectIdentity,
+) -> EventEmitter:
+    """EventEmitter wired to temp queue, mock auth, isolated clock, and mock identity."""
     em = EventEmitter(
         clock=temp_clock,
         config=mock_config,
         queue=temp_queue,
         _auth=mock_auth,
         ws_client=None,
+        _identity=mock_identity,  # Pre-populate with mock identity
+    )
+    return em
+
+
+@pytest.fixture
+def emitter_without_identity(
+    temp_queue: OfflineQueue,
+    mock_auth: MagicMock,
+    temp_clock: LamportClock,
+    mock_config: MagicMock,
+    empty_identity: ProjectIdentity,
+) -> EventEmitter:
+    """EventEmitter with empty identity (simulates non-project context)."""
+    em = EventEmitter(
+        clock=temp_clock,
+        config=mock_config,
+        queue=temp_queue,
+        _auth=mock_auth,
+        ws_client=None,
+        _identity=empty_identity,  # Pre-populate with empty identity
     )
     return em
