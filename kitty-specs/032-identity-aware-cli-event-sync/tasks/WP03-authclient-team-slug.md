@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: AuthClient Team Slug
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: 17494c989889e7f168aad99f859d99995d2850f2
@@ -227,3 +227,4 @@ pytest tests/sync/test_auth.py -v
 
 - 2026-02-07T00:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-07T07:37:51Z – claude-opus – shell_pid=39864 – lane=doing – Assigned agent via workflow command
+- 2026-02-07T07:40:41Z – claude-opus – shell_pid=39864 – lane=for_review – Ready for review: Added get_team_slug() method to AuthClient with credential storage and tests
