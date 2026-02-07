@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Fix Duplicate Emissions
-lane: "for_review"
+lane: "doing"
 dependencies: [WP04]
 base_branch: 032-identity-aware-cli-event-sync-WP04
 base_commit: 0325bb79d05bf9264d3825aae0d7e7f61b4342fb
@@ -14,8 +14,8 @@ subtasks:
 - T026
 phase: Phase 3 - Bug Fixes
 assignee: ''
-agent: "claude-opus"
-shell_pid: "49920"
+agent: "codex"
+shell_pid: "49562"
 review_status: ''
 reviewed_by: ''
 history:
@@ -233,3 +233,4 @@ pytest tests/sync/test_event_emission.py::TestNoDuplicateEmissions -v
 - 2026-02-07T00:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-07T08:19:25Z – claude-opus – shell_pid=49920 – lane=doing – Assigned agent via workflow command
 - 2026-02-07T08:21:45Z – claude-opus – shell_pid=49920 – lane=for_review – Ready for review: Removed duplicate WPStatusChanged emissions from implement.py and accept.py, added regression tests
+- 2026-02-07T08:22:48Z – codex – shell_pid=49562 – lane=doing – Started review via workflow command
