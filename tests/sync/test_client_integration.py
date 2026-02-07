@@ -38,7 +38,7 @@ async def test_client_initialization():
     )
 
     assert client.server_url == "ws://localhost:8000"
-    assert client.token == "test-token"
+    assert client._direct_token == "test-token"
     assert not client.connected
     assert client.get_status() == ConnectionStatus.OFFLINE
 
