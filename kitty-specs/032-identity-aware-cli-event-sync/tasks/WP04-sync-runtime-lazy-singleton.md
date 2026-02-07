@@ -81,6 +81,7 @@ spec-kitty implement WP04 --base WP02
    if TYPE_CHECKING:
        from specify_cli.sync.background import BackgroundSyncService
        from specify_cli.sync.client import WebSocketClient
+       from specify_cli.sync.emitter import EventEmitter
    
    @dataclass
    class SyncRuntime:
@@ -88,11 +89,18 @@ spec-kitty implement WP04 --base WP02
        
        background_service: "BackgroundSyncService | None" = field(default=None, repr=False)
        ws_client: "WebSocketClient | None" = field(default=None, repr=False)
+       emitter: "EventEmitter | None" = field(default=None, repr=False)
        started: bool = False
        
        def start(self) -> None:
            """Start background services (idempotent)."""
            pass  # Implemented in T018
+       
+       def attach_emitter(self, emitter: "EventEmitter") -> None:
+           """Attach emitter so WS client can be injected."""
+           self.emitter = emitter
+           if self.ws_client is not None:
+               self.emitter.ws_client = self.ws_client
        
        def stop(self) -> None:
            """Stop background services."""
@@ -124,15 +132,16 @@ spec-kitty implement WP04 --base WP02
 
 2. Wire into `get_emitter()`:
    ```python
-   # In sync/events.py or sync/__init__.py
+   # In sync/events.py
    def get_emitter() -> EventEmitter:
        global _emitter
        if _emitter is None:
            # Start runtime before creating emitter
            from specify_cli.sync.runtime import get_runtime
-           get_runtime()  # Auto-starts
+           runtime = get_runtime()  # Auto-starts
            
            _emitter = EventEmitter()
+           runtime.attach_emitter(_emitter)
        return _emitter
    ```
 
@@ -158,37 +167,27 @@ spec-kitty implement WP04 --base WP02
        if self.started:
            return
        
-       # Check config for opt-out
-       from specify_cli.sync.config import SyncConfig
-       config = SyncConfig()
-       if not config.auto_start:
+       # Check config for opt-out (project-level)
+       if not _auto_start_enabled():
            logger.info("Sync auto-start disabled via config")
            return
        
-       # Start background service
-       from specify_cli.sync.background import BackgroundSyncService
-       self.background_service = BackgroundSyncService()
+       # Start background service (use existing singleton)
+       from specify_cli.sync.background import get_sync_service
+       self.background_service = get_sync_service()
        
        # WebSocket connection handled in T019
        
-       self.background_service.start()
        self.started = True
-       
        logger.debug("SyncRuntime started")
    ```
 
-2. Check `sync.auto_start` config option (default True):
-   ```python
-   # In sync/config.py, add:
-   @property
-   def auto_start(self) -> bool:
-       """Whether to auto-start sync runtime. Default True."""
-       return self._config.get("sync", {}).get("auto_start", True)
-   ```
+2. Add `_auto_start_enabled()` helper to read `.kittify/config.yaml`:
+   - Default to `True` if config missing or invalid
+   - Read `sync.auto_start` if present
 
 **Files**:
 - `src/specify_cli/sync/runtime.py` (modify start(), ~25 lines)
-- `src/specify_cli/sync/config.py` (add auto_start property, ~5 lines)
 
 ---
 
@@ -204,13 +203,15 @@ spec-kitty implement WP04 --base WP02
        
        # Connect WebSocket if authenticated
        from specify_cli.sync.auth import AuthClient
+       from specify_cli.sync.config import SyncConfig
        auth = AuthClient()
+       config = SyncConfig()
        
        if auth.is_authenticated():
            try:
                from specify_cli.sync.client import WebSocketClient
                self.ws_client = WebSocketClient(
-                   server_url=config.server_url,
+                   server_url=config.get_server_url(),
                    auth_client=auth,
                )
                # Non-blocking connect attempt
@@ -221,8 +222,9 @@ spec-kitty implement WP04 --base WP02
                else:
                    loop.run_until_complete(self.ws_client.connect())
                
-               # Wire WebSocket to emitter
-               self.background_service.set_ws_client(self.ws_client)
+               # Wire WebSocket to emitter (BackgroundSyncService does not own WS)
+               if self.emitter is not None:
+                   self.emitter.ws_client = self.ws_client
            except Exception as e:
                logger.warning(f"WebSocket connection failed: {e}")
                logger.info("Events will be queued for batch sync")
@@ -275,6 +277,8 @@ spec-kitty implement WP04 --base WP02
    ```
 
 2. Register atexit handler:
+   - Note: `get_sync_service()` already registers its own atexit; this handler
+     ensures WS disconnect and is safe to call even if background_service stops itself.
    ```python
    import atexit
    
@@ -312,9 +316,10 @@ spec-kitty implement WP04 --base WP02
            runtime.start()
            runtime.start()  # Should not raise
        
-       def test_auto_start_disabled(self, mock_config):
+       def test_auto_start_disabled(self, monkeypatch):
            """Respects sync.auto_start: false."""
-           mock_config["sync"]["auto_start"] = False
+           import specify_cli.sync.runtime as runtime_module
+           monkeypatch.setattr(runtime_module, "_auto_start_enabled", lambda: False)
            runtime = SyncRuntime()
            runtime.start()
            assert not runtime.started

@@ -61,6 +61,7 @@ spec-kitty implement WP02 --base WP01
 - Single injection point in `_emit()` (not in each emit_* method)
 - Identity resolution happens once per emitter lifetime
 - Must not break existing event flow
+- `project_uuid` is required for WebSocket send (queue-only if missing)
 
 ---
 
@@ -79,9 +80,13 @@ spec-kitty implement WP02 --base WP01
 3. If circular import issues, use lazy import pattern:
    ```python
    def _get_project_identity() -> ProjectIdentity:
-       from specify_cli.sync.project_identity import ensure_identity
+       from specify_cli.sync.project_identity import ensure_identity, ProjectIdentity
        from specify_cli.tasks_support import find_repo_root
-       repo_root = find_repo_root()
+       try:
+           repo_root = find_repo_root()
+       except Exception:
+           # Non-project context; return empty identity to trigger queue-only
+           return ProjectIdentity()
        return ensure_identity(repo_root)
    ```
 
@@ -137,6 +142,9 @@ spec-kitty implement WP02 --base WP01
                self._identity = _get_project_identity()
            return self._identity
    ```
+4. Update `_validate_event()` to pass `project_uuid`/`project_slug` into the
+   EventModel (once spec-kitty-events is updated), and ensure missing
+   `project_uuid` does NOT hard-fail validation (since queue-only is allowed).
 
 **Files**:
 - `src/specify_cli/sync/emitter.py` (modify, ~30 lines changed)
@@ -182,7 +190,7 @@ spec-kitty implement WP02 --base WP01
 **Purpose**: Ensure identity is resolved when emitter is first accessed.
 
 **Steps**:
-1. Find `get_emitter()` function (likely in `sync/events.py` or `sync/__init__.py`)
+1. Find `get_emitter()` function in `sync/events.py`
 2. Ensure `ensure_identity()` is called early in the flow:
    ```python
    def get_emitter() -> EventEmitter:
@@ -203,7 +211,7 @@ spec-kitty implement WP02 --base WP01
 3. Handle case where repo_root can't be found (non-project context)
 
 **Files**:
-- `src/specify_cli/sync/events.py` or `sync/__init__.py` (modify, ~15 lines)
+- `src/specify_cli/sync/events.py` (modify, ~15 lines)
 
 **Notes**:
 - Identity resolution failures should warn, not crash
