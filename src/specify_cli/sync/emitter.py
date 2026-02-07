@@ -22,6 +22,7 @@ from .queue import OfflineQueue
 if TYPE_CHECKING:
     from .auth import AuthClient
     from .client import WebSocketClient
+    from .git_metadata import GitMetadata, GitMetadataResolver
     from .project_identity import ProjectIdentity
 
 _console = Console(stderr=True)
@@ -43,6 +44,26 @@ def _get_project_identity() -> "ProjectIdentity":
         return ProjectIdentity()
 
     return ensure_identity(repo_root)
+
+
+def _create_git_resolver() -> "GitMetadataResolver":
+    """Lazily create GitMetadataResolver with repo root and config override."""
+    from .git_metadata import GitMetadataResolver
+    from .project_identity import ensure_identity
+    from specify_cli.tasks_support import find_repo_root, TaskCliError
+
+    try:
+        repo_root = find_repo_root()
+    except TaskCliError:
+        # Non-project context; return resolver that will produce None values
+        return GitMetadataResolver(repo_root=Path.cwd())
+
+    identity = ensure_identity(repo_root)
+    return GitMetadataResolver(
+        repo_root=repo_root,
+        repo_slug_override=identity.repo_slug,
+    )
+
 
 # Load the contract schema once for payload-level validation
 _SCHEMA: dict | None = None
@@ -214,6 +235,7 @@ class EventEmitter:
     _auth: AuthClient | None = field(default=None, repr=False)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     _identity: "ProjectIdentity | None" = field(default=None, repr=False)
+    _git_resolver: "GitMetadataResolver | None" = field(default=None, repr=False)
 
     def _get_identity(self) -> "ProjectIdentity":
         """Get cached project identity, lazily loading on first access.
@@ -223,6 +245,21 @@ class EventEmitter:
         if self._identity is None:
             self._identity = _get_project_identity()
         return self._identity
+
+    def _get_git_metadata(self) -> "GitMetadata":
+        """Get per-event git metadata via cached resolver.
+
+        Never raises: returns GitMetadata with None fields on any error.
+        """
+        from .git_metadata import GitMetadata
+
+        try:
+            if self._git_resolver is None:
+                self._git_resolver = _create_git_resolver()
+            return self._git_resolver.resolve()
+        except Exception as e:
+            logger.debug("Git metadata resolution failed: %s", e)
+            return GitMetadata()
 
     @property
     def auth(self) -> AuthClient:
@@ -464,6 +501,9 @@ class EventEmitter:
             identity = self._get_identity()
             team_slug = self._get_team_slug()
 
+            # Resolve per-event git metadata
+            git_meta = self._get_git_metadata()
+
             # Build event dict with identity fields
             event: dict[str, Any] = {
                 "event_id": _generate_ulid(),
@@ -478,6 +518,10 @@ class EventEmitter:
                 "team_slug": team_slug,
                 "project_uuid": str(identity.project_uuid) if identity.project_uuid else None,
                 "project_slug": identity.project_slug,
+                # Git correlation fields (Feature 033)
+                "git_branch": git_meta.git_branch,
+                "head_commit_sha": git_meta.head_commit_sha,
+                "repo_slug": git_meta.repo_slug,
             }
 
             # Validate event structure and payload

@@ -13,6 +13,7 @@ from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.clock import LamportClock
 from specify_cli.sync.config import SyncConfig
+from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
 from specify_cli.sync.project_identity import ProjectIdentity
 
 
@@ -65,14 +66,33 @@ def empty_identity() -> ProjectIdentity:
 
 
 @pytest.fixture
+def mock_git_metadata() -> GitMetadata:
+    """Mock git metadata for testing."""
+    return GitMetadata(
+        git_branch="test-branch",
+        head_commit_sha="a" * 40,
+        repo_slug="test-org/test-repo",
+    )
+
+
+@pytest.fixture
+def mock_git_resolver(mock_git_metadata: GitMetadata) -> MagicMock:
+    """Mock GitMetadataResolver that returns fixed metadata."""
+    resolver = MagicMock(spec=GitMetadataResolver)
+    resolver.resolve.return_value = mock_git_metadata
+    return resolver
+
+
+@pytest.fixture
 def emitter(
     temp_queue: OfflineQueue,
     mock_auth: MagicMock,
     temp_clock: LamportClock,
     mock_config: MagicMock,
     mock_identity: ProjectIdentity,
+    mock_git_resolver: MagicMock,
 ) -> EventEmitter:
-    """EventEmitter wired to temp queue, mock auth, isolated clock, and mock identity."""
+    """EventEmitter wired to temp queue, mock auth, isolated clock, mock identity, and mock git resolver."""
     em = EventEmitter(
         clock=temp_clock,
         config=mock_config,
@@ -80,6 +100,7 @@ def emitter(
         _auth=mock_auth,
         ws_client=None,
         _identity=mock_identity,  # Pre-populate with mock identity
+        _git_resolver=mock_git_resolver,  # Pre-populate with mock git resolver
     )
     return em
 
@@ -91,6 +112,7 @@ def emitter_without_identity(
     temp_clock: LamportClock,
     mock_config: MagicMock,
     empty_identity: ProjectIdentity,
+    mock_git_resolver: MagicMock,
 ) -> EventEmitter:
     """EventEmitter with empty identity (simulates non-project context)."""
     em = EventEmitter(
@@ -100,5 +122,6 @@ def emitter_without_identity(
         _auth=mock_auth,
         ws_client=None,
         _identity=empty_identity,  # Pre-populate with empty identity
+        _git_resolver=mock_git_resolver,  # Pre-populate with mock git resolver
     )
     return em
