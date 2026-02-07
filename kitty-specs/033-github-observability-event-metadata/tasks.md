@@ -122,7 +122,7 @@
 - [x] T019 [P] Test fields are `null` when git is unavailable (`tests/sync/test_events.py`)
 - [x] T020 Integration tests for git metadata in CLI command emissions (`tests/sync/test_event_emission.py` or `tests/specify_cli/cli/commands/test_event_emission.py`)
 - [x] T021 [P] Test offline replay compatibility with events containing new fields
-- [ ] T022 Update event envelope documentation in `docs/` or `architecture/`
+- [x] T022 Update event envelope documentation in `docs/` or `architecture/`
 
 ### Implementation Notes
 - Modify existing test files: `tests/sync/test_events.py` (~50 lines added), `tests/sync/test_event_emission.py` (~40 lines added)
