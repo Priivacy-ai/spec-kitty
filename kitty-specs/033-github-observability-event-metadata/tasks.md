@@ -25,7 +25,7 @@
 - [x] T004 Implement `resolve()` with 2s TTL cache via `time.monotonic()`
 - [x] T005 Implement repo slug derivation (`_derive_repo_slug_from_remote`, `_validate_repo_slug`, `_resolve_repo_slug`)
 - [x] T006 Add graceful degradation for all failure modes (no git, not a repo, detached HEAD, timeout)
-- [ ] T007 Extend `ProjectIdentity` with `repo_slug` field (`to_dict`, `from_dict`, persistence)
+- [x] T007 Extend `ProjectIdentity` with `repo_slug` field (`to_dict`, `from_dict`, persistence)
 
 ### Implementation Notes
 - Single new file `src/specify_cli/sync/git_metadata.py` (~200 lines)
