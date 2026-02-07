@@ -159,11 +159,11 @@
 **Estimated Size**: ~300 lines
 
 ### Included Subtasks
-- [ ] T022 Audit implement.py on 2.x branch for emission points
-- [ ] T023 Consolidate to single emission in implement.py
-- [ ] T024 Audit accept.py on 2.x branch for emission points
-- [ ] T025 Consolidate to single emission in accept.py
-- [ ] T026 Add test verifying single emission per command
+- [x] T022 Audit implement.py on 2.x branch for emission points
+- [x] T023 Consolidate to single emission in implement.py
+- [x] T024 Audit accept.py on 2.x branch for emission points
+- [x] T025 Consolidate to single emission in accept.py
+- [x] T026 Add test verifying single emission per command
 
 ### Implementation Notes
 1. **Work on 2.x branch** - these files have event emissions that main doesn't have
