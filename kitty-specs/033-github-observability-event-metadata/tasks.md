@@ -84,7 +84,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T012 [P] Test `GitMetadata` dataclass and `GitMetadataResolver` construction
+- [x] T012 [P] Test `GitMetadata` dataclass and `GitMetadataResolver` construction
 - [ ] T013 [P] Test branch/SHA resolution from subprocess (normal branch, detached HEAD, worktree)
 - [ ] T014 [P] Test TTL cache behavior (cache hit within 2s, cache miss after 2s, cache refresh)
 - [ ] T015 [P] Test repo slug derivation (SSH, HTTPS, no `.git` suffix, GitLab subgroups, no remote)
