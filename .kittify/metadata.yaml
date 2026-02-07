@@ -3,9 +3,9 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 0.13.25
+  version: 0.14.1
   initialized_at: '2026-02-03T17:59:23.703791'
-  last_upgraded_at: '2026-02-04T14:56:32.860447'
+  last_upgraded_at: '2026-02-07T09:45:50.525062'
 environment:
   python_version: 3.14.0
   platform: darwin
@@ -14,5 +14,9 @@ migrations:
   applied:
   - id: 0.14.0_centralized_feature_detection
     applied_at: '2026-02-06T10:54:05.184716'
+    result: skipped
+    notes: Not applicable
+  - id: 0.14.0_centralized_feature_detection
+    applied_at: '2026-02-07T09:45:50.525057'
     result: skipped
     notes: Not applicable
