@@ -28,7 +28,7 @@ A developer runs `spec-kitty implement WP01` on the `033-github-observability-ev
 
 2. **Given** a developer switches branches mid-session from `branch-a` to `branch-b`, **When** events are emitted after the switch, **Then** the new events reflect `branch-b` (not the stale value from session start).
 
-3. **Given** a detached HEAD state (e.g., during rebase or checkout of a tag), **When** an event is emitted, **Then** `git_branch` is set to `"HEAD"` (or the detached ref) and `head_commit_sha` contains the current commit SHA.
+3. **Given** a detached HEAD state (e.g., during rebase or checkout of a tag), **When** an event is emitted, **Then** `git_branch` is set to `"HEAD"` and `head_commit_sha` contains the current commit SHA.
 
 ---
 
@@ -104,7 +104,7 @@ The event envelope schema is documented with all correlation fields (existing an
 
 ### Edge Cases
 
-- **Detached HEAD**: `git_branch` should report `"HEAD"` or the detached ref; `head_commit_sha` should still be populated.
+- **Detached HEAD**: `git_branch` MUST report the canonical value `"HEAD"`; `head_commit_sha` should still be populated.
 - **No git repository**: If running outside a git repo (unusual but possible), both `git_branch` and `head_commit_sha` should be `null` with a warning logged.
 - **Shallow clone**: `git rev-parse HEAD` works in shallow clones; no special handling needed.
 - **Git not installed**: If `git` binary is not found, git metadata fields are `null` with a warning. Event emission is not blocked.
@@ -142,8 +142,8 @@ The event envelope schema is documented with all correlation fields (existing an
 
 ### Measurable Outcomes
 
-- **SC-001**: 100% of events emitted from a git repository include `git_branch` and `head_commit_sha` in the envelope.
-- **SC-002**: 100% of events emitted from a repo with a configured origin remote include a valid `repo_slug` in `owner/repo` format.
+- **SC-001**: 100% of events emitted from a git repository where git metadata resolution succeeds include `git_branch` and `head_commit_sha` in the envelope.
+- **SC-002**: 100% of events emitted from a repo with a configured origin remote where repo slug derivation succeeds include a valid `repo_slug` in `owner/repo` format.
 - **SC-003**: Events emitted after a branch switch or new commit reflect the updated git state (no stale metadata).
 - **SC-004**: Zero regressions in existing sync tests (auth, offline replay, batch sync, WebSocket).
 - **SC-005**: Event envelope documentation covers all correlation fields with types, optionality, and derivation rules.
