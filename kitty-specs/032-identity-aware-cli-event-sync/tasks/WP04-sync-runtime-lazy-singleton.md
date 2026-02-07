@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: SyncRuntime Lazy Singleton
+lane: "doing"
+dependencies: [WP02]
+base_branch: 032-identity-aware-cli-event-sync-WP02
+base_commit: bd4f06a514bfcaa0d68b6ea3b4e24e0371ea2945
+created_at: '2026-02-07T07:43:35.483001+00:00'
 subtasks:
-  - "T016"
-  - "T017"
-  - "T018"
-  - "T019"
-  - "T020"
-  - "T021"
-title: "SyncRuntime Lazy Singleton"
-phase: "Phase 2 - Runtime Bootstrap"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP02"]
+- T016
+- T017
+- T018
+- T019
+- T020
+- T021
+phase: Phase 2 - Runtime Bootstrap
+assignee: ''
+agent: ''
+shell_pid: "42083"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – SyncRuntime Lazy Singleton
