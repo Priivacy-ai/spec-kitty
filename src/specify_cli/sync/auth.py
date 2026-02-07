@@ -54,9 +54,16 @@ class CredentialStore:
         refresh_expires_at: datetime,
         username: str,
         server_url: str,
+        team_slug: Optional[str] = None,
     ):
         """Save credentials to TOML file with 600 permissions."""
         self._ensure_directory()
+
+        user_data: dict = {
+            "username": username,
+        }
+        if team_slug is not None:
+            user_data["team_slug"] = team_slug
 
         data = {
             "tokens": {
@@ -65,9 +72,7 @@ class CredentialStore:
                 "access_expires_at": access_expires_at.isoformat(),
                 "refresh_expires_at": refresh_expires_at.isoformat(),
             },
-            "user": {
-                "username": username,
-            },
+            "user": user_data,
             "server": {
                 "url": server_url,
             },
@@ -178,6 +183,13 @@ class CredentialStore:
             "refresh_expires_at": tokens.get("refresh_expires_at"),
         }
 
+    def get_team_slug(self) -> Optional[str]:
+        """Get stored team slug. Returns None if not available."""
+        data = self.load()
+        if not data or "user" not in data:
+            return None
+        return data["user"].get("team_slug")
+
 
 class AuthenticationError(Exception):
     """Raised when authentication fails."""
@@ -282,6 +294,9 @@ class AuthClient:
         access_expires_at = datetime.utcnow() + timedelta(seconds=access_lifetime)
         refresh_expires_at = datetime.utcnow() + timedelta(seconds=refresh_lifetime)
 
+        # Get team_slug from server response if available (post-MVP feature)
+        team_slug = data.get("team_slug")
+
         self.credential_store.save(
             access_token=access_token,
             refresh_token=refresh_token,
@@ -289,6 +304,7 @@ class AuthClient:
             refresh_expires_at=refresh_expires_at,
             username=username,
             server_url=self.server_url,
+            team_slug=team_slug,
         )
 
         return True
@@ -336,6 +352,8 @@ class AuthClient:
         username = self.credential_store.get_username() or "unknown"
         server_url = self.credential_store.get_server_url() or self.server_url
         server_url = self._validate_server_url(server_url)
+        # Preserve existing team_slug or use server-provided value if available
+        team_slug = data.get("team_slug") or self.credential_store.get_team_slug()
 
         # Use server-provided expiry if available, else use defaults
         access_lifetime = self._coerce_lifetime(
@@ -354,6 +372,7 @@ class AuthClient:
             refresh_expires_at=refresh_expires_at,
             username=username,
             server_url=server_url,
+            team_slug=team_slug,
         )
 
         return True
@@ -441,3 +460,9 @@ class AuthClient:
     def clear_credentials(self):
         """Clear all stored credentials."""
         self.credential_store.clear()
+
+    def get_team_slug(self) -> Optional[str]:
+        """Return stored team slug, or None if not authenticated."""
+        if not self.is_authenticated():
+            return None
+        return self.credential_store.get_team_slug()
