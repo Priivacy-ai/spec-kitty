@@ -119,7 +119,7 @@
 
 ### Included Subtasks
 - [x] T018 [P] Test new envelope fields present in emitted events (`tests/sync/test_events.py`)
-- [ ] T019 [P] Test fields are `null` when git is unavailable (`tests/sync/test_events.py`)
+- [x] T019 [P] Test fields are `null` when git is unavailable (`tests/sync/test_events.py`)
 - [ ] T020 Integration tests for git metadata in CLI command emissions (`tests/sync/test_event_emission.py` or `tests/specify_cli/cli/commands/test_event_emission.py`)
 - [ ] T021 [P] Test offline replay compatibility with events containing new fields
 - [ ] T022 Update event envelope documentation in `docs/` or `architecture/`
