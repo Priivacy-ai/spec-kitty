@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP05"
+work_package_id: WP05
+title: Fix Duplicate Emissions
+lane: "doing"
+dependencies: [WP04]
+base_branch: 032-identity-aware-cli-event-sync-WP04
+base_commit: 0325bb79d05bf9264d3825aae0d7e7f61b4342fb
+created_at: '2026-02-07T08:19:25.127967+00:00'
 subtasks:
-  - "T022"
-  - "T023"
-  - "T024"
-  - "T025"
-  - "T026"
-title: "Fix Duplicate Emissions"
-phase: "Phase 3 - Bug Fixes"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP04"]
+- T022
+- T023
+- T024
+- T025
+- T026
+phase: Phase 3 - Bug Fixes
+assignee: ''
+agent: ''
+shell_pid: "49920"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Fix Duplicate Emissions
