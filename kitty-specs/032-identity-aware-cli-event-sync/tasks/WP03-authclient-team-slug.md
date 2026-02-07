@@ -13,7 +13,7 @@ subtasks:
 - T015
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "39864"
 review_status: ''
 reviewed_by: ''
@@ -226,3 +226,4 @@ pytest tests/sync/test_auth.py -v
 ## Activity Log
 
 - 2026-02-07T00:00:00Z – system – lane=planned – Prompt created.
+- 2026-02-07T07:37:51Z – claude-opus – shell_pid=39864 – lane=doing – Assigned agent via workflow command
