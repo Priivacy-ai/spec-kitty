@@ -22,7 +22,7 @@ A developer initializes spec-kitty in a new repository. The CLI automatically ge
 
 **Acceptance Scenarios**:
 
-1. **Given** a new repository without spec-kitty initialized, **When** user runs `spec-kitty init`, **Then** config.yaml is created with `project_uuid` (valid UUID4), `project_slug` (derived from repo directory name), and `node_id` (unique per machine).
+1. **Given** a new repository without spec-kitty initialized, **When** user runs `spec-kitty init`, **Then** config.yaml is created with `project_uuid` (valid UUID4), `project_slug` (derived from repo directory name), and `node_id` (stable machine identifier derived from the LamportClock generator).
 
 2. **Given** a repository with existing config.yaml missing `project_uuid`, **When** user runs any spec-kitty command, **Then** the CLI auto-generates and persists `project_uuid` before proceeding.
 
@@ -44,7 +44,7 @@ When a developer runs any spec-kitty command, the background sync runtime starts
 
 2. **Given** user is NOT authenticated, **When** user runs `spec-kitty implement WP01`, **Then** BackgroundSyncService starts, WebSocket connection is skipped, event is queued locally, and a warning is logged ("Events queued locally; run `spec-kitty auth login` to enable real-time sync").
 
-3. **Given** user has `sync.auto_start: false` in config.yaml, **When** user runs any command, **Then** background sync is NOT started (explicit opt-out honored).
+3. **Given** user has `sync.auto_start: false` in `.kittify/config.yaml`, **When** user runs any command, **Then** background sync is NOT started (explicit opt-out honored).
 
 ---
 
@@ -105,7 +105,7 @@ The `implement` and `accept` commands currently emit WPStatusChanged events in m
 - **Missing git remote**: If no git remote is configured, `project_slug` defaults to the directory name.
 - **Corrupted config.yaml**: If config.yaml is malformed, CLI should warn and regenerate identity fields.
 - **Network timeout during sync**: Events should be queued locally; BackgroundSyncService should retry with exponential backoff.
-- **Multiple spec-kitty processes**: Each process uses the same `node_id` (machine-level) but different Lamport clock values for ordering.
+- **Multiple spec-kitty processes**: Each process uses the same `node_id` (machine-level, derived from hostname+username) but different Lamport clock values for ordering.
 - **Config.yaml race condition**: If two processes try to generate `project_uuid` simultaneously, the first write wins; subsequent reads use the persisted value.
 
 ## Requirements *(mandatory)*
@@ -114,11 +114,11 @@ The `implement` and `accept` commands currently emit WPStatusChanged events in m
 
 - **FR-001**: System MUST generate a UUID4 `project_uuid` during `spec-kitty init` if not already present in config.yaml.
 - **FR-002**: System MUST derive `project_slug` from the repository directory name (kebab-case) or git remote origin if available.
-- **FR-003**: System MUST persist `node_id` (machine-unique identifier) in config.yaml for event attribution.
+- **FR-003**: System MUST persist `node_id` (stable machine identifier from `sync.clock.generate_node_id()`) in config.yaml for event attribution.
 - **FR-004**: System MUST inject `project_uuid` into every event envelope via `emitter._emit()`.
 - **FR-005**: System MUST validate that `project_uuid` is present before sending events via WebSocket; events without identity are queued only.
 - **FR-006**: System MUST log a warning when emitting events without project identity.
-- **FR-007**: System MUST auto-start BackgroundSyncService on CLI command execution (unless `sync.auto_start: false`).
+- **FR-007**: System MUST auto-start BackgroundSyncService on CLI command execution (unless `sync.auto_start: false` in `.kittify/config.yaml`).
 - **FR-008**: System MUST connect WebSocketClient automatically if user is authenticated.
 - **FR-009**: System MUST gracefully degrade to queue-only mode when not authenticated.
 - **FR-010**: AuthClient MUST expose `get_team_slug()` returning the stored team slug or None.
@@ -130,7 +130,7 @@ The `implement` and `accept` commands currently emit WPStatusChanged events in m
 
 - **ProjectIdentity**: Represents the unique identity of a spec-kitty project (`project_uuid`, `project_slug`, `node_id`). Persisted in `.kittify/config.yaml`.
 - **EventEnvelope**: The wrapper around event payload that includes identity metadata (`project_uuid`, `project_slug`, `team_slug`, `node_id`, `lamport_clock`).
-- **SyncRuntime**: The background service managing WebSocket connection and event dispatch.
+- **SyncRuntime**: Lightweight bootstrap that starts BackgroundSyncService and attaches WebSocketClient to the EventEmitter when authenticated.
 
 ## Success Criteria *(mandatory)*
 

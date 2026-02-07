@@ -141,8 +141,11 @@ No `--base` flag needed (this is the foundation WP).
 
 3. Add `generate_node_id()` function:
    ```python
+   from specify_cli.sync.clock import generate_node_id as generate_machine_node_id
+   
    def generate_node_id() -> str:
-       return f"node-{uuid4().hex[:12]}"
+       # Reuse LamportClock's stable machine ID for consistency
+       return generate_machine_node_id()
    ```
 
 **Files**:
@@ -151,7 +154,7 @@ No `--base` flag needed (this is the foundation WP).
 **Notes**:
 - Slug derivation must handle SSH URLs (`git@github.com:user/repo.git`)
 - Slug derivation must handle HTTPS URLs (`https://github.com/user/repo.git`)
-- Node ID uses short hex for readability (12 chars)
+- Node ID should be stable per machine (use existing LamportClock generator)
 
 ---
 
@@ -223,8 +226,12 @@ No `--base` flag needed (this is the foundation WP).
            return ProjectIdentity()
        
        yaml = YAML()
-       with open(config_path) as f:
-           config = yaml.load(f) or {}
+       try:
+           with open(config_path) as f:
+               config = yaml.load(f) or {}
+       except Exception as e:
+           logger.warning(f"Invalid config.yaml; regenerating identity: {e}")
+           config = {}
        
        project = config.get("project", {})
        return ProjectIdentity(
@@ -306,7 +313,8 @@ No `--base` flag needed (this is the foundation WP).
    - `generate_project_uuid()` returns valid UUID4
    - `derive_project_slug()` from git remote
    - `derive_project_slug()` fallback to directory name
-   - `generate_node_id()` format
+   - `generate_node_id()` format (stable 12-char hex)
+   - malformed config.yaml handled gracefully (warn + regenerate identity)
    - `atomic_write_config()` creates valid YAML
    - `atomic_write_config()` cleans up on failure
    - `load_identity()` parses existing config

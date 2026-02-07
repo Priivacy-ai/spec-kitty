@@ -21,7 +21,7 @@ class ProjectIdentity:
     """Human-readable slug derived from repo directory or git remote."""
     
     node_id: str | None = None
-    """Machine-unique identifier. Stable across sessions on same machine."""
+    """Machine-stable identifier (12-char hex) from LamportClock generator."""
     
     @property
     def is_complete(self) -> bool:
@@ -42,13 +42,14 @@ class ProjectIdentity:
 project:
   uuid: "550e8400-e29b-41d4-a716-446655440000"
   slug: "my-project"
-  node_id: "node-abc123"
+  node_id: "a1b2c3d4e5f6"
 ```
 
 **Generation Rules**:
 - `project_uuid`: UUID4, generated once per project
 - `project_slug`: Kebab-case from directory name, or from git remote `origin` URL
-- `node_id`: UUID4, generated once per machine (stable across restarts)
+- `node_id`: Stable machine ID from `sync.clock.generate_node_id()` (12-char hex, stable across restarts)
+  - Use the same generator as LamportClock so identity node_id matches event node_id
 
 ---
 
@@ -92,24 +93,33 @@ class SyncRuntime:
     
     background_service: BackgroundSyncService | None = None
     ws_client: WebSocketClient | None = None
+    emitter: EventEmitter | None = None
     started: bool = False
     
     def start(self) -> None:
         """Start background services (idempotent)."""
         if self.started:
             return
+        if not auto_start_enabled():
+            return
         
-        self.background_service = BackgroundSyncService()
+        # Reuse singleton background service (registers its own atexit)
+        self.background_service = get_sync_service()
         
         if is_authenticated():
             self.ws_client = WebSocketClient(...)
             self.ws_client.connect()
-            self.background_service.set_ws_client(self.ws_client)
+            if self.emitter is not None:
+                self.emitter.ws_client = self.ws_client
         else:
             logger.info("Not authenticated; events queued locally")
-        
-        self.background_service.start()
         self.started = True
+    
+    def attach_emitter(self, emitter: EventEmitter) -> None:
+        """Attach emitter so WS client can be injected when available."""
+        self.emitter = emitter
+        if self.ws_client is not None:
+            self.emitter.ws_client = self.ws_client
     
     def stop(self) -> None:
         """Stop background services."""
@@ -122,8 +132,8 @@ class SyncRuntime:
 
 **Lifecycle**:
 1. Created lazily on first `get_emitter()` call
-2. Starts BackgroundSyncService unconditionally
-3. Starts WebSocketClient only if authenticated
+2. Starts BackgroundSyncService via `get_sync_service()` if `sync.auto_start` is enabled
+3. Starts WebSocketClient only if authenticated and attaches to emitter
 4. Stopped on process exit (atexit handler)
 
 ---
@@ -149,6 +159,8 @@ sync:
   auto_start: true  # Optional, default true
 ```
 
+**Note**: This is the project-level `.kittify/config.yaml` (not `~/.spec-kitty/config.toml`).
+
 ---
 
 ## Relationships
@@ -158,13 +170,14 @@ ProjectIdentity (1) ─── persisted in ──→ Config.yaml (1)
        │
        │ injected into
        ▼
-EventEnvelope (*) ─── routed by ──→ SyncRuntime (1)
-       │                                   │
-       │                                   │ manages
-       │                                   ▼
-       │                          BackgroundSyncService (1)
-       │                                   │
-       ├── if authenticated ──→ WebSocketClient (1)
+EventEnvelope (*) ─── routed by ──→ EventEmitter (1)
+       │                                │
+       │                                │ bootstrapped by
+       │                                ▼
+       │                          SyncRuntime (1)
+       │                                │
+       │                                ├── starts → BackgroundSyncService (1)
+       │                                └── attaches → WebSocketClient (1) if authenticated
        │
        └── always ──→ OfflineQueue (1)
 ```

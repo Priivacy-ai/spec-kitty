@@ -11,4 +11,8 @@ environment:
   platform: darwin
   platform_version: macOS-15.7.3-arm64-arm-64bit-Mach-O
 migrations:
-  applied: []
+  applied:
+  - id: 0.14.0_centralized_feature_detection
+    applied_at: '2026-02-06T10:54:05.184716'
+    result: skipped
+    notes: Not applicable

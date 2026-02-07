@@ -37,6 +37,8 @@ spec-kitty implement WP05 --base WP04
 
 **Goal**: Remove duplicate WPStatusChanged events from `implement.py` and `accept.py`.
 
+**Scope Note**: Post-MVP (nice-to-have cleanup once identity + auto-sync are stable).
+
 **Success Criteria**:
 - [ ] `spec-kitty implement WP01` emits exactly ONE WPStatusChanged event
 - [ ] `spec-kitty accept` emits exactly ONE WPStatusChanged event per WP
@@ -122,7 +124,7 @@ spec-kitty implement WP05 --base WP04
 - `src/specify_cli/cli/commands/implement.py` (modify, remove duplicates)
 
 **Notes**:
-- The correct emission point is typically at line ~1083 (after lane update commit)
+- Keep the emission in the final successful path (after lane update + commit)
 - Check if earlier emissions were for error cases - those might be ErrorLogged
 
 ---
@@ -180,17 +182,13 @@ spec-kitty implement WP05 --base WP04
            """implement command emits exactly one WPStatusChanged."""
            mock_emitter = MagicMock()
            
-           with patch("specify_cli.cli.commands.implement.get_emitter", return_value=mock_emitter):
+           with patch("specify_cli.sync.events.emit_wp_status_changed", return_value=None) as mock_emit:
                # Run implement command (may need CLI runner)
                # ...
                pass
            
            # Count emit_wp_status_changed calls
-           status_changed_calls = [
-               c for c in mock_emitter.method_calls
-               if "emit_wp_status_changed" in str(c)
-           ]
-           assert len(status_changed_calls) == 1, f"Expected 1, got {len(status_changed_calls)}"
+           assert mock_emit.call_count == 1, f"Expected 1, got {mock_emit.call_count}"
        
        def test_accept_emits_once_per_wp(self, temp_project_with_wps):
            """accept command emits exactly one WPStatusChanged per WP."""

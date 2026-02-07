@@ -38,6 +38,8 @@ spec-kitty implement WP06 --base WP05
 
 **Goal**: End-to-end tests validating the full identity-aware sync flow.
 
+**Scope Note**: Post-MVP (run after core identity + auto-sync are stable).
+
 **Success Criteria**:
 - [ ] Full test suite passes
 - [ ] All emitted events contain project_uuid
@@ -304,28 +306,16 @@ spec-kitty implement WP06 --base WP05
 **Steps**:
 1. Add test:
    ```python
-   def test_no_duplicate_emissions(self, temp_repo, mock_queue):
+   def test_no_duplicate_emissions(self, temp_repo):
        """Commands emit exactly one WPStatusChanged per transition."""
        os.chdir(temp_repo)
        
-       # Setup: create feature with WP
-       # (This may require more setup depending on CLI structure)
+       with patch("specify_cli.sync.events.emit_wp_status_changed", return_value=None) as mock_emit:
+           # Trigger implement via CLI runner (or direct command)
+           # ...
+           pass
        
-       # Mock emitter to count calls
-       emission_count = 0
-       original_emit = EventEmitter.emit_wp_status_changed
-       
-       def counting_emit(self, *args, **kwargs):
-           nonlocal emission_count
-           emission_count += 1
-           return original_emit(self, *args, **kwargs)
-       
-       with patch.object(EventEmitter, "emit_wp_status_changed", counting_emit):
-           # Trigger implement (or simulate)
-           emitter = EventEmitter(queue=mock_queue)
-           emitter.emit_wp_status_changed("WP01", "planned", "doing")
-       
-       assert emission_count == 1
+       assert mock_emit.call_count == 1
    ```
 
 **Files**:

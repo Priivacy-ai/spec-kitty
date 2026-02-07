@@ -38,6 +38,8 @@ No `--base` flag needed (can run in parallel with WP02).
 
 **Goal**: Add `get_team_slug()` method to AuthClient and store team_slug on login.
 
+**Scope Note**: Post-MVP (only required once SaaS exposes team_slug in auth/user endpoints).
+
 **Success Criteria**:
 - [ ] `AuthClient().get_team_slug()` returns team slug after login
 - [ ] Team slug stored in credentials file
@@ -79,8 +81,7 @@ No `--base` flag needed (can run in parallel with WP02).
        if not self.is_authenticated():
            return None
        
-       creds = self._load_credentials()
-       return creds.get("team_slug")
+       return self.credential_store.get_team_slug()
    ```
 
 **Files**:
@@ -97,7 +98,7 @@ No `--base` flag needed (can run in parallel with WP02).
 **Purpose**: Persist team_slug received from SaaS during OAuth flow.
 
 **Steps**:
-1. Find the login flow in `AuthClient` (likely `login()` or `authenticate()` method)
+1. Find the login flow in `AuthClient` (`obtain_tokens()` in 2.x)
 2. After successful authentication, store team_slug:
    ```python
    def login(self, ...) -> bool:
@@ -107,23 +108,29 @@ No `--base` flag needed (can run in parallel with WP02).
        team_slug = self._fetch_team_slug()  # API call to SaaS
        
        # Store in credentials
-       creds = self._load_credentials() or {}
-       creds["access_token"] = access_token
-       creds["refresh_token"] = refresh_token
-       creds["team_slug"] = team_slug  # NEW
-       self._save_credentials(creds)
+       self.credential_store.save(
+           access_token=access_token,
+           refresh_token=refresh_token,
+           access_expires_at=access_expires_at,
+           refresh_expires_at=refresh_expires_at,
+           username=username,
+           server_url=self.server_url,
+           team_slug=team_slug,  # NEW field (optional)
+       )
        
        return True
    ```
-3. If SaaS doesn't provide team_slug yet, set to `None` (graceful)
+3. Extend `CredentialStore.save()`/`load()` to persist `user.team_slug` and add
+   `get_team_slug()` helper for retrieval.
+4. If SaaS doesn't provide team_slug yet, set to `None` (graceful)
 
 **Files**:
 - `src/specify_cli/sync/auth.py` (modify, ~20 lines changed)
 
 **Notes**:
-- Team slug typically comes from `/api/user/me` or similar endpoint
+- Team slug typically comes from `/api/v1/me` or similar endpoint
 - If SaaS doesn't have this endpoint yet, store `None` (will be added later)
-- Credentials file is typically at `~/.spec-kitty/credentials.json`
+- Credentials are stored in TOML at `~/.spec-kitty/credentials`
 
 ---
 
@@ -167,7 +174,7 @@ No `--base` flag needed (can run in parallel with WP02).
    class TestAuthClientTeamSlug:
        def test_get_team_slug_authenticated(self, mock_credentials):
            """get_team_slug returns stored slug when authenticated."""
-           mock_credentials["team_slug"] = "my-team"
+           mock_credentials["user"]["team_slug"] = "my-team"
            client = AuthClient()
            assert client.get_team_slug() == "my-team"
        
@@ -180,7 +187,7 @@ No `--base` flag needed (can run in parallel with WP02).
        def test_get_team_slug_missing_from_creds(self, mock_credentials):
            """get_team_slug returns None when field missing from creds."""
            # Authenticated but no team_slug field
-           del mock_credentials["team_slug"]
+           del mock_credentials["user"]["team_slug"]
            client = AuthClient()
            assert client.get_team_slug() is None
    ```

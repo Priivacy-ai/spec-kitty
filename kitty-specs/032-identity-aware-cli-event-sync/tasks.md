@@ -6,9 +6,12 @@
 
 **Organization**: Fine-grained subtasks (`Txxx`) roll up into work packages (`WPxx`). Each work package is independently deliverable and testable.
 
+**MVP Scope (Minimum Deliverable)**: WP01 + WP02 + WP04 (identity in events + auto-start runtime).
+**Post-MVP / Nice-to-have**: WP03 (team slug), WP05 (duplicate emissions), WP06 (integration tests).
+
 ---
 
-## Work Package WP01: ProjectIdentity Module (Priority: P0) 🎯 Foundation
+## Work Package WP01: ProjectIdentity Module (Priority: P0, MVP) 🎯 Foundation
 
 **Goal**: Create the ProjectIdentity dataclass with generation, atomic persistence, and graceful backfill.
 **Independent Test**: `spec-kitty init` creates config.yaml with valid `project_uuid`, `project_slug`, and `node_id`.
@@ -24,7 +27,7 @@
 - [ ] T006 Write unit tests in `tests/sync/test_project_identity.py`
 
 ### Implementation Notes
-1. Use `uuid.uuid4()` for project_uuid and node_id generation
+1. Use `uuid.uuid4()` for `project_uuid`; use `sync.clock.generate_node_id()` for stable `node_id`
 2. Derive project_slug from git remote origin URL (if available) or directory name
 3. Atomic writes: write to `.kittify/config.yaml.tmp`, then `os.replace()` to final path
 4. Config schema: add `project:` section with `uuid`, `slug`, `node_id` keys
@@ -45,7 +48,7 @@
 
 ---
 
-## Work Package WP02: Emitter Identity Injection (Priority: P0)
+## Work Package WP02: Emitter Identity Injection (Priority: P0, MVP)
 
 **Goal**: Inject `project_uuid` and `project_slug` into every event envelope in `EventEmitter._emit()`.
 **Independent Test**: Emit an event via `emitter.emit_wp_status_changed()` and verify event dict contains `project_uuid`.
@@ -79,7 +82,7 @@
 
 ---
 
-## Work Package WP03: AuthClient Team Slug (Priority: P1)
+## Work Package WP03: AuthClient Team Slug (Priority: P2, Post-MVP)
 
 **Goal**: Add `get_team_slug()` method to AuthClient and store team_slug on login.
 **Independent Test**: After `spec-kitty auth login`, `AuthClient().get_team_slug()` returns the team slug.
@@ -112,7 +115,7 @@
 
 ---
 
-## Work Package WP04: SyncRuntime Lazy Singleton (Priority: P1)
+## Work Package WP04: SyncRuntime Lazy Singleton (Priority: P0, MVP)
 
 **Goal**: Create SyncRuntime with lazy startup on first `get_emitter()` call.
 **Independent Test**: Call `get_emitter()` twice; verify BackgroundSyncService starts only once.
@@ -130,9 +133,9 @@
 ### Implementation Notes
 1. Module-level `_runtime: SyncRuntime | None = None`
 2. `get_runtime()` creates and starts on first call (idempotent)
-3. Check `sync.auto_start` config; skip if explicitly False
+3. Check `sync.auto_start` in `.kittify/config.yaml`; default True if missing/invalid
 4. Use `atexit.register()` to call `runtime.stop()` on process exit
-5. Wire into `get_emitter()`: call `get_runtime()` before returning emitter
+5. Wire into `get_emitter()`: call `get_runtime()`, create emitter, then `runtime.attach_emitter(emitter)`
 
 ### Parallel Opportunities
 - T021 tests can be developed alongside implementation
@@ -148,7 +151,7 @@
 
 ---
 
-## Work Package WP05: Fix Duplicate Emissions (Priority: P2)
+## Work Package WP05: Fix Duplicate Emissions (Priority: P2, Post-MVP)
 
 **Goal**: Remove duplicate WPStatusChanged events from `implement.py` and `accept.py`.
 **Independent Test**: Run `spec-kitty implement WP01`; verify exactly ONE WPStatusChanged event emitted.
@@ -183,7 +186,7 @@
 
 ---
 
-## Work Package WP06: Integration Tests (Priority: P2)
+## Work Package WP06: Integration Tests (Priority: P2, Post-MVP)
 
 **Goal**: End-to-end tests validating the full identity-aware sync flow.
 **Independent Test**: Full test suite passes with identity in all events.
