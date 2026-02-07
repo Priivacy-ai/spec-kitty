@@ -9,3 +9,7 @@ agents:
     strategy: random
     preferred_implementer:
     preferred_reviewer:
+project:
+  uuid: 8a4a7da6-a97c-4bb4-893a-b31664abfee4
+  slug: spec-kitty
+  node_id: d036a097a835
