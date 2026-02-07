@@ -564,6 +564,18 @@ def implement(
         lines.append("╚" + "=" * 78 + "╝")
         lines.append("")
 
+        # Inject worktree topology context for stacked branches
+        try:
+            from specify_cli.core.worktree_topology import (
+                materialize_worktree_topology, render_topology_json,
+            )
+            topology = materialize_worktree_topology(repo_root, feature_slug)
+            if topology.has_stacking:
+                lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
+                lines.append("")
+        except Exception:
+            pass  # Non-critical — topology is informational only
+
         # Next steps
         lines.append("=" * 80)
         lines.append("WHEN YOU'RE DONE:")
@@ -1043,6 +1055,18 @@ def review(
         lines.append("║       Git commits from other WPs are other agents - ignore them.        ║")
         lines.append("╚" + "=" * 78 + "╝")
         lines.append("")
+
+        # Inject worktree topology context for stacked branches
+        try:
+            from specify_cli.core.worktree_topology import (
+                materialize_worktree_topology, render_topology_json,
+            )
+            topology = materialize_worktree_topology(repo_root, feature_slug)
+            if topology.has_stacking:
+                lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
+                lines.append("")
+        except Exception:
+            pass  # Non-critical — topology is informational only
 
         # Git review context — tells reviewer exactly what to diff against
         if review_ctx["base_branch"] != "unknown":

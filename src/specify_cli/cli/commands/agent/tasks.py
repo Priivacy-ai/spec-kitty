@@ -466,13 +466,19 @@ def _validate_ready_for_review(
                 guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
                 return False, guidance
 
-            # Check if worktree branch is behind target branch
-            # Get target branch from feature metadata (respects two-branch strategy)
+            # Check if worktree branch is behind its base branch
+            # For stacked WPs (WP03 based on WP01), check against WP01's branch, not main
             from specify_cli.core.feature_detection import get_feature_target_branch
+            from specify_cli.workspace_context import load_context
             target_branch = get_feature_target_branch(repo_root, feature_slug)
 
+            # Resolve actual base: workspace context tracks the real base branch
+            workspace_name = f"{feature_slug}-{wp_id}"
+            ws_context = load_context(main_repo_root, workspace_name)
+            check_branch = ws_context.base_branch if ws_context else target_branch
+
             result = subprocess.run(
-                ["git", "rev-list", "--count", f"HEAD..{target_branch}"],
+                ["git", "rev-list", "--count", f"HEAD..{check_branch}"],
                 cwd=worktree_path,
                 capture_output=True,
                 text=True,
@@ -486,12 +492,12 @@ def _validate_ready_for_review(
                     behind_count = 0
 
             if behind_count > 0:
-                guidance.append(f"{target_branch} branch has new commits not in this worktree!")
+                guidance.append(f"{check_branch} branch has new commits not in this worktree!")
                 guidance.append("")
-                guidance.append(f"Your branch is behind {target_branch} by {behind_count} commit(s).")
+                guidance.append(f"Your branch is behind {check_branch} by {behind_count} commit(s).")
                 guidance.append("Rebase before review:")
                 guidance.append(f"  cd {worktree_path}")
-                guidance.append(f"  git rebase {target_branch}")
+                guidance.append(f"  git rebase {check_branch}")
                 guidance.append("")
                 guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
                 return False, guidance
@@ -540,9 +546,9 @@ def _validate_ready_for_review(
                 guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
                 return False, guidance
 
-            # Check if branch has commits beyond base (target branch)
+            # Check if branch has commits beyond base (use actual base, not target)
             result = subprocess.run(
-                ["git", "rev-list", "--count", f"{target_branch}..HEAD"],
+                ["git", "rev-list", "--count", f"{check_branch}..HEAD"],
                 cwd=worktree_path,
                 capture_output=True,
                 text=True,
@@ -558,7 +564,7 @@ def _validate_ready_for_review(
             if commit_count == 0:
                 guidance.append("No implementation commits on WP branch!")
                 guidance.append("")
-                guidance.append(f"The worktree exists but has no commits beyond {target_branch}.")
+                guidance.append(f"The worktree exists but has no commits beyond {check_branch}.")
                 guidance.append("Either:")
                 guidance.append("  1. Commit your implementation work to the worktree")
                 guidance.append("  2. Or verify work is complete (use --force if nothing to commit)")
