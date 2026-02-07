@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-02-07
+
+### 🐛 Fixed
+
+- **False "behind main" errors for stacked worktree branches**: `move-task --to for_review` now checks against the WP's actual base branch (from workspace context) instead of always checking against the target branch. Stacked WPs (e.g., WP03 based on WP01) no longer produce false "behind main by N commits" errors.
+
+### ✨ Added
+
+- **Worktree topology context for stacked branches**: New `worktree_topology` module auto-detects when WPs are stacked (branched from other WPs) and injects structured JSON topology into implement and review prompts. Agents now understand where their branch fits in the dependency stack. Only activates when stacking is detected — flat features get no extra noise.
+
 ## [0.14.1] - 2026-02-04
 
 ### 🐛 Fixed
