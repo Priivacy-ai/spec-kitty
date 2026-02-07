@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: SyncRuntime Lazy Singleton
-lane: "for_review"
+lane: "doing"
 dependencies: [WP02]
 base_branch: 032-identity-aware-cli-event-sync-WP02
 base_commit: bd4f06a514bfcaa0d68b6ea3b4e24e0371ea2945
@@ -15,8 +15,8 @@ subtasks:
 - T021
 phase: Phase 2 - Runtime Bootstrap
 assignee: ''
-agent: "claude-opus"
-shell_pid: "42083"
+agent: "codex"
+shell_pid: "25757"
 review_status: ''
 reviewed_by: ''
 history:
@@ -370,3 +370,4 @@ pytest tests/sync/test_runtime.py -v
 - 2026-02-07T00:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-07T07:43:35Z – claude-opus – shell_pid=42083 – lane=doing – Assigned agent via workflow command
 - 2026-02-07T07:48:30Z – claude-opus – shell_pid=42083 – lane=for_review – Ready for review: SyncRuntime lazy singleton with background service and optional WebSocket. All 20 tests pass.
+- 2026-02-07T08:09:44Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
