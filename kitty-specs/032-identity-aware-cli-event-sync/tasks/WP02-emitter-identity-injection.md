@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP02"
+work_package_id: WP02
+title: Emitter Identity Injection
+lane: "doing"
+dependencies: [WP01]
+base_branch: 032-identity-aware-cli-event-sync-WP01
+base_commit: 4bbad8021d63761ee7d8deaeaf13542c9197e839
+created_at: '2026-02-07T07:29:43.278171+00:00'
 subtasks:
-  - "T007"
-  - "T008"
-  - "T009"
-  - "T010"
-  - "T011"
-title: "Emitter Identity Injection"
-phase: "Phase 1 - Core Implementation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01"]
+- T007
+- T008
+- T009
+- T010
+- T011
+phase: Phase 1 - Core Implementation
+assignee: ''
+agent: ''
+shell_pid: "37166"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Emitter Identity Injection
