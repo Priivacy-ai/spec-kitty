@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP06"
+work_package_id: WP06
+title: Integration Tests
+lane: "doing"
+dependencies: [WP01, WP02, WP04, WP05]
+base_branch: 032-identity-aware-cli-event-sync-WP05
+base_commit: d33c73c5a1e39aeb7f97aefec13efba66c6287fe
+created_at: '2026-02-07T08:27:33.843606+00:00'
 subtasks:
-  - "T027"
-  - "T028"
-  - "T029"
-  - "T030"
-  - "T031"
-  - "T032"
-title: "Integration Tests"
-phase: "Phase 4 - Validation"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01", "WP02", "WP04", "WP05"]
+- T027
+- T028
+- T029
+- T030
+- T031
+- T032
+phase: Phase 4 - Validation
+assignee: ''
+agent: ''
+shell_pid: "51522"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-07T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-07T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Integration Tests
