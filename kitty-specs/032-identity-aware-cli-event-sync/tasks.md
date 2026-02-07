@@ -123,12 +123,12 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T016 Create SyncRuntime dataclass in `sync/runtime.py`
-- [ ] T017 Implement lazy singleton `get_runtime()` function
-- [ ] T018 Start BackgroundSyncService unconditionally in `SyncRuntime.start()`
-- [ ] T019 Connect WebSocketClient only if authenticated
-- [ ] T020 Add atexit handler for graceful shutdown
-- [ ] T021 Write tests in `tests/sync/test_runtime.py`
+- [x] T016 Create SyncRuntime dataclass in `sync/runtime.py`
+- [x] T017 Implement lazy singleton `get_runtime()` function
+- [x] T018 Start BackgroundSyncService unconditionally in `SyncRuntime.start()`
+- [x] T019 Connect WebSocketClient only if authenticated
+- [x] T020 Add atexit handler for graceful shutdown
+- [x] T021 Write tests in `tests/sync/test_runtime.py`
 
 ### Implementation Notes
 1. Module-level `_runtime: SyncRuntime | None = None`
