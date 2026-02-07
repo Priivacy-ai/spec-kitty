@@ -19,7 +19,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T001 Create `GitMetadata` dataclass in `src/specify_cli/sync/git_metadata.py`
+- [x] T001 Create `GitMetadata` dataclass in `src/specify_cli/sync/git_metadata.py`
 - [ ] T002 Create `GitMetadataResolver` class with constructor (`repo_root`, `ttl`, `repo_slug_override`)
 - [ ] T003 Implement `_resolve_branch_and_sha()` — subprocess calls to `git rev-parse`
 - [ ] T004 Implement `resolve()` with 2s TTL cache via `time.monotonic()`
