@@ -15,7 +15,7 @@ subtasks:
 - T032
 phase: Phase 4 - Validation
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "51522"
 review_status: ''
 reviewed_by: ''
@@ -364,3 +364,4 @@ mypy tests/integration/test_sync_e2e.py
 ## Activity Log
 
 - 2026-02-07T00:00:00Z – system – lane=planned – Prompt created.
+- 2026-02-07T08:27:34Z – claude-opus – shell_pid=51522 – lane=doing – Assigned agent via workflow command
