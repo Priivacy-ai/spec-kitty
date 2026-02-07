@@ -22,8 +22,27 @@ from .queue import OfflineQueue
 if TYPE_CHECKING:
     from .auth import AuthClient
     from .client import WebSocketClient
+    from .project_identity import ProjectIdentity
 
 _console = Console(stderr=True)
+
+
+def _get_project_identity() -> "ProjectIdentity":
+    """Lazily load and resolve project identity.
+
+    Uses lazy import to prevent circular dependency issues.
+    Returns empty ProjectIdentity in non-project contexts.
+    """
+    from .project_identity import ensure_identity, ProjectIdentity
+    from specify_cli.tasks_support import find_repo_root, TaskCliError
+
+    try:
+        repo_root = find_repo_root()
+    except TaskCliError:
+        # Non-project context; return empty identity to trigger queue-only
+        return ProjectIdentity()
+
+    return ensure_identity(repo_root)
 
 # Load the contract schema once for payload-level validation
 _SCHEMA: dict | None = None
@@ -194,6 +213,16 @@ class EventEmitter:
     queue: OfflineQueue = field(default_factory=OfflineQueue)
     _auth: AuthClient | None = field(default=None, repr=False)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
+    _identity: "ProjectIdentity | None" = field(default=None, repr=False)
+
+    def _get_identity(self) -> "ProjectIdentity":
+        """Get cached project identity, lazily loading on first access.
+
+        Identity is resolved once per emitter lifetime to avoid repeated I/O.
+        """
+        if self._identity is None:
+            self._identity = _get_project_identity()
+        return self._identity
 
     @property
     def auth(self) -> AuthClient:
@@ -431,10 +460,11 @@ class EventEmitter:
                 event_type, clock_value,
             )
 
-            # Resolve team_slug from auth
+            # Resolve identity and team_slug
+            identity = self._get_identity()
             team_slug = self._get_team_slug()
 
-            # Build event dict
+            # Build event dict with identity fields
             event: dict[str, Any] = {
                 "event_id": _generate_ulid(),
                 "event_type": event_type,
@@ -446,11 +476,21 @@ class EventEmitter:
                 "causation_id": causation_id,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "team_slug": team_slug,
+                "project_uuid": str(identity.project_uuid) if identity.project_uuid else None,
+                "project_slug": identity.project_slug,
             }
 
             # Validate event structure and payload
             if not self._validate_event(event):
                 return None
+
+            # Check project_uuid: if missing, queue only (no WebSocket send)
+            if not event.get("project_uuid"):
+                _console.print(
+                    "[yellow]Warning: Event missing project_uuid; queued locally only[/yellow]"
+                )
+                self.queue.queue_event(event)
+                return event
 
             # Route: WebSocket if connected and authenticated, else queue
             self._route_event(event)
