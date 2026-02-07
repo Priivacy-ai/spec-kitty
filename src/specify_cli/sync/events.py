@@ -26,11 +26,28 @@ def get_emitter() -> EventEmitter:
 
     Thread-safe via double-checked locking pattern.
     Lazily initializes on first access.
+
+    Also ensures project identity exists before creating the emitter,
+    logging a warning (but not failing) if identity can't be resolved.
     """
     global _emitter
     if _emitter is None:
         with _lock:
             if _emitter is None:
+                # Ensure identity exists before creating emitter
+                import logging
+                logger = logging.getLogger(__name__)
+                try:
+                    from .project_identity import ensure_identity
+                    from specify_cli.tasks_support import find_repo_root, TaskCliError
+                    try:
+                        repo_root = find_repo_root()
+                        ensure_identity(repo_root)
+                    except TaskCliError:
+                        logger.debug("Non-project context; identity will be empty")
+                except Exception as e:
+                    logger.warning(f"Could not ensure identity: {e}")
+
                 from .emitter import EventEmitter
                 _emitter = EventEmitter()
     return _emitter
