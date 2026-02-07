@@ -41,6 +41,9 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "BackgroundSyncService": (".background", "BackgroundSyncService"),
     "get_sync_service": (".background", "get_sync_service"),
     "reset_sync_service": (".background", "reset_sync_service"),
+    "SyncRuntime": (".runtime", "SyncRuntime"),
+    "get_runtime": (".runtime", "get_runtime"),
+    "reset_runtime": (".runtime", "reset_runtime"),
 }
 
 
@@ -79,4 +82,7 @@ __all__ = [
     "BackgroundSyncService",
     "get_sync_service",
     "reset_sync_service",
+    "SyncRuntime",
+    "get_runtime",
+    "reset_runtime",
 ]

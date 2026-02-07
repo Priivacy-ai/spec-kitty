@@ -29,11 +29,18 @@ def get_emitter() -> EventEmitter:
 
     Also ensures project identity exists before creating the emitter,
     logging a warning (but not failing) if identity can't be resolved.
+
+    Starting with WP04: Triggers SyncRuntime startup on first access,
+    which starts BackgroundSyncService and optionally WebSocket connection.
     """
     global _emitter
     if _emitter is None:
         with _lock:
             if _emitter is None:
+                # Start runtime before creating emitter (lazy singleton)
+                from .runtime import get_runtime
+                runtime = get_runtime()  # Auto-starts BackgroundSyncService + optional WS
+
                 # Ensure identity exists before creating emitter
                 import logging
                 logger = logging.getLogger(__name__)
@@ -50,6 +57,9 @@ def get_emitter() -> EventEmitter:
 
                 from .emitter import EventEmitter
                 _emitter = EventEmitter()
+
+                # Wire emitter to runtime for WebSocket injection
+                runtime.attach_emitter(_emitter)
     return _emitter
 
 
