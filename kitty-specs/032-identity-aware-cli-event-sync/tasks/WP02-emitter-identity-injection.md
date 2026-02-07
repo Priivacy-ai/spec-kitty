@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Emitter Identity Injection
-lane: "for_review"
+lane: "doing"
 dependencies: [WP01]
 base_branch: 032-identity-aware-cli-event-sync-WP01
 base_commit: 4bbad8021d63761ee7d8deaeaf13542c9197e839
@@ -14,8 +14,8 @@ subtasks:
 - T011
 phase: Phase 1 - Core Implementation
 assignee: ''
-agent: "claude-opus"
-shell_pid: "37166"
+agent: "codex"
+shell_pid: "25757"
 review_status: ''
 reviewed_by: ''
 history:
@@ -286,3 +286,4 @@ pytest tests/sync/test_event_emission.py -v
 - 2026-02-07T00:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-07T07:29:43Z – claude-opus – shell_pid=37166 – lane=doing – Assigned agent via workflow command
 - 2026-02-07T07:34:39Z – claude-opus – shell_pid=37166 – lane=for_review – Ready for review: Added identity injection in _emit(), queue-only for missing identity, all tests pass
+- 2026-02-07T07:35:11Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
