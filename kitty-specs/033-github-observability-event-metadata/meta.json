@@ -1,0 +1,10 @@
+{
+  "feature_number": "033",
+  "slug": "033-github-observability-event-metadata",
+  "friendly_name": "GitHub Observability Event Metadata",
+  "mission": "software-dev",
+  "source_description": "[TEAM: CLI | REPO: /Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty | BRANCH: 2.x]\n\nImplement CLI-side support needed for GitHub observability (not automation).\n\nScope:\n1. Ensure emitted sync events consistently include correlation metadata useful for SaaS GitHub linkage:\n   - project_uuid\n   - project_slug\n   - git branch\n   - head commit SHA\n   - repo slug (owner/repo) when derivable\n2. Normalize metadata placement in event envelope so SaaS can reliably correlate events.\n3. Add/adjust tests for event emission metadata on key commands and offline replay.\n4. Update docs for emitted event envelope and correlation fields.\n\nNon-goals:\n- No GitHub API calls from CLI.\n- No workflow automation logic.\n- No connector UI/config changes.\n\nAcceptance:\n- Event metadata is stable and tested.\n- Existing sync behavior remains backward compatible.\n- No regressions in auth/sync/offline replay flows.",
+  "created_at": "2026-02-07T00:00:00Z",
+  "target_branch": "2.x",
+  "vcs": "git"
+}
