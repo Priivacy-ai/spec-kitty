@@ -194,12 +194,12 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T027 Create `tests/integration/test_sync_e2e.py` with fixtures
-- [ ] T028 Test: init -> implement -> event contains project_uuid
-- [ ] T029 Test: unauthenticated graceful degradation (queue only)
-- [ ] T030 Test: config backfill on existing project without identity
-- [ ] T031 Test: read-only repo fallback (in-memory identity)
-- [ ] T032 Test: single emission per command (no duplicates)
+- [x] T027 Create `tests/integration/test_sync_e2e.py` with fixtures
+- [x] T028 Test: init -> implement -> event contains project_uuid
+- [x] T029 Test: unauthenticated graceful degradation (queue only)
+- [x] T030 Test: config backfill on existing project without identity
+- [x] T031 Test: read-only repo fallback (in-memory identity)
+- [x] T032 Test: single emission per command (no duplicates)
 
 ### Implementation Notes
 1. Use pytest fixtures for temporary repos and config files
