@@ -22,7 +22,7 @@
 - [x] T001 Create `GitMetadata` dataclass in `src/specify_cli/sync/git_metadata.py`
 - [x] T002 Create `GitMetadataResolver` class with constructor (`repo_root`, `ttl`, `repo_slug_override`)
 - [x] T003 Implement `_resolve_branch_and_sha()` — subprocess calls to `git rev-parse`
-- [ ] T004 Implement `resolve()` with 2s TTL cache via `time.monotonic()`
+- [x] T004 Implement `resolve()` with 2s TTL cache via `time.monotonic()`
 - [ ] T005 Implement repo slug derivation (`_derive_repo_slug_from_remote`, `_validate_repo_slug`, `_resolve_repo_slug`)
 - [ ] T006 Add graceful degradation for all failure modes (no git, not a repo, detached HEAD, timeout)
 - [ ] T007 Extend `ProjectIdentity` with `repo_slug` field (`to_dict`, `from_dict`, persistence)
