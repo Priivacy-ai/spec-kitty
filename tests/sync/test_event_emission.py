@@ -45,6 +45,21 @@ class TestImplementEmitsWPStatusChanged:
         assert event["payload"]["new_status"] == "doing"
         assert event["payload"]["changed_by"] == "claude-opus"
 
+    def test_implement_event_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """implement: emitted event includes git metadata fields."""
+        event = emitter.emit_wp_status_changed(
+            wp_id="WP01",
+            previous_status="planned",
+            new_status="doing",
+        )
+        assert event is not None
+        assert "git_branch" in event
+        assert "head_commit_sha" in event
+        assert "repo_slug" in event
+        assert event["git_branch"] == "test-branch"
+        assert event["head_commit_sha"] == "a" * 40
+        assert event["repo_slug"] == "test-org/test-repo"
+
     def test_event_queued_for_sync(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """implement: event is queued in offline queue."""
         emitter.emit_wp_status_changed("WP01", "planned", "doing")
@@ -79,6 +94,18 @@ class TestAcceptEmitsWPStatusChanged:
         assert event is not None
         assert event["payload"]["previous_status"] == "for_review"
         assert event["payload"]["new_status"] == "done"
+
+    def test_accept_event_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """accept: emitted event includes git metadata fields."""
+        event = emitter.emit_wp_status_changed(
+            wp_id="WP01",
+            previous_status="for_review",
+            new_status="done",
+        )
+        assert event is not None
+        assert event["git_branch"] == "test-branch"
+        assert event["head_commit_sha"] == "a" * 40
+        assert event["repo_slug"] == "test-org/test-repo"
 
 
 class TestFinalizeTasksEmitsBatch:
@@ -117,6 +144,46 @@ class TestFinalizeTasksEmitsBatch:
         events = temp_queue.drain_queue()
         for ev in events:
             assert ev["causation_id"] == causation_id
+
+
+class TestGitMetadataInBatchEvents:
+    """SC-001 (Feature 033): git metadata present in batch event emissions."""
+
+    def test_feature_created_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """FeatureCreated event includes git metadata fields."""
+        event = emitter.emit_feature_created(
+            feature_slug="033-observability",
+            feature_number="033",
+            target_branch="main",
+            wp_count=4,
+        )
+        assert event is not None
+        assert event["git_branch"] == "test-branch"
+        assert event["head_commit_sha"] == "a" * 40
+        assert event["repo_slug"] == "test-org/test-repo"
+
+    def test_wp_created_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """WPCreated event includes git metadata fields."""
+        event = emitter.emit_wp_created(
+            wp_id="WP01",
+            title="Test WP",
+            feature_slug="033-observability",
+        )
+        assert event is not None
+        assert event["git_branch"] == "test-branch"
+        assert event["head_commit_sha"] == "a" * 40
+        assert event["repo_slug"] == "test-org/test-repo"
+
+    def test_error_logged_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """ErrorLogged event includes git metadata fields."""
+        event = emitter.emit_error_logged(
+            error_type="runtime",
+            error_message="Test error",
+        )
+        assert event is not None
+        assert event["git_branch"] == "test-branch"
+        assert event["head_commit_sha"] == "a" * 40
+        assert event["repo_slug"] == "test-org/test-repo"
 
 
 class TestOrchestrateEmitsWPAssigned:
