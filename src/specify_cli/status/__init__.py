@@ -1,6 +1,6 @@
 """Canonical status engine for spec-kitty work package lifecycle.
 
-Public API surface — all consumers import from this package.
+Public API surface -- all consumers import from this package.
 """
 
 from .models import (
@@ -12,6 +12,12 @@ from .models import (
     StatusSnapshot,
     ULID_PATTERN,
     VerificationResult,
+)
+from .phase import (
+    DEFAULT_PHASE,
+    VALID_PHASES,
+    is_01x_branch,
+    resolve_phase,
 )
 from .reducer import (
     SNAPSHOT_FILENAME,
@@ -39,6 +45,7 @@ from .transitions import (
 __all__ = [
     "ALLOWED_TRANSITIONS",
     "CANONICAL_LANES",
+    "DEFAULT_PHASE",
     "DoneEvidence",
     "EVENTS_FILENAME",
     "Lane",
@@ -51,8 +58,10 @@ __all__ = [
     "StoreError",
     "TERMINAL_LANES",
     "ULID_PATTERN",
+    "VALID_PHASES",
     "VerificationResult",
     "append_event",
+    "is_01x_branch",
     "is_terminal",
     "materialize",
     "materialize_to_json",
@@ -60,5 +69,6 @@ __all__ = [
     "read_events_raw",
     "reduce",
     "resolve_lane_alias",
+    "resolve_phase",
     "validate_transition",
 ]
