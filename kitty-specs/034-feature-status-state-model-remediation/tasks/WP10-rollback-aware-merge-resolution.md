@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Rollback-Aware Merge Resolution
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 base_branch: 2.x
@@ -408,3 +408,4 @@ When reviewing this WP, verify:
 ## Activity Log
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
+- 2026-02-08T15:00:39Z – unknown – shell_pid=50709 – lane=for_review – Moved to for_review
