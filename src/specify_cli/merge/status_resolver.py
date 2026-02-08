@@ -44,11 +44,17 @@ STATUS_FILE_PATTERNS = [
 ]
 
 LANE_PRIORITY = {
-    "done": 4,
-    "for_review": 3,
-    "doing": 2,
-    "planned": 1,
+    "canceled": 0,
+    "blocked": 1,
+    "planned": 2,
+    "claimed": 3,
+    "in_progress": 4,
+    "for_review": 5,
+    "done": 6,
 }
+
+# Alias mapping for backward compatibility
+_LANE_ALIASES = {"doing": "in_progress"}
 
 
 @dataclass
@@ -128,9 +134,13 @@ def resolve_lane_conflict(ours: str, theirs: str) -> str | None:
     if not our_lane or not their_lane:
         return None
 
-    our_priority = LANE_PRIORITY.get(our_lane, 0)
-    their_priority = LANE_PRIORITY.get(their_lane, 0)
-    chosen = their_lane if their_priority > our_priority else our_lane
+    # Resolve aliases before priority lookup
+    our_canonical = _LANE_ALIASES.get(our_lane, our_lane)
+    their_canonical = _LANE_ALIASES.get(their_lane, their_lane)
+
+    our_priority = LANE_PRIORITY.get(our_canonical, 0)
+    their_priority = LANE_PRIORITY.get(their_canonical, 0)
+    chosen = their_canonical if their_priority > our_priority else our_canonical
 
     return replace_lane_value(ours, chosen)
 
