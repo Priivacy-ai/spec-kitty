@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Legacy Bridge (Compatibility Views)
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP03
 base_branch: 2.x
@@ -483,3 +483,4 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 ## Activity Log
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
+- 2026-02-08T15:00:34Z – unknown – shell_pid=50563 – lane=for_review – Moved to for_review
