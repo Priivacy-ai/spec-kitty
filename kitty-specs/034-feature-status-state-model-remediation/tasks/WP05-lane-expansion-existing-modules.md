@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Lane Expansion in Existing Modules
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 base_branch: 2.x
@@ -368,3 +368,4 @@ Expand the existing 4-lane model (`planned`, `doing`, `for_review`, `done`) to 7
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
 - 2026-02-08T14:31:50Z – claude-wp05 – shell_pid=42857 – lane=doing – Assigned agent via workflow command
+- 2026-02-08T14:46:46Z – claude-wp05 – shell_pid=42857 – lane=for_review – Moved to for_review
