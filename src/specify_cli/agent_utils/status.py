@@ -106,10 +106,17 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
             console.print(f"[yellow]No work packages found in {tasks_dir}[/yellow]")
             return {"error": "No work packages found", "work_packages": []}
 
-        # Group by lane
-        by_lane = {"planned": [], "doing": [], "for_review": [], "done": []}
+        # Group by lane (resolve aliases)
+        by_lane = {
+            "planned": [], "claimed": [], "in_progress": [],
+            "for_review": [], "done": [], "blocked": [], "canceled": [],
+        }
         for wp in work_packages:
             lane = wp["lane"]
+            # Resolve "doing" alias to "in_progress"
+            if lane == "doing":
+                lane = "in_progress"
+                wp["lane"] = lane
             if lane in by_lane:
                 by_lane[lane].append(wp)
             else:
@@ -118,8 +125,10 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
         # Calculate metrics
         total = len(work_packages)
         done_count = len(by_lane["done"])
-        in_progress = len(by_lane["doing"]) + len(by_lane["for_review"])
+        in_progress = len(by_lane["claimed"]) + len(by_lane["in_progress"]) + len(by_lane["for_review"])
         planned_count = len(by_lane["planned"])
+        blocked_count = len(by_lane["blocked"])
+        canceled_count = len(by_lane["canceled"])
         progress_pct = round((done_count / total * 100), 1) if total > 0 else 0
 
         # Analyze parallelization opportunities
@@ -163,7 +172,7 @@ def _analyze_parallelization(work_packages: list, done_wp_ids: set) -> dict:
     ready_wps = []
     for wp in work_packages:
         # Skip if already done or in progress
-        if wp["lane"] in ["done", "doing", "for_review"]:
+        if wp["lane"] in ["done", "in_progress", "claimed", "for_review", "canceled"]:
             continue
 
         # Check if all dependencies are satisfied
@@ -245,36 +254,38 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
     console.print()
 
     # Kanban board table
+    kanban_lanes = [
+        ("planned", "Planned", "yellow"),
+        ("claimed", "Claimed", "bright_yellow"),
+        ("in_progress", "In Progress", "blue"),
+        ("for_review", "For Review", "cyan"),
+        ("done", "Done", "green"),
+        ("blocked", "Blocked", "red"),
+        ("canceled", "Canceled", "dim"),
+    ]
+
     table = Table(title="Kanban Board", show_header=True, header_style="bold magenta", border_style="dim")
-    table.add_column("📋 Planned", style="yellow", no_wrap=False, width=25)
-    table.add_column("🔄 Doing", style="blue", no_wrap=False, width=25)
-    table.add_column("👀 For Review", style="cyan", no_wrap=False, width=25)
-    table.add_column("✅ Done", style="green", no_wrap=False, width=25)
+    for _, label, style in kanban_lanes:
+        table.add_column(label, style=style, no_wrap=False, width=16)
 
     # Find max length for rows
-    max_rows = max(len(by_lane["planned"]), len(by_lane["doing"]),
-                   len(by_lane["for_review"]), len(by_lane["done"]))
+    max_rows = max(len(by_lane[lane_key]) for lane_key, _, _ in kanban_lanes) if work_packages else 0
 
     # Add rows
     for i in range(max_rows):
         row = []
-        for lane in ["planned", "doing", "for_review", "done"]:
-            if i < len(by_lane[lane]):
-                wp = by_lane[lane][i]
-                cell = f"{wp['id']}\n{wp['title'][:22]}..." if len(wp['title']) > 22 else f"{wp['id']}\n{wp['title']}"
+        for lane_key, _, _ in kanban_lanes:
+            if i < len(by_lane[lane_key]):
+                wp = by_lane[lane_key][i]
+                cell = f"{wp['id']}\n{wp['title'][:14]}..." if len(wp['title']) > 14 else f"{wp['id']}\n{wp['title']}"
                 row.append(cell)
             else:
                 row.append("")
         table.add_row(*row)
 
     # Add count row
-    table.add_row(
-        f"[bold]{len(by_lane['planned'])} WPs[/bold]",
-        f"[bold]{len(by_lane['doing'])} WPs[/bold]",
-        f"[bold]{len(by_lane['for_review'])} WPs[/bold]",
-        f"[bold]{len(by_lane['done'])} WPs[/bold]",
-        style="dim"
-    )
+    count_row = [f"[bold]{len(by_lane[lane_key])} WPs[/bold]" for lane_key, _, _ in kanban_lanes]
+    table.add_row(*count_row, style="dim")
 
     console.print(table)
     console.print()
@@ -286,9 +297,21 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
             console.print(f"  • {wp['id']} - {wp['title']}")
         console.print()
 
-    if by_lane["doing"]:
+    if by_lane["in_progress"]:
         console.print("[bold blue]🔄 In Progress:[/bold blue]")
-        for wp in by_lane["doing"]:
+        for wp in by_lane["in_progress"]:
+            console.print(f"  • {wp['id']} - {wp['title']}")
+        console.print()
+
+    if by_lane["claimed"]:
+        console.print("[bold bright_yellow]🤝 Claimed:[/bold bright_yellow]")
+        for wp in by_lane["claimed"]:
+            console.print(f"  • {wp['id']} - {wp['title']}")
+        console.print()
+
+    if by_lane["blocked"]:
+        console.print("[bold red]🚫 Blocked:[/bold red]")
+        for wp in by_lane["blocked"]:
             console.print(f"  • {wp['id']} - {wp['title']}")
         console.print()
 
@@ -343,7 +366,7 @@ def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
                     console.print(f"       [dim]Waiting for: {', '.join(deps_in_ready)}[/dim]")
 
         console.print()
-    elif by_lane["planned"] and not by_lane["doing"] and not by_lane["for_review"]:
+    elif by_lane["planned"] and not by_lane["in_progress"] and not by_lane["claimed"] and not by_lane["for_review"]:
         # All planned WPs are blocked
         console.print("[bold red]⚠️  All remaining WPs are blocked[/bold red]")
         console.print("  Check dependency status above\n")
