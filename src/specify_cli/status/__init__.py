@@ -41,6 +41,10 @@ from .transitions import (
     resolve_lane_alias,
     validate_transition,
 )
+from .emit import (
+    TransitionError,
+    emit_status_transition,
+)
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
@@ -57,10 +61,12 @@ __all__ = [
     "StatusSnapshot",
     "StoreError",
     "TERMINAL_LANES",
+    "TransitionError",
     "ULID_PATTERN",
     "VALID_PHASES",
     "VerificationResult",
     "append_event",
+    "emit_status_transition",
     "is_01x_branch",
     "is_terminal",
     "materialize",
