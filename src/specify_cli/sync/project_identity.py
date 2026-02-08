@@ -35,19 +35,26 @@ class ProjectIdentity:
         project_uuid: UUID4 identifier, unique per project
         project_slug: Human-readable slug derived from repo name
         node_id: Stable machine identifier (12-char hex)
+        repo_slug: Optional owner/repo override for git metadata
     """
 
     project_uuid: UUID | None = None
     project_slug: str | None = None
     node_id: str | None = None
+    repo_slug: str | None = None
 
     @property
     def is_complete(self) -> bool:
-        """Check if all identity fields are populated."""
+        """Check if all identity fields are populated.
+
+        Note: repo_slug is optional and not required for completeness.
+        """
         return all([self.project_uuid, self.project_slug, self.node_id])
 
     def with_defaults(self, repo_root: Path) -> ProjectIdentity:
         """Return new instance with missing fields filled with generated values.
+
+        Note: repo_slug is a user override, not auto-generated.
 
         Args:
             repo_root: Path to repository root for slug derivation
@@ -59,26 +66,31 @@ class ProjectIdentity:
             project_uuid=self.project_uuid or generate_project_uuid(),
             project_slug=self.project_slug or derive_project_slug(repo_root),
             node_id=self.node_id or generate_node_id(),
+            repo_slug=self.repo_slug,
         )
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for YAML persistence.
 
         Returns:
-            Dictionary with 'uuid', 'slug', and 'node_id' keys
+            Dictionary with 'uuid', 'slug', and 'node_id' keys.
+            Includes 'repo_slug' only if not None.
         """
-        return {
+        d: dict[str, Any] = {
             "uuid": str(self.project_uuid) if self.project_uuid else None,
             "slug": self.project_slug,
             "node_id": self.node_id,
         }
+        if self.repo_slug is not None:
+            d["repo_slug"] = self.repo_slug
+        return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ProjectIdentity:
         """Deserialize from dictionary.
 
         Args:
-            data: Dictionary with optional 'uuid', 'slug', 'node_id' keys
+            data: Dictionary with optional 'uuid', 'slug', 'node_id', 'repo_slug' keys
 
         Returns:
             ProjectIdentity instance
@@ -88,6 +100,7 @@ class ProjectIdentity:
             project_uuid=UUID(uuid_str) if uuid_str else None,
             project_slug=data.get("slug"),
             node_id=data.get("node_id"),
+            repo_slug=data.get("repo_slug"),
         )
 
 
