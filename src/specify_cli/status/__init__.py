@@ -26,6 +26,12 @@ from .store import (
     read_events,
     read_events_raw,
 )
+from .migrate import (
+    FeatureMigrationResult,
+    MigrationResult,
+    WPMigrationDetail,
+    migrate_feature,
+)
 from .transitions import (
     ALLOWED_TRANSITIONS,
     CANONICAL_LANES,
@@ -41,8 +47,10 @@ __all__ = [
     "CANONICAL_LANES",
     "DoneEvidence",
     "EVENTS_FILENAME",
+    "FeatureMigrationResult",
     "Lane",
     "LANE_ALIASES",
+    "MigrationResult",
     "RepoEvidence",
     "ReviewApproval",
     "SNAPSHOT_FILENAME",
@@ -52,10 +60,12 @@ __all__ = [
     "TERMINAL_LANES",
     "ULID_PATTERN",
     "VerificationResult",
+    "WPMigrationDetail",
     "append_event",
     "is_terminal",
     "materialize",
     "materialize_to_json",
+    "migrate_feature",
     "read_events",
     "read_events_raw",
     "reduce",

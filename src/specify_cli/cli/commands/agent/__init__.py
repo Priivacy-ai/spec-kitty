@@ -3,7 +3,7 @@
 import typer
 from typing_extensions import Annotated
 
-from . import config, feature, tasks, context, release, workflow
+from . import config, feature, status, tasks, context, release, workflow
 
 app = typer.Typer(
     name="agent",
@@ -17,6 +17,7 @@ app.add_typer(feature.app, name="feature")
 app.add_typer(tasks.app, name="tasks")
 app.add_typer(context.app, name="context")
 app.add_typer(release.app, name="release")
+app.add_typer(status.app, name="status")
 app.add_typer(workflow.app, name="workflow")
 
 __all__ = ["app"]
