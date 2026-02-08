@@ -145,7 +145,7 @@ class TestValidateCommand:
         mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
-        result = runner.invoke(app, ["--feature", feature_slug])
+        result = runner.invoke(app, ["validate", "--feature", feature_slug])
         assert result.exit_code == 0
         assert "PASS" in result.output
 
@@ -182,7 +182,7 @@ class TestValidateCommand:
         mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
-        result = runner.invoke(app, ["--feature", feature_slug])
+        result = runner.invoke(app, ["validate", "--feature", feature_slug])
         assert result.exit_code == 1
         assert "FAIL" in result.output
 
@@ -219,7 +219,7 @@ class TestValidateCommand:
         mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
-        result = runner.invoke(app, ["--feature", feature_slug])
+        result = runner.invoke(app, ["validate", "--feature", feature_slug])
         assert result.exit_code == 1
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
@@ -263,7 +263,7 @@ class TestValidateCommand:
         mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
-        result = runner.invoke(app, ["--feature", feature_slug])
+        result = runner.invoke(app, ["validate", "--feature", feature_slug])
         # Phase 1: drift is warning, so should still pass
         assert result.exit_code == 0
         assert "Warning" in result.output or "PASS" in result.output
@@ -309,7 +309,7 @@ class TestValidateCommand:
         mock_detect.return_value = feature_slug
         mock_phase.return_value = (2, "built-in default")
 
-        result = runner.invoke(app, ["--feature", feature_slug])
+        result = runner.invoke(app, ["validate", "--feature", feature_slug])
         # Phase 2: drift is error, should fail
         assert result.exit_code == 1
         assert "FAIL" in result.output
@@ -348,7 +348,7 @@ class TestValidateCommand:
         mock_detect.return_value = feature_slug
         mock_phase.return_value = (2, "built-in default")
 
-        result = runner.invoke(app, ["--feature", feature_slug])
+        result = runner.invoke(app, ["validate", "--feature", feature_slug])
         assert result.exit_code == 1
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
@@ -385,7 +385,7 @@ class TestValidateCommand:
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(
-            app, ["--feature", feature_slug, "--json"]
+            app, ["validate", "--feature", feature_slug, "--json"]
         )
         assert result.exit_code == 0
 
@@ -433,7 +433,7 @@ class TestValidateCommand:
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(
-            app, ["--feature", feature_slug, "--json"]
+            app, ["validate", "--feature", feature_slug, "--json"]
         )
         assert result.exit_code == 1
 
@@ -468,7 +468,7 @@ class TestValidateCommand:
         mock_detect.return_value = feature_slug
         mock_phase.return_value = (1, "built-in default")
 
-        result = runner.invoke(app, ["--feature", feature_slug])
+        result = runner.invoke(app, ["validate", "--feature", feature_slug])
         assert result.exit_code == 0
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
@@ -498,7 +498,7 @@ class TestValidateCommand:
         mock_phase.return_value = (1, "built-in default")
 
         result = runner.invoke(
-            app, ["--feature", feature_slug, "--json"]
+            app, ["validate", "--feature", feature_slug, "--json"]
         )
         assert result.exit_code == 0
         data = json.loads(result.output)

@@ -400,7 +400,7 @@ class TestMigrateCLI:
         from specify_cli.cli.commands.agent.status import app as status_app
 
         runner = CliRunner()
-        result = runner.invoke(status_app, ["--feature", "200-cli-test", "--dry-run"])
+        result = runner.invoke(status_app, ["migrate", "--feature", "200-cli-test", "--dry-run"])
 
         assert result.exit_code == 0
         assert not (feature_dir / EVENTS_FILENAME).exists()
@@ -418,7 +418,7 @@ class TestMigrateCLI:
         from specify_cli.cli.commands.agent.status import app as status_app
 
         runner = CliRunner()
-        result = runner.invoke(status_app, ["--feature", "201-json-test", "--json"])
+        result = runner.invoke(status_app, ["migrate", "--feature", "201-json-test", "--json"])
 
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -435,7 +435,7 @@ class TestMigrateCLI:
         from specify_cli.cli.commands.agent.status import app as status_app
 
         runner = CliRunner()
-        result = runner.invoke(status_app, [])
+        result = runner.invoke(status_app, ["migrate"])
 
         assert result.exit_code == 1
 
@@ -448,7 +448,7 @@ class TestMigrateCLI:
         from specify_cli.cli.commands.agent.status import app as status_app
 
         runner = CliRunner()
-        result = runner.invoke(status_app, ["--feature", "foo", "--all"])
+        result = runner.invoke(status_app, ["migrate", "--feature", "foo", "--all"])
 
         assert result.exit_code == 1
 
@@ -466,7 +466,7 @@ class TestMigrateCLI:
         from specify_cli.cli.commands.agent.status import app as status_app
 
         runner = CliRunner()
-        result = runner.invoke(status_app, ["--all", "--json"])
+        result = runner.invoke(status_app, ["migrate", "--all", "--json"])
 
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -484,7 +484,7 @@ class TestMigrateCLI:
         from specify_cli.cli.commands.agent.status import app as status_app
 
         runner = CliRunner()
-        result = runner.invoke(status_app, ["--feature", "400-no-tasks"])
+        result = runner.invoke(status_app, ["migrate", "--feature", "400-no-tasks"])
 
         assert result.exit_code == 1
 
@@ -503,7 +503,7 @@ class TestMigrateCLI:
         runner = CliRunner()
         result = runner.invoke(
             status_app,
-            ["--feature", "500-actor", "--actor", "my-bot"],
+            ["migrate", "--feature", "500-actor", "--actor", "my-bot"],
         )
 
         assert result.exit_code == 0

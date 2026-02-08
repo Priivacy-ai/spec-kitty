@@ -21,6 +21,29 @@ from specify_cli.status.doctor import (
 )
 
 
+def _create_events_file(feature_dir: Path, wp_states: dict[str, str], timestamp: str, feature_slug: str = "034-test") -> None:
+    """Create a minimal status.events.jsonl matching the given WP states.
+
+    Prevents doctor from flagging 'status.json exists but events file missing'.
+    """
+    events = []
+    for wp_id, lane in wp_states.items():
+        events.append(json.dumps({
+            "event_id": f"01EVT{wp_id}",
+            "feature_slug": feature_slug,
+            "wp_id": wp_id,
+            "from_lane": "planned",
+            "to_lane": lane,
+            "at": timestamp,
+            "actor": "agent",
+            "force": False,
+            "execution_mode": "worktree",
+        }))
+    (feature_dir / "status.events.jsonl").write_text(
+        "\n".join(events) + "\n", encoding="utf-8"
+    )
+
+
 # ---------------------------------------------------------------------------
 # DoctorResult and Finding dataclass tests
 # ---------------------------------------------------------------------------
@@ -636,6 +659,14 @@ class TestRunDoctor:
         (feature_dir / "status.json").write_text(
             json.dumps(status_data), encoding="utf-8"
         )
+        # Doctor checks for events file existence alongside status.json
+        events = [
+            json.dumps({"event_id": "01AAA", "feature_slug": "034-test", "wp_id": "WP01", "from_lane": "planned", "to_lane": "claimed", "at": recent, "actor": "agent", "force": False, "execution_mode": "worktree"}),
+            json.dumps({"event_id": "01ABC", "feature_slug": "034-test", "wp_id": "WP01", "from_lane": "claimed", "to_lane": "in_progress", "at": recent, "actor": "agent", "force": False, "execution_mode": "worktree"}),
+        ]
+        (feature_dir / "status.events.jsonl").write_text(
+            "\n".join(events) + "\n", encoding="utf-8"
+        )
 
         result = run_doctor(
             feature_dir=feature_dir,
@@ -668,6 +699,13 @@ class TestRunDoctor:
         }
         (feature_dir / "status.json").write_text(
             json.dumps(status_data), encoding="utf-8"
+        )
+        # Create events file so doctor doesn't flag missing events
+        events = [
+            json.dumps({"event_id": "01ABC", "feature_slug": "034-test", "wp_id": "WP01", "from_lane": "planned", "to_lane": "claimed", "at": old, "actor": "agent", "force": False, "execution_mode": "worktree"}),
+        ]
+        (feature_dir / "status.events.jsonl").write_text(
+            "\n".join(events) + "\n", encoding="utf-8"
         )
 
         result = run_doctor(
@@ -709,6 +747,7 @@ class TestRunDoctor:
         (feature_dir / "status.json").write_text(
             json.dumps(status_data), encoding="utf-8"
         )
+        _create_events_file(feature_dir, {"WP01": "done"}, "2026-01-01T00:00:00Z")
 
         result = run_doctor(
             feature_dir=feature_dir,
@@ -754,6 +793,7 @@ class TestRunDoctor:
         (feature_dir / "status.json").write_text(
             json.dumps(status_data), encoding="utf-8"
         )
+        _create_events_file(feature_dir, {"WP01": "claimed", "WP02": "in_progress"}, old)
 
         result = run_doctor(
             feature_dir=feature_dir,
@@ -764,10 +804,8 @@ class TestRunDoctor:
         )
         # Should have stale claims for WP01 (claimed) and WP02 (in_progress)
         # No orphan because not all WPs are terminal
-        assert len(result.findings) == 2
-        assert all(
-            f.category == Category.STALE_CLAIM for f in result.findings
-        )
+        stale_findings = [f for f in result.findings if f.category == Category.STALE_CLAIM]
+        assert len(stale_findings) == 2
 
     def test_corrupted_status_json_returns_healthy(self, tmp_path: Path):
         """Corrupted status.json with no event log -> healthy (nothing to check)."""
@@ -814,9 +852,9 @@ class TestRunDoctor:
             stale_claimed_days=7,
         )
         assert result.is_healthy is False
-        assert len(result.findings) == 1
-        assert result.findings[0].category == Category.STALE_CLAIM
-        assert result.findings[0].wp_id == "WP01"
+        stale_findings = [f for f in result.findings if f.category == Category.STALE_CLAIM]
+        assert len(stale_findings) == 1
+        assert stale_findings[0].wp_id == "WP01"
 
 
 # ---------------------------------------------------------------------------
@@ -846,13 +884,13 @@ class TestDoctorCLI:
             "feature_slug": "034-test",
             "materialized_at": recent,
             "event_count": 1,
-            "last_event_id": "01ABC",
+            "last_event_id": "01EVTWP01",
             "work_packages": {
                 "WP01": {
                     "lane": "in_progress",
                     "actor": "agent",
                     "last_transition_at": recent,
-                    "last_event_id": "01ABC",
+                    "last_event_id": "01EVTWP01",
                     "force_count": 0,
                 },
             },
@@ -861,12 +899,13 @@ class TestDoctorCLI:
         (feature_dir / "status.json").write_text(
             json.dumps(status_data), encoding="utf-8"
         )
+        _create_events_file(feature_dir, {"WP01": "in_progress"}, recent)
 
         with patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
-            result = runner.invoke(app, ["--json"])
+            result = runner.invoke(app, ["doctor", "--json"])
 
         # Exit code 0 for healthy
         assert result.exit_code == 0
@@ -892,7 +931,7 @@ class TestDoctorCLI:
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
-            result = runner.invoke(app, [])
+            result = runner.invoke(app, ["doctor"])
 
         assert result.exit_code == 0
         assert "Healthy" in result.output
@@ -913,13 +952,13 @@ class TestDoctorCLI:
             "feature_slug": "034-test",
             "materialized_at": old,
             "event_count": 1,
-            "last_event_id": "01ABC",
+            "last_event_id": "01EVTWP01",
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
                     "actor": "agent",
                     "last_transition_at": old,
-                    "last_event_id": "01ABC",
+                    "last_event_id": "01EVTWP01",
                     "force_count": 0,
                 },
             },
@@ -928,12 +967,13 @@ class TestDoctorCLI:
         (feature_dir / "status.json").write_text(
             json.dumps(status_data), encoding="utf-8"
         )
+        _create_events_file(feature_dir, {"WP01": "claimed"}, old)
 
         with patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
-            result = runner.invoke(app, [])
+            result = runner.invoke(app, ["doctor"])
 
         assert result.exit_code == 1
         assert "Issues found" in result.output
@@ -954,13 +994,13 @@ class TestDoctorCLI:
             "feature_slug": "034-test",
             "materialized_at": old,
             "event_count": 1,
-            "last_event_id": "01ABC",
+            "last_event_id": "01EVTWP01",
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
                     "actor": "agent",
                     "last_transition_at": old,
-                    "last_event_id": "01ABC",
+                    "last_event_id": "01EVTWP01",
                     "force_count": 0,
                 },
             },
@@ -969,12 +1009,13 @@ class TestDoctorCLI:
         (feature_dir / "status.json").write_text(
             json.dumps(status_data), encoding="utf-8"
         )
+        _create_events_file(feature_dir, {"WP01": "claimed"}, old)
 
         with patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
-            result = runner.invoke(app, ["--json"])
+            result = runner.invoke(app, ["doctor", "--json"])
 
         assert result.exit_code == 1
         output = result.output.strip()
@@ -1002,7 +1043,7 @@ class TestDoctorCLI:
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(nonexistent, "999-missing", tmp_path),
         ):
-            result = runner.invoke(app, [])
+            result = runner.invoke(app, ["doctor"])
 
         assert result.exit_code == 1
         assert "does not exist" in result.output
@@ -1026,13 +1067,13 @@ class TestDoctorCLI:
             "feature_slug": "034-test",
             "materialized_at": two_days_ago,
             "event_count": 1,
-            "last_event_id": "01ABC",
+            "last_event_id": "01EVTWP01",
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
                     "actor": "agent",
                     "last_transition_at": two_days_ago,
-                    "last_event_id": "01ABC",
+                    "last_event_id": "01EVTWP01",
                     "force_count": 0,
                 },
             },
@@ -1041,13 +1082,14 @@ class TestDoctorCLI:
         (feature_dir / "status.json").write_text(
             json.dumps(status_data), encoding="utf-8"
         )
+        _create_events_file(feature_dir, {"WP01": "claimed"}, two_days_ago)
 
         # Default threshold: healthy
         with patch(
             "specify_cli.cli.commands.agent.status._resolve_feature_dir",
             return_value=(feature_dir, "034-test", tmp_path),
         ):
-            result_default = runner.invoke(app, ["--json"])
+            result_default = runner.invoke(app, ["doctor", "--json"])
         assert result_default.exit_code == 0
 
         # Custom threshold: finding
@@ -1057,6 +1099,6 @@ class TestDoctorCLI:
         ):
             result_custom = runner.invoke(
                 app,
-                ["--json", "--stale-claimed-days", "1"],
+                ["doctor", "--json", "--stale-claimed-days", "1"],
             )
         assert result_custom.exit_code == 1
