@@ -1,0 +1,44 @@
+{
+  "event_count": 10,
+  "feature_slug": "099-parity-test",
+  "last_event_id": "01JFAA0000000000000000AAAA",
+  "summary": {
+    "blocked": 0,
+    "canceled": 1,
+    "claimed": 1,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 1,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-1",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01JFAA0000000000000000AAA6",
+      "last_transition_at": "2026-01-15T10:25:00+00:00"
+    },
+    "WP02": {
+      "actor": "admin",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01JFAA0000000000000000AAA9",
+      "last_transition_at": "2026-01-15T10:40:00+00:00"
+    },
+    "WP03": {
+      "actor": "agent-gamma",
+      "force_count": 0,
+      "lane": "claimed",
+      "last_event_id": "01JFAA0000000000000000AAA7",
+      "last_transition_at": "2026-01-15T10:30:00+00:00"
+    },
+    "WP04": {
+      "actor": "agent-gamma",
+      "force_count": 0,
+      "lane": "canceled",
+      "last_event_id": "01JFAA0000000000000000AAAA",
+      "last_transition_at": "2026-01-15T10:45:00+00:00"
+    }
+  }
+}
