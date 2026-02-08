@@ -35,10 +35,17 @@ from .transitions import (
     resolve_lane_alias,
     validate_transition,
 )
+from .phase import (
+    DEFAULT_PHASE,
+    VALID_PHASES,
+    is_01x_branch,
+    resolve_phase,
+)
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
     "CANONICAL_LANES",
+    "DEFAULT_PHASE",
     "DoneEvidence",
     "EVENTS_FILENAME",
     "Lane",
@@ -51,8 +58,10 @@ __all__ = [
     "StoreError",
     "TERMINAL_LANES",
     "ULID_PATTERN",
+    "VALID_PHASES",
     "VerificationResult",
     "append_event",
+    "is_01x_branch",
     "is_terminal",
     "materialize",
     "materialize_to_json",
@@ -60,5 +69,6 @@ __all__ = [
     "read_events_raw",
     "reduce",
     "resolve_lane_alias",
+    "resolve_phase",
     "validate_transition",
 ]
