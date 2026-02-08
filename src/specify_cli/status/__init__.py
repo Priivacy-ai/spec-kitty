@@ -22,10 +22,17 @@ from .transitions import (
     resolve_lane_alias,
     validate_transition,
 )
+from .phase import (
+    DEFAULT_PHASE,
+    VALID_PHASES,
+    is_01x_branch,
+    resolve_phase,
+)
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
     "CANONICAL_LANES",
+    "DEFAULT_PHASE",
     "DoneEvidence",
     "Lane",
     "LANE_ALIASES",
@@ -35,8 +42,11 @@ __all__ = [
     "StatusSnapshot",
     "TERMINAL_LANES",
     "ULID_PATTERN",
+    "VALID_PHASES",
     "VerificationResult",
+    "is_01x_branch",
     "is_terminal",
     "resolve_lane_alias",
+    "resolve_phase",
     "validate_transition",
 ]
