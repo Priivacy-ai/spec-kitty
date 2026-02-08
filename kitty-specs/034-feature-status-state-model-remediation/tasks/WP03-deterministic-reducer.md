@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Deterministic Reducer
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 base_branch: 2.x
@@ -491,3 +491,4 @@ Create the deterministic reducer -- the heart of the canonical status model. Giv
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
 - 2026-02-08T14:31:43Z – claude-wp03 – shell_pid=42678 – lane=doing – Assigned agent via workflow command
+- 2026-02-08T14:46:40Z – claude-wp03 – shell_pid=42678 – lane=for_review – Moved to for_review
