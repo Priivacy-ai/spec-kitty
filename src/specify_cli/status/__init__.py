@@ -13,6 +13,12 @@ from .models import (
     ULID_PATTERN,
     VerificationResult,
 )
+from .reducer import (
+    SNAPSHOT_FILENAME,
+    materialize,
+    materialize_to_json,
+    reduce,
+)
 from .store import (
     EVENTS_FILENAME,
     StoreError,
@@ -39,6 +45,7 @@ __all__ = [
     "LANE_ALIASES",
     "RepoEvidence",
     "ReviewApproval",
+    "SNAPSHOT_FILENAME",
     "StatusEvent",
     "StatusSnapshot",
     "StoreError",
@@ -47,8 +54,11 @@ __all__ = [
     "VerificationResult",
     "append_event",
     "is_terminal",
+    "materialize",
+    "materialize_to_json",
     "read_events",
     "read_events_raw",
+    "reduce",
     "resolve_lane_alias",
     "validate_transition",
 ]
