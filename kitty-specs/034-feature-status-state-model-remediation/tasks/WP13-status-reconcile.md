@@ -1,7 +1,7 @@
 ---
 work_package_id: WP13
 title: Status Reconcile
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP03
 base_branch: 2.x
@@ -525,3 +525,4 @@ Create `tests/specify_cli/status/test_reconcile.py`:
 ## Activity Log
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
+- 2026-02-08T15:00:44Z – unknown – shell_pid=50922 – lane=for_review – Moved to for_review
