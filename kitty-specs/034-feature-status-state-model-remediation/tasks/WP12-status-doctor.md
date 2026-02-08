@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP12"
-title: "Status Doctor"
-phase: "Phase 3 - Operational"
-lane: "planned"
-dependencies: ["WP03"]
+work_package_id: WP12
+title: Status Doctor
+lane: "doing"
+dependencies: [WP03]
+base_branch: 2.x
+base_commit: 0217a254f9762da0bb27cdfb856eccf5a1e0d8d4
+created_at: '2026-02-08T14:48:56.970646+00:00'
 subtasks:
-  - "T059"
-  - "T060"
-  - "T061"
-  - "T062"
-  - "T063"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T059
+- T060
+- T061
+- T062
+- T063
+phase: Phase 3 - Operational
+assignee: ''
+agent: ''
+shell_pid: "50840"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-08T14:07:18Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-08T14:07:18Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP12 -- Status Doctor
