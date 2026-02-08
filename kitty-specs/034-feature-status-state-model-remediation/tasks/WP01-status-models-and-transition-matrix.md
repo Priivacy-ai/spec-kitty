@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Status Models & Transition Matrix
-lane: "for_review"
+lane: "done"
 dependencies: []
 base_branch: 2.x
 base_commit: 7ba8f245c1d3bbcd59aa08059cc331c708fc1b79
@@ -477,3 +477,4 @@ Create the foundational data types and strict 7-lane transition matrix that ever
 - 2026-02-08T14:31:16Z – claude-opus-reviewer – shell_pid=42336 – lane=done – Review passed: All models match contracts, 16 transitions correct, guards enforced, alias resolution working, 101 tests pass. No issues found.
 - 2026-02-08T14:33:32Z – claude-opus-reviewer – shell_pid=43865 – lane=doing – Started review via workflow command
 - 2026-02-08T14:45:08Z – claude-opus-reviewer – shell_pid=43865 – lane=for_review – Moved to for_review
+- 2026-02-08T14:46:19Z – claude-opus-reviewer – shell_pid=43865 – lane=done – Moved to done
