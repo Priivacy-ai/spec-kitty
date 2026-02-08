@@ -41,6 +41,14 @@ from .transitions import (
     resolve_lane_alias,
     validate_transition,
 )
+from .validate import (
+    ValidationResult,
+    validate_derived_views,
+    validate_done_evidence,
+    validate_event_schema,
+    validate_materialization_drift,
+    validate_transition_legality,
+)
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
@@ -71,4 +79,10 @@ __all__ = [
     "resolve_lane_alias",
     "resolve_phase",
     "validate_transition",
+    "ValidationResult",
+    "validate_derived_views",
+    "validate_done_evidence",
+    "validate_event_schema",
+    "validate_materialization_drift",
+    "validate_transition_legality",
 ]
