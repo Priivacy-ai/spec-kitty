@@ -17,6 +17,15 @@ from specify_cli.cli.commands.agent.tasks import app
 runner = CliRunner()
 
 
+def _parse_json_output(stdout: str) -> dict:
+    """Extract and parse JSON from CLI output that may have prefix lines."""
+    for line in stdout.strip().split('\n'):
+        line = line.strip()
+        if line.startswith('{'):
+            return json.loads(line)
+    raise ValueError(f"No JSON found in output: {stdout!r}")
+
+
 @pytest.fixture
 def task_repo(tmp_path: Path) -> Path:
     """Create a temporary repository with task structure."""
@@ -97,10 +106,10 @@ class TestFullWorkflow:
             app, ["list-tasks", "--lane", "planned", "--feature", "001-test-feature", "--json"]
         )
         assert result1.exit_code == 0
-        output1 = json.loads(result1.stdout)
+        output1 = _parse_json_output(result1.stdout)
         assert output1["count"] == 1
 
-        # Move to doing
+        # Move to doing (resolves to in_progress in canonical model)
         result2 = runner.invoke(
             app, [
                 "move-task", "WP01", "--to", "doing",
@@ -110,19 +119,19 @@ class TestFullWorkflow:
                 "--json"
             ]
         )
-        assert result2.exit_code == 0
-        output2 = json.loads(result2.stdout)
+        assert result2.exit_code == 0, f"stdout: {result2.stdout}"
+        output2 = _parse_json_output(result2.stdout)
         assert output2["old_lane"] == "planned"
-        assert output2["new_lane"] == "doing"
+        assert output2["new_lane"] == "in_progress"
 
-        # Verify moved to doing
+        # Verify moved to in_progress
         result3 = runner.invoke(
-            app, ["list-tasks", "--lane", "doing", "--feature", "001-test-feature", "--json"]
+            app, ["list-tasks", "--lane", "in_progress", "--feature", "001-test-feature", "--json"]
         )
         assert result3.exit_code == 0
-        output3 = json.loads(result3.stdout)
+        output3 = _parse_json_output(result3.stdout)
         assert output3["count"] == 1
-        assert output3["tasks"][0]["lane"] == "doing"
+        assert output3["tasks"][0]["lane"] == "in_progress"
 
         # Move to for_review
         result4 = runner.invoke(
@@ -132,8 +141,8 @@ class TestFullWorkflow:
                 "--json"
             ]
         )
-        assert result4.exit_code == 0
-        output4 = json.loads(result4.stdout)
+        assert result4.exit_code == 0, f"stdout: {result4.stdout}"
+        output4 = _parse_json_output(result4.stdout)
         assert output4["new_lane"] == "for_review"
 
         # Move to done
@@ -144,8 +153,8 @@ class TestFullWorkflow:
                 "--json"
             ]
         )
-        assert result5.exit_code == 0
-        output5 = json.loads(result5.stdout)
+        assert result5.exit_code == 0, f"stdout: {result5.stdout}"
+        output5 = _parse_json_output(result5.stdout)
         assert output5["new_lane"] == "done"
 
         # Verify final state
@@ -153,7 +162,7 @@ class TestFullWorkflow:
             app, ["list-tasks", "--lane", "done", "--feature", "001-test-feature", "--json"]
         )
         assert result6.exit_code == 0
-        output6 = json.loads(result6.stdout)
+        output6 = _parse_json_output(result6.stdout)
         assert output6["count"] == 1
 
     def test_workflow_with_history_tracking(self, task_repo: Path, monkeypatch):
@@ -221,9 +230,9 @@ class TestFullWorkflow:
             app, ["validate-workflow", "WP01", "--feature", "001-test-feature", "--json"]
         )
         assert result2.exit_code == 0
-        output2 = json.loads(result2.stdout)
+        output2 = _parse_json_output(result2.stdout)
         assert output2["valid"] is True
-        assert output2["lane"] == "doing"
+        assert output2["lane"] == "in_progress"
 
 
 class TestLocationIndependence:
@@ -413,7 +422,7 @@ lane: "planned"
         wp01 = next(t for t in output3["tasks"] if t["work_package_id"] == "WP01")
         wp02 = next(t for t in output3["tasks"] if t["work_package_id"] == "WP02")
 
-        assert wp01["lane"] == "doing"
+        assert wp01["lane"] == "in_progress"
         assert wp02["lane"] == "for_review"
 
 
@@ -459,7 +468,7 @@ class TestHumanOutputFormats:
         assert result.exit_code == 0
         assert "Moved WP01" in result.stdout
         assert "planned" in result.stdout
-        assert "doing" in result.stdout
+        assert "in_progress" in result.stdout
 
     def test_list_tasks_human_output(self, task_repo: Path, monkeypatch):
         """Should display readable task list."""
