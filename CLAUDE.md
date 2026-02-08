@@ -722,6 +722,105 @@ spec-kitty merge --feature 017-my-feature
 - `src/specify_cli/cli/commands/merge.py` - CLI command with --resume/--abort flags
 
 
+## Status Model Patterns (034+)
+
+The canonical status model replaces scattered frontmatter authority with an append-only event log per feature. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`.
+
+### Canonical Event Log Format
+
+Each line in `status.events.jsonl` is a JSON object with sorted keys:
+
+```json
+{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","feature_slug":"034-feature","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
+```
+
+### Key Functions
+
+| Function | Module | Purpose |
+|----------|--------|---------|
+| `emit_status_transition()` | `status.emit` | Single entry point for all state changes (validate -> persist -> materialize -> views -> SaaS) |
+| `reduce()` | `status.reducer` | Deterministic reducer: same events always produce same snapshot |
+| `append_event()` / `read_events()` | `status.store` | JSONL I/O with corruption detection |
+| `validate_transition()` | `status.transitions` | Check (from, to) against 16-pair matrix + guard conditions |
+| `resolve_phase()` | `status.phase` | Phase resolution: meta.json > config.yaml > default(1) |
+| `resolve_lane_alias()` | `status.transitions` | Resolve `doing` -> `in_progress` at input boundaries |
+
+### 7-Lane State Machine
+
+```
+planned -> claimed -> in_progress -> for_review -> done
+```
+
+Plus: `blocked` (reachable from planned/claimed/in_progress/for_review), `canceled` (reachable from all non-done lanes).
+
+Alias: `doing` -> `in_progress` (resolved at input boundaries, never persisted in events).
+
+Terminal lanes: `done`, `canceled` (force required to leave).
+
+### Phase Behavior
+
+| Phase | Write behavior | Read authority |
+|-------|---------------|----------------|
+| 0 (hardening) | No event log | Frontmatter only |
+| 1 (dual-write) | Events + frontmatter | Frontmatter (events accumulate) |
+| 2 (read-cutover) | Events + views regenerated | `status.json` is sole authority |
+
+Resolution precedence: meta.json > config.yaml > default (Phase 1).
+
+On 0.1x: phase capped at 2, reconcile `--apply` disabled.
+
+### Package Architecture
+
+```
+src/specify_cli/status/
+  __init__.py          # Public API exports
+  models.py            # Lane enum, StatusEvent, DoneEvidence, StatusSnapshot
+  transitions.py       # ALLOWED_TRANSITIONS (16 pairs), guards, alias resolution
+  reducer.py           # reduce(), materialize() -- deterministic event -> snapshot
+  store.py             # append_event(), read_events() -- JSONL I/O
+  phase.py             # resolve_phase() -- 3-tier config precedence
+  emit.py              # emit_status_transition() -- orchestration pipeline
+  legacy_bridge.py     # update_frontmatter_views() -- compatibility views
+  validate.py          # Schema, legality, drift validation
+  doctor.py            # Health checks (stale claims, orphans, drift)
+  reconcile.py         # Cross-repo drift detection and event generation
+  migrate.py           # Bootstrap event log from frontmatter state
+```
+
+### Common Operations
+
+```python
+# Emit a transition (the standard way)
+from specify_cli.status.emit import emit_status_transition
+event = emit_status_transition(
+    feature_dir=feature_dir, feature_slug="034-feature",
+    wp_id="WP01", to_lane="claimed", actor="claude",
+)
+
+# Materialize snapshot from event log
+from specify_cli.status.reducer import materialize
+snapshot = materialize(feature_dir)
+
+# Read events
+from specify_cli.status.store import read_events
+events = read_events(feature_dir)
+
+# Validate transitions
+from specify_cli.status.transitions import validate_transition
+ok, error = validate_transition("planned", "claimed", actor="claude")
+
+# Resolve phase
+from specify_cli.status.phase import resolve_phase
+phase, source = resolve_phase(repo_root, "034-feature")
+```
+
+### Documentation
+
+- Operator docs: [docs/status-model.md](docs/status-model.md)
+- Data model: [kitty-specs/034-feature-status-state-model-remediation/data-model.md](kitty-specs/034-feature-status-state-model-remediation/data-model.md)
+- Quickstart: [kitty-specs/034-feature-status-state-model-remediation/quickstart.md](kitty-specs/034-feature-status-state-model-remediation/quickstart.md)
+
+
 ## Agent Utilities for Work Package Status
 
 **Quick Status Check (Recommended for Agents)**
