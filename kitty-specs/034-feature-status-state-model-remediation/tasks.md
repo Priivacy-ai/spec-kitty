@@ -17,11 +17,11 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/status/__init__.py` with public API exports
-- [ ] T002 Create `src/specify_cli/status/models.py` — Lane enum, StatusEvent dataclass, DoneEvidence, ReviewApproval, RepoEvidence, VerificationResult, StatusSnapshot
-- [ ] T003 Create `src/specify_cli/status/transitions.py` — CANONICAL_LANES, LANE_ALIASES, ALLOWED_TRANSITIONS set, guard condition functions
-- [ ] T004 [P] Unit tests for models — schema validation, serialization, required field enforcement
-- [ ] T005 [P] Unit tests for transitions — all legal/illegal pairs, alias resolution, guard conditions, force override behavior
+- [x] T001 Create `src/specify_cli/status/__init__.py` with public API exports
+- [x] T002 Create `src/specify_cli/status/models.py` — Lane enum, StatusEvent dataclass, DoneEvidence, ReviewApproval, RepoEvidence, VerificationResult, StatusSnapshot
+- [x] T003 Create `src/specify_cli/status/transitions.py` — CANONICAL_LANES, LANE_ALIASES, ALLOWED_TRANSITIONS set, guard condition functions
+- [x] T004 [P] Unit tests for models — schema validation, serialization, required field enforcement
+- [x] T005 [P] Unit tests for transitions — all legal/illegal pairs, alias resolution, guard conditions, force override behavior
 
 ### Implementation Notes
 - Lane enum should use `StrEnum` for JSON serialization compatibility
