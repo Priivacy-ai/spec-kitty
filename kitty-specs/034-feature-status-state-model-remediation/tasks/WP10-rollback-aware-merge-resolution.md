@@ -1,9 +1,12 @@
 ---
 work_package_id: WP10
 title: Rollback-Aware Merge Resolution
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
+base_branch: 2.x
+base_commit: 7b0568bbf9fdff75ed719178c6c9251012b4d0c2
+created_at: '2026-02-08T14:48:44.131410+00:00'
 subtasks:
 - T048
 - T049
@@ -13,7 +16,7 @@ subtasks:
 phase: Phase 1 - Canonical Log
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "50709"
 review_status: ''
 reviewed_by: ''
 history:
