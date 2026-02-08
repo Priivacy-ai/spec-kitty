@@ -1,9 +1,12 @@
 ---
 work_package_id: WP16
 title: Backport to 0.1x & Parity Matrix
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
+base_branch: 2.x
+base_commit: a15c80388fc7a190603b5805406698505b777167
+created_at: '2026-02-08T15:35:06.391529+00:00'
 subtasks:
 - T081
 - T082
@@ -14,7 +17,7 @@ subtasks:
 phase: Phase 3 - Delivery
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "80759"
 review_status: ''
 reviewed_by: ''
 history:
