@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Event Store (JSONL I/O)
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 base_branch: 2.x
@@ -346,3 +346,4 @@ Create the append-only JSONL event store -- the persistence layer for canonical 
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
 - 2026-02-08T14:31:35Z – claude-wp02 – shell_pid=42565 – lane=doing – Assigned agent via workflow command
+- 2026-02-08T14:46:37Z – claude-wp02 – shell_pid=42565 – lane=for_review – Moved to for_review
