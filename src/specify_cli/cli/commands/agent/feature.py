@@ -394,6 +394,17 @@ spec-kitty agent tasks move-task WP01 --to doing
         # Commit spec.md to planning branch
         _commit_to_branch(spec_file, feature_slug_formatted, "spec", repo_root, planning_branch, json_output)
 
+        # Emit FeatureCreated event (non-blocking)
+        try:
+            emit_feature_created(
+                feature_slug=feature_slug_formatted,
+                feature_number=f"{feature_number:03d}",
+                target_branch=planning_branch,
+                wp_count=0,
+            )
+        except Exception:
+            pass  # Non-blocking, event emission failures are not fatal
+
         if json_output:
             print(json.dumps({
                 "result": "success",
@@ -1053,29 +1064,9 @@ def finalize_tasks(
                 console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(1)
 
-        # Emit FeatureCreated and WPCreated events (non-blocking)
+        # Emit WPCreated events (non-blocking)
+        # FeatureCreated is emitted earlier during create-feature
         causation_id = get_emitter().generate_causation_id()
-        if meta is not None:
-            feature_number = meta.get("feature_number")
-            target_branch = meta.get("target_branch")
-            meta_slug = meta.get("slug", feature_slug)
-            if feature_number and target_branch:
-                try:
-                    emit_feature_created(
-                        feature_slug=meta_slug,
-                        feature_number=feature_number,
-                        target_branch=target_branch,
-                        wp_count=len(work_packages),
-                        causation_id=causation_id,
-                    )
-                except Exception as exc:
-                    console.print(
-                        f"[yellow]Warning:[/yellow] FeatureCreated emission failed: {exc}"
-                    )
-            else:
-                console.print(
-                    "[yellow]Warning:[/yellow] meta.json missing required fields; skipping FeatureCreated emission"
-                )
 
         for wp in work_packages:
             try:

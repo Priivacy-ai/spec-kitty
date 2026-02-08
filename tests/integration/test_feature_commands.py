@@ -58,6 +58,14 @@ def git_repo(tmp_path: Path) -> Path:
 class TestCreateFeatureIntegration:
     """Integration tests for create-feature command."""
 
+    @pytest.fixture(autouse=True)
+    def _patch_event_emission(self, monkeypatch):
+        """Patch out event emission to avoid stale singleton state from other tests."""
+        monkeypatch.setattr(
+            "specify_cli.cli.commands.agent.feature.emit_feature_created",
+            lambda **kwargs: None,
+        )
+
     def test_creates_feature_from_main_repo(self, git_repo: Path, monkeypatch):
         """Should create feature directory in main repository."""
         # Setup

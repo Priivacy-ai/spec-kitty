@@ -18,6 +18,7 @@ runner = CliRunner()
 class TestCreateFeatureCommand:
     """Tests for create-feature command."""
 
+    @patch("specify_cli.cli.commands.agent.feature.emit_feature_created")
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
@@ -25,7 +26,7 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
     def test_creates_feature_with_json_output(
         self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        mock_is_git: Mock, mock_locate: Mock, mock_emit: Mock, tmp_path: Path
     ):
         """Should create feature and output JSON format."""
         # Setup
@@ -53,6 +54,7 @@ class TestCreateFeatureCommand:
         assert feature_dir.exists()
         assert (feature_dir / "spec.md").exists()
 
+    @patch("specify_cli.cli.commands.agent.feature.emit_feature_created")
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
@@ -60,7 +62,7 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
     def test_creates_feature_with_human_output(
         self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        mock_is_git: Mock, mock_locate: Mock, mock_emit: Mock, tmp_path: Path
     ):
         """Should create feature and output human-readable format."""
         # Setup

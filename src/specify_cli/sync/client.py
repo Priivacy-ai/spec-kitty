@@ -83,7 +83,9 @@ class WebSocketClient:
 
     async def connect(self):
         """Establish WebSocket connection with authentication"""
-        uri = f"{self.server_url}/ws/v1/events/"
+        # Convert https:// to wss:// and http:// to ws:// for WebSocket
+        ws_base = self.server_url.replace("https://", "wss://").replace("http://", "ws://")
+        uri = f"{ws_base}/ws/v1/events/"
 
         retry_count = 0
         max_retries = 1

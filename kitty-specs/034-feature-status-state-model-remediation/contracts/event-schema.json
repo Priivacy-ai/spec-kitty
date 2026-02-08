@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StatusEvent",
+  "description": "Canonical status transition event for spec-kitty work packages",
+  "type": "object",
+  "required": [
+    "event_id",
+    "feature_slug",
+    "wp_id",
+    "from_lane",
+    "to_lane",
+    "at",
+    "actor",
+    "force",
+    "execution_mode"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID: globally unique, lexicographically sortable"
+    },
+    "feature_slug": {
+      "type": "string",
+      "pattern": "^\\d{3}-[a-z0-9-]+$",
+      "description": "Feature identifier (e.g., 034-feature-name)"
+    },
+    "wp_id": {
+      "type": "string",
+      "pattern": "^WP\\d{2}$",
+      "description": "Work package identifier (e.g., WP01)"
+    },
+    "from_lane": {
+      "$ref": "#/$defs/Lane"
+    },
+    "to_lane": {
+      "$ref": "#/$defs/Lane"
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC ISO 8601 timestamp"
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Who initiated the transition"
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Whether transition was forced (bypassing guards)"
+    },
+    "reason": {
+      "type": ["string", "null"],
+      "description": "Required when force=true"
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": ["worktree", "direct_repo"]
+    },
+    "review_ref": {
+      "type": ["string", "null"],
+      "description": "Required for for_review → in_progress transitions"
+    },
+    "evidence": {
+      "oneOf": [
+        { "$ref": "#/$defs/DoneEvidence" },
+        { "type": "null" }
+      ],
+      "description": "Required when to_lane=done (unless forced)"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "force": { "const": true } }
+      },
+      "then": {
+        "required": ["reason"],
+        "properties": {
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "from_lane": { "const": "for_review" },
+          "to_lane": { "const": "in_progress" }
+        }
+      },
+      "then": {
+        "required": ["review_ref"],
+        "properties": {
+          "review_ref": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "Lane": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "claimed",
+        "in_progress",
+        "for_review",
+        "done",
+        "blocked",
+        "canceled"
+      ]
+    },
+    "DoneEvidence": {
+      "type": "object",
+      "required": ["review"],
+      "properties": {
+        "repos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["repo", "branch", "commit"],
+            "properties": {
+              "repo": { "type": "string" },
+              "branch": { "type": "string" },
+              "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+              "files_touched": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        },
+        "verification": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["command", "result", "summary"],
+            "properties": {
+              "command": { "type": "string" },
+              "result": {
+                "type": "string",
+                "enum": ["pass", "fail", "skip"]
+              },
+              "summary": { "type": "string" }
+            }
+          }
+        },
+        "review": {
+          "type": "object",
+          "required": ["reviewer", "verdict", "reference"],
+          "properties": {
+            "reviewer": { "type": "string" },
+            "verdict": {
+              "type": "string",
+              "enum": ["approved", "changes_requested"]
+            },
+            "reference": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

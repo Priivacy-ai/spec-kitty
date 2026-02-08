@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StatusSnapshot",
+  "description": "Materialized current state of all WPs in a feature (status.json)",
+  "type": "object",
+  "required": [
+    "feature_slug",
+    "materialized_at",
+    "event_count",
+    "last_event_id",
+    "work_packages",
+    "summary"
+  ],
+  "properties": {
+    "feature_slug": {
+      "type": "string",
+      "pattern": "^\\d{3}-[a-z0-9-]+$"
+    },
+    "materialized_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "event_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_event_id": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "work_packages": {
+      "type": "object",
+      "patternProperties": {
+        "^WP\\d{2}$": {
+          "$ref": "#/$defs/WPState"
+        }
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "$ref": "#/$defs/LaneSummary"
+    }
+  },
+  "$defs": {
+    "WPState": {
+      "type": "object",
+      "required": ["lane", "actor", "last_transition_at", "last_event_id", "force_count"],
+      "properties": {
+        "lane": {
+          "type": "string",
+          "enum": ["planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"]
+        },
+        "actor": {
+          "type": ["string", "null"]
+        },
+        "last_transition_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_event_id": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "force_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "LaneSummary": {
+      "type": "object",
+      "required": ["planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"],
+      "properties": {
+        "planned": { "type": "integer", "minimum": 0 },
+        "claimed": { "type": "integer", "minimum": 0 },
+        "in_progress": { "type": "integer", "minimum": 0 },
+        "for_review": { "type": "integer", "minimum": 0 },
+        "done": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "canceled": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

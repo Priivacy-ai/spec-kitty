@@ -1,0 +1,10 @@
+{
+  "feature_number": "034",
+  "slug": "034-feature-status-state-model-remediation",
+  "friendly_name": "Feature Status State Model Remediation",
+  "mission": "software-dev",
+  "source_description": "",
+  "created_at": "2026-02-08T12:00:00+00:00",
+  "target_branch": "2.x",
+  "vcs": "git"
+}

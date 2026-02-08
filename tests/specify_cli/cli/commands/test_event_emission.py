@@ -294,7 +294,8 @@ def test_accept_error_emits_error_logged(monkeypatch: pytest.MonkeyPatch, tmp_pa
     emit_mock.assert_called_once()
 
 
-def test_finalize_tasks_emits_feature_created(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_finalize_tasks_emits_wp_created_only(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """finalize-tasks emits WPCreated but NOT FeatureCreated (moved to create-feature)."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     feature_dir = repo_root / "kitty-specs" / "001-demo-feature"
@@ -328,12 +329,12 @@ def test_finalize_tasks_emits_feature_created(monkeypatch: pytest.MonkeyPatch, t
 
     feature_created = MagicMock()
     wp_created = MagicMock()
-    monkeypatch.setattr("specify_cli.sync.events.emit_feature_created", feature_created)
-    monkeypatch.setattr("specify_cli.sync.events.emit_wp_created", wp_created)
+    monkeypatch.setattr("specify_cli.cli.commands.agent.feature.emit_feature_created", feature_created)
+    monkeypatch.setattr("specify_cli.cli.commands.agent.feature.emit_wp_created", wp_created)
 
     result = runner.invoke(cli_app, ["agent", "feature", "finalize-tasks"])
     assert result.exit_code == 0
-    feature_created.assert_called_once()
+    feature_created.assert_not_called()
     wp_created.assert_called_once()
 
 
