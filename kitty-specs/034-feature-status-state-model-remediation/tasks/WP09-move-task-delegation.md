@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: move-task Delegation
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP07
 base_branch: 2.x
@@ -395,3 +395,4 @@ When reviewing this WP, verify:
 ## Activity Log
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
+- 2026-02-08T15:24:52Z – unknown – shell_pid=59111 – lane=for_review – move-task delegation to emit pipeline with 273 tests
