@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP17"
-title: "Documentation & Final Report"
-phase: "Phase 3 - Delivery"
-lane: "planned"
-dependencies: ["WP16"]
+work_package_id: WP17
+title: Documentation & Final Report
+lane: "doing"
+dependencies: [WP16]
+base_branch: 034-feature-status-state-model-remediation-WP16
+base_commit: 8347639aec1184f893a75c81e9d60c058914ba5d
+created_at: '2026-02-08T15:38:08.063699+00:00'
 subtasks:
-  - "T087"
-  - "T088"
-  - "T089"
-  - "T090"
-  - "T091"
-  - "T092"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T087
+- T088
+- T089
+- T090
+- T091
+- T092
+phase: Phase 3 - Delivery
+assignee: ''
+agent: ''
+shell_pid: "81788"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-08T14:07:18Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-08T14:07:18Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP17 -- Documentation & Final Report
