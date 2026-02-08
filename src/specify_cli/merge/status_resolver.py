@@ -2,11 +2,16 @@
 
 Implements FR-012 through FR-016: automatically resolving conflicts in
 status tracking files (lane fields, checkboxes, history arrays).
+
+Extended with rollback-aware lane resolution (WP10) and JSONL event
+log merge support.
 """
 
 from __future__ import annotations
 
 import fnmatch
+import json
+import logging
 import re
 import subprocess
 from dataclasses import dataclass
@@ -22,8 +27,11 @@ __all__ = [
     "resolve_status_conflicts",
     "get_conflicted_files",
     "is_status_file",
+    "resolve_lane_conflict_rollback_aware",
+    "resolve_jsonl_conflict",
 ]
 
+logger = logging.getLogger(__name__)
 
 CONFLICT_PATTERN = re.compile(
     r"^<<<<<<< .*?\n(.*?)^=======\n(.*?)^>>>>>>> .*?\n",
@@ -41,13 +49,22 @@ STATUS_FILE_PATTERNS = [
     "kitty-specs/*/tasks.md",
     "kitty-specs/*/*/tasks/*.md",
     "kitty-specs/*/*/tasks.md",
+    "kitty-specs/*/status.events.jsonl",
 ]
 
+# Expanded 7-lane priority map with legacy alias.
+# Used as FALLBACK when no rollback is detected (monotonic "most done wins").
+# When a rollback IS detected, the rollback-aware logic takes precedence.
 LANE_PRIORITY = {
-    "done": 4,
-    "for_review": 3,
-    "doing": 2,
     "planned": 1,
+    "claimed": 2,
+    "in_progress": 3,
+    "for_review": 4,
+    "done": 5,
+    "blocked": 0,       # Blocked is lowest priority (not "ahead" in workflow)
+    "canceled": 6,       # Canceled is terminal, treated as highest monotonic priority
+    # Legacy alias support:
+    "doing": 3,          # Maps to same priority as in_progress
 }
 
 
@@ -120,8 +137,45 @@ def replace_lane_value(content: str, lane_value: str) -> str:
     )
 
 
+def _detect_rollback(content: str) -> bool:
+    """Detect if content contains a reviewer rollback signal.
+
+    A rollback is detected if ANY of:
+    1. Frontmatter has review_status: "has_feedback"
+    2. History entry contains "review" action and the lane is behind for_review
+    3. reviewed_by is set while lane is going backward (behind for_review)
+    """
+    # Heuristic 1: review_status: "has_feedback"
+    if re.search(r'review_status:\s*["\']?has_feedback["\']?', content):
+        return True
+
+    # Heuristic 2: History entry mentions "review" and lane is behind for_review
+    if re.search(r'action:.*review.*', content, re.IGNORECASE):
+        lane_match = LANE_PATTERN.search(content)
+        if lane_match:
+            lane_value = lane_match.group(3)
+            if LANE_PRIORITY.get(lane_value, 0) < LANE_PRIORITY.get("for_review", 4):
+                return True
+
+    # Heuristic 3: reviewed_by is set (non-empty) while lane is behind for_review
+    reviewed_by_match = re.search(r"reviewed_by:\s*[\"']?([^\"'\s]*)[\"']?", content)
+    if reviewed_by_match and reviewed_by_match.group(1):
+        lane_match = LANE_PATTERN.search(content)
+        if lane_match:
+            lane_value = lane_match.group(3)
+            if lane_value in ("in_progress", "doing", "planned", "claimed"):
+                return True
+
+    return False
+
+
 def resolve_lane_conflict(ours: str, theirs: str) -> str | None:
-    """Resolve lane conflict by choosing 'more done' value."""
+    """Resolve lane conflict by choosing 'more done' value.
+
+    This is the original monotonic resolver, preserved for backward
+    compatibility. New code should use resolve_lane_conflict_rollback_aware()
+    when full content is available.
+    """
     our_lane = extract_lane_value(ours)
     their_lane = extract_lane_value(theirs)
 
@@ -133,6 +187,106 @@ def resolve_lane_conflict(ours: str, theirs: str) -> str | None:
     chosen = their_lane if their_priority > our_priority else our_lane
 
     return replace_lane_value(ours, chosen)
+
+
+def resolve_lane_conflict_rollback_aware(
+    ours_content: str,
+    theirs_content: str,
+    ours_lane: str,
+    theirs_lane: str,
+) -> str:
+    """Resolve lane conflict with rollback awareness.
+
+    Algorithm:
+    1. If rollback detected in either side, prefer the rollback (lower lane).
+    2. If both sides have rollback, pick the lower (earlier) lane.
+    3. If no rollback, use LANE_PRIORITY (existing monotonic behavior).
+    """
+    ours_rollback = _detect_rollback(ours_content)
+    theirs_rollback = _detect_rollback(theirs_content)
+
+    if ours_rollback and not theirs_rollback:
+        return ours_lane  # Our rollback wins over their forward
+    if theirs_rollback and not ours_rollback:
+        return theirs_lane  # Their rollback wins over our forward
+    if ours_rollback and theirs_rollback:
+        # Both are rollbacks: pick the lower (earlier) lane
+        ours_priority = LANE_PRIORITY.get(ours_lane, 0)
+        theirs_priority = LANE_PRIORITY.get(theirs_lane, 0)
+        return ours_lane if ours_priority <= theirs_priority else theirs_lane
+
+    # No rollback detected: fall back to monotonic "most done wins"
+    ours_priority = LANE_PRIORITY.get(ours_lane, 0)
+    theirs_priority = LANE_PRIORITY.get(theirs_lane, 0)
+    return ours_lane if ours_priority >= theirs_priority else theirs_lane
+
+
+def _resolve_lane_with_rollback_awareness(
+    ours: str, theirs: str
+) -> str | None:
+    """Internal: resolve a lane conflict region using rollback-aware logic.
+
+    Extracts lane values, runs rollback-aware resolution, and returns
+    the content with the winning lane applied. Returns None if lanes
+    cannot be extracted.
+    """
+    our_lane = extract_lane_value(ours)
+    their_lane = extract_lane_value(theirs)
+
+    if not our_lane or not their_lane:
+        return None
+
+    chosen = resolve_lane_conflict_rollback_aware(
+        ours_content=ours,
+        theirs_content=theirs,
+        ours_lane=our_lane,
+        theirs_lane=their_lane,
+    )
+
+    return replace_lane_value(ours, chosen)
+
+
+def resolve_jsonl_conflict(ours_content: str, theirs_content: str) -> str:
+    """Merge two JSONL event log files.
+
+    Algorithm:
+    1. Parse both sides into event lists.
+    2. Concatenate all events.
+    3. Deduplicate by event_id (first occurrence wins).
+    4. Sort by (at, event_id) ascending.
+    5. Serialize back to JSONL.
+
+    Corrupted lines are skipped with a warning logged.
+    """
+    events: dict[str, dict[str, Any]] = {}  # event_id -> event_dict
+
+    for content in (ours_content, theirs_content):
+        for line in content.strip().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+                event_id = event.get("event_id")
+                if event_id and event_id not in events:
+                    events[event_id] = event
+            except json.JSONDecodeError as exc:
+                logger.warning(
+                    "Skipping corrupted JSONL line during merge: %s (error: %s)",
+                    line[:80],
+                    exc,
+                )
+                continue
+
+    # Sort by (at, event_id) for deterministic ordering
+    sorted_events = sorted(
+        events.values(),
+        key=lambda e: (e.get("at", ""), e.get("event_id", "")),
+    )
+
+    # Serialize back to JSONL
+    lines = [json.dumps(e, sort_keys=True) for e in sorted_events]
+    return "\n".join(lines) + "\n" if lines else ""
 
 
 def resolve_checkbox_conflict(ours: str, theirs: str) -> str:
@@ -241,8 +395,29 @@ def resolve_history_conflict(ours: str, theirs: str) -> str | None:
     return base[: match.start()] + history_block + base[match.end() :]
 
 
+def _resolve_jsonl_file(file_path: Path, content: str) -> tuple[str, bool]:
+    """Resolve JSONL file conflicts by merging both sides.
+
+    Returns (resolved_content, success).
+    """
+    regions = parse_conflict_markers(content)
+    if not regions:
+        return content, False
+
+    resolved_content = content
+    for region in regions:
+        merged = resolve_jsonl_conflict(region.ours, region.theirs)
+        resolved_content = resolved_content.replace(region.original, merged)
+
+    return resolved_content, True
+
+
 def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
-    """Auto-resolve conflicts in status files after merge."""
+    """Auto-resolve conflicts in status files after merge.
+
+    Uses rollback-aware lane resolution for frontmatter lane conflicts
+    and JSONL merge for event log files.
+    """
     results: list[ResolutionResult] = []
     conflicted = get_conflicted_files(repo_root)
 
@@ -274,6 +449,28 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
             )
             continue
 
+        # JSONL files get their own resolver
+        if file_path.suffix == ".jsonl":
+            resolved_content, success = _resolve_jsonl_file(file_path, content)
+            if success:
+                file_path.write_text(resolved_content, encoding="utf-8")
+                subprocess.run(
+                    ["git", "add", str(file_path)],
+                    cwd=str(repo_root),
+                    check=False,
+                )
+            regions = parse_conflict_markers(content)
+            results.append(
+                ResolutionResult(
+                    file_path=file_path,
+                    resolved=success,
+                    resolution_type="jsonl" if success else "manual_required",
+                    original_conflicts=len(regions),
+                    resolved_conflicts=len(regions) if success else 0,
+                )
+            )
+            continue
+
         regions = parse_conflict_markers(content)
         if not regions:
             continue
@@ -293,7 +490,8 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
 
             resolved_region = resolve_history_conflict(region.ours, region.theirs)
             if resolved_region is not None:
-                lane_resolved = resolve_lane_conflict(region.ours, region.theirs)
+                # Use rollback-aware lane resolution
+                lane_resolved = _resolve_lane_with_rollback_awareness(region.ours, region.theirs)
                 if lane_resolved is not None:
                     lane_value = extract_lane_value(lane_resolved)
                     if lane_value:
@@ -305,7 +503,8 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
                 resolved_count += 1
                 continue
 
-            lane_resolved = resolve_lane_conflict(region.ours, region.theirs)
+            # Use rollback-aware lane resolution
+            lane_resolved = _resolve_lane_with_rollback_awareness(region.ours, region.theirs)
             if lane_resolved is not None:
                 lane_resolved = _preserve_trailing_newline(lane_resolved, region.original)
                 resolved_content = resolved_content.replace(region.original, lane_resolved)

@@ -25,7 +25,8 @@ from typing import Dict, List, Optional, Tuple
 from specify_cli.legacy_detector import is_legacy_format
 
 # IMPORTANT: Keep in sync with scripts/tasks/task_helpers.py
-LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
+LANES: Tuple[str, ...] = ("planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled")
+LANE_ALIASES: Dict[str, str] = {"doing": "in_progress"}
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -103,6 +104,8 @@ def run_git(args: List[str], cwd: Path, check: bool = True) -> subprocess.Comple
 
 def ensure_lane(value: str) -> str:
     lane = value.strip().lower()
+    # Resolve aliases (e.g., "doing" -> "in_progress")
+    lane = LANE_ALIASES.get(lane, lane)
     if lane not in LANES:
         raise TaskCliError(f"Invalid lane '{value}'. Expected one of {', '.join(LANES)}.")
     return lane
@@ -415,6 +418,9 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
                 )
         return "planned"
 
+    # Resolve aliases (e.g., "doing" -> "in_progress")
+    lane = LANE_ALIASES.get(lane, lane)
+
     if lane not in LANES:
         raise ValueError(
             f"Invalid lane '{lane}' in {wp_path.name}. "
@@ -426,6 +432,7 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
 
 __all__ = [
     "LANES",
+    "LANE_ALIASES",
     "TIMESTAMP_FORMAT",
     "TaskCliError",
     "WorkPackage",

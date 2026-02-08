@@ -52,65 +52,105 @@ Test content here.
     return task_file
 
 
+def _mock_emit_event(**kwargs):
+    """Create a mock StatusEvent for emit_status_transition."""
+    from specify_cli.status.models import Lane, StatusEvent
+    return StatusEvent(
+        event_id="01MOCK00000000000000000000",
+        feature_slug=kwargs.get("feature_slug", "008-test-feature"),
+        wp_id=kwargs.get("wp_id", "WP01"),
+        from_lane=Lane("planned"),
+        to_lane=Lane(kwargs.get("to_lane", "in_progress")),
+        at="2025-01-01T00:00:00+00:00",
+        actor=kwargs.get("actor", "user"),
+        force=kwargs.get("force", True),
+        execution_mode="worktree",
+        reason=kwargs.get("reason"),
+    )
+
+
 class TestMoveTask:
     """Tests for move-task command."""
 
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_json_output(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
+        mock_emit: Mock, mock_task_file: Path
     ):
         """Should move task and output JSON."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
+        mock_branch.return_value = (repo_root, "main")
+        mock_emit.side_effect = lambda **kw: _mock_emit_event(**kw)
 
         # Execute
         result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "doing", "--json"]
+            app, ["move-task", "WP01", "--to", "doing", "--json", "--no-auto-commit"]
         )
 
         # Verify
-        assert result.exit_code == 0
+        assert result.exit_code == 0, f"stdout: {result.stdout}"
         output = json.loads(result.stdout)
         assert output["result"] == "success"
         assert output["task_id"] == "WP01"
         assert output["old_lane"] == "planned"
-        assert output["new_lane"] == "doing"
+        # "doing" alias resolves to "in_progress" in the canonical model
+        assert output["new_lane"] == "in_progress"
 
         # Verify file was updated
         updated_content = mock_task_file.read_text()
-        assert 'lane: "doing"' in updated_content
-        assert "Moved to doing" in updated_content
+        assert 'lane: "in_progress"' in updated_content
+        assert "Moved to in_progress" in updated_content
 
+        # Verify emit was called with correct parameters
+        mock_emit.assert_called_once()
+        call_kwargs = mock_emit.call_args[1]
+        assert call_kwargs["wp_id"] == "WP01"
+        assert call_kwargs["to_lane"] == "in_progress"
+        assert call_kwargs["actor"] == "user"
+
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_human_output(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
+        mock_emit: Mock, mock_task_file: Path
     ):
         """Should move task and output human-readable format."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
+        mock_branch.return_value = (repo_root, "main")
+        mock_emit.side_effect = lambda **kw: _mock_emit_event(**kw)
 
         # Execute
         result = runner.invoke(
-            app, ["move-task", "WP01", "--to", "for_review"]
+            app, ["move-task", "WP01", "--to", "for_review", "--no-auto-commit"]
         )
 
         # Verify
-        assert result.exit_code == 0
+        assert result.exit_code == 0, f"stdout: {result.stdout}"
         assert "Moved WP01 from planned to for_review" in result.stdout
 
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_with_agent_and_pid(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
+        mock_emit: Mock, mock_task_file: Path
     ):
         """Should update agent and shell_pid when provided."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
+        mock_branch.return_value = (repo_root, "main")
+        mock_emit.side_effect = lambda **kw: _mock_emit_event(**kw)
 
         # Execute
         result = runner.invoke(
@@ -118,17 +158,21 @@ class TestMoveTask:
                 "move-task", "WP01", "--to", "doing",
                 "--agent", "test-agent",
                 "--shell-pid", "99999",
-                "--json"
+                "--json", "--no-auto-commit"
             ]
         )
 
         # Verify
-        assert result.exit_code == 0
+        assert result.exit_code == 0, f"stdout: {result.stdout}"
 
         # Check frontmatter was updated
         updated_content = mock_task_file.read_text()
         assert 'agent: "test-agent"' in updated_content
         assert 'shell_pid: "99999"' in updated_content
+
+        # Verify emit was called with agent as actor
+        call_kwargs = mock_emit.call_args[1]
+        assert call_kwargs["actor"] == "test-agent"
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     def test_move_task_invalid_lane(self, mock_root: Mock, mock_task_file: Path):
@@ -143,7 +187,15 @@ class TestMoveTask:
 
         # Verify
         assert result.exit_code == 1
-        output = json.loads(result.stdout.split('\n')[0])
+        # Find JSON line in output (sync module may print before the error)
+        json_line = None
+        for line in result.stdout.strip().split('\n'):
+            line = line.strip()
+            if line.startswith('{'):
+                json_line = line
+                break
+        assert json_line is not None, f"No JSON found in output: {result.stdout}"
+        output = json.loads(json_line)
         assert "error" in output
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
