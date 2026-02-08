@@ -50,6 +50,14 @@ from .legacy_bridge import (
     update_frontmatter_views,
     update_tasks_md_views,
 )
+from .validate import (
+    ValidationResult,
+    validate_derived_views,
+    validate_done_evidence,
+    validate_event_schema,
+    validate_materialization_drift,
+    validate_transition_legality,
+)
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
@@ -69,6 +77,7 @@ __all__ = [
     "TransitionError",
     "ULID_PATTERN",
     "VALID_PHASES",
+    "ValidationResult",
     "VerificationResult",
     "append_event",
     "emit_status_transition",
@@ -84,5 +93,10 @@ __all__ = [
     "update_all_views",
     "update_frontmatter_views",
     "update_tasks_md_views",
+    "validate_derived_views",
+    "validate_done_evidence",
+    "validate_event_schema",
+    "validate_materialization_drift",
     "validate_transition",
+    "validate_transition_legality",
 ]
