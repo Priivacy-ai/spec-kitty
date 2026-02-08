@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP08"
-title: "CLI Status Commands (emit & materialize)"
-phase: "Phase 1 - Canonical Log"
-lane: "planned"
-dependencies: ["WP07"]
+work_package_id: WP08
+title: CLI Status Commands (emit & materialize)
+lane: "doing"
+dependencies: [WP07]
+base_branch: 2.x
+base_commit: b8f921f8901326a8d6b083c36c434346dec760b2
+created_at: '2026-02-08T15:01:18.566922+00:00'
 subtasks:
-  - "T038"
-  - "T039"
-  - "T040"
-  - "T041"
-  - "T042"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+- T038
+- T039
+- T040
+- T041
+- T042
+phase: Phase 1 - Canonical Log
+assignee: ''
+agent: ''
+shell_pid: "58568"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-08T14:07:18Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-08T14:07:18Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP08 -- CLI Status Commands (emit & materialize)
