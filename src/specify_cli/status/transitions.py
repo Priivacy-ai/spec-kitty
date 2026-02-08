@@ -75,21 +75,37 @@ def _guard_actor_required(actor: str | None) -> tuple[bool, str | None]:
 
 
 def _guard_workspace_context(
+    workspace_context: str | None,
 ) -> tuple[bool, str | None]:
-    """Guard: claimed -> in_progress requires workspace context.
-
-    Placeholder: always passes. Real enforcement wired in WP07.
-    """
+    """Guard: claimed -> in_progress requires active workspace context."""
+    if not workspace_context or not workspace_context.strip():
+        return (
+            False,
+            "Transition claimed -> in_progress requires workspace context",
+        )
     return True, None
 
 
 def _guard_subtasks_complete_or_force(
+    subtasks_complete: bool | None,
+    implementation_evidence_present: bool | None,
     force: bool,
 ) -> tuple[bool, str | None]:
-    """Guard: in_progress -> for_review requires subtask completion.
-
-    Placeholder: always passes. Real enforcement delegated to caller.
-    """
+    """Guard: in_progress -> for_review requires subtask completion and evidence."""
+    if force:
+        return True, None
+    if subtasks_complete is not True:
+        return (
+            False,
+            "Transition in_progress -> for_review requires completed subtasks "
+            "or force with reason",
+        )
+    if implementation_evidence_present is not True:
+        return (
+            False,
+            "Transition in_progress -> for_review requires implementation evidence "
+            "or force with reason",
+        )
     return True, None
 
 
@@ -98,6 +114,21 @@ def _guard_reviewer_approval(
 ) -> tuple[bool, str | None]:
     """Guard: for_review -> done requires reviewer approval evidence."""
     if evidence is None:
+        return (
+            False,
+            "Transition for_review -> done requires evidence "
+            "(reviewer identity and approval reference)",
+        )
+    review = getattr(evidence, "review", None)
+    reviewer = getattr(review, "reviewer", None) if review is not None else None
+    reference = getattr(review, "reference", None) if review is not None else None
+    if not reviewer or not str(reviewer).strip():
+        return (
+            False,
+            "Transition for_review -> done requires evidence "
+            "(reviewer identity and approval reference)",
+        )
+    if not reference or not str(reference).strip():
         return (
             False,
             "Transition for_review -> done requires evidence "
@@ -136,6 +167,9 @@ def _run_guard(
     to_lane: str,
     *,
     actor: str | None,
+    workspace_context: str | None,
+    subtasks_complete: bool | None,
+    implementation_evidence_present: bool | None,
     reason: str | None,
     review_ref: str | None,
     evidence: Any,
@@ -149,9 +183,13 @@ def _run_guard(
     if guard_name == "actor_required":
         return _guard_actor_required(actor)
     elif guard_name == "workspace_context":
-        return _guard_workspace_context()
+        return _guard_workspace_context(workspace_context)
     elif guard_name == "subtasks_complete_or_force":
-        return _guard_subtasks_complete_or_force(force)
+        return _guard_subtasks_complete_or_force(
+            subtasks_complete,
+            implementation_evidence_present,
+            force,
+        )
     elif guard_name == "reviewer_approval":
         return _guard_reviewer_approval(evidence)
     elif guard_name == "review_ref_required":
@@ -168,6 +206,9 @@ def validate_transition(
     *,
     force: bool = False,
     actor: str | None = None,
+    workspace_context: str | None = None,
+    subtasks_complete: bool | None = None,
+    implementation_evidence_present: bool | None = None,
     reason: str | None = None,
     review_ref: str | None = None,
     evidence: Any = None,
@@ -224,6 +265,9 @@ def validate_transition(
         resolved_from,
         resolved_to,
         actor=actor,
+        workspace_context=workspace_context,
+        subtasks_complete=subtasks_complete,
+        implementation_evidence_present=implementation_evidence_present,
         reason=reason,
         review_ref=review_ref,
         evidence=evidence,

@@ -387,6 +387,23 @@ class TestValidateDoneEvidence:
         findings = validate_done_evidence(events)
         assert any("missing verdict" in f for f in findings)
 
+    def test_done_evidence_missing_reference(self):
+        evidence = {
+            "review": {
+                "reviewer": "reviewer-1",
+                "verdict": "approved",
+            }
+        }
+        events = [
+            _make_event(
+                from_lane="for_review",
+                to_lane="done",
+                evidence=evidence,
+            ),
+        ]
+        findings = validate_done_evidence(events)
+        assert any("missing approval reference" in f for f in findings)
+
     def test_done_evidence_missing_review_section(self):
         evidence = {"repos": []}
         events = [
@@ -656,3 +673,59 @@ lane: {lane}
         snapshot_wps = {"WP01": {"lane": "in_progress"}}
         findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
         assert findings == []
+
+    def test_tasks_md_missing_status_block(self, tmp_path: Path):
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        self._write_wp_file(tasks_dir, "WP01", "in_progress")
+        (tmp_path / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+
+        snapshot_wps = {"WP01": {"lane": "in_progress"}}
+        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
+        assert any("tasks.md is missing generated canonical status block" in f for f in findings)
+
+    def test_tasks_md_status_block_matches(self, tmp_path: Path):
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        self._write_wp_file(tasks_dir, "WP01", "in_progress")
+        (tmp_path / "tasks.md").write_text(
+            "\n".join(
+                [
+                    "# Tasks",
+                    "",
+                    "<!-- status-model:start -->",
+                    "## Canonical Status (Generated)",
+                    "- WP01: in_progress",
+                    "<!-- status-model:end -->",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        snapshot_wps = {"WP01": {"lane": "in_progress"}}
+        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
+        assert findings == []
+
+    def test_tasks_md_status_block_lane_mismatch(self, tmp_path: Path):
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        self._write_wp_file(tasks_dir, "WP01", "in_progress")
+        (tmp_path / "tasks.md").write_text(
+            "\n".join(
+                [
+                    "# Tasks",
+                    "",
+                    "<!-- status-model:start -->",
+                    "## Canonical Status (Generated)",
+                    "- WP01: planned",
+                    "<!-- status-model:end -->",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        snapshot_wps = {"WP01": {"lane": "in_progress"}}
+        findings = validate_derived_views(tmp_path, snapshot_wps, phase=2)
+        assert any("tasks.md lane=planned" in f for f in findings)

@@ -253,8 +253,12 @@ def check_drift(feature_dir: Path) -> list[Finding]:
             snapshot = json.loads(status_path.read_text(encoding="utf-8"))
             from specify_cli.status.phase import resolve_phase
 
-            phase, _ = resolve_phase(feature_dir.parent.parent, "")
-            view_findings = validate_derived_views(feature_dir, snapshot, phase)
+            phase, _ = resolve_phase(feature_dir.parent.parent, feature_dir.name)
+            view_findings = validate_derived_views(
+                feature_dir,
+                snapshot.get("work_packages", {}),
+                phase,
+            )
             for msg in view_findings:
                 findings.append(
                     Finding(

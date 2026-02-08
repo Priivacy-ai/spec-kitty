@@ -19,6 +19,9 @@ from pathlib import Path
 from .models import ULID_PATTERN
 from .transitions import ALLOWED_TRANSITIONS, CANONICAL_LANES
 
+STATUS_BLOCK_START = "<!-- status-model:start -->"
+STATUS_BLOCK_END = "<!-- status-model:end -->"
+
 
 @dataclass
 class ValidationResult:
@@ -200,6 +203,10 @@ def validate_done_evidence(events: list[dict]) -> list[str]:
                 findings.append(
                     f"Event {event_id}: done evidence missing verdict"
                 )
+            if not review.get("reference"):
+                findings.append(
+                    f"Event {event_id}: done evidence missing approval reference"
+                )
 
     return findings
 
@@ -302,6 +309,7 @@ def validate_derived_views(
     Returns:
         List of finding strings. Empty means no drift.
     """
+    severity = "ERROR" if phase >= 2 else "WARNING"
     findings: list[str] = []
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.exists():
@@ -342,13 +350,69 @@ def validate_derived_views(
             frontmatter_lane = "in_progress"
 
         if frontmatter_lane != canonical_lane:
-            severity = "ERROR" if phase >= 2 else "WARNING"
             findings.append(
                 f"{severity}: {wp_id} frontmatter lane={frontmatter_lane} "
                 f"but canonical state={canonical_lane}"
             )
 
+    tasks_md = feature_dir / "tasks.md"
+    if tasks_md.exists():
+        status_lines = _extract_tasks_status_lines(tasks_md.read_text(encoding="utf-8"))
+        if status_lines is None:
+            findings.append(
+                f"{severity}: tasks.md is missing generated canonical status block"
+            )
+        else:
+            tasks_status: dict[str, str] = {}
+            for line in status_lines:
+                match = re.match(r"^- (WP\d{2}): ([a-z_]+)$", line.strip())
+                if match is None:
+                    findings.append(
+                        f"{severity}: tasks.md status block has malformed line: {line.strip()}"
+                    )
+                    continue
+                tasks_status[match.group(1)] = match.group(2)
+
+            for wp_id, wp_state in snapshot_wps.items():
+                canonical_lane = wp_state.get("lane")
+                tasks_lane = tasks_status.get(wp_id)
+                if tasks_lane is None:
+                    findings.append(
+                        f"{severity}: tasks.md status block missing {wp_id} "
+                        f"(canonical state: {canonical_lane})"
+                    )
+                    continue
+                if tasks_lane != canonical_lane:
+                    findings.append(
+                        f"{severity}: {wp_id} tasks.md lane={tasks_lane} "
+                        f"but canonical state={canonical_lane}"
+                    )
+
+            for wp_id in sorted(tasks_status):
+                if wp_id not in snapshot_wps:
+                    findings.append(
+                        f"{severity}: tasks.md status block includes unknown {wp_id}"
+                    )
+
     return findings
+
+
+def _extract_tasks_status_lines(content: str) -> list[str] | None:
+    """Extract generated status lines from tasks.md status block markers."""
+    start_idx = content.find(STATUS_BLOCK_START)
+    if start_idx == -1:
+        return None
+    end_idx = content.find(STATUS_BLOCK_END, start_idx)
+    if end_idx == -1:
+        return None
+    block = content[start_idx + len(STATUS_BLOCK_START):end_idx]
+    lines = [line.strip() for line in block.strip().splitlines() if line.strip()]
+    if not lines:
+        return []
+    # Strip optional heading line.
+    if lines[0].startswith("## "):
+        return lines[1:]
+    return lines
 
 
 def _is_valid_ulid(value: str) -> bool:

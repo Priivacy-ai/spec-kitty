@@ -403,17 +403,16 @@ class TestReconcile:
         files_after = set(feature_dir.rglob("*"))
         assert files_before == files_after
 
-    @patch("specify_cli.status.reconcile.materialize")
-    @patch("specify_cli.status.reconcile.append_event")
+    @patch("specify_cli.status.reconcile.emit_status_transition")
     @patch("specify_cli.status.reconcile.resolve_phase")
     @patch("specify_cli.status.reconcile.scan_for_wp_commits")
     @patch("specify_cli.status.reconcile._get_merged_wps")
     @patch("specify_cli.status.reconcile.read_events")
     def test_apply_emits_events(
         self, mock_events, mock_merged, mock_scan,
-        mock_phase, mock_append, mock_materialize, tmp_path,
+        mock_phase, mock_emit, tmp_path,
     ):
-        """Apply mode emits events through append_event."""
+        """Apply mode emits events through the canonical emit pipeline."""
         feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
         feature_dir.mkdir(parents=True)
 
@@ -431,8 +430,7 @@ class TestReconcile:
             dry_run=False,
         )
 
-        assert mock_append.call_count >= 1
-        assert mock_materialize.call_count == 1
+        assert mock_emit.call_count >= 1
 
     @patch("specify_cli.status.reconcile.resolve_phase")
     @patch("specify_cli.status.reconcile.scan_for_wp_commits")

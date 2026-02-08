@@ -119,6 +119,9 @@ def emit(
     reason: Annotated[Optional[str], typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[Optional[str], typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
     review_ref: Annotated[Optional[str], typer.Option("--review-ref", help="Review feedback reference")] = None,
+    workspace_context: Annotated[Optional[str], typer.Option("--workspace-context", help="Workspace context identifier for claimed->in_progress")] = None,
+    subtasks_complete: Annotated[Optional[bool], typer.Option("--subtasks-complete", help="Whether required subtasks are complete for in_progress->for_review")] = None,
+    implementation_evidence_present: Annotated[Optional[bool], typer.Option("--implementation-evidence-present", help="Whether implementation evidence exists for in_progress->for_review")] = None,
     execution_mode: Annotated[str, typer.Option("--execution-mode", help="Execution mode (worktree or direct_repo)")] = "worktree",
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
@@ -179,6 +182,9 @@ def emit(
             reason=reason,
             evidence=evidence,
             review_ref=review_ref,
+            workspace_context=workspace_context,
+            subtasks_complete=subtasks_complete,
+            implementation_evidence_present=implementation_evidence_present,
             execution_mode=execution_mode,
             repo_root=main_repo_root,
         )

@@ -308,8 +308,8 @@ class TestUpdateTasksMdViews:
         # Should not raise
         update_tasks_md_views(feature_dir, snapshot)
 
-    def test_update_tasks_md_no_modification(self, tmp_path: Path) -> None:
-        """tasks.md exists, content unchanged (current pass-through implementation)."""
+    def test_update_tasks_md_appends_generated_block(self, tmp_path: Path) -> None:
+        """tasks.md gets a generated canonical status block."""
         feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
         feature_dir.mkdir(parents=True)
 
@@ -320,10 +320,39 @@ class TestUpdateTasksMdViews:
         snapshot = create_snapshot("034-test-feature", {"WP01": "done"})
         update_tasks_md_views(feature_dir, snapshot)
 
-        assert tasks_md.read_text(encoding="utf-8") == original_content
+        updated = tasks_md.read_text(encoding="utf-8")
+        assert "<!-- status-model:start -->" in updated
+        assert "- WP01: done" in updated
+        assert "<!-- status-model:end -->" in updated
+
+    def test_update_tasks_md_replaces_existing_generated_block(self, tmp_path: Path) -> None:
+        """Existing generated block is replaced, not duplicated."""
+        feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
+        feature_dir.mkdir(parents=True)
+        tasks_md = feature_dir / "tasks.md"
+        tasks_md.write_text(
+            "\n".join(
+                [
+                    "# Tasks",
+                    "",
+                    "<!-- status-model:start -->",
+                    "## Canonical Status (Generated)",
+                    "- WP01: planned",
+                    "<!-- status-model:end -->",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        snapshot = create_snapshot("034-test-feature", {"WP01": "in_progress"})
+        update_tasks_md_views(feature_dir, snapshot)
+        updated = tasks_md.read_text(encoding="utf-8")
+        assert updated.count("<!-- status-model:start -->") == 1
+        assert "- WP01: in_progress" in updated
+        assert "- WP01: planned" not in updated
 
     def test_update_tasks_md_empty_file(self, tmp_path: Path) -> None:
-        """tasks.md is empty, no modifications made."""
+        """tasks.md is empty, generated block is written."""
         feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
         feature_dir.mkdir(parents=True)
 
@@ -333,7 +362,9 @@ class TestUpdateTasksMdViews:
         snapshot = create_snapshot("034-test-feature", {"WP01": "done"})
         update_tasks_md_views(feature_dir, snapshot)
 
-        assert tasks_md.read_text(encoding="utf-8") == ""
+        updated = tasks_md.read_text(encoding="utf-8")
+        assert "<!-- status-model:start -->" in updated
+        assert "- WP01: done" in updated
 
 
 # ---------------------------------------------------------------------------

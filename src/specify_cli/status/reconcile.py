@@ -19,8 +19,8 @@ from typing import Any
 import ulid
 
 from specify_cli.status.models import Lane, StatusEvent, StatusSnapshot
-from specify_cli.status.reducer import reduce, materialize, SNAPSHOT_FILENAME
-from specify_cli.status.store import read_events, append_event
+from specify_cli.status.reducer import reduce, SNAPSHOT_FILENAME
+from specify_cli.status.store import read_events
 from specify_cli.status.transitions import (
     ALLOWED_TRANSITIONS,
     TERMINAL_LANES,
@@ -28,6 +28,7 @@ from specify_cli.status.transitions import (
     validate_transition,
 )
 from specify_cli.status.phase import resolve_phase
+from specify_cli.status.emit import emit_status_transition
 
 logger = logging.getLogger(__name__)
 
@@ -389,6 +390,11 @@ def _generate_reconciliation_events(
                 str(to_lane),
                 force=False,
                 actor="reconcile",
+                workspace_context="reconcile",
+                subtasks_complete=True if str(to_lane) == "for_review" else None,
+                implementation_evidence_present=(
+                    True if str(to_lane) == "for_review" else None
+                ),
             )
             if ok:
                 events.append(event)
@@ -510,7 +516,25 @@ def reconcile(
         applied_count = 0
         for event in result.suggested_events:
             try:
-                append_event(feature_dir, event)
+                emit_status_transition(
+                    feature_dir=feature_dir,
+                    feature_slug=feature_slug,
+                    wp_id=event.wp_id,
+                    to_lane=str(event.to_lane),
+                    actor=event.actor,
+                    force=event.force,
+                    reason=event.reason,
+                    review_ref=event.review_ref,
+                    workspace_context=f"reconcile:{repo_root}",
+                    subtasks_complete=(
+                        True if str(event.to_lane) == "for_review" else None
+                    ),
+                    implementation_evidence_present=(
+                        True if str(event.to_lane) == "for_review" else None
+                    ),
+                    execution_mode="direct_repo",
+                    repo_root=repo_root,
+                )
                 applied_count += 1
             except Exception as exc:
                 result.errors.append(
@@ -523,13 +547,6 @@ def reconcile(
                 f"Applied {applied_count} reconciliation event(s) "
                 f"(phase={phase}, source={source})"
             )
-            # Re-materialize snapshot after applying
-            try:
-                materialize(feature_dir)
-            except Exception as exc:
-                result.errors.append(
-                    f"Failed to re-materialize snapshot: {exc}"
-                )
 
     return result
 

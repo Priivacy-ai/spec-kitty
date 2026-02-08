@@ -106,9 +106,12 @@ class TestMoveTask:
         assert 'lane: "in_progress"' in updated_content
         assert "Moved to in_progress" in updated_content
 
-        # Verify emit was called with correct parameters
-        mock_emit.assert_called_once()
-        call_kwargs = mock_emit.call_args[1]
+        # Verify emit pipeline was called for canonical progression
+        assert mock_emit.call_count == 2
+        first_call_kwargs = mock_emit.call_args_list[0].kwargs
+        second_call_kwargs = mock_emit.call_args_list[1].kwargs
+        assert first_call_kwargs["to_lane"] == "claimed"
+        call_kwargs = second_call_kwargs
         assert call_kwargs["wp_id"] == "WP01"
         assert call_kwargs["to_lane"] == "in_progress"
         assert call_kwargs["actor"] == "user"

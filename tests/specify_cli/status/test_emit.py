@@ -187,6 +187,13 @@ class TestBuildDoneEvidence:
         with pytest.raises(TransitionError, match="review.reviewer"):
             _build_done_evidence({"review": {"reviewer": "rev"}})
 
+    def test_missing_reference_raises(self):
+        """Missing approval reference in review raises TransitionError."""
+        with pytest.raises(TransitionError, match="review.reference"):
+            _build_done_evidence(
+                {"review": {"reviewer": "rev", "verdict": "approved"}}
+            )
+
     def test_empty_reviewer_raises(self):
         """Empty reviewer string raises TransitionError."""
         with pytest.raises(TransitionError, match="review.reviewer"):
@@ -195,26 +202,30 @@ class TestBuildDoneEvidence:
             )
 
     def test_minimal_evidence_works(self):
-        """Minimal evidence with just review succeeds."""
+        """Minimal evidence with required review fields succeeds."""
         result = _build_done_evidence(
-            {"review": {"reviewer": "rev", "verdict": "approved"}}
+            {
+                "review": {
+                    "reviewer": "rev",
+                    "verdict": "approved",
+                    "reference": "PR#1",
+                }
+            }
         )
         assert result.review.reviewer == "rev"
+        assert result.review.reference == "PR#1"
         assert result.repos == []
         assert result.verification == []
-
-    def test_reference_defaults_to_empty(self):
-        """Missing reference defaults to empty string."""
-        result = _build_done_evidence(
-            {"review": {"reviewer": "rev", "verdict": "approved"}}
-        )
-        assert result.review.reference == ""
 
     def test_extra_fields_accepted(self):
         """Extra fields in evidence dict are silently ignored."""
         result = _build_done_evidence(
             {
-                "review": {"reviewer": "rev", "verdict": "approved"},
+                "review": {
+                    "reviewer": "rev",
+                    "verdict": "approved",
+                    "reference": "PR#2",
+                },
                 "extra_field": "should_be_ignored",
             }
         )

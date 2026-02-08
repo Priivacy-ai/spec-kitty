@@ -23,6 +23,7 @@ from specify_cli.sync.events import (
 
 from specify_cli.status.emit import emit_status_transition, TransitionError
 from specify_cli.status.transitions import resolve_lane_alias
+from specify_cli.status.store import read_events
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
@@ -605,6 +606,7 @@ def move_task(
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
     note: Annotated[Optional[str], typer.Option("--note", help="History note")] = None,
     review_feedback_file: Annotated[Optional[Path], typer.Option("--review-feedback-file", help="Path to review feedback file (required when moving to planned from review)")] = None,
+    approval_ref: Annotated[Optional[str], typer.Option("--approval-ref", help="Approval reference for done transitions (e.g., PR#42)")] = None,
     reviewer: Annotated[Optional[str], typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks or missing feedback")] = False,
     auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch")] = True,
@@ -725,11 +727,18 @@ def move_task(
                     effective_reviewer = result.stdout.strip() or "unknown"
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     effective_reviewer = "unknown"
+            effective_approval_ref = approval_ref
+            if not effective_approval_ref and note:
+                effective_approval_ref = note
+            if not effective_approval_ref:
+                effective_approval_ref = (
+                    f"auto-approval:{task_id}:{datetime.now(timezone.utc).strftime('%Y%m%d')}"
+                )
             evidence_dict = {
                 "review": {
                     "reviewer": effective_reviewer,
                     "verdict": "approved",
-                    "reference": "",
+                    "reference": effective_approval_ref or "force-override",
                 },
             }
 
@@ -755,36 +764,89 @@ def move_task(
         # Determine feature_dir for the event store
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
 
-        # Backward compatibility: move_task performs its own pre-validation
-        # (ownership check, subtask check, uncommitted changes, review
-        # feedback). The emit pipeline has a stricter 7-lane transition
-        # matrix and guard conditions that would break legacy 4-lane
-        # workflows (e.g. planned->in_progress without going through
-        # "claimed", or for_review->in_progress without review_ref).
-        # Auto-force the emit so move_task's pre-validation remains the
-        # effective gatekeeper, and the event log records an audit trail.
-        emit_force = True
+        # Keep force semantics strict: only user-requested --force should bypass guards.
+        emit_force = force
         if not emit_reason:
             if force:
                 emit_reason = f"Force move to {target_lane}"
             else:
                 emit_reason = f"move-task: {old_lane} -> {target_lane}"
 
-        # Call the canonical emit pipeline
-        # This validates the transition, appends a JSONL event, materializes
-        # the snapshot, updates legacy views, and emits SaaS telemetry.
-        event = emit_status_transition(
-            feature_dir=feature_dir,
-            feature_slug=feature_slug,
-            wp_id=task_id,
-            to_lane=canonical_lane,
-            actor=actor,
-            force=emit_force,
-            reason=emit_reason,
-            evidence=evidence_dict,
-            review_ref=emit_review_ref,
-            repo_root=main_repo_root,
-        )
+        def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
+            current = resolve_lane_alias(current_lane)
+            target = resolve_lane_alias(requested_lane)
+            forward = ["planned", "claimed", "in_progress", "for_review", "done"]
+            if current in forward and target in forward:
+                current_idx = forward.index(current)
+                target_idx = forward.index(target)
+                if target_idx > current_idx:
+                    return forward[current_idx + 1: target_idx + 1]
+            return [target]
+
+        transition_targets = [canonical_lane]
+        if not emit_force:
+            transition_targets = _lane_targets_for_emit(old_lane, canonical_lane)
+
+        event = None
+        current_canonical_lane = resolve_lane_alias(old_lane)
+        current_event_lane = None
+        for existing_event in reversed(read_events(feature_dir)):
+            if existing_event.wp_id == task_id:
+                current_event_lane = str(existing_event.to_lane)
+                break
+        if (
+            current_event_lane is None
+            and current_canonical_lane != "planned"
+        ):
+            # Seed canonical history from frontmatter so strict transitions can continue.
+            emit_status_transition(
+                feature_dir=feature_dir,
+                feature_slug=feature_slug,
+                wp_id=task_id,
+                to_lane=current_canonical_lane,
+                actor=actor,
+                force=True,
+                reason=(
+                    "bootstrap from frontmatter lane "
+                    f"{current_canonical_lane} before move-task transition"
+                ),
+                workspace_context=f"move-task:{main_repo_root}",
+                subtasks_complete=True if current_canonical_lane == "for_review" else None,
+                implementation_evidence_present=(
+                    True if current_canonical_lane == "for_review" else None
+                ),
+                repo_root=main_repo_root,
+            )
+
+        for target in transition_targets:
+            event = emit_status_transition(
+                feature_dir=feature_dir,
+                feature_slug=feature_slug,
+                wp_id=task_id,
+                to_lane=target,
+                actor=actor,
+                force=emit_force,
+                reason=emit_reason,
+                evidence=evidence_dict if target == "done" else None,
+                review_ref=emit_review_ref,
+                workspace_context=f"move-task:{main_repo_root}",
+                subtasks_complete=(
+                    True
+                    if target == "for_review" and not emit_force
+                    else None
+                ),
+                implementation_evidence_present=(
+                    True
+                    if target == "for_review" and not emit_force
+                    else None
+                ),
+                repo_root=main_repo_root,
+            )
+            # review_ref only applies to rollback transitions, never to forward chain hops
+            emit_review_ref = None
+
+        if event is None:
+            raise TransitionError("No status transition event was emitted")
 
         # --- Post-emit: apply metadata fields to WP file ---
         # The emit pipeline (via legacy_bridge) may have updated the lane

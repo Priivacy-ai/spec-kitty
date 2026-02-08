@@ -70,8 +70,15 @@ class TestLegalTransitions:
         "from_lane,to_lane,kwargs",
         [
             ("planned", "claimed", {"actor": "agent-1"}),
-            ("claimed", "in_progress", {}),
-            ("in_progress", "for_review", {}),
+            ("claimed", "in_progress", {"workspace_context": "worktree:/tmp/wt1"}),
+            (
+                "in_progress",
+                "for_review",
+                {
+                    "subtasks_complete": True,
+                    "implementation_evidence_present": True,
+                },
+            ),
             (
                 "for_review",
                 "done",
@@ -219,6 +226,46 @@ class TestGuardConditions:
         )
         assert ok is True
 
+    def test_workspace_context_required_for_claimed_to_in_progress(self) -> None:
+        ok, error = validate_transition("claimed", "in_progress")
+        assert ok is False
+        assert "workspace context" in error.lower()
+
+    def test_workspace_context_provided(self) -> None:
+        ok, error = validate_transition(
+            "claimed",
+            "in_progress",
+            workspace_context="worktree:/tmp/wt1",
+        )
+        assert ok is True
+
+    def test_subtasks_required_for_in_progress_to_for_review(self) -> None:
+        ok, error = validate_transition(
+            "in_progress",
+            "for_review",
+            implementation_evidence_present=True,
+        )
+        assert ok is False
+        assert "completed subtasks" in error.lower()
+
+    def test_implementation_evidence_required_for_in_progress_to_for_review(self) -> None:
+        ok, error = validate_transition(
+            "in_progress",
+            "for_review",
+            subtasks_complete=True,
+        )
+        assert ok is False
+        assert "implementation evidence" in error.lower()
+
+    def test_subtasks_and_implementation_evidence_allow_for_review(self) -> None:
+        ok, error = validate_transition(
+            "in_progress",
+            "for_review",
+            subtasks_complete=True,
+            implementation_evidence_present=True,
+        )
+        assert ok is True
+
     def test_reason_required_for_abandon(self) -> None:
         ok, error = validate_transition("in_progress", "planned")
         assert ok is False
@@ -234,13 +281,18 @@ class TestGuardConditions:
 class TestAliasInTransitions:
     def test_doing_alias_in_from_lane(self) -> None:
         ok, error = validate_transition(
-            "doing", "for_review"
+            "doing",
+            "for_review",
+            subtasks_complete=True,
+            implementation_evidence_present=True,
         )
         assert ok is True
 
     def test_doing_alias_in_to_lane(self) -> None:
         ok, error = validate_transition(
-            "claimed", "doing"
+            "claimed",
+            "doing",
+            workspace_context="worktree:/tmp/wt1",
         )
         assert ok is True
 

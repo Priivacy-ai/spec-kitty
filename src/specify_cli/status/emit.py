@@ -20,6 +20,7 @@ Pipeline order (critical -- do not reorder):
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -74,26 +75,32 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
     """Build a DoneEvidence dataclass from a raw dict.
 
     Raises TransitionError if the evidence dict is missing required
-    fields (review.reviewer, review.verdict).
+    fields (review.reviewer, review.verdict, review.reference).
     """
     review_data = evidence.get("review")
     if not isinstance(review_data, dict):
         raise TransitionError(
             "Moving to done requires evidence with review.reviewer "
-            "and review.verdict"
+            "review.verdict, and review.reference"
         )
     reviewer = review_data.get("reviewer")
     verdict = review_data.get("verdict")
-    if not reviewer or not verdict:
+    reference = review_data.get("reference")
+    if (
+        not reviewer
+        or not verdict
+        or not reference
+        or not str(reference).strip()
+    ):
         raise TransitionError(
             "Moving to done requires evidence with review.reviewer "
-            "and review.verdict"
+            "review.verdict, and review.reference"
         )
 
     review_approval = ReviewApproval(
         reviewer=reviewer,
         verdict=verdict,
-        reference=review_data.get("reference", ""),
+        reference=str(reference),
     )
 
     repos = [
@@ -110,6 +117,40 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
     )
 
 
+def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
+    """Infer subtask completion from tasks.md checkboxes for a WP section."""
+    tasks_path = feature_dir / "tasks.md"
+    if not tasks_path.exists():
+        return True
+    content = tasks_path.read_text(encoding="utf-8")
+    lines = content.splitlines()
+    in_wp_section = False
+    unchecked_found = False
+
+    for line in lines:
+        if re.search(rf"^##.*\b{re.escape(wp_id)}\b", line):
+            in_wp_section = True
+            continue
+        if in_wp_section and re.search(r"^##\s+", line):
+            break
+        if not in_wp_section:
+            continue
+        if re.match(r"^\s*-\s*\[\s*\]\s+", line):
+            unchecked_found = True
+            break
+    if not in_wp_section:
+        return True
+    return not unchecked_found
+
+
+def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
+    """Infer implementation evidence from prior canonical events for this WP."""
+    for event in _store.read_events(feature_dir):
+        if event.wp_id == wp_id:
+            return True
+    return False
+
+
 def emit_status_transition(
     feature_dir: Path,
     feature_slug: str,
@@ -121,6 +162,9 @@ def emit_status_transition(
     reason: str | None = None,
     evidence: dict | None = None,
     review_ref: str | None = None,
+    workspace_context: str | None = None,
+    subtasks_complete: bool | None = None,
+    implementation_evidence_present: bool | None = None,
     execution_mode: str = "worktree",
     repo_root: Path | None = None,
 ) -> StatusEvent:
@@ -142,6 +186,9 @@ def emit_status_transition(
         reason: Reason for the transition (required for force and some guards).
         evidence: Evidence dict for done transitions.
         review_ref: Review feedback reference (required for for_review -> in_progress).
+        workspace_context: Active workspace context identifier.
+        subtasks_complete: Whether subtasks are complete for review handoff.
+        implementation_evidence_present: Whether implementation evidence is present.
         execution_mode: "worktree" or "direct_repo".
         repo_root: Repository root for SaaS fan-out (optional).
 
@@ -158,6 +205,24 @@ def emit_status_transition(
     # Step 2: Derive from_lane from last event for this WP
     from_lane = _derive_from_lane(feature_dir, wp_id)
 
+    if workspace_context is None:
+        context_root = repo_root if repo_root is not None else feature_dir
+        workspace_context = f"{execution_mode}:{context_root}"
+    if (
+        subtasks_complete is None
+        and from_lane == "in_progress"
+        and resolved_lane == "for_review"
+    ):
+        subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
+    if (
+        implementation_evidence_present is None
+        and from_lane == "in_progress"
+        and resolved_lane == "for_review"
+    ):
+        implementation_evidence_present = _infer_implementation_evidence(
+            feature_dir, wp_id
+        )
+
     # Step 3: Validate the transition
     # Build DoneEvidence early so we can pass it to validate_transition
     done_evidence: DoneEvidence | None = None
@@ -169,6 +234,9 @@ def emit_status_transition(
         resolved_lane,
         force=force,
         actor=actor,
+        workspace_context=workspace_context,
+        subtasks_complete=subtasks_complete,
+        implementation_evidence_present=implementation_evidence_present,
         reason=reason,
         review_ref=review_ref,
         evidence=done_evidence,

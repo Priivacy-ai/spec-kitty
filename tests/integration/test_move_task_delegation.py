@@ -360,6 +360,7 @@ class TestMoveTaskBehaviorMatchesPreRefactor:
                 "move-task", "WP01", "--to", "done",
                 "--feature", "001-test-feature",
                 "--agent", "test-agent",
+                "--approval-ref", "PR#42",
                 "--json",
             ]
         )
@@ -371,14 +372,53 @@ class TestMoveTaskBehaviorMatchesPreRefactor:
         front, body, _ = split_frontmatter(content)
         assert extract_scalar(front, "lane") == "done"
 
-        # Verify all 3 events are in the JSONL log
+        # Verify canonical progression events are in the JSONL log
         feature_dir = task_repo / "kitty-specs" / "001-test-feature"
         events = read_events(feature_dir)
         wp01_events = [e for e in events if e.wp_id == "WP01"]
-        assert len(wp01_events) == 3
+        assert len(wp01_events) == 4
 
         lanes = [str(e.to_lane) for e in wp01_events]
-        assert lanes == ["in_progress", "for_review", "done"]
+        assert lanes == ["claimed", "in_progress", "for_review", "done"]
+
+    def test_done_auto_populates_approval_reference(self, task_repo: Path, monkeypatch):
+        """for_review -> done auto-populates approval reference when omitted."""
+        monkeypatch.chdir(task_repo)
+
+        runner.invoke(
+            app,
+            [
+                "move-task", "WP01", "--to", "doing",
+                "--feature", "001-test-feature",
+                "--agent", "test-agent",
+                "--json",
+            ],
+        )
+        runner.invoke(
+            app,
+            [
+                "move-task", "WP01", "--to", "for_review",
+                "--feature", "001-test-feature",
+                "--agent", "test-agent",
+                "--json",
+            ],
+        )
+        result = runner.invoke(
+            app,
+            [
+                "move-task", "WP01", "--to", "done",
+                "--feature", "001-test-feature",
+                "--agent", "test-agent",
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0
+        feature_dir = task_repo / "kitty-specs" / "001-test-feature"
+        events = read_events(feature_dir)
+        done_events = [e for e in events if str(e.to_lane) == "done"]
+        assert done_events
+        assert done_events[-1].evidence is not None
+        assert done_events[-1].evidence.review.reference.startswith("auto-approval:")
 
     def test_json_output_format_preserved(self, task_repo: Path, monkeypatch):
         """JSON output should have the same fields as before refactoring."""

@@ -22,6 +22,9 @@ from specify_cli.status.phase import resolve_phase
 
 logger = logging.getLogger(__name__)
 
+STATUS_BLOCK_START = "<!-- status-model:start -->"
+STATUS_BLOCK_END = "<!-- status-model:end -->"
+
 
 def update_frontmatter_views(
     feature_dir: Path,
@@ -121,11 +124,45 @@ def _update_wp_status_in_tasks_md(
     - Non-WP sections
     - Content within WP sections (only headers/metadata)
 
-    Currently a pass-through. The status is tracked in the individual
-    WP files, not in tasks.md section content. If future requirements
-    add lane indicators to tasks.md, this function will be extended.
+    Adds/updates a generated canonical status block delimited by stable
+    markers so validation can detect drift reliably.
     """
-    return content
+    status_block = _render_tasks_status_block(snapshot)
+    start_idx = content.find(STATUS_BLOCK_START)
+    end_idx = content.find(STATUS_BLOCK_END, start_idx if start_idx != -1 else 0)
+
+    if start_idx != -1 and end_idx != -1:
+        end_exclusive = end_idx + len(STATUS_BLOCK_END)
+        before = content[:start_idx].rstrip()
+        after = content[end_exclusive:].lstrip("\n")
+        rebuilt = before
+        if rebuilt:
+            rebuilt += "\n\n"
+        rebuilt += status_block
+        if after:
+            rebuilt += "\n\n" + after
+        if not rebuilt.endswith("\n"):
+            rebuilt += "\n"
+        return rebuilt
+
+    if not content.strip():
+        return status_block + "\n"
+
+    rebuilt = content.rstrip() + "\n\n" + status_block + "\n"
+    return rebuilt
+
+
+def _render_tasks_status_block(snapshot: StatusSnapshot) -> str:
+    """Render deterministic generated status lines for tasks.md."""
+    lines = [
+        STATUS_BLOCK_START,
+        "## Canonical Status (Generated)",
+    ]
+    for wp_id in sorted(snapshot.work_packages):
+        lane = snapshot.work_packages[wp_id].get("lane", "")
+        lines.append(f"- {wp_id}: {lane}")
+    lines.append(STATUS_BLOCK_END)
+    return "\n".join(lines)
 
 
 def update_all_views(
