@@ -1,9 +1,12 @@
 ---
 work_package_id: WP13
 title: Status Reconcile
-lane: planned
+lane: "doing"
 dependencies:
 - WP03
+base_branch: 2.x
+base_commit: 2996342e2eee2c6b985377f0ac220b9dd8eb292b
+created_at: '2026-02-08T14:49:03.751848+00:00'
 subtasks:
 - T064
 - T065
@@ -14,7 +17,7 @@ subtasks:
 phase: Phase 3 - Operational
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "50922"
 review_status: ''
 reviewed_by: ''
 history:
