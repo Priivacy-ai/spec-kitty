@@ -15,11 +15,14 @@ EXPECTED_TEMPLATES = {
     "dashboard.md",
     "implement.md",
     "merge.md",
+    "next.md",
+    "pipeline.md",
     "plan.md",
     "research.md",
     "review.md",
     "specify.md",
     "tasks.md",
+    "vision.md",
 }
 
 
