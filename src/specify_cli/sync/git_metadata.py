@@ -9,12 +9,17 @@ Provides:
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+
+_SCP_LIKE_REMOTE_RE = re.compile(r"^(?:[^@/]+@)?[^:/]+:(?P<path>.+)$")
 
 
 @dataclass(frozen=True)
@@ -27,39 +32,56 @@ class GitMetadata:
 
 
 def parse_repo_slug(url: str) -> str | None:
-    """Parse owner/repo from SSH or HTTPS git remote URL.
+    """Parse owner/repo-style slug from hosted git remote URL.
 
     Supports:
     - SSH: git@github.com:owner/repo.git
     - HTTPS: https://github.com/owner/repo.git
+    - SSH URL: ssh://git@github.com/owner/repo.git
     - GitLab subgroups: git@gitlab.com:org/team/repo.git
 
     Args:
-        url: Git remote URL (SSH or HTTPS format)
+        url: Git remote URL
 
     Returns:
-        owner/repo string, or None if unparseable
+        owner/repo-style slug (supports subgroups), or None if unparseable
+        or not a hosted remote URL.
     """
-    # Strip trailing .git
-    if url.endswith(".git"):
-        url = url[:-4]
+    cleaned_url = url.strip()
+    if not cleaned_url:
+        return None
 
-    # SSH: git@host:owner/repo
-    if "@" in url and ":" in url:
-        path = url.split(":")[-1]
+    parsed = urlparse(cleaned_url)
+    path: str | None
+
+    # Explicitly reject local-file remotes and bare filesystem paths.
+    if parsed.scheme == "file":
+        return None
+    if cleaned_url.startswith(("/", "./", "../")):
+        return None
+
+    # URL-form remotes (https://, ssh://, git://, etc.)
+    if parsed.scheme and parsed.netloc:
+        path = parsed.path
     else:
-        # HTTPS: https://host/owner/repo
-        # Strip scheme and host
-        parts = url.split("//", 1)
-        path_part = parts[-1] if len(parts) > 1 else parts[0]
-        # Remove host (first segment before /)
-        segments = path_part.split("/", 1)
-        path = segments[1] if len(segments) > 1 else ""
+        # SCP-like SSH form (git@host:owner/repo.git)
+        match = _SCP_LIKE_REMOTE_RE.match(cleaned_url)
+        if not match:
+            return None
+        path = match.group("path")
 
-    # Strip leading slash
-    path = path.lstrip("/")
+    normalized_path = path.strip().lstrip("/").rstrip("/")
+    if normalized_path.endswith(".git"):
+        normalized_path = normalized_path[:-4]
 
-    return path if "/" in path else None
+    if not normalized_path:
+        return None
+
+    segments = [segment for segment in normalized_path.split("/") if segment]
+    if len(segments) < 2:
+        return None
+
+    return "/".join(segments)
 
 
 class GitMetadataResolver:

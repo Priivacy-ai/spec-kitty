@@ -24,7 +24,7 @@ The canonical contract lives at `kitty-specs/033-github-observability-event-meta
 | Field | Type | Required | Resolved | Description |
 |-------|------|----------|----------|-------------|
 | `team_slug` | `string` | Yes | Per-session | Team identifier; `"local"` when unauthenticated |
-| `project_uuid` | `string\|null` | Yes* | Per-session | UUID4 from `.kittify/identity.yaml`; required for WebSocket |
+| `project_uuid` | `string\|null` | Yes* | Per-session | UUID4 from `.kittify/config.yaml` (`project.uuid`); required for WebSocket |
 | `project_slug` | `string\|null` | No | Per-session | Kebab-case project name |
 
 *Events without `project_uuid` are queued locally only (not sent via WebSocket).
@@ -80,4 +80,4 @@ The canonical contract lives at `kitty-specs/033-github-observability-event-meta
 }
 ```
 
-See the [canonical contract](../kitty-specs/033-github-observability-event-metadata/contracts/event-envelope.md) for full details.
+See the [canonical contract](../../kitty-specs/033-github-observability-event-metadata/contracts/event-envelope.md) for full details.

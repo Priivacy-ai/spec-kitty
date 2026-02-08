@@ -329,6 +329,20 @@ class TestParseRepoSlug:
         """GitLab subgroup: git@gitlab.com:org/team/repo.git"""
         assert parse_repo_slug("git@gitlab.com:org/team/repo.git") == "org/team/repo"
 
+    def test_ssh_url_format(self):
+        """SSH URL form: ssh://git@github.com/owner/repo.git."""
+        assert (
+            parse_repo_slug("ssh://git@github.com/acme/spec-kitty.git")
+            == "acme/spec-kitty"
+        )
+
+    def test_ssh_url_gitlab_subgroup(self):
+        """SSH URL supports GitLab subgroups."""
+        assert (
+            parse_repo_slug("ssh://git@gitlab.com/org/team/repo.git")
+            == "org/team/repo"
+        )
+
     def test_bitbucket_ssh(self):
         """Bitbucket SSH URL."""
         assert (
@@ -341,6 +355,10 @@ class TestParseRepoSlug:
         assert (
             parse_repo_slug("https://git.internal.co/acme/repo.git") == "acme/repo"
         )
+
+    def test_https_with_trailing_slash(self):
+        """Trailing slash is normalized away."""
+        assert parse_repo_slug("https://github.com/acme/spec-kitty/") == "acme/spec-kitty"
 
     def test_no_path_returns_none(self):
         """URL without owner/repo path returns None."""
@@ -367,6 +385,18 @@ class TestParseRepoSlug:
     def test_empty_string(self):
         """Empty string returns None (no slash in path)."""
         assert parse_repo_slug("") is None
+
+    def test_file_url_returns_none(self):
+        """file:// remotes are local and should not be treated as repo slugs."""
+        assert parse_repo_slug("file:///Users/robert/code/spec-kitty") is None
+
+    def test_local_filesystem_path_returns_none(self):
+        """Bare filesystem paths are not hosted repo slugs."""
+        assert parse_repo_slug("/Users/robert/code/spec-kitty") is None
+
+    def test_relative_filesystem_path_returns_none(self):
+        """Relative local paths are not hosted repo slugs."""
+        assert parse_repo_slug("../spec-kitty") is None
 
 
 class TestDeriveRepoSlug:
