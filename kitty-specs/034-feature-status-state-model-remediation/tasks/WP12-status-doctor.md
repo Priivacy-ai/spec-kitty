@@ -1,7 +1,7 @@
 ---
 work_package_id: WP12
 title: Status Doctor
-lane: "doing"
+lane: "for_review"
 dependencies: [WP03]
 base_branch: 2.x
 base_commit: 0217a254f9762da0bb27cdfb856eccf5a1e0d8d4
@@ -575,3 +575,4 @@ When reviewing this WP, verify:
 ## Activity Log
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
+- 2026-02-08T15:00:43Z – unknown – shell_pid=50840 – lane=for_review – Moved to for_review
