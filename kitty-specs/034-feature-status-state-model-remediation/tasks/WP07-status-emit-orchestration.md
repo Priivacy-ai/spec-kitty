@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Status Emit Orchestration
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP02
 base_branch: 2.x
@@ -343,3 +343,4 @@ When reviewing this WP, verify:
 ## Activity Log
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
+- 2026-02-08T15:00:37Z – unknown – shell_pid=50636 – lane=for_review – Moved to for_review
