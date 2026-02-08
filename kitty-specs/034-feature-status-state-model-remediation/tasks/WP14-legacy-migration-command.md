@@ -1,9 +1,12 @@
 ---
 work_package_id: WP14
 title: Legacy Migration Command
-lane: planned
+lane: "doing"
 dependencies:
 - WP02
+base_branch: 2.x
+base_commit: 618c104baa0af49b476bd2c6dc374be4cdfa83e6
+created_at: '2026-02-08T14:49:10.900642+00:00'
 subtasks:
 - T070
 - T071
@@ -13,7 +16,7 @@ subtasks:
 phase: Phase 1 - Canonical Log
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "51278"
 review_status: ''
 reviewed_by: ''
 history:
