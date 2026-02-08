@@ -134,6 +134,40 @@ class TestEventEnvelope:
         assert event is not None
         assert event["causation_id"] is None
 
+    def test_git_branch_present(self, emitter: EventEmitter, temp_queue):
+        """Event includes git_branch from resolver."""
+        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        assert event is not None
+        assert "git_branch" in event
+        assert event["git_branch"] == "test-branch"
+
+    def test_head_commit_sha_present(self, emitter: EventEmitter, temp_queue):
+        """Event includes head_commit_sha from resolver."""
+        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        assert event is not None
+        assert "head_commit_sha" in event
+        assert event["head_commit_sha"] == "a" * 40
+
+    def test_repo_slug_present(self, emitter: EventEmitter, temp_queue):
+        """Event includes repo_slug from resolver."""
+        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        assert event is not None
+        assert "repo_slug" in event
+        assert event["repo_slug"] == "test-org/test-repo"
+
+    def test_git_metadata_present_across_event_types(self, emitter: EventEmitter, temp_queue):
+        """All event types include git metadata fields."""
+        events = [
+            emitter.emit_wp_status_changed("WP01", "planned", "doing"),
+            emitter.emit_wp_created("WP01", "Test", "033-test"),
+            emitter.emit_feature_created("033-test", "033", "2.x", 1),
+        ]
+        for event in events:
+            assert event is not None
+            assert "git_branch" in event
+            assert "head_commit_sha" in event
+            assert "repo_slug" in event
+
 
 class TestWPStatusChanged:
     """Test emit_wp_status_changed (SC-001, SC-002, SC-003)."""
@@ -545,6 +579,114 @@ class TestCausationId:
         """Each generated causation_id is unique."""
         ids = {emitter.generate_causation_id() for _ in range(100)}
         assert len(ids) == 100
+
+
+class TestGitMetadataInEvents:
+    """Test git metadata field behavior in emitted events."""
+
+    def test_null_git_metadata(self, temp_queue, temp_clock, mock_config, mock_identity):
+        """Events still emit when git metadata is all None."""
+        from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
+
+        null_metadata = GitMetadata()  # All None
+        null_resolver = MagicMock(spec=GitMetadataResolver)
+        null_resolver.resolve.return_value = null_metadata
+
+        em = EventEmitter(
+            clock=temp_clock, config=mock_config, queue=temp_queue,
+            _auth=MagicMock(get_team_slug=MagicMock(return_value="test")),
+            ws_client=None, _identity=mock_identity,
+            _git_resolver=null_resolver,
+        )
+        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        assert event is not None
+        assert event["git_branch"] is None
+        assert event["head_commit_sha"] is None
+        assert event["repo_slug"] is None
+
+    def test_partial_git_metadata(self, temp_queue, temp_clock, mock_config, mock_identity):
+        """Events emit with partial git metadata (branch but no repo slug)."""
+        from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
+
+        partial = GitMetadata(git_branch="main", head_commit_sha="a" * 40, repo_slug=None)
+        resolver = MagicMock(spec=GitMetadataResolver)
+        resolver.resolve.return_value = partial
+
+        em = EventEmitter(
+            clock=temp_clock, config=mock_config, queue=temp_queue,
+            _auth=MagicMock(get_team_slug=MagicMock(return_value="test")),
+            ws_client=None, _identity=mock_identity,
+            _git_resolver=resolver,
+        )
+        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        assert event is not None
+        assert event["git_branch"] == "main"
+        assert event["head_commit_sha"] == "a" * 40
+        assert event["repo_slug"] is None
+
+
+class TestOfflineReplayCompatibility:
+    """Test that events with and without git metadata can be queued and replayed."""
+
+    def test_event_with_git_fields_queued(self, temp_queue):
+        """Events with git metadata fields are stored in offline queue."""
+        event = {
+            "event_id": "01HQXYZ" + "A" * 19,
+            "event_type": "WPStatusChanged",
+            "aggregate_id": "WP01",
+            "aggregate_type": "WorkPackage",
+            "payload": {
+                "wp_id": "WP01",
+                "previous_status": "planned",
+                "new_status": "doing",
+                "changed_by": "user",
+                "feature_slug": None,
+            },
+            "timestamp": "2026-02-07T12:00:00+00:00",
+            "node_id": "test123",
+            "lamport_clock": 1,
+            "causation_id": None,
+            "team_slug": "test",
+            "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+            "project_slug": "test",
+            "git_branch": "main",
+            "head_commit_sha": "a" * 40,
+            "repo_slug": "org/repo",
+        }
+        temp_queue.queue_event(event)
+        events = temp_queue.drain_queue()
+        assert len(events) == 1
+        assert events[0]["git_branch"] == "main"
+        assert events[0]["head_commit_sha"] == "a" * 40
+        assert events[0]["repo_slug"] == "org/repo"
+
+    def test_event_without_git_fields_still_works(self, temp_queue):
+        """Pre-033 events without git fields can be queued/drained."""
+        event = {
+            "event_id": "01HQXYZ" + "B" * 19,
+            "event_type": "WPStatusChanged",
+            "aggregate_id": "WP01",
+            "aggregate_type": "WorkPackage",
+            "payload": {
+                "wp_id": "WP01",
+                "previous_status": "planned",
+                "new_status": "doing",
+                "changed_by": "user",
+                "feature_slug": None,
+            },
+            "timestamp": "2026-02-07T12:00:00+00:00",
+            "node_id": "test123",
+            "lamport_clock": 1,
+            "causation_id": None,
+            "team_slug": "test",
+            "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+            "project_slug": "test",
+            # No git_branch, head_commit_sha, repo_slug
+        }
+        temp_queue.queue_event(event)
+        events = temp_queue.drain_queue()
+        assert len(events) == 1
+        assert "git_branch" not in events[0]
 
 
 class TestInternalValidation:
