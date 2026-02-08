@@ -285,7 +285,11 @@ class FrontmatterManager:
 
             # Validate lane value
             if "lane" in frontmatter:
-                valid_lanes = ["planned", "doing", "for_review", "done"]
+                valid_lanes = [
+                    "planned", "claimed", "in_progress", "for_review",
+                    "done", "blocked", "canceled",
+                    "doing",  # Accepted alias for in_progress
+                ]
                 if frontmatter["lane"] not in valid_lanes:
                     errors.append(
                         f"Invalid lane value: {frontmatter['lane']} "
