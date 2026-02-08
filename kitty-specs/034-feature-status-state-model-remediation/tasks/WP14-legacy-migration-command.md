@@ -1,7 +1,7 @@
 ---
 work_package_id: WP14
 title: Legacy Migration Command
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP02
 base_branch: 2.x
@@ -494,3 +494,4 @@ Create a migration command that bootstraps canonical event logs from existing fr
 ## Activity Log
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
+- 2026-02-08T15:00:47Z – unknown – shell_pid=51278 – lane=for_review – Moved to for_review
