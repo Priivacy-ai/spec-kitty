@@ -1,9 +1,12 @@
 ---
 work_package_id: WP06
 title: Legacy Bridge (Compatibility Views)
-lane: planned
+lane: "doing"
 dependencies:
 - WP03
+base_branch: 2.x
+base_commit: dfc821d20f7b34ae18182b897bcc35720ca2c4e4
+created_at: '2026-02-08T14:48:31.200239+00:00'
 subtasks:
 - T027
 - T028
@@ -13,7 +16,7 @@ subtasks:
 phase: Phase 1 - Canonical Log
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "50563"
 review_status: ''
 reviewed_by: ''
 history:
