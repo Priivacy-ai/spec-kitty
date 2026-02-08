@@ -1,9 +1,12 @@
 ---
 work_package_id: WP11
 title: Status Validate Command
-lane: planned
+lane: "doing"
 dependencies:
 - WP03
+base_branch: 2.x
+base_commit: 2c74efbf962454fa33834aece0d8e644af1ddfdb
+created_at: '2026-02-08T14:48:50.451518+00:00'
 subtasks:
 - T053
 - T054
@@ -14,7 +17,7 @@ subtasks:
 phase: Phase 2 - Read Cutover
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "50777"
 review_status: ''
 reviewed_by: ''
 history:
