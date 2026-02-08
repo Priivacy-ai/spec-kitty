@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: CLI Status Commands (emit & materialize)
-lane: "doing"
+lane: "for_review"
 dependencies: [WP07]
 base_branch: 2.x
 base_commit: b8f921f8901326a8d6b083c36c434346dec760b2
@@ -349,3 +349,4 @@ When reviewing this WP, verify:
 ## Activity Log
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
+- 2026-02-08T15:24:49Z – unknown – shell_pid=58568 – lane=for_review – CLI status emit & materialize commands with 13 tests
