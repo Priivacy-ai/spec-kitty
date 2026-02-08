@@ -41,6 +41,11 @@ from .phase import (
     is_01x_branch,
     resolve_phase,
 )
+from .legacy_bridge import (
+    update_all_views,
+    update_frontmatter_views,
+    update_tasks_md_views,
+)
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
@@ -70,5 +75,8 @@ __all__ = [
     "reduce",
     "resolve_lane_alias",
     "resolve_phase",
+    "update_all_views",
+    "update_frontmatter_views",
+    "update_tasks_md_views",
     "validate_transition",
 ]
