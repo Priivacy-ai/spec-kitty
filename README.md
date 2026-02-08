@@ -259,7 +259,7 @@ spec-kitty dashboard  # Opens http://localhost:3000-5000
 ```
 
 **What just happened:**
-- ✅ Created `.claude/commands/` (or `.gemini/`, `.cursor/`, etc.) with 13 slash commands
+- ✅ Created `.claude/commands/` (or `.gemini/`, `.cursor/`, etc.) with 16 slash commands
 - ✅ Created `.kittify/` directory with scripts, templates, and mission configuration
 - ✅ Started real-time kanban dashboard (runs in background)
 - ✅ Initialized git repository with proper `.gitignore`
@@ -504,6 +504,13 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 6️⃣  /spec-kitty.review           → Review completed work
 7️⃣  /spec-kitty.accept           → Validate feature ready
 8️⃣  /spec-kitty.merge            → Merge to main + cleanup
+```
+
+### Productivity Commands
+```
+/spec-kitty.vision     → Before anything: Define product vision and feature map
+/spec-kitty.next       → Anytime: Analyze project state, recommend next step
+/spec-kitty.pipeline   → After /tasks: Implement all WPs in a single session
 ```
 
 ### Optional Enhancement Commands
@@ -998,6 +1005,16 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 | 7 | `/spec-kitty.review`        | Display WP prompt for review, auto-move to "doing" lane, show next steps |
 | 8 | `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and verify feature complete |
 | 9 | `/spec-kitty.merge`         | Merge feature into main branch and clean up worktree                  |
+
+#### Productivity Commands
+
+**Commands for streamlined workflows:**
+
+| Command              | When to Use                                                           |
+|----------------------|-----------------------------------------------------------------------|
+| `/spec-kitty.vision`    | **Before any features**: Explore your product idea and produce a structured vision document with a prioritized feature map |
+| `/spec-kitty.next`      | **Anytime**: Analyze project state and recommend the next step with a ready-to-paste command |
+| `/spec-kitty.pipeline`  | **After `/spec-kitty.tasks`**: Implement, review, and complete all WPs for a feature in a single session |
 
 #### Quality Gates & Development Tools
 

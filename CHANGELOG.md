@@ -7,6 +7,15 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.3] - 2026-02-08
+
+### ✨ Added
+
+- **`/spec-kitty.vision` command**: Conversational product vision exploration that produces a structured vision document (`.kittify/memory/vision.md`) with a prioritized feature map (MVP, Phase 2, Future). Designed as the entry point for new projects.
+- **`/spec-kitty.next` command**: Analyzes project state (vision, features, kanban lanes) and recommends the single best next action with a ready-to-paste command. No questions asked — just state, recommendation, and command.
+- **`/spec-kitty.pipeline` command**: Implements, reviews, and completes all planned WPs for a feature in a single session. Builds a topological execution order from WP dependencies and loops through implement → commit → review → done for each WP.
+- **Migration `m_0_14_3`**: Deploys the three new slash commands to all configured agent directories on `spec-kitty upgrade`.
+
 ## [0.14.2] - 2026-02-07
 
 ### 🐛 Fixed

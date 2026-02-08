@@ -312,6 +312,76 @@ Syntax format in this reference:
 
 **Related**: `/spec-kitty.tasks`, `/spec-kitty.implement`
 
+---
+
+## /spec-kitty.vision
+
+**Syntax**: `/spec-kitty.vision [idea description]`
+
+**Purpose**: Explore a product idea and produce a structured vision document with a prioritized feature map.
+
+**Prerequisites**:
+- Run from the main repository root.
+
+**What it does**:
+- Runs a conversational discovery flow (spark, day-in-the-life, priorities, feature map).
+- Helps the user articulate their product idea before any features are specified.
+- Produces a structured vision document with MVP, Phase 2, and Future feature groupings.
+- If a vision already exists, updates it incrementally.
+
+**Creates/updates**:
+- `.kittify/memory/vision.md`
+
+**Related**: `/spec-kitty.next`, `/spec-kitty.specify`, `/spec-kitty.constitution`
+
+---
+
+## /spec-kitty.next
+
+**Syntax**: `/spec-kitty.next [context]`
+
+**Purpose**: Analyze project state and recommend the next step with a ready-to-paste command.
+
+**Prerequisites**:
+- Run from the main repository root.
+
+**What it does**:
+- Checks for vision, constitution, and all feature directories.
+- Scans kanban state (WP lanes) across all features.
+- Applies a priority order: unblock reviews > complete features > advance pipeline > start new features.
+- Outputs a concise recommendation with a copy-paste command.
+
+**Creates/updates**: None (read-only).
+
+**Related**: `/spec-kitty.vision`, `/spec-kitty.status`
+
+---
+
+## /spec-kitty.pipeline
+
+**Syntax**: `/spec-kitty.pipeline [feature slug or WP range]`
+
+**Purpose**: Implement, review, and complete all planned WPs for a feature in a single session.
+
+**Prerequisites**:
+- Run from the main repository root.
+- Work packages must exist in `kitty-specs/<feature>/tasks/`.
+
+**What it does**:
+- Discovers the active feature and builds a topological execution order from WP dependencies.
+- Presents the plan for user confirmation.
+- For each WP: implements, commits, self-reviews, and moves to `done`.
+- Handles three paths: resume review (`for_review`), resume implementation (`doing`), and fresh implementation (`planned`).
+- Returns to main repo between each WP.
+
+**Creates/updates**:
+- `.worktrees/<feature>-WP##/` worktree directories
+- `kitty-specs/<feature>/tasks/WP##-*.md` lane status updates
+
+**Related**: `/spec-kitty.implement`, `/spec-kitty.review`, `/spec-kitty.accept`
+
+---
+
 ## Getting Started
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
