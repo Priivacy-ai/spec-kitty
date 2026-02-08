@@ -1,9 +1,12 @@
 ---
 work_package_id: WP07
 title: Status Emit Orchestration
-lane: planned
+lane: "doing"
 dependencies:
 - WP02
+base_branch: 2.x
+base_commit: a81e80bda571a3156ad85fe5564a4a5d0edad983
+created_at: '2026-02-08T14:48:38.002527+00:00'
 subtasks:
 - T032
 - T033
@@ -14,7 +17,7 @@ subtasks:
 phase: Phase 1 - Canonical Log
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "50636"
 review_status: ''
 reviewed_by: ''
 history:
