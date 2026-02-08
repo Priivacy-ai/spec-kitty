@@ -1,9 +1,12 @@
 ---
 work_package_id: WP09
 title: move-task Delegation
-lane: planned
+lane: "doing"
 dependencies:
 - WP07
+base_branch: 2.x
+base_commit: 726239759dba411a3720af8f19e18b8dc222655e
+created_at: '2026-02-08T15:02:40.958109+00:00'
 subtasks:
 - T043
 - T044
@@ -13,7 +16,7 @@ subtasks:
 phase: Phase 1 - Canonical Log
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "59111"
 review_status: ''
 reviewed_by: ''
 history:
