@@ -35,17 +35,28 @@ from .transitions import (
     resolve_lane_alias,
     validate_transition,
 )
+from .doctor import (
+    Category,
+    DoctorResult,
+    Finding,
+    Severity,
+    run_doctor,
+)
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
     "CANONICAL_LANES",
+    "Category",
+    "DoctorResult",
     "DoneEvidence",
     "EVENTS_FILENAME",
+    "Finding",
     "Lane",
     "LANE_ALIASES",
     "RepoEvidence",
     "ReviewApproval",
     "SNAPSHOT_FILENAME",
+    "Severity",
     "StatusEvent",
     "StatusSnapshot",
     "StoreError",
@@ -60,5 +71,6 @@ __all__ = [
     "read_events_raw",
     "reduce",
     "resolve_lane_alias",
+    "run_doctor",
     "validate_transition",
 ]
