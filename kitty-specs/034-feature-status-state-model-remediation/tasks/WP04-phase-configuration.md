@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Phase Configuration
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 base_branch: 2.x
@@ -443,3 +443,4 @@ status:
 
 - 2026-02-08T14:07:18Z -- system -- lane=planned -- Prompt created.
 - 2026-02-08T14:31:47Z – claude-wp04 – shell_pid=42771 – lane=doing – Assigned agent via workflow command
+- 2026-02-08T14:46:43Z – claude-wp04 – shell_pid=42771 – lane=for_review – Moved to for_review
