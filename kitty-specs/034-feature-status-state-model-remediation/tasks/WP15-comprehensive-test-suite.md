@@ -1,9 +1,12 @@
 ---
 work_package_id: WP15
 title: Comprehensive Test Suite
-lane: planned
+lane: "doing"
 dependencies:
 - WP09
+base_branch: 2.x
+base_commit: 4c8c145ec01452056991065a4c6e605f4d3a96d4
+created_at: '2026-02-08T15:25:13.415453+00:00'
 subtasks:
 - T075
 - T076
@@ -14,7 +17,7 @@ subtasks:
 phase: Phase 2 - Read Cutover
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "76040"
 review_status: ''
 reviewed_by: ''
 history:
