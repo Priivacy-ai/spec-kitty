@@ -121,13 +121,13 @@
 **Estimated Size**: ~500 lines
 
 ### Included Subtasks
-- [ ] T021 Update existing TestMigrateFeature tests for force=True and multi-event output
-- [ ] T022 Update TestAliasResolution and TestIdempotency for new behavior
-- [ ] T023 Add test_marker_idempotency (events with marker reason → skip)
-- [ ] T024 Add test_live_events_skip (non-migration actors → skip)
-- [ ] T025 Add test_migration_only_replace (all migration actors → backup + replace)
-- [ ] T026 Add test_materialization_after_migrate (status.json exists and valid)
-- [ ] T027 Update TestMigrateCLI and TestMigrationResultJSON for new output schema
+- [x] T021 Update existing TestMigrateFeature tests for force=True and multi-event output
+- [x] T022 Update TestAliasResolution and TestIdempotency for new behavior
+- [x] T023 Add test_marker_idempotency (events with marker reason → skip)
+- [x] T024 Add test_live_events_skip (non-migration actors → skip)
+- [x] T025 Add test_migration_only_replace (all migration actors → backup + replace)
+- [x] T026 Add test_materialization_after_migrate (status.json exists and valid)
+- [x] T027 Update TestMigrateCLI and TestMigrationResultJSON for new output schema
 
 ### Implementation Notes
 - Key change: all assertions checking `force is False` must become `force is True`
@@ -278,4 +278,5 @@ WP01 (parser) ─────────────────┐
 ## Canonical Status (Generated)
 - WP01: for_review
 - WP02: for_review
+- WP03: for_review
 <!-- status-model:end -->
