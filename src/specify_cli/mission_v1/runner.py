@@ -15,6 +15,7 @@ from typing import Any
 from transitions import MachineError
 from transitions.extensions.markup import MarkupMachine
 
+from specify_cli.mission_v1.events import emit_event
 from specify_cli.mission_v1.schema import MissionValidationError, validate_mission_v1
 
 
@@ -31,12 +32,13 @@ class MissionModel:
     MarkupMachine attaches a ``.state`` attribute and trigger methods
     (e.g. ``model.advance()``) to this object at construction time.
 
-    It also holds context needed by guards and callbacks (wired in later WPs).
+    It also holds context needed by guards and callbacks.
 
     Attributes:
         feature_dir: Optional path to the feature directory for guard context.
         inputs: Dict of user-supplied input values keyed by input name.
-        event_log_path: Optional path to an event log file (wired in WP05).
+        event_log_path: Optional path to an event log file.
+        mission_name: Name of the mission (used in emitted events).
         state: Current state name, managed by MarkupMachine.
     """
 
@@ -45,23 +47,50 @@ class MissionModel:
         feature_dir: Path | None = None,
         inputs: dict[str, Any] | None = None,
         event_log_path: Path | None = None,
+        mission_name: str = "",
     ) -> None:
         self.feature_dir = feature_dir
         self.inputs: dict[str, Any] = inputs or {}
         self.event_log_path = event_log_path
+        self.mission_name = mission_name
         # MarkupMachine sets this to the initial state during construction.
         self.state: str = ""
 
     # ------------------------------------------------------------------
-    # Default callback stubs -- overridden by guards.py (WP03) and
-    # event emission (WP05).
+    # Callbacks -- emit events on state entry/exit.
     # ------------------------------------------------------------------
 
     def on_enter_state(self, event: Any) -> None:
-        """Default on_enter callback -- placeholder for WP05 event emission."""
+        """Emit a ``phase_entered`` event when entering a state.
+
+        Called as ``after_state_change`` by the MarkupMachine. The *event*
+        parameter is a ``transitions.EventData`` instance whose
+        ``transition.dest`` holds the destination state name.
+        """
+        dest = getattr(getattr(event, "transition", None), "dest", None)
+        state_name = dest if dest else self.state
+        emit_event(
+            "phase_entered",
+            {"state": state_name},
+            mission_name=self.mission_name,
+            feature_dir=self.feature_dir,
+        )
 
     def on_exit_state(self, event: Any) -> None:
-        """Default on_exit callback -- placeholder."""
+        """Emit a ``phase_exited`` event when leaving a state.
+
+        Called as ``before_state_change`` by the MarkupMachine. The *event*
+        parameter is a ``transitions.EventData`` instance whose
+        ``transition.source`` holds the source state name.
+        """
+        source = getattr(getattr(event, "transition", None), "source", None)
+        state_name = source if source else self.state
+        emit_event(
+            "phase_exited",
+            {"state": state_name},
+            mission_name=self.mission_name,
+            feature_dir=self.feature_dir,
+        )
 
 
 def _strip_guard_references(transitions: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -114,6 +143,7 @@ class StateMachineMission:
             feature_dir=feature_dir,
             inputs=inputs,
             event_log_path=event_log_path,
+            mission_name=self._mission_info.get("name", ""),
         )
 
         # Strip guards for now -- they are compiled and wired in WP03.
@@ -125,6 +155,8 @@ class StateMachineMission:
             "initial": config["initial"],
             "auto_transitions": False,
             "send_event": True,
+            "before_state_change": "on_exit_state",
+            "after_state_change": "on_enter_state",
         }
 
         self._machine: MarkupMachine = MarkupMachine(

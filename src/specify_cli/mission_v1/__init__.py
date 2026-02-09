@@ -4,6 +4,7 @@ This subpackage provides:
 - MissionProtocol: Runtime-checkable protocol defining the mission API surface
 - StateMachineMission: Full v1 state machine backed by MarkupMachine
 - MissionModel: Lightweight model object that holds context for guards/callbacks
+- emit_event / read_events: Provisional JSONL event logging
 - PhaseMission: v0 phase-list compatibility wrapper
 - load_mission: Auto-detecting entry point (v0 vs v1)
 """
@@ -13,6 +14,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from specify_cli.mission_v1.compat import PhaseMission
+from specify_cli.mission_v1.events import emit_event, read_events
 from specify_cli.mission_v1.runner import MissionModel, StateMachineMission
 from specify_cli.mission_v1.schema import MissionValidationError
 
@@ -48,5 +50,7 @@ __all__ = [
     "MissionValidationError",
     "PhaseMission",
     "StateMachineMission",
+    "emit_event",
     "load_mission",
+    "read_events",
 ]
