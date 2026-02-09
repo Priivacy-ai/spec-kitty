@@ -19,8 +19,11 @@ from pathlib import Path
 
 import pytest
 
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
+
 # Get repo root for Python module invocation
 REPO_ROOT = Path(__file__).resolve().parents[2]
+pytestmark = pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 
 
 # ============================================================================

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 from typer.testing import CliRunner
 
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 from specify_cli import app as cli_app
 from specify_cli.core.context_validation import ExecutionContext
 from specify_cli.core.vcs import VCSBackend
@@ -17,6 +18,7 @@ from specify_cli.acceptance import AcceptanceError
 
 
 runner = CliRunner()
+pytestmark = pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 
 
 class DummyVCS:

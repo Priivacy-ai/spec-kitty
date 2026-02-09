@@ -9,9 +9,11 @@ from unittest.mock import Mock, patch
 import pytest
 from typer.testing import CliRunner
 
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 from specify_cli.cli.commands.agent.tasks import app
 
 runner = CliRunner()
+pytestmark = pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 
 
 @pytest.fixture
