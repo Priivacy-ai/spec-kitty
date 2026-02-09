@@ -1,8 +1,8 @@
 {
-  "event_count": 32,
+  "event_count": 35,
   "feature_slug": "037-mission-dsl-foundation",
-  "last_event_id": "01KH1GJQNZB51K09XP8NXX84Y8",
-  "materialized_at": "2026-02-09T15:34:12.225039+00:00",
+  "last_event_id": "01KH1HT163E27367XGSN1R9ZQY",
+  "materialized_at": "2026-02-09T15:55:01.188208+00:00",
   "summary": {
     "blocked": 0,
     "canceled": 0,
@@ -15,10 +15,10 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
-      "force_count": 1,
+      "force_count": 4,
       "lane": "done",
-      "last_event_id": "01KH1B0KA1SYVPBRENGDNZAE1V",
-      "last_transition_at": "2026-02-09T13:56:16.321730+00:00"
+      "last_event_id": "01KH1HT163E27367XGSN1R9ZQY",
+      "last_transition_at": "2026-02-09T15:55:01.187789+00:00"
     },
     "WP02": {
       "actor": "user",
