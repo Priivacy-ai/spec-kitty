@@ -281,5 +281,5 @@ WP01 (parser) ─────────────────┐
 - WP03: done
 - WP04: done
 - WP05: done
-- WP06: for_review
+- WP06: done
 <!-- status-model:end -->
