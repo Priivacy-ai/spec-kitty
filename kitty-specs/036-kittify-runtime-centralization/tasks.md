@@ -85,13 +85,13 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T013 Implement `ResolutionTier` enum and `ResolutionResult` dataclass in `src/specify_cli/runtime/resolver.py`
-- [ ] T014 Implement `resolve_template()`, `resolve_command()`, `resolve_mission()` in `src/specify_cli/runtime/resolver.py`
-- [ ] T015 Implement `_warn_legacy_asset()` deprecation warning
-- [ ] T016 Integrate resolver into `Mission.get_command_template()` in `src/specify_cli/mission.py`
-- [ ] T017 Integrate resolver into init template preparation in `src/specify_cli/cli/commands/init.py`
-- [ ] T018 Write resolution precedence tests (G2) in `tests/unit/runtime/test_resolver.py`
-- [ ] T019 Write legacy resolution tests (F-Legacy-001, F-Legacy-002, F-Legacy-003) in `tests/unit/runtime/test_resolver.py`
+- [x] T013 Implement `ResolutionTier` enum and `ResolutionResult` dataclass in `src/specify_cli/runtime/resolver.py`
+- [x] T014 Implement `resolve_template()`, `resolve_command()`, `resolve_mission()` in `src/specify_cli/runtime/resolver.py`
+- [x] T015 Implement `_warn_legacy_asset()` deprecation warning
+- [x] T016 Integrate resolver into `Mission.get_command_template()` in `src/specify_cli/mission.py`
+- [x] T017 Integrate resolver into init template preparation in `src/specify_cli/cli/commands/init.py`
+- [x] T018 Write resolution precedence tests (G2) in `tests/unit/runtime/test_resolver.py`
+- [x] T019 Write legacy resolution tests (F-Legacy-001, F-Legacy-002, F-Legacy-003) in `tests/unit/runtime/test_resolver.py`
 
 ### Implementation Notes
 - Resolution order: (1) `.kittify/overrides/{type}/{name}` > (2) `.kittify/{type}/{name}` + deprecation warning > (3) `~/.kittify/missions/{mission}/{type}/{name}` > (4) `PACKAGE_DIR/defaults/{type}/{name}` > raise FileNotFoundError
