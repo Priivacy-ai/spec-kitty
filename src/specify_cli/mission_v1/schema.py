@@ -261,3 +261,37 @@ def validate_mission_v1(config: dict[str, Any]) -> None:
         f"Mission v1 validation failed with {len(error_messages)} error(s)",
         errors=error_messages,
     )
+
+
+# ---------------------------------------------------------------------------
+# v1 key stripping for v0 compatibility
+# ---------------------------------------------------------------------------
+
+#: Keys that only appear in v1 mission configs (state-machine DSL).
+#: Stripping these allows a hybrid YAML to pass v0 Pydantic validation.
+V1_ONLY_KEYS: frozenset[str] = frozenset({
+    "states",
+    "transitions",
+    "initial",
+    "guards",
+    "inputs",
+    "outputs",
+    "mission",
+})
+
+
+def strip_v1_keys(config: dict[str, Any]) -> dict[str, Any]:
+    """Remove v1-only keys from a config dict for v0 Pydantic validation.
+
+    When a hybrid YAML contains both v1 keys (states, transitions, etc.)
+    and v0 keys (workflow, artifacts, etc.), stripping the v1 keys allows
+    the v0 ``MissionConfig.model_validate()`` to succeed without hitting
+    ``extra="forbid"`` errors.
+
+    Args:
+        config: Raw mission config dict (not mutated).
+
+    Returns:
+        A new dict with v1-only keys removed.
+    """
+    return {k: v for k, v in config.items() if k not in V1_ONLY_KEYS}
