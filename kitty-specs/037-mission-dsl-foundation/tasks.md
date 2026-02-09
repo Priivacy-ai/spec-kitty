@@ -67,11 +67,11 @@
 **Prompt**: `/tasks/WP03-guard-compiler.md`
 
 ### Included Subtasks
-- [ ] T010 Create `src/specify_cli/mission_v1/guards.py` with expression parser
-- [ ] T011 Implement 6 guard primitives: artifact_exists, gate_passed, all_wp_status, any_wp_status, input_provided, event_count
-- [ ] T012 Implement guard compilation: string → bound method on model
-- [ ] T013 Add unknown guard rejection at load time
-- [ ] T014 [P] Create `tests/unit/mission_v1/test_guards.py` with guard tests
+- [x] T010 Create `src/specify_cli/mission_v1/guards.py` with expression parser
+- [x] T011 Implement 6 guard primitives: artifact_exists, gate_passed, all_wp_status, any_wp_status, input_provided, event_count
+- [x] T012 Implement guard compilation: string → bound method on model
+- [x] T013 Add unknown guard rejection at load time
+- [x] T014 [P] Create `tests/unit/mission_v1/test_guards.py` with guard tests
 
 ### Implementation Notes
 - Guard expressions are strings like `artifact_exists("spec.md")` parsed via regex
