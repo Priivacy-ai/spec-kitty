@@ -155,11 +155,11 @@
 **Prompt**: `/tasks/WP06-software-dev-mission.md`
 
 ### Included Subtasks
-- [ ] T023 Write v1 software-dev mission.yaml with states and transitions
-- [ ] T024 Define guards for key transitions (artifact_exists for spec.md, plan.md, tasks.md)
-- [ ] T025 Define rollback transitions (review → implement rework)
-- [ ] T026 Define typed inputs and outputs
-- [ ] T027 [P] Create integration test for software-dev mission loading
+- [x] T023 Write v1 software-dev mission.yaml with states and transitions
+- [x] T024 Define guards for key transitions (artifact_exists for spec.md, plan.md, tasks.md)
+- [x] T025 Define rollback transitions (review → implement rework)
+- [x] T026 Define typed inputs and outputs
+- [x] T027 [P] Create integration test for software-dev mission loading
 
 ### Implementation Notes
 - States: discovery, specify, plan, implement, review, done
@@ -340,5 +340,6 @@ Phase 4 - Validation:                              │
 - WP02: done
 - WP03: done
 - WP04: done
+- WP05: for_review
 - WP07: for_review
 <!-- status-model:end -->
