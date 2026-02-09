@@ -1,0 +1,10 @@
+{
+  "feature_number": "036",
+  "slug": "036-kittify-runtime-centralization",
+  "friendly_name": "~/.kittify Runtime Centralization",
+  "mission": "software-dev",
+  "source_description": "Create the ~/.kittify centralization feature for Phase 1A of the local-first runtime convergence plan. Move shared runtime assets (missions, templates, commands, scripts, AGENTS.md) to a single user-global ~/.kittify/ directory. Implement ensure_runtime() with fcntl file locking for atomic populate/update on CLI startup. Implement 4-tier template/command/mission resolution: project overrides > legacy project assets (deprecation window with warnings) > user global ~/.kittify/ > package defaults (bootstrap only). Implement spec-kitty migrate for explicit project cleanup (--dry-run, --verbose, --force). Implement spec-kitty config --show-origin for debugging resolution. Enhance spec-kitty doctor with global runtime health checks. Update spec-kitty init to create minimal project .kittify/ (config, metadata, constitution only). Support cross-platform paths: ~/.kittify/ on macOS/Linux, %LOCALAPPDATA%\\kittify\\ on Windows via platformdirs, SPEC_KITTY_HOME env var override. Must pass test fixtures F-Legacy-001..003, F-Pin-001, F-Bootstrap-001 and quality gates G2, G3, G5, G6, R4, B1. Branch: 2.x with backport to main. Full PRD: prd-kittify-centralization.md in spec-kitty-planning. No fallback mechanisms -- errors must be explicit.",
+  "created_at": "2026-02-09T12:00:00+00:00",
+  "target_branch": "2.x",
+  "vcs": "git"
+}
