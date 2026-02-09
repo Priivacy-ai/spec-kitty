@@ -335,7 +335,7 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: for_review
-- WP02: for_review
-- WP03: for_review
+- WP01: done
+- WP02: planned
+- WP03: planned
 <!-- status-model:end -->
