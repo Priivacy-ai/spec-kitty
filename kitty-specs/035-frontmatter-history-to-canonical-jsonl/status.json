@@ -1,13 +1,13 @@
 {
-  "event_count": 14,
+  "event_count": 17,
   "feature_slug": "035-frontmatter-history-to-canonical-jsonl",
-  "last_event_id": "01KH0NW99F0B51H78K3CVY2E43",
-  "materialized_at": "2026-02-09T07:46:54.895595+00:00",
+  "last_event_id": "01KH0P5E05J9NZ75J1NGJYJARY",
+  "materialized_at": "2026-02-09T07:51:54.630205+00:00",
   "summary": {
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 4,
+    "done": 5,
     "for_review": 1,
     "in_progress": 0,
     "planned": 0
@@ -43,10 +43,17 @@
     },
     "WP05": {
       "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KH0NXPNDNKQ8B1QJQH6M9XVT",
+      "last_transition_at": "2026-02-09T07:47:41.357877+00:00"
+    },
+    "WP06": {
+      "actor": "user",
       "force_count": 1,
       "lane": "for_review",
-      "last_event_id": "01KH0NW99F0B51H78K3CVY2E43",
-      "last_transition_at": "2026-02-09T07:46:54.895334+00:00"
+      "last_event_id": "01KH0P5E05J9NZ75J1NGJYJARY",
+      "last_transition_at": "2026-02-09T07:51:54.629935+00:00"
     }
   }
 }
