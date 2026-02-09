@@ -16,7 +16,6 @@ from transitions import MachineError
 from transitions.extensions.markup import MarkupMachine
 
 from specify_cli.mission_v1.events import emit_event
-from specify_cli.mission_v1.guards import compile_guards
 from specify_cli.mission_v1.schema import MissionValidationError, validate_mission_v1
 
 
@@ -94,32 +93,45 @@ class MissionModel:
         )
 
 
-def _strip_guard_references(transitions: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Remove ``conditions`` and ``unless`` from transitions.
+def _sanitize_transition_guards(transitions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sanitize transition guard entries for MarkupMachine runtime.
 
-    Guard expression strings (e.g. ``artifact_exists("spec.md")``) reference
-    methods that won't exist on the model until WP03 compiles them. For this
-    WP we strip them so MarkupMachine doesn't try to resolve missing methods.
-
-    Returns a deep copy -- the original list is not mutated.
+    Keep only compiled callables. Drop string guards (both expression strings
+    and unresolved method names) so the machine does not try to resolve missing
+    attributes during transition evaluation.
     """
     cleaned: list[dict[str, Any]] = []
-    for t in transitions:
-        entry = dict(t)  # shallow copy of this transition dict
-        entry.pop("conditions", None)
-        entry.pop("unless", None)
+    for transition in transitions:
+        entry = dict(transition)
+        for key in ("conditions", "unless"):
+            guards = entry.get(key)
+            if not guards:
+                continue
+            if not isinstance(guards, list):
+                guards = [guards]
+            callable_guards = [guard for guard in guards if callable(guard)]
+            if callable_guards:
+                entry[key] = callable_guards
+            else:
+                entry.pop(key, None)
         cleaned.append(entry)
     return cleaned
 
 
-def _transitions_have_callables(transitions: list[dict[str, Any]]) -> bool:
-    """Return True if any transition contains callable guards."""
-    for transition in transitions:
-        for key in ("conditions", "unless"):
-            entries = transition.get(key) or []
-            if any(callable(e) for e in entries):
-                return True
-    return False
+def _sanitize_states(states: list[Any]) -> list[Any]:
+    """Trim state metadata to keys accepted by transitions."""
+    cleaned_states: list[Any] = []
+    for state in states:
+        if not isinstance(state, dict):
+            cleaned_states.append(state)
+            continue
+        cleaned_state: dict[str, Any] = {"name": state["name"]}
+        if "on_enter" in state:
+            cleaned_state["on_enter"] = state["on_enter"]
+        if "on_exit" in state:
+            cleaned_state["on_exit"] = state["on_exit"]
+        cleaned_states.append(cleaned_state)
+    return cleaned_states
 
 class StateMachineMission:
     """v1 state machine mission backed by ``transitions.MarkupMachine``.
@@ -132,6 +144,8 @@ class StateMachineMission:
         feature_dir: Optional feature directory for guard context.
         inputs: Optional dict of user-supplied input values.
         event_log_path: Optional path to an event log file.
+        validate_schema: When True, validate the config against the v1 schema.
+            Set False when config has precompiled guard callables.
 
     Raises:
         MissionValidationError: If the config fails schema validation.
@@ -143,8 +157,9 @@ class StateMachineMission:
         feature_dir: Path | None = None,
         inputs: dict[str, Any] | None = None,
         event_log_path: Path | None = None,
+        validate_schema: bool = True,
     ) -> None:
-        if not _transitions_have_callables(config.get("transitions", [])):
+        if validate_schema:
             validate_mission_v1(config)
 
         self._config = config
@@ -157,21 +172,13 @@ class StateMachineMission:
             mission_name=self._mission_info.get("name", ""),
         )
 
-        # Compile guard expressions (no-op when already compiled to callables).
-        compiled_config = compile_guards(config, feature_dir=feature_dir)
-
-        states = []
-        for state in compiled_config.get("states", []):
-            if isinstance(state, dict):
-                cleaned = {k: v for k, v in state.items() if k != "display_name"}
-                states.append(cleaned)
-            else:
-                states.append(state)
+        states = _sanitize_states(config["states"])
+        transitions = _sanitize_transition_guards(config["transitions"])
 
         machine_config: dict[str, Any] = {
             "states": states,
-            "transitions": compiled_config["transitions"],
-            "initial": compiled_config["initial"],
+            "transitions": transitions,
+            "initial": config["initial"],
             "auto_transitions": False,
             "send_event": True,
             "before_state_change": "on_exit_state",
