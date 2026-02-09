@@ -342,5 +342,5 @@
 - WP05: done
 - WP06: done
 - WP07: done
-- WP08: for_review
+- WP08: done
 <!-- status-model:end -->
