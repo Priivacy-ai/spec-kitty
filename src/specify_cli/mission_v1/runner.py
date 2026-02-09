@@ -16,6 +16,7 @@ from transitions import MachineError
 from transitions.extensions.markup import MarkupMachine
 
 from specify_cli.mission_v1.events import emit_event
+from specify_cli.mission_v1.guards import compile_guards
 from specify_cli.mission_v1.schema import MissionValidationError, validate_mission_v1
 
 
@@ -111,6 +112,15 @@ def _strip_guard_references(transitions: list[dict[str, Any]]) -> list[dict[str,
     return cleaned
 
 
+def _transitions_have_callables(transitions: list[dict[str, Any]]) -> bool:
+    """Return True if any transition contains callable guards."""
+    for transition in transitions:
+        for key in ("conditions", "unless"):
+            entries = transition.get(key) or []
+            if any(callable(e) for e in entries):
+                return True
+    return False
+
 class StateMachineMission:
     """v1 state machine mission backed by ``transitions.MarkupMachine``.
 
@@ -134,7 +144,8 @@ class StateMachineMission:
         inputs: dict[str, Any] | None = None,
         event_log_path: Path | None = None,
     ) -> None:
-        validate_mission_v1(config)
+        if not _transitions_have_callables(config.get("transitions", [])):
+            validate_mission_v1(config)
 
         self._config = config
         self._mission_info: dict[str, Any] = config.get("mission", {})
@@ -146,13 +157,21 @@ class StateMachineMission:
             mission_name=self._mission_info.get("name", ""),
         )
 
-        # Strip guards for now -- they are compiled and wired in WP03.
-        sanitised_transitions = _strip_guard_references(config["transitions"])
+        # Compile guard expressions (no-op when already compiled to callables).
+        compiled_config = compile_guards(config, feature_dir=feature_dir)
+
+        states = []
+        for state in compiled_config.get("states", []):
+            if isinstance(state, dict):
+                cleaned = {k: v for k, v in state.items() if k != "display_name"}
+                states.append(cleaned)
+            else:
+                states.append(state)
 
         machine_config: dict[str, Any] = {
-            "states": config["states"],
-            "transitions": sanitised_transitions,
-            "initial": config["initial"],
+            "states": states,
+            "transitions": compiled_config["transitions"],
+            "initial": compiled_config["initial"],
             "auto_transitions": False,
             "send_event": True,
             "before_state_change": "on_exit_state",
