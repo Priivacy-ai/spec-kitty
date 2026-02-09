@@ -157,7 +157,7 @@
 
 ### Included Subtasks
 - [x] T028 Create BaseMigration subclass with migration_id = "2.0.0_historical_status_migration"
-- [ ] T029 Implement detect() — scan kitty-specs for features with WPs but no full-history events
+- [x] T029 Implement detect() — scan kitty-specs for features with WPs but no full-history events
 - [ ] T030 Implement can_apply() — verify status module importable, kitty-specs exists
 - [ ] T031 Implement apply() — iterate features, call migrate_feature, aggregate MigrationResult
 
