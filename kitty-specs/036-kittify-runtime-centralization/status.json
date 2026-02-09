@@ -1,16 +1,16 @@
 {
-  "event_count": 46,
+  "event_count": 50,
   "feature_slug": "036-kittify-runtime-centralization",
-  "last_event_id": "01KH19D63EX8YAK12ENT74ZD20",
-  "materialized_at": "2026-02-09T13:28:11.631234+00:00",
+  "last_event_id": "01KH1F88JFQ0B6XV1NSM2ZQZP1",
+  "materialized_at": "2026-02-09T15:10:21.776055+00:00",
   "summary": {
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 7,
+    "done": 8,
     "for_review": 0,
     "in_progress": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -65,9 +65,9 @@
     "WP08": {
       "actor": "codex",
       "force_count": 4,
-      "lane": "planned",
-      "last_event_id": "01KH19D63EX8YAK12ENT74ZD20",
-      "last_transition_at": "2026-02-09T13:28:11.630320+00:00"
+      "lane": "done",
+      "last_event_id": "01KH1F88JFQ0B6XV1NSM2ZQZP1",
+      "last_transition_at": "2026-02-09T15:10:21.775515+00:00"
     }
   }
 }

@@ -342,5 +342,5 @@
 - WP05: done
 - WP06: done
 - WP07: done
-- WP08: planned
+- WP08: done
 <!-- status-model:end -->
