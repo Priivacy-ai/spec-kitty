@@ -53,12 +53,90 @@ from specify_cli.template import (
     parse_repo_slug,
     prepare_command_templates,
 )
+from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from specify_cli.runtime.resolver import resolve_command
 
 # Module-level variables to hold injected dependencies
 _console: Console | None = None
 _show_banner: Callable[[], None] | None = None
 _activate_mission: Callable[[Path, str, str, Console], str] | None = None
 _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = None
+
+
+# =============================================================================
+# 4-tier resolved template directory builder
+# =============================================================================
+
+
+def _resolve_mission_command_templates_dir(
+    project_path: Path,
+    mission_key: str,
+    scratch_parent: Path,
+) -> Path:
+    """Build a temporary directory of mission command templates resolved via the 4-tier resolver.
+
+    For each ``.md`` file discoverable across all four tiers (override, legacy,
+    global, package), ``resolve_command`` is called so that the highest-priority
+    version wins.  The resolved files are copied into a scratch directory that
+    ``prepare_command_templates`` can consume as ``mission_templates_dir``.
+
+    Args:
+        project_path: Root of the user project (contains ``.kittify/``).
+        mission_key: Mission identifier (e.g. ``"software-dev"``).
+        scratch_parent: A directory under which the scratch dir will be created.
+
+    Returns:
+        Path to the scratch directory containing the resolved command templates.
+        The directory may be empty if no command templates exist at any tier.
+    """
+    # Collect all unique .md filenames visible across tiers.
+    candidate_names: set[str] = set()
+    kittify = project_path / ".kittify"
+    subdir = "command-templates"
+
+    # Tier 1 -- override
+    override_dir = kittify / "overrides" / subdir
+    if override_dir.is_dir():
+        candidate_names.update(p.name for p in override_dir.glob("*.md"))
+
+    # Tier 2 -- legacy
+    legacy_dir = kittify / subdir
+    if legacy_dir.is_dir():
+        candidate_names.update(p.name for p in legacy_dir.glob("*.md"))
+
+    # Tier 3 -- global
+    try:
+        global_home = get_kittify_home()
+        global_dir = global_home / "missions" / mission_key / subdir
+        if global_dir.is_dir():
+            candidate_names.update(p.name for p in global_dir.glob("*.md"))
+    except RuntimeError:
+        pass
+
+    # Tier 4 -- package
+    try:
+        pkg_root = get_package_asset_root()
+        pkg_dir = pkg_root / mission_key / subdir
+        if pkg_dir.is_dir():
+            candidate_names.update(p.name for p in pkg_dir.glob("*.md"))
+    except FileNotFoundError:
+        pass
+
+    # Build scratch directory with the winning version of each file.
+    resolved_dir = scratch_parent / f".resolved-{mission_key}-cmd-templates"
+    if resolved_dir.exists():
+        shutil.rmtree(resolved_dir)
+    resolved_dir.mkdir(parents=True)
+
+    for name in sorted(candidate_names):
+        try:
+            result = resolve_command(name, project_path, mission=mission_key)
+            shutil.copy2(result.path, resolved_dir / name)
+        except FileNotFoundError:
+            # Should not happen (we discovered the name), but be safe.
+            pass
+
+    return resolved_dir
 
 
 # =============================================================================
@@ -616,24 +694,15 @@ def init(
                         if command_templates_dir is None:
                             raise RuntimeError("Command templates directory was not prepared")
                         if render_templates_dir is None:
-                            mission_templates_dir = (
-                                project_path
-                                / ".kittify"
-                                / "missions"
-                                / selected_mission
-                                / "command-templates"
+                            # Resolve mission command templates through the
+                            # full 4-tier precedence chain (override > legacy
+                            # > global > package) so that user overrides and
+                            # global customizations are honoured during init.
+                            mission_templates_dir = _resolve_mission_command_templates_dir(
+                                project_path,
+                                selected_mission,
+                                scratch_parent=command_templates_dir.parent,
                             )
-                            # Use the 4-tier resolver's package default when the
-                            # project-local mission copy has not been created yet.
-                            if not mission_templates_dir.exists():
-                                try:
-                                    from specify_cli.runtime.home import get_package_asset_root
-                                    pkg_missions = get_package_asset_root()
-                                    pkg_cmd_templates = pkg_missions / selected_mission / "command-templates"
-                                    if pkg_cmd_templates.is_dir():
-                                        mission_templates_dir = pkg_cmd_templates
-                                except FileNotFoundError:
-                                    pass  # fall through to prepare_command_templates which handles None/missing
                             render_templates_dir = prepare_command_templates(
                                 command_templates_dir,
                                 mission_templates_dir,
