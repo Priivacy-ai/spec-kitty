@@ -42,6 +42,7 @@ from specify_cli.cli.helpers import (
 )
 from specify_cli.cli.commands import register_commands
 from specify_cli.cli.commands.init import register_init_command
+from specify_cli.core.project_resolver import locate_project_root
 
 def activate_mission(project_path: Path, mission_key: str, mission_display: str, console: Console) -> str:
     """
@@ -81,15 +82,24 @@ app = typer.Typer(
     cls=BannerGroup,
 )
 
-app.callback()(root_callback)
-
-
 @app.callback()
 def main_callback(
+    ctx: typer.Context,
     version: bool = typer.Option(None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit")
 ) -> None:
-    """Main callback for version flag."""
-    pass
+    """Main callback for root CLI setup."""
+    root_callback(ctx)
+
+    # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
+    # Must run BEFORE check_version_pin() so global assets are available.
+    from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime
+
+    ensure_runtime()
+
+    # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
+    project_root = locate_project_root()
+    if project_root is not None:
+        check_version_pin(project_root)
 
 
 def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
@@ -165,20 +175,6 @@ def main():
     if not EventAdapter.check_library_available():
         console.print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
         raise typer.Exit(1)
-
-    # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
-    # Must run BEFORE check_version_pin() so that global assets exist
-    # for resolution to work.  Fast path is <100ms when version matches.
-    from specify_cli.runtime.bootstrap import ensure_runtime
-    ensure_runtime()
-
-    # F-Pin-001 / 1A-16: Warn during ALL CLI startup if runtime.pin_version is set.
-    # Uses locate_project_root() which returns None outside a project -- safe to call always.
-    from specify_cli.core.project_resolver import locate_project_root
-    project_root = locate_project_root()
-    if project_root is not None:
-        from specify_cli.runtime.bootstrap import check_version_pin
-        check_version_pin(project_root)
 
     app()
 

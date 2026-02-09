@@ -104,7 +104,11 @@ def load_mission(
         # v1 path: validate with JSON Schema, compile guards, build machine
         validate_mission_v1(raw_config)
         compiled_config = compile_guards(raw_config, feature_dir=feature_dir)
-        return StateMachineMission(compiled_config, feature_dir=feature_dir)
+        return StateMachineMission(
+            compiled_config,
+            feature_dir=feature_dir,
+            validate_schema=False,
+        )
     else:
         # v0 path: delegate to existing Mission class, wrap in PhaseMission
         from specify_cli.mission import Mission

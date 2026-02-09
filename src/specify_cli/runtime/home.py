@@ -12,6 +12,11 @@ import os
 from pathlib import Path
 
 
+def _is_windows() -> bool:
+    """Return True when running on Windows."""
+    return os.name == "nt"
+
+
 def get_kittify_home() -> Path:
     """Return the path to the user-global ~/.kittify/ directory.
 
@@ -29,7 +34,7 @@ def get_kittify_home() -> Path:
     if env_home := os.environ.get("SPEC_KITTY_HOME"):
         return Path(env_home)
 
-    if os.name == "nt":
+    if _is_windows():
         from platformdirs import user_data_dir
 
         return Path(user_data_dir("kittify"))

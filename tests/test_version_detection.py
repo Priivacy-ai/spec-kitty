@@ -16,6 +16,7 @@ import os
 import pytest
 import subprocess
 from pathlib import Path
+from packaging.version import InvalidVersion, Version
 
 from tests.test_isolation_helpers import get_installed_version, get_venv_python
 
@@ -115,14 +116,16 @@ class TestVersionReading:
             f"Found hardcoded version in __init__.py: {match.group(0) if match else 'N/A'}"
 
     def test_version_format(self):
-        """Verify version follows semantic versioning format."""
+        """Verify version is parseable as a valid PEP 440 version."""
         module_version = get_venv_module_version()
 
-        # Should match semantic versioning pattern: X.Y.Z or X.Y.Z-suffix
-        import re
-        semver_pattern = re.compile(r'^\d+\.\d+\.\d+(-\w+)?$')
-        assert semver_pattern.match(module_version), \
-            f"Version '{module_version}' should follow semantic versioning (X.Y.Z)"
+        try:
+            parsed = Version(module_version)
+        except InvalidVersion as exc:  # pragma: no cover - explicit failure path
+            pytest.fail(f"Version '{module_version}' is not a valid PEP 440 version: {exc}")
+
+        assert len(parsed.release) >= 3, \
+            f"Version '{module_version}' should include major.minor.patch release segments"
 
 
 class TestVersionConsistency:
@@ -232,16 +235,19 @@ class TestVersionUpdateWorkflow:
 
         content = pyproject.read_text()
 
-        # Should have version field
+        # Should have a parseable version field
         import re
-        version_pattern = re.compile(r'version\s*=\s*"(\d+\.\d+\.\d+)"')
+        version_pattern = re.compile(r'version\s*=\s*"([^"]+)"')
         match = version_pattern.search(content)
 
         if match:
             pyproject_version = match.group(1)
-            # Just verify it's parseable - may or may not match runtime version
-            assert re.match(r'\d+\.\d+\.\d+', pyproject_version), \
-                "pyproject.toml version should be valid semver"
+            try:
+                parsed = Version(pyproject_version)
+            except InvalidVersion as exc:  # pragma: no cover - explicit failure path
+                pytest.fail(f"pyproject.toml version '{pyproject_version}' is invalid: {exc}")
+            assert len(parsed.release) >= 3, \
+                f"pyproject.toml version '{pyproject_version}' should include major.minor.patch"
 
     def test_version_not_imported_from_pyproject(self):
         """Verify version prioritizes importlib.metadata over pyproject.toml."""
@@ -346,15 +352,17 @@ class TestPackageMetadataIntegrity:
         except Exception as exc:
             pytest.fail(f"Package should be named 'spec-kitty-cli': {exc}")
 
-    def test_version_is_valid_semver(self):
-        """Verify version follows semantic versioning."""
+    def test_version_is_valid_pep440(self):
+        """Verify package metadata version is valid PEP 440."""
         try:
             pkg_version = get_venv_metadata_version()
         except Exception:
             pytest.skip("Package metadata not available")
 
-        import re
-        # Match X.Y.Z or X.Y.Z-suffix (like 0.5.0-dev)
-        semver_pattern = re.compile(r'^\d+\.\d+\.\d+(-[a-zA-Z0-9]+)?$')
-        assert semver_pattern.match(pkg_version), \
-            f"Version '{pkg_version}' should follow semantic versioning"
+        try:
+            parsed = Version(pkg_version)
+        except InvalidVersion as exc:  # pragma: no cover - explicit failure path
+            pytest.fail(f"Version '{pkg_version}' is not valid PEP 440: {exc}")
+
+        assert len(parsed.release) >= 3, \
+            f"Version '{pkg_version}' should include major.minor.patch release segments"

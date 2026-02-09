@@ -93,21 +93,60 @@ class MissionModel:
         )
 
 
-def _strip_guard_references(transitions: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Remove ``conditions`` and ``unless`` from transitions.
+def _sanitize_transition_guards(transitions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sanitize guard entries while preserving compiled/runtime-safe guards.
 
-    Guard expression strings (e.g. ``artifact_exists("spec.md")``) reference
-    methods that won't exist on the model until WP03 compiles them. For this
-    WP we strip them so MarkupMachine doesn't try to resolve missing methods.
+    - Keeps compiled callables.
+    - Drops all string guards to avoid unresolved method lookups.
+    - Drops non-callable, non-string entries.
 
     Returns a deep copy -- the original list is not mutated.
     """
     cleaned: list[dict[str, Any]] = []
     for t in transitions:
         entry = dict(t)  # shallow copy of this transition dict
-        entry.pop("conditions", None)
-        entry.pop("unless", None)
+
+        for key in ("conditions", "unless"):
+            guards = entry.get(key)
+            if not guards:
+                continue
+
+            if not isinstance(guards, list):
+                guards = [guards]
+
+            normalized: list[Any] = []
+            for guard in guards:
+                if callable(guard):
+                    normalized.append(guard)
+
+            if normalized:
+                entry[key] = normalized
+            else:
+                entry.pop(key, None)
+
         cleaned.append(entry)
+    return cleaned
+
+
+def _sanitize_states(states: list[Any]) -> list[Any]:
+    """Return states compatible with transitions.MarkupMachine.
+
+    Mission YAML carries metadata like ``display_name`` for documentation.
+    transitions only accepts state keys it understands, so we trim each state
+    down to runtime keys.
+    """
+    cleaned: list[Any] = []
+    for state in states:
+        if not isinstance(state, dict):
+            cleaned.append(state)
+            continue
+
+        cleaned_state: dict[str, Any] = {"name": state["name"]}
+        if "on_enter" in state:
+            cleaned_state["on_enter"] = state["on_enter"]
+        if "on_exit" in state:
+            cleaned_state["on_exit"] = state["on_exit"]
+        cleaned.append(cleaned_state)
     return cleaned
 
 
@@ -122,6 +161,9 @@ class StateMachineMission:
         feature_dir: Optional feature directory for guard context.
         inputs: Optional dict of user-supplied input values.
         event_log_path: Optional path to an event log file.
+        validate_schema: When True, validate *config* against the v1 schema.
+            Set False for prevalidated configs that contain compiled guard
+            callables.
 
     Raises:
         MissionValidationError: If the config fails schema validation.
@@ -133,8 +175,10 @@ class StateMachineMission:
         feature_dir: Path | None = None,
         inputs: dict[str, Any] | None = None,
         event_log_path: Path | None = None,
+        validate_schema: bool = True,
     ) -> None:
-        validate_mission_v1(config)
+        if validate_schema:
+            validate_mission_v1(config)
 
         self._config = config
         self._mission_info: dict[str, Any] = config.get("mission", {})
@@ -146,11 +190,11 @@ class StateMachineMission:
             mission_name=self._mission_info.get("name", ""),
         )
 
-        # Strip guards for now -- they are compiled and wired in WP03.
-        sanitised_transitions = _strip_guard_references(config["transitions"])
+        sanitised_transitions = _sanitize_transition_guards(config["transitions"])
+        sanitised_states = _sanitize_states(config["states"])
 
         machine_config: dict[str, Any] = {
-            "states": config["states"],
+            "states": sanitised_states,
             "transitions": sanitised_transitions,
             "initial": config["initial"],
             "auto_transitions": False,

@@ -8,7 +8,6 @@ Covers:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -26,21 +25,21 @@ class TestGetKittifyHomeUnix:
     def test_unix_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """On Unix, default is ~/.kittify/ (1A-08)."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("os.name", "posix")
+        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
         result = get_kittify_home()
         assert result == Path.home() / ".kittify"
 
     def test_returns_path_object(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Return type is Path, not str."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("os.name", "posix")
+        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
         result = get_kittify_home()
         assert isinstance(result, Path)
 
     def test_returns_absolute_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Path is always absolute."""
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("os.name", "posix")
+        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
         result = get_kittify_home()
         assert result.is_absolute()
 
@@ -50,36 +49,15 @@ class TestGetKittifyHomeWindows:
 
     def test_windows_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """On Windows, default uses platformdirs user_data_dir (1A-08)."""
-        import sys
-        from unittest.mock import MagicMock
+        import platformdirs
 
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
-        monkeypatch.setattr("os.name", "nt")
-
-        import specify_cli.runtime.home as home_mod
-
-        original_name = home_mod.os.name
-        home_mod.os.name = "nt"  # type: ignore[attr-defined]
-
-        # Save original module ref BEFORE overriding
-        original_platformdirs = sys.modules.get("platformdirs")
-
-        mock_platformdirs = MagicMock()
-        mock_platformdirs.user_data_dir.return_value = (
+        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: True)
+        monkeypatch.setattr(platformdirs, "user_data_dir", lambda *_args, **_kwargs: (
             r"C:\Users\test\AppData\Local\kittify"
-        )
-        sys.modules["platformdirs"] = mock_platformdirs
-
-        try:
-            result = get_kittify_home()
-            assert "kittify" in str(result)
-        finally:
-            home_mod.os.name = original_name  # type: ignore[attr-defined]
-            # Restore original module object directly (no re-import)
-            if original_platformdirs is not None:
-                sys.modules["platformdirs"] = original_platformdirs
-            else:
-                sys.modules.pop("platformdirs", None)
+        ))
+        result = get_kittify_home()
+        assert result == Path(r"C:\Users\test\AppData\Local\kittify")
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +83,7 @@ class TestSpecKittyHomeEnvOverride:
         """SPEC_KITTY_HOME takes precedence even on Windows (1A-09)."""
         custom_path = str(tmp_path / "custom-kittify")
         monkeypatch.setenv("SPEC_KITTY_HOME", custom_path)
-        monkeypatch.setattr("os.name", "nt")
+        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: True)
         result = get_kittify_home()
         assert result == Path(custom_path)  # env var wins over platformdirs
 
@@ -122,7 +100,7 @@ class TestSpecKittyHomeEnvOverride:
     ) -> None:
         """Empty SPEC_KITTY_HOME falls through to platform default."""
         monkeypatch.setenv("SPEC_KITTY_HOME", "")
-        monkeypatch.setattr("os.name", "posix")
+        monkeypatch.setattr("specify_cli.runtime.home._is_windows", lambda: False)
         result = get_kittify_home()
         # Empty string is falsy, so should fall through
         assert result == Path.home() / ".kittify"

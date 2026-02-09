@@ -73,7 +73,7 @@ CONFIG_WITH_GUARDS: dict = {
     "mission": {
         "name": "guarded-mission",
         "version": "1.0.0",
-        "description": "Mission with guard conditions (stripped by runner)",
+        "description": "Mission with uncompiled guard expressions",
     },
     "initial": "draft",
     "states": [
@@ -308,6 +308,16 @@ class TestGuardStripping:
         assert mission.state == "reviewed"
         mission.trigger("accept")  # unless stripped, so transition fires
         assert mission.state == "done"
+
+    def test_compiled_callable_guards_are_preserved(self, minimal_config: dict) -> None:
+        config = copy.deepcopy(minimal_config)
+        config["transitions"][0]["conditions"] = [lambda _event: False]
+
+        mission = StateMachineMission(config, validate_schema=False)
+
+        result = mission.trigger("advance")
+        assert result is False
+        assert mission.state == "alpha"
 
 
 # ---------------------------------------------------------------------------
