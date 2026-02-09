@@ -16,11 +16,11 @@
 **Prompt**: `/tasks/WP01-transitions-dep-and-schema.md`
 
 ### Included Subtasks
-- [ ] T001 Add `transitions>=0.9.2` to pyproject.toml dependencies
-- [ ] T002 Add `jsonschema` to pyproject.toml dependencies (if not already present)
-- [ ] T003 Create `src/specify_cli/mission_v1/__init__.py` subpackage
-- [ ] T004 Create `src/specify_cli/mission_v1/schema.py` with JSON Schema definition
-- [ ] T005 Create `tests/unit/mission_v1/test_schema.py` with validation tests
+- [x] T001 Add `transitions>=0.9.2` to pyproject.toml dependencies
+- [x] T002 Add `jsonschema` to pyproject.toml dependencies (if not already present)
+- [x] T003 Create `src/specify_cli/mission_v1/__init__.py` subpackage
+- [x] T004 Create `src/specify_cli/mission_v1/schema.py` with JSON Schema definition
+- [x] T005 Create `tests/unit/mission_v1/test_schema.py` with validation tests
 
 ### Implementation Notes
 - The JSON Schema must cover: `mission` (name, version, description), `initial`, `states`, `transitions`, `inputs`, `outputs`, `guards`
