@@ -13,9 +13,6 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.runtime.show_origin import (
-    COMMAND_NAMES,
-    MISSION_NAMES,
-    TEMPLATE_NAMES,
     OriginEntry,
     collect_origins,
 )
@@ -40,19 +37,19 @@ def _create_file(path: Path, content: str = "placeholder") -> Path:
 class TestCollectOriginsBasic:
     """Test that collect_origins() returns entries for all known assets."""
 
-    def test_returns_entries_for_all_known_assets(self, tmp_path: Path) -> None:
-        """collect_origins returns an entry for every template, command, and mission."""
+    def test_returns_entries_for_all_asset_types(self, tmp_path: Path) -> None:
+        """collect_origins returns entries covering templates, commands, missions, scripts, and files."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
         pkg_root = tmp_path / "pkg"
 
-        # Place all templates, commands, and missions at package tier
-        for name in TEMPLATE_NAMES:
+        # Create a minimal package layout so dynamic discovery works
+        for name in ["spec-template.md", "plan-template.md", "tasks-template.md", "task-prompt-template.md"]:
             _create_file(pkg_root / "software-dev" / "templates" / name)
-        for name in COMMAND_NAMES:
+        for name in ["specify.md", "plan.md", "tasks.md", "implement.md"]:
             _create_file(pkg_root / "software-dev" / "command-templates" / name)
-        for name in MISSION_NAMES:
-            _create_file(pkg_root / name / "mission.yaml")
+        for mission in ["software-dev", "research", "documentation"]:
+            _create_file(pkg_root / mission / "mission.yaml")
 
         with (
             patch(
@@ -63,11 +60,19 @@ class TestCollectOriginsBasic:
                 "specify_cli.runtime.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
+                return_value=pkg_root,
+            ),
         ):
             entries = collect_origins(project)
 
-        expected_count = len(TEMPLATE_NAMES) + len(COMMAND_NAMES) + len(MISSION_NAMES)
-        assert len(entries) == expected_count
+        asset_types = {e.asset_type for e in entries}
+        # PRD §6.4 requires templates, commands, missions, scripts, and AGENTS.md (file)
+        assert "template" in asset_types
+        assert "command" in asset_types
+        assert "mission" in asset_types
+        assert "file" in asset_types  # AGENTS.md
 
     def test_all_entries_are_origin_entry_instances(self, tmp_path: Path) -> None:
         """All returned items are OriginEntry dataclass instances."""
@@ -83,14 +88,18 @@ class TestCollectOriginsBasic:
                 "specify_cli.runtime.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
+                side_effect=FileNotFoundError("no pkg"),
+            ),
         ):
             entries = collect_origins(project)
 
         for entry in entries:
             assert isinstance(entry, OriginEntry)
 
-    def test_missing_assets_have_error_and_no_path(self, tmp_path: Path) -> None:
-        """When no tier provides an asset, error is set and path/tier are None."""
+    def test_missing_resolver_assets_have_error_and_no_path(self, tmp_path: Path) -> None:
+        """When no tier provides a resolver-based asset, error is set and path/tier are None."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
 
@@ -103,16 +112,24 @@ class TestCollectOriginsBasic:
                 "specify_cli.runtime.resolver.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
+                side_effect=FileNotFoundError("no pkg"),
+            ),
         ):
             entries = collect_origins(project)
 
-        for entry in entries:
+        resolver_entries = [
+            e for e in entries if e.asset_type in ("template", "command", "mission")
+        ]
+        assert len(resolver_entries) > 0
+        for entry in resolver_entries:
             assert entry.resolved_path is None
             assert entry.tier is None
             assert entry.error is not None
 
-    def test_asset_types_are_correct(self, tmp_path: Path) -> None:
-        """Each entry has the correct asset_type field."""
+    def test_asset_types_include_correct_entries(self, tmp_path: Path) -> None:
+        """Each asset type category has the expected entries."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
 
@@ -123,6 +140,10 @@ class TestCollectOriginsBasic:
             ),
             patch(
                 "specify_cli.runtime.resolver.get_package_asset_root",
+                side_effect=FileNotFoundError("no pkg"),
+            ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -131,10 +152,13 @@ class TestCollectOriginsBasic:
         template_entries = [e for e in entries if e.asset_type == "template"]
         command_entries = [e for e in entries if e.asset_type == "command"]
         mission_entries = [e for e in entries if e.asset_type == "mission"]
+        file_entries = [e for e in entries if e.asset_type == "file"]
 
-        assert len(template_entries) == len(TEMPLATE_NAMES)
-        assert len(command_entries) == len(COMMAND_NAMES)
-        assert len(mission_entries) == len(MISSION_NAMES)
+        # Dynamic discovery falls back to hardcoded lists when package not available
+        assert len(template_entries) >= 4  # At least the 4 fallback templates
+        assert len(command_entries) >= 8  # At least the 8 fallback commands
+        assert len(mission_entries) >= 3  # At least software-dev, research, documentation
+        assert len(file_entries) >= 1  # AGENTS.md
 
 
 # ---------------------------------------------------------------------------
@@ -164,6 +188,10 @@ class TestShowOriginTierLabels:
                 "specify_cli.runtime.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
+                return_value=pkg_root,
+            ),
         ):
             entries = collect_origins(project)
 
@@ -189,6 +217,10 @@ class TestShowOriginTierLabels:
             ),
             patch(
                 "specify_cli.runtime.resolver.get_package_asset_root",
+                side_effect=FileNotFoundError("no pkg"),
+            ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
                 side_effect=FileNotFoundError("no pkg"),
             ),
         ):
@@ -217,6 +249,10 @@ class TestShowOriginTierLabels:
                 "specify_cli.runtime.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
+                return_value=pkg_root,
+            ),
         ):
             entries = collect_origins(project)
 
@@ -230,22 +266,20 @@ class TestShowOriginTierLabels:
         global_home = tmp_path / "global_home"
         pkg_root = tmp_path / "pkg"
 
-        # spec-template.md at override tier
+        # Ensure all 3 templates exist at package level so dynamic discovery finds them
+        for name in ["spec-template.md", "plan-template.md", "tasks-template.md"]:
+            _create_file(pkg_root / "software-dev" / "templates" / name, content="package")
+
+        # spec-template.md at override tier (wins over package)
         _create_file(
             project / ".kittify" / "overrides" / "templates" / "spec-template.md",
             content="override",
         )
 
-        # plan-template.md at global tier only
+        # plan-template.md at global tier (wins over package)
         _create_file(
             global_home / "missions" / "software-dev" / "templates" / "plan-template.md",
             content="global",
-        )
-
-        # tasks-template.md at package tier only
-        _create_file(
-            pkg_root / "software-dev" / "templates" / "tasks-template.md",
-            content="package",
         )
 
         with (
@@ -255,6 +289,10 @@ class TestShowOriginTierLabels:
             ),
             patch(
                 "specify_cli.runtime.resolver.get_package_asset_root",
+                return_value=pkg_root,
+            ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -273,13 +311,13 @@ class TestShowOriginTierLabels:
         project = tmp_path / "project"
         pkg_root = tmp_path / "pkg"
 
-        # Put specify.md at override
+        # Ensure both commands exist at package level so dynamic discovery finds them
+        _create_file(pkg_root / "software-dev" / "command-templates" / "specify.md")
+        _create_file(pkg_root / "software-dev" / "command-templates" / "plan.md")
+
+        # Put specify.md at override (wins over package)
         _create_file(
             project / ".kittify" / "overrides" / "command-templates" / "specify.md",
-        )
-        # Put plan.md at package only
-        _create_file(
-            pkg_root / "software-dev" / "command-templates" / "plan.md",
         )
 
         with (
@@ -289,6 +327,10 @@ class TestShowOriginTierLabels:
             ),
             patch(
                 "specify_cli.runtime.resolver.get_package_asset_root",
+                return_value=pkg_root,
+            ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -309,13 +351,13 @@ class TestShowOriginTierLabels:
         project = tmp_path / "project"
         pkg_root = tmp_path / "pkg"
 
-        # software-dev at override
+        # Ensure both missions exist at package level so dynamic discovery finds them
+        _create_file(pkg_root / "software-dev" / "mission.yaml")
+        _create_file(pkg_root / "research" / "mission.yaml")
+
+        # software-dev at override (wins over package)
         _create_file(
             project / ".kittify" / "overrides" / "missions" / "software-dev" / "mission.yaml",
-        )
-        # research at package
-        _create_file(
-            pkg_root / "research" / "mission.yaml",
         )
 
         with (
@@ -325,6 +367,10 @@ class TestShowOriginTierLabels:
             ),
             patch(
                 "specify_cli.runtime.resolver.get_package_asset_root",
+                return_value=pkg_root,
+            ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):
@@ -350,6 +396,9 @@ class TestShowOriginTierLabels:
         _create_file(
             pkg_root / "research" / "templates" / "spec-template.md",
         )
+        _create_file(
+            pkg_root / "research" / "mission.yaml",
+        )
 
         with (
             patch(
@@ -358,6 +407,10 @@ class TestShowOriginTierLabels:
             ),
             patch(
                 "specify_cli.runtime.resolver.get_package_asset_root",
+                return_value=pkg_root,
+            ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
                 return_value=pkg_root,
             ),
         ):

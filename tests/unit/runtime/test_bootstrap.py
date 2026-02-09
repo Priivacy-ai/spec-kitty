@@ -178,3 +178,76 @@ class TestCheckVersionPin:
         user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
         assert len(user_warnings) == 1
         assert "1.0" in str(user_warnings[0].message)
+
+
+# ---------------------------------------------------------------------------
+# T028b -- Version pin check wired into CLI main() (1A-16)
+# ---------------------------------------------------------------------------
+
+
+class TestVersionPinWiredIntoMain:
+    """Verify check_version_pin is called during CLI startup (not just --show-origin)."""
+
+    def test_main_calls_check_version_pin_when_project_found(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """main() calls check_version_pin when locate_project_root finds a project."""
+        from unittest.mock import MagicMock, patch
+
+        mock_pin = MagicMock()
+
+        with (
+            patch(
+                "specify_cli.core.project_resolver.locate_project_root",
+                return_value=tmp_path,
+            ),
+            patch(
+                "specify_cli.runtime.bootstrap.check_version_pin",
+                mock_pin,
+            ),
+            patch("specify_cli.app", side_effect=SystemExit(0)),
+            patch(
+                "specify_cli.events.adapter.EventAdapter.check_library_available",
+                return_value=True,
+            ),
+        ):
+            try:
+                from specify_cli import main
+
+                main()
+            except SystemExit:
+                pass
+
+        mock_pin.assert_called_once_with(tmp_path)
+
+    def test_main_skips_check_version_pin_outside_project(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """main() skips check_version_pin when not inside a spec-kitty project."""
+        from unittest.mock import MagicMock, patch
+
+        mock_pin = MagicMock()
+
+        with (
+            patch(
+                "specify_cli.core.project_resolver.locate_project_root",
+                return_value=None,
+            ),
+            patch(
+                "specify_cli.runtime.bootstrap.check_version_pin",
+                mock_pin,
+            ),
+            patch("specify_cli.app", side_effect=SystemExit(0)),
+            patch(
+                "specify_cli.events.adapter.EventAdapter.check_library_available",
+                return_value=True,
+            ),
+        ):
+            try:
+                from specify_cli import main
+
+                main()
+            except SystemExit:
+                pass
+
+        mock_pin.assert_not_called()

@@ -93,6 +93,7 @@ def _format_tier(tier: str | None) -> str:
         "override": "green",
         "legacy": "yellow",
         "global": "blue",
+        "project": "bright_cyan",
         "package_default": "dim",
     }
     color = colors.get(tier, "white")
