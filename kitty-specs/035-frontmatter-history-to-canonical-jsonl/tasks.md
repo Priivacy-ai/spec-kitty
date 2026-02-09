@@ -85,13 +85,13 @@
 **Estimated Size**: ~500 lines
 
 ### Included Subtasks
-- [ ] T014 Update WPMigrationDetail dataclass (events_created, event_ids, history_entries, has_evidence)
-- [ ] T015 Implement _write_events_atomic() helper (temp file + os.replace)
-- [ ] T016 Implement _check_idempotency() with 3-layer logic (marker, live-events, migration-actor-only)
-- [ ] T017 Implement _backup_events_file() for replace-once path
-- [ ] T018 Rewrite migrate_feature() core loop using history_parser.build_transition_chain()
-- [ ] T019 Add post-migration materialize() call
-- [ ] T020 Update FeatureMigrationResult to track replace/backup actions
+- [x] T014 Update WPMigrationDetail dataclass (events_created, event_ids, history_entries, has_evidence)
+- [x] T015 Implement _write_events_atomic() helper (temp file + os.replace)
+- [x] T016 Implement _check_idempotency() with 3-layer logic (marker, live-events, migration-actor-only)
+- [x] T017 Implement _backup_events_file() for replace-once path
+- [x] T018 Rewrite migrate_feature() core loop using history_parser.build_transition_chain()
+- [x] T019 Add post-migration materialize() call
+- [x] T020 Update FeatureMigrationResult to track replace/backup actions
 
 ### Implementation Notes
 - Atomic write mirrors `reducer.py`'s `materialize()` pattern: write to `.tmp`, then `os.replace()`
@@ -277,4 +277,5 @@ WP01 (parser) ─────────────────┐
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP01: for_review
+- WP02: for_review
 <!-- status-model:end -->
