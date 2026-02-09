@@ -1,0 +1,10 @@
+{
+  "feature_number": "037",
+  "slug": "037-mission-dsl-foundation",
+  "friendly_name": "Mission DSL Foundation",
+  "mission": "software-dev",
+  "source_description": "Create the Mission DSL Foundation feature for Phase 1B of the local-first runtime convergence plan. Replace static YAML phase lists with enforced state machine workflows using transitions (pytransitions, pip install transitions). Define Mission YAML v1 schema with states, transitions, guards (declarative expressions: artifact_exists, gate_passed, all_wp_status, any_wp_status, input_provided, event_count), typed inputs/outputs, on_enter/on_exit hooks. Load via MarkupMachine with auto_transitions=False and send_event=True. Implement guard expression compiler that parses declarative checks and binds to model methods. Maintain backward compatibility: v0 phase-list missions load via PhaseMission wrapper as linear state machines with no guards. Define 3 missions: software-dev (with rollback transitions), research (with evidence gates), plan (with rollback transitions). Implement provisional emit_event(type: str, payload: dict) interface as thin boundary for Phase 2. JSON Schema validation at load time. Must pass fixtures F-Mission-001, F-Mission-003, F-Mission-004 and gate G1. Branch: 2.x with backport to main. Depends on Phase 1A complete. Full PRD: prd-mission-dsl-foundation.md in spec-kitty-planning. No fallback mechanisms.",
+  "created_at": "2026-02-09T14:00:00+00:00",
+  "target_branch": "2.x",
+  "vcs": "git"
+}
