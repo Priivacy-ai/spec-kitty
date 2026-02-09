@@ -1,14 +1,14 @@
 {
-  "event_count": 3,
+  "event_count": 9,
   "feature_slug": "037-mission-dsl-foundation",
-  "last_event_id": "01KH1B0KA1SYVPBRENGDNZAE1V",
-  "materialized_at": "2026-02-09T13:56:16.322159+00:00",
+  "last_event_id": "01KH1BC5Z56F3BEF1Y26JZZ33Z",
+  "materialized_at": "2026-02-09T14:02:35.878168+00:00",
   "summary": {
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 1,
-    "for_review": 0,
+    "for_review": 3,
     "in_progress": 0,
     "planned": 0
   },
@@ -19,6 +19,27 @@
       "lane": "done",
       "last_event_id": "01KH1B0KA1SYVPBRENGDNZAE1V",
       "last_transition_at": "2026-02-09T13:56:16.321730+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "for_review",
+      "last_event_id": "01KH1B9G9CTVM5K571WH1ATTD7",
+      "last_transition_at": "2026-02-09T14:01:08.140471+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "for_review",
+      "last_event_id": "01KH1BC5Z56F3BEF1Y26JZZ33Z",
+      "last_transition_at": "2026-02-09T14:02:35.877880+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "for_review",
+      "last_event_id": "01KH1BBF4MFDAN1DYV5PMV7PTM",
+      "last_transition_at": "2026-02-09T14:02:12.500392+00:00"
     }
   }
 }
