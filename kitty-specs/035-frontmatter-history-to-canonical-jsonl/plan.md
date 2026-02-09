@@ -1,108 +1,294 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Frontmatter History to Canonical JSONL
 
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+**Branch**: `035-frontmatter-history-to-canonical-jsonl` | **Date**: 2026-02-09 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `kitty-specs/035-frontmatter-history-to-canonical-jsonl/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Replace the current bootstrap-only `migrate_feature()` in `src/specify_cli/status/migrate.py` with a full history reconstruction engine. Today, migration creates a single `planned -> current_lane` event per WP, discarding all intermediate transitions stored in frontmatter `history[]` arrays. The new engine reconstructs every adjacent transition, extracts `DoneEvidence` when available, and uses `force=true` on all migration events to bypass guard validation. A 3-layer idempotency contract (marker check, live-events skip, migration-actor-only replace) ensures safe re-runs. An upgrade migration wrapper wires this into `spec-kitty upgrade` for automatic execution.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python 3.11+ (existing spec-kitty codebase)
+**Primary Dependencies**: ulid, ruamel.yaml (frontmatter parsing), typer (CLI), rich (output)
+**Storage**: Filesystem only (JSONL event logs, JSON snapshots, YAML frontmatter)
+**Testing**: pytest (2032+ existing tests)
+**Target Platform**: Cross-platform (Linux, macOS, Windows 10+)
+**Project Type**: Single Python CLI package
+**Performance Goals**: Migration of 200+ WP files across 30+ features in < 5 seconds
+**Constraints**: Must not touch features with live (non-migration) events; must be idempotent
+**Scale/Scope**: ~203 WP files across 34 features in dogfood repo; typical user projects 10-50 WPs
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+| Gate | Status | Notes |
+|------|--------|-------|
+| Python 3.11+ | PASS | All code targets existing codebase |
+| pytest + 90%+ coverage | PASS | New code will have dedicated test modules |
+| mypy --strict | PASS | All new modules will have full type annotations |
+| Cross-platform | PASS | Uses pathlib, no platform-specific code |
+| No external service calls | PASS | Migration is local/offline only; SaaS sync explicitly bypassed |
+| Git dependency | N/A | Migration reads/writes files, no git operations |
+
+No violations. No complexity justification needed.
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/035-frontmatter-history-to-canonical-jsonl/
+├── spec.md              # Feature specification
+├── plan.md              # This file
+├── research.md          # Phase 0 research findings
+├── data-model.md        # Data structures and transitions
+├── quickstart.md        # Quick reference for implementers
+├── meta.json            # Feature metadata
+├── checklists/
+│   └── requirements.md  # Quality checklist
+└── tasks/               # Work packages (generated by /spec-kitty.tasks)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+src/specify_cli/status/
+├── history_parser.py     # NEW: History normalization + transition reconstruction
+├── migrate.py            # MODIFY: Replace bootstrap logic with full reconstruction
+├── models.py             # UNCHANGED: Lane, StatusEvent, DoneEvidence (already sufficient)
+├── store.py              # UNCHANGED: append_event, read_events (use existing API)
+├── reducer.py            # UNCHANGED: materialize (called after migration)
+├── transitions.py        # UNCHANGED: resolve_lane_alias, ALLOWED_TRANSITIONS
+└── emit.py               # UNCHANGED: NOT used by migration (bypasses guards + SaaS)
 
-tests/
-├── contract/
-├── integration/
-└── unit/
+src/specify_cli/upgrade/migrations/
+└── m_2_0_0_historical_status_migration.py  # NEW: BaseMigration upgrade wrapper
 
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
+tests/specify_cli/status/
+├── test_history_parser.py  # NEW: Parser unit tests
+└── test_migrate.py         # MODIFY: Update existing 29 tests + add new coverage
 
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+tests/specify_cli/upgrade/
+└── test_historical_status_migration.py  # NEW: Upgrade wrapper integration tests
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: All new code lives within the existing `status/` and `upgrade/migrations/` packages. No new packages or directory restructuring required.
 
-## Complexity Tracking
+## Architecture Decisions
 
-*Fill ONLY if Constitution Check has violations that must be justified*
+### AD-1: Bypass `emit_status_transition()` for migration
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+**Decision**: Migration writes events directly via `append_event()` + post-hoc `materialize()`, NOT through `emit_status_transition()`.
+
+**Rationale**:
+- `emit_status_transition()` calls `validate_transition()` which would reject many historical transitions (`planned -> done`, `planned -> for_review`, etc.) that aren't in `ALLOWED_TRANSITIONS`
+- `emit_status_transition()` triggers SaaS sync per event, which is unwanted during migration
+- `emit_status_transition()` calls `materialize()` after every single event, which is wasteful when writing N events per feature
+- Migration events use `force=true` and construct `StatusEvent` objects directly
+
+### AD-2: Atomic write per feature via temp file + os.replace()
+
+**Decision**: For each feature, accumulate all events in memory, write them to a temp file, then `os.replace()` to the final path.
+
+**Rationale**:
+- Current `append_event()` appends one line at a time (not atomic across multiple events)
+- Crash mid-write would leave a partial event log
+- Atomic swap ensures either all events or none are persisted
+- Mirrors the pattern already used by `materialize()` for `status.json`
+
+**Implementation**: New helper `_write_events_atomic(feature_dir, events)` in `migrate.py`.
+
+### AD-3: 3-layer idempotency (not emit-level dedup)
+
+**Decision**: Use three explicit guards instead of per-event deduplication.
+
+| Layer | Check | Action |
+|-------|-------|--------|
+| 1. Marker check | Any event has `reason` containing `historical_frontmatter_to_jsonl:v1` | Skip feature |
+| 2. Live events check | Any event has `actor` NOT starting with `"migration"` | Skip feature |
+| 3. Migration-actor-only replace | ALL events have `actor` starting with `"migration"` | Backup + replace with full reconstruction |
+
+**Rationale**: Per-event fingerprint hashing adds complexity with no practical benefit. The migration runs once per project. These three guards cover all real scenarios.
+
+### AD-4: Migration ID `2.0.0_historical_status_migration`
+
+**Decision**: Use `2.0.0_historical_status_migration` as the migration ID on both 2.x and 0.x branches.
+
+**Rationale**: The migration framework uses `has_migration(id)` as a string key lookup. Same ID on both branches means `metadata.yaml` guards prevent double-execution regardless of which branch migrates first.
+
+### AD-5: All events use `force=true`
+
+**Decision**: Every migration-generated event sets `force=true` with `reason="historical migration"` (or `"historical migration: no evidence in frontmatter"` for done without evidence).
+
+**Rationale**:
+- Historical transitions bypassed live guard validation
+- Many transitions (e.g., `planned -> done`, `planned -> in_progress`) are not in the 16-pair `ALLOWED_TRANSITIONS` matrix
+- `force=true` requires `actor` + `reason`, which migration always provides
+- The validator already treats forced events as legal
+- Current migrate.py uses `force=False` which is a latent bug (these events would fail legality validation)
+
+## Transition Reconstruction Algorithm
+
+### Input per WP
+
+```
+frontmatter = {
+    lane: "done",           # Current lane
+    history: [              # Format A entries
+        {timestamp, lane, agent, shell_pid, action},
+        ...
+    ],
+    review_status: "approved",   # Optional
+    reviewed_by: "Robert",       # Optional
+}
+```
+
+### Algorithm
+
+```
+1. NORMALIZE history entries:
+   - For each entry: resolve_lane_alias(entry.lane) → canonical lane
+   - Extract: (timestamp, canonical_lane, agent)
+
+2. COLLAPSE consecutive duplicates:
+   - [planned, planned, in_progress] → [planned, in_progress]
+
+3. PAIR adjacent entries into transitions:
+   - entries[0..N-1]: (entries[i].lane → entries[i+1].lane) for i in 0..N-2
+   - Yields N-1 transitions
+
+4. GAP-FILL to current lane:
+   - If last entry's lane != current frontmatter lane:
+     - Add one transition: last_entry.lane → current_lane
+
+5. FALLBACK (empty/no history):
+   - If current lane == "planned": 0 events
+   - Else: 1 event: planned → current_lane
+
+6. For each transition targeting "done":
+   - If review_status == "approved" AND reviewed_by exists:
+     - Attach DoneEvidence(ReviewApproval(reviewer, "approved", "frontmatter-migration:<wp_id>"))
+   - Else: no evidence, force=true with reason noting missing evidence
+```
+
+### Actor Resolution per Transition
+
+For transition `entries[i] → entries[i+1]`:
+- Use `entries[i+1].agent` as the actor (the agent who CAUSED the transition to the new lane)
+- Fallback: `"migration"` if agent is empty/absent
+
+For gap-fill and fallback transitions:
+- Actor: `"migration"`
+
+## Files to Create/Modify
+
+### New Files
+
+| File | Purpose | LOC estimate |
+|------|---------|-------------|
+| `src/specify_cli/status/history_parser.py` | History normalization, transition chain, evidence extraction | ~150 |
+| `src/specify_cli/upgrade/migrations/m_2_0_0_historical_status_migration.py` | BaseMigration wrapper for `spec-kitty upgrade` | ~80 |
+| `tests/specify_cli/status/test_history_parser.py` | Parser unit tests (10+ scenarios) | ~250 |
+| `tests/specify_cli/upgrade/test_historical_status_migration.py` | Upgrade wrapper tests | ~120 |
+
+### Modified Files
+
+| File | Changes | Impact |
+|------|---------|--------|
+| `src/specify_cli/status/migrate.py` | Replace bootstrap logic with history_parser calls; add 3-layer idempotency; add atomic write; add backup; call materialize() | High - core engine rewrite |
+| `tests/specify_cli/status/test_migrate.py` | Update existing tests for multi-event output + force=true; add new idempotency layer tests | Medium - 29 existing tests need updates |
+
+### Unchanged Files (explicitly)
+
+| File | Reason |
+|------|--------|
+| `src/specify_cli/status/emit.py` | Migration bypasses emit pipeline |
+| `src/specify_cli/status/store.py` | Existing `append_event`/`read_events` API sufficient |
+| `src/specify_cli/status/reducer.py` | Existing `materialize()` called as-is |
+| `src/specify_cli/status/models.py` | `StatusEvent`, `DoneEvidence`, `ReviewApproval` already have all needed fields |
+| `src/specify_cli/status/transitions.py` | `resolve_lane_alias()`, `CANONICAL_LANES` used as-is |
+| `src/specify_cli/cli/commands/agent/status.py` | CLI command calls `migrate_feature()` which gets the new behavior automatically |
+
+## Test Plan
+
+### New: `test_history_parser.py`
+
+| ID | Scenario | Input | Expected |
+|----|----------|-------|----------|
+| T080 | Multi-step Format A | history: [planned, doing, for_review, done], lane=done | 3 events: planned→in_progress, in_progress→for_review, for_review→done |
+| T081 | Single entry at planned, lane=done | history: [planned], lane=done | 1 event: planned→done (gap-fill) |
+| T082 | Single entry at non-planned | history: [in_progress], lane=done | 2 events: planned→in_progress, in_progress→done (gap-fill) |
+| T083 | Empty history, lane=done | no history, lane=done | 1 event: planned→done (fallback) |
+| T084 | Empty history, lane=planned | no history, lane=planned | 0 events |
+| T085 | Alias in history | history: [planned, doing], lane=in_progress | 1 event: planned→in_progress (alias resolved) |
+| T086 | Consecutive duplicates | history: [planned, planned, doing], lane=in_progress | 1 event: planned→in_progress |
+| T087 | Gap-fill needed | history: [planned, in_progress], lane=done | 2 events: planned→in_progress, in_progress→done |
+| T088 | DoneEvidence extraction | lane=done, review_status=approved, reviewed_by=Robert | Event has DoneEvidence with ReviewApproval |
+| T089 | Done without evidence | lane=done, no review fields | Event has force=true, reason="historical migration: no evidence in frontmatter" |
+| T090 | Actor from history | history entries with agent="claude" | Events use "claude" as actor |
+| T091 | Timestamp from history | history entries with specific timestamps | Events preserve original timestamps |
+
+### Modified: `test_migrate.py`
+
+| Change | Details |
+|--------|---------|
+| Update `test_four_wps_various_lanes` | Expect `force=True` on all events; history-based multi-event output |
+| Update all event assertions | `force=False` → `force=True`, check for `reason` field |
+| Add `test_marker_idempotency` | Events with marker → skip |
+| Add `test_live_events_skip` | Non-migration actor events → skip |
+| Add `test_migration_only_replace` | All migration actors → backup + replace |
+| Add `test_backup_created` | Verify `.bak` file exists after replace |
+| Add `test_materialization_after_migrate` | `status.json` exists and is valid after migration |
+| Add `test_atomic_write` | Partial failure doesn't leave corrupt events file |
+
+### New: `test_historical_status_migration.py`
+
+| ID | Scenario | Expected |
+|----|----------|----------|
+| T100 | detect() finds unmigrated features | Returns True |
+| T101 | detect() with all features migrated | Returns False |
+| T102 | apply() calls migrate_feature per feature | Correct event counts |
+| T103 | apply() dry_run produces no files | No events files written |
+| T104 | apply() records in metadata.yaml | migration_id present |
+| T105 | Cross-branch idempotency | Second apply() after metadata record → no-op |
+
+## WPMigrationDetail Dataclass Update
+
+The existing `WPMigrationDetail` needs to expand to report multi-event output:
+
+```python
+@dataclass
+class WPMigrationDetail:
+    wp_id: str
+    original_lane: str          # Raw value from frontmatter
+    canonical_lane: str          # After alias resolution
+    alias_resolved: bool         # True if original != canonical
+    events_created: int          # Was always 0 or 1, now can be N
+    event_ids: list[str]         # All event IDs for this WP
+    history_entries: int         # Number of raw history entries parsed
+    has_evidence: bool           # True if DoneEvidence was extracted
+```
+
+Backward-compatible: adds fields, doesn't remove any. The CLI JSON output helper `_migration_result_to_dict` needs updating to include new fields.
+
+## Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Existing tests break due to force=True change | High | Low | Update all assertions in test_migrate.py to expect force=True |
+| Corrupt WP frontmatter causes crash | Low | Medium | Existing try/except per WP continues to work; WP errors don't abort feature |
+| Backup file accumulates on repeated runs | Low | Low | Backup only created on replace-once path; marker prevents repeated replacements |
+| Materialization fails on reconstructed events | Low | High | Materialize uses reduce() which is a pure function; forced events are legal by design |
+
+## Implementation Order
+
+1. `history_parser.py` (new, no dependencies)
+2. `test_history_parser.py` (test first, validate algorithm)
+3. `migrate.py` (modify, depends on history_parser)
+4. `test_migrate.py` (update existing + add new)
+5. `m_2_0_0_historical_status_migration.py` (new, depends on migrate.py)
+6. `test_historical_status_migration.py` (new, depends on wrapper)
+
+This order enables incremental verification: parser tests pass before engine is wired in, engine tests pass before upgrade wrapper is added.
