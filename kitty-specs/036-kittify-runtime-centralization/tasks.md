@@ -49,13 +49,13 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T006 Implement `_merge_package_assets()` in `src/specify_cli/runtime/merge.py`
-- [ ] T007 Implement `ensure_runtime()` with file locking in `src/specify_cli/runtime/bootstrap.py`
-- [ ] T008 Implement `populate_from_package()` in `src/specify_cli/runtime/bootstrap.py`
-- [ ] T009 Write unit tests for `_merge_package_assets()` in `tests/unit/runtime/test_merge.py`
-- [ ] T010 Write unit tests for `ensure_runtime()` in `tests/unit/runtime/test_bootstrap.py`
-- [ ] T011 Write concurrency tests (G5) in `tests/concurrency/test_ensure_runtime_concurrent.py`
-- [ ] T012 Write interrupted update recovery test (F-Bootstrap-001)
+- [x] T006 Implement `_merge_package_assets()` in `src/specify_cli/runtime/merge.py`
+- [x] T007 Implement `ensure_runtime()` with file locking in `src/specify_cli/runtime/bootstrap.py`
+- [x] T008 Implement `populate_from_package()` in `src/specify_cli/runtime/bootstrap.py`
+- [x] T009 Write unit tests for `_merge_package_assets()` in `tests/unit/runtime/test_merge.py`
+- [x] T010 Write unit tests for `ensure_runtime()` in `tests/unit/runtime/test_bootstrap.py`
+- [x] T011 Write concurrency tests (G5) in `tests/concurrency/test_ensure_runtime_concurrent.py`
+- [x] T012 Write interrupted update recovery test (F-Bootstrap-001)
 
 ### Implementation Notes
 - File locking: `fcntl.flock()` on Unix, `msvcrt.locking()` on Windows — platform detection at import time
