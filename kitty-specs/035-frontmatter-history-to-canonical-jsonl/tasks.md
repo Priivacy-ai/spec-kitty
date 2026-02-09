@@ -19,13 +19,13 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
-- [ ] T001 Create NormalizedHistoryEntry and Transition dataclasses
-- [ ] T002 Implement normalize_entries() for Format A history arrays
-- [ ] T003 Implement collapse_duplicates() to remove consecutive same-lane entries
-- [ ] T004 Implement pair_transitions() for adjacent entry pairing
-- [ ] T005 Implement gap_fill() to bridge last history lane to current frontmatter lane
-- [ ] T006 Implement extract_done_evidence() from frontmatter fields
-- [ ] T007 Implement build_transition_chain() orchestrator function
+- [x] T001 Create NormalizedHistoryEntry and Transition dataclasses
+- [x] T002 Implement normalize_entries() for Format A history arrays
+- [x] T003 Implement collapse_duplicates() to remove consecutive same-lane entries
+- [x] T004 Implement pair_transitions() for adjacent entry pairing
+- [x] T005 Implement gap_fill() to bridge last history lane to current frontmatter lane
+- [x] T006 Implement extract_done_evidence() from frontmatter fields
+- [x] T007 Implement build_transition_chain() orchestrator function
 
 ### Implementation Notes
 - All functions are pure (no I/O, no side effects) — easy to test in isolation
