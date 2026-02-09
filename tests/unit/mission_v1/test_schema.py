@@ -288,6 +288,39 @@ class TestInvalidNestedStructures:
             validate_mission_v1(config)
 
 
+class TestTransitionGuardArrays:
+    """conditions/unless/before/after must stay arrays of strings."""
+
+    def test_conditions_reject_non_strings(self) -> None:
+        config = copy.deepcopy(MINIMAL_V1_CONFIG)
+        config["transitions"][0]["conditions"] = ["ok", {"not": "string"}]
+        with pytest.raises(MissionValidationError) as exc_info:
+            validate_mission_v1(config)
+        assert any("conditions" in e for e in exc_info.value.errors)
+
+    def test_unless_reject_non_strings(self) -> None:
+        config = copy.deepcopy(MINIMAL_V1_CONFIG)
+        config["transitions"][0]["unless"] = [42]
+        with pytest.raises(MissionValidationError) as exc_info:
+            validate_mission_v1(config)
+        assert any("unless" in e for e in exc_info.value.errors)
+
+    def test_before_after_reject_non_strings(self) -> None:
+        config = copy.deepcopy(MINIMAL_V1_CONFIG)
+        config["transitions"][0]["before"] = ["ok", 123]
+        config["transitions"][0]["after"] = [None]
+        with pytest.raises(MissionValidationError) as exc_info:
+            validate_mission_v1(config)
+        errors_text = " ".join(exc_info.value.errors)
+        assert "before" in errors_text or "after" in errors_text
+
+    def test_unknown_guard_reference_allowed(self) -> None:
+        """Schema allows unresolved guards; guard compilation checks them later."""
+        config = copy.deepcopy(MINIMAL_V1_CONFIG)
+        config["transitions"][0]["conditions"] = ["unknown_guard"]
+        validate_mission_v1(config)
+
+
 # ---------------------------------------------------------------------------
 # v1 detection
 # ---------------------------------------------------------------------------
