@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
+from typer.testing import CliRunner
 
 from specify_cli.cli.commands.sync import (
     _detect_workspace_context,
@@ -14,6 +15,7 @@ from specify_cli.cli.commands.sync import (
     _display_conflicts,
     _git_repair,
     _jj_repair,
+    app as sync_app,
     sync_server,
     sync_workspace,
 )
@@ -66,6 +68,20 @@ class TestDetectWorkspaceContext:
 
                 assert workspace_path == tmp_path
                 assert feature_slug is None
+
+
+class TestSyncGroupHelp:
+    """Tests for sync command group help behavior."""
+
+    def test_sync_without_subcommand_shows_help(self):
+        """Invoking sync with no args should print help, not error."""
+        runner = CliRunner()
+        result = runner.invoke(sync_app, [])
+
+        # Typer may exit with code 2 for "missing command" while still
+        # rendering the command group's help text. We care about UX output.
+        assert "Usage:" in result.output
+        assert "Synchronization commands" in result.output
 
 
 class TestDisplayFunctions:

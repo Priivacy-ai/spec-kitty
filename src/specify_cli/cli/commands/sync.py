@@ -29,7 +29,10 @@ from specify_cli.core.vcs import (
 console = Console()
 
 # Create a Typer app for sync subcommands
-app = typer.Typer(help="Synchronization commands")
+app = typer.Typer(
+    help="Synchronization commands",
+    no_args_is_help=True,
+)
 
 
 def _detect_workspace_context() -> tuple[Path, str | None]:
