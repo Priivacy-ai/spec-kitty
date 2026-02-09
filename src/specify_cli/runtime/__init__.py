@@ -13,11 +13,21 @@ from specify_cli.runtime.resolver import (
     resolve_mission,
     resolve_template,
 )
+from specify_cli.runtime.migrate import (
+    AssetDisposition,
+    MigrationReport,
+    classify_asset,
+    execute_migration,
+)
 
 __all__ = [
+    "AssetDisposition",
+    "MigrationReport",
     "ResolutionResult",
     "ResolutionTier",
+    "classify_asset",
     "ensure_runtime",
+    "execute_migration",
     "get_kittify_home",
     "get_package_asset_root",
     "resolve_command",

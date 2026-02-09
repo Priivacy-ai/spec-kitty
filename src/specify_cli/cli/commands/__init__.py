@@ -11,6 +11,7 @@ from . import context as context_module
 from . import dashboard as dashboard_module
 from . import implement as implement_module
 from . import merge as merge_module
+from . import migrate_cmd as migrate_module
 from . import mission as mission_module
 from . import ops as ops_module
 from . import orchestrate as orchestrate_module
@@ -32,6 +33,7 @@ def register_commands(app: typer.Typer) -> None:
     app.command()(dashboard_module.dashboard)
     app.command()(implement_module.implement)
     app.command()(merge_module.merge)
+    app.command()(migrate_module.migrate)
     app.add_typer(mission_module.app, name="mission")
     app.add_typer(ops_module.app, name="ops")
     app.add_typer(orchestrate_module.app, name="orchestrate")
