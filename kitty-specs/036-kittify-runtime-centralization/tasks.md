@@ -19,11 +19,11 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/runtime/` subpackage with `__init__.py`
-- [ ] T002 Implement `get_kittify_home()` in `src/specify_cli/runtime/home.py`
-- [ ] T003 Implement `get_package_asset_root()` in `src/specify_cli/runtime/home.py`
-- [ ] T004 [P] Write unit tests for cross-platform path resolution in `tests/unit/runtime/test_home.py`
-- [ ] T005 [P] Write unit tests for `SPEC_KITTY_HOME` env var override in `tests/unit/runtime/test_home.py`
+- [x] T001 Create `src/specify_cli/runtime/` subpackage with `__init__.py`
+- [x] T002 Implement `get_kittify_home()` in `src/specify_cli/runtime/home.py`
+- [x] T003 Implement `get_package_asset_root()` in `src/specify_cli/runtime/home.py`
+- [x] T004 [P] Write unit tests for cross-platform path resolution in `tests/unit/runtime/test_home.py`
+- [x] T005 [P] Write unit tests for `SPEC_KITTY_HOME` env var override in `tests/unit/runtime/test_home.py`
 
 ### Implementation Notes
 - `get_kittify_home()`: `SPEC_KITTY_HOME` env var > `Path.home() / ".kittify"` (Unix) > `platformdirs.user_data_dir("kittify")` (Windows)
