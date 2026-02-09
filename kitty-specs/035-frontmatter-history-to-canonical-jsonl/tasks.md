@@ -156,7 +156,7 @@
 **Estimated Size**: ~300 lines
 
 ### Included Subtasks
-- [ ] T028 Create BaseMigration subclass with migration_id = "2.0.0_historical_status_migration"
+- [x] T028 Create BaseMigration subclass with migration_id = "2.0.0_historical_status_migration"
 - [ ] T029 Implement detect() — scan kitty-specs for features with WPs but no full-history events
 - [ ] T030 Implement can_apply() — verify status module importable, kitty-specs exists
 - [ ] T031 Implement apply() — iterate features, call migrate_feature, aggregate MigrationResult
@@ -276,8 +276,8 @@ WP01 (parser) ─────────────────┐
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: for_review
-- WP02: for_review
-- WP03: for_review
-- WP04: for_review
+- WP01: done
+- WP02: done
+- WP03: done
+- WP04: done
 <!-- status-model:end -->
