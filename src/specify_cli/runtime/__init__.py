@@ -5,5 +5,20 @@ including path resolution, asset discovery, and runtime bootstrapping.
 """
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from specify_cli.runtime.resolver import (
+    ResolutionResult,
+    ResolutionTier,
+    resolve_command,
+    resolve_mission,
+    resolve_template,
+)
 
-__all__ = ["get_kittify_home", "get_package_asset_root"]
+__all__ = [
+    "ResolutionResult",
+    "ResolutionTier",
+    "get_kittify_home",
+    "get_package_asset_root",
+    "resolve_command",
+    "resolve_mission",
+    "resolve_template",
+]
