@@ -212,11 +212,11 @@
 **Prompt**: `/tasks/WP08-load-mission-dispatch.md`
 
 ### Included Subtasks
-- [ ] T033 Implement `load_mission()` in `mission_v1/__init__.py` with v0/v1 dispatch
-- [ ] T034 Define Mission Protocol/ABC that both types satisfy
-- [ ] T035 Wire load_mission into existing `get_mission_by_name()` call path
-- [ ] T036 Handle hybrid YAML (v1 fields + v0 legacy fields coexisting)
-- [ ] T037 [P] Create `tests/integration/test_mission_loading.py`
+- [x] T033 Implement `load_mission()` in `mission_v1/__init__.py` with v0/v1 dispatch
+- [x] T034 Define Mission Protocol/ABC that both types satisfy
+- [x] T035 Wire load_mission into existing `get_mission_by_name()` call path
+- [x] T036 Handle hybrid YAML (v1 fields + v0 legacy fields coexisting)
+- [x] T037 [P] Create `tests/integration/test_mission_loading.py`
 
 ### Implementation Notes
 - Detection: if `states` AND `transitions` keys present → v1, else v0
