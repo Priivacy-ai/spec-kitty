@@ -213,11 +213,11 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T035 Modify init template preparation to skip shared asset copying
-- [ ] T036 Update init to read templates from global `~/.kittify/` via resolver
-- [ ] T037 Ensure agent directory generation reads from global runtime
-- [ ] T038 Write tests: init creates only project-specific files
-- [ ] T039 Write tests: init with populated `~/.kittify/` resolves shared assets correctly
+- [x] T035 Modify init template preparation to skip shared asset copying
+- [x] T036 Update init to read templates from global `~/.kittify/` via resolver
+- [x] T037 Ensure agent directory generation reads from global runtime
+- [x] T038 Write tests: init creates only project-specific files
+- [x] T039 Write tests: init with populated `~/.kittify/` resolves shared assets correctly
 
 ### Implementation Notes
 - Existing `init.py` is ~900 lines. Modify the template copying section (lines 619-630 area)
