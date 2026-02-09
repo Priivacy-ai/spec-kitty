@@ -3,8 +3,8 @@
 This subpackage provides:
 - StateMachineMission: Full v1 state machine backed by MarkupMachine
 - MissionModel: Lightweight model object that holds context for guards/callbacks
-- PhaseMission: v0 phase-list compatibility wrapper (future WP)
-- load_mission: Auto-detecting entry point (v0 vs v1) (future WP)
+- PhaseMission: v0 phase-list compatibility wrapper
+- load_mission: Auto-detecting entry point (v0 vs v1)
 """
 
 from specify_cli.mission_v1.runner import MissionModel, StateMachineMission
