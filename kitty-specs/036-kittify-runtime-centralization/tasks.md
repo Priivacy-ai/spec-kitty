@@ -332,3 +332,8 @@
 | T043 | E2E test: fresh install flow | WP08 | P1 | Yes |
 | T044 | E2E test: upgrade with legacy project | WP08 | P1 | Yes |
 | T045 | Regression test: full existing suite | WP08 | P1 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: planned
+<!-- status-model:end -->
