@@ -145,6 +145,17 @@ class TestDetect:
         migration = HistoricalStatusMigration()
         assert migration.detect(tmp_path) is True
 
+    def test_all_planned_without_events_not_detected(self, tmp_path: Path) -> None:
+        """detect() returns False when all WPs are still planned."""
+        feature_dir = tmp_path / "kitty-specs" / "900a-planned"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        _write_wp(tasks_dir, "WP01", "planned")
+        _write_wp(tasks_dir, "WP02", "planned")
+
+        migration = HistoricalStatusMigration()
+        assert migration.detect(tmp_path) is False
+
     def test_empty_events_file_detected(self, tmp_path: Path) -> None:
         """detect() returns True when events file exists but is empty."""
         feature_dir = tmp_path / "kitty-specs" / "901-test"

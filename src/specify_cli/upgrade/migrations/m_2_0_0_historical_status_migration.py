@@ -28,6 +28,8 @@ class HistoricalStatusMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """Return True if any feature has WPs but no full-history events."""
+        from specify_cli.status.migrate import feature_requires_historical_migration
+
         kitty_specs = project_path / "kitty-specs"
         if not kitty_specs.exists():
             return False
@@ -44,11 +46,15 @@ class HistoricalStatusMigration(BaseMigration):
 
             events_file = feature_dir / "status.events.jsonl"
             if not events_file.exists():
-                return True
+                if feature_requires_historical_migration(feature_dir):
+                    return True
+                continue
 
             content = events_file.read_text(encoding="utf-8").strip()
             if not content:
-                return True
+                if feature_requires_historical_migration(feature_dir):
+                    return True
+                continue
 
             # Check for migration-only events (legacy bootstrap, needs upgrade)
             from specify_cli.status.store import read_events, StoreError

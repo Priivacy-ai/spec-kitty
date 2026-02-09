@@ -163,6 +163,42 @@ def _backup_events_file(feature_dir: Path) -> Path | None:
 # ---------------------------------------------------------------------------
 
 
+def feature_requires_historical_migration(feature_dir: Path) -> bool:
+    """Return True when a feature has at least one reconstructable transition.
+
+    Features with only planned/no-op WPs do not require historical migration and
+    should not trigger upgrade detect loops.
+    """
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.exists():
+        return False
+
+    wp_files = sorted(tasks_dir.glob("WP*.md"))
+    if not wp_files:
+        return False
+
+    for wp_file in wp_files:
+        try:
+            frontmatter, _body = read_frontmatter(wp_file)
+        except Exception:
+            # Parsing issues still require attention from migration logic.
+            return True
+
+        wp_id = str(frontmatter.get("work_package_id", wp_file.stem.split("-")[0]))
+        raw_lane = frontmatter.get("lane", "planned")
+        if raw_lane is None or str(raw_lane).strip() == "":
+            raw_lane = "planned"
+        canonical_lane = resolve_lane_alias(str(raw_lane))
+        if canonical_lane not in CANONICAL_LANES:
+            return True
+
+        chain = build_transition_chain(frontmatter, wp_id)
+        if chain.transitions:
+            return True
+
+    return False
+
+
 def migrate_feature(
     feature_dir: Path,
     *,
@@ -234,6 +270,7 @@ def migrate_feature(
         )
 
     wp_details: list[WPMigrationDetail] = []
+    wp_errors: list[str] = []
     all_events: list[StatusEvent] = []
 
     for wp_file in wp_files:
@@ -241,6 +278,7 @@ def migrate_feature(
             frontmatter, _body = read_frontmatter(wp_file)
         except Exception as exc:
             logger.warning("Failed to read frontmatter from %s: %s", wp_file, exc)
+            wp_errors.append(f"{wp_file.name}: unreadable frontmatter ({exc})")
             wp_details.append(
                 WPMigrationDetail(
                     wp_id=wp_file.stem.split("-")[0],
@@ -263,6 +301,9 @@ def migrate_feature(
 
         # Validate canonical lane
         if canonical_lane not in CANONICAL_LANES:
+            wp_errors.append(
+                f"{wp_file.name}: unrecognized lane '{raw_lane_str}'"
+            )
             wp_details.append(
                 WPMigrationDetail(
                     wp_id=wp_id,
@@ -303,19 +344,25 @@ def migrate_feature(
             # Actor resolution: use transition's actor unless it's "migration"
             event_actor = t.actor if t.actor != "migration" else actor
 
-            event = StatusEvent(
-                event_id=event_id,
-                feature_slug=feature_slug,
-                wp_id=wp_id,
-                from_lane=Lane(t.from_lane),
-                to_lane=Lane(t.to_lane),
-                at=t.timestamp,
-                actor=event_actor,
-                force=True,
-                execution_mode="direct_repo",
-                reason=reason,
-                evidence=t.evidence,
-            )
+            try:
+                event = StatusEvent(
+                    event_id=event_id,
+                    feature_slug=feature_slug,
+                    wp_id=wp_id,
+                    from_lane=Lane(t.from_lane),
+                    to_lane=Lane(t.to_lane),
+                    at=t.timestamp,
+                    actor=event_actor,
+                    force=True,
+                    execution_mode="direct_repo",
+                    reason=reason,
+                    evidence=t.evidence,
+                )
+            except ValueError:
+                wp_errors.append(
+                    f"{wp_file.name}: invalid transition {t.from_lane}->{t.to_lane}"
+                )
+                continue
 
             all_events.append(event)
             wp_event_ids.append(event_id)
@@ -360,10 +407,20 @@ def migrate_feature(
                 "Materialization failed for %s (non-fatal): %s", feature_slug, exc
             )
 
+    status = "migrated" if all_events else "skipped"
+    error_msg: str | None = None
+    if wp_errors:
+        status = "failed"
+        sample = "; ".join(wp_errors[:3])
+        if len(wp_errors) > 3:
+            sample = f"{sample}; ... (+{len(wp_errors) - 3} more)"
+        error_msg = sample
+
     return FeatureMigrationResult(
         feature_slug=feature_slug,
-        status="migrated",
+        status=status,
         wp_details=wp_details,
+        error=error_msg,
         backup_path=str(backup_path) if backup_path else None,
         was_replace=was_replace,
     )

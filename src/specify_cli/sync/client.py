@@ -2,6 +2,7 @@
 import asyncio
 import json
 import random
+from contextlib import suppress
 from typing import Optional, Callable
 import websockets
 from websockets import ConnectionClosed
@@ -62,6 +63,7 @@ class WebSocketClient:
         self.status = ConnectionStatus.OFFLINE
         self.message_handler: Optional[Callable] = None
         self.reconnect_attempts = 0
+        self._listen_task: Optional[asyncio.Task] = None
 
     def _get_ws_token(self) -> str:
         """
@@ -108,7 +110,7 @@ class WebSocketClient:
                 await self._receive_snapshot()
 
                 # Start message listener
-                asyncio.create_task(self._listen())
+                self._listen_task = asyncio.create_task(self._listen())
 
                 print("✅ Connected to sync server")
                 return
@@ -143,8 +145,15 @@ class WebSocketClient:
 
     async def disconnect(self):
         """Close WebSocket connection"""
+        if self._listen_task:
+            self._listen_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._listen_task
+            self._listen_task = None
+
         if self.ws:
             await self.ws.close()
+            self.ws = None
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
             print("Disconnected from sync server")
@@ -235,10 +244,15 @@ class WebSocketClient:
             async for message in self.ws:
                 data = json.loads(message)
                 await self._handle_message(data)
+        except asyncio.CancelledError:
+            # Expected during explicit disconnect/shutdown.
+            pass
         except ConnectionClosed:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE
             print("Connection closed by server")
+        finally:
+            self._listen_task = None
 
     async def _handle_message(self, data: dict):
         """Handle incoming message"""

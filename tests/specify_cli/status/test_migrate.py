@@ -17,6 +17,7 @@ from specify_cli.status.migrate import (
     FeatureMigrationResult,
     MigrationResult,
     WPMigrationDetail,
+    feature_requires_historical_migration,
     migrate_feature,
 )
 from specify_cli.status.models import Lane, StatusEvent
@@ -291,13 +292,32 @@ class TestMigrateFeature:
         )
 
         result = migrate_feature(feature_dir)
-        assert result.status == "migrated"
+        assert result.status == "skipped"
         assert len(result.wp_details) == 1
         assert result.wp_details[0].canonical_lane == "planned"
         assert result.wp_details[0].events_created == 0
 
         events = read_events(feature_dir)
         assert len(events) == 0
+
+    def test_requires_migration_false_for_all_planned(self, tmp_path: Path) -> None:
+        """All-planned features should not be flagged as requiring migration."""
+        feature_dir = tmp_path / "kitty-specs" / "103a-all-planned"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        _write_wp(tasks_dir, "WP01", "planned")
+        _write_wp(tasks_dir, "WP02", "planned")
+
+        assert feature_requires_historical_migration(feature_dir) is False
+
+    def test_requires_migration_true_for_non_planned(self, tmp_path: Path) -> None:
+        """Features with at least one transition should require migration."""
+        feature_dir = tmp_path / "kitty-specs" / "103b-needs-migration"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        _write_wp(tasks_dir, "WP01", "doing")
+
+        assert feature_requires_historical_migration(feature_dir) is True
 
     def test_wp_with_invalid_lane(self, tmp_path: Path) -> None:
         """WP with unrecognized lane is reported as error, others continue."""
@@ -312,7 +332,8 @@ class TestMigrateFeature:
         ])
 
         result = migrate_feature(feature_dir)
-        assert result.status == "migrated"
+        assert result.status == "failed"
+        assert result.error is not None
 
         wp01 = next(d for d in result.wp_details if d.wp_id == "WP01")
         assert wp01.events_created == 0
@@ -918,7 +939,7 @@ class TestMigrationResultJSON:
 class TestEdgeCases:
 
     def test_malformed_frontmatter_continues(self, tmp_path: Path) -> None:
-        """WP with malformed frontmatter is reported but doesn't fail feature."""
+        """WP with malformed frontmatter marks the feature as failed."""
         feature_dir = tmp_path / "kitty-specs" / "600-malformed"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
@@ -934,7 +955,8 @@ class TestEdgeCases:
         ])
 
         result = migrate_feature(feature_dir)
-        assert result.status == "migrated"
+        assert result.status == "failed"
+        assert result.error is not None
 
         events = read_events(feature_dir)
         assert len(events) == 1
@@ -953,7 +975,7 @@ class TestEdgeCases:
         )
 
         result = migrate_feature(feature_dir)
-        assert result.status == "migrated"
+        assert result.status == "skipped"
         assert result.wp_details[0].canonical_lane == "planned"
 
         events = read_events(feature_dir)

@@ -150,6 +150,43 @@ class TestDeriveFromLane:
         result = _derive_from_lane(feature_dir, "WP99")
         assert result == "planned"
 
+    def test_uses_reduced_state_not_append_order(self, feature_dir: Path):
+        """Derivation uses canonical reducer order when log lines are out of order."""
+        from specify_cli.status.store import append_event
+
+        # Write a later transition first, then an earlier one.
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id="01HXYZ0000000000000000OO02",
+                feature_slug="034-test-feature",
+                wp_id="WP01",
+                from_lane=Lane.CLAIMED,
+                to_lane=Lane.IN_PROGRESS,
+                at="2026-02-08T13:00:00Z",
+                actor="test-actor",
+                force=False,
+                execution_mode="worktree",
+            ),
+        )
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id="01HXYZ0000000000000000OO01",
+                feature_slug="034-test-feature",
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.CLAIMED,
+                at="2026-02-08T12:00:00Z",
+                actor="test-actor",
+                force=False,
+                execution_mode="worktree",
+            ),
+        )
+
+        result = _derive_from_lane(feature_dir, "WP01")
+        assert result == "in_progress"
+
 
 # ── _build_done_evidence ─────────────────────────────────────
 

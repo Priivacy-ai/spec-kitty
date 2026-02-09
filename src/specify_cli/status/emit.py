@@ -71,15 +71,24 @@ def _now_utc() -> str:
 
 
 def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
-    """Derive the current lane for a WP from persisted events.
+    """Derive the current lane for a WP from canonical reduced state.
 
-    Returns the to_lane of the most recent event for the given wp_id,
-    or "planned" if no events exist for this WP.
+    The event log may not be append-ordered by logical transition time,
+    so we must reduce the full log to determine the current lane
+    deterministically.
     """
     events = _store.read_events(feature_dir)
-    for event in reversed(events):
-        if event.wp_id == wp_id:
-            return str(event.to_lane)
+    if not events:
+        return "planned"
+
+    snapshot = _reducer.reduce(events)
+    wp_state = snapshot.work_packages.get(wp_id)
+    if wp_state is None:
+        return "planned"
+
+    lane = wp_state.get("lane")
+    if isinstance(lane, str):
+        return lane
     return "planned"
 
 

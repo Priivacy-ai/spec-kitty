@@ -249,3 +249,51 @@ class TestJitterBehavior:
         # First delay: max(0, 0.5 - 1.0) = max(0, -0.5) = 0
         assert len(delays) >= 1
         assert delays[0] == 0
+
+
+class _FakeWebSocket:
+    """Minimal async websocket stub for lifecycle tests."""
+
+    async def recv(self):
+        return '{"type":"snapshot","work_packages":[]}'
+
+    async def close(self):
+        return None
+
+    async def send(self, _msg):
+        return None
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        await asyncio.sleep(60)
+        raise StopAsyncIteration
+
+
+class TestClientLifecycle:
+    """Tests for connect/disconnect task lifecycle hygiene."""
+
+    async def test_disconnect_cancels_listener_task(self):
+        """disconnect() should cancel the background listener task."""
+        client = WebSocketClient("https://example.test", "token")
+
+        async def fake_connect(*_args, **_kwargs):
+            return _FakeWebSocket()
+
+        with patch("specify_cli.sync.client.websockets.connect", side_effect=fake_connect):
+            await client.connect()
+            assert client._listen_task is not None
+            assert not client._listen_task.done()
+
+            await client.disconnect()
+            await asyncio.sleep(0)
+
+            assert client._listen_task is None
+            leaked_listeners = [
+                t for t in asyncio.all_tasks()
+                if t is not asyncio.current_task()
+                and not t.done()
+                and getattr(t.get_coro(), "__qualname__", "") == "WebSocketClient._listen"
+            ]
+            assert leaked_listeners == []
