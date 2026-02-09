@@ -340,9 +340,11 @@ def doctor(
         typer.Option("--json", help="Machine-readable JSON output"),
     ] = False,
 ) -> None:
-    """Run health checks for status hygiene.
+    """Run health checks for status hygiene and global runtime.
 
-    Detects stale claims, orphan workspaces, and drift issues.
+    Detects global runtime issues (missing ~/.kittify/, version mismatch,
+    corrupted missions) and project-level issues (stale claims, orphan
+    workspaces, drift).
     Exit code 0 = healthy, 1 = issues found.
 
     Examples:
@@ -350,9 +352,14 @@ def doctor(
         spec-kitty agent status doctor --feature 034-my-feature
         spec-kitty agent status doctor --stale-claimed-days 3 --json
     """
+    from specify_cli.runtime.doctor import run_global_checks
     from specify_cli.status.doctor import run_doctor
 
     feature_dir, feature_slug, repo_root = _resolve_feature_dir(feature)
+
+    # Run global runtime checks BEFORE project-specific checks
+    global_checks = run_global_checks(project_dir=repo_root)
+    global_has_issues = any(not c.passed for c in global_checks)
 
     try:
         result = run_doctor(
@@ -371,10 +378,21 @@ def doctor(
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
+    overall_healthy = result.is_healthy and not global_has_issues
+
     if json_output:
         report = {
             "feature_slug": result.feature_slug,
-            "healthy": result.is_healthy,
+            "healthy": overall_healthy,
+            "global_runtime": [
+                {
+                    "name": c.name,
+                    "passed": c.passed,
+                    "message": c.message,
+                    "severity": c.severity,
+                }
+                for c in global_checks
+            ],
             "findings": [
                 {
                     "severity": str(f.severity),
@@ -388,13 +406,29 @@ def doctor(
         }
         console.print_json(json.dumps(report))
     else:
+        # Global Runtime section
+        console.print("\n[bold]Global Runtime:[/bold]")
+        for check in global_checks:
+            if check.passed:
+                icon = "✓"
+                color = "green"
+            elif check.severity == "warning":
+                icon = "⚠"
+                color = "yellow"
+            else:
+                icon = "✗"
+                color = "red"
+            console.print(f"  [{color}]{icon}[/{color}] {check.message}")
+
+        # Project-specific section
+        console.print(f"\n[bold]Feature Status: {result.feature_slug}[/bold]")
         if result.is_healthy:
             console.print(
-                f"[green]Healthy[/green]: {result.feature_slug}"
+                f"  [green]Healthy[/green]"
             )
         else:
             console.print(
-                f"[yellow]Issues found[/yellow]: {result.feature_slug}"
+                f"  [yellow]Issues found[/yellow]"
             )
             table = Table(title="Doctor Findings")
             table.add_column("Severity", style="bold")
@@ -415,7 +449,7 @@ def doctor(
                 )
             console.print(table)
 
-    raise typer.Exit(0 if result.is_healthy else 1)
+    raise typer.Exit(0 if overall_healthy else 1)
 
 
 # ---------------------------------------------------------------------------
