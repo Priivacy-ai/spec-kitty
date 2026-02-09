@@ -42,10 +42,10 @@
 **Prompt**: `/tasks/WP02-mission-runner.md`
 
 ### Included Subtasks
-- [ ] T006 Create `src/specify_cli/mission_v1/runner.py` with MissionRunner class
-- [ ] T007 Create MissionModel class with callback method stubs
-- [ ] T008 Implement MarkupMachine construction from validated config
-- [ ] T009 [P] Create `tests/unit/mission_v1/test_runner.py` with runner tests
+- [x] T006 Create `src/specify_cli/mission_v1/runner.py` with MissionRunner class
+- [x] T007 Create MissionModel class with callback method stubs
+- [x] T008 Implement MarkupMachine construction from validated config
+- [x] T009 [P] Create `tests/unit/mission_v1/test_runner.py` with runner tests
 
 ### Implementation Notes
 - `MarkupMachine(model=model, auto_transitions=False, send_event=True, **config)`
