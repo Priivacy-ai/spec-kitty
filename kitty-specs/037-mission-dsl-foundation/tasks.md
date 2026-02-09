@@ -126,10 +126,10 @@
 **Prompt**: `/tasks/WP05-emit-event.md`
 
 ### Included Subtasks
-- [ ] T019 Create `src/specify_cli/mission_v1/events.py` with emit_event function
-- [ ] T020 Implement JSONL file writer with atomic append
-- [ ] T021 Wire emit_event into MissionModel callbacks (on_enter, on_exit, guard failures)
-- [ ] T022 [P] Create `tests/unit/mission_v1/test_events.py` with event emission tests
+- [x] T019 Create `src/specify_cli/mission_v1/events.py` with emit_event function
+- [x] T020 Implement JSONL file writer with atomic append
+- [x] T021 Wire emit_event into MissionModel callbacks (on_enter, on_exit, guard failures)
+- [x] T022 [P] Create `tests/unit/mission_v1/test_events.py` with event emission tests
 
 ### Implementation Notes
 - Event format: `{"type": str, "timestamp": str, "mission": str, "payload": dict}`
@@ -340,4 +340,5 @@ Phase 4 - Validation:                              │
 - WP02: done
 - WP03: done
 - WP04: done
+- WP07: for_review
 <!-- status-model:end -->
