@@ -53,12 +53,12 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T008 Tests for normalize_entries (Format A, alias resolution, missing fields, empty history)
-- [ ] T009 Tests for collapse_duplicates (consecutive dupes, no dupes, all same)
-- [ ] T010 Tests for pair_transitions (multi-entry, single entry)
-- [ ] T011 Tests for gap_fill (gap needed, no gap, planned-only)
-- [ ] T012 Tests for extract_done_evidence (approved+reviewed_by, has_feedback, missing fields)
-- [ ] T013 [P] Tests for build_transition_chain integration (multi-step, single-entry, empty, planned-only)
+- [x] T008 Tests for normalize_entries (Format A, alias resolution, missing fields, empty history)
+- [x] T009 Tests for collapse_duplicates (consecutive dupes, no dupes, all same)
+- [x] T010 Tests for pair_transitions (multi-entry, single entry)
+- [x] T011 Tests for gap_fill (gap needed, no gap, planned-only)
+- [x] T012 Tests for extract_done_evidence (approved+reviewed_by, has_feedback, missing fields)
+- [x] T013 [P] Tests for build_transition_chain integration (multi-step, single-entry, empty, planned-only)
 
 ### Implementation Notes
 - Each test function corresponds to a plan test case (T080-T091)
@@ -273,3 +273,8 @@ WP01 (parser) ─────────────────┐
 | T034 | Test apply() aggregation | WP06 | P2 | Yes |
 | T035 | Test apply() dry_run | WP06 | P2 | Yes |
 | T036 | Test cross-branch idempotency | WP06 | P2 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP01: for_review
+<!-- status-model:end -->
