@@ -41,7 +41,15 @@ architecture/
     ├── 2026-01-29-13-target-branch-routing-for-status-commits.md
     ├── 2026-01-29-14-explicit-metadata-fields-over-implicit-defaults.md
     ├── 2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md
-    └── 2026-01-29-16-rich-json-outputs-for-agent-commands.md
+    ├── 2026-01-29-16-rich-json-outputs-for-agent-commands.md
+    ├── 2026-01-29-17-auto-create-target-branch-on-first-implement.md
+    ├── 2026-01-30-18-auto-detect-merged-single-parent-dependencies.md
+    ├── 2026-01-30-19-auto-discover-migrations-from-filesystem.md
+    ├── 2026-01-31-1-vendor-spec-kitty-events.md
+    ├── 2026-02-09-1-canonical-wp-status-model.md
+    ├── 2026-02-09-2-wp-lifecycle-state-machine.md
+    ├── 2026-02-09-3-event-log-merge-semantics.md
+    └── 2026-02-09-4-cross-repo-evidence-completion.md
 ```
 
 **Note:** Implementation details are documented in code, tests, and docstrings. ADRs focus on decisions and link directly to code.
@@ -136,6 +144,14 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-01-29-14](adrs/2026-01-29-14-explicit-metadata-fields-over-implicit-defaults.md) | Explicit Metadata Fields Over Implicit Defaults | Accepted | Metadata & Configuration |
 | [2026-01-29-15](adrs/2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md) | Merge-First Suggestion for Completed Dependencies | Accepted | Git Repository Management |
 | [2026-01-29-16](adrs/2026-01-29-16-rich-json-outputs-for-agent-commands.md) | Rich JSON Outputs for Agent Commands | Accepted | Agent Experience |
+| [2026-01-29-17](adrs/2026-01-29-17-auto-create-target-branch-on-first-implement.md) | Auto-Create Target Branch on First Implement | Accepted | Git Repository Management |
+| [2026-01-30-18](adrs/2026-01-30-18-auto-detect-merged-single-parent-dependencies.md) | Auto-Detect Merged Single-Parent Dependencies | Accepted | Git Repository Management |
+| [2026-01-30-19](adrs/2026-01-30-19-auto-discover-migrations-from-filesystem.md) | Auto-Discover Migrations from Filesystem | Accepted | Build Process |
+| [2026-01-31-1](adrs/2026-01-31-1-vendor-spec-kitty-events.md) | Vendor spec-kitty-events Library | Accepted | Dependency Management |
+| [2026-02-09-1](adrs/2026-02-09-1-canonical-wp-status-model.md) | Canonical WP Status Model (Append-Only JSONL) | Accepted | Status & State Management |
+| [2026-02-09-2](adrs/2026-02-09-2-wp-lifecycle-state-machine.md) | WP Lifecycle State Machine (7-Lane) | Accepted | Status & State Management |
+| [2026-02-09-3](adrs/2026-02-09-3-event-log-merge-semantics.md) | Event-Log Merge Semantics (Rollback-Aware) | Accepted | Status & State Management |
+| [2026-02-09-4](adrs/2026-02-09-4-cross-repo-evidence-completion.md) | Cross-Repo Evidence-Based Completion | Accepted | Status & State Management |
 
 ### By Topic
 
@@ -163,6 +179,12 @@ Create an ADR for every **architecturally significant decision**, including:
 **Mission System** (ADRs 7, 8)
 - Research deliverables (ADR-7)
 - CSV schema enforcement (ADR-8)
+
+**Status & State Management** (ADRs 2026-02-09-1 through 2026-02-09-4)
+- Canonical WP status via append-only JSONL event log (2026-02-09-1)
+- 7-lane WP lifecycle state machine with guard conditions (2026-02-09-2)
+- Rollback-aware event-log merge semantics (2026-02-09-3)
+- Cross-repo evidence-based completion with reconciliation (2026-02-09-4)
 
 **Status:** Core architecture documented ✅ (49 tests covering latest ADRs)
 
