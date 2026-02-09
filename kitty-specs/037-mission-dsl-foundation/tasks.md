@@ -341,5 +341,7 @@ Phase 4 - Validation:                              │
 - WP03: done
 - WP04: done
 - WP05: for_review
+- WP06: for_review
 - WP07: for_review
+- WP08: for_review
 <!-- status-model:end -->
