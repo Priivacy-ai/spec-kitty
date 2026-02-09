@@ -623,6 +623,17 @@ def init(
                                 / selected_mission
                                 / "command-templates"
                             )
+                            # Use the 4-tier resolver's package default when the
+                            # project-local mission copy has not been created yet.
+                            if not mission_templates_dir.exists():
+                                try:
+                                    from specify_cli.runtime.home import get_package_asset_root
+                                    pkg_missions = get_package_asset_root()
+                                    pkg_cmd_templates = pkg_missions / selected_mission / "command-templates"
+                                    if pkg_cmd_templates.is_dir():
+                                        mission_templates_dir = pkg_cmd_templates
+                                except FileNotFoundError:
+                                    pass  # fall through to prepare_command_templates which handles None/missing
                             render_templates_dir = prepare_command_templates(
                                 command_templates_dir,
                                 mission_templates_dir,
