@@ -239,12 +239,12 @@
 **Prompt**: `/tasks/WP09-integration-tests.md`
 
 ### Included Subtasks
-- [ ] T038 Create `tests/integration/test_mission_guards.py` with guard evaluation tests
-- [ ] T039 E2E test: load v1 mission → trigger transitions → verify guards block/allow
-- [ ] T040 E2E test: load v0 mission → PhaseMission linear progression
-- [ ] T041 E2E test: load all 3 v1 missions + documentation (v0) → verify coexistence
-- [ ] T042 Run full test suite for regressions
-- [ ] T043 Verify existing mission tests still pass
+- [x] T038 Create `tests/integration/test_mission_guards.py` with guard evaluation tests
+- [x] T039 E2E test: load v1 mission → trigger transitions → verify guards block/allow
+- [x] T040 E2E test: load v0 mission → PhaseMission linear progression
+- [x] T041 E2E test: load all 3 v1 missions + documentation (v0) → verify coexistence
+- [x] T042 Run full test suite for regressions
+- [x] T043 Verify existing mission tests still pass
 
 ### Implementation Notes
 - Guards need feature context (feature_dir, event log) — create temp fixtures
@@ -344,4 +344,5 @@ Phase 4 - Validation:                              │
 - WP06: done
 - WP07: done
 - WP08: done
+- WP09: done
 <!-- status-model:end -->
