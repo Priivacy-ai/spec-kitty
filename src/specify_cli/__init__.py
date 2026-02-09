@@ -166,6 +166,20 @@ def main():
         console.print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
         raise typer.Exit(1)
 
+    # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
+    # Must run BEFORE check_version_pin() so that global assets exist
+    # for resolution to work.  Fast path is <100ms when version matches.
+    from specify_cli.runtime.bootstrap import ensure_runtime
+    ensure_runtime()
+
+    # F-Pin-001 / 1A-16: Warn during ALL CLI startup if runtime.pin_version is set.
+    # Uses locate_project_root() which returns None outside a project -- safe to call always.
+    from specify_cli.core.project_resolver import locate_project_root
+    project_root = locate_project_root()
+    if project_root is not None:
+        from specify_cli.runtime.bootstrap import check_version_pin
+        check_version_pin(project_root)
+
     app()
 
 __all__ = ["main", "app", "__version__"]

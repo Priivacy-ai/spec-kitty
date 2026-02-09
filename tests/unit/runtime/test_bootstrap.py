@@ -3,10 +3,12 @@
 Covers:
 - T010: ensure_runtime() fast path, slow path, version matching, temp cleanup
 - T012: Interrupted update recovery (F-Bootstrap-001, 1A-07)
+- T028: Version pin warning (F-Pin-001, 1A-16)
 """
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -16,6 +18,7 @@ from specify_cli.runtime.bootstrap import (
     _cleanup_orphaned_update_dirs,
     _get_cli_version,
     _lock_exclusive,
+    check_version_pin,
     ensure_runtime,
     populate_from_package,
 )
@@ -546,3 +549,238 @@ class TestCleanupOrphanedUpdateDirs:
         assert not orphan.exists()
         # And the runtime should be functional
         assert (fake_home / "cache" / "version.lock").exists()
+
+
+# ---------------------------------------------------------------------------
+# T028 -- Version pin warning (F-Pin-001)
+# ---------------------------------------------------------------------------
+
+
+class TestCheckVersionPin:
+    """Tests for check_version_pin() -- acceptance criterion 1A-16."""
+
+    def test_pin_version_emits_warning(self, tmp_path: Path) -> None:
+        """F-Pin-001: runtime.pin_version emits warning, uses latest global."""
+        project = tmp_path / "project"
+        config = project / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text("runtime:\n  pin_version: '1.0.0'\n")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        assert any(
+            "pinning is not yet supported" in str(warning.message) for warning in w
+        )
+
+    def test_pin_version_warning_contains_pin_value(self, tmp_path: Path) -> None:
+        """Warning message includes the actual pinned version."""
+        project = tmp_path / "project"
+        config = project / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text("runtime:\n  pin_version: '2.5.3'\n")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
+        assert len(user_warnings) == 1
+        assert "2.5.3" in str(user_warnings[0].message)
+
+    def test_pin_version_warning_says_not_silently_honored(
+        self, tmp_path: Path
+    ) -> None:
+        """Warning explicitly says the pin will NOT be silently honored."""
+        project = tmp_path / "project"
+        config = project / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text("runtime:\n  pin_version: '1.0.0'\n")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
+        assert len(user_warnings) == 1
+        assert "NOT be silently honored" in str(user_warnings[0].message)
+
+    def test_no_warning_without_pin_version(self, tmp_path: Path) -> None:
+        """No warning emitted when runtime.pin_version is absent."""
+        project = tmp_path / "project"
+        config = project / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text("runtime:\n  some_other_key: value\n")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
+        assert len(user_warnings) == 0
+
+    def test_no_warning_without_runtime_section(self, tmp_path: Path) -> None:
+        """No warning when config has no runtime section."""
+        project = tmp_path / "project"
+        config = project / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text("agents:\n  available:\n    - claude\n")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
+        assert len(user_warnings) == 0
+
+    def test_no_warning_without_config_file(self, tmp_path: Path) -> None:
+        """No warning when .kittify/config.yaml doesn't exist."""
+        project = tmp_path / "project"
+        (project / ".kittify").mkdir(parents=True)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
+        assert len(user_warnings) == 0
+
+    def test_no_warning_without_kittify_dir(self, tmp_path: Path) -> None:
+        """No warning when .kittify directory doesn't exist at all."""
+        project = tmp_path / "project"
+        project.mkdir(parents=True)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
+        assert len(user_warnings) == 0
+
+    def test_empty_config_file(self, tmp_path: Path) -> None:
+        """Empty config file doesn't cause errors."""
+        project = tmp_path / "project"
+        config = project / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text("")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
+        assert len(user_warnings) == 0
+
+    def test_malformed_yaml_does_not_crash(self, tmp_path: Path) -> None:
+        """Malformed YAML doesn't crash -- config errors handled elsewhere."""
+        project = tmp_path / "project"
+        config = project / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text(": : : bad yaml [[[")
+
+        # Should not raise
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
+        assert len(user_warnings) == 0
+
+    def test_runtime_not_a_dict(self, tmp_path: Path) -> None:
+        """If runtime is a string or other non-dict, no crash."""
+        project = tmp_path / "project"
+        config = project / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text("runtime: 'just a string'\n")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
+        assert len(user_warnings) == 0
+
+    def test_pin_version_numeric(self, tmp_path: Path) -> None:
+        """Pin version specified as a number (not string) still warns."""
+        project = tmp_path / "project"
+        config = project / ".kittify" / "config.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_text("runtime:\n  pin_version: 1.0\n")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_version_pin(project)
+
+        user_warnings = [x for x in w if issubclass(x.category, UserWarning)]
+        assert len(user_warnings) == 1
+        assert "1.0" in str(user_warnings[0].message)
+
+
+# ---------------------------------------------------------------------------
+# T028b -- Version pin check wired into CLI main() (1A-16)
+# ---------------------------------------------------------------------------
+
+
+class TestVersionPinWiredIntoMain:
+    """Verify check_version_pin is called during CLI startup (not just --show-origin)."""
+
+    def test_main_calls_check_version_pin_when_project_found(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """main() calls check_version_pin when locate_project_root finds a project."""
+        mock_pin = MagicMock()
+
+        with (
+            patch(
+                "specify_cli.core.project_resolver.locate_project_root",
+                return_value=tmp_path,
+            ),
+            patch(
+                "specify_cli.runtime.bootstrap.check_version_pin",
+                mock_pin,
+            ),
+            patch("specify_cli.app", side_effect=SystemExit(0)),
+            patch(
+                "specify_cli.events.adapter.EventAdapter.check_library_available",
+                return_value=True,
+            ),
+        ):
+            try:
+                from specify_cli import main
+
+                main()
+            except SystemExit:
+                pass
+
+        mock_pin.assert_called_once_with(tmp_path)
+
+    def test_main_skips_check_version_pin_outside_project(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """main() skips check_version_pin when not inside a spec-kitty project."""
+        mock_pin = MagicMock()
+
+        with (
+            patch(
+                "specify_cli.core.project_resolver.locate_project_root",
+                return_value=None,
+            ),
+            patch(
+                "specify_cli.runtime.bootstrap.check_version_pin",
+                mock_pin,
+            ),
+            patch("specify_cli.app", side_effect=SystemExit(0)),
+            patch(
+                "specify_cli.events.adapter.EventAdapter.check_library_available",
+                return_value=True,
+            ),
+        ):
+            try:
+                from specify_cli import main
+
+                main()
+            except SystemExit:
+                pass
+
+        mock_pin.assert_not_called()
