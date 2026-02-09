@@ -1,32 +1,44 @@
-"""Legacy migration: bootstrap canonical event logs from frontmatter state.
+"""Migration: reconstruct full event history from WP frontmatter.
 
-Reads existing WP frontmatter lanes from a feature's tasks/ directory
-and generates bootstrap StatusEvent records in status.events.jsonl.
+Reads existing WP frontmatter history[] arrays from a feature's tasks/
+directory and generates complete transition chains as StatusEvent records
+in status.events.jsonl.
 
 Key invariants:
-- Alias ``doing`` is ALWAYS resolved to ``in_progress`` before event creation.
-- Idempotent: features with existing non-empty status.events.jsonl are skipped.
-- Bootstrap events use ``from_lane=planned`` as sentinel (all WPs start there).
-- WPs already at ``planned`` produce no events (no transition occurred).
+- Full history reconstruction via ``build_transition_chain()`` from history_parser.
+- All migration events use ``force=True`` with ``reason`` set.
+- 3-layer idempotency: marker check, live-events skip, migration-actor-only replace.
+- Atomic write per feature (temp file + os.replace).
+- Backup creation before replace-once on migration-only path.
+- Post-migration materialization (status.json).
 """
 
 from __future__ import annotations
 
+import json
+import logging
+import os
+import shutil
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from ulid import ULID
 
 from specify_cli.frontmatter import read_frontmatter
+from specify_cli.status.history_parser import build_transition_chain
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import EVENTS_FILENAME, append_event, read_events
+from specify_cli.status.store import EVENTS_FILENAME, StoreError, read_events
 from specify_cli.status.transitions import CANONICAL_LANES, resolve_lane_alias
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
 # Result dataclasses
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class WPMigrationDetail:
@@ -36,7 +48,10 @@ class WPMigrationDetail:
     original_lane: str  # Raw value from frontmatter (may be alias)
     canonical_lane: str  # Resolved canonical value
     alias_resolved: bool  # True if original != canonical
-    event_id: str  # ULID of bootstrap event ("" if skipped/errored)
+    events_created: int = 0  # Number of events generated
+    event_ids: list[str] = field(default_factory=list)  # All ULID event IDs
+    history_entries: int = 0  # Raw history entry count
+    has_evidence: bool = False  # DoneEvidence extracted?
 
 
 @dataclass
@@ -47,6 +62,8 @@ class FeatureMigrationResult:
     status: str  # "migrated", "skipped", "failed"
     wp_details: list[WPMigrationDetail] = field(default_factory=list)
     error: str | None = None
+    backup_path: str | None = None  # Path to .bak file if created
+    was_replace: bool = False  # True if replaced legacy bootstrap
 
 
 @dataclass
@@ -61,8 +78,90 @@ class MigrationResult:
 
 
 # ---------------------------------------------------------------------------
+# Atomic write helper
+# ---------------------------------------------------------------------------
+
+
+def _write_events_atomic(feature_dir: Path, events: list[StatusEvent]) -> None:
+    """Write events to status.events.jsonl atomically."""
+    events_file = feature_dir / EVENTS_FILENAME
+    tmp_file = feature_dir / f"{EVENTS_FILENAME}.tmp"
+    try:
+        feature_dir.mkdir(parents=True, exist_ok=True)
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            for event in events:
+                f.write(json.dumps(event.to_dict(), sort_keys=True) + "\n")
+        os.replace(str(tmp_file), str(events_file))
+    finally:
+        if tmp_file.exists():
+            tmp_file.unlink()
+
+
+# ---------------------------------------------------------------------------
+# Idempotency check
+# ---------------------------------------------------------------------------
+
+
+def _check_idempotency(feature_dir: Path) -> str:
+    """Check idempotency state of a feature's event log.
+
+    Returns:
+        "no_events" - No events file exists (or empty)
+        "has_marker" - Full-history migration already done (skip)
+        "live_events" - Non-migration actors present (skip)
+        "migration_only" - Only migration actors (backup + replace)
+    """
+    events_file = feature_dir / EVENTS_FILENAME
+    if not events_file.exists():
+        return "no_events"
+
+    content = events_file.read_text(encoding="utf-8").strip()
+    if not content:
+        return "no_events"
+
+    try:
+        events = read_events(feature_dir)
+    except StoreError:
+        logger.warning("Corrupt events file in %s, treating as no_events", feature_dir)
+        return "no_events"
+
+    if not events:
+        return "no_events"
+
+    # Layer 1: Check for full-history migration marker
+    for event in events:
+        if event.reason and "historical_frontmatter_to_jsonl:v1" in event.reason:
+            return "has_marker"
+
+    # Layer 2: Check for non-migration actors (live events)
+    for event in events:
+        if not event.actor.startswith("migration"):
+            return "live_events"
+
+    # Layer 3: All events have migration actors
+    return "migration_only"
+
+
+# ---------------------------------------------------------------------------
+# Backup helper
+# ---------------------------------------------------------------------------
+
+
+def _backup_events_file(feature_dir: Path) -> Path | None:
+    """Backup existing events file. Returns backup path or None."""
+    events_file = feature_dir / EVENTS_FILENAME
+    if not events_file.exists():
+        return None
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    backup_path = feature_dir / f"{EVENTS_FILENAME}.bak.{timestamp}"
+    shutil.copy2(str(events_file), str(backup_path))
+    return backup_path
+
+
+# ---------------------------------------------------------------------------
 # Core migration logic
 # ---------------------------------------------------------------------------
+
 
 def migrate_feature(
     feature_dir: Path,
@@ -70,11 +169,15 @@ def migrate_feature(
     actor: str = "migration",
     dry_run: bool = False,
 ) -> FeatureMigrationResult:
-    """Bootstrap canonical event log from existing frontmatter lanes.
+    """Reconstruct full event history from WP frontmatter.
+
+    Uses build_transition_chain() to reconstruct N transitions per WP
+    from frontmatter history[] arrays. All events use force=True with
+    reason set.
 
     Args:
         feature_dir: Path to the feature directory (e.g. kitty-specs/099-test/).
-        actor: Actor name recorded on bootstrap events.
+        actor: Fallback actor name (used when history agent is "migration").
         dry_run: When True, compute results but do not write events.
 
     Returns:
@@ -83,16 +186,30 @@ def migrate_feature(
     feature_slug = feature_dir.name
 
     # ------------------------------------------------------------------
-    # Idempotency check: skip if event log already exists and non-empty
+    # 3-layer idempotency check
     # ------------------------------------------------------------------
-    events_file = feature_dir / EVENTS_FILENAME
-    if events_file.exists():
-        content = events_file.read_text(encoding="utf-8").strip()
-        if content:
-            return FeatureMigrationResult(
-                feature_slug=feature_slug,
-                status="skipped",
-            )
+    idem_state = _check_idempotency(feature_dir)
+
+    if idem_state == "has_marker":
+        return FeatureMigrationResult(
+            feature_slug=feature_slug,
+            status="skipped",
+        )
+
+    if idem_state == "live_events":
+        return FeatureMigrationResult(
+            feature_slug=feature_slug,
+            status="skipped",
+        )
+
+    # ------------------------------------------------------------------
+    # If migration-only, backup before replace
+    # ------------------------------------------------------------------
+    backup_path: Path | None = None
+    was_replace = False
+    if idem_state == "migration_only" and not dry_run:
+        backup_path = _backup_events_file(feature_dir)
+        was_replace = True
 
     # ------------------------------------------------------------------
     # Validate tasks/ directory exists
@@ -106,7 +223,7 @@ def migrate_feature(
         )
 
     # ------------------------------------------------------------------
-    # Scan WP files and build bootstrap events
+    # Scan WP files and build events via history reconstruction
     # ------------------------------------------------------------------
     wp_files = sorted(tasks_dir.glob("WP*.md"))
     if not wp_files:
@@ -117,29 +234,27 @@ def migrate_feature(
         )
 
     wp_details: list[WPMigrationDetail] = []
-    events_to_write: list[StatusEvent] = []
-    has_errors = False
+    all_events: list[StatusEvent] = []
 
     for wp_file in wp_files:
         try:
             frontmatter, _body = read_frontmatter(wp_file)
         except Exception as exc:
+            logger.warning("Failed to read frontmatter from %s: %s", wp_file, exc)
             wp_details.append(
                 WPMigrationDetail(
                     wp_id=wp_file.stem.split("-")[0],
                     original_lane="<unreadable>",
                     canonical_lane="<unreadable>",
                     alias_resolved=False,
-                    event_id="",
                 )
             )
-            has_errors = True
             continue
 
-        wp_id = frontmatter.get("work_package_id", wp_file.stem.split("-")[0])
+        wp_id = str(frontmatter.get("work_package_id", wp_file.stem.split("-")[0]))
         raw_lane = frontmatter.get("lane", "planned")
 
-        # Resolve alias (e.g. "doing" -> "in_progress")
+        # Resolve alias
         if raw_lane is None or str(raw_lane).strip() == "":
             raw_lane = "planned"
         raw_lane_str = str(raw_lane)
@@ -154,88 +269,101 @@ def migrate_feature(
                     original_lane=raw_lane_str,
                     canonical_lane=canonical_lane,
                     alias_resolved=alias_was_resolved,
-                    event_id="",
                 )
             )
-            has_errors = True
             continue
 
-        # Skip WPs already at planned (no transition occurred)
-        if canonical_lane == "planned":
+        # Build transition chain from history
+        chain = build_transition_chain(frontmatter, wp_id)
+
+        if not chain.transitions:
+            # No transitions (e.g., WP still at planned)
             wp_details.append(
                 WPMigrationDetail(
                     wp_id=wp_id,
                     original_lane=raw_lane_str,
                     canonical_lane=canonical_lane,
                     alias_resolved=alias_was_resolved,
-                    event_id="",
+                    history_entries=chain.history_entries,
                 )
             )
             continue
 
-        # Determine timestamp from frontmatter history or now
-        timestamp = _extract_timestamp(frontmatter)
+        # Create StatusEvent for each transition
+        wp_event_ids: list[str] = []
+        for i, t in enumerate(chain.transitions):
+            event_id = str(ULID())
 
-        event_id = str(ULID())
-        event = StatusEvent(
-            event_id=event_id,
-            feature_slug=feature_slug,
-            wp_id=wp_id,
-            from_lane=Lane.PLANNED,
-            to_lane=Lane(canonical_lane),
-            at=timestamp,
-            actor=actor,
-            force=False,
-            execution_mode="direct_repo",
-        )
+            # First event per WP gets the marker reason
+            if i == 0:
+                reason = "historical_frontmatter_to_jsonl:v1"
+            else:
+                reason = "historical migration"
 
-        events_to_write.append(event)
+            # Actor resolution: use transition's actor unless it's "migration"
+            event_actor = t.actor if t.actor != "migration" else actor
+
+            event = StatusEvent(
+                event_id=event_id,
+                feature_slug=feature_slug,
+                wp_id=wp_id,
+                from_lane=Lane(t.from_lane),
+                to_lane=Lane(t.to_lane),
+                at=t.timestamp,
+                actor=event_actor,
+                force=True,
+                execution_mode="direct_repo",
+                reason=reason,
+                evidence=t.evidence,
+            )
+
+            all_events.append(event)
+            wp_event_ids.append(event_id)
+
         wp_details.append(
             WPMigrationDetail(
                 wp_id=wp_id,
                 original_lane=raw_lane_str,
                 canonical_lane=canonical_lane,
                 alias_resolved=alias_was_resolved,
-                event_id=event_id,
+                events_created=len(wp_event_ids),
+                event_ids=wp_event_ids,
+                history_entries=chain.history_entries,
+                has_evidence=chain.has_evidence,
             )
         )
 
     # ------------------------------------------------------------------
-    # Write events (unless dry_run)
+    # Write events atomically (unless dry_run)
     # ------------------------------------------------------------------
-    if not dry_run:
-        for event in events_to_write:
-            append_event(feature_dir, event)
+    if not dry_run and all_events:
+        _write_events_atomic(feature_dir, all_events)
 
         # Verification: read back and confirm count
         persisted = read_events(feature_dir)
-        if len(persisted) != len(events_to_write):
+        if len(persisted) != len(all_events):
             raise RuntimeError(
-                f"Migration verification failed: expected {len(events_to_write)} events, "
-                f"found {len(persisted)} in {events_file}"
+                f"Migration verification failed: expected {len(all_events)} events, "
+                f"found {len(persisted)} in {feature_dir / EVENTS_FILENAME}"
+            )
+
+    # ------------------------------------------------------------------
+    # Post-migration materialization
+    # ------------------------------------------------------------------
+    if not dry_run and all_events:
+        try:
+            from specify_cli.status.reducer import materialize
+
+            materialize(feature_dir)
+        except Exception as exc:
+            logger.warning(
+                "Materialization failed for %s (non-fatal): %s", feature_slug, exc
             )
 
     return FeatureMigrationResult(
         feature_slug=feature_slug,
         status="migrated",
         wp_details=wp_details,
+        backup_path=str(backup_path) if backup_path else None,
+        was_replace=was_replace,
     )
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _extract_timestamp(frontmatter: dict) -> str:
-    """Extract best-available timestamp from frontmatter history.
-
-    Falls back to ``datetime.now(UTC)`` when history is absent.
-    """
-    history = frontmatter.get("history")
-    if isinstance(history, list) and history:
-        last_entry = history[-1]
-        if isinstance(last_entry, dict):
-            ts = last_entry.get("timestamp")
-            if ts:
-                return str(ts)
-    return datetime.now(timezone.utc).isoformat()
