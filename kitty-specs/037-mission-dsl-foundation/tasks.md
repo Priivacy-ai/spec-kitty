@@ -338,4 +338,5 @@ Phase 4 - Validation:                              │
 ## Canonical Status (Generated)
 - WP01: done
 - WP02: for_review
+- WP04: for_review
 <!-- status-model:end -->
