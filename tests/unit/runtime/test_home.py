@@ -50,38 +50,36 @@ class TestGetKittifyHomeWindows:
 
     def test_windows_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """On Windows, default uses platformdirs user_data_dir (1A-08)."""
+        import sys
+        from unittest.mock import MagicMock
+
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
         monkeypatch.setattr("os.name", "nt")
-        with patch(
-            "specify_cli.runtime.home.user_data_dir",
-            return_value=r"C:\Users\test\AppData\Local\kittify",
-            create=True,
-        ):
-            # Need to mock the import inside the function
-            import specify_cli.runtime.home as home_mod
 
-            original_name = home_mod.os.name
-            home_mod.os.name = "nt"  # type: ignore[attr-defined]
-            try:
-                # Patch platformdirs at the point of import
-                import sys
-                from unittest.mock import MagicMock
+        import specify_cli.runtime.home as home_mod
 
-                mock_platformdirs = MagicMock()
-                mock_platformdirs.user_data_dir.return_value = (
-                    r"C:\Users\test\AppData\Local\kittify"
-                )
-                sys.modules["platformdirs"] = mock_platformdirs
+        original_name = home_mod.os.name
+        home_mod.os.name = "nt"  # type: ignore[attr-defined]
 
-                result = get_kittify_home()
-                assert "kittify" in str(result)
-            finally:
-                home_mod.os.name = original_name  # type: ignore[attr-defined]
-                # Restore real platformdirs
-                if "platformdirs" in sys.modules:
-                    import platformdirs as real_pd
+        # Save original module ref BEFORE overriding
+        original_platformdirs = sys.modules.get("platformdirs")
 
-                    sys.modules["platformdirs"] = real_pd
+        mock_platformdirs = MagicMock()
+        mock_platformdirs.user_data_dir.return_value = (
+            r"C:\Users\test\AppData\Local\kittify"
+        )
+        sys.modules["platformdirs"] = mock_platformdirs
+
+        try:
+            result = get_kittify_home()
+            assert "kittify" in str(result)
+        finally:
+            home_mod.os.name = original_name  # type: ignore[attr-defined]
+            # Restore original module object directly (no re-import)
+            if original_platformdirs is not None:
+                sys.modules["platformdirs"] = original_platformdirs
+            else:
+                sys.modules.pop("platformdirs", None)
 
 
 # ---------------------------------------------------------------------------
