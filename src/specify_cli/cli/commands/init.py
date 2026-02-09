@@ -744,6 +744,13 @@ def init(
                     tracker.start(f"{agent_key}-extract")
                     try:
                         if not base_prepared:
+                            # Bootstrap / update the global runtime so that
+                            # _has_global_runtime() reflects up-to-date state.
+                            try:
+                                from specify_cli.runtime.bootstrap import ensure_runtime
+                                ensure_runtime()
+                            except Exception:
+                                _logger.debug("ensure_runtime() failed; falling back to legacy init", exc_info=True)
                             # Check if global runtime exists -- if so, skip
                             # copying shared assets to the project and resolve
                             # templates directly from the package / global.
@@ -756,7 +763,11 @@ def init(
                                     # Copy base command templates to a writable
                                     # scratch dir so prepare_command_templates()
                                     # can create the merged output alongside them.
-                                    scratch = project_path / ".kittify"
+                                    # Use .kittify/.scratch/ (hidden) so the 4-tier
+                                    # resolver's legacy tier scan of
+                                    # .kittify/command-templates doesn't pick this
+                                    # up and emit spurious DeprecationWarnings.
+                                    scratch = project_path / ".kittify" / ".scratch"
                                     scratch.mkdir(parents=True, exist_ok=True)
                                     scratch_cmd = scratch / "command-templates"
                                     if scratch_cmd.exists():
@@ -1078,10 +1089,10 @@ def init(
 
     # Clean up temporary directories used during init.
     # In full-copy mode: .kittify/templates/ holds the copied base templates.
-    # In global-runtime mode: .kittify/command-templates/ and .kittify/.resolved-*
-    # and .kittify/.merged-* hold scratch data from template resolution.
+    # In global-runtime mode: .kittify/.scratch/ holds base command templates
+    # and .kittify/.resolved-* / .kittify/.merged-* hold resolver output.
     # User projects should only have the generated agent commands, not the sources.
-    for cleanup_name in ("templates", "command-templates"):
+    for cleanup_name in ("templates", "command-templates", ".scratch"):
         cleanup_dir = project_path / ".kittify" / cleanup_name
         if cleanup_dir.exists():
             try:

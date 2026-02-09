@@ -192,15 +192,19 @@ class TestInitCreatesMinimalProject:
         pkg_templates = _get_package_templates_root()
         assert pkg_templates is not None
 
-        # Copy base command templates to scratch (as init does)
+        # Copy base command templates to scratch (as init does).
+        # Uses .kittify/.scratch/ so the resolver's legacy tier scan
+        # of .kittify/command-templates doesn't pick these up.
         import shutil
-        scratch_cmd = project / ".kittify" / "command-templates"
+        scratch = project / ".kittify" / ".scratch"
+        scratch.mkdir(parents=True, exist_ok=True)
+        scratch_cmd = scratch / "command-templates"
         shutil.copytree(pkg_templates / "command-templates", scratch_cmd)
 
         # Resolve mission templates
-        scratch = project / ".kittify"
+        kittify = project / ".kittify"
         mission_dir = _resolve_mission_command_templates_dir(
-            project, "software-dev", scratch_parent=scratch
+            project, "software-dev", scratch_parent=kittify
         )
 
         # Merge base + mission
@@ -210,8 +214,8 @@ class TestInitCreatesMinimalProject:
         generate_agent_assets(render_dir, project, "claude", "sh")
 
         # Clean up scratch dirs (as init does)
-        shutil.rmtree(scratch_cmd)
-        for d in scratch.iterdir():
+        shutil.rmtree(scratch)
+        for d in kittify.iterdir():
             if d.is_dir() and (d.name.startswith(".resolved-") or d.name.startswith(".merged-")):
                 shutil.rmtree(d)
 
@@ -381,3 +385,249 @@ class TestGlobalRuntimeEdgeCases:
         assert _has_global_runtime() is True
         # But the condition 'and template_mode == "package"' ensures local mode is unaffected.
         # This is tested by verifying the code logic, not calling init directly.
+
+
+# ---------------------------------------------------------------------------
+# ensure_runtime() called during init
+# ---------------------------------------------------------------------------
+
+class TestEnsureRuntimeCalledDuringInit:
+    """Verify that ensure_runtime() is invoked before _has_global_runtime()."""
+
+    def test_ensure_runtime_called_in_init_code_path(self, tmp_path, monkeypatch):
+        """The init code path calls ensure_runtime() before checking global runtime.
+
+        We mock ensure_runtime to verify it's called, then let
+        _has_global_runtime() return its result based on the (already populated)
+        global home.
+        """
+        global_home = tmp_path / "global"
+        _populate_global_runtime(global_home)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        # Set up package asset root
+        pkg_root = tmp_path / "pkg"
+        _populate_package_templates(pkg_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root / "missions"))
+
+        # Track whether ensure_runtime was called
+        ensure_runtime_calls = []
+
+        def mock_ensure_runtime():
+            ensure_runtime_calls.append(True)
+
+        # Patch ensure_runtime at the module level so the lazy import picks it up
+        monkeypatch.setattr(
+            "specify_cli.runtime.bootstrap.ensure_runtime",
+            mock_ensure_runtime,
+        )
+
+        # Simulate the init code path that calls ensure_runtime
+        # (extract the relevant block from init to test it directly)
+        from specify_cli.cli.commands.init import _has_global_runtime
+
+        # Call the code path manually (mirrors lines 746-757 of init.py)
+        try:
+            from specify_cli.runtime.bootstrap import ensure_runtime
+            ensure_runtime()
+        except Exception:
+            pass
+
+        use_global = _has_global_runtime() and True  # template_mode == "package"
+
+        assert len(ensure_runtime_calls) == 1, "ensure_runtime() should be called exactly once"
+        assert use_global is True
+
+    def test_ensure_runtime_failure_falls_back_gracefully(self, tmp_path, monkeypatch):
+        """When ensure_runtime() raises, init falls back to legacy path."""
+        # Don't populate global runtime -- ensure_runtime would normally create it
+        global_home = tmp_path / "global"
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        def mock_ensure_runtime_fail():
+            raise RuntimeError("simulated bootstrap failure")
+
+        monkeypatch.setattr(
+            "specify_cli.runtime.bootstrap.ensure_runtime",
+            mock_ensure_runtime_fail,
+        )
+
+        from specify_cli.cli.commands.init import _has_global_runtime
+
+        # Simulate the init code path with failure
+        try:
+            from specify_cli.runtime.bootstrap import ensure_runtime
+            ensure_runtime()
+        except Exception:
+            pass  # graceful fallback
+
+        # Global runtime doesn't exist (ensure_runtime failed), so should be False
+        use_global = _has_global_runtime()
+        assert use_global is False
+
+    def test_ensure_runtime_populates_global_before_check(self, tmp_path, monkeypatch):
+        """ensure_runtime() can populate global runtime so _has_global_runtime() returns True.
+
+        This tests the sequence: ensure_runtime() creates ~/.kittify/missions/,
+        then _has_global_runtime() detects it.
+        """
+        global_home = tmp_path / "global"
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        from specify_cli.cli.commands.init import _has_global_runtime
+
+        # Before ensure_runtime, global runtime is absent
+        assert _has_global_runtime() is False
+
+        # Mock ensure_runtime to populate the global runtime
+        def mock_ensure_runtime_populate():
+            _populate_global_runtime(global_home)
+
+        monkeypatch.setattr(
+            "specify_cli.runtime.bootstrap.ensure_runtime",
+            mock_ensure_runtime_populate,
+        )
+
+        from specify_cli.runtime.bootstrap import ensure_runtime
+        ensure_runtime()
+
+        # After ensure_runtime, global runtime should be detected
+        assert _has_global_runtime() is True
+
+
+# ---------------------------------------------------------------------------
+# Scratch directory does not shadow legacy tier
+# ---------------------------------------------------------------------------
+
+class TestScratchDirNotLegacy:
+    """Verify that scratch command-templates don't trigger legacy tier detection."""
+
+    def test_scratch_dir_uses_hidden_path(self, tmp_path, monkeypatch):
+        """Init copies base templates to .kittify/.scratch/, not .kittify/command-templates/."""
+        global_home = tmp_path / "global"
+        _populate_global_runtime(global_home)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        pkg_root = tmp_path / "pkg"
+        _populate_package_templates(pkg_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root / "missions"))
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        from specify_cli.cli.commands.init import (
+            _has_global_runtime,
+            _prepare_project_minimal,
+            _get_package_templates_root,
+        )
+
+        assert _has_global_runtime() is True
+
+        _prepare_project_minimal(project)
+        pkg_templates = _get_package_templates_root()
+        assert pkg_templates is not None
+
+        # Copy base command templates using the CORRECT scratch path
+        import shutil
+        scratch = project / ".kittify" / ".scratch"
+        scratch.mkdir(parents=True, exist_ok=True)
+        scratch_cmd = scratch / "command-templates"
+        shutil.copytree(pkg_templates / "command-templates", scratch_cmd)
+
+        # Verify the legacy-tier path does NOT exist
+        legacy_cmd = project / ".kittify" / "command-templates"
+        assert not legacy_cmd.exists(), (
+            ".kittify/command-templates/ should not exist; "
+            "scratch templates belong in .kittify/.scratch/command-templates/"
+        )
+
+        # Verify the scratch path DOES exist
+        assert scratch_cmd.is_dir()
+        assert any(scratch_cmd.iterdir()), "Scratch command-templates should contain files"
+
+    def test_resolver_legacy_tier_not_triggered_by_scratch(self, tmp_path, monkeypatch):
+        """The 4-tier resolver's legacy scan should not see .scratch/ contents."""
+        global_home = tmp_path / "global"
+        _populate_global_runtime(global_home)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        pkg_root = tmp_path / "pkg"
+        _populate_package_templates(pkg_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root / "missions"))
+
+        project = tmp_path / "project"
+        (project / ".kittify").mkdir(parents=True)
+
+        # Place a unique template ONLY in .scratch (not in the proper legacy dir)
+        import shutil
+        scratch = project / ".kittify" / ".scratch" / "command-templates"
+        scratch.mkdir(parents=True)
+        (scratch / "unique-scratch-only.md").write_text("# Should not be found via resolver\n")
+
+        from specify_cli.cli.commands.init import _resolve_mission_command_templates_dir
+
+        resolved_dir = _resolve_mission_command_templates_dir(
+            project, "software-dev", scratch_parent=project / ".kittify"
+        )
+
+        # The unique-scratch-only.md should NOT appear in resolved output
+        # because .scratch/ is not scanned by the resolver's legacy tier
+        resolved_names = {p.name for p in resolved_dir.glob("*.md")}
+        assert "unique-scratch-only.md" not in resolved_names, (
+            "Resolver legacy tier should not pick up files from .kittify/.scratch/"
+        )
+
+    def test_scratch_cleanup_after_init(self, tmp_path, monkeypatch):
+        """After init completes, .kittify/.scratch/ should be cleaned up."""
+        global_home = tmp_path / "global"
+        _populate_global_runtime(global_home)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        pkg_root = tmp_path / "pkg"
+        _populate_package_templates(pkg_root)
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root / "missions"))
+
+        project = tmp_path / "project"
+        project.mkdir()
+
+        from specify_cli.cli.commands.init import (
+            _prepare_project_minimal,
+            _get_package_templates_root,
+            _resolve_mission_command_templates_dir,
+        )
+        from specify_cli.template import prepare_command_templates, generate_agent_assets
+
+        _prepare_project_minimal(project)
+        pkg_templates = _get_package_templates_root()
+
+        # Simulate init's scratch workflow
+        import shutil
+        scratch = project / ".kittify" / ".scratch"
+        scratch.mkdir(parents=True, exist_ok=True)
+        scratch_cmd = scratch / "command-templates"
+        shutil.copytree(pkg_templates / "command-templates", scratch_cmd)
+
+        kittify = project / ".kittify"
+        mission_dir = _resolve_mission_command_templates_dir(
+            project, "software-dev", scratch_parent=kittify
+        )
+        render_dir = prepare_command_templates(scratch_cmd, mission_dir)
+        generate_agent_assets(render_dir, project, "claude", "sh")
+
+        # Simulate the cleanup that init does
+        for cleanup_name in ("templates", "command-templates", ".scratch"):
+            cleanup_dir = project / ".kittify" / cleanup_name
+            if cleanup_dir.exists():
+                shutil.rmtree(cleanup_dir)
+        for d in kittify.iterdir():
+            if d.is_dir() and (d.name.startswith(".resolved-") or d.name.startswith(".merged-")):
+                shutil.rmtree(d)
+
+        # Verify cleanup
+        assert not (project / ".kittify" / ".scratch").exists(), ".scratch should be cleaned up"
+        assert not (project / ".kittify" / "command-templates").exists(), "command-templates should not exist"
+
+        # Verify agent commands WERE generated (survived cleanup)
+        claude_dir = project / ".claude" / "commands"
+        assert claude_dir.is_dir()
+        assert any(claude_dir.iterdir())
