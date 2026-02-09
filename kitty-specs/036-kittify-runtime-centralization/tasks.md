@@ -338,8 +338,8 @@
 - WP01: done
 - WP02: done
 - WP03: done
-- WP04: planned
-- WP05: planned
+- WP04: done
+- WP05: done
 - WP06: done
-- WP07: for_review
+- WP07: planned
 <!-- status-model:end -->
