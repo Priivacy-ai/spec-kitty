@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import sys
@@ -137,6 +138,66 @@ def _resolve_mission_command_templates_dir(
             pass
 
     return resolved_dir
+
+
+# =============================================================================
+# Global runtime detection for streamlined init
+# =============================================================================
+
+_logger = logging.getLogger(__name__)
+
+
+def _has_global_runtime() -> bool:
+    """Check whether the global runtime (~/.kittify/) has populated missions.
+
+    Returns True when ``~/.kittify/missions/`` exists and contains at
+    least one subdirectory (indicating ``ensure_runtime()`` has run).
+    """
+    try:
+        global_home = get_kittify_home()
+        missions_dir = global_home / "missions"
+        if not missions_dir.is_dir():
+            return False
+        # Check for at least one mission subdirectory
+        return any(p.is_dir() for p in missions_dir.iterdir())
+    except (RuntimeError, OSError):
+        return False
+
+
+def _prepare_project_minimal(project_path: Path) -> None:
+    """Create the minimal project-specific .kittify/ skeleton.
+
+    When the global runtime exists, init only needs to create the
+    project-local directory structure.  Shared assets (missions,
+    templates, scripts, AGENTS.md) are resolved from ~/.kittify/
+    at runtime via the 4-tier resolver.
+
+    Creates:
+        - .kittify/            (project root)
+        - .kittify/memory/     (for constitution.md -- project-specific)
+    """
+    kittify = project_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "memory").mkdir(exist_ok=True)
+    _logger.debug("Minimal project skeleton created at %s", kittify)
+
+
+def _get_package_templates_root() -> Path | None:
+    """Return the package-bundled templates directory (read-only).
+
+    This is the ``src/specify_cli/templates/`` directory which contains
+    ``command-templates/``, ``git-hooks/``, ``AGENTS.md``, etc.
+
+    Returns None if the templates directory cannot be located.
+    """
+    try:
+        pkg_root = get_package_asset_root()  # .../specify_cli/missions/
+        templates_dir = pkg_root.parent / "templates"
+        if templates_dir.is_dir():
+            return templates_dir
+    except FileNotFoundError:
+        pass
+    return None
 
 
 # =============================================================================
@@ -683,14 +744,51 @@ def init(
                     tracker.start(f"{agent_key}-extract")
                     try:
                         if not base_prepared:
-                            if template_mode == "local":
-                                command_templates_dir = copy_specify_base_from_local(local_repo, project_path, selected_script)
-                            else:
-                                command_templates_dir = copy_specify_base_from_package(project_path, selected_script)
+                            # Bootstrap / update the global runtime so that
+                            # _has_global_runtime() reflects up-to-date state.
+                            try:
+                                from specify_cli.runtime.bootstrap import ensure_runtime
+                                ensure_runtime()
+                            except Exception:
+                                _logger.debug("ensure_runtime() failed; falling back to legacy init", exc_info=True)
+                            # Check if global runtime exists -- if so, skip
+                            # copying shared assets to the project and resolve
+                            # templates directly from the package / global.
+                            use_global = _has_global_runtime() and template_mode == "package"
+                            if use_global:
+                                _prepare_project_minimal(project_path)
+                                pkg_templates = _get_package_templates_root()
+                                if pkg_templates is not None:
+                                    templates_root = pkg_templates
+                                    # Copy base command templates to a writable
+                                    # scratch dir so prepare_command_templates()
+                                    # can create the merged output alongside them.
+                                    # Use .kittify/.scratch/ (hidden) so the 4-tier
+                                    # resolver's legacy tier scan of
+                                    # .kittify/command-templates doesn't pick this
+                                    # up and emit spurious DeprecationWarnings.
+                                    scratch = project_path / ".kittify" / ".scratch"
+                                    scratch.mkdir(parents=True, exist_ok=True)
+                                    scratch_cmd = scratch / "command-templates"
+                                    if scratch_cmd.exists():
+                                        shutil.rmtree(scratch_cmd)
+                                    shutil.copytree(
+                                        pkg_templates / "command-templates",
+                                        scratch_cmd,
+                                    )
+                                    command_templates_dir = scratch_cmd
+                                else:
+                                    # Package templates not found -- fall back to full copy
+                                    use_global = False
+                            if not use_global:
+                                if template_mode == "local":
+                                    command_templates_dir = copy_specify_base_from_local(local_repo, project_path, selected_script)
+                                else:
+                                    command_templates_dir = copy_specify_base_from_package(project_path, selected_script)
+                                # Track templates root for later use (AGENTS.md, .claudeignore, git-hooks)
+                                if command_templates_dir:
+                                    templates_root = command_templates_dir.parent
                             base_prepared = True
-                            # Track templates root for later use (AGENTS.md, .claudeignore, git-hooks)
-                            if command_templates_dir:
-                                templates_root = command_templates_dir.parent
                         if command_templates_dir is None:
                             raise RuntimeError("Command templates directory was not prepared")
                         if render_templates_dir is None:
@@ -698,10 +796,14 @@ def init(
                             # full 4-tier precedence chain (override > legacy
                             # > global > package) so that user overrides and
                             # global customizations are honoured during init.
+                            # Use .kittify/ as scratch parent -- always writable,
+                            # unlike the package templates dir in global mode.
+                            scratch = project_path / ".kittify"
+                            scratch.mkdir(parents=True, exist_ok=True)
                             mission_templates_dir = _resolve_mission_command_templates_dir(
                                 project_path,
                                 selected_mission,
-                                scratch_parent=command_templates_dir.parent,
+                                scratch_parent=scratch,
                             )
                             render_templates_dir = prepare_command_templates(
                                 command_templates_dir,
@@ -740,7 +842,12 @@ def init(
 
             tracker.start("mission-activate")
             try:
-                mission_status = _activate_mission(project_path, selected_mission, mission_display, _console)
+                if _has_global_runtime():
+                    # In global runtime mode, missions resolve from ~/.kittify/
+                    # so we don't need to check the project's local missions dir.
+                    mission_status = f"{mission_display} (per-feature selection, global runtime)"
+                else:
+                    mission_status = _activate_mission(project_path, selected_mission, mission_display, _console)
             except Exception as exc:
                 tracker.error("mission-activate", str(exc))
                 raise
@@ -929,13 +1036,15 @@ def init(
         _console.print(f"[red]❌ {error}[/red]")
 
     # Copy AGENTS.md from template source (not user project)
-    if templates_root:
+    # In global runtime mode, AGENTS.md resolves from ~/.kittify/ so skip copying.
+    if templates_root and not _has_global_runtime():
         agents_target = project_path / ".kittify" / "AGENTS.md"
         agents_template = templates_root / "AGENTS.md"
         if not agents_target.exists() and agents_template.exists():
             shutil.copy2(agents_template, agents_target)
 
-        # Generate .claudeignore from template source
+    # Generate .claudeignore from template source (always -- project-specific)
+    if templates_root:
         claudeignore_template = templates_root / "claudeignore-template"
         claudeignore_dest = project_path / ".claudeignore"
         if claudeignore_template.exists() and not claudeignore_dest.exists():
@@ -978,17 +1087,29 @@ def init(
         # Don't fail init if agent config creation fails
         _console.print(f"[dim]Note: Could not save agent config: {e}[/dim]")
 
-    # Clean up templates directory - it's only needed during init
-    # User projects should only have the generated agent commands, not the source templates
-    templates_dir = project_path / ".kittify" / "templates"
-    if templates_dir.exists():
-        try:
-            shutil.rmtree(templates_dir)
-        except PermissionError:
-            _console.print("[dim]Note: Could not remove .kittify/templates/ (permission denied)[/dim]")
-        except Exception as e:
-            # Log but don't fail init if cleanup fails
-            _console.print(f"[dim]Note: Could not remove .kittify/templates/: {e}[/dim]")
+    # Clean up temporary directories used during init.
+    # In full-copy mode: .kittify/templates/ holds the copied base templates.
+    # In global-runtime mode: .kittify/.scratch/ holds base command templates
+    # and .kittify/.resolved-* / .kittify/.merged-* hold resolver output.
+    # User projects should only have the generated agent commands, not the sources.
+    for cleanup_name in ("templates", "command-templates", ".scratch"):
+        cleanup_dir = project_path / ".kittify" / cleanup_name
+        if cleanup_dir.exists():
+            try:
+                shutil.rmtree(cleanup_dir)
+            except PermissionError:
+                _console.print(f"[dim]Note: Could not remove .kittify/{cleanup_name}/ (permission denied)[/dim]")
+            except Exception as e:
+                _console.print(f"[dim]Note: Could not remove .kittify/{cleanup_name}/: {e}[/dim]")
+    # Also clean up resolver scratch dirs (.resolved-* and .merged-*)
+    kittify_dir = project_path / ".kittify"
+    if kittify_dir.is_dir():
+        for scratch in kittify_dir.iterdir():
+            if scratch.is_dir() and (scratch.name.startswith(".resolved-") or scratch.name.startswith(".merged-")):
+                try:
+                    shutil.rmtree(scratch)
+                except Exception:
+                    pass  # best-effort cleanup
 
 
 def register_init_command(
