@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from specify_cli.mission_v1.guards import GUARD_REGISTRY
 from specify_cli.mission_v1.runner import MissionModel
 
@@ -162,3 +164,4 @@ class TestEventCountGuard:
         feature_dir.mkdir()
         guard = GUARD_REGISTRY["event_count"](["checkpoint", 1])
         assert guard(_event_data(MissionModel(feature_dir=feature_dir))) is False
+

@@ -5,7 +5,9 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+import pytest
 import yaml
+from transitions import MachineError
 
 from specify_cli.mission_v1 import PhaseMission, StateMachineMission, load_mission
 
@@ -123,3 +125,4 @@ def test_all_missions_coexist(tmp_path: Path):
     # Verify we have both v1 and v0 types represented
     assert any(isinstance(m, StateMachineMission) for m in loaded)
     assert any(isinstance(m, PhaseMission) for m in loaded)
+
