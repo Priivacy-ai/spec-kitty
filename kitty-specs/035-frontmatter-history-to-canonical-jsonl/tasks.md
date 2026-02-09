@@ -191,7 +191,7 @@
 - [x] T032 Test detect() with unmigrated features (returns True)
 - [x] T033 Test detect() with all features already migrated (returns False)
 - [x] T034 Test apply() calls migrate_feature and aggregates results correctly
-- [ ] T035 Test apply() dry_run produces no files
+- [x] T035 Test apply() dry_run produces no files
 - [ ] T036 Test cross-branch idempotency (run migration twice, second returns no changes)
 
 ### Implementation Notes
