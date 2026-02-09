@@ -151,10 +151,10 @@
 **Estimated Size**: ~280 lines
 
 ### Included Subtasks
-- [ ] T025 Implement `show_origin()` function that enumerates all resolvable assets
-- [ ] T026 Add `--show-origin` flag to existing config CLI command
-- [ ] T027 Write tests for `--show-origin` output (1A-14, 1A-15)
-- [ ] T028 [P] Implement version pin warning for `runtime.pin_version` in config (F-Pin-001, 1A-16)
+- [x] T025 Implement `show_origin()` function that enumerates all resolvable assets
+- [x] T026 Add `--show-origin` flag to existing config CLI command
+- [x] T027 Write tests for `--show-origin` output (1A-14, 1A-15)
+- [x] T028 [P] Implement version pin warning for `runtime.pin_version` in config (F-Pin-001, 1A-16)
 
 ### Implementation Notes
 - Enumerate: templates (spec.md, plan.md, tasks.md, etc.), missions (software-dev, research, etc.), commands, scripts, AGENTS.md
@@ -339,4 +339,5 @@
 - WP02: planned
 - WP03: planned
 - WP04: for_review
+- WP06: for_review
 <!-- status-model:end -->
