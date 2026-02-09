@@ -119,11 +119,11 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
-- [ ] T020 Implement `classify_asset()` function in `src/specify_cli/runtime/migrate.py`
-- [ ] T021 Implement `execute_migration()` function in `src/specify_cli/runtime/migrate.py`
-- [ ] T022 Implement `spec-kitty migrate` CLI command in `src/specify_cli/cli/commands/migrate_cmd.py`
-- [ ] T023 Write migration classification tests (G3) — dry-run correctness, idempotency
-- [ ] T024 Write migration customization tests — F-Legacy-003 (customized moved to overrides)
+- [x] T020 Implement `classify_asset()` function in `src/specify_cli/runtime/migrate.py`
+- [x] T021 Implement `execute_migration()` function in `src/specify_cli/runtime/migrate.py`
+- [x] T022 Implement `spec-kitty migrate` CLI command in `src/specify_cli/cli/commands/migrate_cmd.py`
+- [x] T023 Write migration classification tests (G3) — dry-run correctness, idempotency
+- [x] T024 Write migration customization tests — F-Legacy-003 (customized moved to overrides)
 
 ### Implementation Notes
 - File classification via `filecmp.cmp(shallow=False)` — byte-identical comparison
