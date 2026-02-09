@@ -66,7 +66,7 @@ def load_mission(
 
     Reads the ``mission.yaml`` inside *mission_path* as a raw dict **before**
     any Pydantic validation so that v1 keys (``states``, ``transitions``, etc.)
-    don't trigger ``extra=\"forbid\"" errors in the v0 ``MissionConfig`` model.
+    don't trigger ``extra="forbid"`` errors in the v0 ``MissionConfig`` model.
 
     - If the config has ``states`` AND ``transitions`` top-level keys it is
       treated as **v1**: JSON Schema validation is run, guard expressions are
