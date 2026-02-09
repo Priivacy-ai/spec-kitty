@@ -188,7 +188,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T032 Test detect() with unmigrated features (returns True)
+- [x] T032 Test detect() with unmigrated features (returns True)
 - [ ] T033 Test detect() with all features already migrated (returns False)
 - [ ] T034 Test apply() calls migrate_feature and aggregates results correctly
 - [ ] T035 Test apply() dry_run produces no files
@@ -280,5 +280,5 @@ WP01 (parser) ─────────────────┐
 - WP02: done
 - WP03: done
 - WP04: done
-- WP05: for_review
+- WP05: done
 <!-- status-model:end -->
