@@ -106,6 +106,39 @@ class TestConcurrentEnsureRuntime:
         assert (home / "missions" / "software-dev").is_dir()
 
     @pytest.mark.slow
+    def test_concurrent_no_corruption_16_workers(self, tmp_path: Path) -> None:
+        """16 parallel ensure_runtime() calls produce a valid ~/.kittify/."""
+        home = tmp_path / "kittify"
+        asset_dir = tmp_path / "assets"
+        asset_dir.mkdir()
+        _setup_fake_assets(str(asset_dir))
+
+        n_workers = 16
+        args_list = [(str(home), str(asset_dir))] * n_workers
+
+        ctx = multiprocessing.get_context("spawn")
+        with ctx.Pool(n_workers) as pool:
+            results = pool.map(_run_ensure, args_list)
+
+        assert all(results), f"Some workers failed: {results}"
+
+        # Verify version.lock is correct
+        version_file = home / "cache" / "version.lock"
+        assert version_file.exists(), "version.lock missing after concurrent runs"
+        stored_version = version_file.read_text().strip()
+        assert len(stored_version) > 0, "version.lock is empty"
+
+        # Verify no corruption (managed dirs present)
+        assert (home / "missions" / "software-dev").is_dir()
+        assert (home / "missions" / "software-dev" / "mission.yaml").exists()
+        assert (home / "missions" / "research").is_dir()
+        assert (home / "missions" / "documentation").is_dir()
+
+        # No orphaned temp directories
+        update_dirs = list(tmp_path.glob(".kittify_update_*"))
+        assert len(update_dirs) == 0, f"Orphaned temp dirs: {update_dirs}"
+
+    @pytest.mark.slow
     def test_concurrent_no_temp_dirs_left_behind(self, tmp_path: Path) -> None:
         """After concurrent runs, no .kittify_update_* temp dirs remain."""
         home = tmp_path / "kittify"

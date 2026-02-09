@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 from typing import IO
 
@@ -82,6 +83,26 @@ def populate_from_package(target: Path) -> None:
         shutil.copy2(agents_src, target / "AGENTS.md")
 
 
+def _cleanup_orphaned_update_dirs(parent: Path) -> None:
+    """Remove stale ``.kittify_update_*`` directories left by crashed processes.
+
+    After an abnormal termination, orphaned staging directories may remain.
+    This function scans *parent* for any matching directories and removes
+    them unconditionally.  It is called **under the exclusive file lock**
+    so that it never deletes another process's active staging directory.
+
+    Errors during removal are silently ignored (best-effort cleanup).
+    """
+    if not parent.is_dir():
+        return
+    for entry in parent.iterdir():
+        if entry.is_dir() and entry.name.startswith(".kittify_update_"):
+            try:
+                shutil.rmtree(entry)
+            except OSError:
+                pass  # best-effort cleanup
+
+
 def ensure_runtime() -> None:
     """Ensure ``~/.kittify/`` global runtime is populated and current.
 
@@ -118,14 +139,21 @@ def ensure_runtime() -> None:
     try:
         _lock_exclusive(lock_fd)
 
+        # Clean up orphaned staging dirs from crashed processes.
+        # Done under the lock so we never delete another process's
+        # active staging directory.
+        _cleanup_orphaned_update_dirs(home.parent)
+
         # Double-check after lock acquired (another process may have finished)
         if version_file.exists():
             stored = version_file.read_text().strip()
             if stored == cli_version:
                 return
 
-        # Build new asset tree in temp directory
-        tmp_dir = home.parent / f".kittify_update_{os.getpid()}"
+        # Build new asset tree in a unique temp directory
+        tmp_dir = Path(
+            tempfile.mkdtemp(prefix=".kittify_update_", dir=home.parent)
+        )
         try:
             populate_from_package(tmp_dir)
             merge_package_assets(source=tmp_dir, dest=home)

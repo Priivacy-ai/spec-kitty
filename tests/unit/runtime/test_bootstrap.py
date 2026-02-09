@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.runtime.bootstrap import (
+    _cleanup_orphaned_update_dirs,
     _get_cli_version,
     _lock_exclusive,
     ensure_runtime,
@@ -477,3 +478,71 @@ class TestInterruptedUpdateRecovery:
         assert version_file.read_text().strip() == FAKE_VERSION
         # Managed dirs should be populated
         assert (fake_home / "missions" / "software-dev").is_dir()
+
+
+# ---------------------------------------------------------------------------
+# _cleanup_orphaned_update_dirs() tests
+# ---------------------------------------------------------------------------
+
+
+class TestCleanupOrphanedUpdateDirs:
+    """Orphaned .kittify_update_* directories are removed at startup."""
+
+    def test_removes_orphaned_dirs(self, tmp_path: Path) -> None:
+        """Orphaned .kittify_update_* dirs are cleaned up."""
+        orphan1 = tmp_path / ".kittify_update_12345"
+        orphan1.mkdir()
+        (orphan1 / "missions").mkdir()
+        (orphan1 / "missions" / "stale.yaml").write_text("stale")
+
+        orphan2 = tmp_path / ".kittify_update_99999"
+        orphan2.mkdir()
+
+        _cleanup_orphaned_update_dirs(tmp_path)
+
+        assert not orphan1.exists()
+        assert not orphan2.exists()
+
+    def test_leaves_non_update_dirs_alone(self, tmp_path: Path) -> None:
+        """Directories not matching .kittify_update_* are untouched."""
+        safe_dir = tmp_path / ".kittify"
+        safe_dir.mkdir()
+        (safe_dir / "config.yaml").write_text("keep me")
+
+        other_dir = tmp_path / ".other_dir"
+        other_dir.mkdir()
+
+        _cleanup_orphaned_update_dirs(tmp_path)
+
+        assert safe_dir.exists()
+        assert other_dir.exists()
+
+    def test_noop_on_nonexistent_parent(self, tmp_path: Path) -> None:
+        """No error when parent directory does not exist."""
+        nonexistent = tmp_path / "nonexistent"
+        _cleanup_orphaned_update_dirs(nonexistent)  # should not raise
+
+    def test_cleanup_called_during_ensure_runtime(
+        self,
+        fake_home: Path,
+        fake_assets: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """ensure_runtime() cleans orphaned dirs under the lock."""
+        monkeypatch.setattr(
+            "specify_cli.runtime.bootstrap._get_cli_version",
+            lambda: FAKE_VERSION,
+        )
+
+        # Pre-create an orphaned staging dir
+        fake_home.mkdir(parents=True)
+        orphan = fake_home.parent / ".kittify_update_old_crash"
+        orphan.mkdir()
+        (orphan / "leftover.txt").write_text("crash artifact")
+
+        ensure_runtime()
+
+        # Orphan should be cleaned up
+        assert not orphan.exists()
+        # And the runtime should be functional
+        assert (fake_home / "cache" / "version.lock").exists()
