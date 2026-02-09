@@ -183,11 +183,11 @@
 **Prompt**: `/tasks/WP07-research-plan-missions.md`
 
 ### Included Subtasks
-- [ ] T028 Write v1 research mission.yaml with evidence-gated transitions
-- [ ] T029 Write v1 plan mission.yaml with rollback transitions
-- [ ] T030 Create plan mission directory structure (new mission)
-- [ ] T031 Define domain-specific guards for each mission
-- [ ] T032 [P] Create integration tests for research and plan mission loading
+- [x] T028 Write v1 research mission.yaml with evidence-gated transitions
+- [x] T029 Write v1 plan mission.yaml with rollback transitions
+- [x] T030 Create plan mission directory structure (new mission)
+- [x] T031 Define domain-specific guards for each mission
+- [x] T032 [P] Create integration tests for research and plan mission loading
 
 ### Implementation Notes
 - Research: scoping → gathering → synthesis → output → done, with `event_count("source_documented", 3)` guard
