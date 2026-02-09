@@ -65,6 +65,8 @@ dependencies = [
     "toml>=0.10.2",  # Config file parsing
     "filelock>=3.13.0",  # Credential storage locking
     "requests>=2.31.0",  # HTTP client for batch sync
+    "transitions>=0.9.2",  # State machine library for mission DSL v1
+    "jsonschema>=4.0",  # JSON Schema validation for mission configs
 ]
 
 [project.urls]
