@@ -97,10 +97,10 @@
 **Prompt**: `/tasks/WP04-phase-mission-compat.md`
 
 ### Included Subtasks
-- [ ] T015 Create `src/specify_cli/mission_v1/compat.py` with PhaseMission class
-- [ ] T016 Generate synthetic linear state machine from phase list
-- [ ] T017 Implement API compatibility with StateMachineMission
-- [ ] T018 [P] Create `tests/unit/mission_v1/test_compat.py` with v0 wrapper tests
+- [x] T015 Create `src/specify_cli/mission_v1/compat.py` with PhaseMission class
+- [x] T016 Generate synthetic linear state machine from phase list
+- [x] T017 Implement API compatibility with StateMachineMission
+- [x] T018 [P] Create `tests/unit/mission_v1/test_compat.py` with v0 wrapper tests
 
 ### Implementation Notes
 - PhaseMission reads `workflow.phases` from existing v0 config
@@ -337,4 +337,5 @@ Phase 4 - Validation:                              │
 <!-- status-model:start -->
 ## Canonical Status (Generated)
 - WP01: done
+- WP02: for_review
 <!-- status-model:end -->
