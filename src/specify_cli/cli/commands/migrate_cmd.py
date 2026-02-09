@@ -9,11 +9,10 @@ Usage:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import typer
 from rich.console import Console
 
+from specify_cli.core.paths import locate_project_root
 from specify_cli.runtime.migrate import execute_migration
 
 console = Console()
@@ -40,7 +39,13 @@ def migrate(
         spec-kitty migrate --dry-run    # Preview
         spec-kitty migrate --force      # Apply without confirmation
     """
-    project_dir = Path.cwd()
+    project_dir = locate_project_root()
+    if project_dir is None:
+        console.print(
+            "[red]Could not locate project root. "
+            "No .kittify/ directory found in any parent directory.[/red]"
+        )
+        raise typer.Exit(1)
 
     if not (project_dir / ".kittify").exists():
         console.print("[red]No .kittify/ directory found in current project.[/red]")
