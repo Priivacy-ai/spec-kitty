@@ -266,11 +266,17 @@ class Mission:
 
         return template_path
 
-    def get_command_template(self, command_name: str) -> Path:
+    def get_command_template(self, command_name: str, project_dir: Path | None = None) -> Path:
         """Get path to a command template file.
+
+        When *project_dir* is provided the 4-tier resolver is used
+        (override > legacy > global > package default).  When omitted the
+        method falls back to the original direct-path behaviour so that
+        existing callers continue to work unchanged.
 
         Args:
             command_name: Name of command (e.g., 'plan', 'implement')
+            project_dir: Optional project root for 4-tier resolution.
 
         Returns:
             Path to the command template file
@@ -281,6 +287,14 @@ class Mission:
         # Support both with and without .md extension
         if not command_name.endswith('.md'):
             command_name = f"{command_name}.md"
+
+        # When a project directory is supplied, use the 4-tier resolver
+        if project_dir is not None:
+            from specify_cli.runtime.resolver import resolve_command
+
+            mission_key = self.path.name  # e.g. "software-dev"
+            result = resolve_command(command_name, project_dir, mission=mission_key)
+            return result.path
 
         command_path = self.command_templates_dir / command_name
 
