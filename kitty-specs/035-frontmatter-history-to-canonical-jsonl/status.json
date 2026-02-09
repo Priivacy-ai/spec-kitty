@@ -1,0 +1,52 @@
+{
+  "event_count": 14,
+  "feature_slug": "035-frontmatter-history-to-canonical-jsonl",
+  "last_event_id": "01KH0NW99F0B51H78K3CVY2E43",
+  "materialized_at": "2026-02-09T07:46:54.895595+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 1,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KH0NHWNDN073TEFQMXX182YS",
+      "last_transition_at": "2026-02-09T07:41:14.285274+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KH0NJZ27ZQD8ZNQ3G6BK0ZNG",
+      "last_transition_at": "2026-02-09T07:41:49.511085+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KH0NK5P852HWEXX80GF0J8G8",
+      "last_transition_at": "2026-02-09T07:41:56.296993+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KH0NKC64DH9Y1S991JDY0FQK",
+      "last_transition_at": "2026-02-09T07:42:02.948935+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "for_review",
+      "last_event_id": "01KH0NW99F0B51H78K3CVY2E43",
+      "last_transition_at": "2026-02-09T07:46:54.895334+00:00"
+    }
+  }
+}
