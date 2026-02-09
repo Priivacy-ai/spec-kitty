@@ -192,7 +192,7 @@
 - [x] T033 Test detect() with all features already migrated (returns False)
 - [x] T034 Test apply() calls migrate_feature and aggregates results correctly
 - [x] T035 Test apply() dry_run produces no files
-- [ ] T036 Test cross-branch idempotency (run migration twice, second returns no changes)
+- [x] T036 Test cross-branch idempotency (run migration twice, second returns no changes)
 
 ### Implementation Notes
 - Use tmp_path fixtures with synthetic feature dirs containing WP files
