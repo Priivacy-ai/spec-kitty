@@ -1,0 +1,90 @@
+"""CLI command for migrating per-project .kittify/ to centralized model.
+
+Usage:
+    spec-kitty migrate              # Migrate with confirmation
+    spec-kitty migrate --dry-run    # Preview changes without modifying
+    spec-kitty migrate --force      # Skip confirmation prompt
+    spec-kitty migrate --verbose    # Show file-by-file detail
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import typer
+from rich.console import Console
+
+from specify_cli.runtime.migrate import execute_migration
+
+console = Console()
+
+
+def migrate(
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would change without modifying the filesystem"
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Show file-by-file detail"
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Skip confirmation prompt"
+    ),
+) -> None:
+    """Migrate project .kittify/ to centralized model.
+
+    Classifies per-project files as identical (removed), customized
+    (moved to overrides/), or project-specific (kept). Use --dry-run
+    to preview changes before applying.
+
+    Examples:
+        spec-kitty migrate --dry-run    # Preview
+        spec-kitty migrate --force      # Apply without confirmation
+    """
+    project_dir = Path.cwd()
+
+    if not (project_dir / ".kittify").exists():
+        console.print("[red]No .kittify/ directory found in current project.[/red]")
+        raise typer.Exit(1)
+
+    if not dry_run and not force:
+        confirmed = typer.confirm("Migrate .kittify/ to centralized model?")
+        if not confirmed:
+            raise typer.Abort()
+
+    report = execute_migration(project_dir, dry_run=dry_run, verbose=verbose)
+
+    # Display results
+    if dry_run:
+        console.print("[bold]Dry run -- no changes made[/bold]")
+
+    action_removed = "would remove" if dry_run else "removed"
+    action_moved = "would move" if dry_run else "moved"
+
+    console.print(
+        f"  {len(report.removed)} files identical to global -- {action_removed}"
+    )
+    console.print(
+        f"  {len(report.moved)} files customized -- {action_moved} to overrides/"
+    )
+    console.print(f"  {len(report.kept)} files project-specific -- kept")
+
+    if report.unknown:
+        console.print(
+            f"  [yellow]{len(report.unknown)} files unknown -- kept with warning[/yellow]"
+        )
+
+    if verbose:
+        for path in report.removed:
+            console.print(f"    [dim]removed: {path}[/dim]")
+        for src, dst in report.moved:
+            console.print(f"    [blue]moved: {src} -> {dst}[/blue]")
+        for path in report.kept:
+            console.print(f"    [green]kept: {path}[/green]")
+        for path in report.unknown:
+            console.print(f"    [yellow]unknown: {path}[/yellow]")
+
+    if not dry_run:
+        console.print(
+            "\n[green]Migration complete.[/green] "
+            "Run `spec-kitty config --show-origin` to verify."
+        )

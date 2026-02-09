@@ -5,5 +5,18 @@ including path resolution, asset discovery, and runtime bootstrapping.
 """
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from specify_cli.runtime.migrate import (
+    AssetDisposition,
+    MigrationReport,
+    classify_asset,
+    execute_migration,
+)
 
-__all__ = ["get_kittify_home", "get_package_asset_root"]
+__all__ = [
+    "get_kittify_home",
+    "get_package_asset_root",
+    "AssetDisposition",
+    "MigrationReport",
+    "classify_asset",
+    "execute_migration",
+]
