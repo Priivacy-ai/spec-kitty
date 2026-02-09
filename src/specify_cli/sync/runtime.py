@@ -118,19 +118,22 @@ class SyncRuntime:
                     server_url=config.get_server_url(),
                     auth_client=auth,
                 )
-                # Non-blocking connect attempt
                 import asyncio
                 try:
-                    loop = asyncio.get_running_loop()
-                    # If loop is running, schedule connection
+                    asyncio.get_running_loop()
+                    # Running event loop available: connect non-blocking.
                     asyncio.ensure_future(self.ws_client.connect())
                 except RuntimeError:
-                    # No running loop - create one for connection
-                    loop = asyncio.new_event_loop()
-                    try:
-                        loop.run_until_complete(self.ws_client.connect())
-                    finally:
-                        loop.close()
+                    # Synchronous CLI context: skip auto WebSocket connect.
+                    # Creating a temporary event loop here spawns a background
+                    # listener task that outlives the loop and triggers noisy
+                    # "Task was destroyed but it is pending!" warnings.
+                    logger.debug(
+                        "No running event loop; skipping auto WebSocket connect "
+                        "in sync context"
+                    )
+                    logger.info("Events will be queued for batch sync")
+                    return
 
                 # Wire WebSocket to emitter if already attached
                 if self.emitter is not None:

@@ -642,13 +642,18 @@ class TestDoneEvidence:
 class TestSaasFanOut:
     """Tests for _saas_fan_out."""
 
-    def _make_event(self) -> StatusEvent:
+    def _make_event(
+        self,
+        *,
+        from_lane: Lane = Lane.PLANNED,
+        to_lane: Lane = Lane.CLAIMED,
+    ) -> StatusEvent:
         return StatusEvent(
             event_id="01HXYZ0000000000000000SAAS",
             feature_slug="034-test-feature",
             wp_id="WP01",
-            from_lane=Lane.PLANNED,
-            to_lane=Lane.CLAIMED,
+            from_lane=from_lane,
+            to_lane=to_lane,
             at="2026-02-08T12:00:00Z",
             actor="test-actor",
             force=False,
@@ -674,7 +679,10 @@ class TestSaasFanOut:
 
     def test_saas_called_when_available(self):
         """emit_wp_status_changed is called when sync module is available."""
-        event = self._make_event()
+        event = self._make_event(
+            from_lane=Lane.CLAIMED,
+            to_lane=Lane.IN_PROGRESS,
+        )
         mock_emit = MagicMock()
         with patch(
             "specify_cli.sync.events.emit_wp_status_changed", mock_emit
@@ -684,13 +692,30 @@ class TestSaasFanOut:
         mock_emit.assert_called_once_with(
             wp_id="WP01",
             previous_status="planned",
-            new_status="claimed",
+            new_status="doing",
+            changed_by="test-actor",
             feature_slug="034-test-feature",
         )
 
+    def test_noop_mapping_transition_skipped(self):
+        """No-op SaaS transitions are skipped after lane mapping."""
+        event = self._make_event(
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.CLAIMED,
+        )
+        mock_emit = MagicMock()
+        with patch(
+            "specify_cli.sync.events.emit_wp_status_changed", mock_emit
+        ):
+            _saas_fan_out(event, "034-test-feature", None)
+        mock_emit.assert_not_called()
+
     def test_saas_exception_does_not_propagate(self):
         """Exception from SaaS emit is caught and logged."""
-        event = self._make_event()
+        event = self._make_event(
+            from_lane=Lane.CLAIMED,
+            to_lane=Lane.IN_PROGRESS,
+        )
         with patch(
             "specify_cli.sync.events.emit_wp_status_changed",
             side_effect=RuntimeError("network error"),

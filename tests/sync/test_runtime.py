@@ -247,11 +247,10 @@ class TestUnauthenticatedBehavior:
                 assert runtime.background_service is not None  # Queue still works
 
     def test_websocket_created_when_authenticated(self, tmp_path, monkeypatch):
-        """WebSocket is created when authenticated."""
+        """WebSocket client is created when authenticated."""
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
         mock_ws = MagicMock()
-        mock_ws.connect = MagicMock()
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -268,15 +267,43 @@ class TestUnauthenticatedBehavior:
                         mock_config.get_server_url.return_value = "https://example.com"
                         mock_config_class.return_value = mock_config
 
-                        # Mock asyncio to avoid actual async calls
+                        # Synchronous context: no running loop, no auto-connect.
                         with patch("asyncio.get_running_loop", side_effect=RuntimeError):
-                            with patch("asyncio.new_event_loop") as mock_loop_factory:
-                                mock_loop = MagicMock()
-                                mock_loop.run_until_complete = MagicMock()
-                                mock_loop_factory.return_value = mock_loop
-
+                            with patch("asyncio.ensure_future") as mock_ensure_future:
                                 runtime = SyncRuntime()
                                 runtime.start()
 
                                 mock_ws_class.assert_called_once()
                                 assert runtime.ws_client is mock_ws
+                                mock_ensure_future.assert_not_called()
+
+    def test_websocket_connect_scheduled_with_running_loop(
+        self, tmp_path, monkeypatch
+    ):
+        """When an event loop is running, runtime schedules async connect."""
+        monkeypatch.chdir(tmp_path)
+        mock_service = MagicMock()
+        mock_ws = MagicMock()
+        mock_connect_coro = MagicMock()
+        mock_ws.connect.return_value = mock_connect_coro
+
+        with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
+            mock_get_service.return_value = mock_service
+            with patch("specify_cli.sync.client.WebSocketClient") as mock_ws_class:
+                mock_ws_class.return_value = mock_ws
+                with patch("specify_cli.sync.auth.AuthClient") as mock_auth_class:
+                    mock_auth = MagicMock()
+                    mock_auth.is_authenticated.return_value = True
+                    mock_auth_class.return_value = mock_auth
+                    with patch("specify_cli.sync.config.SyncConfig") as mock_config_class:
+                        mock_config = MagicMock()
+                        mock_config.get_server_url.return_value = "https://example.com"
+                        mock_config_class.return_value = mock_config
+
+                        with patch("asyncio.get_running_loop", return_value=MagicMock()):
+                            with patch("asyncio.ensure_future") as mock_ensure_future:
+                                runtime = SyncRuntime()
+                                runtime.start()
+
+                                mock_ws_class.assert_called_once()
+                                mock_ensure_future.assert_called_once_with(mock_connect_coro)

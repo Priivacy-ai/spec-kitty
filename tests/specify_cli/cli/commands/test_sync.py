@@ -14,6 +14,7 @@ from specify_cli.cli.commands.sync import (
     _display_conflicts,
     _git_repair,
     _jj_repair,
+    sync_server,
     sync_workspace,
 )
 from specify_cli.core.vcs import (
@@ -372,3 +373,39 @@ class TestSyncNotInWorkspace:
                     sync_workspace(repair=False)
 
                 assert exc.value.exit_code == 1
+
+
+class TestSyncServerCommand:
+    """Tests for sync server URL command."""
+
+    def test_show_server_url(self, capsys):
+        """Shows configured server URL and config file path."""
+        mock_config = MagicMock()
+        mock_config.get_server_url.return_value = "https://spec-kitty-dev.fly.dev"
+        mock_config.config_file = Path("/tmp/config.toml")
+
+        with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):
+            sync_server(url=None)
+
+        captured = capsys.readouterr()
+        assert "https://spec-kitty-dev.fly.dev" in captured.out
+        assert "/tmp/config.toml" in captured.out
+
+    def test_set_server_url_normalizes_trailing_slash(self):
+        """Setting URL strips trailing slash before persisting."""
+        mock_config = MagicMock()
+        with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):
+            sync_server(url="https://spec-kitty-dev.fly.dev/")
+
+        mock_config.set_server_url.assert_called_once_with(
+            "https://spec-kitty-dev.fly.dev"
+        )
+
+    def test_set_server_url_rejects_non_https(self):
+        """Non-HTTPS URL is rejected."""
+        mock_config = MagicMock()
+        with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):
+            with pytest.raises(typer.Exit) as exc:
+                sync_server(url="http://spec-kitty-dev.fly.dev")
+        assert exc.value.exit_code == 1
+        mock_config.set_server_url.assert_not_called()

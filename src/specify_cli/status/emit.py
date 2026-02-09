@@ -41,6 +41,18 @@ from . import reducer as _reducer
 
 logger = logging.getLogger(__name__)
 
+# Canonical status lanes are richer than the current sync payload contract.
+# Map canonical lanes to the legacy 4-lane SaaS vocabulary for fan-out.
+_SYNC_LANE_MAP: dict[str, str] = {
+    "planned": "planned",
+    "claimed": "planned",
+    "in_progress": "doing",
+    "for_review": "for_review",
+    "done": "done",
+    "blocked": "doing",
+    "canceled": "planned",
+}
+
 
 class TransitionError(Exception):
     """Raised when a status transition is invalid."""
@@ -310,10 +322,35 @@ def _saas_fan_out(
     try:
         from specify_cli.sync.events import emit_wp_status_changed
 
+        previous_status = _SYNC_LANE_MAP.get(str(event.from_lane))
+        new_status = _SYNC_LANE_MAP.get(str(event.to_lane))
+        if previous_status is None or new_status is None:
+            logger.debug(
+                "Skipping SaaS fan-out for %s due to unmapped lane transition %s -> %s",
+                event.event_id,
+                event.from_lane,
+                event.to_lane,
+            )
+            return
+
+        # Avoid no-op transitions in SaaS when canonical lanes collapse to the
+        # same sync lane (e.g., planned -> claimed maps to planned -> planned).
+        if previous_status == new_status:
+            logger.debug(
+                "Skipping SaaS fan-out for %s because %s -> %s maps to %s -> %s",
+                event.event_id,
+                event.from_lane,
+                event.to_lane,
+                previous_status,
+                new_status,
+            )
+            return
+
         emit_wp_status_changed(
             wp_id=event.wp_id,
-            previous_status=str(event.from_lane),
-            new_status=str(event.to_lane),
+            previous_status=previous_status,
+            new_status=new_status,
+            changed_by=event.actor,
             feature_slug=feature_slug,
         )
     except ImportError:

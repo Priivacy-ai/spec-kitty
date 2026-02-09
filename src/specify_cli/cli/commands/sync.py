@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
+from urllib.parse import urlparse
 
 import typer
 from rich.console import Console
@@ -362,6 +363,44 @@ def sync_workspace(
         raise typer.Exit(1)
 
     console.print()
+
+
+@app.command(name="server")
+def sync_server(
+    url: str | None = typer.Argument(
+        None,
+        help="Sync server URL to set (must be https://...)",
+    ),
+) -> None:
+    """Show or set sync server URL.
+
+    Examples:
+        spec-kitty sync server
+        spec-kitty sync server https://spec-kitty-dev.fly.dev
+    """
+    from specify_cli.sync.config import SyncConfig
+
+    config = SyncConfig()
+    if url is None:
+        console.print(f"Server URL: [cyan]{config.get_server_url()}[/cyan]")
+        console.print(f"Config File: [dim]{config.config_file}[/dim]")
+        return
+
+    normalized_url = url.strip().rstrip("/")
+    parsed = urlparse(normalized_url)
+    if parsed.scheme != "https" or not parsed.netloc:
+        console.print(
+            "[red]Error:[/red] Invalid server URL. Use a full HTTPS URL, "
+            "for example: https://spec-kitty-dev.fly.dev"
+        )
+        raise typer.Exit(1)
+
+    config.set_server_url(normalized_url)
+    console.print(f"[green]✓[/green] Sync server set to [cyan]{normalized_url}[/cyan]")
+    console.print(
+        "[dim]If you switched environments, run "
+        "'spec-kitty auth login --force' to refresh credentials.[/dim]"
+    )
 
 
 @app.command()
