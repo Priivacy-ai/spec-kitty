@@ -246,12 +246,12 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T040 Wire `ensure_runtime()` into Typer app callback (CLI entry point)
-- [ ] T041 Register `migrate` command in CLI app
-- [ ] T042 Add `ensure_runtime()` import and call to CLI startup
-- [ ] T043 Write end-to-end integration test: fresh install → ensure_runtime → init → resolve
-- [ ] T044 Write end-to-end integration test: upgrade → ensure_runtime → legacy project → resolve with warnings
-- [ ] T045 Run existing test suite to verify no regressions
+- [x] T040 Wire `ensure_runtime()` into Typer app callback (CLI entry point)
+- [x] T041 Register `migrate` command in CLI app
+- [x] T042 Add `ensure_runtime()` import and call to CLI startup
+- [x] T043 Write end-to-end integration test: fresh install → ensure_runtime → init → resolve
+- [x] T044 Write end-to-end integration test: upgrade → ensure_runtime → legacy project → resolve with warnings
+- [x] T045 Run existing test suite to verify no regressions
 
 ### Implementation Notes
 - CLI entry point: find Typer `app.callback()` or equivalent main startup hook
