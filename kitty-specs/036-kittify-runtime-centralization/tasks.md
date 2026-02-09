@@ -181,12 +181,12 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
-- [ ] T029 Implement global runtime health check functions in `src/specify_cli/runtime/doctor.py`
-- [ ] T030 Integrate global checks into existing `spec-kitty doctor` command
-- [ ] T031 Write test: missing `~/.kittify/` detected (1A-11)
-- [ ] T032 Write test: `version.lock` mismatch detected (1A-12)
-- [ ] T033 Write test: corrupted mission directory detected (1A-13)
-- [ ] T034 Write test: stale legacy assets counted with migration recommendation (1A-10)
+- [x] T029 Implement global runtime health check functions in `src/specify_cli/runtime/doctor.py`
+- [x] T030 Integrate global checks into existing `spec-kitty doctor` command
+- [x] T031 Write test: missing `~/.kittify/` detected (1A-11)
+- [x] T032 Write test: `version.lock` mismatch detected (1A-12)
+- [x] T033 Write test: corrupted mission directory detected (1A-13)
+- [x] T034 Write test: stale legacy assets counted with migration recommendation (1A-10)
 
 ### Implementation Notes
 - Health checks: `~/.kittify/` existence, `version.lock` vs CLI version, expected mission dirs present, legacy asset scan in project
@@ -338,4 +338,5 @@
 - WP01: done
 - WP02: planned
 - WP03: planned
+- WP04: for_review
 <!-- status-model:end -->
