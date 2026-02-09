@@ -1,8 +1,8 @@
 """Migration integration tests (T080).
 
 Tests the full legacy migration pipeline: reading frontmatter lanes,
-generating bootstrap events, alias resolution, dry-run mode, and
-post-migration transitions.
+generating full history reconstruction events, alias resolution, dry-run mode,
+and post-migration transitions.
 """
 
 from __future__ import annotations
@@ -30,19 +30,38 @@ def _create_wp_file(
     wp_id: str,
     lane: str,
     title: str = "Test WP",
+    *,
+    history: list[dict[str, str]] | None = None,
+    review_status: str | None = None,
+    reviewed_by: str | None = None,
 ) -> Path:
     """Create a WP markdown file with frontmatter."""
+    lines = [
+        "---",
+        f"work_package_id: {wp_id}",
+        f"title: {title}",
+        f"lane: {lane}",
+        "dependencies: []",
+    ]
+
+    if review_status is not None:
+        lines.append(f'review_status: "{review_status}"')
+    if reviewed_by is not None:
+        lines.append(f'reviewed_by: "{reviewed_by}"')
+
+    if history is not None:
+        lines.append("history:")
+        for entry in history:
+            lines.append(f'- timestamp: "{entry.get("timestamp", "")}"')
+            lines.append(f'  lane: "{entry.get("lane", "")}"')
+            if "agent" in entry:
+                lines.append(f'  agent: "{entry["agent"]}"')
+
+    lines.append("---")
+    lines.append(f"\n# {wp_id}: {title}")
+
     wp_file = tasks_dir / f"{wp_id}-{title.lower().replace(' ', '-')}.md"
-    wp_file.write_text(
-        f"---\n"
-        f"work_package_id: {wp_id}\n"
-        f"title: {title}\n"
-        f"lane: {lane}\n"
-        f"dependencies: []\n"
-        f"---\n"
-        f"\n# {wp_id}: {title}\n",
-        encoding="utf-8",
-    )
+    wp_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return wp_file
 
 
@@ -89,6 +108,7 @@ class TestLegacyFeatureFullMigrationPipeline:
         # WP03 is at "planned" so no event for it (no transition from planned)
         # WP01 (in_progress), WP02 (for_review), WP04 (doing->in_progress)
         # Each generates exactly one bootstrap event (from planned -> current)
+        # because no history arrays are provided
         events = read_events(feature_dir)
         assert len(events) == 3
 
@@ -100,6 +120,11 @@ class TestLegacyFeatureFullMigrationPipeline:
         assert event_wps["WP02"].to_lane == Lane.FOR_REVIEW
         assert event_wps["WP04"].from_lane == Lane.PLANNED
         assert event_wps["WP04"].to_lane == Lane.IN_PROGRESS  # alias resolved
+
+        # All events use force=True
+        for e in events:
+            assert e.force is True
+            assert e.reason is not None
 
         # Materialize and verify snapshot
         snapshot = materialize(feature_dir)
@@ -123,6 +148,40 @@ class TestLegacyFeatureFullMigrationPipeline:
         # Event count unchanged
         events = read_events(feature_dir)
         assert len(events) == 3
+
+    def test_multi_step_history_reconstruction(self, tmp_path: Path):
+        """Full history reconstruction from multi-step history arrays."""
+        feature_dir = tmp_path / "kitty-specs" / "099-multi-history"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        _create_wp_file(
+            tasks_dir, "WP01", "done", history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "in_progress", "agent": "agent-a"},
+                {"timestamp": "2026-01-01T12:00:00Z", "lane": "for_review", "agent": "agent-a"},
+                {"timestamp": "2026-01-01T13:00:00Z", "lane": "done", "agent": "reviewer"},
+            ],
+            review_status="approved",
+            reviewed_by="reviewer",
+        )
+
+        result = migrate_feature(feature_dir)
+        assert result.status == "migrated"
+
+        events = read_events(feature_dir)
+        assert len(events) == 3  # 3 transitions from 4 history entries
+
+        assert events[0].from_lane == Lane.PLANNED
+        assert events[0].to_lane == Lane.IN_PROGRESS
+        assert events[1].from_lane == Lane.IN_PROGRESS
+        assert events[1].to_lane == Lane.FOR_REVIEW
+        assert events[2].from_lane == Lane.FOR_REVIEW
+        assert events[2].to_lane == Lane.DONE
+
+        # DoneEvidence attached to last event
+        assert events[2].evidence is not None
+        assert events[2].evidence.review.reviewer == "reviewer"
 
 
 class TestMigrationThenTransition:
