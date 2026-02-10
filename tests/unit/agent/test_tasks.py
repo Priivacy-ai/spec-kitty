@@ -221,10 +221,10 @@ class TestMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_move_task_second_review_feedback_run_replaces_section_without_duplicate(
+    def test_move_task_second_review_feedback_run_appends_without_duplicate_section(
         self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path, tmp_path: Path
     ):
-        """Second feedback pass should replace section content, not duplicate section headings."""
+        """Second feedback pass should append content without duplicating section heading."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
@@ -280,7 +280,7 @@ class TestMoveTask:
         updated = mock_task_file.read_text(encoding="utf-8")
         assert updated.count("## Review Feedback") == 1
         assert "Second review note" in updated
-        assert "First review note" not in updated
+        assert "First review note" in updated
 
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
@@ -320,6 +320,49 @@ class TestMoveTask:
         output = json.loads(first_line)
         assert "error" in output
         assert "Review feedback file not found" in output["error"]
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_for_review_marks_feedback_items_done_with_comment(
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path
+    ):
+        """Re-submission to for_review should mark feedback checklist items as done."""
+        repo_root = mock_task_file.parent.parent.parent.parent
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
+
+        original = mock_task_file.read_text(encoding="utf-8")
+        updated_wp = original.replace('lane: "planned"', 'lane: "doing"', 1)
+        updated_wp = updated_wp.replace(
+            'shell_pid: ""\n---',
+            'shell_pid: ""\nreview_status: "has_feedback"\nreviewed_by: "reviewer-agent"\n---',
+            1,
+        )
+        updated_wp += "\n## Review Feedback\n\n- [ ] Fix API validation\n- [ ] Add regression tests\n"
+        mock_task_file.write_text(updated_wp, encoding="utf-8")
+
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "for_review",
+                "--agent",
+                "fixer-agent",
+                "--no-auto-commit",
+                "--json",
+            ],
+        )
+
+        assert result.exit_code == 0
+        refreshed = mock_task_file.read_text(encoding="utf-8")
+        assert 'review_status: "acknowledged"' in refreshed
+        assert "- [x] Fix API validation" in refreshed
+        assert "- [x] Add regression tests" in refreshed
+        assert "<!-- done: addressed by fixer-agent at" in refreshed
 
     def test_move_task_rejects_removed_review_file_alias(self):
         """Should reject removed --review-file alias."""

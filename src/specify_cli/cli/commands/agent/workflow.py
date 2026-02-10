@@ -609,6 +609,7 @@ def implement(
 
         if has_feedback:
             lines.append("⚠️  This work package has review feedback. Check the '## Review Feedback' section below.")
+            lines.append("   When you re-submit to for_review, move-task marks addressed checklist items with done comments.")
             lines.append("")
 
         # Research mission: Show deliverables path prominently

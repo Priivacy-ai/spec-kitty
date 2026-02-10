@@ -233,26 +233,88 @@ def _resolve_review_feedback_path(path: Path) -> Path:
     return resolved
 
 
-def _upsert_review_feedback_section(body: str, feedback_block: str) -> str:
-    """Insert or replace the Review Feedback section in a WP body."""
+def _find_review_feedback_section_bounds(body: str) -> tuple[int, int, int] | None:
+    """Return (section_start, content_start, section_end) for Review Feedback."""
     section_pattern = re.compile(r"^##\s+Review Feedback\s*$", flags=re.MULTILINE)
     section_match = section_pattern.search(body)
+
+    if section_match is None:
+        return None
+
+    content_start = section_match.end()
+    next_section_match = re.search(r"^##\s+", body[content_start:], flags=re.MULTILINE)
+    if next_section_match is None:
+        section_end = len(body)
+    else:
+        section_end = content_start + next_section_match.start()
+
+    return section_match.start(), content_start, section_end
+
+
+def _upsert_review_feedback_section(body: str, feedback_block: str) -> str:
+    """Insert or append an entry to the Review Feedback section in a WP body."""
+    bounds = _find_review_feedback_section_bounds(body)
 
     normalized_block = feedback_block.strip()
     replacement = f"## Review Feedback\n\n{normalized_block}\n\n"
 
-    if section_match is None:
+    if bounds is None:
         base = body.rstrip("\n")
         if base:
             return f"{base}\n\n{replacement}"
         return replacement
 
-    next_section_match = re.search(r"^##\s+", body[section_match.end() :], flags=re.MULTILINE)
-    if next_section_match is None:
-        return body[: section_match.start()] + replacement
+    section_start, content_start, section_end = bounds
+    existing_section = body[content_start:section_end].strip()
 
-    next_section_start = section_match.end() + next_section_match.start()
-    return body[: section_match.start()] + replacement + body[next_section_start:]
+    if normalized_block in existing_section:
+        combined_section = existing_section
+    elif existing_section:
+        combined_section = f"{existing_section}\n\n---\n\n{normalized_block}"
+    else:
+        combined_section = normalized_block
+
+    updated_section = f"## Review Feedback\n\n{combined_section}\n\n"
+    return body[:section_start] + updated_section + body[section_end:]
+
+
+def _mark_review_feedback_done_comments(body: str, actor: str, timestamp: str) -> str:
+    """Mark unresolved review checklist items as done with a comment."""
+    bounds = _find_review_feedback_section_bounds(body)
+    if bounds is None:
+        return body
+
+    section_start, content_start, section_end = bounds
+    section_content = body[content_start:section_end]
+    lines = section_content.splitlines()
+
+    done_comment = f"<!-- done: addressed by {actor} at {timestamp} -->"
+    checkbox_pattern = re.compile(r"^(\s*[-*]\s*)\[\s*\]\s+(.*)$")
+
+    updated_lines: list[str] = []
+    marked_count = 0
+    for line in lines:
+        match = checkbox_pattern.match(line)
+        if match:
+            item_text = match.group(2).rstrip()
+            if done_comment not in item_text:
+                item_text = f"{item_text} {done_comment}"
+            updated_lines.append(f"{match.group(1)}[x] {item_text}")
+            marked_count += 1
+            continue
+        updated_lines.append(line)
+
+    if marked_count == 0:
+        summary_comment = f"- [x] DONE: Feedback addressed by {actor}. {done_comment}"
+        if summary_comment not in section_content:
+            if updated_lines and updated_lines[-1].strip():
+                updated_lines.append("")
+            updated_lines.append(summary_comment)
+
+    updated_content = "\n".join(updated_lines).strip()
+    updated_section = f"## Review Feedback\n\n{updated_content}\n\n"
+
+    return body[:section_start] + updated_section + body[section_end:]
 
 
 def _check_unchecked_subtasks(
@@ -695,6 +757,7 @@ def move_task(
         # Load work package first (needed for current_lane check)
         wp = locate_work_package(repo_root, feature_slug, task_id)
         old_lane = wp.current_lane
+        current_review_status = extract_scalar(wp.frontmatter, "review_status") or ""
 
         resolved_review_feedback_file: Optional[Path] = None
         if review_feedback_file is not None:
@@ -810,8 +873,16 @@ def move_task(
             updated_front = set_scalar(updated_front, "reviewed_by", reviewer)
             updated_front = set_scalar(updated_front, "review_status", "approved")
 
-        # Build history entry
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        # When re-submitting work after review feedback, preserve old feedback and
+        # mark unresolved checklist items as done with a comment.
+        if target_lane == "for_review" and current_review_status in {"has_feedback", "acknowledged"}:
+            feedback_fixer = agent or extract_scalar(updated_front, "agent") or "unknown"
+            updated_body = _mark_review_feedback_done_comments(updated_body, feedback_fixer, timestamp)
+            updated_front = set_scalar(updated_front, "review_status", "acknowledged")
+
+        # Build history entry
         agent_name = agent or extract_scalar(updated_front, "agent") or "unknown"
         shell_pid_val = shell_pid or extract_scalar(updated_front, "shell_pid") or ""
         note_text = note or f"Moved to {target_lane}"
