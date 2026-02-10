@@ -168,6 +168,170 @@ class TestMoveTask:
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_review_feedback_file_writes_review_feedback_section(
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path, tmp_path: Path
+    ):
+        """Should persist --review-feedback-file content in the WP Review Feedback section."""
+        repo_root = mock_task_file.parent.parent.parent.parent
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
+
+        # Put WP in for_review so reject flow is valid
+        original = mock_task_file.read_text(encoding="utf-8")
+        mock_task_file.write_text(
+            original.replace('lane: "planned"', 'lane: "for_review"', 1),
+            encoding="utf-8",
+        )
+
+        feedback_file = tmp_path / "review-feedback.md"
+        feedback_file.write_text(
+            "**Issue 1**: Missing edge-case handling\n\n**Action**: Add guard clauses",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--review-feedback-file",
+                str(feedback_file),
+                "--no-auto-commit",
+                "--json",
+            ],
+        )
+
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["result"] == "success"
+
+        updated = mock_task_file.read_text(encoding="utf-8")
+        assert 'lane: "planned"' in updated
+        assert 'review_status: "has_feedback"' in updated
+        assert "## Review Feedback" in updated
+        assert "Missing edge-case handling" in updated
+        assert updated.count("## Review Feedback") == 1
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_second_review_feedback_run_replaces_section_without_duplicate(
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path, tmp_path: Path
+    ):
+        """Second feedback pass should replace section content, not duplicate section headings."""
+        repo_root = mock_task_file.parent.parent.parent.parent
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
+
+        original = mock_task_file.read_text(encoding="utf-8")
+        mock_task_file.write_text(
+            original.replace('lane: "planned"', 'lane: "for_review"', 1),
+            encoding="utf-8",
+        )
+
+        first_feedback = tmp_path / "review-feedback-1.md"
+        first_feedback.write_text("**Issue**: First review note", encoding="utf-8")
+        result_first = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--review-feedback-file",
+                str(first_feedback),
+                "--no-auto-commit",
+                "--json",
+            ],
+        )
+        assert result_first.exit_code == 0
+
+        # Re-enter for_review for a second review cycle
+        after_first = mock_task_file.read_text(encoding="utf-8")
+        mock_task_file.write_text(
+            after_first.replace('lane: "planned"', 'lane: "for_review"', 1),
+            encoding="utf-8",
+        )
+
+        second_feedback = tmp_path / "review-feedback-2.md"
+        second_feedback.write_text("**Issue**: Second review note", encoding="utf-8")
+        result_second = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--review-feedback-file",
+                str(second_feedback),
+                "--no-auto-commit",
+                "--json",
+            ],
+        )
+        assert result_second.exit_code == 0
+
+        updated = mock_task_file.read_text(encoding="utf-8")
+        assert updated.count("## Review Feedback") == 1
+        assert "Second review note" in updated
+        assert "First review note" not in updated
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_rejects_missing_review_feedback_file_path(
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path, tmp_path: Path
+    ):
+        """Should fail fast when --review-feedback-file path does not exist."""
+        repo_root = mock_task_file.parent.parent.parent.parent
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
+
+        original = mock_task_file.read_text(encoding="utf-8")
+        mock_task_file.write_text(
+            original.replace('lane: "planned"', 'lane: "for_review"', 1),
+            encoding="utf-8",
+        )
+
+        missing_feedback_file = tmp_path / "missing-review-feedback.md"
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--review-feedback-file",
+                str(missing_feedback_file),
+                "--no-auto-commit",
+                "--json",
+            ],
+        )
+
+        assert result.exit_code == 1
+        first_line = result.stdout.strip().split("\n")[0]
+        output = json.loads(first_line)
+        assert "error" in output
+        assert "Review feedback file not found" in output["error"]
+
+    def test_move_task_rejects_removed_review_file_alias(self):
+        """Should reject removed --review-file alias."""
+        result = runner.invoke(
+            app,
+            ["move-task", "WP01", "--to", "planned", "--review-file", "feedback.md"],
+        )
+
+        assert result.exit_code != 0
+        assert "No such option" in result.output
+        assert "--review-file" in result.output
+
 
 class TestMarkStatus:
     """Tests for mark-status command."""
