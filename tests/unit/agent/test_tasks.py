@@ -168,6 +168,103 @@ class TestMoveTask:
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_persists_review_feedback_file(
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path, tmp_path: Path
+    ):
+        """Should archive feedback file and store path in frontmatter."""
+        repo_root = mock_task_file.parent.parent.parent.parent
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
+
+        # Put WP in for_review and ensure review section exists
+        original = mock_task_file.read_text(encoding="utf-8")
+        updated = original.replace('lane: "planned"', 'lane: "for_review"', 1)
+        if "## Review Feedback" not in updated:
+            updated += "\n## Review Feedback\n\nPlaceholder feedback section.\n"
+        mock_task_file.write_text(updated, encoding="utf-8")
+
+        # Create reviewer feedback input file
+        review_feedback_input = tmp_path / "review-feedback.md"
+        review_feedback_input.write_text(
+            "**Issue 1**: Fix validation edge case\n\n**Issue 2**: Add regression test\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--review-feedback-file",
+                str(review_feedback_input),
+                "--no-auto-commit",
+                "--json",
+            ],
+        )
+
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["result"] == "success"
+        assert output["new_lane"] == "planned"
+        assert "review_feedback" in output
+
+        archived_feedback_rel = output["review_feedback"]
+        assert archived_feedback_rel.startswith("kitty-specs/008-test-feature/feedback/")
+
+        archived_feedback_abs = repo_root / archived_feedback_rel
+        assert archived_feedback_abs.exists()
+        assert archived_feedback_abs.read_text(encoding="utf-8") == review_feedback_input.read_text(encoding="utf-8")
+
+        wp_content = mock_task_file.read_text(encoding="utf-8")
+        assert 'lane: "planned"' in wp_content
+        assert 'review_status: "has_feedback"' in wp_content
+        assert f'review_feedback: "{archived_feedback_rel}"' in wp_content
+        assert "## Review Feedback" in wp_content
+        assert "**Feedback File**:" in wp_content
+        assert "Fix validation edge case" in wp_content
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_rejects_missing_review_feedback_file(
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path, tmp_path: Path
+    ):
+        """Should fail when --review-feedback-file points to a missing file."""
+        repo_root = mock_task_file.parent.parent.parent.parent
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
+
+        # Put WP in for_review so rejection flow is valid
+        original = mock_task_file.read_text(encoding="utf-8")
+        mock_task_file.write_text(original.replace('lane: "planned"', 'lane: "for_review"', 1), encoding="utf-8")
+
+        missing_feedback = tmp_path / "does-not-exist.md"
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "planned",
+                "--review-feedback-file",
+                str(missing_feedback),
+                "--no-auto-commit",
+                "--json",
+            ],
+        )
+
+        assert result.exit_code == 1
+        error_output = json.loads(result.stdout.split("\n")[0])
+        assert "error" in error_output
+        assert "Review feedback file not found" in error_output["error"]
+
 
 class TestMarkStatus:
     """Tests for mark-status command."""

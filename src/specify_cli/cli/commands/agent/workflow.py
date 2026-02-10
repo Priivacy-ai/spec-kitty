@@ -519,6 +519,16 @@ def implement(
         # Check review status
         review_status = extract_scalar(wp.frontmatter, "review_status")
         has_feedback = review_status == "has_feedback"
+        review_feedback_relative = extract_scalar(wp.frontmatter, "review_feedback")
+        review_feedback_file: Path | None = None
+        if review_feedback_relative:
+            try:
+                candidate = (main_repo_root / review_feedback_relative).resolve()
+                candidate.relative_to(main_repo_root)
+                if candidate.exists() and candidate.is_file():
+                    review_feedback_file = candidate
+            except Exception:
+                review_feedback_file = None
 
         # Detect mission type and get deliverables_path for research missions
         feature_dir = repo_root / "kitty-specs" / feature_slug
@@ -608,7 +618,17 @@ def implement(
         lines.append("")
 
         if has_feedback:
-            lines.append("⚠️  This work package has review feedback. Check the '## Review Feedback' section below.")
+            lines.append("⚠️  This work package has review feedback.")
+            if review_feedback_relative:
+                lines.append(f"   Canonical feedback file: {review_feedback_relative}")
+                if review_feedback_file is not None:
+                    lines.append(f"   Read it first: cat \"{review_feedback_file}\"")
+                else:
+                    lines.append("   WARNING: review_feedback path is set but file is missing/unreadable.")
+                    lines.append("   Fall back to the '## Review Feedback' section in the WP prompt below.")
+            else:
+                lines.append("   WARNING: review_status=has_feedback but no review_feedback path is set.")
+                lines.append("   Use the '## Review Feedback' section in the WP prompt below.")
             lines.append("")
 
         # Research mission: Show deliverables path prominently
@@ -677,7 +697,10 @@ def implement(
         print()
         print(f"📍 Workspace: cd {workspace_path}")
         if has_feedback:
-            print(f"⚠️  Has review feedback - check prompt file")
+            if review_feedback_relative:
+                print(f"⚠️  Has review feedback - read: {review_feedback_relative}")
+            else:
+                print(f"⚠️  Has review feedback - check the WP Review Feedback section")
         if mission_key == "research" and deliverables_path:
             print(f"🔬 Research deliverables: {deliverables_path}")
             print(f"   (NOT in kitty-specs/ - those are planning artifacts)")
@@ -1091,8 +1114,8 @@ def review(
         lines.append(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
         lines.append("")
         lines.append(f"⚠️  Changes requested:")
-        lines.append(f"  1. Add feedback to the WP file's '## Review Feedback' section")
-        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --note \"Changes requested\"")
+        lines.append(f"  1. Write feedback to a file (use the unique path shown below)")
+        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file <feedback-file>")
         lines.append("=" * 80)
         lines.append("")
         lines.append(f"📍 WORKING DIRECTORY:")

@@ -129,18 +129,18 @@ if source_register.exists():
 
 5. Decide outcome:
   - **Needs changes**:
-     * Append a new entry in the prompt’s **Activity Log** detailing feedback (include timestamp, reviewer agent, shell PID).
-     * Update frontmatter `lane` back to `planned`, clear `assignee` if necessary, keep history entry.
-     * Add/revise a `## Review Feedback` section (create if missing) summarizing action items.
-     * Run `spec-kitty agent tasks move-task <FEATURE> <TASK_ID> planned --note "Returned for changes"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
+      * Append a new entry in the prompt’s **Activity Log** detailing feedback (include timestamp, reviewer agent, shell PID).
+      * Update frontmatter `lane` back to `planned`, clear `assignee` if necessary, keep history entry.
+      * Write feedback to a file (use the unique `/tmp/spec-kitty-review-feedback-<WP>.md` path shown by workflow review command).
+      * Run `spec-kitty agent tasks move-task <TASK_ID> --to planned --review-feedback-file <feedback-file> --note "Returned for changes"` so lane/history/frontmatter updates happen consistently.
   - **Approved**:
-     * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script).
-     * Update frontmatter: set `lane=done`, set reviewer metadata (`agent`, `shell_pid`), optional `assignee` for approver.
-     * Use helper script to mark the task complete in `tasks.md` (see Step 6).
-     * Run `spec-kitty agent tasks move-task <FEATURE> <TASK_ID> done --note "Approved for release"` (PowerShell variant available) to transition the prompt into `tasks/`.
+      * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script).
+      * Update frontmatter: set `lane=done`, set reviewer metadata (`agent`, `shell_pid`), optional `assignee` for approver.
+      * Use helper script to mark the task complete in `tasks.md` (see Step 6).
+      * Run `spec-kitty agent tasks move-task <TASK_ID> --to done --note "Approved for release"`.
 
 6. Update `tasks.md` automatically:
-   - Run `spec-kitty agent tasks mark-status --task-id <TASK_ID> --status done` (POSIX) or `spec-kitty agent tasks mark-status --task-id <TASK_ID> --status done` (PowerShell) from repo root.
+   - Run `spec-kitty agent tasks mark-status <TASK_ID> --status done` from repo root.
    - Confirm the task entry now shows `[X]` and includes a reference to the prompt file in its notes.
 
 7. Produce a review report summarizing:
@@ -152,7 +152,7 @@ if source_register.exists():
 
 Context for review: {ARGS}
 
-All review feedback must live inside the prompt file, ensuring future implementers understand historical decisions before revisiting the task.
+Review feedback should be preserved via `--review-feedback-file`; the command stores a durable copy in `kitty-specs/<feature>/feedback/` and links it in frontmatter.
 
 ## Citation Validation (Research Mission Specific)
 

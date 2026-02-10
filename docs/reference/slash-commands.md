@@ -117,7 +117,8 @@ Syntax format in this reference:
 
 **What it does**:
 - Loads the WP prompt, supporting artifacts, and code changes.
-- Performs structured review and records feedback in the WP file.
+- Performs structured review and records feedback via `--review-feedback-file`.
+- Persists feedback to `kitty-specs/<feature>/feedback/` and writes frontmatter `review_feedback` in the WP file.
 - Moves the WP to `done` (approved) or back to `planned` (needs changes).
 - Updates `tasks.md` status when approved.
 

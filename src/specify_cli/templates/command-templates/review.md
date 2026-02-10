@@ -455,12 +455,10 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 5. Decide outcome:
   - **Needs changes**:
-     * **CRITICAL**: Insert detailed feedback in the `## Review Feedback` section (located immediately after the frontmatter, before Objectives). This is the FIRST thing implementers will see when they re-read the prompt.
-     * Use a clear structure:
+     * Write detailed feedback to a file (the review workflow prompt provides a unique path in `/tmp/spec-kitty-review-feedback-<WP>.md`).
+     * Use clear structure in that file:
        ```markdown
-       ## Review Feedback
-
-       **Status**: ❌ **Needs Changes**
+       **Status**: Needs Changes
 
        **Key Issues**:
        1. [Issue 1] - Why it's a problem and what to do about it
@@ -475,13 +473,8 @@ This is intentional - worktrees provide isolation for parallel feature developme
        - [ ] Add [missing thing 2]
        - [ ] Verify [validation point 3]
        ```
-     * Update frontmatter:
-       - Set `lane: "planned"`
-       - Set `review_status: "has_feedback"`
-       - Set `reviewed_by: <YOUR_AGENT_ID>`
-       - Clear `assignee` if needed
-     * Append a new entry in the prompt's **Activity Log** with timestamp, reviewer agent, shell PID, and summary of feedback.
-     * Run `spec-kitty agent move-task <FEATURE> <TASK_ID> planned --note "Code review complete: [brief summary of issues]"` (use the PowerShell equivalent on Windows) so the move and history update are staged consistently.
+     * Run `spec-kitty agent tasks move-task <TASK_ID> --to planned --review-feedback-file <feedback-file> --note "Code review complete: [brief summary of issues]"`.
+     * This command archives feedback to `kitty-specs/<feature>/feedback/`, updates `review_feedback` frontmatter, updates `## Review Feedback`, and appends activity history.
   - **Approved**:
      * Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script, e.g., `2025-11-11T13:45:00Z – claude – shell_pid=1234 – lane=done – Approved without changes`).
      * Update frontmatter:
@@ -495,7 +488,7 @@ This is intentional - worktrees provide isolation for parallel feature developme
      * Use helper script to mark the task complete in `tasks.md` (see Step 7).
 
 7. Update `tasks.md` automatically:
-   - Run `spec-kitty agent mark-status --task-id <TASK_ID> --status done` (POSIX) or `spec-kitty agent -TaskId <TASK_ID> -Status done` (PowerShell) from repo root.
+   - Run `spec-kitty agent tasks mark-status <TASK_ID> --status done` from repo root.
    - Confirm the task entry now shows `[X]` and includes a reference to the prompt file in its notes.
 
 7. Produce a review report summarizing:
@@ -507,4 +500,4 @@ This is intentional - worktrees provide isolation for parallel feature developme
 
 Context for review: {ARGS} (resolve this to the prompt's relative path, e.g., `kitty-specs/<feature>/tasks/WPXX.md`)
 
-All review feedback must live inside the prompt file, ensuring future implementers understand historical decisions before revisiting the task.
+Review feedback must be preserved through `--review-feedback-file`, which stores a durable copy under `kitty-specs/<feature>/feedback/` and links it in frontmatter.

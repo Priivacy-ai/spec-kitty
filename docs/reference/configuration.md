@@ -62,6 +62,7 @@ agent: ""
 shell_pid: ""
 review_status: ""
 reviewed_by: ""
+review_feedback: ""
 history:
   - timestamp: "2026-01-16T12:00:00Z"
     lane: "planned"
@@ -84,6 +85,7 @@ history:
 | `shell_pid` | string | Process ID of implementing agent |
 | `review_status` | string | Empty, `has_feedback`, or `approved` |
 | `reviewed_by` | string | Reviewer name |
+| `review_feedback` | string | Repo-relative path to persisted feedback file (for example, `kitty-specs/<feature>/feedback/WP01-*.md`) |
 | `history` | list | Activity log entries |
 
 ---

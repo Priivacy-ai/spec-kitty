@@ -94,12 +94,15 @@ When review finds issues:
 
 2. Reviewer finds problems
    └── /spec-kitty.review WP01
-   └── Adds feedback to WP file
+   └── Writes feedback file and runs move-task with --review-feedback-file
+   └── Feedback archived at kitty-specs/<feature>/feedback/WP01-*.md
    └── lane: planned (reset)
    └── review_status: has_feedback
+   └── review_feedback: kitty-specs/<feature>/feedback/WP01-*.md
 
 3. Agent re-claims WP
-   └── Reads feedback section in WP
+   └── Reads review_feedback file path from frontmatter
+   └── Checks Review Feedback section in WP for summary
    └── Addresses issues
    └── lane: doing → for_review
 
@@ -121,6 +124,7 @@ assignee: "claude"
 agent: "claude"
 shell_pid: "12345"
 review_status: ""
+review_feedback: ""
 ---
 ```
 
@@ -133,6 +137,7 @@ review_status: ""
 | `agent` | Which AI agent claimed this |
 | `shell_pid` | Process ID of the agent (for tracking) |
 | `review_status` | Empty or `has_feedback` if returned from review |
+| `review_feedback` | Path to archived feedback file in `kitty-specs/<feature>/feedback/` |
 
 ### Not Directories, Just a Field
 
@@ -178,6 +183,9 @@ Commands:
 
 # Move WP to done after review passes
 spec-kitty agent tasks move-task WP01 --to done
+
+# Request changes with feedback file
+spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file /tmp/spec-kitty-review-feedback-WP01.md
 
 # Once ALL WPs are done, validate entire feature
 /spec-kitty.accept

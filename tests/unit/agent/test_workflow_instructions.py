@@ -21,7 +21,13 @@ def write_tasks_md(feature_dir: Path, wp_id: str, subtasks: list[str], done: boo
     (feature_dir / "tasks.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def write_wp_file(path: Path, wp_id: str, lane: str) -> None:
+def write_wp_file(
+    path: Path,
+    wp_id: str,
+    lane: str,
+    review_status: str = "",
+    review_feedback: str = "",
+) -> None:
     """Create a minimal WP prompt file."""
     frontmatter = {
         "work_package_id": wp_id,
@@ -32,6 +38,9 @@ def write_wp_file(path: Path, wp_id: str, lane: str) -> None:
         "assignee": "",
         "agent": "",
         "shell_pid": "",
+        "review_status": review_status,
+        "reviewed_by": "",
+        "review_feedback": review_feedback,
         "dependencies": [],
         "history": [
             {
@@ -150,6 +159,43 @@ class TestWorkflowImplementInstructions:
         assert "1. **Commit your implementation files:**" in prompt_content
         assert "2." in prompt_content
         assert "3." in prompt_content
+
+    def test_implement_instructions_include_review_feedback_file_path(self, workflow_repo: Path):
+        """When review feedback exists, implement prompt should point to persisted feedback file."""
+        feature_slug = "001-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / feature_slug
+        tasks_dir = feature_dir / "tasks"
+        feedback_dir = feature_dir / "feedback"
+        tasks_dir.mkdir(parents=True)
+        feedback_dir.mkdir(parents=True)
+
+        write_tasks_md(feature_dir, "WP01", ["T001"], done=True)
+
+        feedback_rel = f"kitty-specs/{feature_slug}/feedback/WP01-20260210T120000Z.md"
+        feedback_file = workflow_repo / feedback_rel
+        feedback_file.write_text("**Issue**: Add null-check for empty payload\n", encoding="utf-8")
+
+        wp_path = tasks_dir / "WP01-test.md"
+        write_wp_file(
+            wp_path,
+            "WP01",
+            lane="planned",
+            review_status="has_feedback",
+            review_feedback=feedback_rel,
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"])
+
+        assert result.exit_code == 0
+
+        prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
+        assert prompt_file.exists(), f"Prompt file not found: {prompt_file}"
+
+        prompt_content = prompt_file.read_text(encoding="utf-8")
+        assert "This work package has review feedback." in prompt_content
+        assert f"Canonical feedback file: {feedback_rel}" in prompt_content
+        assert "Read it first: cat" in prompt_content
 
 
 class TestMoveTaskPreflightCheck:

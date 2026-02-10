@@ -311,6 +311,7 @@ agent: ""
 shell_pid: ""
 review_status: ""
 reviewed_by: ""
+review_feedback: ""
 history:
   - timestamp: "2025-01-01T00:00:00Z"
     lane: "planned"
