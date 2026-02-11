@@ -9,6 +9,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None:
     """Test that create-feature command works in main without creating worktree."""
