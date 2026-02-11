@@ -1,9 +1,11 @@
 ---
 work_package_id: WP02
-title: Fix Bug #95 - Kebab-Case Validation
-lane: "planned"
+title: Fix Bug
+lane: "doing"
 dependencies: []
 base_branch: main
+base_commit: 12d8126acbf7c4f1b5888b071a665c65dadc7e7f
+created_at: '2026-02-11T15:22:39.642003+00:00'
 subtasks:
 - T005
 - T006
@@ -15,9 +17,9 @@ subtasks:
 - T012
 phase: Phase 1 - Bug Fixes
 assignee: ''
-agent: "codex"
+agent: codex
+shell_pid: "1724"
 review_status: pending
-shell_pid: "93817"
 history:
 - timestamp: '2026-02-11T14:45:00Z'
   lane: planned
