@@ -783,51 +783,16 @@ def implement(
                 base_branch = merge_result.branch_name
 
         elif base is None:
-            # No dependencies - branch from target branch (or primary if target not set)
-            from specify_cli.core.feature_detection import get_feature_target_branch
+            # No dependencies - branch from current branch (respects user context)
+            from specify_cli.core.git_ops import get_current_branch
 
-            # Get target branch from feature metadata
-            target_branch = get_feature_target_branch(repo_root, feature_slug)
+            # Get user's current branch
+            current_branch_name = get_current_branch(repo_root)
+            if current_branch_name is None:
+                raise RuntimeError("Could not determine current branch")
 
-            # Check if target branch exists
-            branch_exists_result = subprocess.run(
-                ["git", "rev-parse", "--verify", target_branch],
-                cwd=repo_root,
-                capture_output=True,
-                check=False
-            )
-
-            if branch_exists_result.returncode != 0:
-                # Target branch doesn't exist
-                if target_branch != "main" and target_branch != "master":
-                    # Auto-create target branch from primary branch (bootstrap)
-                    primary_branch = resolve_primary_branch(repo_root)
-                    console.print(f"\n[cyan]Target branch '{target_branch}' doesn't exist - creating from {primary_branch}[/cyan]")
-
-                    create_result = subprocess.run(
-                        ["git", "branch", target_branch, primary_branch],
-                        cwd=repo_root,
-                        capture_output=True,
-                        text=True,
-                        check=False
-                    )
-
-                    if create_result.returncode == 0:
-                        # Branch created successfully from primary's current HEAD
-                        # This means 3.x now includes all planning commits (feature files exist)
-                        console.print(f"[green]✓[/green] Created target branch: {target_branch} from {primary_branch}")
-                        base_branch = target_branch
-                    else:
-                        # Creation failed (conflict, permissions, etc.)
-                        console.print(f"[yellow]Warning:[/yellow] Could not create {target_branch}: {create_result.stderr}")
-                        console.print(f"[yellow]Falling back to {primary_branch}[/yellow]")
-                        base_branch = primary_branch
-                else:
-                    # Target is main/master but doesn't exist - use primary
-                    base_branch = resolve_primary_branch(repo_root)
-            else:
-                # Target branch exists - use it
-                base_branch = target_branch
+            # Use current branch as base (no auto-checkout to target)
+            base_branch = current_branch_name
         else:
             # Has dependencies - check if base is merged or in-progress
             try:
@@ -990,62 +955,22 @@ def implement(
             # Build updated document (write after ensuring target branch)
             updated_doc = build_document(updated_front, wp.body, wp.padding)
 
-            # Auto-commit to target branch (respects two-branch strategy)
-            from specify_cli.core.feature_detection import get_feature_target_branch
-            target_branch = get_feature_target_branch(repo_root, feature_slug)
+            # Auto-commit to current branch (respects user context, no auto-checkout)
+            from specify_cli.core.git_ops import resolve_target_branch
             commit_msg = f"chore: {wp_id} claimed for implementation"
 
-            # Get current branch
-            current_branch_result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            current_branch = current_branch_result.stdout.strip()
+            # Resolve branch routing (unified logic, no auto-checkout)
+            resolution = resolve_target_branch(feature_slug, repo_root, respect_current=True)
 
-            # Auto-create target branch if it doesn't exist (same as move-task logic)
-            if target_branch not in ["main", "master"]:
-                branch_exists_result = subprocess.run(
-                    ["git", "rev-parse", "--verify", target_branch],
-                    cwd=repo_root,
-                    capture_output=True,
-                    check=False
+            # Show notification if user is on different branch than target
+            if resolution.should_notify:
+                console.print(
+                    f"[yellow]Note:[/yellow] You are on '{resolution.current}', "
+                    f"feature targets '{resolution.target}'. "
+                    f"Status will commit to '{resolution.current}'."
                 )
 
-                if branch_exists_result.returncode != 0:
-                    # Target branch doesn't exist - auto-create from primary
-                    primary_branch = resolve_primary_branch(repo_root)
-                    console.print(f"[cyan]Target branch '{target_branch}' doesn't exist - creating from {primary_branch}[/cyan]")
-
-                    create_result = subprocess.run(
-                        ["git", "branch", target_branch, primary_branch],
-                        cwd=repo_root,
-                        capture_output=True,
-                        text=True,
-                        check=False
-                    )
-
-                    if create_result.returncode == 0:
-                        console.print(f"[green]✓[/green] Created target branch: {target_branch} from {primary_branch}")
-                    else:
-                        console.print(f"[yellow]Warning:[/yellow] Could not create {target_branch}: {create_result.stderr}")
-
-            # Checkout target if needed
-            if current_branch != target_branch:
-                checkout_result = subprocess.run(
-                    ["git", "checkout", target_branch],
-                    cwd=repo_root,
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
-                if checkout_result.returncode != 0:
-                    console.print(f"[yellow]Warning:[/yellow] Could not checkout {target_branch}: {checkout_result.stderr}")
-                    raise RuntimeError(f"Could not checkout target branch {target_branch}")
-
-            # Write updated document after ensuring target branch
+            # Commit to current branch (no checkout)
             wp.path.write_text(updated_doc, encoding="utf-8")
             lane_changed = True
 
@@ -1067,27 +992,28 @@ def implement(
             )
 
             if commit_result.returncode == 0:
-                console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {target_branch})[/cyan]")
+                console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {resolution.current})[/cyan]")
             else:
                 # Commit failed - file might be unchanged or other issue
                 console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
                 if commit_result.stderr:
                     console.print(f"  {commit_result.stderr.strip()}")
 
-        if lane_changed:
-            try:
-                from specify_cli.sync.events import emit_wp_status_changed
+            # Emit event for 2.x (with sync integration)
+            if lane_changed:
+                try:
+                    from specify_cli.sync.events import emit_wp_status_changed
 
-                emit_wp_status_changed(
-                    wp_id=wp_id,
-                    previous_status=current_lane,
-                    new_status="doing",
-                    feature_slug=feature_slug,
-                )
-            except Exception as emit_exc:
-                console.print(
-                    f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}"
-                )
+                    emit_wp_status_changed(
+                        wp_id=wp_id,
+                        previous_status=current_lane,
+                        new_status="doing",
+                        feature_slug=feature_slug,
+                    )
+                except Exception as emit_exc:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}"
+                    )
 
     except Exception as e:
         # Non-fatal: workspace created but lane update failed
