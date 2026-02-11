@@ -1,15 +1,15 @@
 ---
 work_package_id: WP05
 title: Fix Bug
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: e15a6b31500437333efc357888c680009d9b7b33
 created_at: '2026-02-11T15:22:44.639976+00:00'
 subtasks: [T029, T030, T031, T032, T033, T034, T035, T036, T037, T038]
 phase: Phase 1 - Bug Fixes
-shell_pid: "45117"
-agent: "claude"
+shell_pid: "45299"
+agent: "codex"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 ---
@@ -121,3 +121,4 @@ grep -r "git checkout" src/specify_cli/cli/commands/ | grep -v "\.pyc"
 - 2026-02-11T15:56:41Z – codex – shell_pid=38006 – lane=planned – Moved to planned
 - 2026-02-11T16:03:29Z – claude – shell_pid=45117 – lane=doing – Started review via workflow command
 - 2026-02-11T16:03:39Z – claude – shell_pid=45117 – lane=for_review – Moved to for_review
+- 2026-02-11T16:03:56Z – codex – shell_pid=45299 – lane=doing – Started review via workflow command
