@@ -9,6 +9,7 @@ created_at: '2026-02-11T15:22:42.803823+00:00'
 subtasks: [T045, T046, T047, T048, T049, T050, T051, T052, T053]
 phase: Phase 1 - Bug Fixes
 shell_pid: "1836"
+agent: "claude"
 ---
 
 # Work Package Prompt: WP07 – Fix Bug #122 - Safe Commit Helper
@@ -82,3 +83,7 @@ grep -n "git.*commit" src/specify_cli/cli/commands/agent/*.py src/specify_cli/cl
 
 - Run integration tests with dirty staging area
 - Commit: `fix: prevent staged files from leaking into status commits (fixes #122)`
+
+## Activity Log
+
+- 2026-02-11T15:22:42Z – claude – shell_pid=1836 – lane=doing – Assigned agent via workflow command
