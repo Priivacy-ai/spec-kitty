@@ -54,3 +54,4 @@ agent: "codex"
 - 2026-02-11T15:32:22Z – claude – shell_pid=2636 – lane=for_review – Ready for review: Implemented fix for Bug #120 - gitignore isolation. Changed worktree creation to use .git/info/exclude instead of versioned .gitignore files. Added 3 integration tests. Manual testing confirms fix works correctly.
 - 2026-02-11T15:32:31Z – codex – shell_pid=13041 – lane=doing – Started review via workflow command
 - 2026-02-11T15:46:42Z – codex – shell_pid=13041 – lane=for_review – Moved to for_review
+- 2026-02-11T15:58:58Z – codex – shell_pid=13041 – lane=for_review – Moved to for_review
