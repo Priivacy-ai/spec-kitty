@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0a2] - 2026-02-11
+
+### 🐛 Fixed
+
+**Cherry-picked 7 critical bug fixes from v0.15.0 (main branch)**:
+
+- **Bug #95**: Enforce kebab-case validation for feature slugs
+  - Rejects slugs with spaces, underscores, uppercase, or leading numbers
+  - Prevents invalid directory structures and broken workflow commands
+  - Added 8 comprehensive validation tests
+
+- **Bug #120**: Use local git exclude for worktree ignores
+  - Worktree-specific ignores now written to `.git/info/exclude` instead of `.gitignore`
+  - Prevents `.gitignore` pollution when merging worktrees
+  - VCS abstraction layer handles sparse-checkout consistently
+
+- **Bug #117**: Improve dashboard lifecycle and error diagnostics
+  - Dashboard process detection no longer reports false failures
+  - Distinguishes between health check timeout (process running) vs actual failure
+  - Provides specific error messages for missing metadata, port conflicts, permission errors
+
+- **Bug #124**: Unify branch resolution, stop implicit master fallback
+  - Respects user's current branch instead of auto-checkout
+  - Shows notification when current branch differs from feature target
+  - No more surprise checkouts during `spec-kitty implement` or `move-task`
+  - Consistent branch resolution across all commands
+
+- **Bug #119**: Relax strict assignee gate in acceptance validation
+  - Assignee now optional for completed work packages in 'done' lane
+  - Strict validation still enforces assignee for 'doing' and 'for_review'
+  - Required fields (lane, agent, shell_pid) still mandatory
+
+- **Bug #122**: Prevent staged files from leaking into status commits
+  - New `safe_commit()` helper explicitly stages only intended files
+  - Status commits no longer capture unrelated staged changes
+  - Preserves user's staging area across workflow operations
+
+- **Bug #123**: Call lane transition before status update (atomic state)
+  - Lane transitions now happen BEFORE internal state updates
+  - Prevents inconsistent state when operations fail mid-transition
+  - Applies to orchestrator implementation and review phases
+
+All fixes include comprehensive test coverage (54+ new tests) and maintain backward compatibility.
+
 ## [0.13.26] - 2026-02-04
 
 ### 🛠️ Refactored
