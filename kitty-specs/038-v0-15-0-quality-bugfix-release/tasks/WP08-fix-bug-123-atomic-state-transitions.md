@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Fix Bug
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: d4089ed047ba881e9cb788cc720c5331ffb49571
@@ -86,3 +86,4 @@ save_state(state, repo_root)
 ## Activity Log
 
 - 2026-02-11T15:22:52Z – claude – shell_pid=2083 – lane=doing – Assigned agent via workflow command
+- 2026-02-11T15:28:15Z – claude – shell_pid=2083 – lane=for_review – Ready for review: Fixed atomic state transitions bug - transition_wp_lane now called BEFORE status updates at all 4 call sites. Added comprehensive test suite with 6 tests covering call order, integration, and regression cases. All tests passing.
