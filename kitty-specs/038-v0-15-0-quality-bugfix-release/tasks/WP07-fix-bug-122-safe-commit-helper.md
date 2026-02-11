@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Fix Bug
-lane: "for_review"
+lane: "done"
 dependencies: []
 base_branch: main
 base_commit: e883745c9f9566a68f613dc2d690990b80620754
@@ -93,6 +93,7 @@ grep -n "git.*commit" src/specify_cli/cli/commands/agent/*.py src/specify_cli/cl
 - 2026-02-11T15:29:35Z – codex – shell_pid=9267 – lane=doing – Started review via workflow command
 - 2026-02-11T15:31:45Z – codex – shell_pid=9267 – lane=planned – Moved to planned
 - 2026-02-11T15:42:00Z – codex – shell_pid=9267 – lane=for_review – Moved to for_review
+- 2026-02-11T16:21:28Z – codex – shell_pid=9267 – lane=done – Codex approved - all 52 tests passing
 
 ## Review Feedback
 
