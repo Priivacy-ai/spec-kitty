@@ -21,6 +21,7 @@ from specify_cli.core.feature_detection import (
     FeatureDetectionError,
 )
 from specify_cli.mission import get_feature_mission_key
+from specify_cli.git import safe_commit
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
@@ -767,33 +768,21 @@ def move_task(
                 wp.path.write_text(updated_doc, encoding="utf-8")
                 file_written = True
 
-                # Stage and commit the file
-                subprocess.run(
-                    ["git", "add", str(actual_file_path)],
-                    cwd=main_repo_root,
-                    capture_output=True,
-                    text=True,
-                    check=False
+                # Commit only the WP file (preserves staging area)
+                commit_success = safe_commit(
+                    repo_path=main_repo_root,
+                    files_to_commit=[actual_file_path],
+                    commit_message=commit_msg,
+                    allow_empty=True,  # OK if nothing changed
                 )
 
-                commit_result = subprocess.run(
-                    ["git", "commit", "-m", commit_msg],
-                    cwd=main_repo_root,
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
-
-                if commit_result.returncode == 0:
+                if commit_success:
                     if not json_output:
                         console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
-                elif "nothing to commit" in commit_result.stdout or "nothing to commit" in commit_result.stderr:
-                    # File wasn't actually changed, that's OK
-                    pass
                 else:
-                    # Commit failed
+                    # Commit failed (safe_commit returned False)
                     if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit status change")
 
             except Exception as e:
                 # Unexpected error (e.g., not in a git repo) - ensure file gets written
@@ -930,35 +919,20 @@ def mark_status(
             try:
                 actual_tasks_path = tasks_md.resolve()
 
-                # Stage the file first, then commit
-                # Use -u to only update tracked files (bypasses .gitignore check)
-                add_result = subprocess.run(
-                    ["git", "add", "-u", str(actual_tasks_path)],
-                    cwd=main_repo_root,
-                    capture_output=True,
-                    text=True,
-                    check=False
+                # Commit only the tasks.md file (preserves staging area)
+                commit_success = safe_commit(
+                    repo_path=main_repo_root,
+                    files_to_commit=[actual_tasks_path],
+                    commit_message=commit_msg,
+                    allow_empty=True,  # OK if nothing changed
                 )
 
-                if add_result.returncode != 0:
+                if commit_success:
                     if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to stage file: {add_result.stderr}")
+                        console.print(f"[cyan]→ Committed subtask changes to {target_branch} branch[/cyan]")
                 else:
-                    # Commit the staged file
-                    commit_result = subprocess.run(
-                        ["git", "commit", "-m", commit_msg],
-                        cwd=main_repo_root,
-                        capture_output=True,
-                        text=True,
-                        check=False
-                    )
-
-                    if commit_result.returncode == 0:
-                        if not json_output:
-                            console.print(f"[cyan]→ Committed subtask changes to {target_branch} branch[/cyan]")
-                    elif "nothing to commit" not in commit_result.stdout and "nothing to commit" not in commit_result.stderr:
-                        if not json_output:
-                            console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+                    if not json_output:
+                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit subtask changes")
 
             except Exception as e:
                 if not json_output:

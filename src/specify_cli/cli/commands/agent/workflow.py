@@ -25,6 +25,7 @@ from specify_cli.core.feature_detection import (
     FeatureDetectionError,
 )
 from specify_cli.core.vcs import get_vcs
+from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_feature_mission_key
 from specify_cli.tasks_support import (
     append_activity_log,
@@ -470,22 +471,15 @@ def implement(
             wp.path.write_text(updated_doc, encoding="utf-8")
 
             # Auto-commit to target branch (enables instant status sync)
-            import subprocess
-
             actual_wp_path = wp.path.resolve()
-            commit_result = subprocess.run(
-                ["git", "commit", str(actual_wp_path), "-m", f"chore: Start {normalized_wp_id} implementation [{agent}]"],
-                cwd=main_repo_root,
-                capture_output=True,
-                text=True,
-                check=False
+            safe_commit(
+                repo_path=main_repo_root,
+                files_to_commit=[actual_wp_path],
+                commit_message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
+                allow_empty=True,  # OK if already in this state
             )
 
-            if commit_result.returncode == 0:
-                print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
-            else:
-                # Commit failed - file might already be committed in this state
-                pass
+            print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
@@ -893,19 +887,14 @@ def review(
             import subprocess
 
             actual_wp_path = wp.path.resolve()
-            commit_result = subprocess.run(
-                ["git", "commit", str(actual_wp_path), "-m", f"chore: Start {normalized_wp_id} review [{agent}]"],
-                cwd=main_repo_root,
-                capture_output=True,
-                text=True,
-                check=False
+            safe_commit(
+                repo_path=main_repo_root,
+                files_to_commit=[actual_wp_path],
+                commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
+                allow_empty=True,  # OK if already in this state
             )
 
-            if commit_result.returncode == 0:
-                print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
-            else:
-                # Commit failed - file might already be committed in this state
-                pass
+            print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
