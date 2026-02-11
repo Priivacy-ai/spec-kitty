@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Fix Bug
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: e883745c9f9566a68f613dc2d690990b80620754
@@ -87,3 +87,4 @@ grep -n "git.*commit" src/specify_cli/cli/commands/agent/*.py src/specify_cli/cl
 ## Activity Log
 
 - 2026-02-11T15:22:42Z – claude – shell_pid=1836 – lane=doing – Assigned agent via workflow command
+- 2026-02-11T15:29:22Z – claude – shell_pid=1836 – lane=for_review – Ready for review: Safe commit helper implemented with 7 passing integration tests. All unsafe git commits replaced across 3 command files.
