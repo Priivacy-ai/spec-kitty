@@ -42,6 +42,33 @@ def dashboard(
 
     try:
         dashboard_url, active_port, started = ensure_dashboard_running(project_root, preferred_port=port)
+    except FileNotFoundError as exc:  # Missing .kittify directory
+        console.print("[red]❌ Dashboard metadata not found[/red]")
+        console.print(f"   {exc}")
+        console.print()
+        console.print("[yellow]💡 Initialize this project first:[/yellow]")
+        console.print(f"  [cyan]cd {project_root}[/cyan]")
+        console.print("  [cyan]spec-kitty init .[/cyan]")
+        console.print()
+        raise typer.Exit(1)
+    except OSError as exc:  # Port conflict or permission error
+        error_msg = str(exc).lower()
+        if "address already in use" in error_msg or "port" in error_msg:
+            console.print("[red]❌ Port conflict detected[/red]")
+            console.print(f"   {exc}")
+            console.print()
+            console.print("[yellow]💡 Try these steps:[/yellow]")
+            if port:
+                console.print(f"  1. Use a different port: [cyan]spec-kitty dashboard --port {port + 1}[/cyan]")
+            else:
+                console.print("  1. Use a specific port: [cyan]spec-kitty dashboard --port 9238[/cyan]")
+            console.print("  2. Or kill existing dashboard: [cyan]spec-kitty dashboard --kill[/cyan]")
+            console.print()
+        else:
+            console.print("[red]❌ Unable to start dashboard[/red]")
+            console.print(f"   {exc}")
+            console.print()
+        raise typer.Exit(1)
     except Exception as exc:  # pragma: no cover
         console.print("[red]❌ Unable to start or locate the dashboard[/red]")
         console.print(f"   {exc}")

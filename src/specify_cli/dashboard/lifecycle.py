@@ -365,7 +365,15 @@ def ensure_dashboard_running(
         time.sleep(delay)
 
     # Dashboard started but never became healthy
-    # Check if port has an orphaned dashboard from a different project
+    # Bug #117 Fix: Check if process is actually running BEFORE declaring failure
+    # Health check may timeout on slow systems, but dashboard is actually accessible
+    if pid is not None and _is_process_alive(pid):
+        # Process is alive, health check just timing out (slow system or busy dashboard)
+        # This is a success case - dashboard is running, even if health check is slow
+        _write_dashboard_file(dashboard_file, url, port, token, pid)
+        return url, port, True
+
+    # Health check failed AND process is not alive - check for orphaned dashboard
     if _is_spec_kitty_dashboard(port):
         # Port has a spec-kitty dashboard but for wrong project - orphan detected
         # Clean up the failed process we just started
@@ -396,7 +404,12 @@ def ensure_dashboard_running(
                     return url, port, True
                 time.sleep(delay)
 
-    # Still failed - clean up and raise error
+            # Retry also failed - check if process is alive after retry
+            if pid is not None and _is_process_alive(pid):
+                _write_dashboard_file(dashboard_file, url, port, token, pid)
+                return url, port, True
+
+    # Process is actually dead - clean up and raise error
     if pid is not None:
         try:
             proc = psutil.Process(pid)
