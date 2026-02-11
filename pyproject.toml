@@ -60,7 +60,7 @@ dependencies = [
     "pydantic>=2.0",
     "packaging>=23.0",
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
-    "spec-kitty-events @ git+ssh://git@github.com/Priivacy-ai/spec-kitty-events.git@fc332dda3c33ab65ac29547ababdb2b6936fb074",
+    "spec-kitty-events==0.4.0a0",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing
     "filelock>=3.13.0",  # Credential storage locking
