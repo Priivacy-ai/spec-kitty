@@ -980,19 +980,25 @@ def review(
                     sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
                     subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
 
-                    # Add .gitignore to block WP status files but allow research artifacts
-                    gitignore_path = workspace_path / ".gitignore"
-                    gitignore_entry = "# Block WP status files (managed in planning branch, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
-                    if gitignore_path.exists():
-                        content = gitignore_path.read_text(encoding="utf-8")
-                        if "kitty-specs/**/tasks/*.md" not in content:
-                            # Remove old blanket rule if present
-                            if "kitty-specs/\n" in content:
-                                content = content.replace("# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n", "")
-                                content = content.replace("kitty-specs/\n", "")
-                            gitignore_path.write_text(content.rstrip() + "\n" + gitignore_entry, encoding="utf-8")
-                    else:
-                        gitignore_path.write_text(gitignore_entry, encoding="utf-8")
+                    # Add to .git/info/exclude to block WP status files but allow research artifacts
+                    # Use local git exclude (not .gitignore) to prevent merge pollution (fixes #120)
+                    git_file = workspace_path / ".git"
+                    if git_file.is_file():
+                        # Worktree: .git is a file pointing to the actual git dir
+                        git_content = git_file.read_text().strip()
+                        if git_content.startswith("gitdir:"):
+                            git_dir = Path(git_content.split(":", 1)[1].strip())
+                            exclude_path = git_dir / "info" / "exclude"
+                            exclude_path.parent.mkdir(parents=True, exist_ok=True)
+
+                            exclude_entry = "# Block WP status files (managed in planning branch, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
+
+                            if exclude_path.exists():
+                                exclude_content = exclude_path.read_text(encoding="utf-8")
+                                if "kitty-specs/**/tasks/*.md" not in exclude_content:
+                                    exclude_path.write_text(exclude_content.rstrip() + "\n" + exclude_entry, encoding="utf-8")
+                            else:
+                                exclude_path.write_text(exclude_entry, encoding="utf-8")
 
                 print(f"✓ Created workspace: {workspace_path}")
 
