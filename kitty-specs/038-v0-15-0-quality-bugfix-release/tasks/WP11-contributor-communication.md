@@ -1,11 +1,13 @@
 ---
 work_package_id: WP11
 title: Contributor Communication
-lane: planned
+lane: "done"
 dependencies: []
 base_branch: main
 subtasks: [T084, T085, T086, T087, T088, T089, T090, T091, T092]
 phase: Phase 4 - Communication
+reviewed_by: "Robert Douglass"
+review_status: "approved"
 ---
 
 # Work Package Prompt: WP11 – Contributor Communication
@@ -82,3 +84,7 @@ Add contributor acknowledgments to GitHub release page for v0.15.0.
 - [ ] Thank-you messages posted
 - [ ] General announcement visible on all issues
 - [ ] Release notes include contributor names
+
+## Activity Log
+
+- 2026-02-11T17:43:26Z – unknown – lane=done – Moved to done
