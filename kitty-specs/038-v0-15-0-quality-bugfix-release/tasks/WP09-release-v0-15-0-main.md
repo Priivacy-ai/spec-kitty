@@ -1,11 +1,13 @@
 ---
 work_package_id: WP09
 title: Release v0.15.0 on Main
-lane: "for_review"
+lane: "done"
 dependencies: []
 base_branch: main
 subtasks: [T064, T065, T066, T067, T068, T069, T070, T071]
 phase: Phase 2 - Release
+reviewed_by: "Robert Douglass"
+review_status: "approved"
 ---
 
 # Work Package Prompt: WP09 – Release v0.15.0 on Main
@@ -93,3 +95,4 @@ git push origin v0.15.0
 
 - 2026-02-11T16:42:21Z – unknown – lane=doing – Moved to doing
 - 2026-02-11T17:00:16Z – unknown – lane=for_review – Moved to for_review
+- 2026-02-11T17:24:17Z – unknown – lane=done – v0.15.0 released successfully to PyPI and GitHub
