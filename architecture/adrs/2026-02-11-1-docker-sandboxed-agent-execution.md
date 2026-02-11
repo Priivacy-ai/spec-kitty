@@ -33,6 +33,7 @@ Additionally, Entire.io (Tier 1 competitive threat) is building multi-agent orch
 * **Reproducibility**: Provide consistent execution environment across different systems
 * **Industry standard**: Docker is ubiquitous, well-understood, well-tested
 * **Operational experience**: Swarm's production use validates this approach
+* **Production scale validation**: Cursor research demonstrates lock-based coordination fails at scale ("20 agents slow to 2-3 throughput"); isolation via containers enables hundreds of concurrent agents
 * **Competitive parity**: Match or exceed Entire.io's agent safety capabilities
 * **User trust**: Demonstrate production-grade safety for enterprise adoption
 * **Debugging**: Opt-out capability for local debugging without overhead
@@ -181,10 +182,14 @@ Additionally, Entire.io (Tier 1 competitive threat) is building multi-agent orch
 ## More Information
 
 **References**:
-* Swarm architecture analysis: `competitive/tier-1-threats/entire-io/SWARM-COMPARISON.md`
+* Swarm architecture analysis: `spec-kitty-planning/competitive/tier-1-threats/entire-io/SWARM-COMPARISON.md`
 * Swarm codebase: https://github.com/mtomcal/swarm (see Docker sandbox implementation)
-* Product requirements: `product-ideas/prd-agent-orchestration-integration-v1.md` (AD-001)
-* Integration spec: `competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section 2.1)
+* **Cursor scaling research**: https://cursor.com/blog/scaling-agents
+  - Key finding: Lock-based coordination creates severe bottlenecks (20 agents → 2-3 effective throughput)
+  - Validation: Hundreds of concurrent workers require process isolation (not locks)
+  - Conclusion: Isolation via containers enables scale; locking prevents it
+* Product requirements: `spec-kitty-planning/product-ideas/prd-agent-orchestration-integration-v1.md` (AD-001)
+* Integration spec: `spec-kitty-planning/competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section 2.1)
 
 **Implementation Files**:
 * `orchestrator/executor.py` - Add `spawn_agent_sandboxed()` method

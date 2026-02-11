@@ -175,10 +175,14 @@ As Spec Kitty moves toward more sophisticated orchestration (Feature 013: cross-
 ## More Information
 
 **References**:
-* Swarm architecture analysis: `competitive/tier-1-threats/entire-io/SWARM-COMPARISON.md` (Section "Ralph Mode")
+* Swarm architecture analysis: `spec-kitty-planning/competitive/tier-1-threats/entire-io/SWARM-COMPARISON.md` (Section "Ralph Mode")
 * Swarm codebase: https://github.com/mtomcal/swarm (see Ralph mode implementation in `loop.sh`)
-* Product requirements: `product-ideas/prd-agent-orchestration-integration-v1.md` (AD-002)
-* Integration spec: `competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section 2.2)
+* **Cursor scaling research**: https://cursor.com/blog/scaling-agents
+  - Key quote: "Prompts matter more than the harness and models"
+  - Finding: Role-specific prompts prevent agent drift and maintain focus over long periods
+  - Validation: Focused prompts per task improve quality more than infrastructure complexity
+* Product requirements: `spec-kitty-planning/product-ideas/prd-agent-orchestration-integration-v1.md` (AD-002)
+* Integration spec: `spec-kitty-planning/competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section 2.2)
 
 **Implementation Files**:
 * `orchestrator/scheduler.py` - Add `ExecutionMode` enum, `execute_wp_fresh_context()` function
