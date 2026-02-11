@@ -1,11 +1,14 @@
 ---
 work_package_id: WP08
-title: Fix Bug #123 - Atomic State Transitions
-lane: "planned"
+title: Fix Bug
+lane: "doing"
 dependencies: []
 base_branch: main
+base_commit: d4089ed047ba881e9cb788cc720c5331ffb49571
+created_at: '2026-02-11T15:22:52.820483+00:00'
 subtasks: [T054, T055, T056, T057, T058, T059, T060, T061, T062, T063]
 phase: Phase 1 - Bug Fixes
+shell_pid: "2083"
 ---
 
 # Work Package Prompt: WP08 – Fix Bug #123 - Atomic State Transitions
