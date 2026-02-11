@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0a3] - 2026-02-11
+
+### 🐛 Fixed
+
+**Complete Bug #119 cherry-pick**:
+- Fixed missing update to `scripts/tasks/acceptance_support.py` (root-level test helper)
+- This file was missed in the original Bug #119 cherry-pick, causing test failures
+- Now all acceptance_support.py copies correctly exclude 'done' lane from assignee requirement
+
 ## [2.0.0a2] - 2026-02-11
 
 ### 🐛 Fixed
