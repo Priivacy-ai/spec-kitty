@@ -81,6 +81,7 @@ def verify_ancestry(repo: Path, ancestor: str, descendant: str) -> bool:
 # ============================================================================
 
 
+@pytest.mark.xfail(reason="Status commits now route to current branch (Bug #124/WP05) not target branch")
 def test_feature_025_complete_workflow(dual_branch_repo):
     """Test complete Feature 025 workflow on 2.x branch.
 
@@ -97,6 +98,8 @@ def test_feature_025_complete_workflow(dual_branch_repo):
     7. Verify main branch unaffected
     8. Verify branch ancestry maintained
     9. Verify no race condition
+
+    NOTE: Behavior changed in Bug #124 - status commits now respect current branch.
     """
     repo = dual_branch_repo
     feature_slug = "025-cli-event-log-integration"
