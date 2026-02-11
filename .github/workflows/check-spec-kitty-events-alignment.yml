@@ -11,20 +11,14 @@ permissions:
 
 jobs:
   verify-alignment:
-    name: Verify spec-kitty-events pin and cross-repo parity
+    name: Verify spec-kitty-events local pin policy
     runs-on: ubuntu-latest
-    env:
-      REPO_OWNER: ${{ github.repository_owner }}
-      # For public spec-kitty -> private spec-kitty-saas comparisons, add
-      # SPEC_KITTY_SAAS_READ_TOKEN (repo:read) as a repository secret.
-      CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Validate local pin format and source discipline
-        id: local_pin
         run: |
-          PINNED=$(python - <<'PY'
+          python - <<'PY'
           import tomllib
           from pathlib import Path
 
@@ -43,52 +37,11 @@ jobs:
           if not pin:
               raise SystemExit("spec-kitty-events exact pin not found. Expected spec-kitty-events==<version>.")
 
-          print(pin)
+          uv_sources = data.get("tool", {}).get("uv", {}).get("sources", {})
+          if "spec-kitty-events" in uv_sources:
+              raise SystemExit(
+                  "Invalid source override: [tool.uv.sources].spec-kitty-events must not be committed."
+              )
+
+          print(f"Local pin OK: {pin}")
           PY
-          )
-          echo "pin=${PINNED}" >> "$GITHUB_OUTPUT"
-
-      - name: Fetch spec-kitty-saas pyproject.toml from GitHub API
-        run: |
-          set -euo pipefail
-          URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main"
-          curl -fsSL \
-            -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
-            -H "Accept: application/vnd.github.raw" \
-            "$URL" \
-            -o /tmp/spec-kitty-saas-pyproject.toml || {
-              echo "Unable to fetch spec-kitty-saas/pyproject.toml from main."
-              echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas."
-              exit 1
-            }
-
-      - name: Extract SaaS pin
-        id: saas_pin
-        run: |
-          SAAS_PIN=$(python - <<'PY'
-          import tomllib
-          from pathlib import Path
-
-          data = tomllib.loads(Path("/tmp/spec-kitty-saas-pyproject.toml").read_text())
-          deps = data["project"]["dependencies"]
-          pin = None
-          for dep in deps:
-              if dep.startswith("spec-kitty-events=="):
-                  pin = dep.split("==", 1)[1]
-                  break
-          if not pin:
-              raise SystemExit("spec-kitty-events exact pin not found in spec-kitty-saas pyproject.toml")
-          print(pin)
-          PY
-          )
-          echo "pin=${SAAS_PIN}" >> "$GITHUB_OUTPUT"
-
-      - name: Compare pins
-        run: |
-          if [ "${{ steps.local_pin.outputs.pin }}" != "${{ steps.saas_pin.outputs.pin }}" ]; then
-            echo "Pin mismatch detected:"
-            echo "spec-kitty pin:      ${{ steps.local_pin.outputs.pin }}"
-            echo "spec-kitty-saas pin: ${{ steps.saas_pin.outputs.pin }}"
-            exit 1
-          fi
-          echo "Pins match: ${{ steps.local_pin.outputs.pin }}"

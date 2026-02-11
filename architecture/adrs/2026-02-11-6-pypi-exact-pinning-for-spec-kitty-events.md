@@ -92,6 +92,7 @@ The decision is considered effective when:
 
 Recommended follow-up controls:
 
-1. Add CI checks in both consumers to assert exact version parity.
-2. Add CI checks rejecting committed local/path/git source overrides for `spec-kitty-events`.
-3. Add a reusable "contract bump" PR template for synchronized version updates.
+1. Add CI checks rejecting committed local/path/git source overrides for `spec-kitty-events` in both consumer repos.
+2. Enforce cross-repo pin parity from `spec-kitty-saas` (private repo can read `spec-kitty`).
+3. Keep `spec-kitty` checks local-only; `spec-kitty` must not depend on `spec-kitty-saas`.
+4. Add a reusable "contract bump" PR template for synchronized version updates.
