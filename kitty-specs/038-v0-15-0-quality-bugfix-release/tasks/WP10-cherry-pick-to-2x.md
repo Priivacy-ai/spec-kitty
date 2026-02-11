@@ -1,11 +1,13 @@
 ---
 work_package_id: WP10
 title: Cherry-Pick to 2.x + Release v2.0.0a2
-lane: planned
+lane: "done"
 dependencies: []
 base_branch: main
 subtasks: [T072, T073, T074, T075, T076, T077, T078, T079, T080, T081, T082, T083]
 phase: Phase 3 - 2.x Release
+reviewed_by: "Robert Douglass"
+review_status: "approved"
 ---
 
 # Work Package Prompt: WP10 – Cherry-Pick to 2.x + Release v2.0.0a2
@@ -87,3 +89,7 @@ git push origin v2.0.0a2
 - [ ] 7 commits cherry-picked to 2.x
 - [ ] Tests passing on 2.x
 - [ ] v2.0.0a2 tagged and published
+
+## Activity Log
+
+- 2026-02-11T17:40:17Z – unknown – lane=done – Bug fixes cherry-picked to 2.x (commits only, no release)
