@@ -8,7 +8,8 @@ base_commit: 3ae4069aee1f86fe87f26e486b67e0f0521a13e5
 created_at: '2026-02-11T15:22:37.846898+00:00'
 subtasks: [T020, T021, T022, T023, T024, T025, T026, T027, T028]
 phase: Phase 1 - Bug Fixes
-shell_pid: "1647"
+shell_pid: "5113"
+agent: "claude-sonnet-4.5"
 ---
 
 # Work Package Prompt: WP04 – Fix Bug #117 - Dashboard False-Failure Detection
@@ -92,3 +93,4 @@ except OSError as e:
 ## Activity Log
 
 - 2026-02-11T15:20:53Z – unknown – lane=planned – Moved to planned
+- 2026-02-11T15:25:56Z – claude-sonnet-4.5 – shell_pid=5113 – lane=doing – Assigned agent via workflow command
