@@ -452,7 +452,7 @@ def collect_feature_summary(
 
             if not wp.agent:
                 metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
-            if wp.current_lane in {"doing", "for_review", "done"} and not wp.assignee:
+            if wp.current_lane in {"doing", "for_review"} and not wp.assignee:
                 metadata_issues.append(
                     f"{wp_id}: missing assignee in frontmatter"
                 )
