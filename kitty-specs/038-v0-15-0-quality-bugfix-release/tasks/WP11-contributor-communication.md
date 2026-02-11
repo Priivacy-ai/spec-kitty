@@ -88,3 +88,4 @@ Add contributor acknowledgments to GitHub release page for v0.15.0.
 ## Activity Log
 
 - 2026-02-11T17:43:26Z – unknown – lane=done – Moved to done
+- 2026-02-11T17:44:24Z – unknown – lane=done – All contributors thanked, tracking issue updated, release notes enhanced
