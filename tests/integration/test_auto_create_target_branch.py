@@ -75,6 +75,7 @@ def create_feature_with_target(repo: Path, feature_slug: str, target_branch: str
     return feature_dir
 
 
+@pytest.mark.xfail(reason="Auto-create target branch feature removed in Bug #124 (WP05) - now respects current branch")
 def test_auto_create_target_branch_on_first_implement(tmp_path):
     """Test that target branch is auto-created if missing.
 
@@ -83,6 +84,8 @@ def test_auto_create_target_branch_on_first_implement(tmp_path):
     - implement WP01 creates 3.x from main
     - WP01 worktree branches from 3.x (not main)
     - 3.x branch exists after implement
+
+    NOTE: This behavior was intentionally removed in Bug #124 fix.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -163,6 +166,7 @@ def test_auto_create_target_branch_on_first_implement(tmp_path):
     ).stdout, "WP01 should branch from 3.x or its recent history"
 
 
+@pytest.mark.xfail(reason="Auto-create target branch feature removed in Bug #124 (WP05)")
 def test_subsequent_implement_uses_existing_target(tmp_path):
     """Test that second WP uses existing target branch (doesn't recreate).
 
@@ -240,6 +244,7 @@ def test_subsequent_implement_uses_existing_target(tmp_path):
     assert parent_of_wp02 == commit_3x_after_wp01, "3.x should advance by one commit (WP02 status)"
 
 
+@pytest.mark.xfail(reason="Auto-create target branch feature removed in Bug #124 (WP05)")
 def test_auto_create_message_shown(tmp_path):
     """Test that creation message is shown to user.
 
@@ -269,6 +274,7 @@ def test_auto_create_message_shown(tmp_path):
         "Should announce target branch creation"
 
 
+@pytest.mark.xfail(reason="Auto-create target branch feature removed in Bug #124 (WP05)")
 def test_status_commits_route_to_auto_created_branch(tmp_path):
     """Test that status commits route to auto-created target branch.
 

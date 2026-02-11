@@ -73,6 +73,7 @@ Changelog = "https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 test = [
     "pytest>=7.4",
+    "pytest-asyncio>=0.21.0",  # Required for async orchestrator tests
     "build>=1.0.0",  # Required for distribution tests (wheel building)
 ]
 
