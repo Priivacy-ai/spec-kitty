@@ -1,15 +1,15 @@
 ---
 work_package_id: WP03
 title: Fix Bug
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: bd77b51d6a1419367d96f77d584595f472b16276
 created_at: '2026-02-11T15:22:41.158269+00:00'
 subtasks: [T013, T014, T015, T016, T017, T018, T019]
 phase: Phase 1 - Bug Fixes
-shell_pid: "2636"
-agent: "claude"
+shell_pid: "13041"
+agent: "codex"
 ---
 
 # Work Package Prompt: WP03 – Fix Bug #120 - Gitignore Isolation
@@ -52,3 +52,4 @@ agent: "claude"
 
 - 2026-02-11T15:23:22Z – claude – shell_pid=2636 – lane=doing – Assigned agent via workflow command
 - 2026-02-11T15:32:22Z – claude – shell_pid=2636 – lane=for_review – Ready for review: Implemented fix for Bug #120 - gitignore isolation. Changed worktree creation to use .git/info/exclude instead of versioned .gitignore files. Added 3 integration tests. Manual testing confirms fix works correctly.
+- 2026-02-11T15:32:31Z – codex – shell_pid=13041 – lane=doing – Started review via workflow command
