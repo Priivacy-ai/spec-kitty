@@ -1,15 +1,15 @@
 ---
 work_package_id: WP03
 title: Fix Bug
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: bd77b51d6a1419367d96f77d584595f472b16276
 created_at: '2026-02-11T15:22:41.158269+00:00'
 subtasks: [T013, T014, T015, T016, T017, T018, T019]
 phase: Phase 1 - Bug Fixes
-shell_pid: "47867"
-agent: "claude-sonnet-4.5"
+shell_pid: "49404"
+agent: "codex"
 ---
 
 # Work Package Prompt: WP03 – Fix Bug #120 - Gitignore Isolation
@@ -59,3 +59,4 @@ agent: "claude-sonnet-4.5"
 - 2026-02-11T16:20:37Z – codex – shell_pid=42147 – lane=planned – Moved to planned
 - 2026-02-11T16:20:42Z – claude-sonnet-4.5 – shell_pid=47867 – lane=doing – Started implementation via workflow command
 - 2026-02-11T16:21:19Z – claude-sonnet-4.5 – shell_pid=47867 – lane=for_review – Ready for review: All 3 integration tests passing, sparse-checkout logic consolidated, rebased on main
+- 2026-02-11T16:25:20Z – codex – shell_pid=49404 – lane=doing – Started review via workflow command
