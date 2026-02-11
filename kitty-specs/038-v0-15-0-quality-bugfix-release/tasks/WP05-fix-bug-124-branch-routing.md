@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Fix Bug
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: e15a6b31500437333efc357888c680009d9b7b33
@@ -120,3 +120,4 @@ grep -r "git checkout" src/specify_cli/cli/commands/ | grep -v "\.pyc"
 - 2026-02-11T15:54:04Z – codex – shell_pid=38006 – lane=doing – Started review via workflow command
 - 2026-02-11T15:56:41Z – codex – shell_pid=38006 – lane=planned – Moved to planned
 - 2026-02-11T16:03:29Z – claude – shell_pid=45117 – lane=doing – Started review via workflow command
+- 2026-02-11T16:03:39Z – claude – shell_pid=45117 – lane=for_review – Moved to for_review
