@@ -1,14 +1,15 @@
 ---
 work_package_id: WP05
 title: Fix Bug
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: e15a6b31500437333efc357888c680009d9b7b33
 created_at: '2026-02-11T15:22:44.639976+00:00'
 subtasks: [T029, T030, T031, T032, T033, T034, T035, T036, T037, T038]
 phase: Phase 1 - Bug Fixes
-shell_pid: "1928"
+shell_pid: "8729"
+agent: "codex"
 ---
 
 # Work Package Prompt: WP05 – Fix Bug #124 - Branch Routing Unification
@@ -112,3 +113,4 @@ grep -r "git checkout" src/specify_cli/cli/commands/ | grep -v "\.pyc"
 - 2026-02-11T14:37:04Z – unknown – shell_pid=75658 – lane=for_review – Moved to for_review
 - 2026-02-11T15:20:56Z – unknown – shell_pid=75658 – lane=planned – Moved to planned
 - 2026-02-11T15:29:02Z – unknown – shell_pid=1928 – lane=for_review – Moved to for_review
+- 2026-02-11T15:29:12Z – codex – shell_pid=8729 – lane=doing – Started review via workflow command
