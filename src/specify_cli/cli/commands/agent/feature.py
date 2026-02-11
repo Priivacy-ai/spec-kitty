@@ -28,6 +28,7 @@ from specify_cli.core.feature_detection import (
     detect_feature_directory,
     FeatureDetectionError,
 )
+from specify_cli.git import safe_commit
 from specify_cli.core.worktree import (
     get_next_feature_number,
     validate_feature_structure,
@@ -161,17 +162,19 @@ def _commit_to_branch(
                 console.print(f"[yellow]Switch to target branch:[/yellow] cd {repo_root} && git checkout {target_branch}")
             raise RuntimeError(error_msg)
 
-        # Add file to staging (run from repo root to ensure planning repo, not worktree)
-        run_command(["git", "add", str(file_path)], check_return=True, capture=True, cwd=repo_root)
-
-        # Commit with descriptive message
+        # Commit only this file (preserves staging area)
         commit_msg = f"Add {artifact_type} for feature {feature_slug}"
-        run_command(
-            ["git", "commit", "-m", commit_msg],
-            check_return=True,
-            capture=True,
-            cwd=repo_root,
+        success = safe_commit(
+            repo_path=repo_root,
+            files_to_commit=[file_path],
+            commit_message=commit_msg,
+            allow_empty=False,
         )
+        if not success:
+            error_msg = f"Failed to commit {artifact_type}"
+            if not json_output:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise RuntimeError(error_msg)
 
         if not json_output:
             console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {target_branch}")
@@ -598,13 +601,11 @@ def setup_plan(
                             )
                             # Commit gap analysis and updated meta.json
                             try:
-                                run_command(
-                                    ["git", "add", str(gap_analysis_output), str(meta_file)],
-                                    check_return=True, capture=True, cwd=repo_root,
-                                )
-                                run_command(
-                                    ["git", "commit", "-m", f"Add gap analysis for feature {feature_slug}"],
-                                    check_return=True, capture=True, cwd=repo_root,
+                                safe_commit(
+                                    repo_path=repo_root,
+                                    files_to_commit=[gap_analysis_output, meta_file],
+                                    commit_message=f"Add gap analysis for feature {feature_slug}",
+                                    allow_empty=False,
                                 )
                             except Exception:
                                 pass  # Non-fatal: agent can commit separately
@@ -647,13 +648,11 @@ def setup_plan(
                 try:
                     set_generators_configured(meta_file, generators_detected)
                     try:
-                        run_command(
-                            ["git", "add", str(meta_file)],
-                            check_return=True, capture=True, cwd=repo_root,
-                        )
-                        run_command(
-                            ["git", "commit", "-m", f"Update generator config for feature {feature_slug}"],
-                            check_return=True, capture=True, cwd=repo_root,
+                        safe_commit(
+                            repo_path=repo_root,
+                            files_to_commit=[meta_file],
+                            commit_message=f"Update generator config for feature {feature_slug}",
+                            allow_empty=False,
                         )
                     except Exception:
                         pass  # Non-fatal
@@ -1201,28 +1200,21 @@ def finalize_tasks(
                 )
                 files_committed.append(str(tasks_md.relative_to(repo_root)))
 
-            # Get list of WP files before staging
-            wp_files_to_commit = list(tasks_dir.glob("WP*.md"))
-            for wp_f in wp_files_to_commit:
-                files_committed.append(str(wp_f.relative_to(repo_root)))
+            # Get list of all files in tasks_dir to commit
+            files_to_commit = [tasks_dir / f.name for f in tasks_dir.iterdir() if f.is_file()]
+            for f in files_to_commit:
+                files_committed.append(str(f.relative_to(repo_root)))
 
-            run_command(
-                ["git", "add", str(tasks_dir)],
-                check_return=True,
-                capture=True,
-                cwd=repo_root
-            )
-
-            # Commit with descriptive message (use check_return=False to handle "nothing to commit")
+            # Commit with descriptive message (safe_commit preserves staging area)
             commit_msg = f"Add tasks for feature {feature_slug}"
-            returncode_commit, stdout_commit, stderr_commit = run_command(
-                ["git", "commit", "-m", commit_msg],
-                check_return=False,
-                capture=True,
-                cwd=repo_root
+            commit_success = safe_commit(
+                repo_path=repo_root,
+                files_to_commit=files_to_commit,
+                commit_message=commit_msg,
+                allow_empty=False,
             )
 
-            if returncode_commit == 0:
+            if commit_success:
                 # Commit succeeded - get hash
                 returncode, stdout, stderr = run_command(
                     ["git", "rev-parse", "HEAD"],
