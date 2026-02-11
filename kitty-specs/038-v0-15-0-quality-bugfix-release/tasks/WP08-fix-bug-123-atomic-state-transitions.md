@@ -1,15 +1,15 @@
 ---
 work_package_id: WP08
 title: Fix Bug
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: d4089ed047ba881e9cb788cc720c5331ffb49571
 created_at: '2026-02-11T15:22:52.820483+00:00'
 subtasks: [T054, T055, T056, T057, T058, T059, T060, T061, T062, T063]
 phase: Phase 1 - Bug Fixes
-shell_pid: "2083"
-agent: "claude"
+shell_pid: "7552"
+agent: "codex"
 ---
 
 # Work Package Prompt: WP08 – Fix Bug #123 - Atomic State Transitions
@@ -87,3 +87,4 @@ save_state(state, repo_root)
 
 - 2026-02-11T15:22:52Z – claude – shell_pid=2083 – lane=doing – Assigned agent via workflow command
 - 2026-02-11T15:28:15Z – claude – shell_pid=2083 – lane=for_review – Ready for review: Fixed atomic state transitions bug - transition_wp_lane now called BEFORE status updates at all 4 call sites. Added comprehensive test suite with 6 tests covering call order, integration, and regression cases. All tests passing.
+- 2026-02-11T15:28:26Z – codex – shell_pid=7552 – lane=doing – Started review via workflow command
