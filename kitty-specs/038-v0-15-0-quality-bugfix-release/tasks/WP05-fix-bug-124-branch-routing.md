@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Fix Bug
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: main
 base_commit: e15a6b31500437333efc357888c680009d9b7b33
@@ -122,3 +122,4 @@ grep -r "git checkout" src/specify_cli/cli/commands/ | grep -v "\.pyc"
 - 2026-02-11T16:03:29Z – claude – shell_pid=45117 – lane=doing – Started review via workflow command
 - 2026-02-11T16:03:39Z – claude – shell_pid=45117 – lane=for_review – Moved to for_review
 - 2026-02-11T16:03:56Z – codex – shell_pid=45299 – lane=doing – Started review via workflow command
+- 2026-02-11T16:05:40Z – codex – shell_pid=45299 – lane=done – Review passed: branch routing fix verified, no auto-checkout regressions found
