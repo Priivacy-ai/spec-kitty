@@ -1,15 +1,15 @@
 ---
 work_package_id: WP07
 title: Fix Bug
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: e883745c9f9566a68f613dc2d690990b80620754
 created_at: '2026-02-11T15:22:42.803823+00:00'
 subtasks: [T045, T046, T047, T048, T049, T050, T051, T052, T053]
 phase: Phase 1 - Bug Fixes
-shell_pid: "1836"
-agent: "claude"
+shell_pid: "9267"
+agent: "codex"
 ---
 
 # Work Package Prompt: WP07 – Fix Bug #122 - Safe Commit Helper
@@ -88,3 +88,4 @@ grep -n "git.*commit" src/specify_cli/cli/commands/agent/*.py src/specify_cli/cl
 
 - 2026-02-11T15:22:42Z – claude – shell_pid=1836 – lane=doing – Assigned agent via workflow command
 - 2026-02-11T15:29:22Z – claude – shell_pid=1836 – lane=for_review – Ready for review: Safe commit helper implemented with 7 passing integration tests. All unsafe git commits replaced across 3 command files.
+- 2026-02-11T15:29:35Z – codex – shell_pid=9267 – lane=doing – Started review via workflow command
