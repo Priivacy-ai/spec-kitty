@@ -441,6 +441,36 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
         return False, "Dashboard metadata was invalid and has been cleared."
 
     if not _check_dashboard_health(port, project_dir_resolved, token):
+        # Health check failed - but process might still be alive (timeout scenario)
+        # Check if we have a PID and if it's alive
+        if pid is not None and _is_process_alive(pid):
+            # Process is alive but health check timed out - attempt PID-based shutdown
+            try:
+                proc = psutil.Process(pid)
+                proc.terminate()
+
+                # Wait up to 3 seconds for graceful shutdown
+                try:
+                    proc.wait(timeout=3.0)
+                    dashboard_file.unlink(missing_ok=True)
+                    return True, f"Dashboard stopped via process termination (PID {pid})."
+                except psutil.TimeoutExpired:
+                    # Force kill if graceful termination times out
+                    proc.kill()
+                    time.sleep(0.2)
+                    dashboard_file.unlink(missing_ok=True)
+                    return True, f"Dashboard force killed after graceful termination timeout (PID {pid})."
+
+            except psutil.NoSuchProcess:
+                # Process died between our check and termination attempt
+                dashboard_file.unlink(missing_ok=True)
+                return True, f"Dashboard was already dead (PID {pid})."
+            except psutil.AccessDenied:
+                return False, f"Permission denied to kill dashboard process (PID {pid})."
+            except Exception as e:
+                return False, f"Failed to stop dashboard process (PID {pid}): {e}"
+
+        # No PID or process not alive - dashboard is already stopped
         dashboard_file.unlink(missing_ok=True)
         return False, "Dashboard was already stopped. Metadata has been cleared."
 

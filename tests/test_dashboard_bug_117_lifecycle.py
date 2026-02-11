@@ -134,6 +134,61 @@ class TestKillAfterStartupFallback:
             # Message should indicate success (stopped, shutdown, or ended)
             assert any(word in message.lower() for word in ["stopped", "shutdown", "ended"])
 
+    def test_kill_with_health_timeout_but_process_alive(self, tmp_path: Path):
+        """Test T023 enhancement: --kill works when health times out but PID is alive.
+
+        This is the critical scenario where:
+        - Health check fails (timeout)
+        - But process is still running (PID is alive)
+        - --kill should use PID-based termination fallback
+        """
+        project_dir = tmp_path
+        kittify_dir = project_dir / ".kittify"
+        kittify_dir.mkdir()
+        dashboard_file = kittify_dir / ".dashboard"
+
+        mock_pid = 12345
+
+        # Simulate dashboard metadata with PID
+        dashboard_file.write_text(
+            "http://127.0.0.1:9237\n"
+            "9237\n"
+            "abc123token\n"
+            f"{mock_pid}\n"
+        )
+
+        with patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health, \
+             patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive, \
+             patch("specify_cli.dashboard.lifecycle.psutil.Process") as mock_proc:
+
+            # Health check fails (timeout scenario)
+            mock_health.return_value = False
+
+            # But process is still alive
+            mock_alive.return_value = True
+
+            # Mock process termination
+            mock_process_instance = MagicMock()
+            mock_proc.return_value = mock_process_instance
+            # Simulate graceful termination succeeds
+            mock_process_instance.wait.return_value = None
+
+            stopped, message = stop_dashboard(project_dir)
+
+            # Should successfully stop via PID
+            assert stopped is True
+
+            # Should have attempted process termination
+            mock_proc.assert_called_with(mock_pid)
+            mock_process_instance.terminate.assert_called_once()
+
+            # Message should indicate PID-based termination
+            assert "pid" in message.lower() or "process" in message.lower()
+            assert "12345" in message  # PID should be in message
+
+            # Metadata file should be cleaned up
+            assert not dashboard_file.exists()
+
 
 class TestDashboardLifecycleImprovement:
     """Integration tests for the overall lifecycle improvement."""
