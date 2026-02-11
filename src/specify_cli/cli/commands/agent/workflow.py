@@ -24,6 +24,7 @@ from specify_cli.core.feature_detection import (
     detect_feature_slug,
     FeatureDetectionError,
 )
+from specify_cli.core.vcs import get_vcs
 from specify_cli.mission import get_deliverables_path, get_feature_mission_key
 from specify_cli.tasks_support import (
     append_activity_log,
@@ -945,55 +946,23 @@ def review(
 
         # Ensure workspace exists (create if needed)
         if not workspace_path.exists():
-            import subprocess
-
             # Ensure .worktrees directory exists
             worktrees_dir = repo_root / ".worktrees"
             worktrees_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create worktree with sparse-checkout
-            branch_name = workspace_name
-            result = subprocess.run(
-                ["git", "worktree", "add", str(workspace_path), "-b", branch_name],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=False
+            # Create worktree using VCS layer (handles sparse-checkout + git/info/exclude)
+            vcs = get_vcs(repo_root)
+            create_result = vcs.create_workspace(
+                workspace_path=workspace_path,
+                workspace_name=workspace_name,
+                base_branch=target_branch,
+                repo_root=repo_root,
+                sparse_exclude=["kitty-specs/"],
             )
 
-            if result.returncode != 0:
-                print(f"Warning: Could not create workspace: {result.stderr}")
+            if not create_result.success:
+                print(f"Warning: Could not create workspace: {create_result.error}")
             else:
-                # Configure sparse-checkout to exclude kitty-specs/
-                sparse_checkout_result = subprocess.run(
-                    ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
-                    cwd=workspace_path,
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
-                if sparse_checkout_result.returncode == 0:
-                    sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
-                    subprocess.run(["git", "config", "core.sparseCheckout", "true"], cwd=workspace_path, capture_output=True, check=False)
-                    subprocess.run(["git", "config", "core.sparseCheckoutCone", "false"], cwd=workspace_path, capture_output=True, check=False)
-                    sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-                    sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
-                    subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
-
-                    # Add .gitignore to block WP status files but allow research artifacts
-                    gitignore_path = workspace_path / ".gitignore"
-                    gitignore_entry = "# Block WP status files (managed in planning branch, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
-                    if gitignore_path.exists():
-                        content = gitignore_path.read_text(encoding="utf-8")
-                        if "kitty-specs/**/tasks/*.md" not in content:
-                            # Remove old blanket rule if present
-                            if "kitty-specs/\n" in content:
-                                content = content.replace("# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n", "")
-                                content = content.replace("kitty-specs/\n", "")
-                            gitignore_path.write_text(content.rstrip() + "\n" + gitignore_entry, encoding="utf-8")
-                    else:
-                        gitignore_path.write_text(gitignore_entry, encoding="utf-8")
-
                 print(f"✓ Created workspace: {workspace_path}")
 
         # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
