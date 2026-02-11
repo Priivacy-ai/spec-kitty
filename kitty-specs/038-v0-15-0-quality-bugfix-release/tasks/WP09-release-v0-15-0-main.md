@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Release v0.15.0 on Main
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: main
 subtasks: [T064, T065, T066, T067, T068, T069, T070, T071]
@@ -92,3 +92,4 @@ git push origin v0.15.0
 ## Activity Log
 
 - 2026-02-11T16:42:21Z – unknown – lane=doing – Moved to doing
+- 2026-02-11T17:00:16Z – unknown – lane=for_review – Moved to for_review
