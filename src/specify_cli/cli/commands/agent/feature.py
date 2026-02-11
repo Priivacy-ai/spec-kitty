@@ -22,7 +22,12 @@ from specify_cli.core.dependency_graph import (
     detect_cycles,
     validate_dependencies,
 )
-from specify_cli.core.git_ops import get_current_branch, is_git_repo, run_command
+from specify_cli.core.git_ops import (
+    get_current_branch,
+    is_git_repo,
+    run_command,
+    resolve_target_branch,
+)
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.core.feature_detection import (
     detect_feature_directory,
@@ -59,22 +64,26 @@ def _resolve_primary_branch(repo_root: Path) -> str:
 
 
 def _resolve_planning_branch(repo_root: Path, feature_dir: Path | None = None) -> str:
-    """Resolve the planning branch for a feature (target_branch if set, else current branch)."""
+    """Resolve the planning branch for a feature using unified branch resolution.
+
+    This function wraps resolve_target_branch() to maintain backward compatibility
+    while using the unified Bug #124 fix for branch routing.
+    """
     current_branch = get_current_branch(repo_root) or "main"
     if feature_dir is None:
         return current_branch
 
-    meta_file = feature_dir / "meta.json"
-    if not meta_file.exists():
-        return current_branch
+    # Use unified resolve_target_branch() from Bug #124 fix
+    feature_slug = feature_dir.name
+    resolution = resolve_target_branch(
+        feature_slug=feature_slug,
+        repo_path=repo_root,
+        current_branch=current_branch,
+        respect_current=True,
+    )
 
-    try:
-        meta = json.loads(meta_file.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return current_branch
-
-    target_branch = meta.get("target_branch")
-    return target_branch or current_branch
+    # Return target branch (the branch feature should target)
+    return resolution.target
 
 
 def _ensure_branch_checked_out(

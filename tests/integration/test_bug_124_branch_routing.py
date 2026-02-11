@@ -283,5 +283,126 @@ def test_notification_when_current_differs_from_target(tmp_path):
         "No branch notification in output"
 
 
+def test_finalize_tasks_respects_current_branch(tmp_path):
+    """Test that finalize-tasks commits to current branch, not auto-switched to main.
+
+    Validates:
+    - User is on 'feature/planning' branch
+    - Feature targets 'main'
+    - finalize-tasks command commits to current branch (not main)
+    - User stays on 'feature/planning' after command
+    """
+    import yaml
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    # Initialize git
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, check=True, capture_output=True)
+
+    # Initial commit
+    (repo / "README.md").write_text("# Test\n")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "Initial"], cwd=repo, check=True, capture_output=True)
+
+    # Create .kittify
+    kittify = repo / ".kittify"
+    kittify.mkdir(exist_ok=True)
+    (kittify / "config.yaml").write_text(yaml.dump({"vcs": {"type": "git"}, "agents": {"available": ["claude"]}}))
+    (kittify / "metadata.yaml").write_text(yaml.dump({"spec_kitty": {"version": "0.15.0"}}))
+
+    # Create feature targeting main
+    feature_dir = repo / "kitty-specs" / "005-test-feature"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    meta = {
+        "feature_number": "005",
+        "slug": "005-test-feature",
+        "target_branch": "main",
+        "vcs": "git",
+        "created_at": "2026-02-11T00:00:00Z",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
+
+    # Create tasks.md with dependencies
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n"
+        "## Work Package WP01 - Setup\n\n"
+        "Depends on: none\n\n"
+        "## Work Package WP02 - Implementation\n\n"
+        "Depends on WP01\n"
+    )
+
+    # Create WP files
+    (tasks_dir / "WP01-setup.md").write_text(
+        "---\n"
+        "work_package_id: WP01\n"
+        "lane: planned\n"
+        "---\n\n"
+        "# WP01\n"
+    )
+    (tasks_dir / "WP02-impl.md").write_text(
+        "---\n"
+        "work_package_id: WP02\n"
+        "lane: planned\n"
+        "---\n\n"
+        "# WP02\n"
+    )
+
+    # Commit on main
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "Add 005-test-feature"], cwd=repo, check=True, capture_output=True)
+
+    # Create and switch to planning branch
+    subprocess.run(["git", "checkout", "-b", "feature/planning"], cwd=repo, check=True, capture_output=True)
+
+    # Verify we're on planning branch
+    assert get_current_branch(repo) == "feature/planning"
+
+    # Get commit count before finalize
+    result = subprocess.run(
+        ["git", "rev-list", "--count", "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    commits_before = int(result.stdout.strip())
+
+    # Run finalize-tasks command
+    result = run_cli(repo, "agent", "feature", "finalize-tasks", "--json")
+
+    # Should succeed
+    assert result.returncode == 0, f"finalize-tasks failed: {result.stderr}"
+
+    # User should still be on planning branch (no auto-checkout)
+    assert get_current_branch(repo) == "feature/planning", "Command auto-switched branch unexpectedly"
+
+    # Verify commit landed on planning branch (not main)
+    result = subprocess.run(
+        ["git", "rev-list", "--count", "feature/planning"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    commits_after = int(result.stdout.strip())
+    assert commits_after == commits_before + 1, "Finalize commit not on feature/planning branch"
+
+    # Verify main hasn't changed (still at original commit count)
+    result = subprocess.run(
+        ["git", "rev-list", "--count", "main"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    main_commits = int(result.stdout.strip())
+    assert main_commits == commits_before, "Commit incorrectly landed on main"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
