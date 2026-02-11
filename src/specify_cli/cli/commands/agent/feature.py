@@ -235,6 +235,27 @@ def create_feature(
     Examples:
         spec-kitty agent create-feature "new-dashboard" --json
     """
+    # Validate kebab-case format early (before any operations)
+    KEBAB_CASE_PATTERN = r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+    if not re.match(KEBAB_CASE_PATTERN, feature_slug):
+        error_msg = (
+            f"Invalid feature slug '{feature_slug}'. "
+            "Must be kebab-case (lowercase letters, numbers, hyphens only)."
+            "\n\nValid examples:"
+            "\n  - user-auth"
+            "\n  - fix-bug-123"
+            "\n  - new-dashboard"
+            "\n\nInvalid examples:"
+            "\n  - User-Auth (uppercase)"
+            "\n  - user_auth (underscores)"
+            "\n  - 123-fix (starts with number)"
+        )
+        if json_output:
+            console.print(json.dumps({"error": error_msg}))
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1)
+
     try:
         # GUARD: Refuse to run from inside a worktree (must be in planning repo)
         cwd = Path.cwd().resolve()
