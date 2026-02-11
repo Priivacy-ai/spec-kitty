@@ -35,7 +35,8 @@ class TestProcessDetectionWithHealthTimeout:
              patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health, \
              patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive, \
              patch("specify_cli.dashboard.lifecycle._write_dashboard_file") as mock_write, \
-             patch("specify_cli.dashboard.lifecycle.psutil.Process") as mock_proc:
+             patch("specify_cli.dashboard.lifecycle.psutil.Process") as mock_proc, \
+             patch("specify_cli.dashboard.lifecycle.time.sleep"):  # Mock sleep to avoid 20s delay!
 
             # Setup: Process starts successfully
             mock_start.return_value = (mock_port, mock_pid)
@@ -117,10 +118,12 @@ class TestKillAfterStartupFallback:
 
         with patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health, \
              patch("specify_cli.dashboard.lifecycle.urllib.request.urlopen") as mock_urlopen, \
-             patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive:
+             patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive, \
+             patch("specify_cli.dashboard.lifecycle.time.sleep"):  # Mock sleep to avoid delays!
 
-            # Dashboard is healthy for stop check
-            mock_health.return_value = True
+            # Dashboard is healthy initially, then becomes unhealthy after shutdown
+            # This prevents the 5-second timeout loop in stop_dashboard
+            mock_health.side_effect = [True, False]
             mock_alive.return_value = True
 
             # Simulate successful shutdown
@@ -205,13 +208,18 @@ class TestDashboardLifecycleImprovement:
         with patch("specify_cli.dashboard.lifecycle.start_dashboard") as mock_start, \
              patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health, \
              patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive, \
-             patch("specify_cli.dashboard.lifecycle.psutil.Process") as mock_proc:
+             patch("specify_cli.dashboard.lifecycle.psutil.Process") as mock_proc, \
+             patch("specify_cli.dashboard.lifecycle.time.sleep"), \
+             patch("specify_cli.dashboard.lifecycle._is_spec_kitty_dashboard") as mock_spec_kitty:
 
             mock_start.return_value = (mock_port, mock_pid)
             mock_health.return_value = False
 
             # Process is actually dead
             mock_alive.return_value = False
+
+            # Not a spec-kitty dashboard orphan (to avoid retry logic)
+            mock_spec_kitty.return_value = False
 
             # Should still raise RuntimeError for truly failed startup
             with pytest.raises(RuntimeError) as exc_info:
