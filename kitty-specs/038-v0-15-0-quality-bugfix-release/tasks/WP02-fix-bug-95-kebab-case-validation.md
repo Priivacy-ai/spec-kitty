@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Fix Bug
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: 12d8126acbf7c4f1b5888b071a665c65dadc7e7f
@@ -410,3 +410,4 @@ history:
 - 2026-02-11T14:31:29Z – claude – lane=for_review – Moved to for_review
 - 2026-02-11T15:02:49Z – codex – shell_pid=93817 – lane=doing – Started review via workflow command
 - 2026-02-11T15:20:41Z – codex – shell_pid=93817 – lane=planned – Moved to planned
+- 2026-02-11T15:27:42Z – codex – shell_pid=1724 – lane=for_review – Ready for review: Kebab-case validation implemented with 5 passing tests. Invalid slugs (spaces, underscores, uppercase, leading numbers) are now rejected with helpful error messages.
