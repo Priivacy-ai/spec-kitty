@@ -7,6 +7,26 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-02-11
+
+### 🐛 Fixed
+
+- **#95 - Kebab-case validation**: Feature slugs now validated before creation - prevents creation of invalid feature directories with uppercase/underscores/spaces. Enforces kebab-case format (lowercase, hyphens only) at the point of feature creation, with clear error messages guiding users to valid names.
+- **#120 - Gitignore isolation**: Worktree-specific ignores now use `.git/info/exclude` instead of `.gitignore` - prevents cross-contamination when multiple worktrees share the same main repository. Each worktree can have isolated ignore rules without affecting other workspaces.
+- **#117 - Dashboard false-failure**: Accurate process detection with robust PID validation - fixes false "no agent process found" errors. New `is_process_alive()` helper uses `psutil` for cross-platform reliability and handles stale PIDs gracefully.
+- **#124 - Branch routing unification**: Unified branch resolution with no implicit `master` fallback - all branch routing now uses a single `resolve_target_branch()` function. Prevents silent fallback to `master` when target branch is not found, failing fast with actionable errors instead.
+- **#119 - Assignee relaxation**: Optional assignee for done work packages - removes the requirement for `assignee` field in WP frontmatter when WP is in `done` lane. Completed work no longer needs to track who did it.
+- **#122 - Safe commit helper**: Preserve staging area during automated commits - new `safe_commit()` helper stages only the files it needs without clearing pre-existing staged changes. Prevents accidental loss of user's staging state during spec-kitty operations.
+- **#123 - Atomic state transitions**: Lane transitions happen before status file writes - ensures WP frontmatter updates are atomic and consistent. When lane changes fail (e.g., validation errors), the status board is never touched, preventing partial state.
+
+### ✅ Added
+
+- 54+ comprehensive tests for all bug fixes
+- Safe commit helper (`git/commit_helpers.py`)
+- Unified branch resolution (`git/branch_utils.py`)
+- Enhanced process detection utilities (`dashboard/process_utils.py`)
+- Robust validation for feature slug format
+
 ## [0.14.2] - 2026-02-07
 
 ### 🐛 Fixed
