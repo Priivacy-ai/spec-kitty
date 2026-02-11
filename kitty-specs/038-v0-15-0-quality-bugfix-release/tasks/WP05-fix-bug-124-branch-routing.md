@@ -8,8 +8,10 @@ base_commit: e15a6b31500437333efc357888c680009d9b7b33
 created_at: '2026-02-11T15:22:44.639976+00:00'
 subtasks: [T029, T030, T031, T032, T033, T034, T035, T036, T037, T038]
 phase: Phase 1 - Bug Fixes
-shell_pid: "38006"
-agent: "codex"
+shell_pid: "45117"
+agent: "claude"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 ---
 
 # Work Package Prompt: WP05 – Fix Bug #124 - Branch Routing Unification
@@ -116,3 +118,5 @@ grep -r "git checkout" src/specify_cli/cli/commands/ | grep -v "\.pyc"
 - 2026-02-11T15:29:12Z – codex – shell_pid=8729 – lane=doing – Started review via workflow command
 - 2026-02-11T15:53:48Z – codex – shell_pid=8729 – lane=for_review – Ready for review: Added comprehensive unit test coverage for Bug #124 branch resolution. All 21 tests passing (5 new unit tests + 4 integration tests + 12 existing). Implementation was already complete, this WP adds test coverage and documentation.
 - 2026-02-11T15:54:04Z – codex – shell_pid=38006 – lane=doing – Started review via workflow command
+- 2026-02-11T15:56:41Z – codex – shell_pid=38006 – lane=planned – Moved to planned
+- 2026-02-11T16:03:29Z – claude – shell_pid=45117 – lane=doing – Started review via workflow command
