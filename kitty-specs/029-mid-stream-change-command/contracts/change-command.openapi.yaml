@@ -1,0 +1,376 @@
+openapi: 3.1.0
+info:
+  title: Spec Kitty Change Command Contract
+  version: 0.2.0
+  description: Deterministic contract for /spec-kitty.change preview, apply, stack selection, and reconciliation.
+
+paths:
+  /change-requests/preview:
+    post:
+      summary: Validate and classify a change request before write operations
+      operationId: previewChangeRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePreviewRequest'
+      responses:
+        '200':
+          description: Preview result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangePreviewResponse'
+        '400':
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /change-requests/apply:
+    post:
+      summary: Apply a validated change request and create change work packages
+      operationId: applyChangeRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeApplyRequest'
+      responses:
+        '200':
+          description: Change work created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeApplyResponse'
+        '409':
+          description: Blocked by ambiguity or dependency validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /change-stack/{stashKey}/next:
+    get:
+      summary: Resolve next doable WP with change-stack priority
+      operationId: getNextDoableWorkPackage
+      parameters:
+        - name: stashKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Selection result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NextDoableResponse'
+
+  /change-stack/{stashKey}/reconcile:
+    post:
+      summary: Recompute links, dependencies, and merge coordination jobs
+      operationId: reconcileChangeStack
+      parameters:
+        - name: stashKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconcileRequest'
+      responses:
+        '200':
+          description: Reconciliation report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconcileResponse'
+
+components:
+  schemas:
+    ChangePreviewRequest:
+      type: object
+      required:
+        - requestText
+        - branchName
+        - submittedBy
+      properties:
+        requestText:
+          type: string
+          minLength: 1
+        branchName:
+          type: string
+        submittedBy:
+          type: string
+        featureSlug:
+          type: string
+          nullable: true
+
+    ComplexityAssessment:
+      type: object
+      required:
+        - scopeBreadthScore
+        - couplingScore
+        - dependencyChurnScore
+        - ambiguityScore
+        - integrationRiskScore
+        - totalScore
+        - classification
+        - recommendSpecify
+      properties:
+        scopeBreadthScore:
+          type: integer
+          minimum: 0
+          maximum: 3
+        couplingScore:
+          type: integer
+          minimum: 0
+          maximum: 2
+        dependencyChurnScore:
+          type: integer
+          minimum: 0
+          maximum: 2
+        ambiguityScore:
+          type: integer
+          minimum: 0
+          maximum: 2
+        integrationRiskScore:
+          type: integer
+          minimum: 0
+          maximum: 1
+        totalScore:
+          type: integer
+          minimum: 0
+          maximum: 10
+        classification:
+          type: string
+          enum: [simple, complex, high]
+        recommendSpecify:
+          type: boolean
+
+    ChangePreviewResponse:
+      type: object
+      required:
+        - requestId
+        - stashKey
+        - stashScope
+        - stashPath
+        - validationState
+        - complexity
+        - proposedMode
+        - warningRequired
+        - requiresClarification
+      properties:
+        requestId:
+          type: string
+        stashKey:
+          type: string
+        stashScope:
+          type: string
+          enum: [main, feature]
+        stashPath:
+          type: string
+        validationState:
+          type: string
+          enum: [valid, ambiguous, blocked]
+        complexity:
+          $ref: '#/components/schemas/ComplexityAssessment'
+        proposedMode:
+          type: string
+          enum: [single_wp, orchestration, targeted_multi]
+        warningRequired:
+          type: boolean
+        warningMessage:
+          type: string
+          nullable: true
+        requiresClarification:
+          type: boolean
+        clarificationPrompt:
+          type: string
+          nullable: true
+
+    ChangeApplyRequest:
+      type: object
+      required:
+        - requestId
+        - continueAfterWarning
+        - confirmUnambiguous
+      properties:
+        requestId:
+          type: string
+        continueAfterWarning:
+          type: boolean
+        confirmUnambiguous:
+          type: boolean
+        overrideMode:
+          type: string
+          enum: [single_wp, orchestration, targeted_multi]
+          nullable: true
+
+    ChangeWorkPackage:
+      type: object
+      required:
+        - workPackageId
+        - title
+        - dependencies
+        - stackRank
+        - reviewAttention
+      properties:
+        workPackageId:
+          type: string
+          pattern: '^WP\\d{2}$'
+        title:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+            pattern: '^WP\\d{2}$'
+        stackRank:
+          type: integer
+          minimum: 1
+        reviewAttention:
+          type: string
+          enum: [normal, elevated]
+        finalTestTaskIncluded:
+          type: boolean
+
+    MergeCoordinationJob:
+      type: object
+      required:
+        - jobId
+        - targetWorkPackages
+        - reason
+      properties:
+        jobId:
+          type: string
+        targetWorkPackages:
+          type: array
+          items:
+            type: string
+            pattern: '^WP\\d{2}$'
+        reason:
+          type: string
+
+    ChangeApplyResponse:
+      type: object
+      required:
+        - requestId
+        - createdWorkPackages
+        - closedReferenceLinks
+        - mergeCoordinationJobs
+        - consistency
+      properties:
+        requestId:
+          type: string
+        createdWorkPackages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeWorkPackage'
+        closedReferenceLinks:
+          type: array
+          items:
+            type: object
+            required: [fromWorkPackageId, referencedClosedWorkPackageId]
+            properties:
+              fromWorkPackageId:
+                type: string
+                pattern: '^WP\\d{2}$'
+              referencedClosedWorkPackageId:
+                type: string
+                pattern: '^WP\\d{2}$'
+        mergeCoordinationJobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MergeCoordinationJob'
+        consistency:
+          $ref: '#/components/schemas/ConsistencyReport'
+
+    NextDoableResponse:
+      type: object
+      required:
+        - stashKey
+        - selectedSource
+        - normalProgressionBlocked
+      properties:
+        stashKey:
+          type: string
+        selectedSource:
+          type: string
+          enum: [change_stack, normal_backlog, blocked]
+        nextWorkPackageId:
+          type: string
+          nullable: true
+          pattern: '^WP\\d{2}$'
+        normalProgressionBlocked:
+          type: boolean
+        blockers:
+          type: array
+          items:
+            type: string
+
+    ReconcileRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+          nullable: true
+        recomputeMergeJobs:
+          type: boolean
+          default: true
+
+    ConsistencyReport:
+      type: object
+      required:
+        - updatedTasksDoc
+        - dependencyValidationPassed
+        - brokenLinksFixed
+        - issues
+      properties:
+        updatedTasksDoc:
+          type: boolean
+        dependencyValidationPassed:
+          type: boolean
+        brokenLinksFixed:
+          type: integer
+          minimum: 0
+        issues:
+          type: array
+          items:
+            type: string
+
+    ReconcileResponse:
+      type: object
+      required:
+        - stashKey
+        - consistency
+        - mergeCoordinationJobs
+      properties:
+        stashKey:
+          type: string
+        consistency:
+          $ref: '#/components/schemas/ConsistencyReport'
+        mergeCoordinationJobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MergeCoordinationJob'
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
