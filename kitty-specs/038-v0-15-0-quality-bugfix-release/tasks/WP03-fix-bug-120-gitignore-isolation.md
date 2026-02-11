@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Fix Bug
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: bd77b51d6a1419367d96f77d584595f472b16276
@@ -58,3 +58,4 @@ agent: "claude-sonnet-4.5"
 - 2026-02-11T15:59:09Z – codex – shell_pid=42147 – lane=doing – Started review via workflow command
 - 2026-02-11T16:20:37Z – codex – shell_pid=42147 – lane=planned – Moved to planned
 - 2026-02-11T16:20:42Z – claude-sonnet-4.5 – shell_pid=47867 – lane=doing – Started implementation via workflow command
+- 2026-02-11T16:21:19Z – claude-sonnet-4.5 – shell_pid=47867 – lane=for_review – Ready for review: All 3 integration tests passing, sparse-checkout logic consolidated, rebased on main
