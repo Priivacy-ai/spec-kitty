@@ -1,15 +1,15 @@
 ---
 work_package_id: WP04
 title: Fix Bug
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: 3ae4069aee1f86fe87f26e486b67e0f0521a13e5
 created_at: '2026-02-11T15:22:37.846898+00:00'
 subtasks: [T020, T021, T022, T023, T024, T025, T026, T027, T028]
 phase: Phase 1 - Bug Fixes
-shell_pid: "5113"
-agent: "claude-sonnet-4.5"
+shell_pid: "16312"
+agent: "codex"
 ---
 
 # Work Package Prompt: WP04 – Fix Bug #117 - Dashboard False-Failure Detection
@@ -95,3 +95,4 @@ except OSError as e:
 - 2026-02-11T15:20:53Z – unknown – lane=planned – Moved to planned
 - 2026-02-11T15:25:56Z – claude-sonnet-4.5 – shell_pid=5113 – lane=doing – Assigned agent via workflow command
 - 2026-02-11T15:37:05Z – claude-sonnet-4.5 – shell_pid=5113 – lane=for_review – Ready for review: Fixed Bug #117 - Dashboard false-failure detection. Process detection added before declaring startup failure. Specific error messages for common failure modes. 5 new tests, all passing. No regressions.
+- 2026-02-11T15:37:20Z – codex – shell_pid=16312 – lane=doing – Started review via workflow command
