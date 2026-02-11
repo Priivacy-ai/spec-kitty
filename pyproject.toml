@@ -61,6 +61,7 @@ dependencies = [
     "packaging>=23.0",
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
     "python-ulid>=1.1.0",  # For spec_kitty_events (vendored)
+    "spec-kitty-events==0.4.0a0",
 ]
 
 [project.urls]
