@@ -1,9 +1,11 @@
 ---
 work_package_id: WP01
 title: Setup Milestone and Tracking
-lane: "planned"
+lane: "doing"
 dependencies: []
 base_branch: main
+base_commit: 2570020bdd7daa33cc2cf971cb750188db2910d6
+created_at: '2026-02-11T15:22:31.095923+00:00'
 subtasks:
 - T001
 - T002
@@ -11,10 +13,10 @@ subtasks:
 - T004
 phase: Phase 0 - Setup
 assignee: ''
-agent: "codex"
-review_status: "has_feedback"
-shell_pid: "90336"
-reviewed_by: "Robert Douglass"
+agent: codex
+shell_pid: "1489"
+review_status: has_feedback
+reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-11T14:45:00Z'
   lane: planned
