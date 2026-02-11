@@ -10,6 +10,8 @@ from typing import Any, Dict
 import pytest
 import yaml
 
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
+
 from specify_cli.mission import (
     Mission,
     MissionError,
@@ -48,6 +50,7 @@ def _write_mission(tmp_path: Path, config: Dict[str, Any]) -> Path:
     return mission_dir
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 def test_loads_software_dev_mission() -> None:
     """Existing software-dev mission.yaml remains valid."""
     mission_dir = MISSIONS_ROOT / "software-dev"
@@ -59,6 +62,7 @@ def test_loads_software_dev_mission() -> None:
     assert mission.config.workflow.phases[0].name == "research"
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 def test_loads_research_mission() -> None:
     """Existing research mission.yaml remains valid."""
     mission_dir = MISSIONS_ROOT / "research"

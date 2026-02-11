@@ -1,4 +1,8 @@
-"""Tests for workflow auto lane transitions."""
+"""Tests for workflow auto lane transitions.
+
+These tests exercise 0.x-era workflow auto-move behavior. On 2.x,
+workflow.implement/review requires git context via _ensure_target_branch_checked_out.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +14,9 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
+
+pytestmark = pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 
 
 def write_tasks_md(feature_dir: Path, wp_id: str, subtasks: list[str], done: bool = True) -> None:

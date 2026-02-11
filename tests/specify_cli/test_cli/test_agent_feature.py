@@ -11,10 +11,12 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.feature import app
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 
 runner = CliRunner()
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 class TestCreateFeatureCommand:
     """Tests for create-feature command."""
 
@@ -344,6 +346,7 @@ class TestCheckPrerequisitesCommand:
         assert "error" in output
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""
 

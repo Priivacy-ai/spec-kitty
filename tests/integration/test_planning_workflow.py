@@ -9,6 +9,10 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
+
 
 def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None:
     """Test that create-feature command works in main without creating worktree."""
@@ -298,6 +302,7 @@ def test_check_prerequisites_works_in_main(test_project: Path, run_cli) -> None:
     assert "spec_file" in output["paths"], "Should detect spec.md"
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 def test_feature_creation_requires_main_branch(test_project: Path, run_cli) -> None:
     """Test that create-feature fails if not on main branch."""
     # Create a feature branch

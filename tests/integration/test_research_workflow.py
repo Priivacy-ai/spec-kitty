@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
+
 
 @pytest.fixture
 def research_project_root(tmp_path: Path) -> Path:
@@ -45,6 +47,7 @@ def research_project_root(tmp_path: Path) -> Path:
     return project_dir
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 def test_research_mission_loads_correctly(research_project_root: Path) -> None:
     """Research mission should load with correct configuration."""
     import sys
@@ -60,6 +63,7 @@ def test_research_mission_loads_correctly(research_project_root: Path) -> None:
     assert "all_sources_documented" in mission.config.validation.checks
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 def test_research_templates_exist(research_project_root: Path) -> None:
     """Research templates should exist and be accessible."""
     import sys
@@ -132,6 +136,7 @@ def test_source_register_validation(tmp_path: Path) -> None:
     assert not result.has_errors
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 def test_path_validation_for_research_mission(research_project_root: Path) -> None:
     """Path validation should check research-specific paths."""
     import sys

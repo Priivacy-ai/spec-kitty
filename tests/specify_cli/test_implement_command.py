@@ -242,8 +242,13 @@ class TestImplementCommand:
         # Setup
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
         create_meta_json(feature_dir)
-        wp_file = feature_dir / "tasks" / "WP02-feature.md"
-        wp_file.parent.mkdir(parents=True)
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        # Create WP01 file (base dependency)
+        (tasks_dir / "WP01-setup.md").write_text(
+            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
+        )
+        wp_file = tasks_dir / "WP02-feature.md"
         wp_file.write_text(
             '---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02'
         )
@@ -587,8 +592,13 @@ class TestVCSAbstraction:
         # Setup
         feature_dir = tmp_path / "kitty-specs" / "015-feature"
         create_meta_json(feature_dir, vcs=backend)
-        wp_file = feature_dir / "tasks" / "WP02-setup.md"
-        wp_file.parent.mkdir(parents=True)
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        # Create WP01 file (base dependency)
+        (tasks_dir / "WP01-setup.md").write_text(
+            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
+        )
+        wp_file = tasks_dir / "WP02-setup.md"
         wp_file.write_text(
             '---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02'
         )

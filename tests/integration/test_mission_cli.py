@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
-"""Integration tests for spec-kitty mission CLI commands."""
+"""Integration tests for spec-kitty mission CLI commands.
+
+These tests use the 0.x MissionConfig schema which expects traditional
+mission.yaml format. On 2.x, mission files use the v1 State Machine DSL
+format (from feature 037) which MissionConfig cannot parse.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
+
+import pytest
+
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
+
+pytestmark = pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 
 
 def test_mission_list_shows_available_missions(clean_project: Path, run_cli) -> None:

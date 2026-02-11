@@ -168,7 +168,7 @@ class TestCreateFeatureIntegration:
         result = runner.invoke(app, ["create-feature", "second-feature", "--json"])
         assert result.exit_code != 0
         error_output = result.stdout + result.stderr
-        assert "main branch" in error_output.lower()
+        assert "worktree" in error_output.lower()
 
 
 class TestCheckPrerequisitesIntegration:

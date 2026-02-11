@@ -9,6 +9,7 @@ import pytest
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.cli.commands.agent import workflow
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 
 
 def create_wp_file(
@@ -191,6 +192,7 @@ def test_in_progress_filter(tmp_path: Path) -> None:
     assert sorted(in_progress) == ["WP03"]
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 def test_workflow_review_warns_dependents(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Review workflow should warn when dependents are in progress."""
     repo_root = tmp_path

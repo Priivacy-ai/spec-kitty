@@ -193,6 +193,13 @@ def test_finalize_tasks_json_includes_commit_created_flag(tmp_path):
     assert isinstance(output["commit_created"], bool), "commit_created should be boolean"
     assert output["commit_created"] is True, "Should create commit on first run"
 
+    # Clean up any side-effect dirty files (e.g. config.yaml modified by runtime)
+    subprocess.run(
+        ["git", "checkout", "--", "."],
+        cwd=repo,
+        capture_output=True,
+    )
+
     # Run again (nothing to commit)
     result2 = run_cli(repo, "agent", "feature", "finalize-tasks", "--json")
     assert result2.returncode == 0

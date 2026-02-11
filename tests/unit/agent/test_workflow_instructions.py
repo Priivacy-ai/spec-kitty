@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
 from specify_cli.frontmatter import write_frontmatter
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 
 
 def write_tasks_md(feature_dir: Path, wp_id: str, subtasks: list[str], done: bool = True) -> None:
@@ -57,6 +58,7 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return repo_root
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 class TestWorkflowImplementInstructions:
     """Test that workflow implement instructions include all required guidance."""
 

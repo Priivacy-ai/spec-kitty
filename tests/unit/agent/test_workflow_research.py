@@ -1,4 +1,8 @@
-"""Unit tests for research mission workflow commands."""
+"""Unit tests for research mission workflow commands.
+
+These tests exercise 0.x-era workflow behavior. On 2.x,
+workflow.implement/review requires git context via _ensure_target_branch_checked_out.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +14,9 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.workflow import app
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
+
+pytestmark = pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 
 runner = CliRunner()
 

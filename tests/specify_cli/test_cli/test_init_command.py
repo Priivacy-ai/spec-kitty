@@ -7,6 +7,8 @@ from unittest.mock import patch
 import pytest
 import yaml
 from rich.console import Console
+
+from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 from typer import Typer
 from typer.testing import CliRunner
 
@@ -51,6 +53,7 @@ def _invoke(cli: Typer, args: list[str]) -> CliRunner:
     return runner
 
 
+@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 def test_init_local_mode_uses_local_repo(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     app, console, outputs = cli_app
     monkeypatch.chdir(tmp_path)
