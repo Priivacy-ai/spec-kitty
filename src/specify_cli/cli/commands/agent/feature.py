@@ -82,52 +82,25 @@ def _ensure_branch_checked_out(
     target_branch: str,
     json_output: bool = False,
 ) -> None:
-    """Ensure the planning repo is checked out to the target branch."""
+    """Check branch context without auto-checkout (respects user's current branch).
+
+    Shows notification if current branch differs from target branch.
+    Does NOT perform git checkout.
+    """
     current_branch = get_current_branch(repo_root)
     if current_branch is None:
         raise RuntimeError("Not in a git repository")
     if current_branch == "HEAD":
         raise RuntimeError("Planning repo is in detached HEAD state; checkout a branch before continuing")
 
-    if current_branch == target_branch:
-        return
-
-    if target_branch not in ["main", "master"]:
-        branch_exists_result = subprocess.run(
-            ["git", "rev-parse", "--verify", target_branch],
-            cwd=repo_root,
-            capture_output=True,
-            check=False,
-        )
-        if branch_exists_result.returncode != 0:
-            primary_branch = _resolve_primary_branch(repo_root)
-            create_result = subprocess.run(
-                ["git", "branch", target_branch, primary_branch],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=False,
+    # If branches differ, show notification (no auto-checkout)
+    if current_branch != target_branch:
+        if not json_output:
+            console.print(
+                f"[yellow]Note:[/yellow] You are on '{current_branch}', "
+                f"feature targets '{target_branch}'. "
+                f"Operations will use '{current_branch}'."
             )
-            if create_result.returncode != 0:
-                raise RuntimeError(
-                    f"Could not create target branch '{target_branch}': {create_result.stderr or create_result.stdout}"
-                )
-            if not json_output:
-                console.print(f"[green]✓[/green] Created target branch: {target_branch} from {primary_branch}")
-
-    checkout_result = subprocess.run(
-        ["git", "checkout", target_branch],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if checkout_result.returncode != 0:
-        raise RuntimeError(
-            f"Could not checkout target branch '{target_branch}': {checkout_result.stderr or checkout_result.stdout}"
-        )
-    if not json_output:
-        console.print(f"[cyan]→ Using {target_branch} as planning branch[/cyan]")
 
 
 def _commit_to_branch(
@@ -138,29 +111,25 @@ def _commit_to_branch(
     target_branch: str,
     json_output: bool = False,
 ) -> None:
-    """Commit planning artifact to target branch.
+    """Commit planning artifact to current branch (respects user context).
 
     Args:
         file_path: Path to file being committed
         feature_slug: Feature slug (e.g., "001-my-feature")
         artifact_type: Type of artifact ("spec", "plan", "tasks")
         repo_root: Repository root path (ensures commits go to planning repo, not worktree)
-        target_branch: Branch to commit planning artifacts to
+        target_branch: Branch feature targets (for informational messages only)
         json_output: If True, suppress Rich console output
 
     Raises:
         subprocess.CalledProcessError: If commit fails unexpectedly
-        typer.Exit: If not on target branch
     """
     try:
         current_branch = get_current_branch(repo_root)
-        if current_branch != target_branch:
-            error_msg = f"Planning artifacts must be committed to {target_branch} (currently on: {current_branch})"
-            if not json_output:
-                console.print(f"[red]Error:[/red] {error_msg}")
-                console.print(f"[yellow]Switch to target branch:[/yellow] cd {repo_root} && git checkout {target_branch}")
-            raise RuntimeError(error_msg)
+        if current_branch is None:
+            raise RuntimeError("Not in a git repository")
 
+        # Commit to current branch (no checkout required)
         # Add file to staging (run from repo root to ensure planning repo, not worktree)
         run_command(["git", "add", str(file_path)], check_return=True, capture=True, cwd=repo_root)
 
@@ -174,7 +143,7 @@ def _commit_to_branch(
         )
 
         if not json_output:
-            console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {target_branch}")
+            console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {current_branch}")
 
     except subprocess.CalledProcessError as e:
         # Check if it's just "nothing to commit" (benign)
