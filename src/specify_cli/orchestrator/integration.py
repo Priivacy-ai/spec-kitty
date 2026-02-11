@@ -450,15 +450,15 @@ async def process_wp_implementation(
     wp = state.work_packages[wp_id]
     feature_slug = feature_dir.name
 
-    # Update state
+    # Transition lane FIRST (atomic)
+    await transition_wp_lane(wp, "start_implementation", repo_root)
+
+    # THEN update state
     wp.status = WPStatus.IMPLEMENTATION
     wp.implementation_agent = agent_id
     wp.implementation_started = datetime.now(timezone.utc)
     state.total_agent_invocations += 1
     save_state(state, repo_root)
-
-    # Update lane
-    await transition_wp_lane(wp, "start_implementation", repo_root)
 
     logger.info(f"Starting implementation of {wp_id} with {agent_id}")
 
@@ -688,15 +688,15 @@ async def process_wp_review(
     wp = state.work_packages[wp_id]
     feature_slug = feature_dir.name
 
-    # Update state
+    # Transition lane FIRST (atomic)
+    await transition_wp_lane(wp, "complete_implementation", repo_root)
+
+    # THEN update state
     wp.status = WPStatus.REVIEW
     wp.review_agent = agent_id
     wp.review_started = datetime.now(timezone.utc)
     state.total_agent_invocations += 1
     save_state(state, repo_root)
-
-    # Update lane
-    await transition_wp_lane(wp, "complete_implementation", repo_root)
 
     logger.info(f"Starting review of {wp_id} with {agent_id}")
 
@@ -853,10 +853,12 @@ async def process_wp(
             skip_review = is_single_agent_mode(config) and not config.defaults.get("review")
 
             if skip_review:
-                # Mark as completed without review
+                # Transition lane FIRST (atomic)
+                await transition_wp_lane(wp, "complete_review", repo_root)
+
+                # THEN mark as completed without review
                 wp.status = WPStatus.COMPLETED
                 state.wps_completed += 1
-                await transition_wp_lane(wp, "complete_review", repo_root)
                 save_state(state, repo_root)
                 return True
 
@@ -886,10 +888,12 @@ async def process_wp(
 
             # Handle review outcome
             if review_result.is_approved:
-                # Review approved - WP is done!
+                # Transition lane FIRST (atomic)
+                await transition_wp_lane(wp, "complete_review", repo_root)
+
+                # THEN mark review approved - WP is done!
                 wp.status = WPStatus.COMPLETED
                 state.wps_completed += 1
-                await transition_wp_lane(wp, "complete_review", repo_root)
                 logger.info(f"{wp_id} COMPLETED - review approved")
                 save_state(state, repo_root)
                 return True
@@ -933,9 +937,12 @@ async def process_wp(
 
                     # Re-check outcome after fallback
                     if review_result.is_approved:
+                        # Transition lane FIRST (atomic)
+                        await transition_wp_lane(wp, "complete_review", repo_root)
+
+                        # THEN mark as completed
                         wp.status = WPStatus.COMPLETED
                         state.wps_completed += 1
-                        await transition_wp_lane(wp, "complete_review", repo_root)
                         save_state(state, repo_root)
                         return True
                     elif review_result.is_rejected:
