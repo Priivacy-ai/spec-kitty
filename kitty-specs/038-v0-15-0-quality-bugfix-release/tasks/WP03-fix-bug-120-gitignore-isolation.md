@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Fix Bug
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: main
 base_commit: bd77b51d6a1419367d96f77d584595f472b16276
@@ -65,6 +65,7 @@ reviewed_by: "Robert Douglass"
 - 2026-02-11T16:28:22Z – codex – shell_pid=49404 – lane=planned – Moved to planned
 - 2026-02-11T16:32:03Z – codex – shell_pid=49404 – lane=for_review – Moved to for_review
 - 2026-02-11T16:32:37Z – codex – shell_pid=52084 – lane=doing – Started review via workflow command
+- 2026-02-11T16:34:50Z – codex – shell_pid=52084 – lane=done – Review passed: gitignore isolation fix verified with integration + VCS tests
 
 ## Review Feedback
 
