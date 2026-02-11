@@ -1,14 +1,14 @@
 ---
 work_package_id: WP05
 title: Fix Bug
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: e15a6b31500437333efc357888c680009d9b7b33
 created_at: '2026-02-11T15:22:44.639976+00:00'
 subtasks: [T029, T030, T031, T032, T033, T034, T035, T036, T037, T038]
 phase: Phase 1 - Bug Fixes
-shell_pid: "8729"
+shell_pid: "38006"
 agent: "codex"
 ---
 
@@ -115,3 +115,4 @@ grep -r "git checkout" src/specify_cli/cli/commands/ | grep -v "\.pyc"
 - 2026-02-11T15:29:02Z – unknown – shell_pid=1928 – lane=for_review – Moved to for_review
 - 2026-02-11T15:29:12Z – codex – shell_pid=8729 – lane=doing – Started review via workflow command
 - 2026-02-11T15:53:48Z – codex – shell_pid=8729 – lane=for_review – Ready for review: Added comprehensive unit test coverage for Bug #124 branch resolution. All 21 tests passing (5 new unit tests + 4 integration tests + 12 existing). Implementation was already complete, this WP adds test coverage and documentation.
+- 2026-02-11T15:54:04Z – codex – shell_pid=38006 – lane=doing – Started review via workflow command
