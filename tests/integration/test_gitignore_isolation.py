@@ -8,9 +8,17 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Callable
+
+import pytest
+
+from tests.test_isolation_helpers import get_source_version
 
 
-def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
+def test_worktree_creation_does_not_modify_gitignore(
+    tmp_path: Path,
+    run_cli: Callable[[Path, str], subprocess.CompletedProcess[str]],
+):
     """Test that worktree creation doesn't modify tracked .gitignore file.
 
     Bug #120: Worktree .gitignore mutation pollutes planning branch history.
@@ -31,10 +39,13 @@ def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
         capture_output=True,
     )
 
-    # Create .kittify structure
+    # Create .kittify structure with dynamic version
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  available: []\n")
-    (tmp_path / ".kittify" / "metadata.yaml").write_text("version: 0.15.0\n")
+    current_version = get_source_version()
+    (tmp_path / ".kittify" / "metadata.yaml").write_text(
+        f"spec_kitty:\n  version: {current_version}\n"
+    )
 
     # Create feature structure
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
@@ -75,12 +86,7 @@ dependencies: []
     initial_gitignore = gitignore_path.read_text()
 
     # Run spec-kitty implement to create worktree
-    result = subprocess.run(
-        ["spec-kitty", "implement", "WP01"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
+    result = run_cli(tmp_path, "implement", "WP01")
 
     # Verify command succeeded
     assert result.returncode == 0, f"implement failed: {result.stderr}"
@@ -128,7 +134,10 @@ dependencies: []
     )
 
 
-def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path):
+def test_worktree_merge_has_no_gitignore_pollution(
+    tmp_path: Path,
+    run_cli: Callable[[Path, str], subprocess.CompletedProcess[str]],
+):
     """Test that merging a worktree doesn't pollute history with .gitignore changes.
 
     Bug #120: .gitignore modifications in worktree leak into planning branch commits.
@@ -148,10 +157,13 @@ def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path):
         capture_output=True,
     )
 
-    # Create .kittify structure
+    # Create .kittify structure with dynamic version
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  available: []\n")
-    (tmp_path / ".kittify" / "metadata.yaml").write_text("version: 0.15.0\n")
+    current_version = get_source_version()
+    (tmp_path / ".kittify" / "metadata.yaml").write_text(
+        f"spec_kitty:\n  version: {current_version}\n"
+    )
 
     # Create feature structure
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
@@ -189,12 +201,7 @@ dependencies: []
     )
 
     # Create worktree
-    result = subprocess.run(
-        ["spec-kitty", "implement", "WP01"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
+    result = run_cli(tmp_path, "implement", "WP01")
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
     # In worktree, create a test file and commit
@@ -251,7 +258,10 @@ dependencies: []
     )
 
 
-def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path):
+def test_git_info_exclude_contains_exclusion_patterns(
+    tmp_path: Path,
+    run_cli: Callable[[Path, str], subprocess.CompletedProcess[str]],
+):
     """Test that .git/info/exclude contains the exclusion patterns.
 
     Bug #120: Fix uses .git/info/exclude instead of .gitignore for local ignores.
@@ -271,10 +281,13 @@ def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path):
         capture_output=True,
     )
 
-    # Create .kittify structure
+    # Create .kittify structure with dynamic version
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text("agents:\n  available: []\n")
-    (tmp_path / ".kittify" / "metadata.yaml").write_text("version: 0.15.0\n")
+    current_version = get_source_version()
+    (tmp_path / ".kittify" / "metadata.yaml").write_text(
+        f"spec_kitty:\n  version: {current_version}\n"
+    )
 
     # Create feature structure
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
@@ -308,12 +321,7 @@ dependencies: []
     )
 
     # Create worktree
-    result = subprocess.run(
-        ["spec-kitty", "implement", "WP01"],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
+    result = run_cli(tmp_path, "implement", "WP01")
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
     # Check that .git/info/exclude exists (in git directory, not worktree)
