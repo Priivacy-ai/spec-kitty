@@ -1,0 +1,80 @@
+---
+work_package_id: WP08
+title: Fix Bug #123 - Atomic State Transitions
+lane: "planned"
+dependencies: []
+base_branch: main
+subtasks: [T054, T055, T056, T057, T058, T059, T060, T061, T062, T063]
+phase: Phase 1 - Bug Fixes
+---
+
+# Work Package Prompt: WP08 – Fix Bug #123 - Atomic State Transitions
+
+## Objectives
+
+- transition_wp_lane() called BEFORE wp.status update at all 4 call sites
+- No "No transition defined" warnings in orchestrator logs
+- Atomic behavior: transition fails → status unchanged
+- 12 tests passing (unit + integration + regression)
+- HIGH RISK fix - test thoroughly with orchestrator workflows
+
+**Command**: `spec-kitty implement WP08`
+
+## Context
+
+- **Issue**: #123 by @brkastner
+- **File**: `src/specify_cli/orchestrator/integration.py`
+- **Call Sites**: Lines 461, 699, 857, 937
+- **Bug**: Status set before transition → race condition warnings
+- **Fix**: Call transition_wp_lane FIRST, then update status
+
+## Test-First Subtasks
+
+### T054-T056: Write Failing Tests
+
+1. **T054**: Unit test verifying call order (mock transition_wp_lane, assert called before status assignment)
+2. **T055**: Test all 4 call sites have correct order
+3. **T056**: Integration test for orchestrator lane/status consistency
+
+### T057-T060: Fix All 4 Call Sites
+
+**Pattern for all 4 locations**:
+```python
+# BEFORE (lines 453-461):
+wp.status = WPStatus.IMPLEMENTATION
+wp.implementation_agent = agent_id
+wp.implementation_started = datetime.now(timezone.utc)
+state.total_agent_invocations += 1
+save_state(state, repo_root)
+await transition_wp_lane(wp, "start_implementation", repo_root)  # TOO LATE
+
+# AFTER:
+# Transition FIRST (atomic)
+await transition_wp_lane(wp, "start_implementation", repo_root)
+
+# THEN update status
+wp.status = WPStatus.IMPLEMENTATION
+wp.implementation_agent = agent_id
+wp.implementation_started = datetime.now(timezone.utc)
+state.total_agent_invocations += 1
+save_state(state, repo_root)
+```
+
+**T057**: Fix line 461 (start_implementation)
+**T058**: Fix line 699 (start_review)
+**T059**: Fix line 857 (complete_without_review)
+**T060**: Fix line 937 (complete_after_fallback_review)
+
+### T061-T063: Verify and Commit
+
+- Run orchestrator integration tests
+- Check logs for absence of "No transition defined" warnings
+- Commit: `fix: call lane transition before status update (fixes #123)`
+
+## Implementation Notes
+
+**All 4 locations follow same pattern** - transition must commit before status changes.
+
+**Why this matters**: If transition fails (git commit fails), status should remain unchanged (rollback-safe).
+
+**Verification**: After fix, run orchestrator on multi-WP feature, check logs for warnings.
