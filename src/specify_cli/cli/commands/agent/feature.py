@@ -30,6 +30,7 @@ from specify_cli.core.feature_detection import (
     detect_feature_directory,
     FeatureDetectionError,
 )
+from specify_cli.git import safe_commit
 from specify_cli.core.worktree import (
     get_next_feature_number,
     setup_feature_directory,
@@ -132,18 +133,19 @@ def _commit_to_branch(
         if current_branch is None:
             raise RuntimeError("Not in a git repository")
 
-        # Commit to current branch (no checkout required)
-        # Add file to staging (run from repo root to ensure planning repo, not worktree)
-        run_command(["git", "add", str(file_path)], check_return=True, capture=True, cwd=repo_root)
-
-        # Commit with descriptive message
+        # Commit only this file (preserves staging area)
         commit_msg = f"Add {artifact_type} for feature {feature_slug}"
-        run_command(
-            ["git", "commit", "-m", commit_msg],
-            check_return=True,
-            capture=True,
-            cwd=repo_root,
+        success = safe_commit(
+            repo_path=repo_root,
+            files_to_commit=[file_path],
+            commit_message=commit_msg,
+            allow_empty=False,
         )
+        if not success:
+            error_msg = f"Failed to commit {artifact_type}"
+            if not json_output:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise RuntimeError(error_msg)
 
         if not json_output:
             console.print(f"[green]✓[/green] {artifact_type.capitalize()} committed to {current_branch}")
@@ -530,6 +532,108 @@ def setup_plan(
         feature_slug = feature_dir.name
         _commit_to_branch(plan_file, feature_slug, "plan", repo_root, target_branch, json_output)
 
+        # T014 + T016: Documentation mission wiring for plan
+        mission_key = get_feature_mission_key(feature_dir)
+        gap_analysis_path = None
+        generators_detected = []
+
+        if mission_key == "documentation":
+            from specify_cli.doc_state import (
+                read_documentation_state,
+                set_audit_metadata,
+                set_generators_configured,
+            )
+            from specify_cli.gap_analysis import generate_gap_analysis_report
+            from specify_cli.doc_generators import (
+                JSDocGenerator,
+                SphinxGenerator,
+                RustdocGenerator,
+            )
+
+            meta_file = feature_dir / "meta.json"
+
+            # T014: Run gap analysis for gap_filling or feature_specific modes
+            if meta_file.exists():
+                doc_state = read_documentation_state(meta_file)
+                iteration_mode = doc_state.get("iteration_mode", "initial") if doc_state else "initial"
+
+                if iteration_mode in ("gap_filling", "feature_specific"):
+                    docs_dir = repo_root / "docs"
+                    if docs_dir.exists():
+                        gap_analysis_output = feature_dir / "gap-analysis.md"
+                        try:
+                            analysis = generate_gap_analysis_report(
+                                docs_dir, gap_analysis_output, project_root=repo_root
+                            )
+                            gap_analysis_path = str(gap_analysis_output)
+                            # Update documentation state with audit metadata
+                            set_audit_metadata(
+                                meta_file,
+                                last_audit_date=analysis.analysis_date,
+                                coverage_percentage=analysis.coverage_matrix.get_coverage_percentage(),
+                            )
+                            # Commit gap analysis and updated meta.json
+                            try:
+                                safe_commit(
+                                    repo_path=repo_root,
+                                    files_to_commit=[gap_analysis_output, meta_file],
+                                    commit_message=f"Add gap analysis for feature {feature_slug}",
+                                    allow_empty=False,
+                                )
+                            except Exception:
+                                pass  # Non-fatal: agent can commit separately
+                            if not json_output:
+                                coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
+                                console.print(
+                                    f"[cyan]→ Gap analysis generated: {gap_analysis_output.name} "
+                                    f"(coverage: {coverage_pct:.1f}%)[/cyan]"
+                                )
+                        except Exception as gap_err:
+                            if not json_output:
+                                console.print(
+                                    f"[yellow]Warning:[/yellow] Gap analysis failed: {gap_err}"
+                                )
+                    else:
+                        if not json_output:
+                            console.print(
+                                "[yellow]Warning:[/yellow] No docs/ directory found, skipping gap analysis"
+                            )
+
+            # T016: Detect and configure generators
+            all_generators = [JSDocGenerator(), SphinxGenerator(), RustdocGenerator()]
+            for gen in all_generators:
+                try:
+                    if gen.detect(repo_root):
+                        generators_detected.append({
+                            "name": gen.name,
+                            "language": gen.languages[0],
+                            "config_path": "",
+                        })
+                        if not json_output:
+                            console.print(
+                                f"[cyan]→ Detected {gen.name} generator "
+                                f"(languages: {', '.join(gen.languages)})[/cyan]"
+                            )
+                except Exception:
+                    pass  # Skip generators that fail detection
+
+            if generators_detected and meta_file.exists():
+                try:
+                    set_generators_configured(meta_file, generators_detected)
+                    try:
+                        safe_commit(
+                            repo_path=repo_root,
+                            files_to_commit=[meta_file],
+                            commit_message=f"Update generator config for feature {feature_slug}",
+                            allow_empty=False,
+                        )
+                    except Exception:
+                        pass  # Non-fatal
+                except Exception as gen_err:
+                    if not json_output:
+                        console.print(
+                            f"[yellow]Warning:[/yellow] Failed to save generator config: {gen_err}"
+                        )
         if json_output:
             print(json.dumps({
                 "result": "success",
@@ -993,28 +1097,21 @@ def finalize_tasks(
                 )
                 files_committed.append(str(tasks_md.relative_to(repo_root)))
 
-            # Get list of WP files before staging
-            wp_files_to_commit = list(tasks_dir.glob("WP*.md"))
-            for wp_f in wp_files_to_commit:
-                files_committed.append(str(wp_f.relative_to(repo_root)))
+            # Get list of all files in tasks_dir to commit
+            files_to_commit = [tasks_dir / f.name for f in tasks_dir.iterdir() if f.is_file()]
+            for f in files_to_commit:
+                files_committed.append(str(f.relative_to(repo_root)))
 
-            run_command(
-                ["git", "add", str(tasks_dir)],
-                check_return=True,
-                capture=True,
-                cwd=repo_root
-            )
-
-            # Commit with descriptive message (use check_return=False to handle "nothing to commit")
+            # Commit with descriptive message (safe_commit preserves staging area)
             commit_msg = f"Add tasks for feature {feature_slug}"
-            returncode_commit, stdout_commit, stderr_commit = run_command(
-                ["git", "commit", "-m", commit_msg],
-                check_return=False,
-                capture=True,
-                cwd=repo_root
+            commit_success = safe_commit(
+                repo_path=repo_root,
+                files_to_commit=files_to_commit,
+                commit_message=commit_msg,
+                allow_empty=False,
             )
 
-            if returncode_commit == 0:
+            if commit_success:
                 # Commit succeeded - get hash
                 returncode, stdout, stderr = run_command(
                     ["git", "rev-parse", "HEAD"],
