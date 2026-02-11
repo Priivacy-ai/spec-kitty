@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Release v0.15.0 on Main
-lane: planned
+lane: "doing"
 dependencies: []
 base_branch: main
 subtasks: [T064, T065, T066, T067, T068, T069, T070, T071]
@@ -88,3 +88,7 @@ git push origin v0.15.0
 - [ ] CHANGELOG complete
 - [ ] Tests all passing
 - [ ] Tagged and published to PyPI
+
+## Activity Log
+
+- 2026-02-11T16:42:21Z – unknown – lane=doing – Moved to doing
