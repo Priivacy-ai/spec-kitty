@@ -1,0 +1,10 @@
+{
+  "feature_number": "029",
+  "slug": "029-mid-stream-change-command",
+  "friendly_name": "Mid-Stream Change Command",
+  "mission": "software-dev",
+  "source_description": "add a new command called `/spec-kitty.changset` that creates a new task. If the user is in main, it creates a new tasks in the main stash. If the user is in a feature branch, the stash of the feature branch is used The next implement will do the task list of the changeset. Changesets can have dependencies between each other. A changeset is a human review change request while the feature is still in implmentation/review. The tasks instructs the agent to create a new taskfile with dependencies to incorperate the user wishes into the tasklists, that are still open. Create consistency between the tasks and add git worktree merging jobs if necesarry. In the main branch, this meant for small fixes, small chages. The script should detect if the request results in to much changed code (not by line, but by complexity) and asks if a new specify command should be run instead. The goal is always to have consistancy after a change command. The user should be able to say `change this block` or `use this lib instead` `don't remove this and that...`, `revert that block`. The takslist should always test at the end",
+  "created_at": "2026-02-09T02:57:47Z",
+  "target_branch": "main",
+  "vcs": "git"
+}

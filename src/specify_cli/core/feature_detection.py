@@ -634,6 +634,52 @@ def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
 
 
 # ============================================================================
+# Change Stack Helpers (for /spec-kitty.change routing)
+# ============================================================================
+
+
+def is_primary_branch(repo_root: Path) -> bool:
+    """Check if the current branch is a primary branch (main/master).
+
+    Used by the change command to determine whether to route to the
+    main stash or a feature stash. Does not raise errors.
+
+    Args:
+        repo_root: Repository root path (may be worktree)
+
+    Returns:
+        True if on main or master, False otherwise (including detached HEAD)
+    """
+    from specify_cli.core.git_ops import get_current_branch
+    branch = get_current_branch(repo_root)
+    return branch in ("main", "master")
+
+
+def try_detect_feature_slug(repo_root: Path, cwd: Path | None = None) -> str | None:
+    """Attempt feature detection without raising errors.
+
+    Used by the change command when the branch might be main (no feature).
+    Returns None instead of raising FeatureDetectionError.
+
+    Args:
+        repo_root: Repository root path
+        cwd: Current working directory
+
+    Returns:
+        Feature slug if detected, None if detection fails
+    """
+    try:
+        ctx = detect_feature(
+            repo_root,
+            cwd=cwd or Path.cwd(),
+            mode="lenient",
+        )
+        return ctx.slug if ctx else None
+    except (FeatureDetectionError, MultipleFeaturesError):
+        return None
+
+
+# ============================================================================
 # Exports
 # ============================================================================
 
@@ -652,4 +698,7 @@ __all__ = [
     "detect_feature_directory",
     # Target branch detection
     "get_feature_target_branch",
+    # Change stack helpers
+    "is_primary_branch",
+    "try_detect_feature_slug",
 ]

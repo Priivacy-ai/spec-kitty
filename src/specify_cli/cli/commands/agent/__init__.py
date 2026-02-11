@@ -3,7 +3,7 @@
 import typer
 from typing_extensions import Annotated
 
-from . import config, feature, tasks, context, release, workflow
+from . import change, config, feature, tasks, context, release, workflow
 
 app = typer.Typer(
     name="agent",
@@ -12,6 +12,7 @@ app = typer.Typer(
 )
 
 # Register sub-apps for each command module
+app.add_typer(change.app, name="change")
 app.add_typer(config.app, name="config")
 app.add_typer(feature.app, name="feature")
 app.add_typer(tasks.app, name="tasks")
