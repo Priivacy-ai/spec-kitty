@@ -1,11 +1,14 @@
 ---
 work_package_id: WP06
-title: Fix Bug #119 - Assignee Relaxation
-lane: "planned"
+title: Fix Bug
+lane: "doing"
 dependencies: []
 base_branch: main
+base_commit: a8373ae11b029bfaa8ebb0c7209fadc448f98be9
+created_at: '2026-02-11T15:23:00.553146+00:00'
 subtasks: [T039, T040, T041, T042, T043, T044]
 phase: Phase 1 - Bug Fixes
+shell_pid: "2443"
 ---
 
 # Work Package Prompt: WP06 – Fix Bug #119 - Assignee Relaxation
