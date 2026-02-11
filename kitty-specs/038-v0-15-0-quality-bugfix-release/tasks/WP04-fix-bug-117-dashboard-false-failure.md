@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Fix Bug
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: main
 base_commit: 3ae4069aee1f86fe87f26e486b67e0f0521a13e5
@@ -10,6 +10,8 @@ subtasks: [T020, T021, T022, T023, T024, T025, T026, T027, T028]
 phase: Phase 1 - Bug Fixes
 shell_pid: "30491"
 agent: "codex"
+reviewed_by: "Robert Douglass"
+review_status: "approved"
 ---
 
 # Work Package Prompt: WP04 – Fix Bug #117 - Dashboard False-Failure Detection
@@ -98,3 +100,4 @@ except OSError as e:
 - 2026-02-11T15:37:20Z – codex – shell_pid=16312 – lane=doing – Started review via workflow command
 - 2026-02-11T15:48:05Z – codex – shell_pid=16312 – lane=for_review – Moved to for_review
 - 2026-02-11T15:48:14Z – codex – shell_pid=30491 – lane=doing – Started review via workflow command
+- 2026-02-11T15:58:54Z – codex – shell_pid=30491 – lane=done – Review passed: Bug #117 fix correctly handles health-check timeout false failures via process-alive fallback; added specific CLI errors for missing metadata/port conflicts; added and passing 10 WP04 tests plus passing broader dashboard lifecycle/CLI coverage.
