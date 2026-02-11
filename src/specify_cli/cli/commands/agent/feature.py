@@ -1229,22 +1229,14 @@ def finalize_tasks(
                     console.print(f"[green]✓[/green] Tasks committed to {target_branch}")
                     console.print(f"[dim]Commit: {commit_hash[:7]}[/dim]")
                     console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
-            elif "nothing to commit" in stdout_commit or "nothing to commit" in stderr_commit or \
-                 "nothing added to commit" in stdout_commit or "nothing added to commit" in stderr_commit:
-                # Nothing to commit (already committed)
+            else:
+                # safe_commit returned False - either nothing to commit or error
+                # Since allow_empty=False, this means nothing to commit
                 commit_created = False
                 commit_hash = None
 
                 if not json_output:
                     console.print("[dim]Tasks unchanged, no commit needed[/dim]")
-            else:
-                # Real error
-                error_output = stderr_commit if stderr_commit else stdout_commit
-                if json_output:
-                    print(json.dumps({"error": f"Git commit failed: {error_output}"}))
-                else:
-                    console.print(f"[red]Error:[/red] Git commit failed: {error_output}")
-                raise typer.Exit(1)
 
         except Exception as e:
             # Unexpected error

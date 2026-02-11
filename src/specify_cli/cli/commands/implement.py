@@ -23,6 +23,7 @@ from specify_cli.core.vcs import (
     VCSLockError,
 )
 from specify_cli.frontmatter import read_frontmatter, update_fields
+from specify_cli.git import safe_commit
 from specify_cli.tasks_support import (
     TaskCliError,
     find_repo_root,
@@ -1062,30 +1063,19 @@ def implement(
             # Write updated document after ensuring target branch
             wp.path.write_text(updated_doc, encoding="utf-8")
 
-            # Stage and commit the file
-            subprocess.run(
-                ["git", "add", str(wp.path.resolve())],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=False
+            # Commit only the WP file (safe_commit preserves staging area)
+            commit_success = safe_commit(
+                repo_path=repo_root,
+                files_to_commit=[wp.path.resolve()],
+                commit_message=commit_msg,
+                allow_empty=True,  # OK if nothing changed
             )
 
-            commit_result = subprocess.run(
-                ["git", "commit", "-m", commit_msg],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=False
-            )
-
-            if commit_result.returncode == 0:
+            if commit_success:
                 console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {target_branch})[/cyan]")
             else:
                 # Commit failed - file might be unchanged or other issue
                 console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
-                if commit_result.stderr:
-                    console.print(f"  {commit_result.stderr.strip()}")
 
             # Restore original branch after committing to target
             if current_branch != target_branch:

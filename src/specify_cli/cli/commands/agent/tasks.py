@@ -816,9 +816,9 @@ def move_task(
                     if not json_output:
                         console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
                 else:
-                    # Commit failed
+                    # Commit failed (safe_commit returned False)
                     if not json_output:
-                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit: {commit_result.stderr}")
+                        console.print(f"[yellow]Warning:[/yellow] Failed to auto-commit status change")
 
             except Exception as e:
                 # Unexpected error (e.g., not in a git repo) - ensure file gets written
