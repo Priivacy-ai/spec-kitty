@@ -50,6 +50,7 @@ class FrontmatterManager:
         "shell_pid",
         "review_status",
         "reviewed_by",
+        "review_feedback",  # Path to persisted review feedback file under kitty-specs/<feature>/feedback/
         "history",
     ]
 

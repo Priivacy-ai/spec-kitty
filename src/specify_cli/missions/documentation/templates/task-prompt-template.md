@@ -10,6 +10,7 @@ agent: ""         # CLI agent identifier (claude, codex, etc.)
 shell_pid: ""     # PID captured when the task moved to the current lane
 review_status: "" # empty | has_feedback | acknowledged (populated by reviewers/implementers)
 reviewed_by: ""   # Agent ID of the reviewer (if reviewed)
+review_feedback: "" # Relative path to persisted feedback file (set on review rejection)
 history:
   - timestamp: "{{TIMESTAMP}}"
     lane: "planned"
@@ -24,7 +25,7 @@ history:
 
 **Read this first if you are implementing this task!**
 
-- **Has review feedback?**: Check the `review_status` field above. If it says `has_feedback`, scroll to the **Review Feedback** section immediately (right below this notice).
+- **Has review feedback?**: Check `review_status`. If it says `has_feedback`, read `review_feedback` first (file path), then check the **Review Feedback** section below.
 - **You must address all feedback** before your work is complete. Feedback items are your implementation TODO list.
 - **Mark as acknowledged**: When you understand the feedback and begin addressing it, update `review_status: acknowledged` in the frontmatter.
 - **Report progress**: As you address each feedback item, update the Activity Log explaining what you changed.
