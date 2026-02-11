@@ -184,12 +184,13 @@ def test_status_routes_to_main_for_legacy_features(dual_branch_repo):
 
 
 def test_status_routes_to_2x_for_dual_branch_features(dual_branch_repo):
-    """Test status commits go to 2.x for features with target_branch: 2.x.
+    """Test status commits go to 2.x when user is on 2.x branch (Bug #124 fix).
 
     Validates:
-    - Features with target_branch: "2.x" route to 2.x
+    - Features with target_branch: "2.x" commit to current branch (2.x)
+    - User must manually checkout target branch before status operations
     - Main branch unaffected (no status commits)
-    - Target branch detection works correctly
+    - Respects user's current branch (Bug #124 behavior)
     """
     repo = dual_branch_repo
 
@@ -206,8 +207,8 @@ def test_status_routes_to_2x_for_dual_branch_features(dual_branch_repo):
         capture_output=True,
     )
 
-    # Return to main for status operations
-    subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
+    # STAY on 2.x for status operations (Bug #124: respect current branch)
+    # (Previously test would checkout main, expecting auto-routing to 2.x)
 
     # Move task to doing
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing")
@@ -215,7 +216,7 @@ def test_status_routes_to_2x_for_dual_branch_features(dual_branch_repo):
     # Should succeed
     assert result.returncode == 0, f"Failed to move task: {result.stderr}\n{result.stdout}"
 
-    # Verify status commit on 2.x
+    # Verify status commit on 2.x (current branch)
     assert_commit_on_branch(repo, "2.x", "Move WP01 to doing")
 
     # Verify main branch does NOT have this status commit
@@ -233,16 +234,16 @@ def test_status_routes_to_2x_for_dual_branch_features(dual_branch_repo):
 
     # Should have feature creation commit but NOT status move commit
     assert any("Add 025-saas-feature" in msg for msg in main_commits), "Feature creation commit missing"
-    assert not any("Move WP01 to doing" in msg for msg in main_commits), "Status commit leaked to main"
+    assert not any("Move WP01 to doing" in msg for msg in main_commits), "Status commit should not be on main"
 
 
 def test_status_routing_from_worktree_context(dual_branch_repo):
-    """Test status commits route correctly even when called from worktree.
+    """Test status commits respect current branch when called from main repo (Bug #124 fix).
 
     Validates:
-    - Status routing respects target_branch even from worktree context
-    - Worktree branch doesn't interfere with routing
-    - Status commits still go to target (2.x), not worktree branch
+    - Status commits go to current branch (respects Bug #124 behavior)
+    - Must be on target branch to commit there
+    - Worktree branch doesn't interfere
     """
     repo = dual_branch_repo
 
@@ -276,20 +277,11 @@ def test_status_routing_from_worktree_context(dual_branch_repo):
     updated = content.replace('lane: planned', 'lane: doing')
     wp_file.write_text(updated)
 
-    # Commit the lane change to the WP file on main (so it's tracked)
-    subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
+    # Commit the lane change to the WP file on 2.x (target branch)
+    subprocess.run(["git", "checkout", "2.x"], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "add", str(wp_file)], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Update WP01 to doing"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-    )
-
-    # Merge this to 2.x as well
-    subprocess.run(["git", "checkout", "2.x"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "merge", "main", "--no-ff", "-m", "Sync status from main"],
         cwd=repo,
         check=True,
         capture_output=True,
@@ -306,16 +298,14 @@ def test_status_routing_from_worktree_context(dual_branch_repo):
         capture_output=True,
     )
 
-    # Go back to main context
-    subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
-
-    # Run move-task from main repo (should still route to 2.x based on feature metadata)
+    # STAY on 2.x for status operations (Bug #124: respect current branch)
+    # Run move-task from 2.x branch
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "for_review", "--force")
 
     # Should succeed
     assert result.returncode == 0, f"Failed to move task: {result.stderr}\n{result.stdout}"
 
-    # Verify status commit on 2.x (not on worktree branch)
+    # Verify status commit on 2.x (current branch)
     assert_commit_on_branch(repo, "2.x", "Move WP01 to for_review")
 
     # Cleanup worktree
@@ -328,11 +318,12 @@ def test_status_routing_from_worktree_context(dual_branch_repo):
 
 
 def test_mark_subtasks_routes_correctly(dual_branch_repo):
-    """Test mark-status routing for subtask checkboxes.
+    """Test mark-status routing respects current branch (Bug #124 fix).
 
     Validates:
-    - Subtask status updates (mark-status) respect target_branch
-    - Checkbox updates commit to correct branch
+    - Subtask status updates (mark-status) commit to current branch
+    - Must be on target branch to commit there
+    - Checkbox updates respect Bug #124 behavior
     """
     repo = dual_branch_repo
 
@@ -374,8 +365,7 @@ def test_mark_subtasks_routes_correctly(dual_branch_repo):
         capture_output=True,
     )
 
-    # Go back to main for CLI operations
-    subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
+    # STAY on 2.x for CLI operations (Bug #124: respect current branch)
 
     # Mark subtask as done
     result = run_cli(repo, "agent", "tasks", "mark-status", "WP01.1", "--status", "done")
@@ -383,7 +373,7 @@ def test_mark_subtasks_routes_correctly(dual_branch_repo):
     # Should succeed
     assert result.returncode == 0, f"Failed to mark subtask: {result.stderr}\n{result.stdout}"
 
-    # Verify status commit on 2.x
+    # Verify status commit on 2.x (current branch)
     assert_commit_on_branch(repo, "2.x", "WP01.1")
 
     # Verify main unaffected (no new status commits after initial merge)
@@ -499,40 +489,30 @@ def test_race_condition_prevented(dual_branch_repo):
 
 
 def test_fallback_when_target_missing(dual_branch_repo):
-    """Test auto-create when target_branch doesn't exist.
+    """Test behavior when target_branch doesn't exist (Bug #124 fix).
 
     Validates:
     - If target_branch in meta.json doesn't exist as git branch
-    - Auto-creates the branch from main
-    - Commit routes to the newly created branch
-    - Does not crash
+    - Commands respect current branch (no auto-create or auto-checkout)
+    - User sees notification about missing target branch
+    - Operations continue on current branch
     """
     repo = dual_branch_repo
 
     # Create feature with target_branch pointing to nonexistent branch
     feature_dir = create_feature_with_target(repo, "029-missing-target", target_branch="nonexistent")
 
-    # Try to move task (should auto-create nonexistent branch)
+    # Try to move task (should stay on current branch 'main')
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing")
 
-    # Should succeed (auto-create branch)
-    assert result.returncode == 0, f"Should auto-create branch: {result.stderr}"
+    # Should succeed (respects current branch)
+    assert result.returncode == 0, f"Should stay on current branch: {result.stderr}"
 
-    # Should have creation message in output
-    assert "Created target branch" in result.stdout or "doesn't exist - creating" in result.stdout, \
-        "Should announce branch creation"
+    # Should have notification about branch mismatch
+    assert "nonexistent" in result.stdout, "Should mention target branch"
 
-    # Verify branch was created
-    branch_check = subprocess.run(
-        ["git", "rev-parse", "--verify", "nonexistent"],
-        cwd=repo,
-        capture_output=True,
-        check=False,
-    )
-    assert branch_check.returncode == 0, "Target branch should be created"
-
-    # Commit should land on the new branch (nonexistent)
-    assert_commit_on_branch(repo, "nonexistent", "Move WP01 to doing")
+    # Commit should land on current branch (main), not nonexistent
+    assert_commit_on_branch(repo, "main", "Move WP01 to doing")
 
 
 def test_migration_detection_and_routing(dual_branch_repo):
@@ -587,11 +567,12 @@ def verify_ancestry(repo: Path, ancestor: str, descendant: str) -> bool:
 
 
 def test_multiple_lane_transitions_same_target(dual_branch_repo):
-    """Test multiple WPs with same target_branch all route correctly.
+    """Test multiple WPs commit to current branch (Bug #124 fix).
 
     Validates:
-    - Multiple WPs in same feature all route to same target
-    - All status commits go to 2.x
+    - Multiple WPs in same feature commit to current branch
+    - Must be on target branch (2.x) to commit there
+    - All status commits go to 2.x when on 2.x
     - Main branch isolation maintained
     """
     repo = dual_branch_repo
@@ -646,28 +627,18 @@ def test_multiple_lane_transitions_same_target(dual_branch_repo):
         capture_output=True,
     )
 
-    # Count commits on main and 2.x before status changes
-    main_commits_before = len(get_commits_on_branch(repo, "main"))
+    # STAY on 2.x for all status operations (Bug #124: respect current branch)
 
-    # Move each WP to doing (each should create a commit on 2.x)
+    # Move each WP to doing (each should create a commit on 2.x, current branch)
     for wp_num in range(1, 4):
         wp_id = f"WP0{wp_num}"
         result = run_cli(repo, "agent", "tasks", "move-task", wp_id, "--to", "doing")
         assert result.returncode == 0, f"Failed to move {wp_id}: {result.stderr}"
 
-        # Verify commit on 2.x
+        # Verify commit on 2.x (current branch)
         assert_commit_on_branch(repo, "2.x", f"Move {wp_id} to doing")
 
-        # Sync main to avoid file conflicts in next iteration
-        subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "merge", "2.x", "--no-ff", "-m", f"Sync {wp_id} status"],
-            cwd=repo,
-            check=True,
-            capture_output=True,
-        )
-
-    # Verify: All 3 status commits originated on 2.x
+    # Verify: All 3 status commits on 2.x
     commits_2x = get_commits_on_branch(repo, "2.x")
     status_commits = [c for c in commits_2x if "Move WP0" in c and "to doing" in c]
     assert len(status_commits) == 3, f"Expected 3 status commits on 2.x, found {len(status_commits)}"
@@ -686,11 +657,12 @@ def get_commits_on_branch(repo: Path, branch: str, limit: int = 20) -> list[str]
 
 
 def test_target_branch_detection_from_worktree_path(dual_branch_repo):
-    """Test that feature detection works from worktree and finds correct target.
+    """Test that commands respect current branch from main repo (Bug #124 fix).
 
     Validates:
-    - Feature detection works from worktree directory
-    - Target branch detected correctly via feature slug
+    - Feature detection works from main repo directory
+    - Commands commit to current branch (respects Bug #124)
+    - Must be on target branch to commit there
     """
     repo = dual_branch_repo
 
@@ -707,7 +679,7 @@ def test_target_branch_detection_from_worktree_path(dual_branch_repo):
         capture_output=True,
     )
 
-    # Create worktree from 2.x
+    # Create worktree from 2.x (for context, but we won't run command from it)
     wp_branch = "032-worktree-detection-WP01"
     worktree_path = repo / ".worktrees" / wp_branch
     subprocess.run(
@@ -717,14 +689,12 @@ def test_target_branch_detection_from_worktree_path(dual_branch_repo):
         capture_output=True,
     )
 
-    # Go back to main
-    subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
-
-    # Run move-task from main repo (feature detection via slug)
+    # STAY on 2.x (Bug #124: respect current branch)
+    # Run move-task from 2.x branch
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing")
-    assert result.returncode == 0, f"Failed from worktree: {result.stderr}"
+    assert result.returncode == 0, f"Failed from main repo: {result.stderr}"
 
-    # Verify commit on 2.x (target detection worked)
+    # Verify commit on 2.x (current branch)
     assert_commit_on_branch(repo, "2.x", "Move WP01 to doing")
 
     # Cleanup

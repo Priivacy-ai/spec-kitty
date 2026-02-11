@@ -5,11 +5,13 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.git_ops import (
+    BranchResolution,
     exclude_from_git_index,
     get_current_branch,
     has_remote,
     init_git_repo,
     is_git_repo,
+    resolve_target_branch,
     run_command,
 )
 
@@ -203,3 +205,147 @@ def test_has_tracking_branch_no_remote(tmp_path, _git_identity):
     # Should NOT have tracking (no remote)
     from specify_cli.core.git_ops import has_tracking_branch
     assert has_tracking_branch(repo) is False
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_target_branch_branches_match(tmp_path):
+    """Test T032: resolve_target_branch when current == target."""
+    import json
+
+    # Setup repo
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+
+    (repo / "README.md").write_text("test", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "Initial"], cwd=repo)
+
+    # Create feature targeting main
+    feature_dir = repo / "kitty-specs" / "001-test"
+    feature_dir.mkdir(parents=True)
+    meta = {"feature_id": "001-test", "target_branch": "main"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    # Resolve from main to main
+    resolution = resolve_target_branch("001-test", repo, "main", respect_current=True)
+
+    assert resolution.target == "main"
+    assert resolution.current == "main"
+    assert resolution.should_notify is False
+    assert resolution.action == "proceed"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_target_branch_branches_differ_respect_current(tmp_path):
+    """Test T033: resolve_target_branch when current != target with respect_current=True."""
+    import json
+
+    # Setup repo
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+
+    (repo / "README.md").write_text("test", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "Initial"], cwd=repo)
+
+    # Create develop branch
+    run_command(["git", "checkout", "-b", "develop"], cwd=repo)
+
+    # Create feature targeting main
+    feature_dir = repo / "kitty-specs" / "002-test"
+    feature_dir.mkdir(parents=True)
+    meta = {"feature_id": "002-test", "target_branch": "main"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    # Resolve from develop (current) when target is main
+    resolution = resolve_target_branch("002-test", repo, "develop", respect_current=True)
+
+    assert resolution.target == "main"
+    assert resolution.current == "develop"
+    assert resolution.should_notify is True  # Branches differ
+    assert resolution.action == "stay_on_current"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_target_branch_fallback_to_main(tmp_path):
+    """Test T034: resolve_target_branch fallbacks to 'main' when meta.json missing."""
+    # Setup repo
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+
+    (repo / "README.md").write_text("test", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "Initial"], cwd=repo)
+
+    # Create feature WITHOUT meta.json
+    feature_dir = repo / "kitty-specs" / "003-test"
+    feature_dir.mkdir(parents=True)
+
+    # Resolve should fallback to "main"
+    resolution = resolve_target_branch("003-test", repo, "main", respect_current=True)
+
+    assert resolution.target == "main"  # Fallback
+    assert resolution.current == "main"
+    assert resolution.should_notify is False
+    assert resolution.action == "proceed"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_target_branch_auto_detect_current(tmp_path):
+    """Test T035: resolve_target_branch auto-detects current branch when not provided."""
+    import json
+
+    # Setup repo
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+
+    (repo / "README.md").write_text("test", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "Initial"], cwd=repo)
+
+    # Create develop branch
+    run_command(["git", "checkout", "-b", "develop"], cwd=repo)
+
+    # Create feature targeting main
+    feature_dir = repo / "kitty-specs" / "004-test"
+    feature_dir.mkdir(parents=True)
+    meta = {"feature_id": "004-test", "target_branch": "main"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    # Resolve WITHOUT providing current_branch (should auto-detect)
+    resolution = resolve_target_branch("004-test", repo, current_branch=None, respect_current=True)
+
+    assert resolution.current == "develop"  # Auto-detected
+    assert resolution.target == "main"
+    assert resolution.should_notify is True
+    assert resolution.action == "stay_on_current"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_target_branch_invalid_meta_json(tmp_path):
+    """Test T036: resolve_target_branch handles invalid meta.json gracefully."""
+    # Setup repo
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+
+    (repo / "README.md").write_text("test", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "Initial"], cwd=repo)
+
+    # Create feature with INVALID meta.json
+    feature_dir = repo / "kitty-specs" / "005-test"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text("{ invalid json }", encoding="utf-8")
+
+    # Resolve should fallback to "main" (not crash)
+    resolution = resolve_target_branch("005-test", repo, "main", respect_current=True)
+
+    assert resolution.target == "main"  # Fallback on invalid JSON
+    assert resolution.current == "main"
+    assert resolution.should_notify is False
+    assert resolution.action == "proceed"

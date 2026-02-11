@@ -96,9 +96,16 @@ def _resolve_primary_branch(repo_root: Path) -> str:
 
 
 def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tuple[Path, str]:
-    """Ensure the planning repo is on the feature's target branch."""
+    """Resolve branch context without auto-checkout (respects user's current branch).
+
+    Returns the planning repo root and the user's current branch.
+    Shows notification if current branch differs from feature target.
+    """
+    from specify_cli.core.git_ops import resolve_target_branch
+
     main_repo_root = get_main_repo_root(repo_root)
 
+    # Check for detached HEAD
     current_branch_result = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=main_repo_root,
@@ -115,53 +122,18 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
         print("Error: Planning repo is in detached HEAD state. Checkout a branch before continuing.")
         raise typer.Exit(1)
 
-    # Prefer explicit target_branch in meta.json, otherwise use current branch
-    target_branch = None
-    meta_file = main_repo_root / "kitty-specs" / feature_slug / "meta.json"
-    if meta_file.exists():
-        try:
-            meta = json.loads(meta_file.read_text(encoding="utf-8"))
-            target_branch = meta.get("target_branch")
-        except (json.JSONDecodeError, OSError):
-            target_branch = None
+    # Resolve branch routing (unified logic, no auto-checkout)
+    resolution = resolve_target_branch(feature_slug, main_repo_root, current_branch, respect_current=True)
 
-    target_branch = target_branch or current_branch
-
-    if current_branch != target_branch:
-        if target_branch not in ["main", "master"]:
-            branch_exists_result = subprocess.run(
-                ["git", "rev-parse", "--verify", target_branch],
-                cwd=main_repo_root,
-                capture_output=True,
-                check=False,
-            )
-            if branch_exists_result.returncode != 0:
-                primary_branch = _resolve_primary_branch(main_repo_root)
-                create_result = subprocess.run(
-                    ["git", "branch", target_branch, primary_branch],
-                    cwd=main_repo_root,
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                if create_result.returncode != 0:
-                    print(f"Error: Could not create target branch '{target_branch}': {create_result.stderr}")
-                    raise typer.Exit(1)
-                print(f"✓ Created target branch: {target_branch} from {primary_branch}")
-
-        checkout_result = subprocess.run(
-            ["git", "checkout", target_branch],
-            cwd=main_repo_root,
-            capture_output=True,
-            text=True,
-            check=False,
+    # Show notification if branches differ
+    if resolution.should_notify:
+        print(
+            f"Note: You are on '{resolution.current}', feature targets '{resolution.target}'. "
+            f"Operations will use '{resolution.current}'."
         )
-        if checkout_result.returncode != 0:
-            print(f"Error: Could not checkout target branch '{target_branch}': {checkout_result.stderr}")
-            raise typer.Exit(1)
-        print(f"→ Using {target_branch} as planning branch")
 
-    return main_repo_root, target_branch
+    # Return current branch (no checkout performed)
+    return main_repo_root, resolution.current
 
 
 def _find_feature_slug(explicit_feature: str | None = None) -> str:
