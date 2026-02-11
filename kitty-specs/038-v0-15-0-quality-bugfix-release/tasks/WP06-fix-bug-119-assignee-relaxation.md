@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Fix Bug
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: a8373ae11b029bfaa8ebb0c7209fadc448f98be9
@@ -66,3 +66,7 @@ if wp.current_lane in {"doing", "for_review"} and not wp.assignee:
 ### T044: Commit
 
 Commit: `fix: relax strict assignee gate in acceptance validation (fixes #119)`
+
+## Activity Log
+
+- 2026-02-11T15:25:53Z – unknown – shell_pid=2443 – lane=for_review – Moved to for_review
