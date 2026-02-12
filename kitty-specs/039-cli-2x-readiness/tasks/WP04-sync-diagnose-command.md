@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP04"
+work_package_id: WP04
+title: Add sync diagnose command
+lane: "doing"
+dependencies: [WP02]
+base_branch: 039-cli-2x-readiness-WP02
+base_commit: 0cf3f906f4f979a000cf04c78688a397d69b6a37
+created_at: '2026-02-12T10:26:18.030228+00:00'
 subtasks:
-  - "T015"
-  - "T016"
-  - "T017"
-  - "T018"
-  - "T019"
-title: "Add sync diagnose command"
-phase: "Wave 2 - Dependent"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task WP04 --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP02"]
+- T015
+- T016
+- T017
+- T018
+- T019
+phase: Wave 2 - Dependent
+assignee: ''
+agent: ''
+shell_pid: "67164"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-12T12:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-12T12:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP04 – Add sync diagnose command
