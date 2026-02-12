@@ -41,6 +41,8 @@ from . import reducer as _reducer
 
 logger = logging.getLogger(__name__)
 
+# CONTRACT-OWNED: Single source of truth for the 7-to-4 lane collapse.
+# See: kitty-specs/039-cli-2x-readiness/contracts/lane-mapping.md
 # Canonical status lanes are richer than the current sync payload contract.
 # Map canonical lanes to the legacy 4-lane SaaS vocabulary for fan-out.
 _SYNC_LANE_MAP: dict[str, str] = {
