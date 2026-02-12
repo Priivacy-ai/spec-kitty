@@ -14,7 +14,7 @@ subtasks:
 - T024
 phase: Wave 1 - Independent Fixes
 assignee: ''
-agent: ''
+agent: "wp05-agent"
 shell_pid: "47704"
 review_status: ''
 reviewed_by: ''
@@ -191,3 +191,4 @@ No dependencies — branches directly from the 2.x branch.
 ## Activity Log
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
+- 2026-02-12T10:14:10Z – wp05-agent – shell_pid=47704 – lane=doing – Assigned agent via workflow command
