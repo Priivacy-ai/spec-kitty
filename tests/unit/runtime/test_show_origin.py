@@ -227,7 +227,7 @@ class TestShowOriginTierLabels:
             entries = collect_origins(project)
 
         plan_entry = next(e for e in entries if e.name == "plan-template.md")
-        assert plan_entry.tier == "global"
+        assert plan_entry.tier == "global_mission"
         assert plan_entry.resolved_path == global_path
 
     def test_package_default_tier_label(self, tmp_path: Path) -> None:
@@ -303,7 +303,7 @@ class TestShowOriginTierLabels:
         tasks_entry = next(e for e in entries if e.name == "tasks-template.md")
 
         assert spec_entry.tier == "override"
-        assert plan_entry.tier == "global"
+        assert plan_entry.tier == "global_mission"
         assert tasks_entry.tier == "package_default"
 
     def test_command_tier_labels(self, tmp_path: Path) -> None:

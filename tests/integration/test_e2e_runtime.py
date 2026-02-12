@@ -140,7 +140,7 @@ class TestFreshInstallE2E:
         result = resolve_template(
             "spec-template.md", project, mission="software-dev"
         )
-        assert result.tier == ResolutionTier.GLOBAL
+        assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert result.path.exists()
         assert "Spec Template" in result.path.read_text()
 
@@ -162,7 +162,7 @@ class TestFreshInstallE2E:
         (project / ".kittify").mkdir(parents=True)
 
         result = resolve_command("plan.md", project, mission="software-dev")
-        assert result.tier == ResolutionTier.GLOBAL
+        assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert result.path.exists()
 
     def test_mission_resolution_from_global(
@@ -183,7 +183,7 @@ class TestFreshInstallE2E:
         (project / ".kittify").mkdir(parents=True)
 
         result = resolve_mission("software-dev", project)
-        assert result.tier == ResolutionTier.GLOBAL
+        assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert result.path.exists()
 
     def test_version_pin_check_no_crash_on_fresh_project(
@@ -215,19 +215,26 @@ class TestFreshInstallE2E:
 class TestUpgradeLegacyProjectE2E:
     """Upgrade: ensure_runtime -> legacy project resolves with warnings -> migrate -> override."""
 
-    def test_legacy_resolution_emits_deprecation_warning(
+    def test_legacy_resolution_emits_nudge_when_global_configured(
         self,
         isolated_runtime: Path,
         fake_package_assets: Path,
         monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """Legacy project files resolve from LEGACY tier with deprecation warning."""
+        """Legacy project files resolve from LEGACY tier with a one-time
+        stderr nudge (not DeprecationWarning) when global runtime is configured.
+        """
+        from specify_cli.runtime.resolver import _reset_migrate_nudge
+
+        _reset_migrate_nudge()
+
         monkeypatch.setattr(
             "specify_cli.runtime.bootstrap._get_cli_version",
             lambda: FAKE_VERSION,
         )
 
-        # Populate global runtime
+        # Populate global runtime (creates cache/version.lock)
         ensure_runtime()
 
         # Create a legacy project with files in .kittify/templates/
@@ -238,7 +245,7 @@ class TestUpgradeLegacyProjectE2E:
             "# Custom Spec\nThis is a legacy custom spec."
         )
 
-        # Resolve -- should get legacy file with deprecation warning
+        # Resolve -- should get legacy file with stderr nudge (no DeprecationWarning)
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = resolve_template(
@@ -247,9 +254,16 @@ class TestUpgradeLegacyProjectE2E:
 
         assert result.tier == ResolutionTier.LEGACY
         assert "Custom Spec" in result.path.read_text()
-        assert any(
-            "Legacy asset resolved" in str(warning.message) for warning in w
-        )
+
+        # No DeprecationWarning when global runtime is configured
+        deprecation_warnings = [
+            x for x in w if issubclass(x.category, DeprecationWarning)
+        ]
+        assert len(deprecation_warnings) == 0
+
+        # Instead, a nudge to stderr
+        captured = capsys.readouterr()
+        assert "spec-kitty migrate" in captured.err
 
     def test_migrate_moves_customized_to_overrides(
         self,
@@ -380,7 +394,7 @@ class TestUpgradeLegacyProjectE2E:
         result = resolve_template(
             "spec-template.md", project, mission="software-dev"
         )
-        assert result.tier == ResolutionTier.GLOBAL
+        assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert result.path.exists()
 
     def test_version_pin_warning_during_startup(
@@ -465,11 +479,11 @@ class TestUpgradeLegacyProjectE2E:
         assert len(report.kept) >= 2  # config.yaml + memory/notes.md kept
 
         # Step 4: Verify post-migration resolution
-        # Identical file now resolves from GLOBAL
+        # Identical file now resolves from GLOBAL_MISSION (mission-specific global)
         result_spec = resolve_template(
             "spec-template.md", project, mission="software-dev"
         )
-        assert result_spec.tier == ResolutionTier.GLOBAL
+        assert result_spec.tier == ResolutionTier.GLOBAL_MISSION
 
         # Customized file resolves from OVERRIDE (no deprecation warning)
         with warnings.catch_warnings(record=True) as w:

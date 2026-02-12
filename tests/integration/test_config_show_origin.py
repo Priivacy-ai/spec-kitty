@@ -65,7 +65,7 @@ class TestShowOriginLabelsMatchResolution:
         assert spec_entry.resolved_path == override_path
 
         plan_entry = next(e for e in entries if e.name == "plan-template.md")
-        assert plan_entry.tier == "global"
+        assert plan_entry.tier == "global_mission"
         assert plan_entry.resolved_path == global_path
 
     def test_package_default_tier(

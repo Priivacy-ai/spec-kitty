@@ -5,6 +5,17 @@ Usage:
     spec-kitty migrate --dry-run    # Preview changes without modifying
     spec-kitty migrate --force      # Skip confirmation prompt
     spec-kitty migrate --verbose    # Show file-by-file detail
+
+The migrate command performs two operations:
+
+1. **Global runtime install** -- ensures ``~/.kittify/`` is populated with
+   up-to-date package assets (idempotent; uses ``ensure_runtime()``).
+2. **Per-project cleanup** -- classifies per-project ``.kittify/`` files as
+   identical (removed), customized (moved to overrides/), or project-specific
+   (kept).
+
+After a successful migration, legacy-tier warnings are fully suppressed
+during normal template resolution.
 """
 
 from __future__ import annotations
@@ -13,6 +24,7 @@ import typer
 from rich.console import Console
 
 from specify_cli.core.paths import locate_project_root
+from specify_cli.runtime.bootstrap import ensure_runtime
 from specify_cli.runtime.migrate import execute_migration
 
 console = Console()
@@ -31,9 +43,13 @@ def migrate(
 ) -> None:
     """Migrate project .kittify/ to centralized model.
 
-    Classifies per-project files as identical (removed), customized
+    First ensures the global runtime (~/.kittify/) is up to date, then
+    classifies per-project files as identical (removed), customized
     (moved to overrides/), or project-specific (kept). Use --dry-run
     to preview changes before applying.
+
+    Running this command multiple times is safe (idempotent). After the
+    first successful run, subsequent invocations are a near-instant no-op.
 
     Examples:
         spec-kitty migrate --dry-run    # Preview
@@ -56,6 +72,17 @@ def migrate(
         if not confirmed:
             raise typer.Abort()
 
+    # Step 1: Ensure global runtime is installed and current.
+    # This is idempotent -- fast-path returns immediately if version matches.
+    if dry_run:
+        console.print("[bold]Step 1:[/bold] Global runtime check (no changes in dry-run)")
+    else:
+        console.print("[bold]Step 1:[/bold] Ensuring global runtime (~/.kittify/) is up to date...")
+        ensure_runtime()
+        console.print("  [green]Global runtime is current.[/green]")
+
+    # Step 2: Per-project migration.
+    console.print("[bold]Step 2:[/bold] Per-project .kittify/ cleanup...")
     report = execute_migration(project_dir, dry_run=dry_run, verbose=verbose)
 
     # Display results
@@ -90,6 +117,11 @@ def migrate(
 
     if not dry_run:
         console.print(
-            "\n[green]Migration complete.[/green] "
-            "Run `spec-kitty config --show-origin` to verify."
+            "\n[green]Migration complete.[/green] Zero legacy warnings expected. "
+            "Run `spec-kitty config --show-origin` to verify resolution tiers."
         )
+
+    # Credential path decision: ~/.spec-kitty/credentials stays separate.
+    # This is a security boundary decision -- credentials have a different
+    # lifecycle and permission model from runtime assets.  Documented here
+    # per WP08 acceptance criteria.

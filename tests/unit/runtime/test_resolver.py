@@ -151,7 +151,7 @@ class TestResolutionPrecedence:
         ):
             result = resolve_template("spec-template.md", project)
 
-        assert result.tier == ResolutionTier.GLOBAL
+        assert result.tier == ResolutionTier.GLOBAL_MISSION
 
     def test_package_default_resolves_when_no_other_tiers(self, tmp_path: Path) -> None:
         """When only the package default exists, it resolves there."""

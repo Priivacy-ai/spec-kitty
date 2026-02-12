@@ -54,7 +54,7 @@ class OriginEntry:
     asset_type: str  # "template", "command", "mission", "script", "file"
     name: str  # "spec-template.md", "software-dev", etc.
     resolved_path: Path | None
-    tier: str | None  # "override", "legacy", "global", "package_default"
+    tier: str | None  # "override", "legacy", "global_mission", "global", "package_default"
     error: str | None  # If resolution failed
 
 

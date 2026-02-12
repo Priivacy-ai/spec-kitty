@@ -257,7 +257,7 @@ class TestInitResolvesFromGlobal:
         from specify_cli.runtime.resolver import resolve_template, ResolutionTier
 
         result = resolve_template("spec-template.md", project, mission="software-dev")
-        assert result.tier == ResolutionTier.GLOBAL
+        assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert "Spec template" in result.path.read_text()
 
     def test_resolve_command_from_global(self, tmp_path, monkeypatch):
@@ -273,7 +273,7 @@ class TestInitResolvesFromGlobal:
         from specify_cli.runtime.resolver import resolve_command, ResolutionTier
 
         result = resolve_command("specify.md", project, mission="software-dev")
-        assert result.tier == ResolutionTier.GLOBAL
+        assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert "Specify" in result.path.read_text()
 
     def test_resolve_mission_from_global(self, tmp_path, monkeypatch):
@@ -289,7 +289,7 @@ class TestInitResolvesFromGlobal:
         from specify_cli.runtime.resolver import resolve_mission, ResolutionTier
 
         result = resolve_mission("software-dev", project)
-        assert result.tier == ResolutionTier.GLOBAL
+        assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert "software-dev" in result.path.read_text()
 
     def test_override_still_wins_over_global(self, tmp_path, monkeypatch):
