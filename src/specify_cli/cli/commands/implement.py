@@ -198,26 +198,15 @@ def check_base_branch_changed(workspace_path: Path, base_branch: str) -> bool:
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
-    """Resolve the primary branch name (main or master).
+    """Resolve the primary branch name (main, master, etc.).
+
+    Delegates to the centralized implementation in core.git_ops.
 
     Returns:
-        "main" if it exists, otherwise "master" if it exists.
-
-    Raises:
-        typer.Exit: If neither branch exists.
+        Detected primary branch name.
     """
-    for candidate in ("main", "master"):
-        result = subprocess.run(
-            ["git", "rev-parse", "--verify", candidate],
-            cwd=repo_root,
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode == 0:
-            return candidate
-
-    console.print("[red]Error:[/red] Neither 'main' nor 'master' branch exists.")
-    raise typer.Exit(1)
+    from specify_cli.core.git_ops import resolve_primary_branch as _resolve
+    return _resolve(repo_root)
 
 
 def display_rebase_warning(
@@ -1028,7 +1017,7 @@ def implement(
             "branch": branch_name,
             "feature": feature_slug,
             "wp_id": wp_id,
-            "base": base or "main",
+            "base": base or resolve_primary_branch(repo_root),
             "status": "created"
         }))
     else:

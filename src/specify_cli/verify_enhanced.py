@@ -79,8 +79,8 @@ def run_enhanced_verify(
 
         if current_branch:
             console.print(f"   Current branch: {current_branch}")
-            if current_branch == "main":
-                console.print(f"   [yellow]⚠[/yellow] On main branch")
+            if current_branch in ("main", "master"):
+                console.print(f"   [yellow]⚠[/yellow] On {current_branch} branch")
         else:
             console.print(f"   [yellow]⚠[/yellow] Could not detect branch")
 
@@ -246,7 +246,7 @@ def run_enhanced_verify(
     # 6. Observations (not recommendations)
     observations = []
 
-    if current_branch == "main" and in_worktree:
+    if current_branch in ("main", "master") and in_worktree:
         observations.append("Unusual: In worktree but on main branch")
 
     if output_data.get("feature_analysis", {}).get("state") == "in_development":

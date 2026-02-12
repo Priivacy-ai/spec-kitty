@@ -221,6 +221,58 @@ def exclude_from_git_index(repo_path: Path, patterns: list[str]) -> None:
             pass  # Non-critical, continue silently
 
 
+def resolve_primary_branch(repo_root: Path) -> str:
+    """Detect the primary branch name for the repository.
+
+    Tries multiple methods in order:
+    1. origin/HEAD symbolic ref (most reliable for cloned repos)
+    2. Check which common branch exists (main, master, develop)
+    3. Fallback to "main"
+
+    Args:
+        repo_root: Repository root path
+
+    Returns:
+        Primary branch name (e.g., "main", "master", "develop")
+    """
+    # Method 1: Get from origin's HEAD
+    try:
+        result = subprocess.run(
+            ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if result.returncode == 0:
+            ref = result.stdout.strip()
+            if ref:
+                branch = ref.split("/")[-1]
+                if branch:
+                    return branch
+    except subprocess.TimeoutExpired:
+        pass
+
+    # Method 2: Check which common branch exists
+    for branch in ["main", "master", "develop"]:
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--verify", branch],
+                cwd=repo_root,
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode == 0:
+                return branch
+        except subprocess.TimeoutExpired:
+            continue
+
+    # Method 3: Fallback
+    return "main"
+
+
 def resolve_target_branch(
     feature_slug: str,
     repo_path: Path,
@@ -260,14 +312,15 @@ def resolve_target_branch(
 
     # Read target branch from meta.json
     meta_file = repo_path / "kitty-specs" / feature_slug / "meta.json"
-    target = "main"  # Default fallback
+    fallback = resolve_primary_branch(repo_path)
+    target = fallback
     if meta_file.exists():
         try:
             meta = json.loads(meta_file.read_text(encoding="utf-8"))
-            target = meta.get("target_branch", "main")
+            target = meta.get("target_branch", fallback)
         except (json.JSONDecodeError, OSError):
-            # Fallback to default if meta.json is invalid
-            target = "main"
+            # Fallback to detected primary branch if meta.json is invalid
+            target = fallback
 
     # Check if branches match
     if current_branch == target:
@@ -305,6 +358,7 @@ __all__ = [
     "has_tracking_branch",
     "init_git_repo",
     "is_git_repo",
+    "resolve_primary_branch",
     "resolve_target_branch",
     "run_command",
 ]

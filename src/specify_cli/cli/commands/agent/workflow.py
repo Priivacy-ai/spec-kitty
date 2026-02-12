@@ -65,18 +65,12 @@ app = typer.Typer(
 
 
 def _resolve_primary_branch(repo_root: Path) -> str:
-    """Resolve the primary branch name (main or master)."""
-    for candidate in ("main", "master"):
-        result = subprocess.run(
-            ["git", "rev-parse", "--verify", candidate],
-            cwd=repo_root,
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode == 0:
-            return candidate
-    print("Error: Could not find main or master branch")
-    raise typer.Exit(1)
+    """Resolve the primary branch name (main, master, etc.).
+
+    Delegates to the centralized implementation in core.git_ops.
+    """
+    from specify_cli.core.git_ops import resolve_primary_branch
+    return resolve_primary_branch(repo_root)
 
 
 def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tuple[Path, str]:
