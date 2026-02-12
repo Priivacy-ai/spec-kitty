@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Converge global runtime resolution
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: f04321d857c6d91834af9b3d61d395d30c6ab73d
@@ -297,3 +297,4 @@ No dependencies — branches directly from the 2.x branch.
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-12T10:14:42Z – wp08-agent – shell_pid=48475 – lane=doing – Assigned agent via workflow command
+- 2026-02-12T10:28:56Z – wp08-agent – shell_pid=48475 – lane=for_review – Ready for review: global runtime convergence with 5-tier resolution, warning suppression, one-time nudge, and idempotent migration
