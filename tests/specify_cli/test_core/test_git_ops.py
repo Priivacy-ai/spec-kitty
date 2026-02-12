@@ -271,10 +271,10 @@ def test_resolve_target_branch_branches_differ_respect_current(tmp_path):
 @pytest.mark.usefixtures("_git_identity")
 def test_resolve_target_branch_fallback_to_main(tmp_path):
     """Test T034: resolve_target_branch fallbacks to 'main' when meta.json missing."""
-    # Setup repo
+    # Setup repo with explicit main branch (CI may default to master)
     repo = tmp_path / "repo"
     repo.mkdir()
-    run_command(["git", "init"], cwd=repo)
+    run_command(["git", "init", "--initial-branch=main"], cwd=repo)
 
     (repo / "README.md").write_text("test", encoding="utf-8")
     run_command(["git", "add", "."], cwd=repo)
@@ -328,10 +328,10 @@ def test_resolve_target_branch_auto_detect_current(tmp_path):
 @pytest.mark.usefixtures("_git_identity")
 def test_resolve_target_branch_invalid_meta_json(tmp_path):
     """Test T036: resolve_target_branch handles invalid meta.json gracefully."""
-    # Setup repo
+    # Setup repo with explicit main branch (CI may default to master)
     repo = tmp_path / "repo"
     repo.mkdir()
-    run_command(["git", "init"], cwd=repo)
+    run_command(["git", "init", "--initial-branch=main"], cwd=repo)
 
     (repo / "README.md").write_text("test", encoding="utf-8")
     run_command(["git", "add", "."], cwd=repo)
