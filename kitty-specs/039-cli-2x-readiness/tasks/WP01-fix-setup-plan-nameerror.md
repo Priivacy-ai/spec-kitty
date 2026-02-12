@@ -1,24 +1,27 @@
 ---
-work_package_id: "WP01"
-subtasks:
-  - "T001"
-  - "T002"
-  - "T003"
-title: "Fix setup-plan NameError on 2.x"
-phase: "Wave 1 - Independent Fixes"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task WP01 --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP01
+title: Fix setup-plan NameError on 2.x
+lane: "doing"
 dependencies: []
+base_branch: main
+base_commit: 7bd6c768a80ab89b5c98d40db5e3671178829eec
+created_at: '2026-02-12T10:08:27.183442+00:00'
+subtasks:
+- T001
+- T002
+- T003
+phase: Wave 1 - Independent Fixes
+assignee: ''
+agent: ''
+shell_pid: "41559"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-12T12:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-12T12:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP01 – Fix setup-plan NameError on 2.x
