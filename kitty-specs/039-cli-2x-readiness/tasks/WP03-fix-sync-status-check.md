@@ -1,25 +1,28 @@
 ---
-work_package_id: "WP03"
-subtasks:
-  - "T011"
-  - "T012"
-  - "T013"
-  - "T014"
-title: "Fix sync status --check to use real token"
-phase: "Wave 1 - Independent Fixes"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task WP03 --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP03
+title: Fix sync status --check to use real token
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: 217972339dcfe9159fccf3fcfd5b71b36cfe4c39
+created_at: '2026-02-12T10:13:55.359832+00:00'
+subtasks:
+- T011
+- T012
+- T013
+- T014
+phase: Wave 1 - Independent Fixes
+assignee: ''
+agent: ''
+shell_pid: "47102"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-12T12:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-12T12:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP03 – Fix sync status --check to use real token
