@@ -170,12 +170,12 @@
 **Prompt**: `/tasks/WP08-global-runtime-convergence.md`
 
 ### Included Subtasks
-- [ ] T034 Audit current resolution chain in `src/specify_cli/core/project_resolver.py` on 2.x
-- [ ] T035 Add `~/.kittify/` to resolution chain: project → global → package defaults
-- [ ] T036 Eliminate legacy fallback warnings when `~/.kittify/` exists
-- [ ] T037 Emit one-time "run `spec-kitty migrate`" message if `~/.kittify/` doesn't exist (not a warning flood)
-- [ ] T038 Make `spec-kitty migrate` idempotent for global runtime install
-- [ ] T039 Write tests for resolution chain with `~/.kittify/` (exists, doesn't exist, idempotent migrate)
+- [x] T034 Audit current resolution chain in `src/specify_cli/core/project_resolver.py` on 2.x
+- [x] T035 Add `~/.kittify/` to resolution chain: project → global → package defaults
+- [x] T036 Eliminate legacy fallback warnings when `~/.kittify/` exists
+- [x] T037 Emit one-time "run `spec-kitty migrate`" message if `~/.kittify/` doesn't exist (not a warning flood)
+- [x] T038 Make `spec-kitty migrate` idempotent for global runtime install
+- [x] T039 Write tests for resolution chain with `~/.kittify/` (exists, doesn't exist, idempotent migrate)
 
 ### Implementation Notes
 - 2.x has partial global runtime bootstrap — audit what already exists before adding
