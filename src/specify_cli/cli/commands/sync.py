@@ -741,4 +741,89 @@ def status(
         console.print()
 
 
+@app.command()
+def diagnose(
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Output results as JSON instead of Rich table",
+    ),
+) -> None:
+    """Validate queued events locally against the event schema.
+
+    Reads all pending events from the offline queue and validates each one
+    against the Pydantic Event model and per-event-type payload rules.
+
+    Valid events are reported as passing; malformed events show specific
+    field errors grouped by error category.
+
+    Examples:
+        spec-kitty sync diagnose
+        spec-kitty sync diagnose --json
+    """
+    import json as json_mod
+
+    from specify_cli.sync.diagnose import diagnose_events
+    from specify_cli.sync.queue import OfflineQueue
+
+    queue = OfflineQueue()
+    pending = queue.drain_queue(limit=queue.MAX_QUEUE_SIZE)
+
+    if not pending:
+        if json_output:
+            console.print(json_mod.dumps({"total": 0, "valid": 0, "invalid": 0, "results": []}))
+        else:
+            console.print("[green]No pending events in queue.[/green]")
+        return
+
+    results = diagnose_events(pending)
+
+    valid_count = sum(1 for r in results if r.valid)
+    invalid_count = sum(1 for r in results if not r.valid)
+
+    if json_output:
+        output = {
+            "total": len(results),
+            "valid": valid_count,
+            "invalid": invalid_count,
+            "results": [
+                {
+                    "event_id": r.event_id,
+                    "event_type": r.event_type,
+                    "valid": r.valid,
+                    "errors": r.errors,
+                    "error_category": r.error_category,
+                }
+                for r in results
+            ],
+        }
+        console.print(json_mod.dumps(output, indent=2))
+        return
+
+    # Rich output
+    console.print()
+    console.print(
+        f"Validated [cyan]{len(results)}[/cyan] event(s): "
+        f"[green]{valid_count} valid[/green], "
+        f"[red]{invalid_count} invalid[/red]"
+    )
+
+    # Show valid events (brief)
+    for r in results:
+        if r.valid:
+            console.print(f"  [green]VALID[/green]   {r.event_id} ({r.event_type})")
+
+    # Show invalid events (detailed)
+    for r in results:
+        if not r.valid:
+            category_label = f" [{r.error_category}]" if r.error_category else ""
+            console.print(
+                f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}"
+            )
+            for err in r.errors:
+                console.print(f"    - {err}")
+
+    console.print()
+
+
 __all__ = ["app"]
