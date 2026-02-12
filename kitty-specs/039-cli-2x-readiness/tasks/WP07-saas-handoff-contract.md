@@ -15,7 +15,7 @@ subtasks:
 - T033
 phase: Wave 2 - Dependent
 assignee: ''
-agent: ''
+agent: "wp07-agent"
 shell_pid: "67771"
 review_status: ''
 reviewed_by: ''
@@ -213,3 +213,4 @@ Depends on WP02 (error format). Use WP02 as base; pull in lane mapping notes fro
 ## Activity Log
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
+- 2026-02-12T10:26:30Z – wp07-agent – shell_pid=67771 – lane=doing – Assigned agent via workflow command
