@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlparse
 
 import typer
@@ -407,7 +408,13 @@ def sync_server(
 
 
 @app.command()
-def now() -> None:
+def now(
+    report: Optional[Path] = typer.Option(
+        None,
+        "--report",
+        help="Export per-event failure details to a JSON file",
+    ),
+) -> None:
     """Trigger immediate sync of all queued events.
 
     Drains the offline queue completely, uploading events to the server
@@ -416,8 +423,10 @@ def now() -> None:
 
     Examples:
         spec-kitty sync now
+        spec-kitty sync now --report failures.json
     """
     from specify_cli.sync.background import get_sync_service
+    from specify_cli.sync.batch import format_sync_summary, write_failure_report
 
     service = get_sync_service()
     queue_size = service.queue.size()
@@ -429,14 +438,24 @@ def now() -> None:
     console.print(f"Syncing {queue_size} queued event(s)...")
     result = service.sync_now()
 
-    console.print(
-        f"[green]Synced:[/green] {result.synced_count}  "
-        f"[dim]Duplicates:[/dim] {result.duplicate_count}  "
-        f"[red]Errors:[/red] {result.error_count}"
-    )
-    if result.error_messages:
-        for err in result.error_messages:
-            console.print(f"  [red]Error:[/red] {err}")
+    # Print actionable summary instead of bare counts
+    summary = format_sync_summary(result)
+    for line in summary.split("\n"):
+        if line.startswith("  "):
+            console.print(f"  [yellow]{line.strip()}[/yellow]")
+        else:
+            console.print(
+                f"[green]Synced:[/green] {result.synced_count}  "
+                f"[dim]Duplicates:[/dim] {result.duplicate_count}  "
+                f"[red]Errors:[/red] {result.error_count}"
+            )
+
+    # Write failure report if requested and there are failures
+    if report and result.failed_results:
+        write_failure_report(report, result)
+        console.print(f"\n[cyan]Failure report written to {report}[/cyan]")
+    elif report and not result.failed_results:
+        console.print("\n[dim]No failures to report.[/dim]")
 
 
 @app.command()

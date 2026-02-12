@@ -179,6 +179,46 @@ class OfflineQueue:
         finally:
             conn.close()
 
+    def process_batch_results(self, results: list) -> None:
+        """Process batch sync results: remove synced/duplicate, bump retry for failures.
+
+        Wraps all queue mutations in a single SQLite transaction for
+        atomicity: either all changes apply or none do.
+
+        Args:
+            results: List of ``BatchEventResult`` (or any object with
+                ``.status`` and ``.event_id`` attributes).
+        """
+        synced_or_duplicate: list[str] = []
+        rejected: list[str] = []
+        for r in results:
+            if r.status in ("success", "duplicate"):
+                synced_or_duplicate.append(r.event_id)
+            elif r.status == "rejected":
+                rejected.append(r.event_id)
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            # Wrap both operations in a single transaction
+            if synced_or_duplicate:
+                placeholders = ",".join("?" * len(synced_or_duplicate))
+                conn.execute(
+                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",
+                    synced_or_duplicate,
+                )
+            if rejected:
+                placeholders = ",".join("?" * len(rejected))
+                conn.execute(
+                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",
+                    rejected,
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
     def get_events_by_retry_count(self, max_retries: int = 5) -> List[Dict]:
         """
         Get events that haven't exceeded retry limit.
