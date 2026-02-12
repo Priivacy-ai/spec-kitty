@@ -119,7 +119,7 @@ def check_dependency_status(
 
 
 def predict_merge_conflicts(
-    repo_root: Path, branches: list[str], target: str = "main"
+    repo_root: Path, branches: list[str], target: str | None = None
 ) -> dict[str, list[str]]:
     """Predict which files will conflict when merging branches.
 
@@ -135,6 +135,10 @@ def predict_merge_conflicts(
         Example: {".gitignore": ["WP01", "WP02", "WP03"]}
     """
     import subprocess
+
+    if target is None:
+        from specify_cli.core.git_ops import resolve_primary_branch
+        target = resolve_primary_branch(repo_root)
 
     conflicts = {}
 

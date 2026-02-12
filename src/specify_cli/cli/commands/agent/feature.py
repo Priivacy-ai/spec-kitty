@@ -51,17 +51,12 @@ console = Console()
 
 
 def _resolve_primary_branch(repo_root: Path) -> str:
-    """Resolve the primary branch name (main or master)."""
-    for candidate in ("main", "master"):
-        result = subprocess.run(
-            ["git", "rev-parse", "--verify", candidate],
-            cwd=repo_root,
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode == 0:
-            return candidate
-    raise RuntimeError("Could not find main or master branch")
+    """Resolve the primary branch name (main, master, etc.).
+
+    Delegates to the centralized implementation in core.git_ops.
+    """
+    from specify_cli.core.git_ops import resolve_primary_branch
+    return resolve_primary_branch(repo_root)
 
 
 def _resolve_planning_branch(repo_root: Path, feature_dir: Path | None = None) -> str:
@@ -70,7 +65,7 @@ def _resolve_planning_branch(repo_root: Path, feature_dir: Path | None = None) -
     This function wraps resolve_target_branch() to maintain backward compatibility
     while using the unified Bug #124 fix for branch routing.
     """
-    current_branch = get_current_branch(repo_root) or "main"
+    current_branch = get_current_branch(repo_root) or _resolve_primary_branch(repo_root)
     if feature_dir is None:
         return current_branch
 
@@ -822,7 +817,7 @@ def _get_current_branch(repo_root: Path) -> str:
         text=True,
         check=False
     )
-    return result.stdout.strip() if result.returncode == 0 else "main"
+    return result.stdout.strip() if result.returncode == 0 else _resolve_primary_branch(repo_root)
 
 
 @app.command(name="accept")
@@ -917,12 +912,12 @@ def merge_feature(
         )
     ] = None,
     target: Annotated[
-        str,
+        Optional[str],
         typer.Option(
             "--target",
-            help="Target branch to merge into"
+            help="Target branch to merge into (auto-detected if not specified)"
         )
-    ] = "main",
+    ] = None,
     strategy: Annotated[
         str,
         typer.Option(
@@ -999,6 +994,10 @@ def merge_feature(
             error = "Could not locate project root"
             print(json.dumps({"error": error, "success": False}))
             sys.exit(1)
+
+        # Resolve target branch dynamically if not specified
+        if target is None:
+            target = _resolve_primary_branch(repo_root)
 
         # Auto-retry logic: Check if we're on a feature branch
         if auto_retry and not os.environ.get("SPEC_KITTY_AUTORETRY"):

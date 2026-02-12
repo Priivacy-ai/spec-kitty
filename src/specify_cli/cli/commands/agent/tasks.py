@@ -25,27 +25,15 @@ from specify_cli.git import safe_commit
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
-    """Resolve the primary branch name (main or master).
+    """Resolve the primary branch name (main, master, etc.).
+
+    Delegates to the centralized implementation in core.git_ops.
 
     Returns:
-        "main" if it exists, otherwise "master" if it exists.
-
-    Raises:
-        typer.Exit: If neither branch exists.
+        Detected primary branch name.
     """
-    for candidate in ("main", "master"):
-        result = subprocess.run(
-            ["git", "rev-parse", "--verify", candidate],
-            cwd=repo_root,
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode == 0:
-            return candidate
-    # Neither exists
-    console = Console()
-    console.print("[red]Error:[/red] Could not find main or master branch")
-    raise typer.Exit(1)
+    from specify_cli.core.git_ops import resolve_primary_branch as _resolve
+    return _resolve(repo_root)
 from specify_cli.tasks_support import (
     LANES,
     WorkPackage,

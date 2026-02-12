@@ -11,6 +11,7 @@ from specify_cli.core.git_ops import (
     has_remote,
     init_git_repo,
     is_git_repo,
+    resolve_primary_branch,
     resolve_target_branch,
     run_command,
 )
@@ -349,3 +350,336 @@ def test_resolve_target_branch_invalid_meta_json(tmp_path):
     assert resolution.current == "main"
     assert resolution.should_notify is False
     assert resolution.action == "proceed"
+
+
+# ============================================================================
+# resolve_primary_branch tests
+# ============================================================================
+
+
+def _init_repo_with_branch(path: Path, branch_name: str) -> Path:
+    """Helper: create a git repo whose initial branch is `branch_name`."""
+    repo = path / "repo"
+    repo.mkdir()
+    run_command(["git", "init", f"--initial-branch={branch_name}"], cwd=repo)
+    (repo / "README.md").write_text("init", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "Initial"], cwd=repo)
+    return repo
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_detects_main(tmp_path):
+    """resolve_primary_branch returns 'main' for a standard repo."""
+    repo = _init_repo_with_branch(tmp_path, "main")
+    assert resolve_primary_branch(repo) == "main"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_detects_master(tmp_path):
+    """resolve_primary_branch returns 'master' when that is the only primary branch."""
+    repo = _init_repo_with_branch(tmp_path, "master")
+    assert resolve_primary_branch(repo) == "master"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_detects_develop(tmp_path):
+    """resolve_primary_branch returns 'develop' when that is the only branch."""
+    repo = _init_repo_with_branch(tmp_path, "develop")
+    assert resolve_primary_branch(repo) == "develop"
+
+
+def _create_remote_with_branch(tmp_path: Path, branch_name: str) -> tuple[Path, Path]:
+    """Helper: create a bare remote + clone where origin/HEAD points at branch_name.
+
+    Returns (repo_path, bare_path).
+    """
+    bare = tmp_path / "bare"
+    bare.mkdir()
+    run_command(["git", "init", "--bare", f"--initial-branch={branch_name}"], cwd=bare)
+
+    # Seed the bare repo so clone gets a non-empty default branch
+    seed = tmp_path / "seed"
+    seed.mkdir()
+    run_command(["git", "init", f"--initial-branch={branch_name}"], cwd=seed)
+    (seed / "README.md").write_text("init", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=seed)
+    run_command(["git", "commit", "-m", "Initial"], cwd=seed)
+    run_command(["git", "remote", "add", "origin", str(bare)], cwd=seed)
+    run_command(["git", "push", "-u", "origin", branch_name], cwd=seed)
+
+    # Now clone — origin/HEAD will be set correctly
+    repo = tmp_path / "repo"
+    run_command(["git", "clone", str(bare), str(repo)])
+    return repo, bare
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_prefers_origin_head(tmp_path):
+    """resolve_primary_branch prefers origin/HEAD over branch existence check."""
+    repo, _ = _create_remote_with_branch(tmp_path, "ticket_nr_4_branch")
+    assert resolve_primary_branch(repo) == "ticket_nr_4_branch"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_custom_branch_via_origin(tmp_path):
+    """resolve_primary_branch detects a completely custom branch name via origin/HEAD."""
+    repo, _ = _create_remote_with_branch(tmp_path, "my-custom-trunk")
+    assert resolve_primary_branch(repo) == "my-custom-trunk"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_primary_branch_fallback_no_branches(tmp_path):
+    """resolve_primary_branch falls back to 'main' when nothing can be detected."""
+    # Create a repo with a non-standard branch and no remote
+    repo = _init_repo_with_branch(tmp_path, "some_random_branch")
+
+    # No origin/HEAD, no main/master/develop → fallback
+    assert resolve_primary_branch(repo) == "main"
+
+
+# ============================================================================
+# resolve_target_branch with non-"main" primary branch
+# ============================================================================
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_target_branch_fallback_to_master(tmp_path):
+    """When meta.json is missing and repo primary is 'master', fallback is 'master'."""
+    import json
+
+    repo = _init_repo_with_branch(tmp_path, "master")
+
+    # Create feature WITHOUT meta.json
+    feature_dir = repo / "kitty-specs" / "010-test"
+    feature_dir.mkdir(parents=True)
+
+    resolution = resolve_target_branch("010-test", repo, "master", respect_current=True)
+
+    assert resolution.target == "master"  # Dynamic fallback, not hardcoded "main"
+    assert resolution.current == "master"
+    assert resolution.should_notify is False
+    assert resolution.action == "proceed"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_target_branch_fallback_uses_origin_head(tmp_path):
+    """When meta.json has no target_branch, fallback uses origin/HEAD detection."""
+    import json
+
+    repo, _ = _create_remote_with_branch(tmp_path, "ticket_nr_4_branch")
+
+    # Create feature with meta.json that has NO target_branch field
+    feature_dir = repo / "kitty-specs" / "020-feature"
+    feature_dir.mkdir(parents=True)
+    meta = {"feature_number": "020", "slug": "020-feature"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    resolution = resolve_target_branch(
+        "020-feature", repo, "ticket_nr_4_branch", respect_current=True
+    )
+
+    assert resolution.target == "ticket_nr_4_branch"  # Detected from origin/HEAD
+    assert resolution.should_notify is False
+    assert resolution.action == "proceed"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_resolve_target_branch_meta_overrides_detected_primary(tmp_path):
+    """meta.json target_branch takes priority over detected primary branch."""
+    import json
+
+    repo = _init_repo_with_branch(tmp_path, "master")
+
+    # Create feature targeting "2.x" explicitly
+    feature_dir = repo / "kitty-specs" / "025-feature"
+    feature_dir.mkdir(parents=True)
+    meta = {"target_branch": "2.x"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    resolution = resolve_target_branch("025-feature", repo, "master", respect_current=True)
+
+    assert resolution.target == "2.x"  # meta.json wins over detected "master"
+    assert resolution.should_notify is True  # master != 2.x
+
+
+# ============================================================================
+# get_feature_target_branch with non-"main" primary
+# ============================================================================
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_get_feature_target_branch_master_repo_no_meta(tmp_path):
+    """In a master-based repo with no meta.json, fallback should be 'master'."""
+    from specify_cli.core.feature_detection import get_feature_target_branch
+
+    repo = _init_repo_with_branch(tmp_path, "master")
+
+    feature_dir = repo / "kitty-specs" / "010-test"
+    feature_dir.mkdir(parents=True)
+    # No meta.json
+
+    target = get_feature_target_branch(repo, "010-test")
+    assert target == "master"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_get_feature_target_branch_custom_primary_no_meta(tmp_path):
+    """In a repo with a custom primary branch and no meta.json, fallback should match."""
+    from specify_cli.core.feature_detection import get_feature_target_branch
+
+    repo, _ = _create_remote_with_branch(tmp_path, "ticket_nr_4_branch")
+
+    feature_dir = repo / "kitty-specs" / "010-test"
+    feature_dir.mkdir(parents=True)
+    # No meta.json
+
+    target = get_feature_target_branch(repo, "010-test")
+    assert target == "ticket_nr_4_branch"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_get_feature_target_branch_meta_overrides_custom_primary(tmp_path):
+    """meta.json target_branch wins over custom primary branch detection."""
+    import json
+    from specify_cli.core.feature_detection import get_feature_target_branch
+
+    repo = _init_repo_with_branch(tmp_path, "master")
+
+    feature_dir = repo / "kitty-specs" / "025-test"
+    feature_dir.mkdir(parents=True)
+    meta = {"target_branch": "2.x"}
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    target = get_feature_target_branch(repo, "025-test")
+    assert target == "2.x"  # meta.json overrides "master" detection
+
+
+# ============================================================================
+# Integration: manifest WorktreeStatus with non-"main" primary
+# ============================================================================
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_manifest_merged_check_uses_detected_primary(tmp_path):
+    """WorktreeStatus.get_feature_status checks --merged against detected primary branch."""
+    from specify_cli.manifest import WorktreeStatus
+
+    repo = _init_repo_with_branch(tmp_path, "master")
+
+    # Create a feature branch and merge it into master
+    run_command(["git", "checkout", "-b", "001-my-feature"], cwd=repo)
+    (repo / "feature.txt").write_text("feature work", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "Feature work"], cwd=repo)
+    run_command(["git", "checkout", "master"], cwd=repo)
+    run_command(["git", "merge", "--no-ff", "001-my-feature", "-m", "Merge feature"], cwd=repo)
+
+    # Create kitty-specs directory so it shows up (needs a file; git ignores empty dirs)
+    feature_dir = repo / "kitty-specs" / "001-my-feature"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("# Feature spec\n", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "Add kitty-specs"], cwd=repo)
+
+    ws = WorktreeStatus(repo)
+    status = ws.get_feature_status("001-my-feature")
+
+    # Feature should be detected as merged into master (not fail because "main" doesn't exist)
+    assert status["branch_merged"] is True
+    assert status["state"] == "merged"
+
+
+# ============================================================================
+# Integration: multi_parent_merge with custom target
+# ============================================================================
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_multi_parent_merge_uses_target_branch(tmp_path):
+    """create_multi_parent_base uses target_branch parameter instead of hardcoded 'main'."""
+    from specify_cli.core.multi_parent_merge import create_multi_parent_base
+
+    repo = _init_repo_with_branch(tmp_path, "master")
+
+    # Create two dependency branches
+    run_command(["git", "checkout", "-b", "010-feature-WP01"], cwd=repo)
+    (repo / "wp01.txt").write_text("wp01", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "WP01 work"], cwd=repo)
+
+    run_command(["git", "checkout", "master"], cwd=repo)
+    run_command(["git", "checkout", "-b", "010-feature-WP02"], cwd=repo)
+    (repo / "wp02.txt").write_text("wp02", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "WP02 work"], cwd=repo)
+
+    run_command(["git", "checkout", "master"], cwd=repo)
+
+    # Create multi-parent base with explicit target_branch="master"
+    result = create_multi_parent_base(
+        feature_slug="010-feature",
+        wp_id="WP03",
+        dependencies=["WP01", "WP02"],
+        repo_root=repo,
+        target_branch="master",
+    )
+
+    assert result.success is True
+    assert result.branch_name == "010-feature-WP03-merge-base"
+    assert result.commit_sha is not None
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_multi_parent_merge_auto_detects_primary(tmp_path):
+    """create_multi_parent_base auto-detects primary branch when target_branch is None."""
+    from specify_cli.core.multi_parent_merge import create_multi_parent_base
+
+    repo = _init_repo_with_branch(tmp_path, "master")
+
+    run_command(["git", "checkout", "-b", "010-feature-WP01"], cwd=repo)
+    (repo / "wp01.txt").write_text("wp01", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "WP01 work"], cwd=repo)
+
+    run_command(["git", "checkout", "master"], cwd=repo)
+    run_command(["git", "checkout", "-b", "010-feature-WP02"], cwd=repo)
+    (repo / "wp02.txt").write_text("wp02", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "WP02 work"], cwd=repo)
+
+    run_command(["git", "checkout", "master"], cwd=repo)
+
+    # Don't pass target_branch — should auto-detect "master"
+    result = create_multi_parent_base(
+        feature_slug="010-feature",
+        wp_id="WP03",
+        dependencies=["WP01", "WP02"],
+        repo_root=repo,
+    )
+
+    assert result.success is True
+
+
+# ============================================================================
+# Integration: dependency_resolver with non-"main" default
+# ============================================================================
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_predict_merge_conflicts_auto_detects_target(tmp_path):
+    """predict_merge_conflicts auto-detects primary branch when target is None."""
+    from specify_cli.core.dependency_resolver import predict_merge_conflicts
+
+    repo = _init_repo_with_branch(tmp_path, "master")
+
+    # Create a feature branch
+    run_command(["git", "checkout", "-b", "010-feature-WP01"], cwd=repo)
+    (repo / "new_file.txt").write_text("wp01", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "WP01"], cwd=repo)
+    run_command(["git", "checkout", "master"], cwd=repo)
+
+    # Should not raise when target=None (auto-detects "master")
+    conflicts = predict_merge_conflicts(repo, ["010-feature-WP01"])
+    assert isinstance(conflicts, dict)

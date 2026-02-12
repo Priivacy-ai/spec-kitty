@@ -596,6 +596,11 @@ def merge_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     feature = _resolve_feature(repo_root, args.feature)
 
+    # Resolve target branch dynamically if not specified
+    if args.target is None:
+        from specify_cli.core.git_ops import resolve_primary_branch
+        args.target = resolve_primary_branch(repo_root)
+
     current_branch = run_git([
         "rev-parse",
         "--abbrev-ref",
@@ -809,7 +814,7 @@ def build_parser() -> argparse.ArgumentParser:
     merge = subparsers.add_parser("merge", help="Merge a feature branch into the target branch")
     merge.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
     merge.add_argument("--strategy", choices=["merge", "squash", "rebase"], default="merge")
-    merge.add_argument("--target", default="main", help="Target branch to merge into")
+    merge.add_argument("--target", default=None, help="Target branch to merge into (auto-detected)")
     merge.add_argument("--push", action="store_true", help="Push to origin after merging")
     merge.add_argument("--delete-branch", dest="delete_branch", action="store_true", default=True)
     merge.add_argument("--keep-branch", dest="delete_branch", action="store_false")
