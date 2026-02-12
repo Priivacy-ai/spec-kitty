@@ -368,6 +368,86 @@ def sync_workspace(
     console.print()
 
 
+def _check_server_connection(server_url: str) -> tuple[str, str]:
+    """Probe the batch endpoint using the user's real auth token.
+
+    Returns:
+        Tuple of (rich-formatted status string, detail message).
+    """
+    import httpx
+    from specify_cli.sync.auth import AuthClient, AuthenticationError, CredentialStore
+
+    # Step 1: Check if credentials exist at all
+    store = CredentialStore()
+    if not store.exists():
+        return (
+            "[yellow]Not authenticated[/yellow]",
+            "Run `spec-kitty auth login` to connect.",
+        )
+
+    # Step 2: Get a valid access token (with auto-refresh if expired)
+    auth = AuthClient()
+    try:
+        access_token = auth.get_access_token()
+    except Exception:
+        access_token = None
+
+    if not access_token:
+        # Access token expired and refresh also failed
+        return (
+            "[yellow]Session expired[/yellow]",
+            "Run `spec-kitty auth login` to re-authenticate.",
+        )
+
+    # Step 3: Probe the batch endpoint with an empty events list
+    batch_url = f"{server_url.rstrip('/')}/api/v1/events/batch/"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    payload = b'{"events": []}'
+
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.post(batch_url, content=payload, headers=headers)
+
+        if response.status_code == 200:
+            return (
+                "[green]Connected[/green]",
+                "Server reachable, authentication valid.",
+            )
+        elif response.status_code == 401:
+            return (
+                "[yellow]Authentication failed[/yellow]",
+                "Run `spec-kitty auth login` to re-authenticate.",
+            )
+        elif response.status_code == 403:
+            return (
+                "[yellow]Permission denied[/yellow]",
+                "Check team membership for this project.",
+            )
+        else:
+            return (
+                "[yellow]Unexpected[/yellow]",
+                f"Server returned HTTP {response.status_code}.",
+            )
+    except httpx.TimeoutException:
+        return (
+            "[red]Unreachable[/red]",
+            "Connection timeout (server may be down). Events will be queued for later sync.",
+        )
+    except httpx.ConnectError:
+        return (
+            "[red]Unreachable[/red]",
+            "Connection refused. Events will be queued for later sync.",
+        )
+    except Exception as e:
+        return (
+            "[red]Error[/red]",
+            f"Probe failed: {str(e)[:80]}",
+        )
+
+
 @app.command(name="server")
 def sync_server(
     url: str | None = typer.Argument(
@@ -466,9 +546,7 @@ def status(
         # Test connection to server
         spec-kitty sync status --check
     """
-    import asyncio
     from specify_cli.sync.config import SyncConfig
-    from specify_cli.sync.client import WebSocketClient
     from specify_cli.sync.events import get_emitter
     from specify_cli.sync.background import get_sync_service
 
@@ -522,44 +600,10 @@ def status(
 
     # Optionally test connection if --check flag is provided
     if check_connection:
-        async def test_connection():
-            """Quick connection test (non-blocking)"""
-            try:
-                # Convert https to wss for WebSocket
-                ws_url = server_url.replace("https://", "wss://").replace("http://", "ws://")
-
-                # Try to connect with a test token (will fail auth but tests connectivity)
-                client = WebSocketClient(ws_url, "test-token")
-
-                # Set a short timeout for the connection test
-                try:
-                    await asyncio.wait_for(client.connect(), timeout=3.0)
-                    await client.disconnect()
-                    return "[green]Connected[/green]", "Successfully reached server"
-                except asyncio.TimeoutError:
-                    return "[red]Unreachable[/red]", "Connection timeout (server may be down)"
-                except Exception as e:
-                    error_msg = str(e)
-                    if "401" in error_msg or "Invalid token" in error_msg:
-                        return "[yellow]Reachable[/yellow]", "Server online (auth required)"
-                    elif "403" in error_msg:
-                        return "[yellow]Reachable[/yellow]", "Server online (access forbidden)"
-                    elif "refused" in error_msg.lower():
-                        return "[red]Unreachable[/red]", "Connection refused"
-                    else:
-                        return "[yellow]Unknown[/yellow]", f"Error: {error_msg[:50]}"
-            except Exception as e:
-                return "[red]Error[/red]", f"Test failed: {str(e)[:50]}"
-
-        # Run the async connection test
-        try:
-            connection_status, connection_note = asyncio.run(test_connection())
-            table.add_row("Ping", connection_status)
-            if connection_note:
-                table.add_row("", f"[dim]{connection_note}[/dim]")
-        except Exception as e:
-            table.add_row("Ping", "[red]Error[/red]")
-            table.add_row("", f"[dim]Status check failed: {str(e)[:50]}[/dim]")
+        connection_status, connection_note = _check_server_connection(server_url)
+        table.add_row("Ping", connection_status)
+        if connection_note:
+            table.add_row("", f"[dim]{connection_note}[/dim]")
 
     console.print(table)
     console.print()
