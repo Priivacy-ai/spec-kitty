@@ -144,6 +144,10 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-01-30-18](adrs/2026-01-30-18-auto-detect-merged-single-parent-dependencies.md) | Auto-Detect Merged Single-Parent Dependencies | Superseded (ADR-21) | Git Repository Management |
 | [2026-01-30-19](adrs/2026-01-30-19-auto-discover-migrations-from-filesystem.md) | Auto-Discover Migrations from Filesystem | Accepted | Upgrade System |
 | [2026-02-04-21](adrs/2026-02-04-21-done-means-review-complete-not-merged.md) | "Done" Means Review-Complete, Not Merged | Accepted | Git Repository Management |
+| [2026-02-11-6](adrs/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md) | PyPI Exact Pinning for `spec-kitty-events` Across Consumer Repos | Accepted | Cross-Repo Contracts |
+| [2026-02-12-1](adrs/2026-02-12-1-freeze-auth-architecture-for-2x-stabilization.md) | Freeze Auth Architecture for 2.x Stabilization Sprint | Accepted | Auth Strategy / Scope Control |
+| [2026-02-12-2](adrs/2026-02-12-2-use-scoped-api-keys-for-ci-during-stabilization.md) | Use Scoped API Keys for CI During Stabilization | Accepted | Service Authentication |
+| [2026-02-12-3](adrs/2026-02-12-3-defer-auth0-and-nango-to-post-stabilization.md) | Defer Auth0 and Nango to Post-Stabilization Migration | Accepted | Identity & Integration Roadmap |
 
 ### By Topic
 
