@@ -13,8 +13,8 @@ def git_repo_with_2x_feature(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
     
-    # Initialize git repo
-    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    # Initialize git repo with explicit main branch (CI may default to master)
+    subprocess.run(["git", "init", "--initial-branch=main"], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, check=True)
     
