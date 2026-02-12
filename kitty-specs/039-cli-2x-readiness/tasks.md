@@ -28,9 +28,9 @@
 **Prompt**: `/tasks/WP01-fix-setup-plan-nameerror.md`
 
 ### Included Subtasks
-- [ ] T001 Apply missing `get_feature_mission_key` import to `src/specify_cli/cli/commands/agent/feature.py` on 2.x
-- [ ] T002 Investigate `test_full_planning_workflow_no_worktrees` xfail — fix or re-document
-- [ ] T003 Verify all planning workflow tests pass (`test_planning_workflow.py`, `test_task_workflow.py`)
+- [x] T001 Apply missing `get_feature_mission_key` import to `src/specify_cli/cli/commands/agent/feature.py` on 2.x
+- [x] T002 Investigate `test_full_planning_workflow_no_worktrees` xfail — fix or re-document
+- [x] T003 Verify all planning workflow tests pass (`test_planning_workflow.py`, `test_task_workflow.py`)
 
 ### Implementation Notes
 - The fix is already on main at commit 5332408f — cherry-pick or manually apply the same import
