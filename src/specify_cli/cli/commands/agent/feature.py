@@ -37,6 +37,7 @@ from specify_cli.core.worktree import (
     validate_feature_structure,
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
+from specify_cli.mission import get_feature_mission_key
 from specify_cli.sync.events import emit_feature_created, emit_wp_created, get_emitter
 
 app = typer.Typer(
@@ -1087,20 +1088,19 @@ def finalize_tasks(
         files_committed = []
 
         try:
-            # Add tasks.md (if present) and all WP files
+            # Build list of all files to commit via safe_commit
+            files_to_commit = []
+
+            # Include tasks.md (if present)
             if tasks_md.exists():
-                run_command(
-                    ["git", "add", str(tasks_md)],
-                    check_return=True,
-                    capture=True,
-                    cwd=repo_root
-                )
+                files_to_commit.append(tasks_md)
                 files_committed.append(str(tasks_md.relative_to(repo_root)))
 
-            # Get list of all files in tasks_dir to commit
-            files_to_commit = [tasks_dir / f.name for f in tasks_dir.iterdir() if f.is_file()]
-            for f in files_to_commit:
-                files_committed.append(str(f.relative_to(repo_root)))
+            # Include all files in tasks_dir
+            for f in tasks_dir.iterdir():
+                if f.is_file():
+                    files_to_commit.append(f)
+                    files_committed.append(str(f.relative_to(repo_root)))
 
             # Commit with descriptive message (safe_commit preserves staging area)
             commit_msg = f"Add tasks for feature {feature_slug}"
