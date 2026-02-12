@@ -1,9 +1,12 @@
 ---
 work_package_id: WP07
 title: SaaS handoff contract document
-lane: planned
+lane: "doing"
 dependencies:
 - WP02
+base_branch: 039-cli-2x-readiness-WP02
+base_commit: 0cf3f906f4f979a000cf04c78688a397d69b6a37
+created_at: '2026-02-12T10:26:30.151947+00:00'
 subtasks:
 - T029
 - T030
@@ -13,7 +16,7 @@ subtasks:
 phase: Wave 2 - Dependent
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "67771"
 review_status: ''
 reviewed_by: ''
 history:
