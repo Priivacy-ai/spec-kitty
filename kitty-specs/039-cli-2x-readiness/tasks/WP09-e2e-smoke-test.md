@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: End-to-end CLI smoke test
-lane: "doing"
+lane: "done"
 dependencies:
 - WP01
 base_branch: 039-cli-2x-readiness-WP01
@@ -17,8 +17,8 @@ phase: Wave 3 - Integration
 assignee: ''
 agent: "wp09-reviewer"
 shell_pid: "73030"
-review_status: ''
-reviewed_by: ''
+review_status: "approved"
+reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned
@@ -306,3 +306,4 @@ Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the plan
 - 2026-02-12T10:25:55Z – wp09-agent – shell_pid=66054 – lane=doing – Assigned agent via workflow command
 - 2026-02-12T10:32:23Z – wp09-agent – shell_pid=66054 – lane=for_review – Ready for review: 6 E2E tests all passing, full workflow exercised
 - 2026-02-12T10:33:09Z – wp09-reviewer – shell_pid=73030 – lane=doing – Started review via workflow command
+- 2026-02-12T10:36:29Z – wp09-reviewer – shell_pid=73030 – lane=done – Review passed: All 6 E2E tests pass. Tests exercise create-feature, setup-plan, finalize-tasks, implement, move-task full sequence plus 3 edge cases. Self-contained via tmp_path fixtures, proper isolation via PYTHONPATH/env vars, e2e marker registered in both pyproject.toml and pytest.ini. Zero production code changes. One pre-existing test failure (test_single_dependency_with_base_calls_toplevel) is a CWD-in-worktree issue unrelated to WP09.
