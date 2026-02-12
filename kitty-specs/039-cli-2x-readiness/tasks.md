@@ -204,11 +204,11 @@
 **Prompt**: `/tasks/WP04-sync-diagnose-command.md`
 
 ### Included Subtasks
-- [ ] T015 Create `src/specify_cli/sync/diagnose.py` with event validation logic
-- [ ] T016 Validate events against Pydantic `Event` model from `spec_kitty_events.models`
-- [ ] T017 [P] Validate WPStatusChanged payloads against `StatusTransitionPayload`
-- [ ] T018 Register `sync diagnose` CLI command in sync command group
-- [ ] T019 Write tests: valid events pass, malformed events report specific field errors
+- [x] T015 Create `src/specify_cli/sync/diagnose.py` with event validation logic
+- [x] T016 Validate events against Pydantic `Event` model from `spec_kitty_events.models`
+- [x] T017 [P] Validate WPStatusChanged payloads against `StatusTransitionPayload`
+- [x] T018 Register `sync diagnose` CLI command in sync command group
+- [x] T019 Write tests: valid events pass, malformed events report specific field errors
 
 ### Implementation Notes
 - Reuse error categorization from WP02 (T006) for consistent error grouping
