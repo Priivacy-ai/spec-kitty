@@ -1,19 +1,19 @@
 ---
 work_package_id: WP01
 title: Fix setup-plan NameError on 2.x
-lane: "planned"
+lane: "doing"
 dependencies: []
-base_branch: main
-base_commit: 7bd6c768a80ab89b5c98d40db5e3671178829eec
-created_at: '2026-02-12T10:08:27.183442+00:00'
+base_branch: 2.x
+base_commit: 4c64827e8919bb3a1708d00cddacce86b87c4002
+created_at: '2026-02-12T10:13:27.013435+00:00'
 subtasks:
 - T001
 - T002
 - T003
 phase: Wave 1 - Independent Fixes
 assignee: ''
-agent: "claude-opus"
-shell_pid: "41559"
+agent: claude-opus
+shell_pid: "46453"
 review_status: ''
 reviewed_by: ''
 history:
