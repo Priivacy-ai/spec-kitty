@@ -547,6 +547,8 @@ Fix the issues described above and ensure all requirements are met.
 
     if is_success(result):
         logger.info(f"{wp_id} implementation completed successfully")
+        # Move to for_review lane for dashboard visibility
+        await transition_wp_lane(wp, "complete_implementation", repo_root)
         save_state(state, repo_root)
         return True
 

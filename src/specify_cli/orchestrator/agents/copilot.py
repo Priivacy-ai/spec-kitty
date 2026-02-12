@@ -1,46 +1,36 @@
 """GitHub Copilot invoker.
 
 Implements the AgentInvoker protocol for GitHub Copilot CLI.
+
+The standalone `copilot` CLI replaces the deprecated `gh copilot` extension.
 """
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from specify_cli.orchestrator.agents.base import BaseInvoker, InvocationResult
 
 
 class CopilotInvoker(BaseInvoker):
-    """Invoker for GitHub Copilot CLI (gh copilot).
+    """Invoker for GitHub Copilot CLI.
 
-    Copilot takes prompts as command-line arguments (not stdin).
-    It uses the gh CLI extension and runs in autonomous mode with --yolo.
+    Uses the standalone `copilot` CLI which supports:
+    - `-p <prompt>` for non-interactive mode
+    - `--yolo` for autonomous execution (all permissions)
+    - `-s` for silent output (agent response only)
+
+    Install with: npm install -g @anthropic-ai/copilot-cli
     """
 
     agent_id = "copilot"
-    command = "gh"  # Uses gh CLI with copilot extension
+    command = "copilot"
     uses_stdin = False  # Prompt passed as argument
 
     def is_installed(self) -> bool:
-        """Check if gh CLI with copilot extension is available."""
-        import shutil
-        import subprocess
-
-        # First check if gh is installed
-        if not shutil.which("gh"):
-            return False
-
-        # Then check if copilot extension is installed
-        try:
-            result = subprocess.run(
-                ["gh", "extension", "list"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            return "copilot" in result.stdout.lower()
-        except (subprocess.TimeoutExpired, subprocess.SubprocessError):
-            return False
+        """Check if copilot CLI is available."""
+        return shutil.which("copilot") is not None
 
     def build_command(
         self,
@@ -58,14 +48,12 @@ class CopilotInvoker(BaseInvoker):
         Returns:
             Command arguments list.
         """
-        cmd = [
-            "gh", "copilot",
-            "-p", prompt,  # Prompt as argument
-            "--yolo",  # Autonomous mode (no confirmations)
-            "--silent",  # Minimal output noise
+        return [
+            "copilot",
+            "-p", prompt,  # Non-interactive prompt mode
+            "--yolo",  # Enable all permissions (autonomous mode)
+            "-s",  # Silent mode (output only agent response)
         ]
-
-        return cmd
 
     def parse_output(
         self,
