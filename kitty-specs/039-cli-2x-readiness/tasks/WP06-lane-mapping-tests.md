@@ -1,25 +1,28 @@
 ---
-work_package_id: "WP06"
-subtasks:
-  - "T025"
-  - "T026"
-  - "T027"
-  - "T028"
-title: "Test and document 7-to-4 lane collapse mapping"
-phase: "Wave 1 - Independent Fixes"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task WP06 --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP06
+title: Test and document 7-to-4 lane collapse mapping
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: 93014a047608b387e301437a965f3c6944fcef7f
+created_at: '2026-02-12T10:14:26.625824+00:00'
+subtasks:
+- T025
+- T026
+- T027
+- T028
+phase: Wave 1 - Independent Fixes
+assignee: ''
+agent: ''
+shell_pid: "48062"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-12T12:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-12T12:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP06 – Test and document 7-to-4 lane collapse mapping
