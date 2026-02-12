@@ -143,10 +143,10 @@
 **Prompt**: `/tasks/WP06-lane-mapping-tests.md`
 
 ### Included Subtasks
-- [ ] T025 Add parametrized tests in `tests/specify_cli/status/test_sync_lane_mapping.py` covering all 7 lanes with expected 4-lane outputs
-- [ ] T026 Test invalid target lane handling via `emit_status_transition(...)` raises `TransitionError`
-- [ ] T027 Verify lane collapse mapping remains centralized in `src/specify_cli/status/emit.py` (`_SYNC_LANE_MAP`)
-- [ ] T028 Verify `contracts/lane-mapping.md` matches `_SYNC_LANE_MAP` in `status/emit.py` — flag any discrepancies
+- [x] T025 Add parametrized tests in `tests/specify_cli/status/test_sync_lane_mapping.py` covering all 7 lanes with expected 4-lane outputs
+- [x] T026 Test invalid target lane handling via `emit_status_transition(...)` raises `TransitionError`
+- [x] T027 Verify lane collapse mapping remains centralized in `src/specify_cli/status/emit.py` (`_SYNC_LANE_MAP`)
+- [x] T028 Verify `contracts/lane-mapping.md` matches `_SYNC_LANE_MAP` in `status/emit.py` — flag any discrepancies
 
 ### Implementation Notes
 - Current mapping at `status/emit.py:46` on 2.x: planned→planned, claimed→planned, in_progress→doing, for_review→for_review, done→done, blocked→doing, canceled→planned
