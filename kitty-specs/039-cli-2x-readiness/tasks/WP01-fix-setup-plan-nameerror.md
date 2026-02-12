@@ -12,7 +12,7 @@ subtasks:
 - T003
 phase: Wave 1 - Independent Fixes
 assignee: ''
-agent: ''
+agent: "claude-opus"
 shell_pid: "41559"
 review_status: ''
 reviewed_by: ''
@@ -150,3 +150,4 @@ No dependencies — branches directly from the 2.x branch.
 ## Activity Log
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
+- 2026-02-12T10:08:27Z – claude-opus – shell_pid=41559 – lane=doing – Assigned agent via workflow command
