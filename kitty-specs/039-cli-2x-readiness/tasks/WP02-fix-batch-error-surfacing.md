@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Fix batch error surfacing and diagnostics
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: e33f4bdc95fe3778a35d961a0058e50a4a155643
@@ -16,8 +16,8 @@ subtasks:
 - T010
 phase: Wave 1 - Independent Fixes
 assignee: ''
-agent: "wp02-agent"
-shell_pid: "46782"
+agent: "wp02-reviewer"
+shell_pid: "55202"
 review_status: ''
 reviewed_by: ''
 history:
@@ -263,3 +263,4 @@ No dependencies — branches directly from the 2.x branch.
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-12T10:13:40Z – wp02-agent – shell_pid=46782 – lane=doing – Assigned agent via workflow command
 - 2026-02-12T10:21:00Z – wp02-agent – shell_pid=46782 – lane=for_review – Ready for review: batch error parsing, categorization, actionable summaries, report flag, 43 new tests, 468 total sync tests pass
+- 2026-02-12T10:22:09Z – wp02-reviewer – shell_pid=55202 – lane=doing – Started review via workflow command
