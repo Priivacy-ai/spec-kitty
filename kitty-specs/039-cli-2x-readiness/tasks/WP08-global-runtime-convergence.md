@@ -1,27 +1,30 @@
 ---
-work_package_id: "WP08"
-subtasks:
-  - "T034"
-  - "T035"
-  - "T036"
-  - "T037"
-  - "T038"
-  - "T039"
-title: "Converge global runtime resolution"
-phase: "Wave 1 - Independent Fixes"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task WP08 --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP08
+title: Converge global runtime resolution
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: f04321d857c6d91834af9b3d61d395d30c6ab73d
+created_at: '2026-02-12T10:14:42.097580+00:00'
+subtasks:
+- T034
+- T035
+- T036
+- T037
+- T038
+- T039
+phase: Wave 1 - Independent Fixes
+assignee: ''
+agent: ''
+shell_pid: "48475"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-12T12:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-12T12:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP08 – Converge global runtime resolution
