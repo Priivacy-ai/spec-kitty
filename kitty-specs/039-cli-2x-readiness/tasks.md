@@ -114,11 +114,11 @@
 **Prompt**: `/tasks/WP05-extend-sync-status.md`
 
 ### Included Subtasks
-- [ ] T020 Add aggregate query methods to `src/specify_cli/sync/queue.py`: total queued, oldest event age, retry-count distribution
-- [ ] T021 [P] Group pending events by `event_type` for top-failing-types display
-- [ ] T022 [P] Format extended status output with Rich tables/panels
-- [ ] T023 Integrate aggregate data into existing `sync status` command output
-- [ ] T024 Write tests for aggregate queries and formatted output
+- [x] T020 Add aggregate query methods to `src/specify_cli/sync/queue.py`: total queued, oldest event age, retry-count distribution
+- [x] T021 [P] Group pending events by `event_type` for top-failing-types display
+- [x] T022 [P] Format extended status output with Rich tables/panels
+- [x] T023 Integrate aggregate data into existing `sync status` command output
+- [x] T024 Write tests for aggregate queries and formatted output
 
 ### Implementation Notes
 - SQLite queries should target the actual `queue` table: `SELECT COUNT(*) FROM queue`, `SELECT MIN(timestamp) FROM queue`
