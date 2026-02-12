@@ -34,6 +34,46 @@ def _venv_pip(venv_dir: Path) -> Path:
     return venv_dir / "Scripts" / "pip.exe"
 
 
+def _venv_has_required_runtime(venv_dir: Path) -> bool:
+    """Return True when the cached venv can run the CLI runtime deps."""
+    python = _venv_python(venv_dir)
+    if not python.exists():
+        return False
+    probe = (
+        "import importlib.util,sys;"
+        "mods=['typer','rich','httpx','yaml'];"
+        "missing=[m for m in mods if importlib.util.find_spec(m) is None];"
+        "sys.exit(1 if missing else 0)"
+    )
+    result = subprocess.run(
+        [str(python), "-c", probe],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _create_test_venv(venv_dir: Path) -> None:
+    """Create the test venv, with an offline-safe fallback."""
+    subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
+    pip = _venv_pip(venv_dir)
+    try:
+        subprocess.run([str(pip), "install", "-e", str(REPO_ROOT)], check=True)
+    except subprocess.CalledProcessError:
+        # Fallback for offline/dev shells where build deps cannot be downloaded.
+        shutil.rmtree(venv_dir, ignore_errors=True)
+        subprocess.run(
+            [sys.executable, "-m", "venv", "--system-site-packages", str(venv_dir)],
+            check=True,
+        )
+
+    if not _venv_has_required_runtime(venv_dir):
+        raise RuntimeError(
+            "Test venv is missing runtime dependencies (typer/rich/httpx/yaml)."
+        )
+
+
 @pytest.fixture(scope="session", autouse=True)
 def test_venv() -> Path:
     """Create and cache a test venv for isolated CLI execution."""
@@ -43,14 +83,19 @@ def test_venv() -> Path:
     with open(REPO_ROOT / "pyproject.toml", "rb") as f:
         source_version = tomllib.load(f)["project"]["version"]
 
-    if venv_dir.exists() and venv_marker.exists():
-        if venv_marker.read_text(encoding="utf-8").strip() != source_version:
-            shutil.rmtree(venv_dir, ignore_errors=True)
-
+    rebuild = False
     if not venv_dir.exists():
-        subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
-        pip = _venv_pip(venv_dir)
-        subprocess.run([str(pip), "install", "-e", str(REPO_ROOT)], check=True)
+        rebuild = True
+    elif not venv_marker.exists():
+        rebuild = True
+    elif venv_marker.read_text(encoding="utf-8").strip() != source_version:
+        rebuild = True
+    elif not _venv_has_required_runtime(venv_dir):
+        rebuild = True
+
+    if rebuild:
+        shutil.rmtree(venv_dir, ignore_errors=True)
+        _create_test_venv(venv_dir)
         venv_marker.write_text(source_version, encoding="utf-8")
 
     os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)

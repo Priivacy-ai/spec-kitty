@@ -490,8 +490,13 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
     auth = AuthClient()
     try:
         access_token = auth.get_access_token()
-    except Exception:
+    except AuthenticationError:
         access_token = None
+    except Exception as exc:
+        return (
+            "[red]Error[/red]",
+            f"Authentication probe failed: {str(exc)[:80]}",
+        )
 
     if not access_token:
         # Access token expired and refresh also failed

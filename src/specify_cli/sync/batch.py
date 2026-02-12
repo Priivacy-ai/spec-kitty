@@ -367,11 +367,9 @@ def batch_sync(
             raw_results = response_data.get("results", [])
             _parse_event_results(raw_results, result)
 
-            # Queue operations: remove synced/duplicate, bump retry for failures
-            if result.synced_ids:
-                queue.mark_synced(result.synced_ids)
-            if result.failed_ids:
-                queue.increment_retry(result.failed_ids)
+            # Queue operations are transactional: remove synced/duplicate,
+            # bump retry for failures in a single commit.
+            queue.process_batch_results(result.event_results)
 
             if show_progress:
                 print(format_sync_summary(result))
@@ -391,12 +389,12 @@ def batch_sync(
                         error_category="auth_expired",
                     )
                 )
-            queue.increment_retry(result.failed_ids)
+            queue.process_batch_results(result.event_results)
 
         elif response.status_code == 400:
             response_body = response.json()
             _parse_error_response(response_body, events, result)
-            queue.increment_retry(result.failed_ids)
+            queue.process_batch_results(result.event_results)
             if show_progress:
                 print(f"Batch sync failed (400):\n{format_sync_summary(result)}")
 
@@ -415,7 +413,7 @@ def batch_sync(
                         error_category="server_error",
                     )
                 )
-            queue.increment_retry(result.failed_ids)
+            queue.process_batch_results(result.event_results)
 
     except requests.exceptions.Timeout:
         if show_progress:
@@ -432,7 +430,7 @@ def batch_sync(
                     error_category="server_error",
                 )
             )
-        queue.increment_retry(result.failed_ids)
+        queue.process_batch_results(result.event_results)
 
     except requests.exceptions.ConnectionError as e:
         if show_progress:
@@ -449,7 +447,7 @@ def batch_sync(
                     error_category="server_error",
                 )
             )
-        queue.increment_retry(result.failed_ids)
+        queue.process_batch_results(result.event_results)
 
     except Exception as e:
         if show_progress:
@@ -466,7 +464,7 @@ def batch_sync(
                     error_category=categorize_error(str(e)),
                 )
             )
-        queue.increment_retry(result.failed_ids)
+        queue.process_batch_results(result.event_results)
 
     return result
 

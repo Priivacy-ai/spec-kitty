@@ -70,6 +70,23 @@ class TestCheckServerConnectionExpiredToken:
         assert "authentication valid" in note
 
 
+class TestCheckServerConnectionTokenProbeErrors:
+    """Test behavior when token probe fails for non-auth reasons."""
+
+    @patch(
+        "specify_cli.sync.auth.AuthClient.get_access_token",
+        side_effect=RuntimeError("credentials file lock timeout"),
+    )
+    @patch("specify_cli.sync.auth.CredentialStore.exists", return_value=True)
+    def test_unexpected_token_probe_error(self, mock_exists, mock_get_token):
+        """Unexpected token probe errors should not be reported as session expiry."""
+        status, note = _check_server_connection(SERVER_URL)
+
+        assert "Error" in status
+        assert "Authentication probe failed" in note
+        assert "Session expired" not in status
+
+
 class TestCheckServerConnectionValidToken:
     """Test behavior when a valid access token is available."""
 
