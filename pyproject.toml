@@ -120,6 +120,7 @@ exclude = [
 markers = [
     "adversarial: Adversarial/security tests for 0.13.0",
     "distribution: Tests requiring wheel install (slow, no SPEC_KITTY_TEMPLATE_ROOT)",
+    "e2e: End-to-end tests exercising the full CLI workflow (may be slow)",
     "slow: Tests taking >10 seconds",
     "platform_darwin: macOS-specific tests (case-insensitive FS)",
     "platform_linux: Linux-specific tests",
