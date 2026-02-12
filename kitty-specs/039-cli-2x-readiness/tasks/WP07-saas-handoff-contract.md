@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: SaaS handoff contract document
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP02
 base_branch: 039-cli-2x-readiness-WP02
@@ -214,3 +214,4 @@ Depends on WP02 (error format). Use WP02 as base; pull in lane mapping notes fro
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-12T10:26:30Z – wp07-agent – shell_pid=67771 – lane=doing – Assigned agent via workflow command
+- 2026-02-12T10:34:14Z – wp07-agent – shell_pid=67771 – lane=for_review – Ready for review: SaaS handoff contract doc and tests. 33 contract tests all pass. Corrected lane mapping discrepancy from Phase 1 draft.
