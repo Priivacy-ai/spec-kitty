@@ -1,28 +1,31 @@
 ---
-work_package_id: "WP02"
-subtasks:
-  - "T004"
-  - "T005"
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-  - "T010"
-title: "Fix batch error surfacing and diagnostics"
-phase: "Wave 1 - Independent Fixes"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task WP02 --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP02
+title: Fix batch error surfacing and diagnostics
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: e33f4bdc95fe3778a35d961a0058e50a4a155643
+created_at: '2026-02-12T10:13:40.119216+00:00'
+subtasks:
+- T004
+- T005
+- T006
+- T007
+- T008
+- T009
+- T010
+phase: Wave 1 - Independent Fixes
+assignee: ''
+agent: ''
+shell_pid: "46782"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-12T12:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-12T12:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Fix batch error surfacing and diagnostics
