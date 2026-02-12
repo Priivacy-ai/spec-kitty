@@ -1,0 +1,43 @@
+{
+  "description": "HTTP 400 batch validation error with structured details",
+  "request": {
+    "events": [
+      {
+        "event_id": "01JMBYC4D5E6F7G8H9J0K1WABN",
+        "event_type": "WPStatusChanged",
+        "aggregate_id": "WP01",
+        "aggregate_type": "WorkPackage",
+        "payload": {
+          "wp_id": "WP01",
+          "previous_status": "planned",
+          "new_status": "doing",
+          "changed_by": "agent",
+          "feature_slug": null
+        },
+        "timestamp": "2026-02-12T13:00:00+00:00",
+        "node_id": "a1b2c3d4e5f6",
+        "lamport_clock": 30,
+        "causation_id": null,
+        "team_slug": "priivacy",
+        "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+        "project_slug": "spec-kitty",
+        "git_branch": null,
+        "head_commit_sha": null,
+        "repo_slug": null
+      }
+    ]
+  },
+  "expected_response": {
+    "status_code": 400,
+    "body": {
+      "error": "Batch validation failed",
+      "details": [
+        {
+          "event_id": "01JMBYC4D5E6F7G8H9J0K1WABN",
+          "error": "Invalid schema: project_uuid authorization check failed for team 'priivacy'"
+        }
+      ]
+    }
+  },
+  "notes": "HTTP 400 responses MUST include both 'error' and 'details' fields. The 'details' field can be a list of per-event errors (preferred) or a plain string. The CLI parses structured details for per-event error categorization."
+}

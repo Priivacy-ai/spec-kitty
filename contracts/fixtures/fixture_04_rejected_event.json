@@ -1,0 +1,39 @@
+{
+  "description": "Rejected event - ErrorLogged missing required 'error_type' field",
+  "request": {
+    "events": [
+      {
+        "event_id": "01JMBYB3C4D5E6F7G8H9J0KABM",
+        "event_type": "ErrorLogged",
+        "aggregate_id": "error",
+        "aggregate_type": "Feature",
+        "payload": {
+          "error_message": "Something went wrong"
+        },
+        "timestamp": "2026-02-12T12:00:00+00:00",
+        "node_id": "a1b2c3d4e5f6",
+        "lamport_clock": 20,
+        "causation_id": null,
+        "team_slug": "priivacy",
+        "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+        "project_slug": "spec-kitty",
+        "git_branch": "main",
+        "head_commit_sha": null,
+        "repo_slug": "priivacy/spec-kitty"
+      }
+    ]
+  },
+  "expected_response": {
+    "status_code": 200,
+    "body": {
+      "results": [
+        {
+          "event_id": "01JMBYB3C4D5E6F7G8H9J0KABM",
+          "status": "rejected",
+          "error": "Invalid payload for ErrorLogged: missing required field 'error_type'"
+        }
+      ]
+    }
+  },
+  "notes": "The ErrorLogged event type requires both 'error_type' and 'error_message' in the payload. This fixture is missing 'error_type'. The error message should contain keywords like 'missing' or 'field' so the CLI categorizes it as 'schema_mismatch'."
+}

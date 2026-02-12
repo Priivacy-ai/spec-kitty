@@ -1,0 +1,85 @@
+{
+  "description": "Mixed batch with 3 event types (WPStatusChanged, WPCreated, FeatureCreated)",
+  "request": {
+    "events": [
+      {
+        "event_id": "01JMBYA1B2C3D4E5F6G7H8J9KA",
+        "event_type": "WPStatusChanged",
+        "aggregate_id": "WP02",
+        "aggregate_type": "WorkPackage",
+        "payload": {
+          "wp_id": "WP02",
+          "previous_status": "doing",
+          "new_status": "for_review",
+          "changed_by": "wp02-agent",
+          "feature_slug": "039-cli-2x-readiness"
+        },
+        "timestamp": "2026-02-12T11:00:00+00:00",
+        "node_id": "a1b2c3d4e5f6",
+        "lamport_clock": 10,
+        "causation_id": null,
+        "team_slug": "priivacy",
+        "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+        "project_slug": "spec-kitty",
+        "git_branch": "039-cli-2x-readiness-WP02",
+        "head_commit_sha": "1af4b906f4f979a000cf04c78688a397d69b6a38",
+        "repo_slug": "priivacy/spec-kitty"
+      },
+      {
+        "event_id": "01JMBYA1B2C3D4E5F6G7H8J9KB",
+        "event_type": "WPCreated",
+        "aggregate_id": "WP10",
+        "aggregate_type": "WorkPackage",
+        "payload": {
+          "wp_id": "WP10",
+          "title": "End-to-end integration test suite",
+          "feature_slug": "039-cli-2x-readiness",
+          "dependencies": ["WP02", "WP03"]
+        },
+        "timestamp": "2026-02-12T11:01:00+00:00",
+        "node_id": "a1b2c3d4e5f6",
+        "lamport_clock": 11,
+        "causation_id": null,
+        "team_slug": "priivacy",
+        "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+        "project_slug": "spec-kitty",
+        "git_branch": "main",
+        "head_commit_sha": "2bf5c917f5f989b111df15d89799b498e7ac7b49",
+        "repo_slug": "priivacy/spec-kitty"
+      },
+      {
+        "event_id": "01JMBYA1B2C3D4E5F6G7H8J9KC",
+        "event_type": "FeatureCreated",
+        "aggregate_id": "040-next-feature",
+        "aggregate_type": "Feature",
+        "payload": {
+          "feature_slug": "040-next-feature",
+          "feature_number": "040",
+          "target_branch": "main",
+          "wp_count": 5,
+          "created_at": "2026-02-12T11:02:00+00:00"
+        },
+        "timestamp": "2026-02-12T11:02:00+00:00",
+        "node_id": "a1b2c3d4e5f6",
+        "lamport_clock": 12,
+        "causation_id": null,
+        "team_slug": "priivacy",
+        "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+        "project_slug": "spec-kitty",
+        "git_branch": "main",
+        "head_commit_sha": "2bf5c917f5f989b111df15d89799b498e7ac7b49",
+        "repo_slug": "priivacy/spec-kitty"
+      }
+    ]
+  },
+  "expected_response": {
+    "status_code": 200,
+    "body": {
+      "results": [
+        {"event_id": "01JMBYA1B2C3D4E5F6G7H8J9KA", "status": "success"},
+        {"event_id": "01JMBYA1B2C3D4E5F6G7H8J9KB", "status": "success"},
+        {"event_id": "01JMBYA1B2C3D4E5F6G7H8J9KC", "status": "success"}
+      ]
+    }
+  }
+}
