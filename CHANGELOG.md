@@ -7,6 +7,18 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1] - 2026-02-12
+
+### 🐛 Fixed
+
+- **Dynamic primary branch detection**: Replaced 26 hardcoded `"main"` branch references across 13 files with dynamic detection via `resolve_primary_branch()`. Repos using `master`, `develop`, or custom primary branches now work correctly for merge operations, branch resolution, manifest status checks, and CLI defaults.
+- **Deduplicated branch resolution**: Consolidated 4 duplicate copies of `_resolve_primary_branch()` scattered across CLI commands into a single centralized implementation in `core/git_ops.py` with lightweight delegating wrappers.
+- **Multi-parent merge target**: `create_multi_parent_base()` now accepts explicit `target_branch` parameter instead of hardcoding `"main"` for merge-base calculations.
+
+### ✅ Added
+
+- 20 integration tests covering master/develop/custom branch scenarios for primary branch detection, target branch resolution, manifest status, multi-parent merge, and conflict prediction.
+
 ## [0.15.0] - 2026-02-11
 
 ### 🐛 Fixed
