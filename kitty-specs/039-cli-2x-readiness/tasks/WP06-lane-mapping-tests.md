@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Test and document 7-to-4 lane collapse mapping
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 93014a047608b387e301437a965f3c6944fcef7f
@@ -13,8 +13,8 @@ subtasks:
 - T028
 phase: Wave 1 - Independent Fixes
 assignee: ''
-agent: "wp06-agent"
-shell_pid: "48062"
+agent: "wp06-reviewer"
+shell_pid: "53766"
 review_status: ''
 reviewed_by: ''
 history:
@@ -172,3 +172,4 @@ No dependencies — branches directly from the 2.x branch.
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-12T10:14:26Z – wp06-agent – shell_pid=48062 – lane=doing – Assigned agent via workflow command
 - 2026-02-12T10:19:50Z – wp06-agent – shell_pid=48062 – lane=for_review – Ready for review: 26 tests covering all 7-to-4 lane mappings, invalid lane rejection, centralization verification, and contract doc (v1.1.0) reconciled with implementation
+- 2026-02-12T10:20:50Z – wp06-reviewer – shell_pid=53766 – lane=doing – Started review via workflow command
