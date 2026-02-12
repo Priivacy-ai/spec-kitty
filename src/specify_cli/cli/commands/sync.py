@@ -27,7 +27,107 @@ from specify_cli.core.vcs import (
     get_vcs,
 )
 
+from specify_cli.sync.queue import QueueStats
+
 console = Console()
+
+
+def humanize_timedelta(td: "timedelta") -> str:
+    """Convert a timedelta into a concise human-readable string.
+
+    Examples: '2s', '45s', '3m 12s', '2h 5m', '1d 4h', '3d'
+    """
+    from datetime import timedelta  # noqa: F811 - local re-import for type narrowing
+
+    total_seconds = int(td.total_seconds())
+    if total_seconds < 0:
+        return "0s"
+
+    days, remainder = divmod(total_seconds, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    if days > 0:
+        if hours > 0:
+            return f"{days}d {hours}h"
+        return f"{days}d"
+    if hours > 0:
+        if minutes > 0:
+            return f"{hours}h {minutes}m"
+        return f"{hours}h"
+    if minutes > 0:
+        if seconds > 0:
+            return f"{minutes}m {seconds}s"
+        return f"{minutes}m"
+    return f"{seconds}s"
+
+
+def format_queue_health(stats: QueueStats, target_console: Console) -> None:
+    """Render queue health metrics as Rich panels/tables.
+
+    Displays:
+    - Summary panel with queue depth, retried count, and oldest event age
+    - Retry distribution table (bucketed)
+    - Top event types table (up to 5)
+
+    Args:
+        stats: Aggregate queue statistics from OfflineQueue.get_queue_stats()
+        target_console: Rich Console to print to (allows testing with captured output)
+    """
+    # --- Summary panel ---
+    summary_lines: list[str] = []
+    summary_lines.append(f"[bold]Queue Depth:[/bold] {stats.total_queued:,} event(s)")
+    summary_lines.append(f"[bold]Retried:[/bold]    {stats.total_retried:,}")
+    if stats.oldest_event_age is not None:
+        age_str = humanize_timedelta(stats.oldest_event_age)
+        summary_lines.append(f"[bold]Oldest Event:[/bold] {age_str} ago")
+
+    target_console.print(
+        Panel(
+            "\n".join(summary_lines),
+            title="Queue Health",
+            border_style="cyan",
+            expand=False,
+        )
+    )
+
+    # --- Retry distribution ---
+    if stats.retry_distribution:
+        retry_table = Table(
+            title="Retry Distribution",
+            show_header=True,
+            header_style="bold",
+            show_lines=False,
+            expand=False,
+        )
+        retry_table.add_column("Bucket", style="dim")
+        retry_table.add_column("Count", justify="right")
+
+        # Ensure deterministic bucket order
+        bucket_order = ["0 retries", "1-3 retries", "4+ retries"]
+        for bucket in bucket_order:
+            if bucket in stats.retry_distribution:
+                retry_table.add_row(bucket, str(stats.retry_distribution[bucket]))
+
+        target_console.print(retry_table)
+
+    # --- Top event types ---
+    if stats.top_event_types:
+        type_table = Table(
+            title="Top Event Types",
+            show_header=True,
+            header_style="bold",
+            show_lines=False,
+            expand=False,
+        )
+        type_table.add_column("Event Type", style="cyan")
+        type_table.add_column("Count", justify="right")
+
+        for event_type, count in stats.top_event_types:
+            type_table.add_row(event_type, str(count))
+
+        target_console.print(type_table)
+
 
 # Create a Typer app for sync subcommands
 app = typer.Typer(
@@ -626,6 +726,15 @@ def status(
 
     console.print(table)
     console.print()
+
+    # --- Queue health section (T022/T023) ---
+    queue_stats = service.queue.get_queue_stats()
+    if queue_stats.total_queued > 0:
+        format_queue_health(queue_stats, console)
+        console.print()
+    else:
+        console.print("[green]Queue empty -- all events synced.[/green]")
+        console.print()
 
     if not check_connection:
         console.print("[dim]Use 'spec-kitty sync status --check' to test connectivity.[/dim]")
