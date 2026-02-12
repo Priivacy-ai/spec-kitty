@@ -86,10 +86,10 @@
 **Prompt**: `/tasks/WP03-fix-sync-status-check.md`
 
 ### Included Subtasks
-- [ ] T011 Load real access token from `~/.spec-kitty/credentials` in the status check path
-- [ ] T012 Attempt token refresh if expired; handle missing credentials with clear "run `spec-kitty auth login`" message
-- [ ] T013 Probe actual batch endpoint with real token instead of hardcoded test token
-- [ ] T014 Write tests for auth-aware status check (valid token, expired token, no credentials)
+- [x] T011 Load real access token from `~/.spec-kitty/credentials` in the status check path
+- [x] T012 Attempt token refresh if expired; handle missing credentials with clear "run `spec-kitty auth login`" message
+- [x] T013 Probe actual batch endpoint with real token instead of hardcoded test token
+- [x] T014 Write tests for auth-aware status check (valid token, expired token, no credentials)
 
 ### Implementation Notes
 - Current hardcoded test token is at approximately `sync.py:531` on 2.x (may be in sync CLI commands or sync/runtime.py)
