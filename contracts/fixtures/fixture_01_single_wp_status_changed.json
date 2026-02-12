@@ -1,0 +1,41 @@
+{
+  "description": "Single WPStatusChanged event - happy path",
+  "request": {
+    "events": [
+      {
+        "event_id": "01JMBY7K8N3QRVX2DPFG5HWT4E",
+        "event_type": "WPStatusChanged",
+        "aggregate_id": "WP01",
+        "aggregate_type": "WorkPackage",
+        "payload": {
+          "wp_id": "WP01",
+          "previous_status": "planned",
+          "new_status": "doing",
+          "changed_by": "claude-agent",
+          "feature_slug": "039-cli-2x-readiness"
+        },
+        "timestamp": "2026-02-12T10:00:00+00:00",
+        "node_id": "a1b2c3d4e5f6",
+        "lamport_clock": 1,
+        "causation_id": null,
+        "team_slug": "priivacy",
+        "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+        "project_slug": "spec-kitty",
+        "git_branch": "039-cli-2x-readiness-WP01",
+        "head_commit_sha": "0cf3f906f4f979a000cf04c78688a397d69b6a37",
+        "repo_slug": "priivacy/spec-kitty"
+      }
+    ]
+  },
+  "expected_response": {
+    "status_code": 200,
+    "body": {
+      "results": [
+        {
+          "event_id": "01JMBY7K8N3QRVX2DPFG5HWT4E",
+          "status": "success"
+        }
+      ]
+    }
+  }
+}
