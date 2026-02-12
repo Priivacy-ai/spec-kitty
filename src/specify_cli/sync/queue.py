@@ -1,9 +1,25 @@
 """Offline event queue using SQLite for network outage resilience"""
 import sqlite3
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+
+@dataclass
+class QueueStats:
+    """Aggregate statistics about the offline event queue.
+
+    Used by ``sync status`` to display queue health information
+    including depth, age, retry distribution, and top event types.
+    """
+
+    total_queued: int = 0
+    total_retried: int = 0
+    oldest_event_age: Optional[timedelta] = None
+    retry_distribution: dict[str, int] = field(default_factory=dict)
+    top_event_types: list[tuple[str, int]] = field(default_factory=list)
 
 
 class OfflineQueue:
@@ -200,5 +216,75 @@ class OfflineQueue:
                 event_id, data = row
                 events.append(json.loads(data))
             return events
+        finally:
+            conn.close()
+
+    def get_queue_stats(self) -> QueueStats:
+        """
+        Compute aggregate statistics about the queue.
+
+        Returns a QueueStats with:
+        - total_queued: number of events in queue
+        - total_retried: number of events with retry_count > 0
+        - oldest_event_age: timedelta from oldest event timestamp to now (None if empty)
+        - retry_distribution: counts bucketed as '0 retries', '1-3 retries', '4+ retries'
+        - top_event_types: top 5 event types by count, descending
+        """
+        conn = sqlite3.connect(self.db_path)
+        try:
+            # Total queued
+            total_queued = conn.execute('SELECT COUNT(*) FROM queue').fetchone()[0]
+
+            if total_queued == 0:
+                return QueueStats()
+
+            # Total retried (retry_count > 0)
+            total_retried = conn.execute(
+                'SELECT COUNT(*) FROM queue WHERE retry_count > 0'
+            ).fetchone()[0]
+
+            # Oldest event age
+            oldest_ts = conn.execute('SELECT MIN(timestamp) FROM queue').fetchone()[0]
+            oldest_event_age: Optional[timedelta] = None
+            if oldest_ts is not None:
+                oldest_dt = datetime.fromtimestamp(oldest_ts, tz=timezone.utc)
+                now_dt = datetime.now(tz=timezone.utc)
+                oldest_event_age = now_dt - oldest_dt
+
+            # Retry distribution buckets
+            cursor = conn.execute('''
+                SELECT
+                    CASE
+                        WHEN retry_count = 0 THEN '0 retries'
+                        WHEN retry_count BETWEEN 1 AND 3 THEN '1-3 retries'
+                        ELSE '4+ retries'
+                    END as bucket,
+                    COUNT(*) as count
+                FROM queue
+                GROUP BY bucket
+            ''')
+            retry_distribution: dict[str, int] = {}
+            for bucket, count in cursor:
+                retry_distribution[bucket] = count
+
+            # Top 5 event types by count
+            cursor = conn.execute('''
+                SELECT event_type, COUNT(*) as count
+                FROM queue
+                GROUP BY event_type
+                ORDER BY count DESC
+                LIMIT 5
+            ''')
+            top_event_types: list[tuple[str, int]] = []
+            for event_type, count in cursor:
+                top_event_types.append((event_type, count))
+
+            return QueueStats(
+                total_queued=total_queued,
+                total_retried=total_retried,
+                oldest_event_age=oldest_event_age,
+                retry_distribution=retry_distribution,
+                top_event_types=top_event_types,
+            )
         finally:
             conn.close()
