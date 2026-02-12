@@ -233,11 +233,11 @@
 **Prompt**: `/tasks/WP07-saas-handoff-contract.md`
 
 ### Included Subtasks
-- [ ] T029 Document complete event envelope fields with types, constraints, and examples
-- [ ] T030 [P] Document batch request/response format: headers, compression, URL, body structure
-- [ ] T031 [P] Document authentication flow: JWT login, refresh, authorization header
-- [ ] T032 Create 3-5 complete fixture request/response examples covering success, duplicate, rejected, and mixed
-- [ ] T033 Write contract test: validate fixtures against Pydantic `Event` model
+- [x] T029 Document complete event envelope fields with types, constraints, and examples
+- [x] T030 [P] Document batch request/response format: headers, compression, URL, body structure
+- [x] T031 [P] Document authentication flow: JWT login, refresh, authorization header
+- [x] T032 Create 3-5 complete fixture request/response examples covering success, duplicate, rejected, and mixed
+- [x] T033 Write contract test: validate fixtures against Pydantic `Event` model
 
 ### Implementation Notes
 - `contracts/batch-ingest.md` and `contracts/lane-mapping.md` already exist from Phase 1 planning — extend them with fixtures
