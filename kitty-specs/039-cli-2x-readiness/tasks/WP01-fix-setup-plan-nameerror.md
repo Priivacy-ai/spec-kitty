@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Fix setup-plan NameError on 2.x
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: main
 base_commit: 7bd6c768a80ab89b5c98d40db5e3671178829eec
@@ -151,3 +151,4 @@ No dependencies — branches directly from the 2.x branch.
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-12T10:08:27Z – claude-opus – shell_pid=41559 – lane=doing – Assigned agent via workflow command
+- 2026-02-12T10:10:11Z – claude-opus – shell_pid=41559 – lane=planned – Resetting - workspace branched from wrong base (main instead of 2.x)
