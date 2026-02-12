@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Extend sync status with queue health
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: a621880125a2dc6518cb41b45b395c39b50ec5ec
@@ -192,3 +192,4 @@ No dependencies — branches directly from the 2.x branch.
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-12T10:14:10Z – wp05-agent – shell_pid=47704 – lane=doing – Assigned agent via workflow command
+- 2026-02-12T10:19:20Z – wp05-agent – shell_pid=47704 – lane=for_review – Ready for review: queue health in sync status
