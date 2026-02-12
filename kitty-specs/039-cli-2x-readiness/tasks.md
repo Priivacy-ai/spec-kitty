@@ -55,13 +55,13 @@
 **Prompt**: `/tasks/WP02-fix-batch-error-surfacing.md`
 
 ### Included Subtasks
-- [ ] T004 Parse per-event `results[]` array from HTTP 200 batch responses in `src/specify_cli/sync/batch.py`
-- [ ] T005 Parse `details` field from HTTP 400 error responses (not just `error`)
-- [ ] T006 [P] Implement error categorization: `schema_mismatch`, `auth_expired`, `server_error`, `unknown`
-- [ ] T007 Print actionable summary: `Synced: N, Duplicates: N, Failed: N (schema_mismatch: X, auth_expired: Y)`
-- [ ] T008 Selective queue removal: remove synced + duplicate events, retain failures with incremented retry_count in `src/specify_cli/sync/queue.py`
-- [ ] T009 [P] Add `--report <file.json>` flag for JSON dump of per-event failure details
-- [ ] T010 Write tests for batch response parsing, categorization, and queue operations
+- [x] T004 Parse per-event `results[]` array from HTTP 200 batch responses in `src/specify_cli/sync/batch.py`
+- [x] T005 Parse `details` field from HTTP 400 error responses (not just `error`)
+- [x] T006 [P] Implement error categorization: `schema_mismatch`, `auth_expired`, `server_error`, `unknown`
+- [x] T007 Print actionable summary: `Synced: N, Duplicates: N, Failed: N (schema_mismatch: X, auth_expired: Y)`
+- [x] T008 Selective queue removal: remove synced + duplicate events, retain failures with incremented retry_count in `src/specify_cli/sync/queue.py`
+- [x] T009 [P] Add `--report <file.json>` flag for JSON dump of per-event failure details
+- [x] T010 Write tests for batch response parsing, categorization, and queue operations
 
 ### Implementation Notes
 - `batch.py:135` currently only reads top-level `error` field, discarding `details`
