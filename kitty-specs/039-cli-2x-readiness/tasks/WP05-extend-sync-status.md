@@ -1,26 +1,29 @@
 ---
-work_package_id: "WP05"
-subtasks:
-  - "T020"
-  - "T021"
-  - "T022"
-  - "T023"
-  - "T024"
-title: "Extend sync status with queue health"
-phase: "Wave 1 - Independent Fixes"
-lane: "planned"  # DO NOT EDIT - use: spec-kitty agent tasks move-task WP05 --to <lane>
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
+work_package_id: WP05
+title: Extend sync status with queue health
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: a621880125a2dc6518cb41b45b395c39b50ec5ec
+created_at: '2026-02-12T10:14:09.882949+00:00'
+subtasks:
+- T020
+- T021
+- T022
+- T023
+- T024
+phase: Wave 1 - Independent Fixes
+assignee: ''
+agent: ''
+shell_pid: "47704"
+review_status: ''
+reviewed_by: ''
 history:
-  - timestamp: "2026-02-12T12:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-02-12T12:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP05 – Extend sync status with queue health
