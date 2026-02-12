@@ -47,7 +47,7 @@ history:
 spec-kitty implement WP09 --base WP01
 ```
 
-Depends on WP01 (setup-plan must work) and WP02 (sync error surfacing). Use WP01 as base since it fixes the planning workflow that this test exercises.
+Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the planning workflow that this test exercises.
 
 ---
 
@@ -63,7 +63,6 @@ Depends on WP01 (setup-plan must work) and WP02 (sync error surfacing). Use WP01
 
 - **Delivery branch**: 2.x
 - **Dependency on WP01**: The `setup-plan` command must work (NameError fixed)
-- **Dependency on WP02**: Sync must surface errors correctly (not required for smoke test flow, but should not interfere)
 - **Test isolation**: Must create a fresh git repo, not modify the spec-kitty source repo
 - **CLI invocation**: Use `typer.testing.CliRunner` for in-process testing, or `subprocess.run` for true E2E
 - **Reference**: `spec.md` (FR-016), `plan.md` (WP09)

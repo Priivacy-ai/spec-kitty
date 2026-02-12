@@ -169,18 +169,22 @@ No dependencies — branches directly from the 2.x branch.
   2. Add a method to process batch results:
      ```python
      def process_batch_results(self, results: list[BatchResult]) -> None:
+         synced_or_duplicate = []
+         rejected = []
          for result in results:
              if result.status in ("success", "duplicate"):
-                 self.remove_event(result.event_id)
+                 synced_or_duplicate.append(result.event_id)
              elif result.status == "rejected":
-                 self.increment_retry(result.event_id)
+                 rejected.append(result.event_id)
+         self.mark_synced(synced_or_duplicate)
+         self.increment_retry(rejected)
      ```
-  3. Implement `remove_event(event_id)`: DELETE from SQLite where event_id matches
-  4. Implement `increment_retry(event_id)`: UPDATE retry_count = retry_count + 1, last_attempt_at = now
+  3. Use existing `mark_synced(event_ids)` for success/duplicate rows
+  4. Use existing `increment_retry(event_ids)` for rejected rows (`retry_count = retry_count + 1`)
   5. Wrap in a transaction for atomicity
 - **Files**: `src/specify_cli/sync/queue.py` (edit)
 - **Parallel?**: No — depends on T004's BatchResult type
-- **Notes**: Match events by `event_id` in the queue's `data` JSON field (may need to parse JSON or use a dedicated column)
+- **Notes**: Match by `event_id` column in the `queue` table (already indexed/unique on 2.x).
 
 ### Subtask T009 – Add --report flag for JSON failure dump
 
@@ -207,13 +211,13 @@ No dependencies — branches directly from the 2.x branch.
 
 - **Purpose**: Validate all new functionality with automated tests.
 - **Steps**:
-  1. Create or extend `tests/specify_cli/sync/test_batch.py`:
+  1. Create or extend `tests/sync/test_batch_sync.py`:
      - Test parsing HTTP 200 with mixed results (success + duplicate + rejected)
      - Test parsing HTTP 400 with `error` + `details` fields
      - Test parsing HTTP 400 with `error` only (no `details`)
      - Test error categorization for each category
      - Test actionable summary formatting
-  2. Create or extend `tests/specify_cli/sync/test_queue.py`:
+  2. Create or extend `tests/sync/test_offline_queue.py`:
      - Test `process_batch_results` with mixed results
      - Test `remove_event` for successful events
      - Test `increment_retry` for failed events
@@ -223,15 +227,15 @@ No dependencies — branches directly from the 2.x branch.
      - Verify no file is written when no failures
   4. Run existing sync tests to verify no regressions:
      ```bash
-     python -m pytest tests/specify_cli/sync/ -x -v
+     python -m pytest tests/sync/ -x -v
      ```
-- **Files**: `tests/specify_cli/sync/test_batch.py`, `tests/specify_cli/sync/test_queue.py`
+- **Files**: `tests/sync/test_batch_sync.py`, `tests/sync/test_offline_queue.py`
 - **Parallel?**: No — depends on all prior subtasks
 
 ## Test Strategy
 
-- **New tests**: ~10-15 tests across `test_batch.py` and `test_queue.py`
-- **Run command**: `python -m pytest tests/specify_cli/sync/ -x -v`
+- **New tests**: ~10-15 tests across `test_batch_sync.py` and `test_offline_queue.py`
+- **Run command**: `python -m pytest tests/sync/ -x -v`
 - **Baseline**: 85+ existing sync tests must still pass
 - **Fixtures**: Use mock HTTP responses (httpx mock or responses library)
 
@@ -248,7 +252,7 @@ No dependencies — branches directly from the 2.x branch.
 - Verify `batch.py` now parses both `results[]` (200) and `details` (400)
 - Verify error categorization produces correct categories for sample error strings
 - Verify queue operations are atomic (transaction-wrapped)
-- Run `python -m pytest tests/specify_cli/sync/ -x -v` and confirm 85+ tests + new tests pass
+- Run `python -m pytest tests/sync/ -x -v` and confirm 85+ tests + new tests pass
 - Check that `--report` flag writes valid JSON
 
 ## Activity Log

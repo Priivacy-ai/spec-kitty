@@ -62,7 +62,7 @@ No dependencies — branches directly from the 2.x branch.
 - **Delivery branch**: 2.x
 - **Root cause**: `sync status --check` (approximately `sync.py:531` on 2.x) uses a hardcoded test token for connectivity probing, producing misleading 403 errors that don't reflect actual auth state
 - **Auth infrastructure**: `src/specify_cli/sync/auth.py` already provides credential loading and token refresh — reuse these functions
-- **Credential format**: TOML at `~/.spec-kitty/credentials` with `tokens.access`, `tokens.refresh`, `expiries.access`, `expiries.refresh`
+- **Credential format**: TOML at `~/.spec-kitty/credentials` with `tokens.access`, `tokens.refresh`, `tokens.access_expires_at`, `tokens.refresh_expires_at`
 - **Reference**: `spec.md` (FR-018), `plan.md` (WP03), `contracts/batch-ingest.md` (authentication section)
 
 ## Subtasks & Detailed Guidance
@@ -102,7 +102,7 @@ No dependencies — branches directly from the 2.x branch.
   4. If present and token is valid: proceed to T013 endpoint probe
 - **Files**: Same file as T011
 - **Parallel?**: No — depends on T011
-- **Notes**: Token expiry is stored in `expiries.access` in ISO 8601 format. Compare with current time.
+- **Notes**: Token expiry is stored in `tokens.access_expires_at` in ISO 8601 format. Compare with current time.
 
 ### Subtask T013 – Probe actual endpoint with real token
 
@@ -159,15 +159,15 @@ No dependencies — branches directly from the 2.x branch.
   2. Use `unittest.mock.patch` to mock credential loading and HTTP calls
   3. Run existing sync tests for regression:
      ```bash
-     python -m pytest tests/specify_cli/sync/ -x -v
+     python -m pytest tests/sync/ -x -v
      ```
-- **Files**: `tests/specify_cli/sync/test_sync_status.py` (new or extend)
+- **Files**: `tests/sync/test_sync_status.py` (new or extend)
 - **Parallel?**: No — depends on T011-T013
 
 ## Test Strategy
 
 - **New tests**: ~5 tests covering all auth/connectivity paths
-- **Run command**: `python -m pytest tests/specify_cli/sync/ -x -v`
+- **Run command**: `python -m pytest tests/sync/ -x -v`
 - **Fixtures**: Mock `~/.spec-kitty/credentials` with tmp_path, mock HTTP responses
 
 ## Risks & Mitigations
@@ -183,7 +183,7 @@ No dependencies — branches directly from the 2.x branch.
 - Verify no hardcoded test tokens remain in the codebase
 - Check that all three credential states are handled (valid, expired, missing)
 - Verify token refresh is attempted before reporting failure
-- Run `python -m pytest tests/specify_cli/sync/ -x -v` — all tests green
+- Run `python -m pytest tests/sync/ -x -v` — all tests green
 
 ## Activity Log
 

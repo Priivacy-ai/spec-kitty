@@ -44,10 +44,10 @@ history:
 ## Implementation Command
 
 ```bash
-spec-kitty implement WP07 --base WP06
+spec-kitty implement WP07 --base WP02
 ```
 
-Depends on WP02 (error format) and WP06 (lane mapping). Use WP06 as base (has verified lane mapping); WP02 error format is referenced but doesn't need to be in the branch.
+Depends on WP02 (error format). Use WP02 as base; pull in lane mapping notes from the already-shipped 2.x `status/emit.py` mapping.
 
 ---
 
@@ -62,9 +62,9 @@ Depends on WP02 (error format) and WP06 (lane mapping). Use WP06 as base (has ve
 ## Context & Constraints
 
 - **Delivery branch**: 2.x
-- **Existing docs**: `contracts/batch-ingest.md` and `contracts/lane-mapping.md` were created during Phase 1 planning as initial drafts. This WP extends them with validated fixtures and cross-references verified implementation from WP06.
-- **Event types to document**: WPStatusChanged, MissionStarted, MissionCompleted, PhaseEntered, ReviewRollback
-- **Pydantic models**: `src/specify_cli/spec_kitty_events/models.py` (Event), `src/specify_cli/spec_kitty_events/status.py` (StatusTransitionPayload, Lane)
+- **Existing docs**: `contracts/batch-ingest.md` and `contracts/lane-mapping.md` were created during Phase 1 planning as initial drafts. This WP extends them with validated fixtures and cross-references current 2.x implementation.
+- **Event types to document**: WPStatusChanged, WPCreated, WPAssigned, FeatureCreated, FeatureCompleted, HistoryAdded, ErrorLogged, DependencyResolved
+- **Pydantic models/rules**: `src/specify_cli/spec_kitty_events/models.py` (Event envelope), `src/specify_cli/sync/emitter.py` (`_PAYLOAD_RULES` for payload validation)
 - **Reference**: `spec.md` (User Story 6, FR-014), `plan.md` (WP07), `data-model.md`
 
 ## Subtasks & Detailed Guidance
@@ -128,7 +128,7 @@ Depends on WP02 (error format) and WP06 (lane mapping). Use WP06 as base (has ve
 - **Steps**:
   1. Create 5 fixture examples:
      - **Fixture 1**: Single WPStatusChanged event (happy path) → success response
-     - **Fixture 2**: Batch of 3 events (WPStatusChanged, MissionStarted, PhaseEntered) → mixed success
+     - **Fixture 2**: Batch of 3 events (WPStatusChanged, WPCreated, FeatureCreated) → mixed success
      - **Fixture 3**: Duplicate event (same event_id sent twice) → duplicate response
      - **Fixture 4**: Malformed event (missing required field) → rejected response
      - **Fixture 5**: 400 error response with details field
@@ -177,7 +177,7 @@ Depends on WP02 (error format) and WP06 (lane mapping). Use WP06 as base (has ve
      def test_all_event_types_covered():
          """Fixtures cover all documented event types."""
          types = {e["event_type"] for e in FIXTURE_EVENTS}
-         expected = {"WPStatusChanged", "MissionStarted", "MissionCompleted", "PhaseEntered", "ReviewRollback"}
+         expected = {"WPStatusChanged", "WPCreated", "WPAssigned", "FeatureCreated", "FeatureCompleted", "HistoryAdded", "ErrorLogged", "DependencyResolved"}
          assert types == expected, f"Missing types: {expected - types}"
      ```
   2. Create `tests/contract/__init__.py`
@@ -201,9 +201,9 @@ Depends on WP02 (error format) and WP06 (lane mapping). Use WP06 as base (has ve
 
 ## Review Guidance
 
-- Verify all event types have payload schemas documented
+- Verify all emitted event types have payload schemas documented
 - Verify fixture data passes the contract test
-- Verify lane mapping table references WP06's verified mapping
+- Verify lane mapping table references `_SYNC_LANE_MAP` in `src/specify_cli/status/emit.py`
 - Check that the SaaS team can construct a valid batch request using only the contract doc
 - Run `python -m pytest tests/contract/ -v` — all green
 

@@ -62,8 +62,8 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
 
 - **Delivery branch**: 2.x
 - **Dependency**: Uses error categorization from WP02 (T006 `categorize_error()` function)
-- **Event model**: `src/specify_cli/spec_kitty_events/models.py` — Pydantic `Event` model (frozen=True)
-- **Payload model**: `src/specify_cli/spec_kitty_events/status.py` — `StatusTransitionPayload`
+- **Event model**: `src/specify_cli/spec_kitty_events/models.py` — Pydantic `Event` envelope model
+- **Payload validation rules**: `src/specify_cli/sync/emitter.py` (`_PAYLOAD_RULES`, including WPStatusChanged 4-lane checks)
 - **Queue**: `src/specify_cli/sync/queue.py` — SQLite queue with pending events
 - **Reference**: `spec.md` (User Story 3, FR-007), `plan.md` (WP04), `data-model.md` (DiagnoseResult)
 
@@ -195,7 +195,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
 
 - **Purpose**: Verify diagnose correctly identifies valid and malformed events.
 - **Steps**:
-  1. Create `tests/specify_cli/sync/test_diagnose.py`:
+  1. Create `tests/sync/test_diagnose.py`:
      ```python
      def test_valid_event_passes():
          """A well-formed event passes validation."""
@@ -240,14 +240,14 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
          base.update(overrides)
          return base
      ```
-  3. Run: `python -m pytest tests/specify_cli/sync/test_diagnose.py -x -v`
-- **Files**: `tests/specify_cli/sync/test_diagnose.py` (new)
+  3. Run: `python -m pytest tests/sync/test_diagnose.py -x -v`
+- **Files**: `tests/sync/test_diagnose.py` (new)
 - **Parallel?**: No — depends on T015-T018
 
 ## Test Strategy
 
 - **New tests**: ~8-10 tests in `test_diagnose.py`
-- **Run command**: `python -m pytest tests/specify_cli/sync/test_diagnose.py -x -v`
+- **Run command**: `python -m pytest tests/sync/test_diagnose.py -x -v`
 - **Fixtures**: Factory functions for valid/malformed events; no external dependencies
 
 ## Risks & Mitigations
@@ -263,7 +263,7 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
 - Verify diagnose correctly identifies missing fields, type errors, and payload issues
 - Verify reuse of WP02's error categorization (not duplicated logic)
 - Check that the CLI command is properly registered and accessible
-- Run `python -m pytest tests/specify_cli/sync/ -x -v` — all tests green
+- Run `python -m pytest tests/sync/ -x -v` — all tests green
 
 ## Activity Log
 

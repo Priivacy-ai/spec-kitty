@@ -114,14 +114,14 @@
 **Prompt**: `/tasks/WP05-extend-sync-status.md`
 
 ### Included Subtasks
-- [ ] T020 Add aggregate query methods to `src/specify_cli/sync/queue.py`: count by status, oldest event age, retry-count distribution
+- [ ] T020 Add aggregate query methods to `src/specify_cli/sync/queue.py`: total queued, oldest event age, retry-count distribution
 - [ ] T021 [P] Group pending events by `event_type` for top-failing-types display
 - [ ] T022 [P] Format extended status output with Rich tables/panels
 - [ ] T023 Integrate aggregate data into existing `sync status` command output
 - [ ] T024 Write tests for aggregate queries and formatted output
 
 ### Implementation Notes
-- SQLite queries: `SELECT COUNT(*) FROM events WHERE status='pending'`, `SELECT MIN(created_at) FROM events WHERE status='pending'`
+- SQLite queries should target the actual `queue` table: `SELECT COUNT(*) FROM queue`, `SELECT MIN(timestamp) FROM queue`
 - Retry histogram buckets: `0 retries`, `1-3 retries`, `4+ retries`
 - Use Rich Table for formatted output to match existing CLI style
 
@@ -143,14 +143,14 @@
 **Prompt**: `/tasks/WP06-lane-mapping-tests.md`
 
 ### Included Subtasks
-- [ ] T025 Add parametrized tests in `tests/specify_cli/sync/test_lane_mapping.py` covering all 7 lanes with expected 4-lane outputs
-- [ ] T026 Test that unknown lane value raises `ValueError`
-- [ ] T027 Extract mapping to a named constant/function if not already extracted in `src/specify_cli/sync/emitter.py`
-- [ ] T028 Verify `contracts/lane-mapping.md` matches the actual mapping in `emitter.py` — flag any discrepancies
+- [ ] T025 Add parametrized tests in `tests/specify_cli/status/test_sync_lane_mapping.py` covering all 7 lanes with expected 4-lane outputs
+- [ ] T026 Test invalid target lane handling via `emit_status_transition(...)` raises `TransitionError`
+- [ ] T027 Verify lane collapse mapping remains centralized in `src/specify_cli/status/emit.py` (`_SYNC_LANE_MAP`)
+- [ ] T028 Verify `contracts/lane-mapping.md` matches `_SYNC_LANE_MAP` in `status/emit.py` — flag any discrepancies
 
 ### Implementation Notes
-- Current mapping at `emitter.py:46` on 2.x: PLANNED→planned, CLAIMED→doing, IN_PROGRESS→doing, FOR_REVIEW→for_review, DONE→done, BLOCKED→doing, CANCELED→done
-- `LANE_ALIASES = {"doing": IN_PROGRESS}` in `spec_kitty_events.status` — test alias resolution separately
+- Current mapping at `status/emit.py:46` on 2.x: planned→planned, claimed→planned, in_progress→doing, for_review→for_review, done→done, blocked→doing, canceled→planned
+- `LANE_ALIASES = {"doing": "in_progress"}` in `status/transitions.py` — test alias resolution separately
 
 ### Parallel Opportunities
 - Entirely independent of other WPs
@@ -159,7 +159,7 @@
 - None
 
 ### Risks & Mitigations
-- Mapping in `emitter.py` may have changed since last inspection → read actual 2.x source first
+- Mapping in `status/emit.py` may have changed since last inspection → read actual 2.x source first
 
 ---
 
@@ -242,13 +242,13 @@
 ### Implementation Notes
 - `contracts/batch-ingest.md` and `contracts/lane-mapping.md` already exist from Phase 1 planning — extend them with fixtures
 - Cross-reference lane mapping from WP06 testing (T025-T028)
-- Fixture data must include all event types: WPStatusChanged, MissionStarted, MissionCompleted, PhaseEntered, ReviewRollback
+- Fixture data must include emitted event types: WPStatusChanged, WPCreated, WPAssigned, FeatureCreated, FeatureCompleted, HistoryAdded, ErrorLogged, DependencyResolved
 
 ### Parallel Opportunities
 - T030 and T031 can proceed in parallel (request format vs. auth flow)
 
 ### Dependencies
-- Depends on WP02 (error format from T006/T007) and WP06 (lane mapping from T025-T028)
+- Depends on WP02 (error format from T006/T007)
 
 ### Risks & Mitigations
 - SaaS endpoint may not match documented contract → fixtures enable the SaaS team to test independently
@@ -282,7 +282,7 @@
 - T043 is independent file edit, can proceed alongside T040-T042
 
 ### Dependencies
-- Depends on WP01 (setup-plan must work) and WP02 (sync must surface errors correctly)
+- Depends on WP01 (setup-plan must work)
 
 ### Risks & Mitigations
 - E2E test may be flaky in CI → ensure robust cleanup; use `pytest.mark.e2e` for separation
@@ -292,8 +292,8 @@
 ## Dependency & Execution Summary
 
 - **Wave 1 (parallel)**: WP01, WP02, WP03, WP05, WP06, WP08 — all independent, run concurrently
-- **Wave 2 (depends on Wave 1)**: WP04 (→WP02), WP07 (→WP02, WP06)
-- **Wave 3 (integration)**: WP09 (→WP01, WP02)
+- **Wave 2 (depends on Wave 1)**: WP04 (→WP02), WP07 (→WP02)
+- **Wave 3 (integration)**: WP09 (→WP01)
 - **MVP Scope**: WP01 + WP02 + WP09 (planning workflow + sync diagnostics + smoke test)
 - **Parallelization**: Up to 6 agents can work simultaneously in Wave 1
 
@@ -328,8 +328,8 @@
 | T023 | Integrate aggregates into sync status command | WP05 | P1 | No |
 | T024 | Write aggregate query and output tests | WP05 | P1 | No |
 | T025 | Parametrized tests for all 7 lanes | WP06 | P2 | No |
-| T026 | Test unknown lane raises ValueError | WP06 | P2 | No |
-| T027 | Extract mapping to named constant/function | WP06 | P2 | No |
+| T026 | Test invalid lane transition raises TransitionError | WP06 | P2 | No |
+| T027 | Verify `_SYNC_LANE_MAP` is centralized | WP06 | P2 | No |
 | T028 | Verify contract doc matches implementation | WP06 | P2 | No |
 | T029 | Document event envelope fields | WP07 | P0 | No |
 | T030 | Document batch request/response format | WP07 | P0 | Yes |
