@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Add sync diagnose command
-lane: "doing"
+lane: "for_review"
 dependencies: [WP02]
 base_branch: 039-cli-2x-readiness-WP02
 base_commit: 0cf3f906f4f979a000cf04c78688a397d69b6a37
@@ -272,3 +272,4 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-12T10:26:18Z – wp04-agent – shell_pid=67164 – lane=doing – Assigned agent via workflow command
+- 2026-02-12T10:33:59Z – wp04-agent – shell_pid=67164 – lane=for_review – Ready for review: sync diagnose command with 31 passing tests
