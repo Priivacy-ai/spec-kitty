@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Fix sync status --check to use real token
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: 217972339dcfe9159fccf3fcfd5b71b36cfe4c39
@@ -192,3 +192,4 @@ No dependencies — branches directly from the 2.x branch.
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-12T10:13:55Z – wp03-agent – shell_pid=47102 – lane=doing – Assigned agent via workflow command
+- 2026-02-12T10:20:56Z – wp03-agent – shell_pid=47102 – lane=for_review – Ready for review: real auth token in status check
