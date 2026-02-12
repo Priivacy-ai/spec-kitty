@@ -14,7 +14,7 @@ subtasks:
 - T019
 phase: Wave 2 - Dependent
 assignee: ''
-agent: ''
+agent: "wp04-agent"
 shell_pid: "67164"
 review_status: ''
 reviewed_by: ''
@@ -271,3 +271,4 @@ Depends on WP02 — branches from WP02's branch for error categorization reuse.
 ## Activity Log
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
+- 2026-02-12T10:26:18Z – wp04-agent – shell_pid=67164 – lane=doing – Assigned agent via workflow command
