@@ -266,11 +266,11 @@
 **Prompt**: `/tasks/WP09-e2e-smoke-test.md`
 
 ### Included Subtasks
-- [ ] T040 Create `tests/e2e/` directory with `__init__.py` and `conftest.py`
-- [ ] T041 Write temp repo fixture: git init, spec-kitty init, .kittify setup
-- [ ] T042 Implement full test sequence: create-feature → setup-plan → finalize-tasks → implement → move-task
-- [ ] T043 [P] Add `pytest.mark.e2e` marker to `pyproject.toml`
-- [ ] T044 Verify test passes locally and document CI considerations
+- [x] T040 Create `tests/e2e/` directory with `__init__.py` and `conftest.py`
+- [x] T041 Write temp repo fixture: git init, spec-kitty init, .kittify setup
+- [x] T042 Implement full test sequence: create-feature → setup-plan → finalize-tasks → implement → move-task
+- [x] T043 [P] Add `pytest.mark.e2e` marker to `pyproject.toml`
+- [x] T044 Verify test passes locally and document CI considerations
 
 ### Implementation Notes
 - Use `typer.testing.CliRunner` or `subprocess.run` for CLI invocations
