@@ -1,0 +1,10 @@
+{
+  "feature_number": "039",
+  "slug": "039-cli-2x-readiness",
+  "friendly_name": "CLI 2.x Readiness Sprint",
+  "mission": "software-dev",
+  "source_description": "Deliver a fully functional local/offline + authenticated CLI workflow for spec \u2192 plan \u2192 implement \u2192 review, with correct global runtime usage and status/event emission. Fix setup-plan blocker (NameError: get_feature_mission_key), converge runtime resolution to ~/.kittify, handle 7-lane canonical status with 4-lane sync fanout, implement offline queue + replay with diagnostics, and produce handoff doc for spec-kitty-saas.",
+  "created_at": "2026-02-12T10:14:00+00:00",
+  "target_branch": "main",
+  "vcs": "git"
+}
