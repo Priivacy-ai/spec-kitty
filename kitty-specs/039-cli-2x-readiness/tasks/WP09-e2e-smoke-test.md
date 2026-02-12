@@ -1,9 +1,12 @@
 ---
 work_package_id: WP09
 title: End-to-end CLI smoke test
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
+base_branch: 039-cli-2x-readiness-WP01
+base_commit: 56d1a67a249a2465a155817ae11f76e00a308db9
+created_at: '2026-02-12T10:25:55.161495+00:00'
 subtasks:
 - T040
 - T041
@@ -13,7 +16,7 @@ subtasks:
 phase: Wave 3 - Integration
 assignee: ''
 agent: ''
-shell_pid: ''
+shell_pid: "66054"
 review_status: ''
 reviewed_by: ''
 history:
