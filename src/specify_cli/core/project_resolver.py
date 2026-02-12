@@ -27,13 +27,44 @@ def locate_project_root(start: Path | None = None) -> Optional[Path]:
 
 
 def resolve_template_path(project_root: Path, mission_key: str, template_subpath: str | Path) -> Optional[Path]:
-    """Resolve a template path, preferring mission overrides before global templates."""
+    """Resolve a template path through a 5-tier precedence chain.
+
+    Resolution order:
+    1. Project mission: .kittify/missions/{key}/templates/{subpath}
+    2. Project generic: .kittify/templates/{subpath}
+    3. Global mission: ~/.kittify/missions/{key}/templates/{subpath}
+    4. Global generic: ~/.kittify/templates/{subpath}
+    5. Legacy fallback: templates/{subpath} (project root)
+
+    Args:
+        project_root: Root of the user project containing ``.kittify/``.
+        mission_key: Mission key (e.g. ``"software-dev"``).
+        template_subpath: Relative template path (e.g. ``"spec-template.md"``).
+
+    Returns:
+        Path to the resolved template, or None if not found at any tier.
+    """
+    from specify_cli.runtime.home import get_kittify_home
+
     subpath = Path(template_subpath)
     candidates = [
+        # 1. Project mission-specific
         project_root / ".kittify" / "missions" / mission_key / "templates" / subpath,
+        # 2. Project generic
         project_root / ".kittify" / "templates" / subpath,
-        project_root / "templates" / subpath,
     ]
+
+    # 3. Global mission-specific + 4. Global generic
+    try:
+        global_home = get_kittify_home()
+        candidates.append(global_home / "missions" / mission_key / "templates" / subpath)
+        candidates.append(global_home / "templates" / subpath)
+    except RuntimeError:
+        pass
+
+    # 5. Legacy project root fallback
+    candidates.append(project_root / "templates" / subpath)
+
     for candidate in candidates:
         if candidate.exists():
             return candidate
