@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: End-to-end CLI smoke test
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 base_branch: 039-cli-2x-readiness-WP01
@@ -304,3 +304,4 @@ Depends on WP01 (setup-plan must work). Use WP01 as base since it fixes the plan
 
 - 2026-02-12T12:00:00Z – system – lane=planned – Prompt created.
 - 2026-02-12T10:25:55Z – wp09-agent – shell_pid=66054 – lane=doing – Assigned agent via workflow command
+- 2026-02-12T10:32:23Z – wp09-agent – shell_pid=66054 – lane=for_review – Ready for review: 6 E2E tests all passing, full workflow exercised
