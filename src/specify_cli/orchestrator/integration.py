@@ -847,6 +847,18 @@ async def process_wp(
 
         # ===== REVIEW PHASE =====
         if wp.status == WPStatus.IMPLEMENTATION:
+            # Implementation should only enter review after completion timestamp is set.
+            # If missing, this is an interrupted implementation and must be resumed first.
+            if not wp.implementation_completed:
+                logger.warning(
+                    f"{wp_id} in IMPLEMENTATION without completion timestamp; "
+                    "restarting implementation before review"
+                )
+                wp.status = WPStatus.PENDING
+                wp.implementation_started = None
+                save_state(state, repo_root)
+                continue
+
             # Implementation just completed, start review
 
             # Check if review is needed (skip in single-agent mode with no review config)

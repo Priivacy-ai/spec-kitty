@@ -4,10 +4,8 @@ This test verifies that when a WP task raises an exception,
 the WP is properly marked as FAILED so dependent WPs can be unblocked.
 """
 
-import asyncio
 from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
