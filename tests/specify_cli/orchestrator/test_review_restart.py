@@ -5,15 +5,17 @@ the orchestrator properly restarts it to continue processing instead of
 declaring a deadlock.
 """
 
-import asyncio
 from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from specify_cli.orchestrator.config import OrchestratorConfig, WPStatus
-from specify_cli.orchestrator.integration import _orchestration_main_loop
+from specify_cli.orchestrator.integration import (
+    ReviewResult,
+    _orchestration_main_loop,
+    process_wp,
+)
 from specify_cli.orchestrator.state import OrchestrationRun, WPExecution
 
 
@@ -293,3 +295,74 @@ async def test_wp_in_implementation_status_gets_restarted(
             f"WP1 should be COMPLETED, got {wp1.status.value}"
         )
         assert process_count >= 2, f"WP1 should be processed at least 2 times, got {process_count}"
+
+
+@pytest.mark.asyncio
+async def test_process_wp_restarts_incomplete_implementation_before_review(
+    mock_state, mock_config, mock_feature_dir, mock_repo_root, mock_console
+):
+    """A resumed IMPLEMENTATION without completion should re-run implementation first."""
+    from specify_cli.orchestrator.scheduler import ConcurrencyManager
+
+    wp = mock_state.work_packages["WP01"]
+    wp.status = WPStatus.IMPLEMENTATION
+    wp.implementation_started = datetime.now(timezone.utc)
+    wp.implementation_completed = None
+
+    call_order = []
+
+    async def mock_process_wp_implementation(*args, **kwargs):
+        state = kwargs.get("state") or args[1]
+        wp_id = args[0] if args else kwargs.get("wp_id")
+        target_wp = state.work_packages[wp_id]
+        call_order.append("implementation")
+        target_wp.status = WPStatus.IMPLEMENTATION
+        target_wp.implementation_started = target_wp.implementation_started or datetime.now(timezone.utc)
+        target_wp.implementation_completed = datetime.now(timezone.utc)
+        return True
+
+    async def mock_process_wp_review(*args, **kwargs):
+        state = kwargs.get("state") or args[1]
+        wp_id = args[0] if args else kwargs.get("wp_id")
+        target_wp = state.work_packages[wp_id]
+        call_order.append("review")
+        target_wp.status = WPStatus.REVIEW
+        target_wp.review_started = datetime.now(timezone.utc)
+        target_wp.review_completed = datetime.now(timezone.utc)
+        return ReviewResult(ReviewResult.APPROVED)
+
+    concurrency = ConcurrencyManager(mock_config)
+
+    with patch(
+        "specify_cli.orchestrator.integration.process_wp_implementation",
+        side_effect=mock_process_wp_implementation,
+    ), patch(
+        "specify_cli.orchestrator.integration.process_wp_review",
+        side_effect=mock_process_wp_review,
+    ), patch(
+        "specify_cli.orchestrator.integration.transition_wp_lane",
+        new_callable=AsyncMock,
+        return_value=True,
+    ), patch(
+        "specify_cli.orchestrator.integration.select_agent_from_user_config",
+        return_value="test-agent",
+    ), patch(
+        "specify_cli.orchestrator.integration.select_review_agent_from_user_config",
+        return_value="test-agent",
+    ), patch(
+        "specify_cli.orchestrator.integration.is_single_agent_mode",
+        return_value=False,
+    ), patch("specify_cli.orchestrator.integration.save_state"):
+        result = await process_wp(
+            wp_id="WP01",
+            state=mock_state,
+            config=mock_config,
+            feature_dir=mock_feature_dir,
+            repo_root=mock_repo_root,
+            concurrency=concurrency,
+            console=mock_console,
+        )
+
+    assert result is True
+    assert call_order == ["implementation", "review"]
+    assert wp.status == WPStatus.COMPLETED
