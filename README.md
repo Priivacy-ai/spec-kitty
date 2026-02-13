@@ -1,27 +1,42 @@
 <div align="center">
     <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/logo_small.webp" alt="Spec Kitty Logo"/>
     <h1>Spec Kitty</h1>
-    <h2>Stop wrestling with AI agents. Start shipping features.</h2>
+    <h2>Spec-Driven Development for AI coding agents</h2>
 </div>
 
-**The Problem**: AI coding agents lose context, forget requirements, and generate code that doesn't match your specs. Teams waste 40% of development time re-prompting and fixing drift.
+Spec Kitty is an open-source CLI workflow for **spec-driven development** with AI coding agents.
+It helps teams turn product intent into implementation with a repeatable path:
+`spec` -> `plan` -> `tasks` -> `implement` -> `review` -> `merge`.
 
-**The Solution**: Spec Kitty enforces **spec-driven development (SDD)** with executable specifications, live kanban tracking, and git worktree isolation. Build features **40% faster** with 12 AI agents working in parallel—without context loss or merge conflicts.
+### Why teams use it
 
-**Try it now**: `pip install spec-kitty-cli && spec-kitty init myproject --ai claude`
+AI coding workflows often break down on larger features:
+- Requirements and design decisions drift over long agent sessions
+- Parallel work is hard to coordinate across branches
+- Review and acceptance criteria become inconsistent from one feature to the next
+
+Spec Kitty addresses this with repository-native artifacts, work package workflows, and git worktree isolation.
+
+### Who it's for
+
+- Engineering teams using tools like Claude Code, Cursor, Codex, Gemini CLI, and Copilot
+- Tech leads who want predictable, auditable AI-assisted delivery
+- Projects where traceability from requirements to code matters
+
+**Try it now:** `pip install spec-kitty-cli && spec-kitty init my-project --ai claude`
 
 ---
 
-## 🚀 What You Get
+## 🚀 What You Get in 0.15.x
 
-| Feature | Spec Kitty | Other SDD Tools | Manual AI Coding |
-|---------|------------|-----------------|------------------|
-| **12 AI agents supported** | ✅ Claude, Cursor, Gemini, Copilot, + 8 more | ⚠️ Usually 1-2 agents | ⚠️ Agent-specific setup |
-| **Live kanban dashboard** | ✅ Real-time progress tracking | ❌ Manual status checks | ❌ No visibility |
-| **Parallel development (40% faster)** | ✅ Workspace-per-WP model | ⚠️ Branch-based (conflicts) | ❌ Serial work |
-| **Conflict forecasting** | ✅ Pre-flight validation + auto-merge | ❌ Manual resolution | ❌ Merge hell |
-| **Constitution framework** | ✅ Project governance built-in | ⚠️ Ad-hoc guidelines | ❌ No standards |
-| **Dependency tracking** | ✅ WP frontmatter + smart sequencing | ❌ Manual coordination | ❌ Chaos |
+| Capability | What Spec Kitty provides |
+|------------|--------------------------|
+| **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, and `tasks.md` in `kitty-specs/<feature>/` |
+| **Work package execution** | Uses lane-based work package prompts (`planned`, `doing`, `for_review`, `done`) |
+| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/` for work package execution |
+| **Live project visibility** | Local dashboard for kanban and feature progress (`spec-kitty dashboard`) |
+| **Acceptance + merge workflow** | Built-in acceptance checks and merge helpers (`spec-kitty accept`, `spec-kitty merge`) |
+| **Multi-agent support** | Template and command generation for 12 AI agent integrations |
 
 <p align="center">
     <a href="#-getting-started-complete-workflow">Quick Start</a> •
@@ -37,7 +52,7 @@
 graph LR
     A[📝 Specify<br/>WHAT to build] --> B[🎯 Plan<br/>HOW to build]
     B --> C[📋 Tasks<br/>Work packages]
-    C --> D[⚡ Implement<br/>12 AI agents]
+    C --> D[⚡ Implement<br/>Agent workflows]
     D --> E[🔍 Review<br/>Quality gates]
     E --> F[🚀 Merge<br/>Ship it]
 
@@ -51,34 +66,28 @@ graph LR
 
 ---
 
-## 📊 By the Numbers
+## 📊 Project Snapshot
 
 <div align="center">
 
 [![GitHub stars](https://img.shields.io/github/stars/Priivacy-ai/spec-kitty?style=for-the-badge&logo=github)](https://github.com/Priivacy-ai/spec-kitty/stargazers)
 [![PyPI version](https://img.shields.io/pypi/v/spec-kitty-cli?style=for-the-badge&logo=pypi)](https://pypi.org/project/spec-kitty-cli/)
 [![Downloads](https://img.shields.io/pypi/dm/spec-kitty-cli?style=for-the-badge&logo=pypi)](https://pypi.org/project/spec-kitty-cli/)
-
-**Branch Status:**
-[![main branch](https://img.shields.io/badge/main→1.x-Maintenance%20Only-yellow?style=for-the-badge)](https://github.com/Priivacy-ai/spec-kitty/tree/main)
-[![2.x branch](https://img.shields.io/badge/2.x-Active%20Development-green?style=for-the-badge)](https://github.com/Priivacy-ai/spec-kitty/tree/2.x)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://opensource.org/licenses/MIT)
-
-[![12 AI Agents](https://img.shields.io/badge/AI_Agents-12_Supported-brightgreen?style=for-the-badge)](#-supported-ai-agents)
-[![40% Faster](https://img.shields.io/badge/Speed-40%25_Faster-red?style=for-the-badge)](#-multi-agent-coordination-for-ai-coding)
-[![Real-time Dashboard](https://img.shields.io/badge/Dashboard-Real--time_Kanban-orange?style=for-the-badge)](#-real-time-dashboard)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue?style=for-the-badge)](https://www.python.org/downloads/)
+
+[![AI Agents](https://img.shields.io/badge/AI_Agents-12_Supported-brightgreen?style=for-the-badge)](#-supported-ai-agents)
+[![Dashboard](https://img.shields.io/badge/Dashboard-Kanban-orange?style=for-the-badge)](#-real-time-dashboard)
+[![Workflow](https://img.shields.io/badge/Workflow-Spec--Plan--Tasks-6c757d?style=for-the-badge)](#-getting-started-complete-workflow)
 
 </div>
 
-| Metric | Value | Context |
-|--------|-------|---------|
-| 🤖 **AI Agents Supported** | 12 | Claude, Cursor, Windsurf, Gemini, Copilot, +7 more |
-| ⚡ **Development Speed** | 40% faster | Parallel WP model vs. serial branches ([dogfooding](kitty-specs/010-workspace-per-work-package-for-parallel-development/)) |
-| 📊 **Live Tracking** | Real-time | Kanban dashboard updates as agents work |
-| 🔀 **Conflict Prevention** | Pre-flight validation | Merge-base forecasting + auto-resolution |
-| 🎯 **Quality Gates** | Automated | Accept/review workflows with constitution checks |
-| 🌳 **Worktree Isolation** | Zero branch switching | `.worktrees/` per WP, main stays clean |
+**Recent stable release:** `v0.15.1` (2026-02-12)
+
+**0.15.x highlights:**
+- Primary branch detection now works with `main`, `master`, `develop`, and custom defaults
+- Branch routing and merge-base calculation are centralized for more predictable behavior
+- Worktree isolation and lane transitions have stronger guardrails and test coverage
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •
@@ -90,33 +99,22 @@ graph LR
 
 ---
 
-## 📌 Branch Strategy (Important!)
+## 📌 Release Track
 
-Spec Kitty uses a **two-branch strategy** for parallel development tracks:
+Spec Kitty is currently published on a stable `0.15.x` track from the `main` branch.
 
-| Branch | Version | Status | Purpose | Install |
-|--------|---------|--------|---------|---------|
-| **main** → **1.x** | v0.13.x → v1.x | 🟡 Maintenance Only | Stable local-only CLI with YAML activity logs | `pip install spec-kitty-cli` (PyPI) |
-| **2.x** | v2.x (pre-release) | 🟢 Active Development | SaaS transformation with event sourcing | `git clone -b 2.x` (development only) |
+| Branch | Version | Status | Install |
+|--------|---------|--------|---------|
+| **main** | **0.15.x** | Active stable releases | `pip install spec-kitty-cli` |
 
-**For users**: Install from PyPI (`pip install spec-kitty-cli`) - you're on the stable 1.x track.
-
-**For contributors**:
-- **New features**: Target `2.x` branch (SaaS platform, event sourcing architecture)
-- **Bug fixes for stable**: Target `main` branch (becomes 1.x, maintenance-only)
-
-**Why two branches?**
-- 2.x is **greenfield architecture** (event sourcing, no YAML logs) - incompatible with 1.x
-- 1.x remains **stable** for existing users (no breaking changes)
-- Parallel tracks enable **SaaS transformation** without disrupting stable CLI
-
-See [ADR-12: Two-Branch Strategy](architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md) for details.
+**For users:** install from PyPI (`pip install spec-kitty-cli`).
+**For contributors:** target `main` unless maintainers specify otherwise in an issue or PR discussion.
 
 ---
 
 ## 🤝 Multi-Agent Coordination for AI Coding
 
-Orchestrate multiple AI agents on a single feature without conflicts. Each agent works in isolated worktrees while the live dashboard tracks progress across all work packages.
+Orchestrate multiple AI agents on a single feature with lower merge friction. Each agent works in isolated worktrees while the live dashboard tracks progress across all work packages.
 
 ```mermaid
 sequenceDiagram
@@ -144,35 +142,9 @@ sequenceDiagram
 
 **Key Benefits:**
 - 🔀 **Parallel execution** - Multiple WPs simultaneously
-- 🚫 **Zero conflicts** - Git worktree isolation per WP
+- 🌳 **Worktree isolation** - One workspace per WP to reduce branch contention
 - 👀 **Full visibility** - Dashboard shows who's doing what
 - 🔄 **Auto-sequencing** - Dependency tracking in WP frontmatter
-
-### Competitive Landscape
-
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'quadrant1Fill':'#e8f5e9', 'quadrant2Fill':'#e1f5ff', 'quadrant3Fill':'#fff3e0', 'quadrant4Fill':'#fce4ec'}}}%%
-quadrantChart
-    title AI Coding Framework Positioning
-    x-axis Low Visibility --> High Visibility
-    y-axis Single Agent --> Multi-Agent
-    quadrant-1 Enterprise Orchestration
-    quadrant-2 Team Productivity
-    quadrant-3 Solo Developer
-    quadrant-4 Legacy Tools
-
-    Spec Kitty: [0.9, 0.85]
-    Claude-Flow: [0.7, 0.75]
-    BMAD Method: [0.6, 0.55]
-    Beads: [0.4, 0.3]
-    Gastown: [0.5, 0.5]
-```
-
-**Why Not...?**
-- **Claude-Flow**: Use if you need 60+ agents for enterprise orchestration. Use Spec Kitty for 3-10 agents with hands-on control.
-- **BMAD Method**: Use if you prefer collaborative AI (AI assists, you lead). Use Spec Kitty for automated quality gates and kanban tracking.
-- **Beads**: Use if you need hash-based context graphs for long-term projects. Use Spec Kitty for dashboard-driven workflows and git worktrees.
-- **Manual AI coding**: Use for weekend prototypes. Use Spec Kitty when you need quality gates, progress tracking, or multi-agent teams.
 
 ---
 
