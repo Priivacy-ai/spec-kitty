@@ -693,6 +693,8 @@ def _get_current_branch(repo_root: Path) -> str:
         cwd=repo_root,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False
     )
     return result.stdout.strip() if result.returncode == 0 else _resolve_primary_branch(repo_root)

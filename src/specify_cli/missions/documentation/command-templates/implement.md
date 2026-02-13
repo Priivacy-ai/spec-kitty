@@ -314,6 +314,16 @@ git add docs/
 git commit -m "docs(WP##): <describe your documentation>"
 ```
 
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+Set-Location .worktrees\###-feature-WP##\
+git add docs/
+git commit -m "docs(WP##): <describe your documentation>"
+```
+
+</details>
+
 **Example commit messages:**
 - `docs(WP01): Add Divio structure and generator configs`
 - `docs(WP02): Add getting started tutorial`

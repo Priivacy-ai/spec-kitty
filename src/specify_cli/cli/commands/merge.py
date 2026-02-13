@@ -184,7 +184,9 @@ def validate_wp_ready_for_merge(repo_root: Path, worktree_path: Path, branch_nam
         ["git", "status", "--porcelain"],
         cwd=str(worktree_path),
         capture_output=True,
-        text=True
+        text=True,
+        encoding="utf-8",
+        errors="replace"
     )
     if result.stdout.strip():
         return False, f"Worktree {worktree_path.name} has uncommitted changes"

@@ -11,7 +11,10 @@
 #
 # Or to install during spec-kitty init, this template will be copied automatically.
 
-set -e
+# NOTE: Do NOT use "set -e" here. The script intentionally runs commands that
+# may exit non-zero (Python encoding checks, interpreter smoke tests) and
+# inspects their exit codes manually. With set -e, any non-zero exit
+# short-circuits the hook before the CHECK_EXIT logic can run.
 
 # Colors for output
 RED='\033[0;31m'
@@ -20,12 +23,19 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 # Detect Python interpreter (works on Windows, macOS, Linux)
-if command -v python3 &> /dev/null; then
-    PYTHON_CMD="python3"
-elif command -v python &> /dev/null; then
-    PYTHON_CMD="python"
-else
-    echo -e "${YELLOW}Warning: Python not found. Skipping encoding validation.${NC}"
+PYTHON_CMD=""
+for candidate in python3 python py; do
+    if command -v "$candidate" &> /dev/null; then
+        # Smoke test: verify the interpreter actually works
+        if "$candidate" -c "import sys; sys.exit(0)" 2>/dev/null; then
+            PYTHON_CMD="$candidate"
+            break
+        fi
+    fi
+done
+
+if [ -z "$PYTHON_CMD" ]; then
+    echo -e "${YELLOW}Warning: No working Python interpreter found. Skipping encoding validation.${NC}"
     exit 0
 fi
 
@@ -56,7 +66,8 @@ for file in $STAGED_MD_FILES; do
     fi
 
     # Use Python to check for problematic characters
-    if ! $PYTHON_CMD -c "
+    # Exit code 2 = encoding error, exit code 1 = Python execution failure, exit code 0 = OK
+    $PYTHON_CMD -c "
 import sys
 try:
     with open('$file', 'rb') as f:
@@ -66,11 +77,14 @@ try:
     sys.exit(0)
 except UnicodeDecodeError as e:
     print(f'${RED}✗ Encoding error in $file at byte {e.start}${NC}', file=sys.stderr)
-    sys.exit(1)
+    sys.exit(2)
 except Exception as e:
     print(f'${YELLOW}Warning: Could not check $file: {e}${NC}', file=sys.stderr)
     sys.exit(0)
-" 2>&1; then
+" 2>&1
+    CHECK_EXIT=$?
+
+    if [ $CHECK_EXIT -eq 2 ]; then
         HAS_ISSUES=true
 
         # Show example problematic characters
@@ -129,6 +143,9 @@ try:
 except Exception as e:
     print(f"  Could not analyze file: {e}", file=sys.stderr)
 PYTHON
+    elif [ $CHECK_EXIT -ne 0 ]; then
+        # Non-encoding failure (Python execution error) — warn but don't block
+        echo -e "${YELLOW}Warning: Could not check $file (Python error, exit $CHECK_EXIT). Skipping.${NC}"
     fi
 done
 

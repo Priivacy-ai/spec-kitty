@@ -82,21 +82,13 @@ def _ensure_target_branch_checked_out(
     """
     from specify_cli.core.git_ops import resolve_target_branch
 
+    from specify_cli.core.git_ops import get_current_branch
+
     main_repo_root = get_main_repo_root(repo_root)
 
-    # Check for detached HEAD
-    current_branch_result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        cwd=main_repo_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if current_branch_result.returncode != 0:
-        raise RuntimeError("Could not determine current branch for planning repo")
-
-    current_branch = current_branch_result.stdout.strip()
-    if current_branch == "HEAD":
+    # Check for detached HEAD using robust branch detection
+    current_branch = get_current_branch(main_repo_root)
+    if current_branch is None:
         raise RuntimeError("Planning repo is in detached HEAD state; checkout a branch before continuing")
 
     # Resolve branch routing (unified logic, no auto-checkout)
@@ -339,6 +331,8 @@ def _validate_ready_for_review(
         cwd=main_repo_root,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False
     )
     uncommitted_in_main = result.stdout.strip()
@@ -386,14 +380,9 @@ def _validate_ready_for_review(
 
         if worktree_path.exists():
             # Check for detached HEAD before other git status checks
-            result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                cwd=worktree_path,
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            if result.returncode == 0 and result.stdout.strip() == "HEAD":
+            from specify_cli.core.git_ops import get_current_branch as _get_branch
+            wt_branch = _get_branch(worktree_path)
+            if wt_branch is None:
                 guidance.append("Detached HEAD detected in worktree!")
                 guidance.append("")
                 guidance.append("Please reattach to a branch before review:")
@@ -416,6 +405,8 @@ def _validate_ready_for_review(
                     cwd=worktree_path,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=False
                 )
                 if state_result.returncode == 0:
@@ -452,6 +443,8 @@ def _validate_ready_for_review(
                 cwd=worktree_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False
             )
             behind_count = 0
@@ -478,6 +471,8 @@ def _validate_ready_for_review(
                 cwd=worktree_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False
             )
             uncommitted_in_worktree = result.stdout.strip()
@@ -522,6 +517,8 @@ def _validate_ready_for_review(
                 cwd=worktree_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False
             )
             commit_count = 0
@@ -675,6 +672,8 @@ def move_task(
                         ["git", "config", "user.name"],
                         capture_output=True,
                         text=True,
+                        encoding="utf-8",
+                        errors="replace",
                         check=True
                     )
                     effective_reviewer = result.stdout.strip() or "unknown"
@@ -836,6 +835,8 @@ def move_task(
                         ["git", "config", "user.name"],
                         capture_output=True,
                         text=True,
+                        encoding="utf-8",
+                        errors="replace",
                         check=True
                     )
                     effective_reviewer = result.stdout.strip() or "unknown"
@@ -867,6 +868,8 @@ def move_task(
                         ["git", "config", "user.name"],
                         capture_output=True,
                         text=True,
+                        encoding="utf-8",
+                        errors="replace",
                         check=True
                     )
                     effective_reviewer = result.stdout.strip() or "unknown"

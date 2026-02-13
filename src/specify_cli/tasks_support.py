@@ -91,6 +91,8 @@ def run_git(args: List[str], cwd: Path, check: bool = True) -> subprocess.Comple
             cwd=str(cwd),
             check=check,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             capture_output=True,
         )
     except FileNotFoundError as exc:

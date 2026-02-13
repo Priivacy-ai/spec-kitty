@@ -79,24 +79,13 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
     Returns the planning repo root and the user's current branch.
     Shows notification if current branch differs from feature target.
     """
-    from specify_cli.core.git_ops import resolve_target_branch
+    from specify_cli.core.git_ops import get_current_branch, resolve_target_branch
 
     main_repo_root = get_main_repo_root(repo_root)
 
-    # Check for detached HEAD
-    current_branch_result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        cwd=main_repo_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if current_branch_result.returncode != 0:
-        print("Error: Could not determine current branch for planning repo.")
-        raise typer.Exit(1)
-
-    current_branch = current_branch_result.stdout.strip()
-    if current_branch == "HEAD":
+    # Check for detached HEAD using robust branch detection
+    current_branch = get_current_branch(main_repo_root)
+    if current_branch is None:
         print("Error: Planning repo is in detached HEAD state. Checkout a branch before continuing.")
         raise typer.Exit(1)
 
@@ -668,12 +657,10 @@ def _resolve_review_context(
         return ctx
 
     # Get actual branch name from worktree
-    result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        cwd=workspace_path, capture_output=True, text=True, check=False,
-    )
-    if result.returncode == 0 and result.stdout.strip():
-        ctx["branch_name"] = result.stdout.strip()
+    from specify_cli.core.git_ops import get_current_branch
+    branch = get_current_branch(workspace_path)
+    if branch:
+        ctx["branch_name"] = branch
     else:
         return ctx
 
@@ -701,14 +688,18 @@ def _resolve_review_context(
     for candidate in candidates:
         mb = subprocess.run(
             ["git", "merge-base", branch, candidate],
-            cwd=repo_root, capture_output=True, text=True, check=False,
+            cwd=repo_root, capture_output=True, text=True,
+                                                encoding="utf-8",
+                                                errors="replace", check=False,
         )
         if mb.returncode != 0:
             continue
 
         count_r = subprocess.run(
             ["git", "rev-list", "--count", f"{mb.stdout.strip()}..{branch}"],
-            cwd=repo_root, capture_output=True, text=True, check=False,
+            cwd=repo_root, capture_output=True, text=True,
+                                                encoding="utf-8",
+                                                errors="replace", check=False,
         )
         if count_r.returncode != 0:
             continue
@@ -894,6 +885,8 @@ def review(
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False
             )
 
@@ -906,6 +899,8 @@ def review(
                     cwd=workspace_path,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=False
                 )
                 if sparse_checkout_result.returncode == 0:

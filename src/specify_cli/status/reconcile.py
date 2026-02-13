@@ -85,6 +85,8 @@ def scan_for_wp_commits(
             cwd=repo_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=_GIT_TIMEOUT,
         )
         if branch_result.returncode == 0 and branch_result.stdout.strip():
@@ -110,6 +112,8 @@ def scan_for_wp_commits(
                             cwd=repo_path,
                             capture_output=True,
                             text=True,
+                            encoding="utf-8",
+                            errors="replace",
                             timeout=_GIT_TIMEOUT,
                         )
                         if log_result.returncode == 0 and log_result.stdout.strip():
@@ -142,6 +146,8 @@ def scan_for_wp_commits(
             cwd=repo_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=_GIT_LOG_TIMEOUT,
         )
         if grep_result.returncode == 0 and grep_result.stdout.strip():
@@ -170,6 +176,8 @@ def scan_for_wp_commits(
                             cwd=repo_path,
                             capture_output=True,
                             text=True,
+                            encoding="utf-8",
+                            errors="replace",
                             timeout=_GIT_TIMEOUT,
                         )
                         if detail_result.returncode == 0 and detail_result.stdout.strip():
@@ -219,6 +227,8 @@ def _get_merged_wps(
                 cwd=repo_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=_GIT_TIMEOUT,
             )
             if result.returncode == 0 and result.stdout.strip():

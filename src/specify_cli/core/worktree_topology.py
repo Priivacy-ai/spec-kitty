@@ -103,6 +103,8 @@ def _count_commits_ahead(
         cwd=worktree_path,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     if result.returncode == 0 and result.stdout.strip():

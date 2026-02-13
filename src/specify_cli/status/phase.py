@@ -97,6 +97,8 @@ def is_01x_branch(repo_root: Path) -> bool:
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         if result.returncode != 0:

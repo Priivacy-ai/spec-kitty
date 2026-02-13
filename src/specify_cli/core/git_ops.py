@@ -64,6 +64,8 @@ def run_command(
             check=check_return,
             capture_output=capture,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             shell=shell,
             cwd=str(cwd) if cwd else None,
         )
@@ -124,17 +126,49 @@ def init_git_repo(project_path: Path, quiet: bool = False, console: ConsoleType 
 
 
 def get_current_branch(path: Path | None = None) -> str | None:
-    """Return the current git branch name for the provided repository path."""
+    """Return the current git branch name for the provided repository path.
+
+    Tries ``git branch --show-current`` first (Git 2.22+, correctly handles
+    unborn branches).  Falls back to ``git rev-parse --abbrev-ref HEAD`` for
+    older Git versions.  Returns ``None`` for detached HEAD or when not
+    inside a git repository.
+    """
     repo_path = (path or Path.cwd()).resolve()
+
+    # Primary: git branch --show-current (Git 2.22+)
+    # Handles unborn branches correctly and returns empty string for detached HEAD.
+    try:
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=repo_path,
+        )
+        branch = result.stdout.strip()
+        return branch or None
+    except subprocess.CalledProcessError:
+        pass
+    except FileNotFoundError:
+        return None
+
+    # Fallback: git rev-parse --abbrev-ref HEAD (Git < 2.22)
+    # Returns "HEAD" for detached HEAD; fails on unborn branches.
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             cwd=repo_path,
         )
         branch = result.stdout.strip()
+        if branch == "HEAD":
+            return None  # Detached HEAD
         return branch or None
     except (subprocess.CalledProcessError, FileNotFoundError):
         return None
@@ -155,6 +189,8 @@ def has_remote(repo_path: Path, remote_name: str = "origin") -> bool:
             ["git", "remote", "get-url", remote_name],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             cwd=repo_path,
             check=False,
         )
@@ -177,6 +213,8 @@ def has_tracking_branch(repo_path: Path) -> bool:
             ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             cwd=repo_path,
             check=False,
         )
@@ -242,6 +280,8 @@ def resolve_primary_branch(repo_root: Path) -> str:
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
             check=False,
         )

@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0a4] - 2026-02-13
+
+### 🐛 Fixed
+
+**Backported v0.15.2 hotfix from main branch**:
+
+- **Branch detection**: Replaced single `rev-parse --abbrev-ref HEAD` with dual-strategy
+  approach (`git branch --show-current` primary, `rev-parse` fallback). Fixes unborn branch
+  detection and detached HEAD handling. Updated all inline callers in tasks.py, workflow.py,
+  and vcs/git.py.
+
+- **Subprocess encoding safety**: Added `encoding="utf-8", errors="replace"` to all ~135
+  `subprocess.run(text=True)` calls across 36 files, including 2.x-only `vcs/jujutsu.py`
+  (22 calls). Prevents crashes on non-UTF-8 git output (Windows, locale mismatches).
+
+- **Pre-commit hook safety**: Removed `set -e` from encoding check hook, expanded Python
+  interpreter detection (loops through python3/python/py with smoke test), fixed exit code
+  handling to distinguish encoding errors (exit 2) from execution failures.
+
+- **Init fail-fast**: `spec-kitty init` now raises RuntimeError immediately after git init
+  failure instead of falling through to "project ready" success message.
+
+- **PowerShell templates**: Added PowerShell equivalent blocks to implement.md templates
+  for software-dev, research, and documentation missions.
+
 ## [2.0.0a3] - 2026-02-11
 
 ### 🐛 Fixed

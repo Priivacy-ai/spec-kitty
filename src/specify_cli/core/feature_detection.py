@@ -177,6 +177,8 @@ def _detect_from_git_branch(repo_root: Path) -> Optional[str]:
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=True,
         )
         branch = result.stdout.strip()

@@ -106,6 +106,8 @@ def create_multi_parent_base(
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
             if result.returncode != 0:
@@ -127,6 +129,8 @@ def create_multi_parent_base(
                     cwd=repo_root,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=False,
                     timeout=10,  # 10 second timeout
                 )
@@ -140,6 +144,8 @@ def create_multi_parent_base(
                         cwd=repo_root,
                         capture_output=True,
                         text=True,
+                        encoding="utf-8",
+                        errors="replace",
                         check=False,
                         timeout=10,  # 10 second timeout
                     )
@@ -186,6 +192,8 @@ def create_multi_parent_base(
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         if result.returncode != 0:
@@ -203,6 +211,8 @@ def create_multi_parent_base(
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         if result.returncode != 0:
@@ -223,6 +233,8 @@ def create_multi_parent_base(
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
 
@@ -233,6 +245,8 @@ def create_multi_parent_base(
                     cwd=repo_root,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=False,
                 )
                 if conflict_result.returncode == 0 and conflict_result.stdout.strip():
@@ -274,6 +288,8 @@ def create_multi_parent_base(
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         if result.returncode != 0:

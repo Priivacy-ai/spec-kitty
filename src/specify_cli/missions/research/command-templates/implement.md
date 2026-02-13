@@ -42,6 +42,14 @@ Run this command to get started:
 spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
 ```
 
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
+```
+
+</details>
+
 **CRITICAL**: You MUST provide `--agent <your-name>` to track who is implementing!
 
 ### Step 1: Navigate to Your Worktree

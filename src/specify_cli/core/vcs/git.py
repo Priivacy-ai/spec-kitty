@@ -113,6 +113,8 @@ class GitVCS:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=60,
                 cwd=str(repo_root),
             )
@@ -183,6 +185,8 @@ class GitVCS:
                 cwd=workspace_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
 
@@ -351,6 +355,8 @@ class GitVCS:
                 ["git", "worktree", "remove", str(workspace_path), "--force"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 cwd=str(repo_root),
             )
@@ -380,15 +386,16 @@ class GitVCS:
 
         try:
             # Get current branch using existing helper from git_ops.py
+            # get_current_branch() already returns None for detached HEAD
             current_branch = get_current_branch(workspace_path)
-            if current_branch == "HEAD":
-                current_branch = None  # Detached HEAD
 
             # Get current commit
             commit_result = subprocess.run(
                 ["git", "-C", str(workspace_path), "rev-parse", "HEAD"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
             current_commit = (
@@ -400,6 +407,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "status", "--porcelain"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
             has_uncommitted = bool(status_result.stdout.strip())
@@ -446,6 +455,8 @@ class GitVCS:
                 ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -500,6 +511,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "fetch", "--all"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=120,
             )
 
@@ -543,6 +556,8 @@ class GitVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -550,6 +565,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "rev-parse", base_branch],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
 
@@ -578,6 +595,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "rev-parse", "HEAD"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
             pre_rebase_head = (
@@ -591,6 +610,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "rebase", base_branch],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=300,
             )
 
@@ -674,6 +695,8 @@ class GitVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -707,6 +730,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "diff", "--name-only", "--diff-filter=U"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -716,6 +741,8 @@ class GitVCS:
                     ["git", "-C", str(workspace_path), "status", "--porcelain"],
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     timeout=30,
                 )
 
@@ -790,6 +817,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "diff", "--name-only", "--diff-filter=U"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -801,6 +830,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "status", "--porcelain"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -839,6 +870,8 @@ class GitVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -886,6 +919,8 @@ class GitVCS:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=60,
             )
 
@@ -953,6 +988,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "commit", "-m", message],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=60,
             )
 
@@ -1022,6 +1059,8 @@ class GitVCS:
                 cwd=str(path),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
 
@@ -1051,6 +1090,8 @@ class GitVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
             if result.returncode == 0:
@@ -1122,6 +1163,8 @@ class GitVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -1281,6 +1324,8 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
             ],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
         )
 

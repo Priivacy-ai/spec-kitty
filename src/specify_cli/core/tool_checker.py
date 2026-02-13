@@ -50,6 +50,8 @@ def get_tool_version(command: str) -> str | None:
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
     except (subprocess.CalledProcessError, FileNotFoundError, OSError):
         return None
