@@ -29,6 +29,7 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 - `validate-tasks` - Validate and optionally fix task metadata inconsistencies
 - `verify-setup` - Verify that the current environment matches Spec Kitty expectations
 - `agent` - Commands for AI agents to execute spec-kitty workflows programmatically
+- `auth` - Authentication commands for the sync service
 - `mission` - View available Spec Kitty missions
 - `repair` - Repair broken templates
 
@@ -199,11 +200,147 @@ spec-kitty implement WP01 --json
 
 ---
 
+## spec-kitty auth
+
+**Synopsis**: `spec-kitty auth [OPTIONS] COMMAND [ARGS]...`
+
+**Description**: Authentication commands for the spec-kitty sync service.
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--help` | Show this message and exit |
+
+**Commands**:
+- `login` - Log in to the sync service
+- `logout` - Log out from the sync service
+- `status` - Show current authentication status
+
+---
+
+## spec-kitty auth login
+
+**Synopsis**: `spec-kitty auth login [OPTIONS]`
+
+**Description**: Log in to the sync service. Prompts for username and password if not provided via flags. Stores JWT tokens in credential file.
+
+**Options**:
+| Flag | Type | Default | Description |
+| --- | --- | --- | --- |
+| `--username`, `-u` | TEXT | (prompt) | Your username or email |
+| `--password`, `-p` | TEXT | (prompt, hidden) | Your password |
+| `--force`, `-f` | FLAG | false | Re-authenticate even if already logged in |
+| `--help` | | | Show this message and exit |
+
+**Examples**:
+```bash
+# Interactive login (prompts for credentials)
+spec-kitty auth login
+
+# Non-interactive login
+spec-kitty auth login --username user@example.com --password secret
+
+# Force re-authentication
+spec-kitty auth login --force
+```
+
+**Behavior**:
+- On success, prints the authenticated username and stores JWT tokens in `~/.spec-kitty/credentials`.
+- If already authenticated (without `--force`), prints a message and exits without re-authenticating.
+
+**Errors**:
+- Invalid credentials: `Invalid username or password`
+- Server unreachable: `Cannot reach server. Check your connection.`
+- Server error: `Server temporarily unavailable`
+- Session expired: `Session expired. Please log in again.`
+- Permission error: `Cannot access credentials file. Check permissions.`
+
+---
+
+## spec-kitty auth logout
+
+**Synopsis**: `spec-kitty auth logout`
+
+**Description**: Log out from the sync service. Clears stored credentials.
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--help` | Show this message and exit |
+
+**Examples**:
+```bash
+spec-kitty auth logout
+```
+
+**Behavior**:
+- On success, clears credentials and prints the username that was logged out.
+- If no active session exists, prints an informational message and exits.
+
+**Errors**:
+- Permission error: `Cannot access credentials file. Check permissions.`
+
+---
+
+## spec-kitty auth status
+
+**Synopsis**: `spec-kitty auth status`
+
+**Description**: Show current authentication status including username, server URL, and token expiry.
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--help` | Show this message and exit |
+
+**Examples**:
+```bash
+spec-kitty auth status
+```
+
+**Output** (authenticated):
+```
+✅ Authenticated
+   Username: user@example.com
+   Server:   https://your-server.example.com
+   Access token: valid (23h remaining)
+   Refresh token: valid (6d remaining)
+```
+
+**Output** (not authenticated):
+```
+❌ Not authenticated
+   Run 'spec-kitty auth login' to authenticate.
+```
+
+**Errors**:
+- Permission error: `Cannot access credentials file. Check permissions.`
+
+---
+
 ## spec-kitty sync
 
-**Synopsis**: `spec-kitty sync [OPTIONS]`
+**Synopsis**: `spec-kitty sync [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: Synchronize workspace with upstream changes. Updates the current workspace with changes from its base branch or parent using `git rebase <base-branch>`.
+**Description**: Synchronization commands for workspaces and server connectivity.
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--help` | Show this message and exit |
+
+**Commands**:
+- `workspace` - Sync workspace with upstream changes (local)
+- `now` - Push and pull events with the server (remote)
+- `status` - Show sync configuration and connection state
+
+---
+
+## spec-kitty sync workspace
+
+**Synopsis**: `spec-kitty sync workspace [OPTIONS]`
+
+**Description**: Synchronize the current workspace with upstream changes. Updates the current workspace with changes from its base branch or parent using `git rebase <base-branch>`.
 
 **Options**:
 | Flag | Description |
@@ -214,14 +351,82 @@ spec-kitty implement WP01 --json
 
 **Examples**:
 ```bash
-spec-kitty sync
-spec-kitty sync --verbose
-spec-kitty sync --repair
+spec-kitty sync workspace
+spec-kitty sync workspace --verbose
+spec-kitty sync workspace --repair
 ```
 
 > **Note**: Sync may fail on conflicts. You must resolve conflicts before continuing.
 
 **See Also**: [Sync Workspaces](../how-to/sync-workspaces.md)
+
+---
+
+## spec-kitty sync now
+
+**Synopsis**: `spec-kitty sync now [OPTIONS]`
+
+**Description**: Push locally queued events to the server and pull new events. This drains the offline queue and synchronizes with the team's server.
+
+> **Note**: This command reference is based on the planned interface. Verify against `spec-kitty sync now --help` when the command is available.
+
+**Options**:
+| Flag | Type | Default | Description |
+| --- | --- | --- | --- |
+| `--verbose`, `-v` | FLAG | false | Show per-event sync status |
+| `--dry-run`, `-n` | FLAG | false | Show what would be synced without syncing |
+| `--help` | | | Show this message and exit |
+
+**Examples**:
+```bash
+# Push all queued events and pull updates
+spec-kitty sync now
+
+# See what would be synced
+spec-kitty sync now --dry-run
+
+# Verbose output
+spec-kitty sync now --verbose
+```
+
+**Behavior**:
+- Drains the offline queue (up to 1000 events per request) and uploads events in a single batch request with gzip compression.
+- Successfully synced events are removed from the queue.
+- Duplicate events on the server are counted but not treated as errors.
+
+---
+
+## spec-kitty sync status
+
+**Synopsis**: `spec-kitty sync status [OPTIONS]`
+
+**Description**: Show WebSocket sync connection status and server configuration.
+
+**Options**:
+| Flag | Type | Default | Description |
+| --- | --- | --- | --- |
+| `--check`, `-c` | FLAG | false | Test connection to server (may be slow if unreachable) |
+| `--help` | | | Show this message and exit |
+
+**Examples**:
+```bash
+# Show configuration only (fast)
+spec-kitty sync status
+
+# Test actual connectivity
+spec-kitty sync status --check
+```
+
+**Output**:
+- **Server URL**: Configured sync server address
+- **Config File**: Path to the sync configuration file
+- **Connection** (with `--check`): Tests actual server connectivity with a 3-second timeout
+
+**Connection states** (with `--check`):
+- **Connected**: Successfully reached the server
+- **Reachable**: Server is online but authentication is required
+- **Unreachable**: Connection timeout or refused
+- **Error**: Connection test failed
 
 ---
 

@@ -17,13 +17,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Pre-flight Check
 
-Verify you are in the main repository (not a worktree). Task generation happens in main for ALL missions.
+Verify you are in the planning repository (not a worktree). Task generation happens on the target branch for ALL missions.
 
 ```bash
-git branch --show-current  # Should show "main"
+git branch --show-current  # Should show the target branch (meta.json → target_branch)
 ```
 
-**Note**: Task generation in main is standard for all spec-kitty missions. Implementation happens in per-WP worktrees.
+**Note**: Task generation in the target branch is standard for all spec-kitty missions. Implementation happens in per-WP worktrees.
 
 ---
 
@@ -141,7 +141,7 @@ git branch --show-current  # Should show "main"
 
    This step is MANDATORY. Without it:
    - Dependencies won't be in frontmatter
-   - Tasks won't be committed to main
+   - Tasks won't be committed to target branch
 
 8. **Report**:
    - Path to tasks.md

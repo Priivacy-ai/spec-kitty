@@ -204,6 +204,10 @@ def test_workflow_review_warns_dependents(monkeypatch: pytest.MonkeyPatch, tmp_p
 
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out",
+        lambda repo_root, feature_slug: (repo_root, "main"),
+    )
 
     # --agent is required for tracking who is reviewing
     workflow.review(wp_id="WP01", feature=feature_slug, agent="test-reviewer")

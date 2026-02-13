@@ -680,6 +680,7 @@ def init(
                         tracker.complete("git", "initialized")
                     else:
                         tracker.error("git", "init failed")
+                        raise RuntimeError("Git repository initialization failed")
                 else:
                     tracker.skip("git", "git not available")
             else:

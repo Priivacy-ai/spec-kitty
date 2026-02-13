@@ -70,6 +70,8 @@ def validate_worktree_location(project_root: Optional[Path] = None) -> WorktreeV
             ["git", "branch", "--show-current"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             cwd=project_root,
             check=False,
         )
@@ -119,6 +121,8 @@ def validate_git_clean(project_root: Optional[Path] = None) -> WorktreeValidatio
             ["git", "status", "--porcelain"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             cwd=project_root,
             check=False,
         )

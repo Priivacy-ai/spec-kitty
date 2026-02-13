@@ -195,6 +195,8 @@ def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: in
                     ['lsof', '-ti', f':{port}', '-sTCP:LISTEN'],
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     timeout=2,
                 )
                 if result.returncode == 0 and result.stdout.strip():
@@ -365,7 +367,15 @@ def ensure_dashboard_running(
         time.sleep(delay)
 
     # Dashboard started but never became healthy
-    # Check if port has an orphaned dashboard from a different project
+    # Bug #117 Fix: Check if process is actually running BEFORE declaring failure
+    # Health check may timeout on slow systems, but dashboard is actually accessible
+    if pid is not None and _is_process_alive(pid):
+        # Process is alive, health check just timing out (slow system or busy dashboard)
+        # This is a success case - dashboard is running, even if health check is slow
+        _write_dashboard_file(dashboard_file, url, port, token, pid)
+        return url, port, True
+
+    # Health check failed AND process is not alive - check for orphaned dashboard
     if _is_spec_kitty_dashboard(port):
         # Port has a spec-kitty dashboard but for wrong project - orphan detected
         # Clean up the failed process we just started
@@ -396,7 +406,12 @@ def ensure_dashboard_running(
                     return url, port, True
                 time.sleep(delay)
 
-    # Still failed - clean up and raise error
+            # Retry also failed - check if process is alive after retry
+            if pid is not None and _is_process_alive(pid):
+                _write_dashboard_file(dashboard_file, url, port, token, pid)
+                return url, port, True
+
+    # Process is actually dead - clean up and raise error
     if pid is not None:
         try:
             proc = psutil.Process(pid)
@@ -428,6 +443,36 @@ def stop_dashboard(project_dir: Path, timeout: float = 5.0) -> Tuple[bool, str]:
         return False, "Dashboard metadata was invalid and has been cleared."
 
     if not _check_dashboard_health(port, project_dir_resolved, token):
+        # Health check failed - but process might still be alive (timeout scenario)
+        # Check if we have a PID and if it's alive
+        if pid is not None and _is_process_alive(pid):
+            # Process is alive but health check timed out - attempt PID-based shutdown
+            try:
+                proc = psutil.Process(pid)
+                proc.terminate()
+
+                # Wait up to 3 seconds for graceful shutdown
+                try:
+                    proc.wait(timeout=3.0)
+                    dashboard_file.unlink(missing_ok=True)
+                    return True, f"Dashboard stopped via process termination (PID {pid})."
+                except psutil.TimeoutExpired:
+                    # Force kill if graceful termination times out
+                    proc.kill()
+                    time.sleep(0.2)
+                    dashboard_file.unlink(missing_ok=True)
+                    return True, f"Dashboard force killed after graceful termination timeout (PID {pid})."
+
+            except psutil.NoSuchProcess:
+                # Process died between our check and termination attempt
+                dashboard_file.unlink(missing_ok=True)
+                return True, f"Dashboard was already dead (PID {pid})."
+            except psutil.AccessDenied:
+                return False, f"Permission denied to kill dashboard process (PID {pid})."
+            except Exception as e:
+                return False, f"Failed to stop dashboard process (PID {pid}): {e}"
+
+        # No PID or process not alive - dashboard is already stopped
         dashboard_file.unlink(missing_ok=True)
         return False, "Dashboard was already stopped. Metadata has been cleared."
 

@@ -1,0 +1,10 @@
+{
+  "feature_number": "029",
+  "slug": "029-mission-aware-cleanup-docs-wiring",
+  "friendly_name": "Mission-Aware Cleanup & Docs Wiring",
+  "mission": "software-dev",
+  "source_description": "to address all of the points youve identified. But I dont want to make symlinks, I want to update the tests and remove the cruft.",
+  "created_at": "2026-02-04T16:39:52Z",
+  "target_branch": "main",
+  "vcs": "git"
+}

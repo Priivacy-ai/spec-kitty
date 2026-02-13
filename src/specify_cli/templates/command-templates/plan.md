@@ -6,21 +6,21 @@ description: Execute the implementation planning workflow using the plan templat
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in MAIN repository
+## 📍 WORKING DIRECTORY: Stay in planning repository
 
-**IMPORTANT**: Plan works in the main repository. NO worktrees created.
+**IMPORTANT**: Plan works in the planning repository. NO worktrees created.
 
 ```bash
 # Run from project root (same directory as /spec-kitty.specify):
 # You should already be here if you just ran /spec-kitty.specify
 
 # Creates:
-# - kitty-specs/###-feature/plan.md → In main repository
-# - Commits to main branch
+# - kitty-specs/###-feature/plan.md → In planning repository
+# - Commits to target branch
 # - NO worktrees created
 ```
 
-**Do NOT cd anywhere**. Stay in the main repository root.
+**Do NOT cd anywhere**. Stay in the planning repository root.
 
 ## User Input
 
@@ -32,11 +32,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Location Check (0.11.0+)
 
-This command runs in the **main repository**, not in a worktree.
+This command runs in the **planning repository**, not in a worktree.
 
-- Verify you're on `main` (or `master`) before scaffolding plan.md
+- Verify you're on the target branch (meta.json → target_branch) before scaffolding plan.md
 - Planning artifacts live in `kitty-specs/###-feature/`
-- The plan template is committed to the main branch after generation
+- The plan template is committed to the target branch after generation
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
@@ -73,14 +73,47 @@ Planning requirements (scale to complexity):
    - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user's response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run the setup command yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Setup**: Run `spec-kitty agent feature setup-plan --json` from the repository root and parse JSON for:
+2. **Detect feature context** (CRITICAL - prevents wrong feature selection):
+
+   Before running any commands, detect which feature you're working on:
+
+   a. **Check git branch name**:
+      - Run: `git rev-parse --abbrev-ref HEAD`
+      - If branch matches pattern `###-feature-name` or `###-feature-name-WP##`, extract the feature slug (strip `-WP##` suffix if present)
+      - Example: Branch `020-my-feature` or `020-my-feature-WP01` → Feature `020-my-feature`
+
+   b. **Check current directory**:
+      - Look for `###-feature-name` pattern in the current path
+      - Examples:
+        - Inside `kitty-specs/020-my-feature/` → Feature `020-my-feature`
+        - Not in a worktree during planning (worktrees only used during implement): If detection runs from `.worktrees/020-my-feature-WP01/` → Feature `020-my-feature`
+
+   c. **Prioritize features without plan.md** (if multiple exist):
+      - If multiple features exist and none detected from branch/path, list all features in `kitty-specs/`
+      - Prefer features that don't have `plan.md` yet (unplanned features)
+      - If ambiguous, ask the user which feature to plan
+
+   d. **Extract feature slug**:
+      - Feature slug format: `###-feature-name` (e.g., `020-my-feature`)
+      - You MUST pass this explicitly to the setup-plan command using `--feature` flag
+      - **DO NOT** rely on auto-detection by the CLI (prevents wrong feature selection)
+
+3. **Setup**: Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
    - `plan_file`: Absolute path to the created plan.md
    - `feature_dir`: Absolute path to the feature directory
 
-3. **Load context**: Read FEATURE_SPEC and `.kittify/memory/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
+   **Example**:
+   ```bash
+   # If detected feature is 020-my-feature:
+   spec-kitty agent feature setup-plan --feature 020-my-feature --json
+   ```
 
-4. **Execute plan workflow**: Follow the structure in IMPL_PLAN template, using the validated planning answers as ground truth:
+   **Error handling**: If the command fails with "Cannot detect feature" or "Multiple features found", verify your feature detection logic in step 2 and ensure you're passing the correct feature slug.
+
+4. **Load context**: Read FEATURE_SPEC and `.kittify/memory/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
+
+5. **Execute plan workflow**: Follow the structure in IMPL_PLAN template, using the validated planning answers as ground truth:
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
    - If a constitution exists, fill Constitution Check section from it and challenge any conflicts directly with the user. If no constitution exists, mark the section as skipped.
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
@@ -89,7 +122,7 @@ Planning requirements (scale to complexity):
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design, asking the user to resolve new gaps before proceeding
 
-5. **STOP and report**: This command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+6. **STOP and report**: This command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
 
    **⚠️ CRITICAL: DO NOT proceed to task generation!** The user must explicitly run `/spec-kitty.tasks` to generate work packages. Your job is COMPLETE after reporting the planning artifacts.
 

@@ -10,6 +10,11 @@ from typing import List, Tuple
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from specify_cli.frontmatter import normalize_file, FrontmatterError
+from specify_cli.agent_utils.directories import (
+    AGENT_DIRS as _AGENT_DIRS,
+    AGENT_DIR_TO_KEY as _AGENT_DIR_TO_KEY,
+    get_agent_dirs_for_project as _get_agent_dirs_for_project,
+)
 
 
 @MigrationRegistry.register
@@ -49,21 +54,8 @@ class CompleteLaneMigration(BaseMigration):
     description = "Complete lane migration + clean up worktrees + normalize frontmatter"
     target_version = "0.9.1"
 
-    # All known agent command directories
-    AGENT_DIRS = [
-        (".claude", "commands"),
-        (".github", "prompts"),
-        (".gemini", "commands"),
-        (".cursor", "commands"),
-        (".qwen", "commands"),
-        (".opencode", "command"),
-        (".windsurf", "workflows"),
-        (".codex", "prompts"),
-        (".kilocode", "workflows"),
-        (".augment", "commands"),
-        (".roo", "commands"),
-        (".amazonq", "prompts"),
-    ]
+    # All known agent command directories (imported from agent_utils)
+    AGENT_DIRS = _AGENT_DIRS
 
     LANE_DIRS: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
 
@@ -594,64 +586,11 @@ class CompleteLaneMigration(BaseMigration):
         return changes, warnings, errors
 
 
-# Export AGENT_DIRS for use by other migrations
-# This is the canonical source - all other migrations should import this
-AGENT_DIR_TO_KEY = {
-    ".claude": "claude",
-    ".github": "copilot",
-    ".gemini": "gemini",
-    ".cursor": "cursor",
-    ".qwen": "qwen",
-    ".opencode": "opencode",
-    ".windsurf": "windsurf",
-    ".codex": "codex",
-    ".kilocode": "kilocode",
-    ".augment": "auggie",
-    ".roo": "roo",
-    ".amazonq": "q",
-}
-
-
-def get_agent_dirs_for_project(project_path: Path) -> list[tuple[str, str]]:
-    """Get agent directories to process based on project config.
-
-    Reads config.yaml to determine which agents are enabled.
-    Only returns directories for configured agents.
-    Falls back to all agents for legacy projects without config.
-
-    Args:
-        project_path: Path to project root
-
-    Returns:
-        List of (agent_root, subdir) tuples for configured agents
-    """
-    try:
-        from specify_cli.orchestrator.agent_config import (
-            AgentConfigError,
-            get_configured_agents,
-        )
-
-        available = get_configured_agents(project_path)
-
-        if not available:
-            # Empty config - fallback to all agents
-            return list(CompleteLaneMigration.AGENT_DIRS)
-
-        # Filter AGENT_DIRS to only include configured agents
-        configured_dirs = []
-        for agent_root, subdir in CompleteLaneMigration.AGENT_DIRS:
-            agent_key = AGENT_DIR_TO_KEY.get(agent_root)
-            if agent_key in available:
-                configured_dirs.append((agent_root, subdir))
-
-        return configured_dirs
-
-    except AgentConfigError:
-        raise
-    except Exception:
-        # Config missing or error reading - fallback to all agents
-        # This handles legacy projects gracefully
-        return list(CompleteLaneMigration.AGENT_DIRS)
+# Re-export agent utilities for backward compatibility
+# The canonical source is now specify_cli.agent_utils.directories
+# All new code should import from there instead
+AGENT_DIR_TO_KEY = _AGENT_DIR_TO_KEY
+get_agent_dirs_for_project = _get_agent_dirs_for_project
 
 
 __all__ = [

@@ -11,8 +11,10 @@
 AGENT_DIRS=(".claude" ".codex" ".gemini" ".cursor" ".qwen" ".opencode"
             ".windsurf" ".kilocode" ".augment" ".roo" ".amazonq" ".github/copilot")
 
+# Allow .claude/skills/ (project-specific Claude Code skills are safe to commit)
 STAGED_AGENT_FILES=$(git diff --cached --name-only --diff-filter=ACM |
-                      grep -E "^\.(claude|codex|gemini|cursor|qwen|opencode|windsurf|kilocode|augment|roo|amazonq)/|^\.github/copilot/" || true)
+                      grep -E "^\.(claude|codex|gemini|cursor|qwen|opencode|windsurf|kilocode|augment|roo|amazonq)/|^\.github/copilot/" |
+                      grep -v "^\.claude/skills/" || true)
 
 if [ -n "$STAGED_AGENT_FILES" ]; then
     echo "❌ COMMIT BLOCKED: Agent directory files detected"

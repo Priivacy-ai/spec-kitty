@@ -1,0 +1,47 @@
+name: Check spec-kitty-events Alignment
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify-alignment:
+    name: Verify spec-kitty-events local pin policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate local pin format and source discipline
+        run: |
+          python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("pyproject.toml").read_text())
+          deps = data["project"]["dependencies"]
+
+          pin = None
+          for dep in deps:
+              if dep.startswith("spec-kitty-events=="):
+                  pin = dep.split("==", 1)[1]
+              if "spec-kitty-events @" in dep:
+                  raise SystemExit(
+                      "Invalid dependency source: spec-kitty-events direct references are forbidden; use exact PyPI pin."
+                  )
+
+          if not pin:
+              raise SystemExit("spec-kitty-events exact pin not found. Expected spec-kitty-events==<version>.")
+
+          uv_sources = data.get("tool", {}).get("uv", {}).get("sources", {})
+          if "spec-kitty-events" in uv_sources:
+              raise SystemExit(
+                  "Invalid source override: [tool.uv.sources].spec-kitty-events must not be committed."
+              )
+
+          print(f"Local pin OK: {pin}")
+          PY

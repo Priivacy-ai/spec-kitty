@@ -115,6 +115,8 @@ def get_git_version() -> str | None:
             capture_output=True,
             timeout=5,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         if result.returncode != 0:
             return None

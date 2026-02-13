@@ -42,6 +42,14 @@ Run this command to get started:
 spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
 ```
 
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
+```
+
+</details>
+
 **CRITICAL**: You MUST provide `--agent <your-name>` to track who is implementing!
 
 ### Step 1: Navigate to Your Worktree
@@ -49,6 +57,14 @@ spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
 ```bash
 cd {{workspace_path}}
 ```
+
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+Set-Location {{workspace_path}}
+```
+
+</details>
 
 Your worktree is an isolated workspace for this WP. The deliverables path is accessible here.
 
@@ -78,6 +94,16 @@ git add {{deliverables_path}}/
 git commit -m "research({{wp_id}}): <describe your research findings>"
 ```
 
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+Set-Location {{workspace_path}}
+git add {{deliverables_path}}/
+git commit -m "research({{wp_id}}): <describe your research findings>"
+```
+
+</details>
+
 Example commit messages:
 - `research(WP01): Document core entities and relationships`
 - `research(WP03): Add market analysis findings and recommendations`
@@ -100,9 +126,9 @@ Planning artifacts in `kitty-specs/{{feature_slug}}/research/` are:
 - `source-register.csv` - Sources cited DURING PLANNING
 
 **If you need to update these** (rare during implementation):
-- They're in the main repo (sparse-excluded from worktrees)
-- Edit them directly in the main repository
-- Commit to main before moving status
+- They're in the planning repo (sparse-excluded from worktrees)
+- Edit them directly in the planning repository
+- Commit to the target branch before moving status
 
 **Most research WPs only produce deliverables, not planning updates.**
 

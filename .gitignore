@@ -45,6 +45,9 @@ env/
 *.lock
 .worktrees/
 .kittify/.dashboard
+.kittify/workspaces/
+.kittify/missions/
+.kittify/scripts/
 node_modules/
 
 # Spec Kit-specific files
@@ -53,7 +56,8 @@ node_modules/
 sdd-*/
 
 # Added by Spec Kitty CLI (auto-managed)
-.claude/
+.claude/*
+!.claude/skills/
 .opencode/
 .windsurf/
 .gemini/
@@ -70,3 +74,6 @@ sdd-*/
 # Block WP status files (managed in main repo, prevents merge conflicts)
 # Research artifacts in kitty-specs/**/research/ are allowed
 kitty-specs/**/tasks/*.md
+
+# Generated PDF brochures (output of generate_pdf.py)
+spec-kitty-capabilities.pdf

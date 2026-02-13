@@ -1,81 +1,86 @@
 """Migration implementations for Spec Kitty upgrade system.
 
-Import all migrations here to register them with the MigrationRegistry.
+Auto-discovers all migration modules from the filesystem.
+No manual imports needed - just create m_*.py files!
 """
 
 from __future__ import annotations
 
-# Import migrations to register them
-from . import m_0_2_0_specify_to_kittify
-from . import m_0_4_8_gitignore_agents
-from . import m_0_5_0_encoding_hooks
-from . import m_0_6_5_commands_rename
-from . import m_0_6_7_ensure_missions
-from . import m_0_7_2_worktree_commands_dedup
-from . import m_0_7_3_update_scripts
-from . import m_0_8_0_remove_active_mission
-from . import m_0_8_0_worktree_agents_symlink
-from . import m_0_9_0_frontmatter_only_lanes
-from . import m_0_9_1_complete_lane_migration
-from . import m_0_9_2_research_mission_templates
-from . import m_0_10_0_python_only
-from . import m_0_10_1_populate_slash_commands
-from . import m_0_10_2_update_slash_commands
-from . import m_0_10_6_workflow_simplification
-from . import m_0_10_8_fix_memory_structure
-from . import m_0_10_9_repair_templates
-from . import m_0_10_12_constitution_cleanup
-from . import m_0_10_14_update_implement_slash_command
-from . import m_0_11_0_workspace_per_wp
-from . import m_0_11_1_improved_workflow_templates
-from . import m_0_11_1_update_implement_slash_command
-from . import m_0_11_2_improved_workflow_templates
-from . import m_0_11_3_workflow_agent_flag
-from . import m_0_12_0_documentation_mission
-from . import m_0_12_1_remove_kitty_specs_from_gitignore
-from . import m_0_13_0_research_csv_schema_check
-from . import m_0_13_0_update_constitution_templates
-from . import m_0_13_0_update_research_implement_templates
-from . import m_0_13_1_exclude_worktrees
-from . import m_0_13_5_fix_clarify_template
-from . import m_0_13_5_add_commit_workflow_to_templates
-from . import m_0_13_8_target_branch
-from . import m_0_14_0_centralized_feature_detection
+import importlib
+import pkgutil
+from pathlib import Path
 
-__all__ = [
-    "m_0_2_0_specify_to_kittify",
-    "m_0_4_8_gitignore_agents",
-    "m_0_5_0_encoding_hooks",
-    "m_0_6_5_commands_rename",
-    "m_0_6_7_ensure_missions",
-    "m_0_7_2_worktree_commands_dedup",
-    "m_0_7_3_update_scripts",
-    "m_0_8_0_remove_active_mission",
-    "m_0_8_0_worktree_agents_symlink",
-    "m_0_9_0_frontmatter_only_lanes",
-    "m_0_9_1_complete_lane_migration",
-    "m_0_9_2_research_mission_templates",
-    "m_0_10_0_python_only",
-    "m_0_10_1_populate_slash_commands",
-    "m_0_10_2_update_slash_commands",
-    "m_0_10_6_workflow_simplification",
-    "m_0_10_8_fix_memory_structure",
-    "m_0_10_9_repair_templates",
-    "m_0_10_12_constitution_cleanup",
-    "m_0_10_14_update_implement_slash_command",
-    "m_0_11_0_workspace_per_wp",
-    "m_0_11_1_improved_workflow_templates",
-    "m_0_11_1_update_implement_slash_command",
-    "m_0_11_2_improved_workflow_templates",
-    "m_0_11_3_workflow_agent_flag",
-    "m_0_12_0_documentation_mission",
-    "m_0_12_1_remove_kitty_specs_from_gitignore",
-    "m_0_13_0_research_csv_schema_check",
-    "m_0_13_0_update_constitution_templates",
-    "m_0_13_0_update_research_implement_templates",
-    "m_0_13_1_exclude_worktrees",
-    "m_0_13_5_fix_clarify_template",
-    "m_0_13_5_add_commit_workflow_to_templates",
-    "m_0_13_8_target_branch",
-    "m_0_14_0_centralized_feature_detection",
-]
+
+def auto_discover_migrations() -> None:
+    """
+    Auto-discover and import all migration modules.
+
+    Scans the migrations directory for all modules matching m_*.py pattern
+    and imports them. Each module's @MigrationRegistry.register decorators
+    will fire during import, populating the registry.
+
+    This eliminates the need for manual import statements that developers
+    frequently forget to update.
+
+    Handles both fresh imports and re-registration after MigrationRegistry.clear()
+    by reloading already-imported modules (only if they're not already registered).
+    """
+    import sys
+
+    # Get the migrations package directory
+    migrations_dir = Path(__file__).parent
+
+    # Find all modules in the migrations directory
+    for module_info in pkgutil.iter_modules([str(migrations_dir)]):
+        module_name = module_info.name
+
+        # Only import migration modules (m_*.py) and base.py
+        # Skip test files, __pycache__, and other non-migration files
+        if module_name.startswith("m_") or module_name == "base":
+            try:
+                module_full_name = f"{__name__}.{module_name}"
+
+                # Check if module was already imported
+                if module_full_name in sys.modules:
+                    # Only reload if the migration isn't already registered
+                    # This handles test scenarios where MigrationRegistry.clear()
+                    # was called but modules are still in sys.modules
+                    # For normal use, if module is imported (e.g., for utility functions),
+                    # the migration is already registered so skip reload
+                    from ..registry import MigrationRegistry
+
+                    # Check if any migration from this module is already registered
+                    # If so, skip reload to avoid duplicate registration errors
+                    module = sys.modules[module_full_name]
+                    has_registered_migration = False
+
+                    for attr_name in dir(module):
+                        attr = getattr(module, attr_name)
+                        if (
+                            isinstance(attr, type)
+                            and hasattr(attr, "migration_id")
+                            and attr.migration_id in MigrationRegistry._migrations
+                        ):
+                            has_registered_migration = True
+                            break
+
+                    if not has_registered_migration:
+                        # Module imported but migration not registered (test scenario)
+                        importlib.reload(sys.modules[module_full_name])
+                    # else: Migration already registered, skip reload
+                else:
+                    # Fresh import
+                    importlib.import_module(f".{module_name}", package=__name__)
+            except Exception as e:
+                # Log but don't fail - let the migration registry validation catch it
+                print(
+                    f"Warning: Failed to import migration module {module_name}: {e}",
+                    file=sys.stderr,
+                )
+
+
+# Auto-discover all migrations on module import
+auto_discover_migrations()
+
+# Export the auto_discover function for testing
+__all__ = ["auto_discover_migrations"]

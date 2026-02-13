@@ -221,7 +221,9 @@ def create_feature_worktree(
                 cwd=repo_root,
                 check=True,
                 capture_output=True,
-                text=True
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
         except subprocess.CalledProcessError as git_error:
             raise RuntimeError(

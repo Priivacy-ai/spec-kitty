@@ -1,5 +1,7 @@
 - name: Install & Upgrade
   href: install-spec-kitty.md
+- name: Authenticate
+  href: authenticate.md
 - name: Create a Specification
   href: create-specification.md
 - name: Create a Plan
@@ -20,6 +22,8 @@
   href: handle-dependencies.md
 - name: Sync Workspaces
   href: sync-workspaces.md
+- name: Sync to Server
+  href: sync-to-server.md
 - name: Use Operation History
   href: use-operation-history.md
 - name: Parallel Development
@@ -28,6 +32,8 @@
   href: switch-missions.md
 - name: Use the Dashboard
   href: use-dashboard.md
+- name: Use the SaaS Dashboard
+  href: use-saas-dashboard.md
 - name: Upgrade to 0.11.0
   href: upgrade-to-0-11-0.md
 - name: Non-Interactive Init

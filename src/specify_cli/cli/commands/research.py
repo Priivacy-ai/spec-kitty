@@ -140,6 +140,53 @@ def research(
     else:
         tracker.complete("research-csv", "CSV templates ready")
 
+    # T015: Run gap analysis for documentation missions
+    mission_key_value = get_feature_mission_key(feature_dir)
+    if mission_key_value == "documentation":
+        tracker.add("gap-analysis", "Gap analysis for documentation")
+        tracker.start("gap-analysis")
+        try:
+            from specify_cli.doc_state import read_documentation_state, set_audit_metadata
+            from specify_cli.gap_analysis import generate_gap_analysis_report
+
+            meta_file = feature_dir / "meta.json"
+            doc_state = None
+            if meta_file.exists():
+                doc_state = read_documentation_state(meta_file)
+
+            iteration_mode = "initial"
+            if doc_state:
+                iteration_mode = doc_state.get("iteration_mode", "initial")
+
+            if iteration_mode in ("gap_filling", "feature_specific"):
+                docs_dir = repo_root / "docs"
+                if docs_dir.exists():
+                    gap_analysis_output = feature_dir / "gap-analysis.md"
+                    analysis = generate_gap_analysis_report(
+                        docs_dir, gap_analysis_output, project_root=repo_root
+                    )
+                    created_paths.append(gap_analysis_output)
+
+                    # Update documentation state with audit metadata
+                    if meta_file.exists():
+                        set_audit_metadata(
+                            meta_file,
+                            last_audit_date=analysis.analysis_date,
+                            coverage_percentage=analysis.coverage_matrix.get_coverage_percentage(),
+                        )
+
+                    coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
+                    tracker.complete(
+                        "gap-analysis",
+                        f"Gap analysis ready (coverage: {coverage_pct:.1f}%)"
+                    )
+                else:
+                    tracker.complete("gap-analysis", "Skipped: no docs/ directory found")
+            else:
+                tracker.complete("gap-analysis", f"Skipped: iteration_mode={iteration_mode}")
+        except Exception as gap_err:
+            tracker.error("gap-analysis", f"Failed: {gap_err}")
+
     tracker.start("summary")
     tracker.complete("summary", f"{len(created_paths)} artifacts ready")
 

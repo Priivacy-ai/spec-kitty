@@ -49,6 +49,7 @@ def test_no_orphaned_detect_feature_slug_functions(repo_root: Path):
             if "core/feature_detection.py" not in line
             and "test_" not in line
             and "acceptance.py" not in line  # Backward-compatible wrapper
+            and "acceptance_support.py" not in line  # Standalone script entrypoint
             and line.strip()
         ]
 

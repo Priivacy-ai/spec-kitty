@@ -7,7 +7,214 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.15.2] - 2026-02-13
+
+### 🐛 Fixed
+
+- **Unborn branch misdetected as detached HEAD**: `get_current_branch()` now uses `git branch --show-current` (Git 2.22+) with fallback to `git rev-parse --abbrev-ref HEAD` for older Git. Correctly returns the branch name on fresh repos with no commits, fixing false "Not in a git repository" errors during `spec-kitty init`.
+- **Windows subprocess decode crash**: Added `encoding="utf-8", errors="replace"` to all 113 `subprocess.run(text=True)` calls across 31 files. Prevents `UnicodeDecodeError` on Windows systems with non-UTF-8 locale settings.
+- **Pre-commit hook blocks commits when Python unavailable**: Expanded interpreter detection to try `python3`, `python`, and `py` (Windows launcher) with a smoke test. Removed `set -e` so non-encoding Python failures (e.g. filenames with special characters) warn-and-skip instead of blocking commits. Distinguishes Python execution failure from actual encoding errors via distinct exit codes.
+- **Init reports "project ready" even when git init failed**: `init` now raises `RuntimeError` after `tracker.error()` when `init_git_repo()` returns False, triggering the failure panel and non-zero exit instead of falsely reporting success.
+- **PowerShell equivalents in implement templates**: Added PowerShell syntax examples (in collapsible `<details>` blocks) after bash code blocks in implement templates for all 3 missions (software-dev, research, documentation).
+
+### 🔧 Changed
+
+- Removed 7 duplicate inline `subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"])` calls in `feature.py`, `tasks.py`, and `workflow.py`, replacing them with the centralized `get_current_branch()` helper.
+- Updated all callers that checked `== "HEAD"` to check `is None` instead, since `git branch --show-current` never returns the literal string `"HEAD"`.
+
+## [0.15.1] - 2026-02-12
+
+### 🐛 Fixed
+
+- **Dynamic primary branch detection**: Replaced 26 hardcoded `"main"` branch references across 13 files with dynamic detection via `resolve_primary_branch()`. Repos using `master`, `develop`, or custom primary branches now work correctly for merge operations, branch resolution, manifest status checks, and CLI defaults.
+- **Deduplicated branch resolution**: Consolidated 4 duplicate copies of `_resolve_primary_branch()` scattered across CLI commands into a single centralized implementation in `core/git_ops.py` with lightweight delegating wrappers.
+- **Multi-parent merge target**: `create_multi_parent_base()` now accepts explicit `target_branch` parameter instead of hardcoding `"main"` for merge-base calculations.
+
+### ✅ Added
+
+- 20 integration tests covering master/develop/custom branch scenarios for primary branch detection, target branch resolution, manifest status, multi-parent merge, and conflict prediction.
+
+## [0.15.0] - 2026-02-11
+
+### 🐛 Fixed
+
+- **#95 - Kebab-case validation**: Feature slugs now validated before creation - prevents creation of invalid feature directories with uppercase/underscores/spaces. Enforces kebab-case format (lowercase, hyphens only) at the point of feature creation, with clear error messages guiding users to valid names.
+- **#120 - Gitignore isolation**: Worktree-specific ignores now use `.git/info/exclude` instead of `.gitignore` - prevents cross-contamination when multiple worktrees share the same main repository. Each worktree can have isolated ignore rules without affecting other workspaces.
+- **#117 - Dashboard false-failure**: Accurate process detection with robust PID validation - fixes false "no agent process found" errors. New `is_process_alive()` helper uses `psutil` for cross-platform reliability and handles stale PIDs gracefully.
+- **#124 - Branch routing unification**: Unified branch resolution with no implicit `master` fallback - all branch routing now uses a single `resolve_target_branch()` function. Prevents silent fallback to `master` when target branch is not found, failing fast with actionable errors instead.
+- **#119 - Assignee relaxation**: Optional assignee for done work packages - removes the requirement for `assignee` field in WP frontmatter when WP is in `done` lane. Completed work no longer needs to track who did it.
+- **#122 - Safe commit helper**: Preserve staging area during automated commits - new `safe_commit()` helper stages only the files it needs without clearing pre-existing staged changes. Prevents accidental loss of user's staging state during spec-kitty operations.
+- **#123 - Atomic state transitions**: Lane transitions happen before status file writes - ensures WP frontmatter updates are atomic and consistent. When lane changes fail (e.g., validation errors), the status board is never touched, preventing partial state.
+
+### ✅ Added
+
+- 54+ comprehensive tests for all bug fixes
+- Safe commit helper (`git/commit_helpers.py`)
+- Unified branch resolution (`git/branch_utils.py`)
+- Enhanced process detection utilities (`dashboard/process_utils.py`)
+- Robust validation for feature slug format
+
+## [0.14.2] - 2026-02-07
+
+### 🐛 Fixed
+
+- **False "behind main" errors for stacked worktree branches**: `move-task --to for_review` now checks against the WP's actual base branch (from workspace context) instead of always checking against the target branch. Stacked WPs (e.g., WP03 based on WP01) no longer produce false "behind main by N commits" errors.
+
+### ✨ Added
+
+- **Worktree topology context for stacked branches**: New `worktree_topology` module auto-detects when WPs are stacked (branched from other WPs) and injects structured JSON topology into implement and review prompts. Agents now understand where their branch fits in the dependency stack. Only activates when stacking is detected — flat features get no extra noise.
+
+## [0.14.1] - 2026-02-04
+
+### 🐛 Fixed
+
+- **Broken import in 0.14.0 migration**: Fixed `ModuleNotFoundError` in `m_0_14_0_centralized_feature_detection` - corrected import paths for `load_agent_config` and `AGENT_DIR_TO_KEY`.
+- **Integration test fixture**: Fixed `clean_project` fixture failing to copy source missions when `.kittify/missions/` already existed with stale leftovers.
+- **Stale mission directory**: Removed orphaned `.kittify/missions/research/` that was left behind when missions were untracked from git.
+
+## [0.14.0] - 2026-02-04
+
+### ✨ Added
+
+**Mission-aware cleanup, docs wiring, and module consolidation** (Feature 029):
+
+- **Documentation mission state initialization**: `spec-kitty agent create-feature --mission documentation` now initializes `documentation_state` in `meta.json` with spec-compliant defaults. New `init-doc-state` command for existing features.
+- **Gap analysis wiring**: Automatically runs gap analysis during `/spec-kitty.plan` and `/spec-kitty.research` for documentation missions in `gap_filling` or `feature_specific` mode. Writes `gap-analysis.md` and updates audit metadata.
+- **Generator auto-detection**: Detects JSDoc, Sphinx, and Rustdoc generators during plan setup for documentation missions. Persists configuration to `documentation_state.generators_configured`.
+- **Documentation validation checks**: New `validators/documentation.py` with 3 checks (`documentation_state_exists`, `gap_analysis_exists`, `audit_recency`). Integrated into acceptance flow - doc validation errors block acceptance.
+- **Shared task helpers module**: `task_helpers_shared.py` consolidates duplicated logic from `tasks_support.py` and `scripts/tasks/task_helpers.py` into a single source of truth (~900 lines of duplication removed).
+- **Shared acceptance core module**: `core/acceptance_core.py` extracts shared acceptance workflow logic from `acceptance.py` and `scripts/tasks/acceptance_support.py`, enabling both to delegate to a single implementation.
+- **Base plan template alignment**: Added feature detection guidance (steps 2a-2d) to the base plan template, matching the software-dev mission template.
+
+### 🧹 Removed
+
+- **Root script duplicates**: Removed `scripts/validate_encoding.py`, `scripts/debug-dashboard-scan.py`, and `scripts/tasks/` which duplicated files already in `src/specify_cli/scripts/`.
+
+### 🐛 Fixed
+
+- **Merge command worktree detection**: Fixed `merge_command` to use the current working directory for branch detection instead of the resolved main repo root, preventing false "Already on target branch" errors when merging from worktrees.
+
+## [0.13.28] - 2026-02-04
+
+### 🐛 Fixed
+
+**Workflow implement now tolerates non-git test repos**:
+- If a workflow prompt is generated in a minimal test repo without `.git`, the command skips workspace creation and still completes
+- Prevents workflow tests from failing on repo scaffolds that only include `.kittify`
+
+## [0.13.27] - 2026-02-04
+
+### 🧹 Removed
+
+**Sync module and WebSocket sync tooling**:
+- Removed `specify_cli.sync` package from mainline 0.13.x
+- Dropped WebSocket sync status command and related dependencies
+- Updated workspace sync docs to use `spec-kitty sync workspace`
+
+## [0.13.26] - 2026-02-04
+
+### 🛠️ Refactored
+
+**Consolidated workflow implement workspace creation**:
+- `spec-kitty agent workflow implement` now delegates workspace creation to `spec-kitty implement` when needed
+- Removes duplicated worktree/sparse-checkout setup in the agent command
+- Prevents agents from creating worktrees from inside another worktree
+
+### 🐛 Fixed
+
+**Clearer recovery guidance for multi-parent merge failures**:
+- When auto-merge fails, instructions now show concrete recovery steps
+- Explicitly warns there is no `spec-kitty agent workflow merge` command
+- Points agents to the correct `spec-kitty agent feature merge` command
+
+## [0.13.25] - 2026-02-04
+
+### 🐛 Fixed
+
+**`spec-kitty upgrade` not bumping version when no migrations needed**:
+- When `spec-kitty upgrade` found no applicable migrations, it returned early without updating the version in `.kittify/metadata.yaml`
+- This left the project stuck at its old version (e.g., 0.13.21) even though the CLI was newer (0.13.24)
+- The dashboard then blocked with a version mismatch error
+- Fixed both `upgrade.py` (CLI command path) and `runner.py` (programmatic path) to stamp the version even when no migrations are needed
+
+## [0.13.24] - 2026-02-04
+
+### 🔧 Improved
+
+**Review workflow shows git context for reviewers**:
+- `spec-kitty agent workflow review` now displays the WP's branch name, base branch, and commit count
+- Reviewers see exactly which commits belong to the WP vs inherited history
+- Provides ready-to-use `git log <base>..HEAD` and `git diff <base>..HEAD` commands
+- Base branch auto-detected from WP dependencies (tries dependency branches first, then main/2.x)
+- Prevents reviewers from accidentally diffing against the wrong base (e.g., `main` instead of `2.x`)
+
+## [0.13.23] - 2026-02-04
+
+### 🐛 Fixed
+
+**"Done" Lane Semantics — Branch from WP Branch, Not Target (ADR-21)**:
+- Fixed critical bug where `implement --base WP01` branched from the target branch when WP01 was "done", missing all of WP01's implementation code
+- Root cause: Three locations in `implement.py` incorrectly treated "done" lane as "merged to target branch". In reality, "done" means review-complete — WP branches persist and are NOT merged to target until `spec-kitty merge` runs at the feature level
+- Fix 1 (validation): When base WP is "done", verify its branch exists instead of skipping validation
+- Fix 2 (create workspace): When base WP is "done", branch from `{feature}-{WP}` branch instead of target
+- Fix 3 (multi-parent): When all dependencies are "done", create merge base from their WP branches instead of short-circuiting to target
+- Fix 4 (CI): Fall back to `resolve_primary_branch()` when default "main" target doesn't exist (repos using "master")
+- Updated `dependency_resolver.py` messaging to stop claiming "done = merged"
+- Updated integration tests to match corrected semantics
+
+### 📝 Architecture
+
+- **ADR-21**: "Done" Means Review-Complete, Not Merged — establishes authoritative lane lifecycle
+- **Supersedes ADR-15 and ADR-18** which incorrectly conflated "done" with "merged to target"
+- Updated ADR-4 with cross-reference to ADR-21
+- Updated architecture README index with ADRs 17-21
+
+## [0.13.22] - 2026-02-03
+
+### 🐛 Fixed
+
+**Target Branch Routing Test Failures (36 fixes)**:
+- Fixed missing `_ensure_target_branch_checked_out()` call in `review()` command — caused 5 test failures from undefined `main_repo_root` and `target_branch` variables
+- Removed duplicate `_ensure_target_branch_checked_out()` call in `implement()` — prevented double git operations at runtime
+- Fixed `sync` → `sync_workspace` rename in `test_sync.py` — function was renamed but test imports were not updated (1 collection error)
+- Fixed `_commit_to_main` → `_commit_to_branch` mock rename in `test_agent_feature.py` — 5 test failures from patching non-existent function
+- Updated branch policy tests to reflect new any-branch feature creation behavior — tests expected rejection on non-main branches but code now intentionally allows any branch
+- Added `_ensure_target_branch_checked_out` mocks to 27 unit tests across 5 test files that run against tmp directories without git repos
+- Fixed integration test `test_race_condition_prevented` — merge planning files to target branch before status routing
+- Fixed integration test `test_creates_feature_from_existing_worktree` — assert worktree rejection instead of branch rejection
+- Fixed missing branch restoration in `implement` command after committing lane change to target branch — caused subsequent implement calls to fail with "Planning artifacts must be committed" error
+
+## [0.13.21] - 2026-02-02
+
+### 🐛 Fixed
+
+**Duplicate Migration Registration Warning**:
+- Fixed warning on startup: "Failed to import migration module m_0_9_1_complete_lane_migration: Duplicate migration ID"
+- Root cause: Migration module served dual purposes (migration + utilities), causing reload during auto-discovery
+- Solution: Extracted agent directory utilities to `agent_utils/directories.py` module
+- Changes:
+  - Created `agent_utils/directories.py` with `AGENT_DIRS`, `AGENT_DIR_TO_KEY`, `get_agent_dirs_for_project()`
+  - Updated `m_0_9_1_complete_lane_migration.py` to import from `agent_utils` (backward compatible)
+  - Fixed `auto_discover_migrations()` to skip reload if migration already registered
+- Impact: Clean startup without warnings, proper separation of concerns
+- Applies to both 1.x (main) and 2.x branches
+
+## [0.13.20] - 2026-01-30
+
+### 🐛 Fixed
+
+**Merged Single-Parent Dependency Workflow Gap** (ADR-18):
+- Fixed `spec-kitty implement` failing when single-parent dependency has been merged to target branch
+- Issue: WP01 merged to 2.x → WP02 can't implement (looks for non-existent WP01 workspace branch)
+- Root cause: Implement command didn't distinguish between in-progress vs merged dependencies
+- Solution: Auto-detect when dependency lane is "done" and branch from target branch instead
+- Behavior:
+  - If `base_wp.lane == "done"`: Branch from target branch (e.g., 2.x) - merged work already there
+  - If `base_wp.lane != "done"`: Branch from workspace branch (e.g., 025-feature-WP01) - work in progress
+- Eliminates need for manual frontmatter editing (remove dependencies, update base_branch)
+- Complements ADR-15 (multi-parent all-done suggestion) for single-parent case
+- **Impact**: Critical fix for normal workspace-per-WP workflow where dependencies complete before dependents start
+- **Technical Story**: Feature 025-cli-event-log-integration WP02/WP08 blocked on merged WP01
 
 ## [0.13.9] - 2026-01-30
 
@@ -337,7 +544,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documents `unset GITHUB_TOKEN` technique for organization repos
 
 **Issues Closed**: #96, #97, #101, #102, #105, #106, #108, #103 (not a bug), #107 (not a bug)
->>>>>>> origin/main
 
 ## [0.13.1] - 2026-01-25
 

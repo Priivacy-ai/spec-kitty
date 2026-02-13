@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -17,11 +19,13 @@ from specify_cli.core.implement_validation import (
     validate_and_resolve_base,
     validate_base_workspace_exists,
 )
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.feature_detection import (
     detect_feature_slug,
     FeatureDetectionError,
 )
+from specify_cli.core.vcs import get_vcs
+from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_feature_mission_key
 from specify_cli.tasks_support import (
     append_activity_log,
@@ -32,6 +36,24 @@ from specify_cli.tasks_support import (
     set_scalar,
     split_frontmatter,
 )
+
+
+def _is_git_repo(path: Path) -> bool:
+    """Return True if path is inside a git repository."""
+    git_dir = path / ".git"
+    if git_dir.exists():
+        return True
+
+    result = subprocess.run(
+        ["git", "rev-parse", "--git-dir"],
+        cwd=path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return result.returncode == 0
 
 
 def _write_prompt_to_file(
@@ -59,6 +81,45 @@ app = typer.Typer(
     help="Workflow commands that display prompts and instructions for agents",
     no_args_is_help=True
 )
+
+
+def _resolve_primary_branch(repo_root: Path) -> str:
+    """Resolve the primary branch name (main, master, etc.).
+
+    Delegates to the centralized implementation in core.git_ops.
+    """
+    from specify_cli.core.git_ops import resolve_primary_branch
+    return resolve_primary_branch(repo_root)
+
+
+def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tuple[Path, str]:
+    """Resolve branch context without auto-checkout (respects user's current branch).
+
+    Returns the planning repo root and the user's current branch.
+    Shows notification if current branch differs from feature target.
+    """
+    from specify_cli.core.git_ops import get_current_branch, resolve_target_branch
+
+    main_repo_root = get_main_repo_root(repo_root)
+
+    # Check for detached HEAD
+    current_branch = get_current_branch(main_repo_root)
+    if current_branch is None:
+        print("Error: Planning repo is in detached HEAD state. Checkout a branch before continuing.")
+        raise typer.Exit(1)
+
+    # Resolve branch routing (unified logic, no auto-checkout)
+    resolution = resolve_target_branch(feature_slug, main_repo_root, current_branch, respect_current=True)
+
+    # Show notification if branches differ
+    if resolution.should_notify:
+        print(
+            f"Note: You are on '{resolution.current}', feature targets '{resolution.target}'. "
+            f"Operations will use '{resolution.current}'."
+        )
+
+    # Return current branch (no checkout performed)
+    return main_repo_root, resolution.current
 
 
 def _find_feature_slug(explicit_feature: str | None = None) -> str:
@@ -180,7 +241,7 @@ def _ensure_sparse_checkout(worktree_path: Path) -> bool:
         orphan_kitty = worktree_path / "kitty-specs"
         if orphan_kitty.exists():
             shutil.rmtree(orphan_kitty)
-            print(f"✓ Removed orphaned kitty-specs/ from worktree (now uses main repo)")
+            print(f"✓ Removed orphaned kitty-specs/ from worktree (now uses planning repo)")
 
     return True
 
@@ -269,6 +330,10 @@ def implement(
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
 
+        # Ensure planning repo is on the target branch before we start
+        # (needed for auto-commits and status tracking inside this command)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
+
         # Determine which WP to implement
         if wp_id:
             normalized_wp_id = _normalize_wp_id(wp_id)
@@ -309,40 +374,59 @@ def implement(
         if resolved_base:
             validate_base_workspace_exists(resolved_base, feature_slug, repo_root)
 
-        # Create worktree only if explicitly requested via --base or auto-merge
-        # Don't auto-create workspaces for WPs with no dependencies and no --base
-        # (user can create manually later or provide --base explicitly)
-        if base is not None or auto_merge:
-            print(f"Creating workspace for {normalized_wp_id}...")
-            try:
-                top_level_implement(
-                    wp_id=normalized_wp_id,
-                    base=resolved_base,  # None for auto-merge or no deps
-                    feature=feature_slug,
-                    json_output=False
-                )
-            except typer.Exit:
-                # Worktree creation failed - propagate error
-                raise
-            except Exception as e:
-                print(f"Error creating worktree: {e}")
+        # Calculate workspace path
+        workspace_name = f"{feature_slug}-{normalized_wp_id}"
+        workspace_path = repo_root / ".worktrees" / workspace_name
+
+        # Ensure workspace exists (delegate to top-level implement for creation)
+        if not workspace_path.exists():
+            cwd = Path.cwd().resolve()
+            if is_worktree_context(cwd):
+                print("Error: Workspace does not exist and cannot be created from a worktree.")
+                print("Run this command from the main repository:")
+                print(f"  spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
                 raise typer.Exit(1)
+
+            if not _is_git_repo(repo_root):
+                print("Warning: No git repository detected. Skipping workspace creation.")
+            else:
+                print(f"Creating workspace for {normalized_wp_id}...")
+                try:
+                    top_level_implement(
+                        wp_id=normalized_wp_id,
+                        base=resolved_base,  # None for auto-merge or no deps
+                        feature=feature_slug,
+                        json_output=False
+                    )
+                except typer.Exit:
+                    # Worktree creation failed - propagate error
+                    raise
+                except Exception as e:
+                    print(f"Error creating worktree: {e}")
+                    raise typer.Exit(1)
 
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
 
-        # Move to "doing" lane if not already there
+        # Move to "doing" lane if not already there, and ensure agent is recorded
         current_lane = extract_scalar(wp.frontmatter, "lane") or "planned"
-        if current_lane != "doing":
+        current_agent = extract_scalar(wp.frontmatter, "agent")
+        needs_agent_assignment = current_agent is None or str(current_agent).strip() == ""
+
+        if current_lane != "doing" or needs_agent_assignment:
             # Require --agent parameter to track who is working
             if not agent:
-                print("Error: --agent parameter required when starting implementation.")
-                print(f"  Usage: spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
-                print("  Example: spec-kitty agent workflow implement WP01 --agent claude")
-                print()
-                print("If you're using a generated agent command file, --agent is already included.")
-                print("This tracks WHO is working on the WP (prevents abandoned tasks).")
-                raise typer.Exit(1)
+                if current_lane == "doing" and not needs_agent_assignment:
+                    # Already in doing with an agent; allow prompt display
+                    pass
+                else:
+                    print("Error: --agent parameter required when starting implementation.")
+                    print(f"  Usage: spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
+                    print("  Example: spec-kitty agent workflow implement WP01 --agent claude")
+                    print()
+                    print("If you're using a generated agent command file, --agent is already included.")
+                    print("This tracks WHO is working on the WP (prevents abandoned tasks).")
+                    raise typer.Exit(1)
 
             from datetime import datetime, timezone
             import os
@@ -351,13 +435,18 @@ def implement(
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
             # Update lane, agent, and shell_pid in frontmatter
-            updated_front = set_scalar(wp.frontmatter, "lane", "doing")
+            updated_front = wp.frontmatter
+            if current_lane != "doing":
+                updated_front = set_scalar(updated_front, "lane", "doing")
             updated_front = set_scalar(updated_front, "agent", agent)
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
             # Build history entry
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started implementation via workflow command"
+            if current_lane != "doing":
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started implementation via workflow command"
+            else:
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Assigned agent via workflow command"
 
             # Add history entry to body
             updated_body = append_activity_log(wp.body, history_entry)
@@ -366,35 +455,16 @@ def implement(
             updated_doc = build_document(updated_front, updated_body, wp.padding)
             wp.path.write_text(updated_doc, encoding="utf-8")
 
-            # Auto-commit to main (enables instant status sync)
-            import subprocess
-
-            # Get main repo root (might be in worktree)
-            git_file = Path.cwd() / ".git"
-            if git_file.is_file():
-                git_content = git_file.read_text().strip()
-                if git_content.startswith("gitdir:"):
-                    gitdir = Path(git_content.split(":", 1)[1].strip())
-                    main_repo_root = gitdir.parent.parent.parent
-                else:
-                    main_repo_root = repo_root
-            else:
-                main_repo_root = repo_root
-
+            # Auto-commit to target branch (enables instant status sync)
             actual_wp_path = wp.path.resolve()
-            commit_result = subprocess.run(
-                ["git", "commit", str(actual_wp_path), "-m", f"chore: Start {normalized_wp_id} implementation [{agent}]"],
-                cwd=main_repo_root,
-                capture_output=True,
-                text=True,
-                check=False
+            safe_commit(
+                repo_path=main_repo_root,
+                files_to_commit=[actual_wp_path],
+                commit_message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
+                allow_empty=True,  # OK if already in this state
             )
 
-            if commit_result.returncode == 0:
-                print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid})")
-            else:
-                # Commit failed - file might already be committed in this state
-                pass
+            print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
@@ -411,63 +481,6 @@ def implement(
         deliverables_path = None
         if mission_key == "research":
             deliverables_path = get_deliverables_path(feature_dir, feature_slug)
-
-        # Calculate workspace path
-        workspace_name = f"{feature_slug}-{normalized_wp_id}"
-        workspace_path = repo_root / ".worktrees" / workspace_name
-
-        # Ensure workspace exists (create if needed)
-        if not workspace_path.exists():
-            import subprocess
-
-            # Ensure .worktrees directory exists
-            worktrees_dir = repo_root / ".worktrees"
-            worktrees_dir.mkdir(parents=True, exist_ok=True)
-
-            # Create worktree with sparse-checkout
-            branch_name = workspace_name
-            result = subprocess.run(
-                ["git", "worktree", "add", str(workspace_path), "-b", branch_name],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=False
-            )
-
-            if result.returncode != 0:
-                print(f"Warning: Could not create workspace: {result.stderr}")
-            else:
-                # Configure sparse-checkout to exclude kitty-specs/
-                sparse_checkout_result = subprocess.run(
-                    ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
-                    cwd=workspace_path,
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
-                if sparse_checkout_result.returncode == 0:
-                    sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
-                    subprocess.run(["git", "config", "core.sparseCheckout", "true"], cwd=workspace_path, capture_output=True, check=False)
-                    subprocess.run(["git", "config", "core.sparseCheckoutCone", "false"], cwd=workspace_path, capture_output=True, check=False)
-                    sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-                    sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
-                    subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
-
-                    # Add .gitignore to block WP status files but allow research artifacts
-                    gitignore_path = workspace_path / ".gitignore"
-                    gitignore_entry = "# Block WP status files (managed in main repo, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
-                    if gitignore_path.exists():
-                        content = gitignore_path.read_text(encoding="utf-8")
-                        if "kitty-specs/**/tasks/*.md" not in content:
-                            # Remove old blanket rule if present
-                            if "kitty-specs/\n" in content:
-                                content = content.replace("# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n", "")
-                                content = content.replace("kitty-specs/\n", "")
-                            gitignore_path.write_text(content.rstrip() + "\n" + gitignore_entry, encoding="utf-8")
-                    else:
-                        gitignore_path.write_text(gitignore_entry, encoding="utf-8")
-
-                print(f"✓ Created workspace: {workspace_path}")
 
         # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
         # without sparse-checkout or where setup failed silently)
@@ -506,6 +519,18 @@ def implement(
         lines.append("╚" + "=" * 78 + "╝")
         lines.append("")
 
+        # Inject worktree topology context for stacked branches
+        try:
+            from specify_cli.core.worktree_topology import (
+                materialize_worktree_topology, render_topology_json,
+            )
+            topology = materialize_worktree_topology(repo_root, feature_slug)
+            if topology.has_stacking:
+                lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
+                lines.append("")
+        except Exception:
+            pass  # Non-critical — topology is informational only
+
         # Next steps
         lines.append("=" * 80)
         lines.append("WHEN YOU'RE DONE:")
@@ -528,11 +553,11 @@ def implement(
         lines.append(f"📍 WORKING DIRECTORY:")
         lines.append(f"   cd {workspace_path}")
         lines.append(f"   # All implementation work happens in this workspace")
-        lines.append(f"   # When done, return to main: cd {repo_root}")
+        lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
-        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in main)")
-        lines.append(f"   Status changes auto-commit to main branch (visible to all agents)")
+        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
+        lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
         lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
         lines.append("")
@@ -552,11 +577,11 @@ def implement(
             lines.append(deliv_line)
             lines.append("║     ↳ Create findings, reports, data here                                ║")
             lines.append("║     ↳ Commit to worktree branch                                          ║")
-            lines.append("║     ↳ Will merge to main when WP completes                               ║")
+            lines.append(f"║     ↳ Will merge to {target_branch:<62} ║")
             lines.append("║                                                                          ║")
             lines.append("║  📋 PLANNING ARTIFACTS (kitty-specs/):                                   ║")
             lines.append("║     ↳ evidence-log.csv, source-register.csv                              ║")
-            lines.append("║     ↳ Edit in main repo (rare during implementation)                     ║")
+            lines.append("║     ↳ Edit in planning repo (rare during implementation)                 ║")
             lines.append("║                                                                          ║")
             lines.append("║  ⚠️  DO NOT put research deliverables in kitty-specs/!                   ║")
             lines.append("╚" + "=" * 78 + "╝")
@@ -624,6 +649,94 @@ def implement(
     except Exception as e:
         print(f"Error: {e}")
         raise typer.Exit(1)
+
+
+def _resolve_review_context(
+    workspace_path: Path,
+    repo_root: Path,
+    feature_slug: str,
+    wp_frontmatter: str,
+) -> dict:
+    """Resolve git branch and base context for review prompts.
+
+    Determines the WP's branch name, its base branch (what it was branched
+    from), and the number of commits unique to this WP so reviewers know
+    exactly what to diff against instead of guessing.
+
+    Strategy:
+    1. Get actual branch name from the worktree
+    2. Extract WP dependencies from frontmatter to try dependency branches
+    3. Also try common base branches (main, 2.x, master, develop)
+    4. Pick the candidate with fewest commits ahead (closest ancestor)
+    """
+    ctx: dict = {
+        "branch_name": "unknown",
+        "base_branch": "unknown",
+        "commit_count": 0,
+    }
+
+    if not workspace_path.exists():
+        return ctx
+
+    # Get actual branch name from worktree
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=workspace_path, capture_output=True, text=True,
+        encoding="utf-8", errors="replace", check=False,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        ctx["branch_name"] = result.stdout.strip()
+    else:
+        return ctx
+
+    branch = ctx["branch_name"]
+
+    # Build candidate base branches
+    candidates: list[str] = []
+
+    # From WP dependencies (e.g., dependencies: ["WP01"])
+    dep_match = re.search(r'dependencies:\s*\[([^\]]*)\]', wp_frontmatter)
+    if dep_match:
+        dep_content = dep_match.group(1).strip()
+        if dep_content:
+            dep_ids = re.findall(r'"?(WP\d+)"?', dep_content)
+            for dep_id in dep_ids:
+                candidates.append(f"{feature_slug}-{dep_id}")
+
+    # Common base branches
+    candidates.extend(["main", "2.x", "master", "develop"])
+
+    # Find closest ancestor (fewest commits ahead = most specific base)
+    best_base = None
+    best_count = -1
+
+    for candidate in candidates:
+        mb = subprocess.run(
+            ["git", "merge-base", branch, candidate],
+            cwd=repo_root, capture_output=True, text=True,
+            encoding="utf-8", errors="replace", check=False,
+        )
+        if mb.returncode != 0:
+            continue
+
+        count_r = subprocess.run(
+            ["git", "rev-list", "--count", f"{mb.stdout.strip()}..{branch}"],
+            cwd=repo_root, capture_output=True, text=True,
+            encoding="utf-8", errors="replace", check=False,
+        )
+        if count_r.returncode != 0:
+            continue
+
+        count = int(count_r.stdout.strip())
+        if best_count == -1 or count < best_count:
+            best_count = count
+            best_base = candidate
+
+    if best_base:
+        ctx["base_branch"] = best_base
+        ctx["commit_count"] = best_count
+
+    return ctx
 
 
 def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
@@ -706,6 +819,10 @@ def review(
 
         feature_slug = _find_feature_slug(explicit_feature=feature)
 
+        # Ensure planning repo is on the target branch before we start
+        # (needed for auto-commits and status tracking inside this command)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
+
         # Determine which WP to review
         if wp_id:
             normalized_wp_id = _normalize_wp_id(wp_id)
@@ -754,35 +871,18 @@ def review(
             updated_doc = build_document(updated_front, updated_body, wp.padding)
             wp.path.write_text(updated_doc, encoding="utf-8")
 
-            # Auto-commit to main (enables instant status sync)
+            # Auto-commit to target branch (enables instant status sync)
             import subprocess
 
-            # Get main repo root (might be in worktree)
-            git_file = Path.cwd() / ".git"
-            if git_file.is_file():
-                git_content = git_file.read_text().strip()
-                if git_content.startswith("gitdir:"):
-                    gitdir = Path(git_content.split(":", 1)[1].strip())
-                    main_repo_root = gitdir.parent.parent.parent
-                else:
-                    main_repo_root = repo_root
-            else:
-                main_repo_root = repo_root
-
             actual_wp_path = wp.path.resolve()
-            commit_result = subprocess.run(
-                ["git", "commit", str(actual_wp_path), "-m", f"chore: Start {normalized_wp_id} review [{agent}]"],
-                cwd=main_repo_root,
-                capture_output=True,
-                text=True,
-                check=False
+            safe_commit(
+                repo_path=main_repo_root,
+                files_to_commit=[actual_wp_path],
+                commit_message=f"chore: Start {normalized_wp_id} review [{agent}]",
+                allow_empty=True,  # OK if already in this state
             )
 
-            if commit_result.returncode == 0:
-                print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid})")
-            else:
-                # Commit failed - file might already be committed in this state
-                pass
+            print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
@@ -795,61 +895,34 @@ def review(
 
         # Ensure workspace exists (create if needed)
         if not workspace_path.exists():
-            import subprocess
-
             # Ensure .worktrees directory exists
             worktrees_dir = repo_root / ".worktrees"
             worktrees_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create worktree with sparse-checkout
-            branch_name = workspace_name
-            result = subprocess.run(
-                ["git", "worktree", "add", str(workspace_path), "-b", branch_name],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=False
+            # Create worktree using VCS layer (handles sparse-checkout + git/info/exclude)
+            vcs = get_vcs(repo_root)
+            create_result = vcs.create_workspace(
+                workspace_path=workspace_path,
+                workspace_name=workspace_name,
+                base_branch=target_branch,
+                repo_root=repo_root,
+                sparse_exclude=["kitty-specs/"],
             )
 
-            if result.returncode != 0:
-                print(f"Warning: Could not create workspace: {result.stderr}")
+            if not create_result.success:
+                print(f"Warning: Could not create workspace: {create_result.error}")
             else:
-                # Configure sparse-checkout to exclude kitty-specs/
-                sparse_checkout_result = subprocess.run(
-                    ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
-                    cwd=workspace_path,
-                    capture_output=True,
-                    text=True,
-                    check=False
-                )
-                if sparse_checkout_result.returncode == 0:
-                    sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
-                    subprocess.run(["git", "config", "core.sparseCheckout", "true"], cwd=workspace_path, capture_output=True, check=False)
-                    subprocess.run(["git", "config", "core.sparseCheckoutCone", "false"], cwd=workspace_path, capture_output=True, check=False)
-                    sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-                    sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
-                    subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
-
-                    # Add .gitignore to block WP status files but allow research artifacts
-                    gitignore_path = workspace_path / ".gitignore"
-                    gitignore_entry = "# Block WP status files (managed in main repo, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
-                    if gitignore_path.exists():
-                        content = gitignore_path.read_text(encoding="utf-8")
-                        if "kitty-specs/**/tasks/*.md" not in content:
-                            # Remove old blanket rule if present
-                            if "kitty-specs/\n" in content:
-                                content = content.replace("# Prevent worktree-local kitty-specs/ (status managed in main repo)\nkitty-specs/\n", "")
-                                content = content.replace("kitty-specs/\n", "")
-                            gitignore_path.write_text(content.rstrip() + "\n" + gitignore_entry, encoding="utf-8")
-                    else:
-                        gitignore_path.write_text(gitignore_entry, encoding="utf-8")
-
                 print(f"✓ Created workspace: {workspace_path}")
 
         # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
         # without sparse-checkout or where setup failed silently)
         if workspace_path.exists():
             _ensure_sparse_checkout(workspace_path)
+
+        # Resolve git context (branch name, base branch, commit count)
+        review_ctx = _resolve_review_context(
+            workspace_path, repo_root, feature_slug, wp.frontmatter
+        )
 
         # Capture dependency warning for both file and summary
         dependents_warning = []
@@ -907,6 +980,33 @@ def review(
         lines.append("╚" + "=" * 78 + "╝")
         lines.append("")
 
+        # Inject worktree topology context for stacked branches
+        try:
+            from specify_cli.core.worktree_topology import (
+                materialize_worktree_topology, render_topology_json,
+            )
+            topology = materialize_worktree_topology(repo_root, feature_slug)
+            if topology.has_stacking:
+                lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
+                lines.append("")
+        except Exception:
+            pass  # Non-critical — topology is informational only
+
+        # Git review context — tells reviewer exactly what to diff against
+        if review_ctx["base_branch"] != "unknown":
+            base = review_ctx["base_branch"]
+            lines.append("─── GIT REVIEW CONTEXT " + "─" * 57)
+            lines.append(f"Branch:      {review_ctx['branch_name']}")
+            lines.append(f"Base branch: {base} ({review_ctx['commit_count']} commits ahead)")
+            lines.append("")
+            lines.append("Review commands (run in the workspace):")
+            lines.append(f"  cd {workspace_path}")
+            lines.append(f"  git log {base}..HEAD --oneline           # WP commits only")
+            lines.append(f"  git diff {base}..HEAD --stat             # Changed files")
+            lines.append(f"  git diff {base}..HEAD                    # Full diff")
+            lines.append("─" * 80)
+            lines.append("")
+
         # Next steps
         lines.append("=" * 80)
         lines.append("WHEN YOU'RE DONE:")
@@ -923,11 +1023,11 @@ def review(
         lines.append(f"   cd {workspace_path}")
         lines.append(f"   # Review the implementation in this workspace")
         lines.append(f"   # Read code, run tests, check against requirements")
-        lines.append(f"   # When done, return to main: cd {repo_root}")
+        lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
-        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in main)")
-        lines.append(f"   Status changes auto-commit to main branch (visible to all agents)")
+        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
+        lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
         lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
         lines.append("")
@@ -986,6 +1086,10 @@ def review(
                 print(line)
             print()
         print(f"📍 Workspace: cd {workspace_path}")
+        if review_ctx["base_branch"] != "unknown":
+            base = review_ctx["base_branch"]
+            print(f"🔀 Branch: {review_ctx['branch_name']} (based on {base}, {review_ctx['commit_count']} commits)")
+            print(f"   Review diff: git log {base}..HEAD --oneline")
         print()
         print("▶▶▶ NEXT STEP: Read the full prompt file now:")
         print(f"    cat {prompt_file}")

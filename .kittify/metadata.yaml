@@ -3,45 +3,17 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 0.13.9
-  initialized_at: '2026-01-22T10:36:24.129683'
-  last_upgraded_at: '2026-01-31T14:59:11.956344'
+  version: 0.14.1
+  initialized_at: '2026-02-03T17:59:23.703791'
+  last_upgraded_at: '2026-02-06T10:54:05.184729'
 environment:
   python_version: 3.14.0
   platform: darwin
   platform_version: macOS-15.7.3-arm64-arm-64bit-Mach-O
 migrations:
   applied:
-  - id: 0.12.0_documentation_mission
-    applied_at: '2026-01-25T14:17:34.743546'
-    result: skipped
-    notes: Not applicable
-  - id: 0.12.1_remove_kitty_specs_from_gitignore
-    applied_at: '2026-01-25T14:17:34.743775'
-    result: skipped
-    notes: Not applicable
-  - id: 0.13.0_research_csv_schema_check
-    applied_at: '2026-01-29T10:57:10.940076'
-    result: skipped
-    notes: Not applicable
-  - id: 0.13.0_update_constitution_templates
-    applied_at: '2026-01-29T10:57:10.942224'
-    result: skipped
-    notes: Not applicable
-  - id: 0.13.0_update_research_implement_templates
-    applied_at: '2026-01-29T10:57:10.943278'
-    result: skipped
-    notes: Not applicable
-  - id: 0.13.1_exclude_worktrees
-    applied_at: '2026-01-29T10:57:10.951002'
-    result: skipped
-    notes: Not applicable
-  - id: 0.13.5_fix_clarify_template
-    applied_at: '2026-01-29T10:57:10.952698'
-    result: skipped
-    notes: Not applicable
-  - id: 0.13.5_add_commit_workflow_to_templates
-    applied_at: '2026-01-29T10:57:10.953678'
+  - id: 0.14.0_centralized_feature_detection
+    applied_at: '2026-02-06T10:54:05.184716'
     result: skipped
     notes: Not applicable
   - id: 0.13.8_target_branch

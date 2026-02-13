@@ -32,12 +32,15 @@ class DependencyStatus:
 
     @property
     def should_suggest_merge_first(self) -> bool:
-        """Return True if we should suggest merging dependencies before implement.
+        """Return True if we should suggest using --force for multi-parent auto-merge.
 
         Logic:
         - Multi-parent (2+ dependencies) AND
         - All dependencies in "done" lane
-        → Suggest merging to main first
+        → Suggest auto-merge with --force (branches will be combined)
+
+        Note: "done" means review-complete, NOT merged to target.
+        Per-WP merging to target happens at feature level via `spec-kitty merge`.
         """
         return self.is_multi_parent and self.all_done
 
@@ -63,11 +66,7 @@ class DependencyStatus:
         return (
             f"Multi-parent dependencies ({deps_str}) all done.\n"
             f"\n"
-            f"RECOMMENDED: Merge dependencies to main first (avoids conflicts)\n"
-            f"  1. spec-kitty merge --feature <feature-slug>\n"
-            f"  2. spec-kitty implement {self.wp_id}\n"
-            f"\n"
-            f"ALTERNATIVE: Attempt auto-merge (may conflict)\n"
+            f"Auto-merge will combine their branches into a merge base.\n"
             f"  spec-kitty implement {self.wp_id} --force\n"
             f"\n"
             f"Auto-merge works if WPs don't conflict on shared files\n"
@@ -120,7 +119,7 @@ def check_dependency_status(
 
 
 def predict_merge_conflicts(
-    repo_root: Path, branches: list[str], target: str = "main"
+    repo_root: Path, branches: list[str], target: str | None = None
 ) -> dict[str, list[str]]:
     """Predict which files will conflict when merging branches.
 
@@ -137,6 +136,10 @@ def predict_merge_conflicts(
     """
     import subprocess
 
+    if target is None:
+        from specify_cli.core.git_ops import resolve_primary_branch
+        target = resolve_primary_branch(repo_root)
+
     conflicts = {}
 
     # Check each branch against target
@@ -148,6 +151,8 @@ def predict_merge_conflicts(
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
 
@@ -213,11 +218,10 @@ def get_merge_strategy_recommendation(status: DependencyStatus) -> dict:
 
     # Multi-parent, all done
     return {
-        "strategy": "merge_first",
+        "strategy": "auto_merge",
         "reason": f"Multi-parent dependencies ({', '.join(status.dependencies)}) all done",
-        "command": "spec-kitty merge --feature <feature-slug>",
+        "command": f"spec-kitty implement {status.wp_id} --force",
         "warnings": [
             "Auto-merge may conflict on shared files (.gitignore, package.json)",
-            "Merging dependencies to main first is safer",
         ],
     }

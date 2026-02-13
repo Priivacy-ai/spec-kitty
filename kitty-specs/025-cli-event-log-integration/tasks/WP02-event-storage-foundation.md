@@ -1,28 +1,31 @@
 ---
-work_package_id: "WP02"
-title: "Event Storage Foundation (Entities & File I/O)"
-phase: "Phase 1 - Core Event Infrastructure"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01"]
+work_package_id: WP02
+title: Event Storage Foundation (Entities & File I/O)
+lane: "done"
+dependencies: []
+base_branch: 2.x
+base_commit: 3b415176a6615d2626900cab184d6d2e8307b36b
+created_at: '2026-01-30T10:20:52.401966+00:00'
 subtasks:
-  - "T006"
-  - "T007"
-  - "T008"
-  - "T009"
-  - "T010"
-  - "T011"
-  - "T012"
+- T006
+- T007
+- T008
+- T009
+- T010
+- T011
+- T012
+phase: Phase 1 - Core Event Infrastructure
+assignee: ''
+agent: "codex"
+shell_pid: "14744"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
-  - timestamp: "2026-01-27T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
+- timestamp: '2026-01-27T00:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
 ---
 
 # Work Package Prompt: WP02 – Event Storage Foundation (Entities & File I/O)
@@ -40,9 +43,262 @@ history:
 
 ## Review Feedback
 
-*[This section is empty initially. Reviewers will populate it if the work is returned from review.]*
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-01-30
+
+# WP02 Review Feedback - Round 2
+
+**Reviewer**: claude-reviewer-2
+**Date**: 2026-01-30
+**Status**: ❌ Changes Requested
+
+## Issue: Incomplete Migration - Missing Essential Methods
+
+**Problem**: The architectural fix (moving from types.py to adapter.py) was done correctly in terms of file structure and imports, BUT the essential methods from the original types.py classes were not added to the adapter classes.
+
+**Missing from Event class in adapter.py**:
+1. `to_json()` method - used by file_io.py line 36
+2. `from_json()` classmethod - needed for deserialization
+3. `__post_init__()` validation - validates event fields
+
+**Missing from LamportClock class in adapter.py**:
+1. `initialize()` method - sets clock to 1
+2. `to_dict()` method - used by ClockStorage for JSON serialization
+3. `from_dict()` classmethod - used by ClockStorage for deserialization
+4. `__post_init__()` validation - validates clock value >= 1
+
+**Evidence of breakage**:
+```
+$ python3 -c "from specify_cli.events import Event, generate_ulid; e = Event(...); e.to_json()"
+AttributeError: 'Event' object has no attribute 'to_json'
+```
+
+The integration test fails at file_io.py:36 because `event.to_json()` doesn't exist.
 
 ---
+
+## How to Fix
+
+Add the missing methods to adapter.py. Here's what needs to be added:
+
+### For Event class (add after `to_lib_event()` method):
+
+```python
+def to_json(self) -> str:
+    """Serialize event to JSON (for JSONL file)."""
+    from dataclasses import asdict
+    import json
+    return json.dumps(asdict(self), ensure_ascii=False)
+
+@classmethod
+def from_json(cls, json_str: str) -> "Event":
+    """Deserialize event from JSON."""
+    import json
+    data = json.loads(json_str)
+    return cls(**data)
+
+def __post_init__(self) -> None:
+    """Validate event after creation."""
+    if not self.event_id:
+        raise ValueError("event_id cannot be empty")
+    if not self.event_type:
+        raise ValueError("event_type cannot be empty")
+    if not self.entity_id:
+        raise ValueError("entity_id cannot be empty")
+    if self.lamport_clock < 1:
+        raise ValueError(f"lamport_clock must be >= 1, got {self.lamport_clock}")
+```
+
+### For LamportClock class (add after `update()` method):
+
+```python
+def initialize(self) -> int:
+    """Initialize clock to 1 and return initial value."""
+    self.value = 1
+    self.last_updated = datetime.now(timezone.utc).isoformat()
+    return self.value
+
+def to_dict(self) -> dict[str, Any]:
+    """Serialize clock to dict (for JSON persistence)."""
+    return {"value": self.value, "last_updated": self.last_updated}
+
+@classmethod
+def from_dict(cls, data: dict[str, Any]) -> "LamportClock":
+    """Deserialize clock from dict."""
+    return cls(value=data["value"], last_updated=data["last_updated"])
+
+def __post_init__(self) -> None:
+    """Validate clock after creation."""
+    if self.value < 1:
+        raise ValueError(f"Clock value must be >= 1, got {self.value}")
+```
+
+### Verification
+
+After adding these methods, run this test to verify everything works:
+
+```bash
+python3 << 'ENDPY'
+import sys
+sys.path.insert(0, 'src')
+
+from specify_cli.events import Event, LamportClock, generate_ulid
+from datetime import datetime, timezone
+
+# Test Event serialization
+event = Event(
+    event_id=generate_ulid(),
+    event_type="Test",
+    event_version=1,
+    lamport_clock=1,
+    entity_id="WP01",
+    entity_type="WorkPackage",
+    timestamp=datetime.now(timezone.utc).isoformat(),
+    actor="test",
+    causation_id=None,
+    correlation_id=None,
+    payload={}
+)
+
+json_str = event.to_json()
+event2 = Event.from_json(json_str)
+assert event.event_id == event2.event_id
+print("✓ Event to_json/from_json works")
+
+# Test LamportClock serialization
+clock = LamportClock(value=5, last_updated=datetime.now(timezone.utc).isoformat())
+clock_dict = clock.to_dict()
+clock2 = LamportClock.from_dict(clock_dict)
+assert clock.value == clock2.value
+print("✓ LamportClock to_dict/from_dict works")
+
+# Test initialize
+clock.initialize()
+assert clock.value == 1
+print("✓ LamportClock initialize() works")
+
+print("\nAll methods verified!")
+ENDPY
+```
+
+---
+
+## What's Working
+
+**Good news**: The architectural structure is now correct!
+- ✅ types.py deleted (duplicate removed)
+- ✅ Imports updated to use adapter
+- ✅ generate_ulid() moved to adapter
+- ✅ __init__.py exports correct
+
+The ONLY issue is that the methods weren't copied over when migrating from types.py to adapter.py.
+
+---
+
+## Root Cause Analysis
+
+This happened because:
+1. Original types.py had complete Event/LamportClock implementations
+2. When deleting types.py, the implementer correctly updated imports
+3. BUT forgot that adapter.py's Event/LamportClock were originally just adapter stubs
+4. The adapter classes only had `from_lib_event()` and `to_lib_event()` methods
+5. They never had the serialization, validation, and utility methods
+
+**Solution**: Copy the missing methods from the deleted types.py into adapter.py.
+
+---
+
+## Dependent WP Warning
+
+WP03 depends on WP02. Once this is fixed, ensure WP03 implementers know that:
+- Event has `to_json()`, `from_json()`, `__post_init__()`
+- LamportClock has `initialize()`, `to_dict()`, `from_dict()`, `__post_init__()`
+- All imports should be from `specify_cli.events.adapter`
+
+
+## Critical Issue: Architectural Violation - Duplicate Event/LamportClock Classes
+
+**Problem**: WP02 created a new `types.py` module with Event and LamportClock classes, but WP01 already provides these through `adapter.py`. This creates two different class hierarchies and violates the adapter pattern established in WP01.
+
+**Evidence**:
+```python
+# These are TWO DIFFERENT classes (not the same object):
+from specify_cli.events.adapter import Event as AdapterEvent
+from specify_cli.events.types import Event as TypesEvent
+
+# AdapterEvent is not TypesEvent  <-- Different classes!
+```
+
+**Import confusion**:
+- `__init__.py` exports Event from `adapter`
+- `clock_storage.py` and `file_io.py` import Event from `types`
+- This means different parts of the codebase use incompatible Event objects
+
+**Why this violates the architecture**:
+1. WP01 established the adapter pattern for loose coupling with spec-kitty-events library
+2. All CLI code should use `specify_cli.events.adapter.Event` and `LamportClock`
+3. Creating parallel `types.py` classes bypasses the adapter layer without justification
+4. Creates maintenance burden (two places to update if Event schema changes)
+
+**How to fix**:
+
+1. **Delete the duplicate types module**:
+   ```bash
+   rm src/specify_cli/events/types.py
+   ```
+
+2. **Move generate_ulid() to adapter.py**:
+   - Add `generate_ulid()` function and `_encode_base32()` helper to `adapter.py`
+   - These are utilities, not types, so they belong with the adapter
+
+3. **Update all imports**:
+   ```python
+   # In clock_storage.py and file_io.py, change:
+   from specify_cli.events.types import Event, LamportClock  # ❌ DELETE THIS
+   
+   # To:
+   from specify_cli.events.adapter import Event, LamportClock, generate_ulid  # ✅ USE THIS
+   ```
+
+4. **Verify no import errors**:
+   ```bash
+   python3 -c "from specify_cli.events import Event, LamportClock, generate_ulid; print('OK')"
+   ```
+
+**Functional note**: All 12 subtasks (T006-T012) are functionally complete. The ONLY issue is this architectural violation. Once fixed, WP02 will be ready for approval.
+
+**Dependent WP warning**: WP03 depends on WP02. Once this is fixed and merged, WP03 implementers should ensure they use `specify_cli.events.adapter.Event`, not a non-existent `types.Event`.
+
+---
+
+## Implementation Quality (Otherwise Excellent)
+
+**What's working well**:
+- ✅ All 11 Event fields match data-model.md specification
+- ✅ ULID generation produces valid 26-character identifiers
+- ✅ LamportClock implements tick(), update(), initialize() correctly
+- ✅ ClockStorage uses atomic writes (temp file + rename)
+- ✅ POSIX file locking implemented with fcntl.flock()
+- ✅ Windows fallback (best-effort without locking)
+- ✅ Daily rotation works (events go to YYYY-MM-DD.jsonl files)
+- ✅ Clock recovery scans event log and returns max+1 correctly
+- ✅ Directory initialization is idempotent
+- ✅ Integration test passes (events written, clock persisted, recovery works)
+
+**Code quality**:
+- Clean, readable implementation
+- Proper error handling
+- Good docstrings
+- Follows Python conventions
+
+**Test results**:
+- Integration test passes (5 events emitted, clock persistence verified)
+- Clock recovery test passes (value=7 is correct: max_clock=6, recovery=6+1=7)
+- ULID generation produces valid identifiers
+
+Once the architectural issue is resolved, this will be an excellent implementation.
+
 
 ## Objectives & Success Criteria
 
@@ -1028,6 +1284,19 @@ print("✓ Clock recovery test passed")
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+- 2026-01-30T10:16:44Z – unknown – shell_pid=28472 – lane=planned – Reset to planned - starting fresh from clean 2.x branch
+- 2026-01-30T10:31:59Z – unknown – shell_pid=49716 – lane=for_review – Ready for review: implemented event storage foundation (Event/LamportClock types, ULID generator), clock persistence + recovery, JSONL append with POSIX locking + daily rotation, and event/error directory initialization.
+- 2026-01-30T10:32:37Z – claude-reviewer – shell_pid=55140 – lane=doing – Started review via workflow command
+- 2026-01-30T10:36:10Z – claude-reviewer – shell_pid=55140 – lane=planned – Moved to planned
+- 2026-01-30T10:36:59Z – codex – shell_pid=14744 – lane=doing – Started implementation via workflow command
+- 2026-01-30T10:38:48Z – codex – shell_pid=14744 – lane=doing – Acknowledged review feedback: remove duplicate types module, use adapter Event/LamportClock, move ULID generator to adapter.
+- 2026-01-30T10:39:32Z – codex – shell_pid=14744 – lane=for_review – Ready for review: removed duplicate types module, moved ULID generator to adapter, and aligned storage/file IO imports to adapter Event/LamportClock.
+- 2026-01-30T10:44:37Z – claude-reviewer-2 – shell_pid=60293 – lane=doing – Started review via workflow command
+- 2026-01-30T10:46:31Z – claude-reviewer-2 – shell_pid=60293 – lane=planned – Moved to planned
+- 2026-01-30T10:47:19Z – claude-implementer – shell_pid=61314 – lane=doing – Started implementation via workflow command
+- 2026-01-30T10:49:03Z – claude-implementer – shell_pid=61314 – lane=for_review – Review feedback addressed: Added all missing methods (to_json, from_json, __post_init__, initialize, to_dict, from_dict) to Event and LamportClock classes in adapter.py. All integration tests pass.
+- 2026-01-30T10:50:37Z – codex – shell_pid=14744 – lane=doing – Started review via workflow command
+- 2026-01-30T10:51:39Z – codex – shell_pid=14744 – lane=done – Review passed: adapter Event/LamportClock now include serialization/validation methods, ULID generator exported, storage/file IO use adapter types; verification snippet passes.
 
 ## Implementation Command
 

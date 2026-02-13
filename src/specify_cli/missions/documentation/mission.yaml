@@ -48,6 +48,8 @@ validation:
     - no_conflicting_generators
     - templates_populated
     - gap_analysis_complete
+    - documentation_state_exists
+    - audit_recency
   custom_validators: false  # No custom validators.py initially
 
 # MCP tools recommended for this mission

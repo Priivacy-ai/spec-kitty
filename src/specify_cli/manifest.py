@@ -166,6 +166,8 @@ class WorktreeStatus:
                 cwd=self.repo_root,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=True
             )
             for line in result.stdout.split('\n'):
@@ -208,7 +210,9 @@ class WorktreeStatus:
                 ["git", "show-ref", f"refs/heads/{feature}"],
                 cwd=self.repo_root,
                 capture_output=True,
-                text=True
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
             status["branch_exists"] = result.returncode == 0
         except subprocess.CalledProcessError:
@@ -217,11 +221,15 @@ class WorktreeStatus:
         # Check if merged
         if status["branch_exists"]:
             try:
+                from specify_cli.core.git_ops import resolve_primary_branch
+                primary = resolve_primary_branch(self.repo_root)
                 result = subprocess.run(
-                    ["git", "branch", "--merged", "main"],
+                    ["git", "branch", "--merged", primary],
                     cwd=self.repo_root,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=True
                 )
                 status["branch_merged"] = feature in result.stdout

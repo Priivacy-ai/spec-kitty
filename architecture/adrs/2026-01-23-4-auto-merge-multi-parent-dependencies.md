@@ -182,6 +182,7 @@ We'll validate this decision by:
 - Requires [2026-01-23-2-explicit-base-branch-tracking](2026-01-23-2-explicit-base-branch-tracking.md) for recording merge base
 - Requires [2026-01-23-3-centralized-workspace-context-storage](2026-01-23-3-centralized-workspace-context-storage.md) for tracking merge metadata
 - Works with [2026-01-23-5-decorator-based-context-validation](2026-01-23-5-decorator-based-context-validation.md) for location validation
+- Clarified by [2026-02-04-21-done-means-review-complete-not-merged](2026-02-04-21-done-means-review-complete-not-merged.md) — merge base always uses WP branches regardless of lane status ("done" = review-complete, not merged to target)
 
 ### Code References
 

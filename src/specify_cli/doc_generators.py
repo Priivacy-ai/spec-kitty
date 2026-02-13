@@ -88,7 +88,9 @@ def check_tool_available(tool_name: str, install_url: str) -> bool:
     check = subprocess.run(
         [tool_name, "--version"],
         capture_output=True,
-        text=True
+        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
     if check.returncode != 0:
@@ -240,7 +242,9 @@ class JSDocGenerator:
         check_npx = subprocess.run(
             ["npx", "--version"],
             capture_output=True,
-            text=True
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
 
         if check_npx.returncode != 0:
@@ -255,7 +259,9 @@ class JSDocGenerator:
             cmd,
             cwd=str(source_dir),
             capture_output=True,
-            text=True
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
 
         # Parse output
@@ -415,7 +421,9 @@ sys.path.insert(0, os.path.abspath('..'))
         check_sphinx = subprocess.run(
             ["sphinx-build", "--version"],
             capture_output=True,
-            text=True
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
 
         if check_sphinx.returncode != 0:
@@ -440,7 +448,9 @@ sys.path.insert(0, os.path.abspath('..'))
         result = subprocess.run(
             cmd,
             capture_output=True,
-            text=True
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
 
         # Parse output
@@ -572,7 +582,9 @@ No separate configuration file is needed for rustdoc.
         check_cargo = subprocess.run(
             ["cargo", "--version"],
             capture_output=True,
-            text=True
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
 
         if check_cargo.returncode != 0:
@@ -592,7 +604,9 @@ No separate configuration file is needed for rustdoc.
             cmd,
             cwd=str(source_dir),
             capture_output=True,
-            text=True
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
 
         # Parse output

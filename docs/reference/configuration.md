@@ -266,6 +266,73 @@ VCS Backend: git
 
 ---
 
+## Server Configuration (2.x)
+
+Configuration for connecting to a spec-kitty server for real-time sync.
+
+**Location**: `~/.spec-kitty/config.toml` (user home directory)
+
+**Fields**:
+
+```toml
+[server]
+url = "https://your-server.example.com"
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `server.url` | string | (none) | Base URL of the spec-kitty server |
+
+> **Note**: This file is created manually or by `spec-kitty auth login` if it doesn't exist.
+
+---
+
+## Credential Storage (2.x)
+
+Stores JWT authentication credentials for server communication.
+
+**Location**: `~/.spec-kitty/credentials.json`
+
+**File permissions**: `600` (owner read/write only)
+
+**Fields**:
+
+```json
+{
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "access_expires_at": "2026-02-05T16:00:00Z",
+  "refresh_expires_at": "2026-02-12T15:00:00Z",
+  "username": "user@example.com",
+  "server_url": "https://your-server.example.com"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `access_token` | string | JWT access token (short-lived, ~1 hour) |
+| `refresh_token` | string | JWT refresh token (longer-lived, ~7 days) |
+| `access_expires_at` | ISO 8601 | Expiry timestamp of access token |
+| `refresh_expires_at` | ISO 8601 | Expiry timestamp of refresh token |
+| `username` | string | Authenticated user's email |
+| `server_url` | string | Server this credential is for |
+
+> **Note**: This file is managed by `spec-kitty auth login` and `spec-kitty auth logout`. Do not edit manually.
+
+### WebSocket Authentication (2.x)
+
+During sync, JWT tokens are exchanged for short-lived WebSocket tokens via `POST /api/v1/ws-token/`. The flow is:
+
+1. JWT access token is sent to the server
+2. Server returns a short-lived WebSocket token
+3. CLI uses the WebSocket token for the sync handshake
+
+This is handled automatically by the CLI — users do not need to manage WebSocket tokens.
+
+See [Sync Architecture](../explanation/sync-architecture.md) for details on the full sync flow.
+
+---
+
 ## Agent Configuration
 
 Spec Kitty supports 12 AI agents across different platforms. Agent configuration is stored in `.kittify/config.yaml` and can be managed via CLI commands.
@@ -502,6 +569,9 @@ If you see this file in older projects, it will be ignored. The mission in each 
 - [Environment Variables](environment-variables.md) — Runtime configuration
 - [Missions](missions.md) — Mission types and their artifacts
 - [CLI Commands](cli-commands.md) — Command reference including `--vcs` flag
+- [Authentication How-To](../how-to/authenticate.md) — Login, status, logout
+- [Server Sync How-To](../how-to/sync-to-server.md) — Pushing/pulling events
+- [Sync Architecture](../explanation/sync-architecture.md) — How sync works
 
 ## Getting Started
 - [Claude Code Integration](../tutorials/claude-code-integration.md)

@@ -187,4 +187,4 @@ grep "^lane:" kitty-specs/###-feature/tasks/WP##-*.md
 - The WP file must be moved to for_review lane for the workflow to continue
 
 **"Status board shows 'doing' but I just moved to 'for_review'"**
-- This is normal! Status is tracked in main branch. A reviewer may have already moved it back to "doing" (changes requested), or there's a sync delay. Don't panic - focus on your WP.
+- This is normal! Status is tracked in the target branch. A reviewer may have already moved it back to "doing" (changes requested), or there's a sync delay. Don't panic - focus on your WP.

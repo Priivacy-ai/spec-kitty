@@ -6,17 +6,17 @@ description: Create or update the research specification from a natural language
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in MAIN repository
+## 📍 WORKING DIRECTORY: Stay in planning repository
 
-**IMPORTANT**: Specify works in the main repository. NO worktrees are created.
+**IMPORTANT**: Specify works in the planning repository. NO worktrees are created.
 
 ```bash
 # Run from project root:
-cd /path/to/project/root  # Your main repository
+cd /path/to/project/root  # Your planning repository
 
-# All planning artifacts are created in main and committed:
-# - kitty-specs/###-feature/spec.md → Created in main
-# - Committed to main branch
+# All planning artifacts are created in the planning repo and committed:
+# - kitty-specs/###-feature/spec.md → Created in planning repo
+# - Committed to target branch (meta.json → target_branch)
 # - NO worktrees created
 ```
 
@@ -87,20 +87,20 @@ During discovery, you MUST ask:
 
 ## Workflow (0.11.0+)
 
-**Planning happens in main repository - NO worktree created!**
+**Planning happens in the planning repository - NO worktree created!**
 
-1. Creates `kitty-specs/###-feature/spec.md` directly in main repo
+1. Creates `kitty-specs/###-feature/spec.md` directly in planning repo
 2. Creates `kitty-specs/###-feature/meta.json` with `deliverables_path`
-3. Automatically commits to main branch
+3. Automatically commits to target branch
 4. No worktree created during specify
 
 **Worktrees created later**: Use `spec-kitty implement WP##` to create a workspace for each work package.
 
 ## Location
 
-- Work in: **Main repository** (not a worktree)
+- Work in: **Planning repository** (not a worktree)
 - Creates: `kitty-specs/###-feature/spec.md`
-- Commits to: `main` branch
+- Commits to: target branch (`meta.json` → `target_branch`)
 
 ## Outline
 

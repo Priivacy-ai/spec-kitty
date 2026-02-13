@@ -55,15 +55,17 @@ Test content here.
 class TestMoveTask:
     """Tests for move-task command."""
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_json_output(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path
     ):
         """Should move task and output JSON."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(
@@ -83,15 +85,17 @@ class TestMoveTask:
         assert 'lane: "doing"' in updated_content
         assert "Moved to doing" in updated_content
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_human_output(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path
     ):
         """Should move task and output human-readable format."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(
@@ -102,15 +106,17 @@ class TestMoveTask:
         assert result.exit_code == 0
         assert "Moved WP01 from planned to for_review" in result.stdout
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_task_with_agent_and_pid(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path
     ):
         """Should update agent and shell_pid when provided."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(
@@ -166,14 +172,16 @@ class TestMoveTask:
 class TestMarkStatus:
     """Tests for mark-status command."""
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_mark_status_done_json(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should mark status as done with JSON output."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
+        mock_ensure.return_value = (tmp_path, "main")
         tasks_dir = tmp_path / "kitty-specs" / "008-test"
         tasks_dir.mkdir(parents=True, exist_ok=True)
         (tasks_dir / "tasks.md").write_text("- [ ] T001 Initial task\n", encoding="utf-8")
@@ -205,14 +213,16 @@ class TestMarkStatus:
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_mark_status_pending(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should mark status as pending."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
+        mock_ensure.return_value = (tmp_path, "main")
         tasks_dir = tmp_path / "kitty-specs" / "008-test"
         tasks_dir.mkdir(parents=True, exist_ok=True)
         (tasks_dir / "tasks.md").write_text("- [x] T002 Initial task\n", encoding="utf-8")
@@ -226,14 +236,16 @@ class TestMarkStatus:
         assert result.exit_code == 0
         assert "Marked T002 as pending" in result.stdout
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_mark_status_invalid_status(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should reject invalid status values."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
+        mock_ensure.return_value = (tmp_path, "main")
 
         # Execute
         result = runner.invoke(
@@ -265,14 +277,16 @@ class TestListTasks:
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_list_tasks_no_tasks_directory(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should error when tasks directory doesn't exist."""
         mock_root.return_value = tmp_path
         mock_slug.return_value = "008-test"
+        mock_ensure.return_value = (tmp_path, "main")
 
         # Execute (no tasks directory created)
         result = runner.invoke(app, ["list-tasks", "--json"])
@@ -283,10 +297,11 @@ class TestListTasks:
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_list_all_tasks_json(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should list all tasks with JSON output."""
         # Setup: Create multiple task files
@@ -317,6 +332,7 @@ Content
 
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(app, ["list-tasks", "--json"])
@@ -329,10 +345,11 @@ Content
         assert output["tasks"][0]["work_package_id"] == "WP01"
         assert output["tasks"][1]["work_package_id"] == "WP02"
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_list_tasks_filter_by_lane(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should filter tasks by lane."""
         # Setup
@@ -359,6 +376,7 @@ Content
 
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(app, ["list-tasks", "--lane", "doing", "--json"])
@@ -370,10 +388,11 @@ Content
         assert output["tasks"][0]["work_package_id"] == "WP02"
         assert output["tasks"][0]["lane"] == "doing"
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_list_tasks_human_output(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should list tasks in human-readable format."""
         # Setup
@@ -392,6 +411,7 @@ Content
 
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(app, ["list-tasks"])
@@ -421,15 +441,17 @@ class TestAddHistory:
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_add_history_json(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path
     ):
         """Should add history entry with JSON output."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(
@@ -450,15 +472,17 @@ class TestAddHistory:
         updated_content = mock_task_file.read_text()
         assert "Test note" in updated_content
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_add_history_with_agent(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path
     ):
         """Should include agent in history entry."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(
@@ -498,15 +522,17 @@ class TestValidateWorkflow:
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_validate_valid_task(
-        self, mock_slug: Mock, mock_root: Mock, mock_task_file: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, mock_task_file: Path
     ):
         """Should validate task with all required fields."""
         repo_root = mock_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test-feature"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(app, ["validate-workflow", "WP01", "--json"])
@@ -517,10 +543,11 @@ class TestValidateWorkflow:
         assert output["valid"] is True
         assert output["errors"] == []
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_validate_missing_required_fields(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should detect missing required fields."""
         # Create task with missing fields
@@ -539,6 +566,7 @@ work_package_id: "WP01"
 
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(app, ["validate-workflow", "WP01", "--json"])
@@ -550,10 +578,11 @@ work_package_id: "WP01"
         assert any("title" in error for error in output["errors"])
         assert any("lane" in error for error in output["errors"])
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_validate_invalid_lane(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should detect invalid lane values."""
         # Create task with invalid lane
@@ -574,6 +603,7 @@ lane: "invalid_lane"
 
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(app, ["validate-workflow", "WP01", "--json"])
@@ -584,10 +614,11 @@ lane: "invalid_lane"
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_validate_warnings(
-        self, mock_slug: Mock, mock_root: Mock, tmp_path: Path
+        self, mock_slug: Mock, mock_root: Mock, mock_ensure: Mock, tmp_path: Path
     ):
         """Should detect warnings like missing activity log."""
         # Create task without activity log
@@ -610,6 +641,7 @@ No activity log section.
 
         mock_root.return_value = repo_root
         mock_slug.return_value = "008-test"
+        mock_ensure.return_value = (repo_root, "main")
 
         # Execute
         result = runner.invoke(app, ["validate-workflow", "WP01", "--json"])
@@ -723,7 +755,10 @@ class TestValidateReadyForReview:
             cmd = args[0] if args else kwargs.get("args", [])
             cwd = kwargs.get("cwd", tmp_path)
 
-            if "status" in cmd and "--porcelain" in cmd:
+            if "branch" in cmd and "--show-current" in cmd:
+                # get_current_branch() call — return a valid branch name
+                return Mock(returncode=0, stdout="008-feature-WP01\n")
+            elif "status" in cmd and "--porcelain" in cmd:
                 if cwd == worktree_path:
                     return Mock(returncode=0, stdout=" M src/main.py\n")
                 else:
@@ -775,7 +810,9 @@ class TestValidateReadyForReview:
             cmd = args[0] if args else kwargs.get("args", [])
             cwd = kwargs.get("cwd", tmp_path)
 
-            if "status" in cmd and "--porcelain" in cmd:
+            if "branch" in cmd and "--show-current" in cmd:
+                return Mock(returncode=0, stdout="008-feature-WP01\n")
+            elif "status" in cmd and "--porcelain" in cmd:
                 return Mock(returncode=0, stdout="")  # Both clean
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations

@@ -113,6 +113,8 @@ class GitVCS:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=60,
                 cwd=str(repo_root),
             )
@@ -131,6 +133,10 @@ class GitVCS:
                     # Non-fatal: workspace created but sparse-checkout failed
                     # Log warning but continue
                     pass
+
+            # Add WP status files to .git/info/exclude (Bug #120 fix)
+            # Use local git exclude (not .gitignore) to prevent merge pollution
+            self._add_wp_status_exclusion(workspace_path)
 
             # Get workspace info for the newly created workspace
             workspace_info = self.get_workspace_info(workspace_path)
@@ -179,6 +185,8 @@ class GitVCS:
                 cwd=workspace_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
 
@@ -225,25 +233,31 @@ class GitVCS:
             if apply_result.returncode != 0:
                 return "Failed to apply sparse-checkout patterns"
 
-            # Also add excluded paths to .gitignore to prevent manual git add
+            # Add excluded paths to .git/info/exclude to prevent manual git add
             # Sparse-checkout only controls checkout, NOT staging
-            worktree_gitignore = workspace_path / ".gitignore"
-            gitignore_entries = []
-            for path in exclude_paths:
-                normalized = path.rstrip("/")
-                gitignore_entries.append(f"\n# Excluded via sparse-checkout\n{normalized}/\n")
+            # Use .git/info/exclude (local, unversioned) instead of .gitignore (fixes #120)
+            git_dir = self._get_git_dir(workspace_path)
+            if git_dir:
+                exclude_file = git_dir / "info" / "exclude"
+                exclude_file.parent.mkdir(parents=True, exist_ok=True)
 
-            if worktree_gitignore.exists():
-                existing_content = worktree_gitignore.read_text(encoding="utf-8")
-                for entry in gitignore_entries:
-                    path_pattern = entry.strip().split("\n")[-1]
-                    if path_pattern and path_pattern not in existing_content:
-                        worktree_gitignore.write_text(
-                            existing_content.rstrip() + entry, encoding="utf-8"
-                        )
-                        existing_content = worktree_gitignore.read_text(encoding="utf-8")
-            else:
-                worktree_gitignore.write_text("".join(gitignore_entries).lstrip(), encoding="utf-8")
+                # Read existing exclude content
+                existing_exclude = ""
+                if exclude_file.exists():
+                    existing_exclude = exclude_file.read_text(encoding="utf-8")
+
+                # Add excluded paths if not already present
+                exclude_entries = []
+                for path in exclude_paths:
+                    normalized = path.rstrip("/")
+                    pattern = f"{normalized}/"
+                    if pattern not in existing_exclude:
+                        exclude_entries.append(f"# Excluded via sparse-checkout\n{pattern}\n")
+
+                if exclude_entries:
+                    # Append new entries to existing content
+                    new_content = existing_exclude.rstrip() + "\n" + "".join(exclude_entries)
+                    exclude_file.write_text(new_content.lstrip(), encoding="utf-8")
 
             return None
 
@@ -251,6 +265,72 @@ class GitVCS:
             return "Sparse-checkout operation timed out"
         except OSError as e:
             return f"OS error during sparse-checkout: {e}"
+
+    def _get_git_dir(self, workspace_path: Path) -> Path | None:
+        """
+        Get the .git directory for a workspace (handles worktrees).
+
+        For worktrees, .git is a file pointing to the actual git directory.
+        For regular repos, .git is a directory.
+
+        Args:
+            workspace_path: Path to the workspace
+
+        Returns:
+            Path to git directory, or None if not found
+        """
+        git_path = workspace_path / ".git"
+
+        if not git_path.exists():
+            return None
+
+        # For worktrees, .git is a file with "gitdir: /path/to/git/dir"
+        if git_path.is_file():
+            try:
+                git_content = git_path.read_text().strip()
+                if git_content.startswith("gitdir:"):
+                    git_dir_str = git_content.split(":", 1)[1].strip()
+                    git_dir = Path(git_dir_str)
+                    if git_dir.exists():
+                        return git_dir
+            except (OSError, IndexError):
+                return None
+
+        # For regular repos, .git is a directory
+        elif git_path.is_dir():
+            return git_path
+
+        return None
+
+    def _add_wp_status_exclusion(self, workspace_path: Path) -> None:
+        """
+        Add WP status files exclusion to .git/info/exclude.
+
+        This prevents WP status files from being accidentally staged in worktrees.
+        Uses .git/info/exclude (local, unversioned) instead of .gitignore to
+        prevent merge pollution (fixes Bug #120).
+
+        Args:
+            workspace_path: Path to the workspace
+        """
+        git_dir = self._get_git_dir(workspace_path)
+        if not git_dir:
+            return
+
+        exclude_file = git_dir / "info" / "exclude"
+        exclude_file.parent.mkdir(parents=True, exist_ok=True)
+
+        exclude_entry = "# Block WP status files (managed in planning branch, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
+
+        # Read existing exclude content
+        existing_content = ""
+        if exclude_file.exists():
+            existing_content = exclude_file.read_text(encoding="utf-8")
+
+        # Only add if not already present
+        if "kitty-specs/**/tasks/*.md" not in existing_content:
+            new_content = existing_content.rstrip() + "\n" + exclude_entry
+            exclude_file.write_text(new_content.lstrip(), encoding="utf-8")
 
     def remove_workspace(self, workspace_path: Path) -> bool:
         """
@@ -275,6 +355,8 @@ class GitVCS:
                 ["git", "worktree", "remove", str(workspace_path), "--force"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 cwd=str(repo_root),
             )
@@ -305,14 +387,14 @@ class GitVCS:
         try:
             # Get current branch using existing helper from git_ops.py
             current_branch = get_current_branch(workspace_path)
-            if current_branch == "HEAD":
-                current_branch = None  # Detached HEAD
 
             # Get current commit
             commit_result = subprocess.run(
                 ["git", "-C", str(workspace_path), "rev-parse", "HEAD"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
             current_commit = (
@@ -324,6 +406,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "status", "--porcelain"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
             has_uncommitted = bool(status_result.stdout.strip())
@@ -370,6 +454,8 @@ class GitVCS:
                 ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -424,6 +510,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "fetch", "--all"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=120,
             )
 
@@ -467,6 +555,8 @@ class GitVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -474,6 +564,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "rev-parse", base_branch],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
 
@@ -502,6 +594,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "rev-parse", "HEAD"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
             pre_rebase_head = (
@@ -515,6 +609,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "rebase", base_branch],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=300,
             )
 
@@ -598,6 +694,8 @@ class GitVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -631,6 +729,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "diff", "--name-only", "--diff-filter=U"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -640,6 +740,8 @@ class GitVCS:
                     ["git", "-C", str(workspace_path), "status", "--porcelain"],
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     timeout=30,
                 )
 
@@ -714,6 +816,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "diff", "--name-only", "--diff-filter=U"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -725,6 +829,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "status", "--porcelain"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -763,6 +869,8 @@ class GitVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -810,6 +918,8 @@ class GitVCS:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=60,
             )
 
@@ -877,6 +987,8 @@ class GitVCS:
                 ["git", "-C", str(workspace_path), "commit", "-m", message],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=60,
             )
 
@@ -946,6 +1058,8 @@ class GitVCS:
                 cwd=str(path),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
 
@@ -975,6 +1089,8 @@ class GitVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
             if result.returncode == 0:
@@ -1046,6 +1162,8 @@ class GitVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
             )
 
@@ -1205,6 +1323,8 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
             ],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
         )
 

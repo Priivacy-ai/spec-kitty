@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -88,6 +89,15 @@ def upgrade(
     migrations_needed = MigrationRegistry.get_applicable(version_for_migration, target_version, project_path=project_path)
 
     if not migrations_needed:
+        # Still stamp the version even when no migrations are needed
+        from specify_cli.upgrade.metadata import ProjectMetadata
+
+        metadata = ProjectMetadata.load(kittify_dir)
+        if metadata and metadata.version != target_version:
+            metadata.version = target_version
+            metadata.last_upgraded_at = datetime.now()
+            metadata.save(kittify_dir)
+
         if json_output:
             console.print(
                 json.dumps(

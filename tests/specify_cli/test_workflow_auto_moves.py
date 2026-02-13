@@ -56,6 +56,10 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (repo_root / ".kittify").mkdir()
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out",
+        lambda repo_root, feature_slug: (repo_root, "main"),
+    )
     return repo_root
 
 

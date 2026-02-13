@@ -46,6 +46,7 @@ def create_multi_parent_base(
     wp_id: str,
     dependencies: list[str],
     repo_root: Path,
+    target_branch: str | None = None,
 ) -> MergeResult:
     """Create a merge commit combining all dependencies for a work package.
 
@@ -83,6 +84,11 @@ def create_multi_parent_base(
             conflicts=[],
         )
 
+    # Resolve target branch dynamically if not provided
+    if target_branch is None:
+        from specify_cli.core.git_ops import resolve_primary_branch
+        target_branch = resolve_primary_branch(repo_root)
+
     # Sort dependencies for deterministic ordering
     sorted_deps = sorted(dependencies)
 
@@ -100,6 +106,8 @@ def create_multi_parent_base(
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
             if result.returncode != 0:
@@ -117,10 +125,12 @@ def create_multi_parent_base(
             try:
                 # Get merge-base between dep branch and main (WITH TIMEOUT)
                 merge_base_result = subprocess.run(
-                    ["git", "merge-base", branch, "main"],
+                    ["git", "merge-base", branch, target_branch],
                     cwd=repo_root,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=False,
                     timeout=10,  # 10 second timeout
                 )
@@ -134,6 +144,8 @@ def create_multi_parent_base(
                         cwd=repo_root,
                         capture_output=True,
                         text=True,
+                        encoding="utf-8",
+                        errors="replace",
                         check=False,
                         timeout=10,  # 10 second timeout
                     )
@@ -144,7 +156,7 @@ def create_multi_parent_base(
                         # If merge-base == branch tip, branch has no unique commits
                         if merge_base == branch_tip:
                             # Bug #1 Fix: Write to stderr to avoid corrupting JSON output
-                            print(f"⚠️  Warning: Dependency branch '{branch}' has no commits beyond main", file=sys.stderr)
+                            print(f"⚠️  Warning: Dependency branch '{branch}' has no commits beyond {target_branch}", file=sys.stderr)
                             print(f"   This may indicate incomplete work or uncommitted changes", file=sys.stderr)
                             print(f"   The merge-base will not include any work from this branch\n", file=sys.stderr)
 
@@ -180,6 +192,8 @@ def create_multi_parent_base(
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         if result.returncode != 0:
@@ -197,6 +211,8 @@ def create_multi_parent_base(
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         if result.returncode != 0:
@@ -217,6 +233,8 @@ def create_multi_parent_base(
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
 
@@ -227,6 +245,8 @@ def create_multi_parent_base(
                     cwd=repo_root,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=False,
                 )
                 if conflict_result.returncode == 0 and conflict_result.stdout.strip():
@@ -268,6 +288,8 @@ def create_multi_parent_base(
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         if result.returncode != 0:

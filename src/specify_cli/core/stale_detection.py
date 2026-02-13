@@ -53,6 +53,8 @@ def get_default_branch(repo_path: Path) -> str:
         cwd=repo_path,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=5,
     )
 
@@ -113,6 +115,8 @@ def get_last_meaningful_commit_time(worktree_path: Path) -> tuple[datetime | Non
             cwd=worktree_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=10,
         )
 
@@ -129,6 +133,8 @@ def get_last_meaningful_commit_time(worktree_path: Path) -> tuple[datetime | Non
             cwd=worktree_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=10,
         )
 
@@ -145,6 +151,8 @@ def get_last_meaningful_commit_time(worktree_path: Path) -> tuple[datetime | Non
             cwd=worktree_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=10,
         )
 

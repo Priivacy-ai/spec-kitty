@@ -1,0 +1,14 @@
+{
+  "wp_id": "WP03",
+  "feature_slug": "025-cli-event-log-integration",
+  "worktree_path": ".worktrees/025-cli-event-log-integration-WP03",
+  "branch_name": "025-cli-event-log-integration-WP03",
+  "base_branch": "025-cli-event-log-integration-WP02",
+  "base_commit": "7d9a6690405ccf8b835a49d27262d99a5c337997",
+  "dependencies": [
+    "WP02"
+  ],
+  "created_at": "2026-01-30T10:53:50.140916+00:00",
+  "created_by": "implement-command",
+  "vcs_backend": "git"
+}

@@ -163,7 +163,9 @@ def validate_wp_ready_for_merge(repo_root: Path, worktree_path: Path, branch_nam
         ["git", "status", "--porcelain"],
         cwd=str(worktree_path),
         capture_output=True,
-        text=True
+        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     if result.stdout.strip():
         return False, f"Worktree {worktree_path.name} has uncommitted changes"
@@ -386,7 +388,7 @@ def merge(
     delete_branch: bool = typer.Option(True, "--delete-branch/--keep-branch", help="Delete feature branch after merge"),
     remove_worktree: bool = typer.Option(True, "--remove-worktree/--keep-worktree", help="Remove feature worktree after merge"),
     push: bool = typer.Option(False, "--push", help="Push to origin after merge"),
-    target_branch: str = typer.Option("main", "--target", help="Target branch to merge into"),
+    target_branch: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
     feature: str = typer.Option(None, "--feature", help="Feature slug when merging from main branch"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from saved state"),
@@ -464,6 +466,17 @@ def merge(
         target_branch = resume_state.target_branch
         strategy = resume_state.strategy
 
+    try:
+        repo_root = find_repo_root()
+    except TaskCliError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    # Resolve target branch dynamically if not specified
+    if target_branch is None:
+        from specify_cli.core.git_ops import resolve_primary_branch
+        target_branch = resolve_primary_branch(repo_root)
+
     tracker = StepTracker("Feature Merge")
     tracker.add("detect", "Detect current feature and branch")
     tracker.add("preflight", "Pre-flight validation")
@@ -475,12 +488,6 @@ def merge(
     if remove_worktree: tracker.add("worktree", "Remove feature worktree")
     if delete_branch: tracker.add("branch", "Delete feature branch")
     console.print()
-
-    try:
-        repo_root = find_repo_root()
-    except TaskCliError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
 
     check_version_compatibility(repo_root, "merge")
 

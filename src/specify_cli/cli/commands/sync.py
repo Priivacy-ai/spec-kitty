@@ -1,13 +1,4 @@
-"""Sync command - synchronize workspace with upstream changes.
-
-This command updates a workspace with changes from its base branch or parent.
-For git workspaces, this performs a rebase. For jj workspaces, this updates
-the workspace revision.
-
-Key difference:
-- git: Sync may fail on conflicts (must be resolved before continuing)
-- jj: Sync always succeeds (conflicts are stored and can be resolved later)
-"""
+"""Sync commands - workspace synchronization."""
 
 from __future__ import annotations
 
@@ -17,7 +8,6 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.core.vcs import (
@@ -30,6 +20,9 @@ from specify_cli.core.vcs import (
 )
 
 console = Console()
+
+# Create a Typer app for sync subcommands
+app = typer.Typer(help="Workspace synchronization commands")
 
 
 def _detect_workspace_context() -> tuple[Path, str | None]:
@@ -58,6 +51,8 @@ def _detect_workspace_context() -> tuple[Path, str | None]:
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             cwd=cwd,
         )
@@ -164,6 +159,8 @@ def _git_repair(workspace_path: Path) -> bool:
             cwd=workspace_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=30,
         )
@@ -190,6 +187,8 @@ def _jj_repair(workspace_path: Path) -> bool:
             cwd=workspace_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=30,
         )
@@ -203,6 +202,8 @@ def _jj_repair(workspace_path: Path) -> bool:
             cwd=workspace_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=30,
         )
@@ -213,7 +214,8 @@ def _jj_repair(workspace_path: Path) -> bool:
         return False
 
 
-def sync(
+@app.command(name="workspace")
+def sync_workspace(
     repair: bool = typer.Option(
         False,
         "--repair",
@@ -240,13 +242,13 @@ def sync(
 
     Examples:
         # Sync current workspace
-        spec-kitty sync
+        spec-kitty sync workspace
 
         # Sync with verbose output
-        spec-kitty sync --verbose
+        spec-kitty sync workspace --verbose
 
         # Attempt recovery from broken state
-        spec-kitty sync --repair
+        spec-kitty sync workspace --repair
     """
     console.print()
 
@@ -358,7 +360,10 @@ def sync(
 
         console.print()
         console.print("[dim]Try:[/dim]")
-        console.print("  spec-kitty sync --repair")
+        console.print("  spec-kitty sync workspace --repair")
         raise typer.Exit(1)
 
     console.print()
+
+
+__all__ = ["app"]

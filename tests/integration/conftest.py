@@ -82,8 +82,8 @@ def test_project(tmp_path: Path) -> Path:
     # Copy missions from new location (src/specify_cli/missions/ -> .kittify/missions/)
     missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
     missions_dest = project / ".kittify" / "missions"
-    if missions_src.exists() and not missions_dest.exists():
-        shutil.copytree(missions_src, missions_dest)
+    if missions_src.exists():
+        shutil.copytree(missions_src, missions_dest, dirs_exist_ok=True)
 
     (project / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
 

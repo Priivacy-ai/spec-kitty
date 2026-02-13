@@ -11,7 +11,7 @@ from .config import (
     SCRIPT_TYPE_CHOICES,
 )
 from .utils import format_path, ensure_directory, safe_remove, get_platform
-from .git_ops import run_command, is_git_repo, init_git_repo, get_current_branch
+from .git_ops import run_command, is_git_repo, init_git_repo, get_current_branch, resolve_primary_branch
 from .project_resolver import (
     locate_project_root,
     resolve_template_path,
@@ -42,6 +42,7 @@ __all__ = [
     "is_git_repo",
     "init_git_repo",
     "get_current_branch",
+    "resolve_primary_branch",
     "locate_project_root",
     "resolve_template_path",
     "resolve_worktree_aware_feature_dir",

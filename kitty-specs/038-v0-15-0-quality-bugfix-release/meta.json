@@ -1,0 +1,10 @@
+{
+  "feature_number": "038",
+  "slug": "v0-15-0-quality-bugfix-release",
+  "friendly_name": "v0.15.0 Quality Bugfix Release",
+  "mission": "software-dev",
+  "source_description": "Fix 7 critical community-reported bugs (GitHub issues #95, #120, #117, #124, #119, #122, #123) on main branch with test-first discipline, release v0.15.0, cherry-pick to 2.x for v2.0.0a2, and thank contributors. Based on plan at ~/.claude/plans/curious-wishing-metcalfe.md",
+  "created_at": "2026-02-11T14:30:00Z",
+  "target_branch": "main",
+  "vcs": "git"
+}
