@@ -195,6 +195,8 @@ def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: in
                     ['lsof', '-ti', f':{port}', '-sTCP:LISTEN'],
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     timeout=2,
                 )
                 if result.returncode == 0 and result.stdout.strip():

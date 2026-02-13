@@ -60,6 +60,8 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
             cwd=project_dir,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=True,
         )
         diagnostics['git_branch'] = result.stdout.strip()

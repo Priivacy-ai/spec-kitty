@@ -27,6 +27,14 @@ Run this command to get the work package prompt and implementation instructions:
 spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
 ```
 
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
+```
+
+</details>
+
 **CRITICAL**: You MUST provide `--agent <your-name>` to track who is implementing!
 
 If no WP ID is provided, it will automatically find the first work package with `lane: "planned"` and move it to "doing" for you.
@@ -42,6 +50,16 @@ cd .worktrees/###-feature-WP##/
 git add -A
 git commit -m "feat(WP##): <describe your implementation>"
 ```
+
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+Set-Location .worktrees\###-feature-WP##\
+git add -A
+git commit -m "feat(WP##): <describe your implementation>"
+```
+
+</details>
 
 **Then move to review:**
 ```bash

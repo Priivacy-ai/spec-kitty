@@ -37,6 +37,60 @@ def test_run_command_allows_nonzero_when_not_checking():
     assert stderr == ""
 
 
+# ============================================================================
+# get_current_branch tests (Bug 1: unborn branch / detached HEAD)
+# ============================================================================
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_get_current_branch_unborn(tmp_path):
+    """get_current_branch returns branch name for a fresh repo with no commits."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init", "--initial-branch=main"], cwd=repo)
+    # No commits — unborn branch
+    branch = get_current_branch(repo)
+    assert branch == "main"
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_get_current_branch_detached_head(tmp_path):
+    """get_current_branch returns None for detached HEAD."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init", "--initial-branch=main"], cwd=repo)
+    (repo / "file.txt").write_text("hello", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "Initial"], cwd=repo)
+    run_command(["git", "checkout", "--detach"], cwd=repo)
+
+    branch = get_current_branch(repo)
+    assert branch is None
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_get_current_branch_normal(tmp_path):
+    """get_current_branch returns branch name for normal branch with commits."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init", "--initial-branch=develop"], cwd=repo)
+    (repo / "file.txt").write_text("hello", encoding="utf-8")
+    run_command(["git", "add", "."], cwd=repo)
+    run_command(["git", "commit", "-m", "Initial"], cwd=repo)
+
+    branch = get_current_branch(repo)
+    assert branch == "develop"
+
+
+def test_get_current_branch_not_git_repo(tmp_path):
+    """get_current_branch returns None for a non-git directory."""
+    plain_dir = tmp_path / "not-a-repo"
+    plain_dir.mkdir()
+
+    branch = get_current_branch(plain_dir)
+    assert branch is None
+
+
 @pytest.mark.usefixtures("_git_identity")
 def test_git_repo_lifecycle(tmp_path, monkeypatch):
     project = tmp_path / "proj"
@@ -58,6 +112,30 @@ def git_identity_fixture(monkeypatch):
     monkeypatch.setenv("GIT_AUTHOR_EMAIL", "spec@example.com")
     monkeypatch.setenv("GIT_COMMITTER_NAME", "Spec Kitty")
     monkeypatch.setenv("GIT_COMMITTER_EMAIL", "spec@example.com")
+
+
+@pytest.mark.usefixtures("_git_identity")
+def test_init_git_repo_failure_returns_false(tmp_path, monkeypatch):
+    """init_git_repo returns False when git init fails (e.g., read-only dir)."""
+    import subprocess as _subprocess
+    from unittest.mock import patch
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "README.md").write_text("hello", encoding="utf-8")
+
+    # Make git init fail by patching subprocess.run
+    original_run = _subprocess.run
+
+    def failing_run(cmd, *args, **kwargs):
+        if cmd and cmd[0] == "git" and "init" in cmd:
+            raise _subprocess.CalledProcessError(128, cmd, stderr="fatal: cannot init")
+        return original_run(cmd, *args, **kwargs)
+
+    with patch("specify_cli.core.git_ops.subprocess.run", side_effect=failing_run):
+        result = init_git_repo(project, quiet=True)
+
+    assert result is False
 
 
 @pytest.mark.usefixtures("_git_identity")

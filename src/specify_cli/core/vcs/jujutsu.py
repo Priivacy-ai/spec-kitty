@@ -173,6 +173,8 @@ class JujutsuVCS:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=60,
                 cwd=str(repo_root),
             )
@@ -207,6 +209,8 @@ class JujutsuVCS:
                 ["jj", "bookmark", "create", workspace_name, "-r", "@"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 cwd=str(workspace_path),  # Run from new workspace
             )
@@ -282,6 +286,8 @@ class JujutsuVCS:
                 ["jj", "workspace", "forget", workspace_name],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 cwd=str(repo_root),
             )
@@ -291,6 +297,8 @@ class JujutsuVCS:
                 ["jj", "bookmark", "delete", workspace_name],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 cwd=str(repo_root),
             )
@@ -341,6 +349,8 @@ class JujutsuVCS:
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
                 cwd=str(workspace_path),
             )
@@ -361,6 +371,8 @@ class JujutsuVCS:
                 ["jj", "status"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
                 cwd=str(workspace_path),
             )
@@ -403,6 +415,8 @@ class JujutsuVCS:
                 ["jj", "workspace", "list"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 cwd=str(repo_root),
             )
@@ -471,6 +485,8 @@ class JujutsuVCS:
                     ["jj", "git", "fetch"],
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     timeout=120,
                     cwd=str(workspace_path),
                 )
@@ -480,6 +496,8 @@ class JujutsuVCS:
                 ["jj", "workspace", "update-stale"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=60,
                 cwd=str(workspace_path),
             )
@@ -540,6 +558,8 @@ class JujutsuVCS:
                 ["jj", "workspace", "update-stale", "--dry-run"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 cwd=str(workspace_path),
             )
@@ -553,6 +573,8 @@ class JujutsuVCS:
                 ["jj", "status"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
                 cwd=str(workspace_path),
             )
@@ -584,6 +606,8 @@ class JujutsuVCS:
                 ["jj", "status"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 cwd=str(workspace_path),
             )
@@ -616,6 +640,8 @@ class JujutsuVCS:
                 ["jj", "log", "-r", "@", "--no-graph", "-T", 'if(conflict, "conflict", "") ++ "\n"'],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
                 cwd=str(workspace_path),
             )
@@ -658,6 +684,8 @@ class JujutsuVCS:
                 ["jj", "log", "-r", "@", "--no-graph", "-T", 'if(conflict, "yes", "no") ++ "\n"'],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
                 cwd=str(workspace_path),
             )
@@ -670,6 +698,8 @@ class JujutsuVCS:
                 ["jj", "status"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
                 cwd=str(workspace_path),
             )
@@ -719,6 +749,8 @@ class JujutsuVCS:
                 ["jj", "log", "-r", "@", "--no-graph", "-T", template],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 cwd=str(workspace_path),
             )
@@ -775,6 +807,8 @@ class JujutsuVCS:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=60,
                 cwd=str(repo_path),
             )
@@ -821,6 +855,8 @@ class JujutsuVCS:
                 ["jj", "describe", "-m", message],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 cwd=str(workspace_path),
             )
@@ -911,6 +947,8 @@ class JujutsuVCS:
                 cwd=str(path),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
             return result.returncode == 0 and result.stdout.strip() != ""
@@ -933,6 +971,8 @@ class JujutsuVCS:
                 cwd=str(path),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
 
@@ -1064,6 +1104,8 @@ def jj_get_operation_log(repo_path: Path, limit: int = 20) -> list[OperationInfo
             ["jj", "op", "log", "--limit", str(limit)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
             cwd=str(repo_path),
         )
@@ -1193,6 +1235,8 @@ def jj_get_change_by_id(repo_path: Path, change_id: str) -> ChangeInfo | None:
             ["jj", "log", "-r", change_id, "--no-graph", "-T", template],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
             cwd=str(repo_path),
         )

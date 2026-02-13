@@ -65,6 +65,8 @@ def check_worktree_status(worktree_path: Path, wp_id: str, branch_name: str) -> 
             cwd=str(worktree_path),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         is_clean = not result.stdout.strip()
@@ -113,6 +115,8 @@ def check_target_divergence(target_branch: str, repo_root: Path) -> tuple[bool, 
             cwd=str(repo_root),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
 

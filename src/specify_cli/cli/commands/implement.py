@@ -168,6 +168,8 @@ def check_base_branch_changed(workspace_path: Path, base_branch: str) -> bool:
             cwd=workspace_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         if result.returncode != 0:
@@ -182,6 +184,8 @@ def check_base_branch_changed(workspace_path: Path, base_branch: str) -> bool:
             cwd=workspace_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
         if result.returncode != 0:
@@ -314,6 +318,8 @@ def _ensure_planning_artifacts_committed_git(
         cwd=repo_root,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False
     )
     current_branch = result.stdout.strip() if result.returncode == 0 else ""
@@ -324,6 +330,8 @@ def _ensure_planning_artifacts_committed_git(
         cwd=repo_root,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False
     )
 
@@ -363,6 +371,8 @@ def _ensure_planning_artifacts_committed_git(
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False
             )
             if result.returncode != 0:
@@ -377,6 +387,8 @@ def _ensure_planning_artifacts_committed_git(
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False
             )
             if result.returncode != 0:
@@ -427,6 +439,8 @@ def _ensure_planning_artifacts_committed_jj(
         cwd=repo_root,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False
     )
     current_bookmark = result.stdout.strip() if result.returncode == 0 else "unknown"
@@ -885,6 +899,8 @@ def implement(
             cwd=repo_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False
         )
         base_commit_sha = result.stdout.strip() if result.returncode == 0 else "unknown"

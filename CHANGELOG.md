@@ -7,6 +7,21 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.2] - 2026-02-13
+
+### 🐛 Fixed
+
+- **Unborn branch misdetected as detached HEAD**: `get_current_branch()` now uses `git branch --show-current` (Git 2.22+) with fallback to `git rev-parse --abbrev-ref HEAD` for older Git. Correctly returns the branch name on fresh repos with no commits, fixing false "Not in a git repository" errors during `spec-kitty init`.
+- **Windows subprocess decode crash**: Added `encoding="utf-8", errors="replace"` to all 113 `subprocess.run(text=True)` calls across 31 files. Prevents `UnicodeDecodeError` on Windows systems with non-UTF-8 locale settings.
+- **Pre-commit hook blocks commits when Python unavailable**: Expanded interpreter detection to try `python3`, `python`, and `py` (Windows launcher) with a smoke test. Removed `set -e` so non-encoding Python failures (e.g. filenames with special characters) warn-and-skip instead of blocking commits. Distinguishes Python execution failure from actual encoding errors via distinct exit codes.
+- **Init reports "project ready" even when git init failed**: `init` now raises `RuntimeError` after `tracker.error()` when `init_git_repo()` returns False, triggering the failure panel and non-zero exit instead of falsely reporting success.
+- **PowerShell equivalents in implement templates**: Added PowerShell syntax examples (in collapsible `<details>` blocks) after bash code blocks in implement templates for all 3 missions (software-dev, research, documentation).
+
+### 🔧 Changed
+
+- Removed 7 duplicate inline `subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"])` calls in `feature.py`, `tasks.py`, and `workflow.py`, replacing them with the centralized `get_current_branch()` helper.
+- Updated all callers that checked `== "HEAD"` to check `is None` instead, since `git branch --show-current` never returns the literal string `"HEAD"`.
+
 ## [0.15.1] - 2026-02-12
 
 ### 🐛 Fixed

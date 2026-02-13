@@ -42,6 +42,14 @@ Run this command to get started:
 spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
 ```
 
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
+```
+
+</details>
+
 **CRITICAL**: You MUST provide `--agent <your-name>` to track who is implementing!
 
 ### Step 1: Navigate to Your Worktree
@@ -49,6 +57,14 @@ spec-kitty agent workflow implement $ARGUMENTS --agent <your-name>
 ```bash
 cd {{workspace_path}}
 ```
+
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+Set-Location {{workspace_path}}
+```
+
+</details>
 
 Your worktree is an isolated workspace for this WP. The deliverables path is accessible here.
 
@@ -77,6 +93,16 @@ cd {{workspace_path}}
 git add {{deliverables_path}}/
 git commit -m "research({{wp_id}}): <describe your research findings>"
 ```
+
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+Set-Location {{workspace_path}}
+git add {{deliverables_path}}/
+git commit -m "research({{wp_id}}): <describe your research findings>"
+```
+
+</details>
 
 Example commit messages:
 - `research(WP01): Document core entities and relationships`

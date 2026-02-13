@@ -94,9 +94,9 @@ def _ensure_branch_checked_out(
     """
     current_branch = get_current_branch(repo_root)
     if current_branch is None:
+        if is_git_repo(repo_root):
+            raise RuntimeError("Planning repo is in detached HEAD state; checkout a branch before continuing")
         raise RuntimeError("Not in a git repository")
-    if current_branch == "HEAD":
-        raise RuntimeError("Planning repo is in detached HEAD state; checkout a branch before continuing")
 
     # If branches differ, show notification (no auto-checkout)
     if current_branch != target_branch:
@@ -270,7 +270,7 @@ def create_feature(
 
         # Verify we're on a branch (not detached HEAD)
         current_branch = get_current_branch(repo_root)
-        if not current_branch or current_branch == "HEAD":
+        if not current_branch:
             error_msg = "Must be on a branch to create features (detached HEAD detected)."
             if json_output:
                 print(json.dumps({"error": error_msg}))
@@ -808,16 +808,10 @@ def _get_current_branch(repo_root: Path) -> str:
         repo_root: Repository root directory
 
     Returns:
-        Current branch name, or 'main' if not in a git repo
+        Current branch name, or primary branch name if detached/not in a repo
     """
-    result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=False
-    )
-    return result.stdout.strip() if result.returncode == 0 else _resolve_primary_branch(repo_root)
+    branch = get_current_branch(repo_root)
+    return branch if branch is not None else _resolve_primary_branch(repo_root)
 
 
 @app.command(name="accept")

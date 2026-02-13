@@ -755,7 +755,10 @@ class TestValidateReadyForReview:
             cmd = args[0] if args else kwargs.get("args", [])
             cwd = kwargs.get("cwd", tmp_path)
 
-            if "status" in cmd and "--porcelain" in cmd:
+            if "branch" in cmd and "--show-current" in cmd:
+                # get_current_branch() call — return a valid branch name
+                return Mock(returncode=0, stdout="008-feature-WP01\n")
+            elif "status" in cmd and "--porcelain" in cmd:
                 if cwd == worktree_path:
                     return Mock(returncode=0, stdout=" M src/main.py\n")
                 else:
@@ -807,7 +810,9 @@ class TestValidateReadyForReview:
             cmd = args[0] if args else kwargs.get("args", [])
             cwd = kwargs.get("cwd", tmp_path)
 
-            if "status" in cmd and "--porcelain" in cmd:
+            if "branch" in cmd and "--show-current" in cmd:
+                return Mock(returncode=0, stdout="008-feature-WP01\n")
+            elif "status" in cmd and "--porcelain" in cmd:
                 return Mock(returncode=0, stdout="")  # Both clean
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations

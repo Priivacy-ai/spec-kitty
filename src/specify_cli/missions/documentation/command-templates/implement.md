@@ -26,6 +26,15 @@ pwd
 # Should show: /path/to/repo/.worktrees/###-feature-WP##/
 ```
 
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+Get-Location
+# Should show: C:\path\to\repo\.worktrees\###-feature-WP##\
+```
+
+</details>
+
 ---
 
 ## User Input
@@ -59,6 +68,13 @@ Documentation implementation follows the standard workspace-per-WP model:
    ```bash
    mkdir -p docs/{tutorials,how-to,reference/api,explanation}
    ```
+   <details><summary>PowerShell equivalent</summary>
+
+   ```powershell
+   'tutorials','how-to','reference\api','explanation' | ForEach-Object { New-Item -ItemType Directory -Force -Path "docs\$_" }
+   ```
+
+   </details>
 2. Create index.md landing page:
    ```markdown
    # {Project Name} Documentation
@@ -313,6 +329,16 @@ cd .worktrees/###-feature-WP##/
 git add docs/
 git commit -m "docs(WP##): <describe your documentation>"
 ```
+
+<details><summary>PowerShell equivalent</summary>
+
+```powershell
+Set-Location .worktrees\###-feature-WP##\
+git add docs/
+git commit -m "docs(WP##): <describe your documentation>"
+```
+
+</details>
 
 **Example commit messages:**
 - `docs(WP01): Add Divio structure and generator configs`

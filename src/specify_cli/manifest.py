@@ -166,6 +166,8 @@ class WorktreeStatus:
                 cwd=self.repo_root,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=True
             )
             for line in result.stdout.split('\n'):
@@ -208,7 +210,9 @@ class WorktreeStatus:
                 ["git", "show-ref", f"refs/heads/{feature}"],
                 cwd=self.repo_root,
                 capture_output=True,
-                text=True
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
             status["branch_exists"] = result.returncode == 0
         except subprocess.CalledProcessError:
@@ -224,6 +228,8 @@ class WorktreeStatus:
                     cwd=self.repo_root,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=True
                 )
                 status["branch_merged"] = feature in result.stdout

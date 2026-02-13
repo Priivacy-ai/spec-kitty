@@ -51,6 +51,8 @@ def _detect_workspace_context() -> tuple[Path, str | None]:
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             cwd=cwd,
         )
@@ -157,6 +159,8 @@ def _git_repair(workspace_path: Path) -> bool:
             cwd=workspace_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=30,
         )
@@ -183,6 +187,8 @@ def _jj_repair(workspace_path: Path) -> bool:
             cwd=workspace_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=30,
         )
@@ -196,6 +202,8 @@ def _jj_repair(workspace_path: Path) -> bool:
             cwd=workspace_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=30,
         )

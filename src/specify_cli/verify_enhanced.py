@@ -50,6 +50,8 @@ def run_enhanced_verify(
             cwd=cwd,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=True
         ).stdout.strip()
     except subprocess.CalledProcessError:

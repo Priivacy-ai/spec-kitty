@@ -64,6 +64,8 @@ def safe_commit(
         cwd=repo_path,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
 
@@ -78,6 +80,8 @@ def safe_commit(
                 cwd=repo_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
             if add_result.returncode != 0:
@@ -90,6 +94,8 @@ def safe_commit(
             cwd=repo_path,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
 
@@ -112,5 +118,7 @@ def safe_commit(
                 cwd=repo_path,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )

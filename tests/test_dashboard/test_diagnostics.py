@@ -95,7 +95,7 @@ def test_run_diagnostics_reports_manifest_and_worktree_state(monkeypatch, tmp_pa
 
     _configure_common_patches(monkeypatch, worktree_dir)
 
-    def fake_run(args, cwd=None, capture_output=False, text=False, check=False):  # noqa: D401 - pytest helper
+    def fake_run(args, cwd=None, capture_output=False, text=False, check=False, **kwargs):  # noqa: D401 - pytest helper
         """Return the active branch name for diagnostics."""
         assert args == ['git', 'branch', '--show-current']
         assert cwd == project_dir

@@ -175,12 +175,12 @@ class TestMoveTaskPreflightCheck:
         with patch("subprocess.run") as mock_run:
             def git_command_side_effect(args, **kwargs):
                 # Match different git commands
-                if "status" in args and "--porcelain" in args and "kitty-specs" in str(args):
+                if "branch" in args and "--show-current" in args:
+                    # get_current_branch() — return branch name (not detached)
+                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
+                elif "status" in args and "--porcelain" in args and "kitty-specs" in str(args):
                     # git status for research artifacts in main repo - empty
                     return MagicMock(returncode=0, stdout="", stderr="")
-                elif "rev-parse" in args and "--abbrev-ref" in args:
-                    # git rev-parse --abbrev-ref HEAD - return branch name (not detached)
-                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
                 elif "rev-parse" in args and "--verify" in args:
                     # git rev-parse --verify for merge/rebase/cherry-pick - not in progress
                     return MagicMock(returncode=1, stdout="", stderr="")
@@ -232,12 +232,12 @@ class TestMoveTaskPreflightCheck:
         with patch("subprocess.run") as mock_run:
             def git_command_side_effect(args, **kwargs):
                 # Match different git commands
-                if "status" in args and "--porcelain" in args and "kitty-specs" in str(args):
+                if "branch" in args and "--show-current" in args:
+                    # get_current_branch() — return branch name (not detached)
+                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
+                elif "status" in args and "--porcelain" in args and "kitty-specs" in str(args):
                     # git status for research artifacts in main repo - empty
                     return MagicMock(returncode=0, stdout="", stderr="")
-                elif "rev-parse" in args and "--abbrev-ref" in args:
-                    # git rev-parse --abbrev-ref HEAD - return branch name (not detached)
-                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
                 elif "rev-parse" in args and "--verify" in args:
                     # git rev-parse --verify for merge/rebase/cherry-pick - not in progress
                     return MagicMock(returncode=1, stdout="", stderr="")

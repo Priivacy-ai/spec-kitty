@@ -36,6 +36,8 @@ class CopilotInvoker(BaseInvoker):
                 ["gh", "extension", "list"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=10,
             )
             return "copilot" in result.stdout.lower()
