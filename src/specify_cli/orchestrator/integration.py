@@ -1197,8 +1197,21 @@ async def _orchestration_main_loop(
             logger.info("Orchestration paused")
             break
 
-        # Get ready WPs
+        # Get ready WPs (PENDING/REWORK with satisfied dependencies)
         ready = get_ready_wps(graph, state)
+
+        # Also check for WPs that are in IMPLEMENTATION or REVIEW but have no active task.
+        # This handles cases where the orchestrator was interrupted or a task completed
+        # but left the WP in an intermediate state that needs to be resumed.
+        for wp_id, wp in state.work_packages.items():
+            if wp.status in [WPStatus.IMPLEMENTATION, WPStatus.REVIEW]:
+                if wp_id not in running_tasks and wp_id not in ready:
+                    # WP is in an active state but has no running task - needs to be restarted
+                    logger.info(
+                        f"WP {wp_id} is in {wp.status.value} status with no active task, "
+                        f"will restart to continue processing"
+                    )
+                    ready.append(wp_id)
 
         # Start tasks for ready WPs (up to available slots)
         for wp_id in ready:
@@ -1230,12 +1243,30 @@ async def _orchestration_main_loop(
             wp_id for wp_id, task in running_tasks.items()
             if task.done()
         ]
+        wps_to_restart = []  # Track WPs that need to be restarted
         for wp_id in completed_wp_ids:
             task = running_tasks.pop(wp_id)
             try:
-                task.result()  # Raises if task failed
+                result = task.result()  # Raises if task failed
+                # If task completed successfully but WP is in intermediate state,
+                # it needs to be restarted to continue processing
+                wp = state.work_packages.get(wp_id)
+                if wp and wp.status in [WPStatus.IMPLEMENTATION, WPStatus.REVIEW]:
+                    logger.info(
+                        f"Task for {wp_id} completed but WP is in {wp.status.value} status, "
+                        f"will restart to continue processing"
+                    )
+                    wps_to_restart.append(wp_id)
             except Exception as e:
                 logger.error(f"Task for {wp_id} raised exception: {e}")
+                # Mark WP as FAILED so dependencies can be unblocked
+                wp = state.work_packages.get(wp_id)
+                if wp and wp.status not in [WPStatus.COMPLETED, WPStatus.FAILED]:
+                    wp.status = WPStatus.FAILED
+                    wp.last_error = f"Task exception: {e}"
+                    state.wps_failed += 1
+                    save_state(state, repo_root)
+                    logger.info(f"Marked {wp_id} as FAILED due to exception")
 
             # Emit DependencyResolved for dependents (T028)
             wp_state = state.work_packages.get(wp_id)
@@ -1254,8 +1285,25 @@ async def _orchestration_main_loop(
                             f"{dependent_wp} (unblocked by {wp_id}): {e}"
                         )
 
-        # Check if nothing can progress
-        if not ready and not running_tasks:
+        # Immediately start tasks for WPs that need to be restarted (before deadlock check)
+        for wp_id in wps_to_restart:
+            if wp_id in running_tasks:
+                continue  # Already running
+            if concurrency.get_available_slots() <= 0:
+                break  # At global limit
+            task = asyncio.create_task(
+                process_wp(
+                    wp_id, state, config, feature_dir, repo_root,
+                    concurrency, console,
+                    override_impl_agent=override_impl_agent,
+                    override_review_agent=override_review_agent,
+                )
+            )
+            running_tasks[wp_id] = task
+            logger.info(f"Restarted task for {wp_id}")
+
+        # Check if nothing can progress (only after handling restarts)
+        if not ready and not running_tasks and not wps_to_restart:
             # Deadlock or all blocked on failed WPs
             remaining = [
                 wp_id for wp_id, wp in state.work_packages.items()
