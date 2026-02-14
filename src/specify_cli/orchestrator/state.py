@@ -85,6 +85,9 @@ class WPExecution:
     last_error: str | None = None
     fallback_agents_tried: list[str] = field(default_factory=list)
 
+    # Restart tracking (for orphan/intermediate state detection)
+    restart_count: int = 0
+
     def validate(self) -> None:
         """Validate state transitions per data-model.md rules.
 

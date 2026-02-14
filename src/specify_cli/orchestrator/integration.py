@@ -844,6 +844,9 @@ async def process_wp(
                 save_state(state, repo_root)
                 return False
 
+            # Reset restart counter for fresh implementation
+            wp.restart_count = 0
+
             # Select implementation agent using user config from spec-kitty init
             impl_agent = select_agent_from_user_config(
                 repo_root, "implementation", override_agent=override_impl_agent
@@ -1218,10 +1221,20 @@ async def _orchestration_main_loop(
         for wp_id, wp in state.work_packages.items():
             if wp.status in [WPStatus.IMPLEMENTATION, WPStatus.REVIEW]:
                 if wp_id not in running_tasks and wp_id not in ready:
+                    # Check restart limit
+                    if wp.restart_count >= config.max_retries:
+                        logger.error(f"WP {wp_id} exceeded max restart attempts ({config.max_retries})")
+                        wp.status = WPStatus.FAILED
+                        wp.last_error = f"Exceeded max restart attempts ({config.max_retries})"
+                        state.wps_failed += 1
+                        save_state(state, repo_root)
+                        continue
+
                     # WP is in an active state but has no running task - needs to be restarted
+                    wp.restart_count += 1
                     logger.info(
                         f"WP {wp_id} is in {wp.status.value} status with no active task, "
-                        f"will restart to continue processing"
+                        f"will restart to continue processing (attempt {wp.restart_count}/{config.max_retries})"
                     )
                     ready.append(wp_id)
 
@@ -1259,14 +1272,25 @@ async def _orchestration_main_loop(
         for wp_id in completed_wp_ids:
             task = running_tasks.pop(wp_id)
             try:
-                result = task.result()  # Raises if task failed
+                task.result()  # Raises if task failed
                 # If task completed successfully but WP is in intermediate state,
                 # it needs to be restarted to continue processing
                 wp = state.work_packages.get(wp_id)
                 if wp and wp.status in [WPStatus.IMPLEMENTATION, WPStatus.REVIEW]:
+                    # Check restart limit
+                    if wp.restart_count >= config.max_retries:
+                        logger.error(f"{wp_id} exceeded max restart attempts ({config.max_retries})")
+                        wp.status = WPStatus.FAILED
+                        wp.last_error = f"Exceeded max restart attempts ({config.max_retries})"
+                        state.wps_failed += 1
+                        save_state(state, repo_root)
+                        continue
+
+                    # Track restart
+                    wp.restart_count += 1
                     logger.info(
                         f"Task for {wp_id} completed but WP is in {wp.status.value} status, "
-                        f"will restart to continue processing"
+                        f"will restart to continue processing (attempt {wp.restart_count}/{config.max_retries})"
                     )
                     wps_to_restart.append(wp_id)
             except Exception as e:
