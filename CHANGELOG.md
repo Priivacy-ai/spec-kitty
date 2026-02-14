@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0a5] - 2026-02-14
+
+### 🐛 Fixed
+
+**Backported orchestrator deadlock fixes from v0.15.3**:
+
+- **Orchestrator deadlock**: Fixed false "No progress possible" detection when WP tasks raise exceptions or complete but leave WPs in intermediate states (IMPLEMENTATION/REVIEW). The orchestrator now properly marks failed WPs as FAILED and restarts orphaned WPs, preventing deadlock cascades. (Backport of #137 by @tannn)
+- **Exception handling**: Task exceptions now properly mark WPs as FAILED with error details, allowing dependent WPs to recognize failure instead of blocking indefinitely
+- **WP restart logic**: Added restart counter to prevent infinite restart loops if WP repeatedly fails to advance state. Restarts are now capped at `max_retries` (default: 3)
+- **State recovery**: Improved detection of interrupted implementations (IMPLEMENTATION status without `implementation_completed` timestamp) to automatically reset and retry
+
+### 🧹 Maintenance
+
+- **Test coverage**: Added 8 new orchestrator tests covering exception handling, restart scenarios, deadlock detection, and state persistence
+- **Test quality**: Reorganized test suite with proper markers (`@pytest.mark.orchestrator_exception_handling`, `@pytest.mark.orchestrator_deadlock_detection`) and class grouping following project conventions
+
 ## [2.0.0a4] - 2026-02-13
 
 ### 🐛 Fixed

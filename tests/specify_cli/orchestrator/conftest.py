@@ -9,6 +9,8 @@ Markers:
     orchestrator_review_cycles: Review rejection/approval cycle tests
     orchestrator_parallel: Parallel execution and dependency tests
     orchestrator_smoke: Basic smoke tests for agent invocation
+    orchestrator_exception_handling: Exception handling and recovery tests
+    orchestrator_deadlock_detection: Deadlock detection and prevention tests
     core_agent: Test requires core tier agent (fails if unavailable)
     extended_agent: Test for extended tier agent (skips if unavailable)
     slow: Test expected to take >30 seconds
@@ -95,6 +97,14 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers",
         "orchestrator_smoke: basic smoke tests for agent invocation"
+    )
+    config.addinivalue_line(
+        "markers",
+        "orchestrator_exception_handling: exception handling and recovery tests"
+    )
+    config.addinivalue_line(
+        "markers",
+        "orchestrator_deadlock_detection: deadlock detection and prevention tests"
     )
 
     # Agent tier markers
