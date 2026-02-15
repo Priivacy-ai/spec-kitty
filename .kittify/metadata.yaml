@@ -3,7 +3,7 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 0.15.3
+  version: 2.0.0a5
   initialized_at: '2026-02-03T17:59:23.703791'
   last_upgraded_at: '2026-02-16T14:32:36.147872'
 environment:
