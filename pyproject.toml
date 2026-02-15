@@ -75,6 +75,7 @@ test = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21.0",  # Required for async orchestrator tests
     "build>=1.0.0",  # Required for distribution tests (wheel building)
+    "respx>=0.21.0",  # Required for HTTP mocking in integration tests
 ]
 
 [project.scripts]
