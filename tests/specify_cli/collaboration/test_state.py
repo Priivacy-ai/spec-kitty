@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 from specify_cli.collaboration.state import get_mission_roster
 from specify_cli.collaboration.models import SessionState
 from specify_cli.events.models import EventQueueEntry
-from spec_kitty_events.models import Event
+from specify_cli.spec_kitty_events.models import Event
 
 
 def test_get_mission_roster_empty_events():
