@@ -14,7 +14,7 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES
 from specify_cli.core.project_resolver import resolve_template_path, resolve_worktree_aware_feature_dir
-from specify_cli.mission import get_feature_mission_key
+from specify_cli.mission_system import get_feature_mission_key
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 

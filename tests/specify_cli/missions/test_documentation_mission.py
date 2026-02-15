@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from specify_cli.mission import (
+from specify_cli.mission_system import (
     Mission,
     MissionError,
     get_mission_by_name,

@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from specify_cli.mission import Mission
+from specify_cli.mission_system import Mission
 
 
 # Get source missions directory for testing

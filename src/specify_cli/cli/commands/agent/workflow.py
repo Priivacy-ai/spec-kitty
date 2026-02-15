@@ -26,7 +26,7 @@ from specify_cli.core.feature_detection import (
 )
 from specify_cli.core.vcs import get_vcs
 from specify_cli.git import safe_commit
-from specify_cli.mission import get_deliverables_path, get_feature_mission_key
+from specify_cli.mission_system import get_deliverables_path, get_feature_mission_key
 from specify_cli.tasks_support import (
     append_activity_log,
     build_document,

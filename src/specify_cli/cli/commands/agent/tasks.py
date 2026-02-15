@@ -20,7 +20,7 @@ from specify_cli.core.feature_detection import (
     get_feature_target_branch,
     FeatureDetectionError,
 )
-from specify_cli.mission import get_feature_mission_key
+from specify_cli.mission_system import get_feature_mission_key
 from specify_cli.git import safe_commit
 
 

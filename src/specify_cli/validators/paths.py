@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List
 
-from specify_cli.mission import Mission
+from specify_cli.mission_system import Mission
 
 __all__ = [
     "PathValidationError",

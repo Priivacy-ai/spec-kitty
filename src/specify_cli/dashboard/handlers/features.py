@@ -16,7 +16,7 @@ from ..scanner import (
 )
 from .base import DashboardHandler
 from specify_cli.legacy_detector import is_legacy_format
-from specify_cli.mission import MissionError, get_mission_by_name
+from specify_cli.mission_system import MissionError, get_mission_by_name
 
 __all__ = ["FeatureHandler"]
 
