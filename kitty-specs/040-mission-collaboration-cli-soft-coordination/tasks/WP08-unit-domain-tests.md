@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Unit & Domain Tests
-lane: "doing"
+lane: "for_review"
 dependencies: [WP02, WP03, WP04, WP05, WP06, WP07]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP07
 base_commit: 80140058d5d243c21f3472d5369dea9629fd6e7c
@@ -228,3 +228,7 @@ def test_gemini_adapter_parse_observation():
 - ✅ All unit tests pass
 - ✅ Coverage >= 90% for new code
 - ✅ `mypy --strict` passes
+
+## Activity Log
+
+- 2026-02-15T14:45:51Z – unknown – shell_pid=91339 – lane=for_review – Moved to for_review
