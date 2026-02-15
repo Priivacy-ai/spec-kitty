@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from specify_cli.core.feature_detection import detect_feature
 from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.template import parse_frontmatter
 from specify_cli.text_sanitization import sanitize_file
@@ -22,6 +23,7 @@ __all__ = [
     "get_workflow_status",
     "read_file_resilient",
     "resolve_feature_dir",
+    "resolve_active_feature",
     "scan_all_features",
     "scan_feature_kanban",
 ]
@@ -239,6 +241,29 @@ def resolve_feature_dir(project_dir: Path, feature_id: str) -> Optional[Path]:
     """Resolve the on-disk directory for the requested feature."""
     feature_paths = gather_feature_paths(project_dir)
     return feature_paths.get(feature_id)
+
+
+def resolve_active_feature(
+    project_dir: Path,
+    features: List[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Resolve active feature using the same detector as CLI status commands."""
+    if not features:
+        return None
+
+    context = detect_feature(
+        project_dir,
+        cwd=project_dir,
+        mode="lenient",
+        announce_fallback=False,
+    )
+    if context:
+        for feature in features:
+            if feature.get("id") == context.slug:
+                return feature
+
+    # Keep previous deterministic fallback for edge cases.
+    return features[0]
 
 
 def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> Dict[str, int]:

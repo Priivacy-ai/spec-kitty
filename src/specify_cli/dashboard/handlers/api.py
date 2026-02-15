@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from ..diagnostics import run_diagnostics
-from ..scanner import format_path_for_display, scan_all_features
+from ..scanner import format_path_for_display, resolve_active_feature, scan_all_features
 from ..templates import get_dashboard_html
 from .base import DashboardHandler
 from specify_cli.mission import MissionError, get_mission_by_name
@@ -34,18 +34,7 @@ class APIHandler(DashboardHandler):
         try:
             features = scan_all_features(project_path)
 
-            # Find active feature: WPs in doing > for_review > most recent
-            active_feature = None
-            for feature in features:
-                stats = feature.get('kanban_stats', {})
-                if stats.get('doing', 0) > 0:
-                    active_feature = feature
-                    break
-                if stats.get('for_review', 0) > 0 and active_feature is None:
-                    active_feature = feature
-
-            if active_feature is None and features:
-                active_feature = features[0]  # Most recent
+            active_feature = resolve_active_feature(project_path, features)
 
             if active_feature:
                 feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')

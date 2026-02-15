@@ -353,6 +353,7 @@ def detect_feature(
     env: Mapping[str, str] | None = None,
     mode: Literal["strict", "lenient"] = "strict",
     allow_single_auto: bool = True,
+    announce_fallback: bool = True,
 ) -> FeatureContext | None:
     """
     Unified feature detection with configurable behavior.
@@ -373,6 +374,7 @@ def detect_feature(
         env: Environment variables (defaults to os.environ)
         mode: "strict" raises error if ambiguous, "lenient" returns None
         allow_single_auto: Auto-detect if exactly one feature exists
+        announce_fallback: Emit console notice when fallback_latest_incomplete is selected
 
     Returns:
         FeatureContext with detection details, or None in lenient mode
@@ -437,12 +439,13 @@ def detect_feature(
                 latest = find_latest_incomplete_feature(repo_root)
                 if latest:
                     # Import console only if needed (avoid circular imports at module level)
-                    try:
-                        from rich.console import Console
-                        console = Console()
-                        console.print(f"[yellow]ℹ️  Auto-selected latest incomplete: {latest}[/yellow]")
-                    except ImportError:
-                        pass  # Silently skip if rich not available
+                    if announce_fallback:
+                        try:
+                            from rich.console import Console
+                            console = Console()
+                            console.print(f"[yellow]ℹ️  Auto-selected latest incomplete: {latest}[/yellow]")
+                        except ImportError:
+                            pass  # Silently skip if rich not available
 
                     detected_slug = latest
                     detection_method = "fallback_latest_incomplete"
