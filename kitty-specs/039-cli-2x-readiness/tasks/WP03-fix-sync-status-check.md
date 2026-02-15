@@ -194,4 +194,4 @@ No dependencies — branches directly from the 2.x branch.
 - 2026-02-12T10:13:55Z – wp03-agent – shell_pid=47102 – lane=doing – Assigned agent via workflow command
 - 2026-02-12T10:20:56Z – wp03-agent – shell_pid=47102 – lane=for_review – Ready for review: real auth token in status check
 - 2026-02-12T10:22:16Z – wp03-reviewer – shell_pid=55363 – lane=doing – Started review via workflow command
-- 2026-02-12T10:26:51Z – wp03-reviewer – shell_pid=55363 – lane=done – Review passed: Real auth token replaces hardcoded test-token in sync status --check. All 3 credential states handled (valid/expired/missing). 11 new tests pass, 436 total sync tests pass with zero regressions. One minor unused import (AuthenticationError) is non-blocking.
+- 2026-02-12T10:26:51Z – wp03-reviewer – shell_pid=55363 – lane=done – Review passed: Real auth token replaces hardcoded test-token in sync status --check. All 3 credential states handled (valid/expired/missing). 11 new tests pass, 436 total sync tests pass (1 skipped) with zero regressions. One minor unused import (AuthenticationError) is non-blocking.

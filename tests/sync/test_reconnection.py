@@ -4,9 +4,6 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from specify_cli.sync.client import WebSocketClient, ConnectionStatus
 
-# Configure pytest-asyncio to use auto mode for this module
-pytestmark = pytest.mark.asyncio
-
 
 class TestReconnectionConfiguration:
     """Test reconnection configuration constants"""
@@ -108,6 +105,7 @@ class TestReconnectionStatus:
 class TestReconnectMethod:
     """Test the reconnect() method behavior"""
 
+    @pytest.mark.asyncio
     async def test_reconnect_max_attempts_switches_to_batch_mode(self):
         """Test reconnect switches to batch mode after max attempts"""
         client = WebSocketClient("ws://localhost", "token")
@@ -122,6 +120,7 @@ class TestReconnectMethod:
         assert client.is_in_batch_mode() is True
         assert client.reconnect_attempts == WebSocketClient.MAX_RECONNECT_ATTEMPTS
 
+    @pytest.mark.asyncio
     async def test_reconnect_success_resets_attempts(self):
         """Test successful reconnection resets attempt counter"""
         client = WebSocketClient("ws://localhost", "token")
@@ -135,6 +134,7 @@ class TestReconnectMethod:
         assert result is True
         assert client.reconnect_attempts == 0
 
+    @pytest.mark.asyncio
     async def test_reconnect_returns_true_on_success(self):
         """Test reconnect returns True when connection succeeds"""
         client = WebSocketClient("ws://localhost", "token")
@@ -145,6 +145,7 @@ class TestReconnectMethod:
 
         assert result is True
 
+    @pytest.mark.asyncio
     async def test_reconnect_stops_after_success(self):
         """Test reconnect stops trying after successful connection"""
         client = WebSocketClient("ws://localhost", "token")
@@ -160,6 +161,7 @@ class TestReconnectMethod:
 
         assert connect_calls == 1
 
+    @pytest.mark.asyncio
     async def test_reconnect_increments_attempts_on_failure(self):
         """Test each failed attempt increments the counter"""
         client = WebSocketClient("ws://localhost", "token")
@@ -177,6 +179,7 @@ class TestReconnectMethod:
         assert len(attempts_seen) == 10
         assert attempts_seen == list(range(10))
 
+    @pytest.mark.asyncio
     async def test_reconnect_calls_sleep_with_exponential_delays(self):
         """Test reconnect sleeps between attempts with exponential backoff"""
         client = WebSocketClient("ws://localhost", "token")
@@ -200,6 +203,7 @@ class TestReconnectMethod:
 class TestJitterBehavior:
     """Test jitter application in backoff delays"""
 
+    @pytest.mark.asyncio
     async def test_jitter_applied_to_delay(self):
         """Test that jitter is applied to the calculated delay"""
         client = WebSocketClient("ws://localhost", "token")
@@ -225,6 +229,7 @@ class TestJitterBehavior:
         assert len(delays) >= 1
         assert delays[0] == 1.0
 
+    @pytest.mark.asyncio
     async def test_negative_delay_clamped_to_zero(self):
         """Test that delay is clamped to 0 if jitter makes it negative"""
         client = WebSocketClient("ws://localhost", "token")
@@ -274,6 +279,7 @@ class _FakeWebSocket:
 class TestClientLifecycle:
     """Tests for connect/disconnect task lifecycle hygiene."""
 
+    @pytest.mark.asyncio
     async def test_disconnect_cancels_listener_task(self):
         """disconnect() should cancel the background listener task."""
         client = WebSocketClient("https://example.test", "token")

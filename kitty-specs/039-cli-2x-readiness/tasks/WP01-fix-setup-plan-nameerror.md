@@ -154,4 +154,4 @@ No dependencies — branches directly from the 2.x branch.
 - 2026-02-12T10:10:11Z – claude-opus – shell_pid=41559 – lane=planned – Resetting - workspace branched from wrong base (main instead of 2.x)
 - 2026-02-12T10:19:45Z – claude-opus – shell_pid=46453 – lane=for_review – Ready for review: fixed missing import and tasks.md commit bug
 - 2026-02-12T10:21:16Z – wp01-reviewer – shell_pid=54201 – lane=doing – Started review via workflow command
-- 2026-02-12T10:25:05Z – wp01-reviewer – shell_pid=54201 – lane=done – Review passed: import fix correct, finalize_tasks refactor clean, all planning/task/lifecycle/feature-command tests pass. One pre-existing failure (test_feature_creation_requires_main_branch) confirmed on 2.x base. WP09 can now proceed.
+- 2026-02-12T10:25:05Z – wp01-reviewer – shell_pid=54201 – lane=done – Review passed: import fix correct, finalize_tasks refactor clean, planning/task/lifecycle/feature-command tests pass (1 skipped: test_feature_creation_requires_main_branch on 2.x base). WP09 can now proceed.
