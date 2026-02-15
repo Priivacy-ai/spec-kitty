@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Collaboration Service Core
-lane: "doing"
+lane: "done"
 dependencies: [WP02, WP03]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP03
 base_commit: 912014a3789215bc7927451d95e2a08c2945a284
@@ -563,3 +563,4 @@ def acknowledge_warning(
 - 2026-02-15T13:40:53Z – codex – shell_pid=49108 – lane=planned – Moved to planned
 - 2026-02-15T13:49:29Z – codex – shell_pid=49108 – lane=for_review – Moved to for_review
 - 2026-02-15T13:50:02Z – codex – shell_pid=57638 – lane=doing – Started review via workflow command
+- 2026-02-15T13:56:08Z – codex – shell_pid=57638 – lane=done – Codex approval round 2: All blocking issues fixed. Implementation matches WP04 requirements. 36/36 collaboration tests passing.
