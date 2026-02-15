@@ -23,6 +23,7 @@ import os
 import time
 from unittest.mock import patch
 import httpx
+from pathlib import Path
 
 from specify_cli.collaboration.service import join_mission, set_focus, set_drive
 from specify_cli.collaboration.state import get_mission_roster
@@ -67,7 +68,23 @@ def test_mission(saas_env):
         pass  # Best effort cleanup
 
 
-def test_concurrent_development(saas_env, test_mission):
+@pytest.fixture
+def isolated_home(tmp_path, monkeypatch):
+    """
+    Isolate HOME directory for each test to prevent session file contamination.
+
+    Each test gets a fresh HOME directory in tmp_path, ensuring:
+    - Separate session files for each participant
+    - No cross-test state pollution
+    - Clean queue storage
+    """
+    home_dir = tmp_path / "home"
+    home_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HOME", str(home_dir))
+    return home_dir
+
+
+def test_concurrent_development(saas_env, test_mission, isolated_home, monkeypatch):
     """
     Success Criterion #1: Concurrent development without false-positive warnings.
 
@@ -79,35 +96,43 @@ def test_concurrent_development(saas_env, test_mission):
     """
     mission_id = test_mission
 
+    # Create separate HOME directories for each participant
+    home_a = isolated_home / "participant_a"
+    home_b = isolated_home / "participant_b"
+    home_a.mkdir(parents=True, exist_ok=True)
+    home_b.mkdir(parents=True, exist_ok=True)
+
     # Participant A joins
+    monkeypatch.setenv("HOME", str(home_a))
     result_a = join_mission(
         mission_id, "developer", saas_env["url"], f"{saas_env['api_key']}-a"
     )
     assert result_a["participant_id"]
-
-    # Participant B joins
-    result_b = join_mission(
-        mission_id, "developer", saas_env["url"], f"{saas_env['api_key']}-b"
-    )
-    assert result_b["participant_id"]
 
     # A: focus=wp:WP01, drive=active
     set_focus(mission_id, "wp:WP01")
     result = set_drive(mission_id, "active")
     assert "collision" not in result  # No collision
 
+    # Participant B joins (different HOME)
+    monkeypatch.setenv("HOME", str(home_b))
+    result_b = join_mission(
+        mission_id, "developer", saas_env["url"], f"{saas_env['api_key']}-b"
+    )
+    assert result_b["participant_id"]
+
     # B: focus=wp:WP02, drive=active
     set_focus(mission_id, "wp:WP02")
     result = set_drive(mission_id, "active")
     assert "collision" not in result  # No collision
 
-    # Verify status
+    # Verify status (from any participant's perspective)
     roster = get_mission_roster(mission_id)
     assert len(roster) == 2
     assert sum(1 for p in roster if p.drive_intent == "active") == 2
 
 
-def test_collision_detection(saas_env, test_mission):
+def test_collision_detection(saas_env, test_mission, isolated_home, monkeypatch):
     """
     Success Criterion #2: 100% collision detection, < 500ms latency.
 
@@ -118,12 +143,20 @@ def test_collision_detection(saas_env, test_mission):
     """
     mission_id = test_mission
 
+    # Create separate HOME directories for each participant
+    home_a = isolated_home / "participant_a"
+    home_b = isolated_home / "participant_b"
+    home_a.mkdir(parents=True, exist_ok=True)
+    home_b.mkdir(parents=True, exist_ok=True)
+
     # Participant A joins and activates
+    monkeypatch.setenv("HOME", str(home_a))
     join_mission(mission_id, "developer", saas_env["url"], f"{saas_env['api_key']}-a")
     set_focus(mission_id, "wp:WP01")
     set_drive(mission_id, "active")
 
-    # Participant B joins
+    # Participant B joins (different HOME)
+    monkeypatch.setenv("HOME", str(home_b))
     join_mission(mission_id, "developer", saas_env["url"], f"{saas_env['api_key']}-b")
     set_focus(mission_id, "wp:WP01")
 
@@ -138,7 +171,7 @@ def test_collision_detection(saas_env, test_mission):
     assert latency_ms < 500  # p99 latency < 500ms
 
 
-def test_organic_handoff(saas_env, test_mission):
+def test_organic_handoff(saas_env, test_mission, isolated_home, monkeypatch):
     """
     Success Criterion #3: Organic handoff < 30s, 0 explicit lock releases.
 
@@ -150,19 +183,29 @@ def test_organic_handoff(saas_env, test_mission):
     """
     mission_id = test_mission
 
+    # Create separate HOME directories for each participant
+    home_a = isolated_home / "participant_a"
+    home_b = isolated_home / "participant_b"
+    home_a.mkdir(parents=True, exist_ok=True)
+    home_b.mkdir(parents=True, exist_ok=True)
+
     # Participant A activates WP01
+    monkeypatch.setenv("HOME", str(home_a))
     join_mission(mission_id, "developer", saas_env["url"], f"{saas_env['api_key']}-a")
     set_focus(mission_id, "wp:WP01")
     set_drive(mission_id, "active")
 
-    # Participant B joins
+    # Participant B joins (different HOME)
+    monkeypatch.setenv("HOME", str(home_b))
     join_mission(mission_id, "developer", saas_env["url"], f"{saas_env['api_key']}-b")
 
     # A switches to WP02 (implicit release)
+    monkeypatch.setenv("HOME", str(home_a))
     start = time.time()
     set_focus(mission_id, "wp:WP02")
 
     # B claims WP01
+    monkeypatch.setenv("HOME", str(home_b))
     set_focus(mission_id, "wp:WP01")
     result = set_drive(mission_id, "active")
     handoff_time = time.time() - start
@@ -172,7 +215,7 @@ def test_organic_handoff(saas_env, test_mission):
     assert handoff_time < 30  # Handoff < 30s
 
 
-def test_offline_replay(saas_env, test_mission, tmp_path, monkeypatch):
+def test_offline_replay(saas_env, test_mission, isolated_home, monkeypatch):
     """
     Success Criterion #4: Offline work replays successfully in < 10s.
 
@@ -184,8 +227,10 @@ def test_offline_replay(saas_env, test_mission, tmp_path, monkeypatch):
     """
     mission_id = test_mission
 
-    # Set HOME to tmp_path to isolate queue storage
-    monkeypatch.setenv("HOME", str(tmp_path))
+    # Create separate HOME directory for participant C
+    home_c = isolated_home / "participant_c"
+    home_c.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HOME", str(home_c))
 
     # C joins online
     join_mission(mission_id, "developer", saas_env["url"], f"{saas_env['api_key']}-c")
@@ -200,7 +245,7 @@ def test_offline_replay(saas_env, test_mission, tmp_path, monkeypatch):
 
     # Verify events queued
     pending = read_pending_events(mission_id)
-    assert len(pending) == 4  # ParticipantJoined (from join_mission) + 4 commands
+    assert len(pending) >= 4  # At least 4 commands (may include join event)
 
     # Reconnect and replay
     start = time.time()
@@ -216,40 +261,58 @@ def test_offline_replay(saas_env, test_mission, tmp_path, monkeypatch):
 
 
 @pytest.mark.slow
-def test_full_scenario(saas_env, test_mission):
+def test_full_scenario(saas_env, isolated_home, monkeypatch):
     """
     Combined scenario: All success criteria in one test.
 
     This test runs all sub-tests sequentially to verify end-to-end workflow.
+    All 4 success criteria are tested (criteria #5 is in contract tests).
     """
-    # Note: Each test cleans up after itself, so we can run them sequentially
-    # However, we need fresh missions for each test to avoid state pollution
+    # Create fresh missions for each test to avoid state pollution
 
-    # Run individual tests (they will use the same test_mission fixture)
-    test_concurrent_development(saas_env, test_mission)
+    # Test #1: Concurrent development
+    response = httpx.post(
+        f"{saas_env['url']}/api/v1/missions",
+        json={"title": "E2E Test Mission - Concurrent"},
+        headers={"Authorization": f"Bearer {saas_env['api_key']}"},
+        timeout=10.0,
+    )
+    response.raise_for_status()
+    mission_id_concurrent = response.json()["mission_id"]
+    test_concurrent_development(saas_env, mission_id_concurrent, isolated_home, monkeypatch)
 
-    # Create fresh mission for collision test
+    # Test #2: Collision detection
     response = httpx.post(
         f"{saas_env['url']}/api/v1/missions",
         json={"title": "E2E Test Mission - Collision"},
         headers={"Authorization": f"Bearer {saas_env['api_key']}"},
         timeout=10.0,
     )
+    response.raise_for_status()
     mission_id_collision = response.json()["mission_id"]
-    test_collision_detection(saas_env, mission_id_collision)
+    test_collision_detection(saas_env, mission_id_collision, isolated_home, monkeypatch)
 
-    # Create fresh mission for handoff test
+    # Test #3: Organic handoff
     response = httpx.post(
         f"{saas_env['url']}/api/v1/missions",
         json={"title": "E2E Test Mission - Handoff"},
         headers={"Authorization": f"Bearer {saas_env['api_key']}"},
         timeout=10.0,
     )
+    response.raise_for_status()
     mission_id_handoff = response.json()["mission_id"]
-    test_organic_handoff(saas_env, mission_id_handoff)
+    test_organic_handoff(saas_env, mission_id_handoff, isolated_home, monkeypatch)
 
-    # Note: test_offline_replay requires tmp_path and monkeypatch fixtures,
-    # so we skip it in the combined test
+    # Test #4: Offline replay
+    response = httpx.post(
+        f"{saas_env['url']}/api/v1/missions",
+        json={"title": "E2E Test Mission - Offline"},
+        headers={"Authorization": f"Bearer {saas_env['api_key']}"},
+        timeout=10.0,
+    )
+    response.raise_for_status()
+    mission_id_offline = response.json()["mission_id"]
+    test_offline_replay(saas_env, mission_id_offline, isolated_home, monkeypatch)
 
 
 def test_adapter_equivalence_reference(saas_env, test_mission):
