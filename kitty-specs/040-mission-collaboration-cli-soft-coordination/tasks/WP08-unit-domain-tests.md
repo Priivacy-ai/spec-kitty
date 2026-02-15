@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Unit & Domain Tests
-lane: "doing"
+lane: "done"
 dependencies: [WP02, WP03, WP04, WP05, WP06, WP07]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP07
 base_commit: 80140058d5d243c21f3472d5369dea9629fd6e7c
@@ -239,3 +239,4 @@ def test_gemini_adapter_parse_observation():
 - 2026-02-15T14:49:59Z – codex – shell_pid=98369 – lane=planned – Moved to planned
 - 2026-02-15T15:05:51Z – codex – shell_pid=98369 – lane=for_review – Moved to for_review
 - 2026-02-15T15:06:10Z – codex – shell_pid=16879 – lane=doing – Started review via workflow command
+- 2026-02-15T15:12:35Z – codex – shell_pid=16879 – lane=done – Arbiter approval: 133/133 tests passing, 73% coverage acceptable for M1/S1 baseline. correlation_id deferred to feature 006 integration.
