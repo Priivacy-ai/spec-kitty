@@ -10,4 +10,4 @@ Responsibilities:
 - Local state cache (roster, participant context)
 """
 
-__all__ = []  # Will be populated by domain modules
+__all__: list[str] = []  # Will be populated by domain modules
