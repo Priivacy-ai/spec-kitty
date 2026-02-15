@@ -34,7 +34,7 @@ from specify_cli.core.feature_detection import (
     FeatureDetectionError,
     detect_feature_slug as centralized_detect_feature_slug,
 )
-from specify_cli.mission import MissionError, get_mission_for_feature
+from specify_cli.mission_system import MissionError, get_mission_for_feature
 from specify_cli.validators.documentation import validate_documentation_mission
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 

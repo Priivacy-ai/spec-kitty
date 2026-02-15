@@ -10,7 +10,7 @@ from typing import Any, Dict
 import pytest
 import yaml
 
-from specify_cli.mission import (
+from specify_cli.mission_system import (
     Mission,
     MissionError,
     MissionNotFoundError,

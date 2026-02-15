@@ -32,7 +32,7 @@ else:
     from specify_cli.version_utils import get_version
     __version__ = get_version()
 
-from specify_cli.mission import MissionNotFoundError
+from specify_cli.mission_system import MissionNotFoundError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import (
     BannerGroup,

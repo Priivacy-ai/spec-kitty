@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
-from specify_cli.mission import (
+from specify_cli.mission_system import (
     Mission,
     MissionError,
     MissionNotFoundError,

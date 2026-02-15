@@ -50,7 +50,7 @@ def test_research_mission_loads_correctly(research_project_root: Path) -> None:
     import sys
     sys.path.insert(0, str(Path.cwd() / "src"))
 
-    from specify_cli.mission import get_active_mission
+    from specify_cli.mission_system import get_active_mission
 
     mission = get_active_mission(research_project_root)
 
@@ -65,7 +65,7 @@ def test_research_templates_exist(research_project_root: Path) -> None:
     import sys
     sys.path.insert(0, str(Path.cwd() / "src"))
 
-    from specify_cli.mission import get_active_mission
+    from specify_cli.mission_system import get_active_mission
 
     mission = get_active_mission(research_project_root)
 
@@ -137,7 +137,7 @@ def test_path_validation_for_research_mission(research_project_root: Path) -> No
     import sys
     sys.path.insert(0, str(Path.cwd() / "src"))
 
-    from specify_cli.mission import get_active_mission
+    from specify_cli.mission_system import get_active_mission
     from specify_cli.validators.paths import validate_mission_paths
 
     mission = get_active_mission(research_project_root)
@@ -209,7 +209,7 @@ def test_deliverables_path_in_meta_json(tmp_path: Path) -> None:
     import json
     sys.path.insert(0, str(Path.cwd() / "src"))
 
-    from specify_cli.mission import get_deliverables_path
+    from specify_cli.mission_system import get_deliverables_path
 
     # Create feature structure
     feature_dir = tmp_path / "kitty-specs" / "001-market-research"
@@ -233,7 +233,7 @@ def test_deliverables_path_not_in_kitty_specs(tmp_path: Path) -> None:
     import sys
     sys.path.insert(0, str(Path.cwd() / "src"))
 
-    from specify_cli.mission import validate_deliverables_path
+    from specify_cli.mission_system import validate_deliverables_path
 
     # Should reject kitty-specs paths
     is_valid, error = validate_deliverables_path("kitty-specs/001-test/research/")
@@ -251,7 +251,7 @@ def test_research_deliverables_separate_from_planning(tmp_path: Path) -> None:
     import json
     sys.path.insert(0, str(Path.cwd() / "src"))
 
-    from specify_cli.mission import get_deliverables_path, get_feature_mission_key
+    from specify_cli.mission_system import get_deliverables_path, get_feature_mission_key
 
     # Create feature structure
     feature_dir = tmp_path / "kitty-specs" / "001-research"
@@ -289,7 +289,7 @@ def test_default_deliverables_path_generation(tmp_path: Path) -> None:
     import json
     sys.path.insert(0, str(Path.cwd() / "src"))
 
-    from specify_cli.mission import get_deliverables_path
+    from specify_cli.mission_system import get_deliverables_path
 
     # Create feature with research mission but NO deliverables_path
     feature_dir = tmp_path / "kitty-specs" / "002-literature-review"

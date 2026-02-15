@@ -16,7 +16,7 @@ class TestGetDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import get_deliverables_path
+        from specify_cli.mission_system import get_deliverables_path
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
@@ -34,7 +34,7 @@ class TestGetDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import get_deliverables_path
+        from specify_cli.mission_system import get_deliverables_path
 
         feature_dir = tmp_path / "kitty-specs" / "001-market-research"
         feature_dir.mkdir(parents=True)
@@ -52,7 +52,7 @@ class TestGetDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import get_deliverables_path
+        from specify_cli.mission_system import get_deliverables_path
 
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         feature_dir.mkdir(parents=True)
@@ -69,7 +69,7 @@ class TestGetDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import get_deliverables_path
+        from specify_cli.mission_system import get_deliverables_path
 
         feature_dir = tmp_path / "kitty-specs" / "002-analysis"
         feature_dir.mkdir(parents=True)
@@ -83,7 +83,7 @@ class TestGetDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import get_deliverables_path
+        from specify_cli.mission_system import get_deliverables_path
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
@@ -97,7 +97,7 @@ class TestGetDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import get_deliverables_path
+        from specify_cli.mission_system import get_deliverables_path
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
@@ -116,7 +116,7 @@ class TestValidateDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import validate_deliverables_path
+        from specify_cli.mission_system import validate_deliverables_path
 
         is_valid, error = validate_deliverables_path("kitty-specs/001-test/research/")
         assert not is_valid
@@ -127,7 +127,7 @@ class TestValidateDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import validate_deliverables_path
+        from specify_cli.mission_system import validate_deliverables_path
 
         is_valid, error = validate_deliverables_path("research/")
         assert not is_valid
@@ -142,7 +142,7 @@ class TestValidateDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import validate_deliverables_path
+        from specify_cli.mission_system import validate_deliverables_path
 
         is_valid, error = validate_deliverables_path("/absolute/path/to/research/")
         assert not is_valid
@@ -153,7 +153,7 @@ class TestValidateDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import validate_deliverables_path
+        from specify_cli.mission_system import validate_deliverables_path
 
         is_valid, error = validate_deliverables_path("docs/research/001-market-analysis/")
         assert is_valid
@@ -164,7 +164,7 @@ class TestValidateDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import validate_deliverables_path
+        from specify_cli.mission_system import validate_deliverables_path
 
         is_valid, error = validate_deliverables_path("research-outputs/001-analysis/")
         assert is_valid
@@ -175,7 +175,7 @@ class TestValidateDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import validate_deliverables_path
+        from specify_cli.mission_system import validate_deliverables_path
 
         is_valid, error = validate_deliverables_path("output/findings/market-research/")
         assert is_valid
@@ -190,7 +190,7 @@ class TestMetaJsonDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import get_deliverables_path
+        from specify_cli.mission_system import get_deliverables_path
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
@@ -216,7 +216,7 @@ class TestMetaJsonDeliverablesPath:
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
-        from specify_cli.mission import get_deliverables_path
+        from specify_cli.mission_system import get_deliverables_path
 
         feature_dir = tmp_path / "kitty-specs" / "018-literature-review"
         feature_dir.mkdir(parents=True)

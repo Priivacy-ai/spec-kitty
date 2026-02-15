@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.mission import validate_deliverables_path
+from specify_cli.mission_system import validate_deliverables_path
 
 pytestmark = [pytest.mark.adversarial]
 

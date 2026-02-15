@@ -18,7 +18,7 @@ from specify_cli.doc_generators import (
     SphinxGenerator,
     RustdocGenerator,
 )
-from specify_cli.mission import get_feature_mission_key
+from specify_cli.mission_system import get_feature_mission_key
 
 
 # ===========================================================================

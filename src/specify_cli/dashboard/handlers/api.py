@@ -9,7 +9,7 @@ from ..diagnostics import run_diagnostics
 from ..scanner import format_path_for_display, scan_all_features
 from ..templates import get_dashboard_html
 from .base import DashboardHandler
-from specify_cli.mission import MissionError, get_mission_by_name
+from specify_cli.mission_system import MissionError, get_mission_by_name
 
 __all__ = ["APIHandler"]
 

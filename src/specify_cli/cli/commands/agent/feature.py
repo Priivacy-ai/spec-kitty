@@ -39,7 +39,7 @@ from specify_cli.core.worktree import (
     validate_feature_structure,
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
-from specify_cli.mission import get_feature_mission_key
+from specify_cli.mission_system import get_feature_mission_key
 
 app = typer.Typer(
     name="feature",
