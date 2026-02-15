@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Integration Tests
-lane: "doing"
+lane: "for_review"
 dependencies: [WP02, WP03, WP04]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP04
 base_commit: 02691ff86790e3b570ea00c36c4682c8dd9b6c0c
@@ -203,3 +203,7 @@ def test_offline_online_flow():
 - ✅ Event schemas compatible with feature 006 prerelease
 - ✅ SaaS API mocking works (no real network calls)
 - ✅ Offline replay flow works end-to-end
+
+## Activity Log
+
+- 2026-02-15T15:20:59Z – unknown – shell_pid=23006 – lane=for_review – Moved to for_review
