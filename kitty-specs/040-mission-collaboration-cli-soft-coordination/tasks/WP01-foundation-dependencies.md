@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Foundation & Dependencies
-lane: "planned"
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: c2b1699cbfc5000079b144dfdffd3724fd815911
@@ -598,3 +598,4 @@ These 3 work packages can be implemented in parallel after WP01.
 - 2026-02-15T11:00:45Z – claude-sonnet-4.5 – shell_pid=51268 – lane=for_review – Ready for review: Foundation complete with all dependencies, module structure, and data models. All validation checks pass.
 - 2026-02-15T11:01:25Z – codex – shell_pid=66141 – lane=doing – Started review via workflow command
 - 2026-02-15T11:04:11Z – codex – shell_pid=66141 – lane=planned – Moved to planned
+- 2026-02-15T11:11:31Z – codex – shell_pid=66141 – lane=for_review – Moved to for_review
