@@ -42,7 +42,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 - Add `httpx` to pyproject.toml (SaaS API client)
 - Add `ulid-py` to pyproject.toml (ULID generation)
 - Add `spec-kitty-events` as Git dependency pinned to feature 006 prerelease commit
-- Update poetry.lock with new dependencies
+- Update uv.lock with new dependencies
 - Verify imports work: `from spec_kitty_events.models import Event`
 
 **T002: Create Module Structure** (~30 lines)
@@ -59,13 +59,14 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
   - `replay_status: Literal["pending", "delivered", "failed"]`
   - `retry_count: int`
   - `last_retry_at: datetime | None`
-- Add serialization helpers: `to_jsonl_line()`, `from_jsonl_line()`
+- Add serialization helpers for queue records (`to_record()`, `from_record()`)
 - Add type annotations with mypy --strict compliance
 
 **T004: Define Session State Models** (~80 lines)
 - Create `src/specify_cli/collaboration/models.py`
 - Define `SessionState` dataclass:
   - `mission_id: str`
+  - `mission_run_id: str` (ULID correlation ID from SaaS join response)
   - `participant_id: str` (ULID, SaaS-issued)
   - `role: Literal["developer", "reviewer", "observer", "stakeholder"]`
   - `joined_at: datetime`
@@ -76,7 +77,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
   - `active_mission_id: str | None`
   - `last_switched_at: datetime | None`
 - Add JSON serialization/deserialization methods
-- Add capability derivation: `get_capabilities() -> dict[str, bool]`
+- Keep role as SaaS-provided metadata (no local capability gating in S1/M1)
 
 **T005: Create ObserveDecideAdapter Protocol** (~60 lines)
 - Create `src/specify_cli/adapters/observe_decide.py`
@@ -108,7 +109,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 - `src/specify_cli/adapters/observe_decide.py` (T005)
 
 **Validation Criteria**:
-- ✅ `poetry install` succeeds with new dependencies
+- ✅ `uv sync` succeeds with new dependencies
 - ✅ `from spec_kitty_events.models import Event` works
 - ✅ All dataclasses have type annotations (mypy --strict passes)
 - ✅ Protocol has 5 method signatures with correct types
@@ -118,7 +119,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 
 ## WP02: Event Queue Infrastructure
 
-**Purpose**: Implement local durable event queue with ULID generation, JSONL storage, Lamport clock, and SaaS replay transport.
+**Purpose**: Implement local durable event queue with ULID generation, queue-backed storage, Lamport clock, and SaaS replay transport.
 
 **Estimated Lines**: ~400
 **Dependencies**: WP01
@@ -128,20 +129,20 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 **T006: Implement ULID Generation Utility** (~50 lines)
 - Create `src/specify_cli/events/ulid_utils.py`
 - Implement `generate_event_id() -> str` using `ulid-py`
-- Implement `generate_participant_id() -> str` (same ULID logic)
+- Do not implement local participant ID generation (participant IDs are SaaS-minted at join)
 - Add monotonic time validation (ensure sortable by creation order)
 - Add unit tests: ULID format (26 chars), uniqueness (generate 1000 IDs, no duplicates)
 
-**T007: Implement JSONL Event Queue Append** (~120 lines)
+**T007: Implement Event Queue Append** (~120 lines)
 - Enhance `src/specify_cli/events/store.py`
 - Implement `append_event(mission_id: str, event: Event, replay_status: str) -> None`:
-  - Create `~/.spec-kitty/events/<mission_id>.jsonl` if missing
-  - Serialize `EventQueueEntry` to JSONL line
+  - Append mission-scoped rows to local queue storage (`EventStore` backend)
+  - Serialize `EventQueueEntry` to queue record payload
   - Atomic write with file locking (fcntl.flock or equivalent)
   - Set file permissions to 0600 (owner read/write only)
 - Implement `read_pending_events(mission_id: str) -> list[EventQueueEntry]`:
-  - Read JSONL file line-by-line
-  - Parse each line to `EventQueueEntry`
+  - Read queue rows for mission
+  - Parse each row to `EventQueueEntry`
   - Filter by `replay_status == "pending"`
 - Add error handling: corrupted lines (log warning, skip line)
 
@@ -185,7 +186,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 
 **Validation Criteria**:
 - ✅ ULID generation produces 26-char strings, sortable by time
-- ✅ JSONL append is atomic (no partial writes), file permissions 0600
+- ✅ Queue append is atomic and durable, with mission-scoped filtering
 - ✅ Lamport clock increments monotonically, survives CLI restarts
 - ✅ Replay batches up to 100 events, retries on network errors
 - ✅ Offline mode appends to queue, online mode delivers immediately
@@ -275,7 +276,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 **T015: Implement Join Mission Use-Case** (~90 lines)
 - Create `src/specify_cli/collaboration/service.py`
 - Implement `join_mission(mission_id: str, role: str, saas_api_url: str, auth_token: str) -> dict`:
-  - Validate role in {developer, reviewer, observer, stakeholder} (reject llm_actor)
+  - Do not hardcode role taxonomy in CLI; pass role label to SaaS and rely on SaaS validation
   - POST `/api/v1/missions/{mission_id}/participants` with httpx:
     - Headers: `Authorization: Bearer {auth_token}`
     - Payload: `{"role": role}`
@@ -283,7 +284,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
   - Save session state: `session.save_session_state(mission_id, SessionState(...))`
   - Set active mission: `session.set_active_mission(mission_id)`
   - Emit `ParticipantJoined` event to local queue
-  - Return: `{"participant_id": ..., "role": ..., "capabilities": ...}`
+  - Return: `{"participant_id": ..., "role": ...}`
 - Add error handling: Network errors, SaaS validation errors (401, 403, 404)
 
 **T016: Implement Set Focus Use-Case** (~70 lines)
@@ -298,17 +299,17 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 
 **T017: Implement Set Drive Use-Case** (~80 lines)
 - Enhance `src/specify_cli/collaboration/service.py`
-- Implement `set_drive(mission_id: str, new_state: str) -> dict`:
-  - Validate new_state in {active, inactive}
+- Implement `set_drive(mission_id: str, intent: str) -> dict`:
+  - Validate `intent` in {active, inactive}
   - Load session state: `state = session.ensure_joined(mission_id)`
-  - If new_state == current state: Skip (idempotent)
-  - **Pre-execution check** (if new_state == active):
+  - If `intent` == current state: Skip (idempotent)
+  - **Pre-execution check** (if `intent` == active):
     - Call `warnings.detect_collision(mission_id, state.focus)`
     - If collision detected: Return `{"collision": {...}, "action": None}`
     - Caller must handle acknowledgement flow (see T020)
-  - Emit `DriveIntentSet` event: `previous_state`, `new_state`, `focus_context`
-  - Update session state: `session.update_session_state(mission_id, drive_intent=new_state)`
-  - Return: `{"status": "success", "drive_intent": new_state}`
+  - Emit `DriveIntentSet` event: `participant_id`, `mission_id`, `intent`
+  - Update session state: `session.update_session_state(mission_id, drive_intent=intent)`
+  - Return: `{"status": "success", "drive_intent": intent}`
 
 **T018: Implement Collision Detection** (~100 lines)
 - Create `src/specify_cli/collaboration/warnings.py`
@@ -333,9 +334,9 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 
 **T020: Implement Warning Acknowledgement Flow** (~30 lines)
 - Enhance `src/specify_cli/collaboration/service.py`
-- Implement `acknowledge_warning(mission_id: str, warning_event_id: str, action: str, reason: str) -> None`:
+- Implement `acknowledge_warning(mission_id: str, warning_id: str, acknowledgement: str) -> None`:
   - Validate action in {continue, hold, reassign, defer}
-  - Emit `WarningAcknowledged` event: `warning_event_id`, `action`, `reason`
+  - Emit `WarningAcknowledged` event: `participant_id`, `mission_id`, `warning_id`, `acknowledgement`
   - If action == "hold": Keep drive_intent=inactive
   - If action == "continue": Proceed with drive=active (caller re-invokes set_drive)
   - If action == "reassign": Emit `CommentPosted` with @mention to conflicting participant
@@ -365,7 +366,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 ### Subtasks
 
 **T021: Implement Mission Join Command** (~120 lines)
-- Create `src/specify_cli/cli/commands/mission/join.py`
+- Add `mission join` handler to existing `src/specify_cli/cli/commands/mission.py`
 - Implement `join_command(mission_id: str, role: str) -> None`:
   - Validate role argument (typer enum or manual validation)
   - Load SaaS config: API URL, auth token from env or config file
@@ -373,20 +374,20 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
   - Display success message with Rich:
     - "✅ Joined mission {mission_id} as {role}"
     - "Participant ID: {participant_id}"
-    - "Capabilities: {capabilities_summary}"
+    - "Role: {role}"
   - Handle errors: Network errors, auth errors, SaaS validation errors
 - Add typer command registration:
   ```python
   @app.command(name="join")
   def join(
       mission_id: str,
-      role: str = typer.Option(..., help="Role: developer, reviewer, observer, stakeholder")
+      role: str = typer.Option(..., help="Participant role label (SaaS-validated)")
   ):
       join_command(mission_id, role)
   ```
 
 **T022: Implement Mission Focus Set Command** (~120 lines)
-- Create `src/specify_cli/cli/commands/mission/focus.py`
+- Add `mission focus set` handler to existing `src/specify_cli/cli/commands/mission.py`
 - Implement `focus_set_command(focus: str, mission_id: str | None = None) -> None`:
   - Resolve mission_id: `mission_id = session.resolve_mission_id(mission_id)`
   - Validate focus format: `wp:<id>`, `step:<id>`, or `none`
@@ -405,20 +406,21 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
       focus_set_command(focus, mission_id)
   ```
 
-**T027: Wire Command Routing in mission/__init__.py** (~60 lines)
-- Create `src/specify_cli/cli/commands/mission/__init__.py`
+**T027: Wire Command Routing in Existing Mission Command Module** (~60 lines)
+- Extend `src/specify_cli/cli/commands/mission.py`
 - Create typer app: `app = typer.Typer(name="mission", help="Mission collaboration commands")`
-- Register subcommands:
-  - `app.command("join")(join.join)`
-  - `app.add_typer(focus_app, name="focus")` (focus subgroup with set command)
-- Export app for parent CLI: `from specify_cli.cli.commands.mission import app as mission_app`
-- Integrate into main CLI: `main_app.add_typer(mission_app)`
+- Register collaboration subcommands on the existing `mission` Typer app:
+  - `mission join`
+  - `mission focus set`
+  - `mission drive set`
+  - `mission status`
+  - `mission comment`
+  - `mission decide`
+- Keep registration through `src/specify_cli/cli/commands/__init__.py`
 
 **Files Modified**:
-- `src/specify_cli/cli/commands/mission/join.py` (T021)
-- `src/specify_cli/cli/commands/mission/focus.py` (T022)
-- `src/specify_cli/cli/commands/mission/__init__.py` (T027)
-- `src/specify_cli/cli/main.py` (integrate mission_app)
+- `src/specify_cli/cli/commands/mission.py` (T021, T022, T027)
+- `src/specify_cli/cli/commands/__init__.py` (verify command registration unchanged)
 
 **Validation Criteria**:
 - ✅ `spec-kitty mission join mission-abc-123 --role developer` succeeds
@@ -438,7 +440,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 ### Subtasks
 
 **T023: Implement Mission Drive Set Command** (~120 lines)
-- Create `src/specify_cli/cli/commands/mission/drive.py`
+- Add `mission drive set` handler to existing `src/specify_cli/cli/commands/mission.py`
 - Implement `drive_set_command(state: str, mission_id: str | None = None) -> None`:
   - Resolve mission_id: `mission_id = session.resolve_mission_id(mission_id)`
   - Validate state in {active, inactive}
@@ -454,7 +456,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 - Add typer command registration
 
 **T024: Implement Mission Status Command** (~100 lines)
-- Create `src/specify_cli/cli/commands/mission/status.py`
+- Add `mission status` handler to existing `src/specify_cli/cli/commands/mission.py`
 - Implement `status_command(mission_id: str | None = None, verbose: bool = False) -> None`:
   - Resolve mission_id
   - Load mission roster: `roster = state.get_mission_roster(mission_id)`
@@ -468,42 +470,38 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 - Add typer command registration
 
 **T025: Implement Mission Comment Command** (~70 lines)
-- Create `src/specify_cli/cli/commands/mission/comment.py`
+- Add `mission comment` handler to existing `src/specify_cli/cli/commands/mission.py`
 - Implement `comment_command(text: str | None = None, mission_id: str | None = None) -> None`:
   - Resolve mission_id
   - Load session state: `state = session.ensure_joined(mission_id)`
   - If text is None: Read from stdin (multi-line support)
   - Validate text: Non-empty after stripping whitespace, max 500 chars (warn if truncated)
   - Generate comment_id: ULID
-  - Emit `CommentPosted` event: `participant_id`, `text`, `focus_context`, `comment_id`
+  - Emit `CommentPosted` event: `participant_id`, `mission_id`, `comment_id`, `content`, optional `reply_to`
   - Display success: "✅ Comment posted (ID: {comment_id})"
 - Add typer command registration
 
 **T026: Implement Mission Decide Command** (~60 lines)
-- Create `src/specify_cli/cli/commands/mission/decide.py`
+- Add `mission decide` handler to existing `src/specify_cli/cli/commands/mission.py`
 - Implement `decide_command(text: str | None = None, mission_id: str | None = None) -> None`:
   - Resolve mission_id
   - Load session state: `state = session.ensure_joined(mission_id)`
-  - Check capability: `state.get_capabilities()["can_decide"]` (reject observer without can_decide)
+  - Do not enforce local role capability gating; enforce joined-session + valid input only
   - If text is None: Read from stdin
   - Validate text: Non-empty, markdown supported
   - Generate decision_id: ULID
-  - Emit `DecisionCaptured` event: `participant_id`, `decision_text`, `focus_context`, `decision_id`
+  - Emit `DecisionCaptured` event: `participant_id`, `mission_id`, `decision_id`, `topic`, `chosen_option`, optional `rationale`
   - Display success: "✅ Decision captured (ID: {decision_id})"
 - Add typer command registration
 
 **Files Modified**:
-- `src/specify_cli/cli/commands/mission/drive.py` (T023)
-- `src/specify_cli/cli/commands/mission/status.py` (T024)
-- `src/specify_cli/cli/commands/mission/comment.py` (T025)
-- `src/specify_cli/cli/commands/mission/decide.py` (T026)
-- `src/specify_cli/cli/commands/mission/__init__.py` (register commands)
+- `src/specify_cli/cli/commands/mission.py` (T023, T024, T025, T026)
 
 **Validation Criteria**:
 - ✅ Drive set displays collision warnings, prompts acknowledgement
 - ✅ Status displays roster table with Rich formatting
 - ✅ Comment accepts stdin input, validates length
-- ✅ Decide checks can_decide capability, rejects observer
+- ✅ Decide validates input and emits canonical `DecisionCaptured` payload
 
 ---
 
@@ -585,7 +583,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 **T031: Unit Tests for Event Queue** (~80 lines)
 - Create `tests/specify_cli/events/test_store.py`
 - Test `append_event`:
-  - Creates JSONL file if missing
+  - Appends to local queue store if missing
   - Appends event with correct format
   - Sets file permissions to 0600
   - Atomic write (no partial lines on simulated crash)
@@ -636,17 +634,17 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
   - Returns None if no collision
 
 **T034: Unit Tests for CLI Commands** (~80 lines)
-- Create `tests/specify_cli/cli/commands/mission/test_join.py`
+- Create `tests/specify_cli/cli/commands/test_mission_join.py`
 - Test join command:
   - Validates role argument
   - Calls service.join_mission with correct args
   - Displays success message (check Rich output)
-- Create `tests/specify_cli/cli/commands/mission/test_focus.py`
+- Create `tests/specify_cli/cli/commands/test_mission_focus.py`
 - Test focus set command:
   - Resolves mission_id from active pointer
   - Validates focus format
   - Displays success message
-- Create `tests/specify_cli/cli/commands/mission/test_drive.py`
+- Create `tests/specify_cli/cli/commands/test_mission_drive.py`
 - Test drive set command:
   - Prompts acknowledgement if collision detected
   - Calls acknowledge_warning with user input
@@ -671,9 +669,9 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 - `tests/specify_cli/collaboration/test_session.py`
 - `tests/specify_cli/collaboration/test_service.py`
 - `tests/specify_cli/collaboration/test_warnings.py`
-- `tests/specify_cli/cli/commands/mission/test_join.py`
-- `tests/specify_cli/cli/commands/mission/test_focus.py`
-- `tests/specify_cli/cli/commands/mission/test_drive.py`
+- `tests/specify_cli/cli/commands/test_mission_join.py`
+- `tests/specify_cli/cli/commands/test_mission_focus.py`
+- `tests/specify_cli/cli/commands/test_mission_drive.py`
 - `tests/specify_cli/adapters/test_observe_decide.py`
 - `tests/specify_cli/adapters/test_gemini.py`
 - `tests/specify_cli/adapters/test_cursor.py`
@@ -681,7 +679,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
 **Validation Criteria**:
 - ✅ All unit tests pass: `pytest tests/specify_cli/events/ -v`
 - ✅ All unit tests pass: `pytest tests/specify_cli/collaboration/ -v`
-- ✅ All unit tests pass: `pytest tests/specify_cli/cli/commands/mission/ -v`
+- ✅ All unit tests pass: `pytest tests/specify_cli/cli/commands/test_mission_* -v`
 - ✅ All unit tests pass: `pytest tests/specify_cli/adapters/ -v`
 - ✅ Coverage >= 90% for new code: `pytest --cov=src/specify_cli --cov-report=html`
 
@@ -704,14 +702,14 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
   - Validate ULID format (event_id, causation_id): 26 chars
   - Validate required fields: event_type, aggregate_id, payload, timestamp, node_id, lamport_clock
   - Serialize to JSON, deserialize, verify round-trip
-- Test collaboration event payloads (draft contracts):
-  - ParticipantJoined: participant_id, role, participant_type
-  - DriveIntentSet: previous_state, new_state, focus_context
-  - FocusChanged: previous_focus, new_focus
-  - ConcurrentDriverWarning: participant_id, conflicting_participants, severity
-  - WarningAcknowledged: warning_event_id, action, reason
-  - CommentPosted: text, focus_context, comment_id
-  - DecisionCaptured: decision_text, focus_context, decision_id
+- Test collaboration event payloads (canonical feature 006 contracts):
+  - ParticipantJoined: participant_id, participant_identity, mission_id, optional auth_principal_id
+  - DriveIntentSet: participant_id, mission_id, intent
+  - FocusChanged: participant_id, mission_id, focus_target, optional previous_focus_target
+  - ConcurrentDriverWarning: warning_id, mission_id, participant_ids, focus_target, severity
+  - WarningAcknowledged: participant_id, mission_id, warning_id, acknowledgement
+  - CommentPosted: participant_id, mission_id, comment_id, content, optional reply_to
+  - DecisionCaptured: participant_id, mission_id, decision_id, topic, chosen_option, optional rationale
 - Validate schema version compatibility (if schema_version field exists)
 
 **T037: Integration Test - SaaS Join API** (~90 lines)
@@ -739,7 +737,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
   - Verify CLI batches events (max 100 per request)
   - Verify CLI marks accepted events as "delivered"
 - Test partial failure:
-  - Mock response: `{"accepted": [event_id1], "rejected": [{"event_id": event_id2, "error": "unknown participant"}]}`
+  - Mock response: `{"accepted": [event_id1], "rejected": [{"event_id": event_id2, "error": "participant not in mission roster"}]}`
   - Verify CLI marks rejected events as "failed"
   - Verify CLI logs error message
 - Test retry logic:
@@ -755,7 +753,7 @@ This feature implements mission collaboration commands for spec-kitty CLI, enabl
     - focus set wp:WP01 → Appends event with replay_status="pending"
     - drive set active → Appends event with replay_status="pending"
     - comment --text "test" → Appends event with replay_status="pending"
-  - Verify events written to JSONL queue
+  - Verify events written to local durable queue
   - Simulate reconnect (mock SaaS API success)
   - Trigger replay (call replay_pending_events)
   - Verify all 3 events sent in batch
@@ -895,7 +893,7 @@ spec-kitty implement WP10 --base WP09
 - ✅ FR-6: Decide command (capability check, decision capture)
 - ✅ FR-7: Collision warning & acknowledgement flow (continue|hold|reassign|defer)
 - ✅ FR-8: Canonical event emission (14 event types, ULID identifiers)
-- ✅ FR-9: Offline queue & replay (durable JSONL, batch send)
+- ✅ FR-9: Offline queue & replay (durable local queue, batch send)
 - ✅ FR-10: Gemini & Cursor adapter interface (protocol compliance)
 
 **Success Criteria:**
@@ -920,7 +918,7 @@ spec-kitty implement WP10 --base WP09
 **Session State Security:**
 - All session files stored with permissions 0600 (owner read/write only)
 - participant_id must be SaaS-minted (CLI cannot invent IDs)
-- SaaS validates participant_id on event replay (rejects unknown participants)
+- SaaS validates participant_id on event replay (rejects stale/revoked participants not in mission roster)
 
 **Offline Mode:**
 - Join must succeed online (SaaS mints participant_id)
