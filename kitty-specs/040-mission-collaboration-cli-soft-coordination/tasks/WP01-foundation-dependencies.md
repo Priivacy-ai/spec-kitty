@@ -1,13 +1,13 @@
 ---
 work_package_id: WP01
 title: Foundation & Dependencies
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: main
 base_commit: c2b1699cbfc5000079b144dfdffd3724fd815911
 created_at: '2026-02-15T10:51:38.487850+00:00'
 subtasks: [T001, T002, T003, T004, T005]
-shell_pid: "83301"
+shell_pid: "88801"
 agent: "codex"
 review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
@@ -613,3 +613,4 @@ Current failures include unparameterized `dict` annotations in `src/specify_cli/
 - 2026-02-15T11:12:45Z – codex – shell_pid=83301 – lane=doing – Started review via workflow command
 - 2026-02-15T11:15:14Z – codex – shell_pid=83301 – lane=planned – Moved to planned
 - 2026-02-15T11:22:24Z – codex – shell_pid=83301 – lane=for_review – Moved to for_review
+- 2026-02-15T11:22:58Z – codex – shell_pid=88801 – lane=doing – Started review via workflow command
