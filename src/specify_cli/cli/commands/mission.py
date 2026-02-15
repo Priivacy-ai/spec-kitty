@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Iterable, List, Optional
 
+import httpx
 import typer
 from rich.panel import Panel
 from rich.table import Table
@@ -24,6 +26,8 @@ from specify_cli.core.feature_detection import (
     detect_feature,
     FeatureDetectionError,
 )
+from specify_cli.collaboration.service import join_mission, set_focus
+from specify_cli.collaboration.session import resolve_mission_id
 
 app = typer.Typer(
     name="mission",
@@ -291,3 +295,76 @@ def switch_cmd(
     console.print()
     console.print("[dim]See: https://github.com/your-org/spec-kitty#per-feature-missions[/dim]")
     raise typer.Exit(1)
+
+
+# ============================================================================
+# Collaboration Commands
+# ============================================================================
+
+
+def join_command(mission_id: str, role: str) -> None:
+    """Join mission with specified role."""
+    try:
+        # Load SaaS config from env
+        saas_api_url = os.getenv("SAAS_API_URL", "https://api.spec-kitty-saas.com")
+        auth_token = os.getenv("SAAS_AUTH_TOKEN", "")
+
+        if not auth_token:
+            console.print("[red]❌ SAAS_AUTH_TOKEN environment variable not set[/red]")
+            console.print("[dim]Set your authentication token to join missions:[/dim]")
+            console.print("  export SAAS_AUTH_TOKEN=your_token_here")
+            raise typer.Exit(1)
+
+        result = join_mission(mission_id, role, saas_api_url, auth_token)
+
+        console.print(f"✅ Joined mission [bold]{mission_id}[/bold] as [bold]{role}[/bold]")
+        console.print(f"Participant ID: [cyan]{result['participant_id']}[/cyan]")
+
+    except ValueError as e:
+        console.print(f"[red]❌ {e}[/red]")
+        raise typer.Exit(1)
+    except httpx.HTTPStatusError as e:
+        console.print(f"[red]❌ HTTP {e.response.status_code}: {e.response.text}[/red]")
+        raise typer.Exit(1)
+    except httpx.HTTPError as e:
+        console.print(f"[red]❌ Network error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name="join")
+def join_cmd(
+    mission_id: str = typer.Argument(..., help="Mission ID"),
+    role: str = typer.Option(..., "--role", help="Participant role label (SaaS-validated)"),
+) -> None:
+    """Join mission as participant."""
+    join_command(mission_id, role)
+
+
+def focus_set_command(focus: str, mission_id: str | None = None) -> None:
+    """Set focus target."""
+    try:
+        resolved_mission_id = resolve_mission_id(mission_id)
+        set_focus(resolved_mission_id, focus)
+
+        console.print(f"✅ Focus set to [bold]{focus}[/bold]")
+
+    except ValueError as e:
+        console.print(f"[red]❌ {e}[/red]")
+        raise typer.Exit(1)
+
+
+# Focus sub-commands
+focus_app = typer.Typer(name="focus", help="Focus management commands")
+
+
+@focus_app.command(name="set")
+def set_focus_cmd(
+    focus: str = typer.Argument(..., help="Focus target: wp:<id>, step:<id>, or none"),
+    mission: Optional[str] = typer.Option(None, "--mission", help="Mission ID (default: active mission)"),
+) -> None:
+    """Set focus target."""
+    focus_set_command(focus, mission)
+
+
+# Register focus sub-app
+app.add_typer(focus_app)
