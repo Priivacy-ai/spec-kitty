@@ -23,15 +23,12 @@ from task_helpers import (  # noqa: E402
     append_activity_log,
     activity_entries,
     build_document,
-    detect_conflicting_wp_status,
     ensure_lane,
     find_repo_root,
     get_lane_from_frontmatter,
-    git_status_lines,
     is_legacy_format,
     normalize_note,
     now_utc,
-    path_has_changes,
     run_git,
     set_scalar,
     split_frontmatter,
@@ -39,7 +36,6 @@ from task_helpers import (  # noqa: E402
 )
 from acceptance_support import (  # noqa: E402
     AcceptanceError,
-    AcceptanceResult,
     AcceptanceSummary,
     ArtifactEncodingError,
     choose_mode,
@@ -96,7 +92,7 @@ def _collect_summary_with_encoding(
             feature,
             strict_metadata=strict_metadata,
         )
-    except ArtifactEncodingError as exc:
+    except ArtifactEncodingError:
         if not normalize_encoding:
             raise
         cleaned = normalize_feature_encoding(repo_root, feature)
@@ -592,14 +588,24 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
     meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def merge_command(args: argparse.Namespace) -> None:
+    # Capture the original working directory (may be a worktree) before
+    # find_repo_root() resolves it back to the main repository root.
+    # Branch detection must use the worktree cwd so that git returns the
+    # worktree's checked-out branch rather than the main repo's branch.
+    worktree_cwd = Path.cwd()
     repo_root = find_repo_root()
     feature = _resolve_feature(repo_root, args.feature)
+
+    # Resolve target branch dynamically if not specified
+    if args.target is None:
+        from specify_cli.core.git_ops import resolve_primary_branch
+        args.target = resolve_primary_branch(repo_root)
 
     current_branch = run_git([
         "rev-parse",
         "--abbrev-ref",
         "HEAD",
-    ], cwd=repo_root, check=True).stdout.strip()
+    ], cwd=worktree_cwd, check=True).stdout.strip()
 
     if current_branch == args.target:
         raise TaskCliError(
@@ -612,15 +618,19 @@ def merge_command(args: argparse.Namespace) -> None:
             " Run this command from the feature worktree or specify --feature explicitly."
         )
 
+    # Use the original worktree cwd for git-common-dir detection so that
+    # we correctly identify whether we are inside a worktree.  find_repo_root()
+    # already resolved to the main repo, so running git-common-dir there
+    # would always report "not a worktree".
     try:
-        git_common = run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True).stdout.strip()
+        git_common = run_git(["rev-parse", "--git-common-dir"], cwd=worktree_cwd, check=True).stdout.strip()
         primary_repo_root = Path(git_common).resolve().parent
     except TaskCliError:
         primary_repo_root = Path(repo_root).resolve()
 
-    repo_root = Path(repo_root).resolve()
+    worktree_root = worktree_cwd.resolve()
     primary_repo_root = primary_repo_root.resolve()
-    in_worktree = repo_root != primary_repo_root
+    in_worktree = worktree_root != primary_repo_root
 
     def ensure_clean(cwd: Path) -> None:
         status = run_git(["status", "--porcelain"], cwd=cwd, check=True).stdout.strip()
@@ -629,7 +639,7 @@ def merge_command(args: argparse.Namespace) -> None:
                 f"Working directory at {cwd} has uncommitted changes. Commit or stash before merging."
             )
 
-    ensure_clean(repo_root)
+    ensure_clean(worktree_root)
     if in_worktree:
         ensure_clean(primary_repo_root)
 
@@ -648,7 +658,7 @@ def merge_command(args: argparse.Namespace) -> None:
         if args.push:
             steps.append(f"  - Push {args.target} to origin (if upstream configured)")
         if in_worktree and args.remove_worktree:
-            steps.append(f"  - Remove worktree at {repo_root}")
+            steps.append(f"  - Remove worktree at {worktree_root}")
         if args.delete_branch:
             steps.append(f"  - Delete branch {feature}")
         print("\n".join(steps))
@@ -715,8 +725,8 @@ def merge_command(args: argparse.Namespace) -> None:
         print("[spec-kitty] Skipping push: no remote configured.", file=sys.stderr)
 
     if in_worktree and args.remove_worktree:
-        if repo_root.exists():
-            git(["worktree", "remove", str(repo_root), "--force"])
+        if worktree_root.exists():
+            git(["worktree", "remove", str(worktree_root), "--force"])
 
     if args.delete_branch:
         delete = git(["branch", "-d", feature], check=False)
@@ -804,7 +814,7 @@ def build_parser() -> argparse.ArgumentParser:
     merge = subparsers.add_parser("merge", help="Merge a feature branch into the target branch")
     merge.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
     merge.add_argument("--strategy", choices=["merge", "squash", "rebase"], default="merge")
-    merge.add_argument("--target", default="main", help="Target branch to merge into")
+    merge.add_argument("--target", default=None, help="Target branch to merge into (auto-detected)")
     merge.add_argument("--push", action="store_true", help="Push to origin after merging")
     merge.add_argument("--delete-branch", dest="delete_branch", action="store_true", default=True)
     merge.add_argument("--keep-branch", dest="delete_branch", action="store_false")

@@ -2,10 +2,10 @@ vcs:
   type: git
 agents:
   available:
+  - copilot
   - claude
-  - opencode
   - codex
   selection:
-    strategy: random
-    preferred_implementer:
-    preferred_reviewer:
+    strategy: preferred
+    preferred_implementer: claude
+    preferred_reviewer: codex
