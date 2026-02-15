@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from unittest.mock import patch, mock_open, MagicMock
 from specify_cli.events.store import append_event
-from spec_kitty_events.models import Event
+from specify_cli.spec_kitty_events.models import Event
 
 
 @pytest.fixture

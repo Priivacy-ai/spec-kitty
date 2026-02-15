@@ -15,7 +15,7 @@ else:
 
 from specify_cli.events import EventAdapter
 from specify_cli.events.models import EventQueueEntry
-from spec_kitty_events.models import Event
+from specify_cli.spec_kitty_events.models import Event
 
 
 def _lock_file(file_handle) -> None:

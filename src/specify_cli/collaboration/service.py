@@ -12,7 +12,7 @@ from specify_cli.collaboration.models import SessionState
 from specify_cli.events.store import emit_event
 from specify_cli.events.ulid_utils import generate_event_id
 from specify_cli.events.lamport import LamportClock
-from spec_kitty_events.models import Event
+from specify_cli.spec_kitty_events.models import Event
 
 
 def _to_focus_target(focus: str | None) -> dict | None:
@@ -105,7 +105,7 @@ def join_mission(
             },
             "auth_principal_id": data.get("auth_principal_id"),
         },
-        timestamp=now.isoformat(),
+        timestamp=now,
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=None,
@@ -154,7 +154,7 @@ def set_focus(mission_id: str, focus: str, node_id: str = "cli-local") -> None:
             "focus_target": _to_focus_target(focus),
             "previous_focus_target": _to_focus_target(state.focus) if state.focus else None,
         },
-        timestamp=datetime.now().isoformat(),
+        timestamp=datetime.now(),
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=None,
@@ -212,7 +212,7 @@ def set_drive(mission_id: str, intent: str, node_id: str = "cli-local") -> dict:
             "mission_id": mission_id,
             "intent": intent,
         },
-        timestamp=datetime.now().isoformat(),
+        timestamp=datetime.now(),
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=None,
@@ -261,7 +261,7 @@ def acknowledge_warning(
             "warning_id": warning_id,
             "acknowledgement": acknowledgement,
         },
-        timestamp=datetime.now().isoformat(),
+        timestamp=datetime.now(),
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=warning_id,
