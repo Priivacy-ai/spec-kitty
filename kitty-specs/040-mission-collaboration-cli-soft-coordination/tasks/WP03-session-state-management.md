@@ -1,9 +1,13 @@
 ---
 work_package_id: WP03
 title: Session State Management
-dependencies: ["WP01"]
-lane: "planned"
-subtasks: ["T011", "T012", "T013", "T014"]
+lane: "doing"
+dependencies: [WP01]
+base_branch: 040-mission-collaboration-cli-soft-coordination-WP02
+base_commit: 9f352ec48cd0200bc28d33ec408e8575b9fcbb08
+created_at: '2026-02-15T13:12:20.111712+00:00'
+subtasks: [T011, T012, T013, T014]
+shell_pid: "34400"
 ---
 
 # WP03: Session State Management
