@@ -31,13 +31,15 @@ def get_mission_roster(mission_id: str) -> list[SessionState]:
 
         # Initialize participant if not in roster
         if participant_id not in roster and event_type == "ParticipantJoined":
+            # event.timestamp is already a datetime object, not a string
+            timestamp = event.timestamp if isinstance(event.timestamp, datetime) else datetime.fromisoformat(event.timestamp)
             roster[participant_id] = SessionState(
                 mission_id=mission_id,
-                mission_run_id=event.get("correlation_id") if hasattr(event, "correlation_id") else "",
+                mission_run_id=payload.get("mission_run_id", ""),
                 participant_id=participant_id,
                 role=payload.get("role", "participant"),
-                joined_at=datetime.fromisoformat(event.timestamp),
-                last_activity_at=datetime.fromisoformat(event.timestamp),
+                joined_at=timestamp,
+                last_activity_at=timestamp,
                 drive_intent="inactive",
                 focus=None,
             )
@@ -45,12 +47,17 @@ def get_mission_roster(mission_id: str) -> list[SessionState]:
         # Update participant state based on event type
         if participant_id in roster:
             state = roster[participant_id]
-            state.last_activity_at = datetime.fromisoformat(event.timestamp)
+            # event.timestamp is already a datetime object
+            state.last_activity_at = event.timestamp if isinstance(event.timestamp, datetime) else datetime.fromisoformat(event.timestamp)
 
             if event_type == "FocusChanged":
                 target = payload.get("focus_target")
                 if target:
-                    state.focus = f"{target['target_type']}:{target['target_id']}"
+                    # Map "work_package" -> "wp" to match local session format
+                    target_type = target['target_type']
+                    if target_type == "work_package":
+                        target_type = "wp"
+                    state.focus = f"{target_type}:{target['target_id']}"
                 else:
                     state.focus = None
 

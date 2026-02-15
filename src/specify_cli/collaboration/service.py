@@ -137,8 +137,9 @@ def set_focus(mission_id: str, focus: str, node_id: str = "cli-local") -> None:
     # Load session
     state = ensure_joined(mission_id)
 
-    # Idempotent check
-    if state.focus == focus:
+    # Idempotent check - normalize "none" to None for comparison
+    normalized_focus = None if focus == "none" else focus
+    if state.focus == normalized_focus:
         return  # No change
 
     # Emit FocusChanged event
