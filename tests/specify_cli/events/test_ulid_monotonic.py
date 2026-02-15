@@ -37,7 +37,7 @@ def test_ulid_format():
 def test_datetime_serialization_in_event_model():
     """Test that Event models with datetime fields serialize correctly to JSON."""
     # This test verifies the fix for model_dump() -> model_dump(mode="json")
-    from spec_kitty_events.models import Event
+    from specify_cli.spec_kitty_events.models import Event
 
     # Create an event with a datetime field
     event = Event(

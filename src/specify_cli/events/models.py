@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 import json
-from spec_kitty_events.models import Event
+from specify_cli.spec_kitty_events.models import Event
 
 
 @dataclass

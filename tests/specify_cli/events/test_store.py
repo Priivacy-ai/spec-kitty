@@ -11,7 +11,7 @@ from specify_cli.events.store import (
     is_online,
 )
 from specify_cli.events.models import EventQueueEntry
-from spec_kitty_events.models import Event
+from specify_cli.spec_kitty_events.models import Event
 
 
 def test_append_event_creates_file(tmp_path, monkeypatch):

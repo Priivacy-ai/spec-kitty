@@ -38,7 +38,7 @@ from specify_cli.collaboration.state import get_mission_roster
 from specify_cli.events.ulid_utils import generate_event_id
 from specify_cli.events.store import emit_event
 from specify_cli.events.lamport import LamportClock
-from spec_kitty_events.models import Event
+from specify_cli.spec_kitty_events.models import Event
 from rich.prompt import Prompt
 
 app = typer.Typer(

@@ -5,7 +5,7 @@ from specify_cli.collaboration.session import load_session_state
 from specify_cli.events.ulid_utils import generate_event_id
 from specify_cli.events.lamport import LamportClock
 from specify_cli.events.store import emit_event
-from spec_kitty_events.models import Event
+from specify_cli.spec_kitty_events.models import Event
 from datetime import datetime
 
 
@@ -87,7 +87,7 @@ def detect_collision(mission_id: str, focus: str | None, node_id: str = "cli-loc
                 "focus_target": _to_focus_target(focus),
                 "severity": severity,
             },
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(),
             node_id=node_id,
             lamport_clock=clock.increment(),
             causation_id=None,
