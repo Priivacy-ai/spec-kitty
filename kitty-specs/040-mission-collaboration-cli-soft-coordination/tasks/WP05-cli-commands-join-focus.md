@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: CLI Commands - Join & Focus
-lane: "doing"
+lane: "for_review"
 dependencies: [WP04]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP04
 base_commit: 02691ff86790e3b570ea00c36c4682c8dd9b6c0c
@@ -120,3 +120,7 @@ def set_focus_cmd(
 - ✅ `spec-kitty mission focus set wp:WP01` validates format
 - ✅ Rich-formatted success messages
 - ✅ Clear error handling
+
+## Activity Log
+
+- 2026-02-15T14:00:24Z – unknown – shell_pid=62639 – lane=for_review – Moved to for_review
