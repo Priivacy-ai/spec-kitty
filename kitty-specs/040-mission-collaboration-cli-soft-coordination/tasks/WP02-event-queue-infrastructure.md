@@ -1,9 +1,13 @@
 ---
 work_package_id: WP02
 title: Event Queue Infrastructure
-dependencies: ["WP01"]
-lane: "planned"
-subtasks: ["T006", "T007", "T008", "T009", "T010"]
+lane: "doing"
+dependencies: [WP01]
+base_branch: 040-mission-collaboration-cli-soft-coordination-WP01
+base_commit: 2d46ae6c4b13768fe9b2301f3a7c09e17c639731
+created_at: '2026-02-15T12:45:19.112487+00:00'
+subtasks: [T006, T007, T008, T009, T010]
+shell_pid: "15834"
 ---
 
 # WP02: Event Queue Infrastructure
