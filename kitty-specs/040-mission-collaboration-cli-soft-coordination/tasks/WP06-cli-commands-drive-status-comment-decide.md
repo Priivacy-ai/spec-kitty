@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: CLI Commands - Drive, Status, Comment, Decide
-lane: "doing"
+lane: "for_review"
 dependencies: [WP04]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP05
 base_commit: d70ff8af542b259384f490305a6e26edccae3a59
@@ -248,3 +248,7 @@ def decide_command(text: str | None = None, mission_id: str | None = None) -> No
 - ✅ Status displays roster table with Rich formatting
 - ✅ Comment validates length, accepts stdin
 - ✅ Decide validates input and emits canonical `DecisionCaptured` payload
+
+## Activity Log
+
+- 2026-02-15T14:08:19Z – unknown – shell_pid=67591 – lane=for_review – Moved to for_review
