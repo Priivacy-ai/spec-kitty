@@ -423,11 +423,8 @@ def drive_set_command(state: str, mission_id: str | None = None) -> None:
             )
 
             if acknowledgement == "continue":
-                # Re-call set_drive (bypass check)
-                result = set_drive(resolved_mission_id, state)
-                if "collision" in result:
-                    console.print(f"[red]❌ Collision still exists after acknowledgement[/red]")
-                    raise typer.Exit(1)
+                # Re-call set_drive with bypass flag to skip collision check
+                result = set_drive(resolved_mission_id, state, bypass_collision=True)
                 console.print(f"✅ Drive intent set to [bold]{state}[/bold] (collision acknowledged)")
             elif acknowledgement == "hold":
                 console.print("⏸️  Drive remains inactive")
@@ -521,6 +518,7 @@ def comment_command(text: str | None = None, mission_id: str | None = None) -> N
 
         # Emit CommentPosted event
         clock = LamportClock("cli-local")
+        import uuid
         event = Event(
             event_id=comment_id,
             event_type="CommentPosted",
@@ -537,6 +535,10 @@ def comment_command(text: str | None = None, mission_id: str | None = None) -> N
             lamport_clock=clock.increment(),
             correlation_id=state.mission_run_id,
             causation_id=None,
+            project_uuid=uuid.UUID(state.mission_run_id) if state.mission_run_id else uuid.uuid4(),
+            project_slug=resolved_mission_id,
+            schema_version="1.0.0",
+            data_tier=0,
         )
         emit_event(resolved_mission_id, event, "", "")
 
@@ -573,6 +575,7 @@ def decide_command(text: str | None = None, mission_id: str | None = None) -> No
 
         # Emit DecisionCaptured event
         clock = LamportClock("cli-local")
+        import uuid
         event = Event(
             event_id=decision_id,
             event_type="DecisionCaptured",
@@ -591,6 +594,10 @@ def decide_command(text: str | None = None, mission_id: str | None = None) -> No
             lamport_clock=clock.increment(),
             correlation_id=state.mission_run_id,
             causation_id=None,
+            project_uuid=uuid.UUID(state.mission_run_id) if state.mission_run_id else uuid.uuid4(),
+            project_slug=resolved_mission_id,
+            schema_version="1.0.0",
+            data_tier=0,
         )
         emit_event(resolved_mission_id, event, "", "")
 

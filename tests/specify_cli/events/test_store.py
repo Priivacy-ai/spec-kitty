@@ -21,7 +21,7 @@ def test_append_event_creates_file(tmp_path, monkeypatch):
     event = Event(
         event_id="01HQRS8ZMBE6XYZABC0123DEFG",
         event_type="ParticipantJoined",
-        aggregate_id="mission-123",
+        aggregate_id="mission/mission-123",
         payload={"participant_id": "01HQRS", "role": "developer"},
         timestamp=datetime.now(),
         lamport_clock=1,
@@ -29,7 +29,7 @@ def test_append_event_creates_file(tmp_path, monkeypatch):
     )
     append_event("mission-123", event, "pending")
 
-    queue_path = tmp_path / ".spec-kitty" / "queue.db"
+    queue_path = tmp_path / ".spec-kitty" / "queues" / "mission-123.jsonl"
     assert queue_path.exists()
 
     # Check file permissions (0600 = owner read/write only)
@@ -44,7 +44,7 @@ def test_read_pending_events_filters(tmp_path, monkeypatch):
     event1 = Event(
         event_id="01HQRS8ZMBE6XYZABC0123DEF1",
         event_type="ParticipantJoined",
-        aggregate_id="mission-123",
+        aggregate_id="mission/mission-123",
         payload={"participant_id": "01HQRS1"},
         timestamp=datetime.now(),
         lamport_clock=1,
@@ -53,7 +53,7 @@ def test_read_pending_events_filters(tmp_path, monkeypatch):
     event2 = Event(
         event_id="01HQRS8ZMBE6XYZABC0123DEF2",
         event_type="ParticipantLeft",
-        aggregate_id="mission-123",
+        aggregate_id="mission/mission-123",
         payload={"participant_id": "01HQRS2"},
         timestamp=datetime.now(),
         lamport_clock=2,
@@ -76,7 +76,7 @@ def test_read_all_events_returns_all_statuses(tmp_path, monkeypatch):
     event1 = Event(
         event_id="01HQRS8ZMBE6XYZABC0123DEF1",
         event_type="ParticipantJoined",
-        aggregate_id="mission-123",
+        aggregate_id="mission/mission-123",
         payload={"participant_id": "01HQRS1"},
         timestamp=datetime.now(),
         lamport_clock=1,
@@ -85,7 +85,7 @@ def test_read_all_events_returns_all_statuses(tmp_path, monkeypatch):
     event2 = Event(
         event_id="01HQRS8ZMBE6XYZABC0123DEF2",
         event_type="ParticipantLeft",
-        aggregate_id="mission-123",
+        aggregate_id="mission/mission-123",
         payload={"participant_id": "01HQRS2"},
         timestamp=datetime.now(),
         lamport_clock=2,
@@ -106,7 +106,7 @@ def test_append_event_atomic_write(tmp_path, monkeypatch):
     event = Event(
         event_id="01HQRS8ZMBE6XYZABC0123DEFG",
         event_type="FocusSet",
-        aggregate_id="mission-123",
+        aggregate_id="mission/mission-123",
         payload={"focus_target": "wp:WP01"},
         timestamp=datetime.now(),
         lamport_clock=1,
@@ -136,8 +136,8 @@ def test_is_online_returns_false_for_unreachable_url():
 
 
 def test_get_queue_path_returns_home_directory(tmp_path, monkeypatch):
-    """Test get_queue_path returns ~/.spec-kitty/queue.db."""
+    """Test get_queue_path returns ~/.spec-kitty/queues/mission-123.jsonl."""
     monkeypatch.setenv("HOME", str(tmp_path))
 
     queue_path = get_queue_path("mission-123")
-    assert queue_path == tmp_path / ".spec-kitty" / "queue.db"
+    assert queue_path == tmp_path / ".spec-kitty" / "queues" / "mission-123.jsonl"

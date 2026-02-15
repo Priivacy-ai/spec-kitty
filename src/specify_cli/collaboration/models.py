@@ -31,6 +31,8 @@ class SessionState:
     last_activity_at: datetime
     drive_intent: Literal["active", "inactive"] = "inactive"
     focus: str | None = None  # none, wp:<id>, step:<id>
+    session_token: str = ""  # SaaS API token from join response
+    saas_api_url: str = ""  # SaaS API base URL
 
     def to_dict(self) -> dict[str, object]:
         """Serialize to JSON-compatible dict."""
@@ -43,6 +45,8 @@ class SessionState:
             "last_activity_at": self.last_activity_at.isoformat(),
             "drive_intent": self.drive_intent,
             "focus": self.focus,
+            "session_token": self.session_token,
+            "saas_api_url": self.saas_api_url,
         }
 
     @classmethod
@@ -57,6 +61,8 @@ class SessionState:
             last_activity_at=datetime.fromisoformat(str(data["last_activity_at"])),
             drive_intent=str(data.get("drive_intent", "inactive")),  # type: ignore[arg-type]
             focus=str(data["focus"]) if data.get("focus") else None,
+            session_token=str(data.get("session_token", "")),
+            saas_api_url=str(data.get("saas_api_url", "")),
         )
 
 

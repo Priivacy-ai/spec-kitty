@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
+import uuid
 
 
 class Event(BaseModel):
@@ -49,6 +50,29 @@ class Event(BaseModel):
         min_length=26,
         max_length=26,
         description="Event ID of the parent event (None for root events)"
+    )
+    project_uuid: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        description="Required for cross-project event correlation"
+    )
+    project_slug: Optional[str] = Field(
+        default=None,
+        description="Human-readable project identifier"
+    )
+    correlation_id: str = Field(
+        default="00000000000000000000000000",
+        min_length=26,
+        max_length=26,
+        description="Mission run correlation ID"
+    )
+    schema_version: str = Field(
+        default="1.0.0",
+        description="Event schema version for evolution"
+    )
+    data_tier: int = Field(
+        default=0,
+        ge=0,
+        description="Data classification tier"
     )
 
     def __repr__(self) -> str:

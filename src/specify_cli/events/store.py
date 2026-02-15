@@ -60,8 +60,10 @@ class EventStore:
 
 
 def get_queue_path(mission_id: str) -> Path:
-    """Get path to local queue database."""
-    return Path.home() / ".spec-kitty" / "queue.db"
+    """Get path to mission-specific queue file."""
+    queue_dir = Path.home() / ".spec-kitty" / "queues"
+    queue_dir.mkdir(parents=True, exist_ok=True)
+    return queue_dir / f"{mission_id}.jsonl"
 
 
 def append_event(mission_id: str, event: Event, replay_status: str = "pending") -> None:
@@ -172,6 +174,9 @@ def read_pending_events(mission_id: str) -> list[EventQueueEntry]:
 
             try:
                 entry = EventQueueEntry.from_record(json.loads(line))
+                # Filter by mission to prevent cross-mission contamination
+                if entry.event.aggregate_id != f"mission/{mission_id}":
+                    continue
                 if entry.replay_status == "pending":
                     pending_events.append(entry)
             except (json.JSONDecodeError, ValueError) as e:
@@ -208,6 +213,9 @@ def read_all_events(mission_id: str) -> list[EventQueueEntry]:
 
             try:
                 entry = EventQueueEntry.from_record(json.loads(line))
+                # Filter by mission to prevent cross-mission contamination
+                if entry.event.aggregate_id != f"mission/{mission_id}":
+                    continue
                 all_events.append(entry)
             except (json.JSONDecodeError, ValueError) as e:
                 print(f"⚠️  Skipping corrupted line {line_num} in {queue_path}: {e}")

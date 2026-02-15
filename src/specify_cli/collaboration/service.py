@@ -82,6 +82,8 @@ def join_mission(
         last_activity_at=now,
         drive_intent="inactive",
         focus=None,
+        session_token=session_token,
+        saas_api_url=saas_api_url,
     )
     save_session_state(mission_id, state)
 
@@ -90,6 +92,7 @@ def join_mission(
 
     # Emit ParticipantJoined event
     clock = LamportClock(node_id)
+    import uuid
     event = Event(
         event_id=generate_event_id(),
         event_type="ParticipantJoined",
@@ -97,6 +100,7 @@ def join_mission(
         payload={
             "participant_id": participant_id,
             "mission_id": mission_id,
+            "role": role,  # Include role for event replay
             "participant_identity": {
                 "participant_id": participant_id,
                 "participant_type": "human",
@@ -109,6 +113,11 @@ def join_mission(
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=None,
+        project_uuid=uuid.UUID(data.get("project_uuid", str(uuid.uuid4()))),
+        project_slug=data.get("project_slug", mission_id),
+        correlation_id=data.get("mission_run_id", generate_event_id()),
+        schema_version="1.0.0",
+        data_tier=0,
     )
     emit_event(mission_id, event, saas_api_url, session_token)
 
@@ -144,6 +153,7 @@ def set_focus(mission_id: str, focus: str, node_id: str = "cli-local") -> None:
 
     # Emit FocusChanged event
     clock = LamportClock(node_id)
+    import uuid
     event = Event(
         event_id=generate_event_id(),
         event_type="FocusChanged",
@@ -158,14 +168,19 @@ def set_focus(mission_id: str, focus: str, node_id: str = "cli-local") -> None:
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=None,
+        project_uuid=uuid.UUID(state.mission_run_id) if state.mission_run_id else uuid.uuid4(),
+        project_slug=mission_id,
+        correlation_id=state.mission_run_id or generate_event_id(),
+        schema_version="1.0.0",
+        data_tier=0,
     )
-    emit_event(mission_id, event, "", "")  # Will use stored session_token
+    emit_event(mission_id, event, state.saas_api_url, state.session_token)
 
     # Update session
     update_session_state(mission_id, focus=focus if focus != "none" else None)
 
 
-def set_drive(mission_id: str, intent: str, node_id: str = "cli-local") -> dict:
+def set_drive(mission_id: str, intent: str, node_id: str = "cli-local", bypass_collision: bool = False) -> dict:
     """
     Set drive intent (with pre-execution collision check if setting active).
 
@@ -173,6 +188,7 @@ def set_drive(mission_id: str, intent: str, node_id: str = "cli-local") -> dict:
         mission_id: Mission identifier
         intent: Drive state (active, inactive)
         node_id: CLI node identifier
+        bypass_collision: If True, skip collision detection (used after acknowledgement)
 
     Returns:
         Dictionary:
@@ -195,14 +211,15 @@ def set_drive(mission_id: str, intent: str, node_id: str = "cli-local") -> dict:
     if state.drive_intent == intent:
         return {"status": "success", "drive_intent": intent}
 
-    # Pre-execution check (if setting active)
-    if intent == "active":
+    # Pre-execution check (if setting active and not bypassing)
+    if intent == "active" and not bypass_collision:
         collision = detect_collision(mission_id, state.focus)
         if collision:
             return {"collision": collision, "action": None}
 
     # Emit DriveIntentSet event
     clock = LamportClock(node_id)
+    import uuid
     event = Event(
         event_id=generate_event_id(),
         event_type="DriveIntentSet",
@@ -216,8 +233,13 @@ def set_drive(mission_id: str, intent: str, node_id: str = "cli-local") -> dict:
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=None,
+        project_uuid=uuid.UUID(state.mission_run_id) if state.mission_run_id else uuid.uuid4(),
+        project_slug=mission_id,
+        correlation_id=state.mission_run_id or generate_event_id(),
+        schema_version="1.0.0",
+        data_tier=0,
     )
-    emit_event(mission_id, event, "", "")
+    emit_event(mission_id, event, state.saas_api_url, state.session_token)
 
     # Update session
     update_session_state(mission_id, drive_intent=intent)
@@ -251,6 +273,7 @@ def acknowledge_warning(
 
     # Emit WarningAcknowledged event
     clock = LamportClock(node_id)
+    import uuid
     event = Event(
         event_id=generate_event_id(),
         event_type="WarningAcknowledged",
@@ -265,7 +288,12 @@ def acknowledge_warning(
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=warning_id,
+        project_uuid=uuid.UUID(state.mission_run_id) if state.mission_run_id else uuid.uuid4(),
+        project_slug=mission_id,
+        correlation_id=state.mission_run_id or generate_event_id(),
+        schema_version="1.0.0",
+        data_tier=0,
     )
-    emit_event(mission_id, event, "", "")
+    emit_event(mission_id, event, state.saas_api_url, state.session_token)
 
     # If action == "reassign", emit CommentPosted with @mention (not implemented S1/M1)

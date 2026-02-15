@@ -76,6 +76,7 @@ def detect_collision(mission_id: str, focus: str | None, node_id: str = "cli-loc
 
         # Emit warning event
         clock = LamportClock(node_id)
+        import uuid
         event = Event(
             event_id=generate_event_id(),
             event_type=collision_type,
@@ -91,8 +92,13 @@ def detect_collision(mission_id: str, focus: str | None, node_id: str = "cli-loc
             node_id=node_id,
             lamport_clock=clock.increment(),
             causation_id=None,
+            project_uuid=uuid.UUID(self_state.mission_run_id) if self_state.mission_run_id else uuid.uuid4(),
+            project_slug=mission_id,
+            correlation_id=self_state.mission_run_id or generate_event_id(),
+            schema_version="1.0.0",
+            data_tier=0,
         )
-        emit_event(mission_id, event, "", "")
+        emit_event(mission_id, event, self_state.saas_api_url, self_state.session_token)
 
         return {
             "type": collision_type,
