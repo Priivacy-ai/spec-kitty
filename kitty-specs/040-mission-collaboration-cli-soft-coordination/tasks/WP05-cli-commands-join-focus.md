@@ -1,13 +1,14 @@
 ---
 work_package_id: WP05
 title: CLI Commands - Join & Focus
-lane: "for_review"
+lane: "doing"
 dependencies: [WP04]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP04
 base_commit: 02691ff86790e3b570ea00c36c4682c8dd9b6c0c
 created_at: '2026-02-15T13:56:33.126459+00:00'
 subtasks: [T021, T022, T027]
-shell_pid: "62639"
+shell_pid: "65606"
+agent: "codex"
 ---
 
 # WP05: CLI Commands - Join & Focus
@@ -124,3 +125,4 @@ def set_focus_cmd(
 ## Activity Log
 
 - 2026-02-15T14:00:24Z – unknown – shell_pid=62639 – lane=for_review – Moved to for_review
+- 2026-02-15T14:01:04Z – codex – shell_pid=65606 – lane=doing – Started review via workflow command
