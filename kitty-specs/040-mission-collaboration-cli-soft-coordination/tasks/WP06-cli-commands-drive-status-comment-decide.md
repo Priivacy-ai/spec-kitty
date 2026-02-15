@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: CLI Commands - Drive, Status, Comment, Decide
-lane: "for_review"
+lane: "done"
 dependencies: [WP04]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP05
 base_commit: d70ff8af542b259384f490305a6e26edccae3a59
@@ -261,3 +261,4 @@ def decide_command(text: str | None = None, mission_id: str | None = None) -> No
 - 2026-02-15T14:18:10Z – codex – shell_pid=74930 – lane=doing – Started review via workflow command
 - 2026-02-15T14:24:36Z – codex – shell_pid=74930 – lane=planned – Moved to planned
 - 2026-02-15T14:28:00Z – codex – shell_pid=74930 – lane=for_review – Moved to for_review
+- 2026-02-15T14:28:58Z – codex – shell_pid=74930 – lane=done – Arbiter approval: All 22 tests passing. Event schema issue resolved. Drive, status, comment, and decide commands all working correctly.
