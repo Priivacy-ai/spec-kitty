@@ -37,7 +37,7 @@ def sample_session_state():
         mission_id="test-mission",
         mission_run_id="01HXN8K3M9PQRSTVWXYZ123456",
         participant_id="01HXN8K3M9PQRSTVWXYZ654321",
-        role="implementer",
+        role="developer",
         joined_at=now,
         last_activity_at=now,
         drive_intent="inactive",
@@ -337,7 +337,7 @@ def test_validate_session_integrity_temporal_violation():
         mission_id="test-mission",
         mission_run_id="01HXN8K3M9PQRSTVWXYZ123456",
         participant_id="01HXN8K3M9PQRSTVWXYZ654321",
-        role="implementer",
+        role="developer",
         joined_at=now,
         last_activity_at=now - timedelta(seconds=10),  # Earlier than joined_at
         drive_intent="inactive",
@@ -357,7 +357,7 @@ def test_validate_session_integrity_invalid_participant_id():
         mission_id="test-mission",
         mission_run_id="01HXN8K3M9PQRSTVWXYZ123456",
         participant_id="invalid-id",  # Wrong length
-        role="implementer",
+        role="developer",
         joined_at=now,
         last_activity_at=now,
         drive_intent="inactive",
@@ -387,6 +387,26 @@ def test_validate_session_integrity_empty_role():
     assert any("Invalid role" in e for e in errors)
 
 
+def test_validate_session_integrity_invalid_role_taxonomy():
+    """Test detecting role not in canonical taxonomy."""
+    now = datetime.now()
+
+    state = SessionState(
+        mission_id="test-mission",
+        mission_run_id="01HXN8K3M9PQRSTVWXYZ123456",
+        participant_id="01HXN8K3M9PQRSTVWXYZ654321",
+        role="implementer",  # Not in canonical taxonomy
+        joined_at=now,
+        last_activity_at=now,
+        drive_intent="inactive",
+        focus=None,
+    )
+
+    errors = validate_session_integrity(state)
+    assert any("not in canonical taxonomy" in e for e in errors)
+    assert any("developer, observer, reviewer, stakeholder" in e for e in errors)
+
+
 def test_validate_session_integrity_invalid_focus_format():
     """Test detecting invalid focus format."""
     now = datetime.now()
@@ -395,7 +415,7 @@ def test_validate_session_integrity_invalid_focus_format():
         mission_id="test-mission",
         mission_run_id="01HXN8K3M9PQRSTVWXYZ123456",
         participant_id="01HXN8K3M9PQRSTVWXYZ654321",
-        role="implementer",
+        role="developer",
         joined_at=now,
         last_activity_at=now,
         drive_intent="inactive",
@@ -454,7 +474,7 @@ def test_validate_session_before_command_integrity_violation(tmp_home):
         mission_id="test-mission",
         mission_run_id="01HXN8K3M9PQRSTVWXYZ123456",
         participant_id="01HXN8K3M9PQRSTVWXYZ654321",
-        role="implementer",
+        role="developer",
         joined_at=now,
         last_activity_at=now - timedelta(seconds=10),
         drive_intent="inactive",
@@ -482,7 +502,7 @@ def test_full_session_lifecycle(tmp_home):
         mission_id=mission_id,
         mission_run_id="01HXN8K3M9PQRSTVWXYZ123456",
         participant_id="01HXN8K3M9PQRSTVWXYZ654321",
-        role="implementer",
+        role="developer",
         joined_at=now,
         last_activity_at=now,
         drive_intent="inactive",
@@ -518,7 +538,7 @@ def test_multiple_missions_isolation(tmp_home):
         mission_id="mission-1",
         mission_run_id="01HXN8K3M9PQRSTVWXYZ111111",
         participant_id="01HXN8K3M9PQRSTVWXYZ654321",
-        role="implementer",
+        role="developer",
         joined_at=now,
         last_activity_at=now,
         drive_intent="inactive",
@@ -547,5 +567,5 @@ def test_multiple_missions_isolation(tmp_home):
     assert loaded2 is not None
     assert loaded1.focus == "wp:WP01"
     assert loaded2.focus == "wp:WP02"
-    assert loaded1.role == "implementer"
+    assert loaded1.role == "developer"
     assert loaded2.role == "reviewer"

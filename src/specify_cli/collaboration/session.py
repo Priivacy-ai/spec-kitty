@@ -6,7 +6,14 @@ import os
 from datetime import datetime
 
 from specify_cli.collaboration.models import SessionState, ActiveMissionPointer
-from specify_cli.events.ulid_utils import validate_ulid_format
+
+
+# ============================================================================
+# Constants
+# ============================================================================
+
+# Canonical 4-role taxonomy (validated by SaaS)
+CANONICAL_ROLES = {"developer", "reviewer", "observer", "stakeholder"}
 
 
 # ============================================================================
@@ -252,8 +259,19 @@ def validate_participant_id(participant_id: str) -> bool:
 
     Returns:
         True if valid ULID format, False otherwise
+
+    Note:
+        Inlined ULID validation to avoid hard dependency on events package.
+        ULID uses Crockford Base32 (0-9, A-Z excluding I, L, O, U).
     """
-    is_valid = validate_ulid_format(participant_id)
+    # Check length
+    if len(participant_id) != 26:
+        print(f"⚠️  Invalid participant_id format: {participant_id} (expected 26-char ULID)")
+        return False
+
+    # Check character set (Crockford Base32)
+    valid_chars = set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
+    is_valid = all(c in valid_chars for c in participant_id.upper())
 
     if not is_valid:
         print(f"⚠️  Invalid participant_id format: {participant_id} (expected 26-char ULID)")
@@ -281,9 +299,12 @@ def validate_session_integrity(state: SessionState) -> list[str]:
     if not validate_participant_id(state.participant_id):
         errors.append(f"Invalid participant_id format: {state.participant_id}")
 
-    # Check role label is present (SaaS validates exact taxonomy)
+    # Check role label against canonical taxonomy
     if not state.role or not state.role.strip():
         errors.append("Invalid role: role label is empty")
+    elif state.role not in CANONICAL_ROLES:
+        valid_roles = ", ".join(sorted(CANONICAL_ROLES))
+        errors.append(f"Invalid role: '{state.role}' not in canonical taxonomy ({valid_roles})")
 
     # Check focus format
     if state.focus is not None and state.focus != "none":
