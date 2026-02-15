@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Iterable, List, Optional
 
@@ -26,8 +27,19 @@ from specify_cli.core.feature_detection import (
     detect_feature,
     FeatureDetectionError,
 )
-from specify_cli.collaboration.service import join_mission, set_focus
-from specify_cli.collaboration.session import resolve_mission_id
+from specify_cli.collaboration.service import (
+    join_mission,
+    set_focus,
+    set_drive,
+    acknowledge_warning,
+)
+from specify_cli.collaboration.session import resolve_mission_id, ensure_joined
+from specify_cli.collaboration.state import get_mission_roster
+from specify_cli.events.ulid_utils import generate_event_id
+from specify_cli.events.store import emit_event
+from specify_cli.events.lamport import LamportClock
+from spec_kitty_events.models import Event
+from rich.prompt import Prompt
 
 app = typer.Typer(
     name="mission",
@@ -368,3 +380,231 @@ def set_focus_cmd(
 
 # Register focus sub-app
 app.add_typer(focus_app)
+
+
+def drive_set_command(state: str, mission_id: str | None = None) -> None:
+    """Set drive intent with collision check."""
+    try:
+        resolved_mission_id = resolve_mission_id(mission_id)
+        result = set_drive(resolved_mission_id, state)
+
+        # Handle collision
+        if "collision" in result:
+            collision = result["collision"]
+
+            # Display warning panel
+            participants_text = "\n".join(
+                f"- {p['participant_id'][:8]}... on {p['focus']} (last: {p['last_activity_at']})"
+                for p in collision["conflicting_participants"]
+            )
+
+            panel = Panel(
+                f"[yellow]{collision['type']}[/yellow]\n\n"
+                f"Active drivers on same focus:\n{participants_text}\n\n"
+                f"Choose action:\n"
+                f"[c] Continue (parallel work, high collision risk)\n"
+                f"[h] Hold (set drive=inactive)\n"
+                f"[r] Reassign (advisory suggestion)\n"
+                f"[d] Defer (exit without change)",
+                title=f"⚠️  Collision Detected ({collision['severity']} severity)"
+            )
+            console.print(panel)
+
+            # Prompt acknowledgement
+            action_map = {"c": "continue", "h": "hold", "r": "reassign", "d": "defer"}
+            choice = Prompt.ask("Action", choices=list(action_map.keys()))
+            acknowledgement = action_map[choice]
+
+            # Handle action
+            acknowledge_warning(
+                resolved_mission_id,
+                collision.get("warning_id", ""),
+                acknowledgement,
+            )
+
+            if acknowledgement == "continue":
+                # Re-call set_drive (bypass check)
+                result = set_drive(resolved_mission_id, state)
+                if "collision" in result:
+                    console.print(f"[red]❌ Collision still exists after acknowledgement[/red]")
+                    raise typer.Exit(1)
+                console.print(f"✅ Drive intent set to [bold]{state}[/bold] (collision acknowledged)")
+            elif acknowledgement == "hold":
+                console.print("⏸️  Drive remains inactive")
+            elif acknowledgement == "defer":
+                console.print("Deferred")
+                raise typer.Exit(0)
+
+        else:
+            console.print(f"✅ Drive intent set to [bold]{state}[/bold]")
+
+    except ValueError as e:
+        console.print(f"[red]❌ {e}[/red]")
+        raise typer.Exit(1)
+
+
+# Drive sub-commands
+drive_app = typer.Typer(name="drive", help="Drive management commands")
+
+
+@drive_app.command(name="set")
+def set_drive_cmd(
+    state: str = typer.Argument(..., help="Drive state: active or inactive"),
+    mission: Optional[str] = typer.Option(None, "--mission", help="Mission ID (default: active mission)"),
+) -> None:
+    """Set drive intent."""
+    drive_set_command(state, mission)
+
+
+# Register drive sub-app
+app.add_typer(drive_app)
+
+
+def status_command(mission_id: str | None = None, verbose: bool = False) -> None:
+    """Display mission status."""
+    try:
+        resolved_mission_id = resolve_mission_id(mission_id)
+        roster = get_mission_roster(resolved_mission_id)
+
+        table = Table(title=f"Mission {resolved_mission_id}")
+        table.add_column("Role")
+        table.add_column("Participant ID")
+        table.add_column("Focus")
+        table.add_column("Drive")
+        table.add_column("Last Activity")
+
+        for p in roster:
+            pid = p.participant_id if verbose else f"{p.participant_id[:8]}..."
+            table.add_row(
+                (p.role or "unspecified").upper(),
+                pid,
+                p.focus or "none",
+                p.drive_intent,
+                p.last_activity_at.strftime("%H:%M:%S")
+            )
+
+        console.print(table)
+        console.print(f"\n⚠️  {len([p for p in roster if p.drive_intent == 'active'])} active drivers")
+
+    except ValueError as e:
+        console.print(f"[red]❌ {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name="status")
+def status_cmd(
+    mission: Optional[str] = typer.Option(None, "--mission", help="Mission ID (default: active mission)"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show full participant IDs"),
+) -> None:
+    """Display mission roster and status."""
+    status_command(mission, verbose)
+
+
+def comment_command(text: str | None = None, mission_id: str | None = None) -> None:
+    """Post comment."""
+    try:
+        resolved_mission_id = resolve_mission_id(mission_id)
+
+        if text is None:
+            text = typer.prompt("Comment text")
+
+        if len(text.strip()) == 0:
+            console.print("[red]❌ Comment cannot be empty[/red]")
+            raise typer.Exit(1)
+
+        if len(text) > 500:
+            console.print("[yellow]⚠️  Truncating comment to 500 chars[/yellow]")
+            text = text[:500]
+
+        state = ensure_joined(resolved_mission_id)
+        comment_id = generate_event_id()
+
+        # Emit CommentPosted event
+        clock = LamportClock("cli-local")
+        event = Event(
+            event_id=comment_id,
+            event_type="CommentPosted",
+            aggregate_id=f"mission/{resolved_mission_id}",
+            payload={
+                "participant_id": state.participant_id,
+                "mission_id": resolved_mission_id,
+                "comment_id": comment_id,
+                "content": text,
+                "reply_to": None,
+            },
+            timestamp=datetime.now().isoformat(),
+            node_id="cli-local",
+            lamport_clock=clock.increment(),
+            correlation_id=state.mission_run_id,
+            causation_id=None,
+        )
+        emit_event(resolved_mission_id, event, "", "")
+
+        console.print(f"✅ Comment posted (ID: {comment_id[:8]}...)")
+
+    except ValueError as e:
+        console.print(f"[red]❌ {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name="comment")
+def comment_cmd(
+    text: Optional[str] = typer.Argument(None, help="Comment text (prompts if omitted)"),
+    mission: Optional[str] = typer.Option(None, "--mission", help="Mission ID (default: active mission)"),
+) -> None:
+    """Post a comment to the mission."""
+    comment_command(text, mission)
+
+
+def decide_command(text: str | None = None, mission_id: str | None = None) -> None:
+    """Capture decision."""
+    try:
+        resolved_mission_id = resolve_mission_id(mission_id)
+        state = ensure_joined(resolved_mission_id)
+
+        if text is None:
+            text = typer.prompt("Decision text")
+
+        if len(text.strip()) == 0:
+            console.print("[red]❌ Decision cannot be empty[/red]")
+            raise typer.Exit(1)
+
+        decision_id = generate_event_id()
+
+        # Emit DecisionCaptured event
+        clock = LamportClock("cli-local")
+        event = Event(
+            event_id=decision_id,
+            event_type="DecisionCaptured",
+            aggregate_id=f"mission/{resolved_mission_id}",
+            payload={
+                "participant_id": state.participant_id,
+                "mission_id": resolved_mission_id,
+                "decision_id": decision_id,
+                "topic": state.focus or "mission",
+                "chosen_option": text,
+                "rationale": None,
+                "referenced_warning_id": None,
+            },
+            timestamp=datetime.now().isoformat(),
+            node_id="cli-local",
+            lamport_clock=clock.increment(),
+            correlation_id=state.mission_run_id,
+            causation_id=None,
+        )
+        emit_event(resolved_mission_id, event, "", "")
+
+        console.print(f"✅ Decision captured (ID: {decision_id[:8]}...)")
+
+    except ValueError as e:
+        console.print(f"[red]❌ {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name="decide")
+def decide_cmd(
+    text: Optional[str] = typer.Argument(None, help="Decision text (prompts if omitted)"),
+    mission: Optional[str] = typer.Option(None, "--mission", help="Mission ID (default: active mission)"),
+) -> None:
+    """Capture a decision."""
+    decide_command(text, mission)
