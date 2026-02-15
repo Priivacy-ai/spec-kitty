@@ -11,25 +11,6 @@ from specify_cli.events.ulid_utils import generate_event_id
 from spec_kitty_events.models import Event
 
 
-@pytest.fixture
-def clean_queue(tmp_path, monkeypatch):
-    """Ensure clean queue for each test."""
-    queue_dir = tmp_path / ".spec-kitty"
-    queue_dir.mkdir(parents=True, exist_ok=True)
-
-    # Monkey-patch get_queue_path to use temp directory
-    def mock_get_queue_path(mission_id: str):
-        queue_file = queue_dir / f"{mission_id}-queue.db"  # Use mission-specific queue
-        return queue_file
-
-    from specify_cli.events import store
-    from specify_cli.events import replay as replay_module
-    monkeypatch.setattr(store, "get_queue_path", mock_get_queue_path)
-    monkeypatch.setattr(replay_module, "get_queue_path", mock_get_queue_path)
-
-    yield queue_dir
-
-
 @pytest.mark.respx(base_url="https://api.example.com")
 def test_replay_pending_events(respx_mock: respx.MockRouter, clean_queue):
     """Test event replay with mocked SaaS batch endpoint."""

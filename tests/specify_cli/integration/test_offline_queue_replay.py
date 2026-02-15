@@ -13,31 +13,6 @@ from specify_cli.collaboration.session import save_session_state, set_active_mis
 from specify_cli.collaboration.models import SessionState
 
 
-@pytest.fixture
-def clean_queue_and_session(tmp_path, monkeypatch):
-    """Ensure clean queue and session for each test."""
-    queue_dir = tmp_path / ".spec-kitty"
-    queue_dir.mkdir(parents=True, exist_ok=True)
-
-    # Monkey-patch get_queue_path
-    def mock_get_queue_path(mission_id: str):
-        return queue_dir / "queue.db"
-
-    from specify_cli.events import store
-    from specify_cli.events import replay as replay_module
-    monkeypatch.setattr(store, "get_queue_path", mock_get_queue_path)
-    monkeypatch.setattr(replay_module, "get_queue_path", mock_get_queue_path)
-
-    # Monkey-patch session path
-    def mock_get_session_path(mission_id: str):
-        return tmp_path / "sessions" / mission_id / "session.json"
-
-    from specify_cli.collaboration import session
-    monkeypatch.setattr(session, "get_session_path", mock_get_session_path)
-
-    yield tmp_path
-
-
 @pytest.mark.respx(base_url="https://api.example.com")
 def test_offline_online_flow(respx_mock: respx.MockRouter, clean_queue_and_session):
     """Test offline → online flow with queue replay."""
