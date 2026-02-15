@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Foundation & Dependencies
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: main
 base_commit: c2b1699cbfc5000079b144dfdffd3724fd815911
@@ -9,7 +9,7 @@ created_at: '2026-02-15T10:51:38.487850+00:00'
 subtasks: [T001, T002, T003, T004, T005]
 shell_pid: "88801"
 agent: "codex"
-review_status: "acknowledged"
+review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 ---
 
@@ -594,14 +594,38 @@ These 3 work packages can be implemented in parallel after WP01.
 
 ## Review Feedback
 
-**Issue 1 (blocking)**: `pyproject.toml:64` points `spec-kitty-events` at `@main` instead of an immutable commit hash. WP01 requires pinning to a specific feature-006 prerelease commit.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-02-15
 
-**Issue 2 (blocking)**: Strict type-checking fails for new WP01 files. Repro:
-`mypy --strict --config-file /dev/null --follow-imports=skip src/specify_cli/events/models.py src/specify_cli/collaboration/models.py src/specify_cli/adapters/observe_decide.py`
-Current failures include unparameterized `dict` annotations in `src/specify_cli/adapters/observe_decide.py` and an unused ignore in `src/specify_cli/events/models.py`.
+**Issue 1 (blocking): `specify_cli.mission` compatibility shim is incomplete.**
 
-**Issue 3 (regression risk)**: `specify_cli.mission` backwards-compatibility is broken. Repro:
-`PYTHONPATH=src python3 -c "from specify_cli.mission import Mission"` currently raises `ImportError`. Add compatibility re-exports/shim while introducing the new mission package.
+`src/specify_cli/mission/__init__.py` claims backward compatibility but only re-exports a subset of the previous `specify_cli.mission` API.
+
+Repro:
+`PYTHONPATH=src python3 -c "import specify_cli.mission as m; print(hasattr(m, 'get_active_mission'), hasattr(m, 'validate_deliverables_path'))"`
+
+Current result: `False False`
+
+Both functions existed in the pre-rename module (`src/specify_cli/mission_system.py`). This is a regression risk for existing callers importing from `specify_cli.mission`.
+
+**How to fix:** Re-export all previously importable public mission symbols from `mission_system` (or provide explicit deprecation aliases with warnings) so legacy imports keep working.
+
+---
+
+**Issue 2 (blocking): Versioning policy violation for `__init__.py` change.**
+
+`src/specify_cli/__init__.py` was modified (`mission` import path switch), but there is no corresponding version bump in `pyproject.toml` and no changelog entry.
+
+Project rule in `AGENTS.md` states:
+"Any changes to `__init__.py` for the Spec Kitty CLI require a version rev in `pyproject.toml` and addition of entries to `CHANGELOG.md`."
+
+**How to fix:** Increment `[project].version` in `pyproject.toml` and add a matching `CHANGELOG.md` entry describing the mission import-path compatibility changes.
+
+---
+
+Dependency note: WP02, WP03, WP07, and WP10 depend on WP01. After fixing and merging WP01 updates, dependent worktrees should rebase.
+
 
 ## Activity Log
 
@@ -614,3 +638,4 @@ Current failures include unparameterized `dict` annotations in `src/specify_cli/
 - 2026-02-15T11:15:14Z – codex – shell_pid=83301 – lane=planned – Moved to planned
 - 2026-02-15T11:22:24Z – codex – shell_pid=83301 – lane=for_review – Moved to for_review
 - 2026-02-15T11:22:58Z – codex – shell_pid=88801 – lane=doing – Started review via workflow command
+- 2026-02-15T11:25:24Z – codex – shell_pid=88801 – lane=planned – Moved to planned
