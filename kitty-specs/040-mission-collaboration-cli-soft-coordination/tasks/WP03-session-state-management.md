@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Session State Management
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP02
 base_commit: 9f352ec48cd0200bc28d33ec408e8575b9fcbb08
@@ -450,3 +450,7 @@ After WP03 completion:
 - Validate on load (catch corruption early)
 - Validate before commands (catch state drift)
 - Clear error messages with actionable troubleshooting steps
+
+## Activity Log
+
+- 2026-02-15T13:16:02Z – unknown – shell_pid=34400 – lane=for_review – Moved to for_review
