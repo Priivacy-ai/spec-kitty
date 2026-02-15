@@ -1,9 +1,13 @@
 ---
 work_package_id: WP08
 title: Unit & Domain Tests
-dependencies: ["WP02", "WP03", "WP04", "WP05", "WP06", "WP07"]
-lane: "planned"
-subtasks: ["T031", "T032", "T033", "T034", "T035"]
+lane: "doing"
+dependencies: [WP02, WP03, WP04, WP05, WP06, WP07]
+base_branch: 040-mission-collaboration-cli-soft-coordination-WP07
+base_commit: 80140058d5d243c21f3472d5369dea9629fd6e7c
+created_at: '2026-02-15T14:39:11.343552+00:00'
+subtasks: [T031, T032, T033, T034, T035]
+shell_pid: "91339"
 ---
 
 # WP08: Unit & Domain Tests
