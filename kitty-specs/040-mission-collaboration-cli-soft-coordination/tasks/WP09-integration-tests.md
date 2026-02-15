@@ -1,9 +1,13 @@
 ---
 work_package_id: WP09
 title: Integration Tests
-dependencies: ["WP02", "WP03", "WP04"]
-lane: "planned"
-subtasks: ["T036", "T037", "T038", "T039"]
+lane: "doing"
+dependencies: [WP02, WP03, WP04]
+base_branch: 040-mission-collaboration-cli-soft-coordination-WP04
+base_commit: 02691ff86790e3b570ea00c36c4682c8dd9b6c0c
+created_at: '2026-02-15T15:12:58.561177+00:00'
+subtasks: [T036, T037, T038, T039]
+shell_pid: "23006"
 ---
 
 # WP09: Integration Tests
