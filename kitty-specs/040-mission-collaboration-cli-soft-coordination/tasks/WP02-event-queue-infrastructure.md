@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Event Queue Infrastructure
-lane: "doing"
+lane: "planned"
 dependencies: [WP01]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP01
 base_commit: 2d46ae6c4b13768fe9b2301f3a7c09e17c639731
@@ -9,6 +9,8 @@ created_at: '2026-02-15T12:45:19.112487+00:00'
 subtasks: [T006, T007, T008, T009, T010]
 shell_pid: "19722"
 agent: "codex"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 ---
 
 # WP02: Event Queue Infrastructure
@@ -619,3 +621,4 @@ After WP02 completion:
 
 - 2026-02-15T12:49:08Z – unknown – shell_pid=15834 – lane=for_review – Moved to for_review
 - 2026-02-15T12:49:53Z – codex – shell_pid=19722 – lane=doing – Started review via workflow command
+- 2026-02-15T12:54:49Z – codex – shell_pid=19722 – lane=planned – Moved to planned
