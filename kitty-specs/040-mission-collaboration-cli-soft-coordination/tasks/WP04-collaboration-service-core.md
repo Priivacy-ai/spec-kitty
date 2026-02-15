@@ -1,9 +1,13 @@
 ---
 work_package_id: WP04
 title: Collaboration Service Core
-dependencies: ["WP02", "WP03"]
-lane: "planned"
-subtasks: ["T015", "T016", "T017", "T018", "T019", "T020"]
+lane: "doing"
+dependencies: [WP02, WP03]
+base_branch: 040-mission-collaboration-cli-soft-coordination-WP03
+base_commit: 912014a3789215bc7927451d95e2a08c2945a284
+created_at: '2026-02-15T13:31:06.134957+00:00'
+subtasks: [T015, T016, T017, T018, T019, T020]
+shell_pid: "45698"
 ---
 
 # WP04: Collaboration Service Core
