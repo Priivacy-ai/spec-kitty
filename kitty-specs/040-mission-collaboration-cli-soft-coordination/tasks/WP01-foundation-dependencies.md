@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Foundation & Dependencies
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: main
 base_commit: c2b1699cbfc5000079b144dfdffd3724fd815911
@@ -592,6 +592,17 @@ These 3 work packages can be implemented in parallel after WP01.
 - SaaS is source of truth for join-role validation and permissions.
 - CLI stores role labels for projection/display and auditing; it does not enforce local capability matrices in S1/M1.
 
+## Review Feedback
+
+**Issue 1 (blocking)**: `pyproject.toml:64` points `spec-kitty-events` at `@main` instead of an immutable commit hash. WP01 requires pinning to a specific feature-006 prerelease commit.
+
+**Issue 2 (blocking)**: Strict type-checking fails for new WP01 files. Repro:
+`mypy --strict --config-file /dev/null --follow-imports=skip src/specify_cli/events/models.py src/specify_cli/collaboration/models.py src/specify_cli/adapters/observe_decide.py`
+Current failures include unparameterized `dict` annotations in `src/specify_cli/adapters/observe_decide.py` and an unused ignore in `src/specify_cli/events/models.py`.
+
+**Issue 3 (regression risk)**: `specify_cli.mission` backwards-compatibility is broken. Repro:
+`PYTHONPATH=src python3 -c "from specify_cli.mission import Mission"` currently raises `ImportError`. Add compatibility re-exports/shim while introducing the new mission package.
+
 ## Activity Log
 
 - 2026-02-15T10:51:38Z – claude-sonnet-4.5 – shell_pid=51268 – lane=doing – Assigned agent via workflow command
@@ -600,3 +611,4 @@ These 3 work packages can be implemented in parallel after WP01.
 - 2026-02-15T11:04:11Z – codex – shell_pid=66141 – lane=planned – Moved to planned
 - 2026-02-15T11:11:31Z – codex – shell_pid=66141 – lane=for_review – Moved to for_review
 - 2026-02-15T11:12:45Z – codex – shell_pid=83301 – lane=doing – Started review via workflow command
+- 2026-02-15T11:15:14Z – codex – shell_pid=83301 – lane=planned – Moved to planned
