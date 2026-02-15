@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Event Queue Infrastructure
-lane: "doing"
+lane: "for_review"
 dependencies: [WP01]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP01
 base_commit: 2d46ae6c4b13768fe9b2301f3a7c09e17c639731
@@ -613,3 +613,7 @@ After WP02 completion:
 - Lamport clock provides total order
 - Causation chain (event_id → causation_id) provides causal order
 - SaaS resolves conflicts using Lamport clock + timestamp tie-breaker
+
+## Activity Log
+
+- 2026-02-15T12:49:08Z – unknown – shell_pid=15834 – lane=for_review – Moved to for_review
