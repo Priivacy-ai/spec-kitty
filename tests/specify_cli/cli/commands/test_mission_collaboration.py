@@ -216,3 +216,299 @@ class TestMissionFocus:
         # Verify
         assert result.exit_code == 1
         assert "Not joined" in result.stdout
+
+
+class TestMissionDrive:
+    """Tests for spec-kitty mission drive commands."""
+
+    @patch("specify_cli.cli.commands.mission.set_drive")
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_drive_set_active_no_collision(self, mock_resolve, mock_set_drive, runner):
+        """Test drive set to active with no collision."""
+        # Setup
+        mock_resolve.return_value = "mission-123"
+        mock_set_drive.return_value = {"status": "success", "drive_intent": "active"}
+
+        # Execute
+        result = runner.invoke(app, ["drive", "set", "active"])
+
+        # Verify
+        assert result.exit_code == 0
+        assert "Drive intent set to" in result.stdout
+        assert "active" in result.stdout
+
+        mock_resolve.assert_called_once_with(None)
+        mock_set_drive.assert_called_once_with("mission-123", "active")
+
+    @patch("specify_cli.cli.commands.mission.acknowledge_warning")
+    @patch("specify_cli.cli.commands.mission.set_drive")
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_drive_set_collision_continue(
+        self, mock_resolve, mock_set_drive, mock_acknowledge, runner
+    ):
+        """Test drive set handles collision with continue action."""
+        # Setup
+        mock_resolve.return_value = "mission-123"
+        mock_set_drive.side_effect = [
+            {
+                "collision": {
+                    "type": "drive_collision",
+                    "severity": "high",
+                    "warning_id": "warning-123",
+                    "conflicting_participants": [
+                        {
+                            "participant_id": "participant-456",
+                            "focus": "wp:WP01",
+                            "last_activity_at": "10:30:00",
+                        }
+                    ],
+                }
+            },
+            {"status": "success", "drive_intent": "active"},
+        ]
+
+        # Execute with simulated user input
+        result = runner.invoke(app, ["drive", "set", "active"], input="c\n")
+
+        # Verify
+        assert result.exit_code == 0
+        assert "Collision Detected" in result.stdout
+        assert "collision acknowledged" in result.stdout
+
+        assert mock_set_drive.call_count == 2
+        mock_acknowledge.assert_called_once_with("mission-123", "warning-123", "continue")
+
+    @patch("specify_cli.cli.commands.mission.acknowledge_warning")
+    @patch("specify_cli.cli.commands.mission.set_drive")
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_drive_set_collision_hold(
+        self, mock_resolve, mock_set_drive, mock_acknowledge, runner
+    ):
+        """Test drive set handles collision with hold action."""
+        # Setup
+        mock_resolve.return_value = "mission-123"
+        mock_set_drive.return_value = {
+            "collision": {
+                "type": "drive_collision",
+                "severity": "medium",
+                "warning_id": "warning-123",
+                "conflicting_participants": [],
+            }
+        }
+
+        # Execute with simulated user input
+        result = runner.invoke(app, ["drive", "set", "active"], input="h\n")
+
+        # Verify
+        assert result.exit_code == 0
+        assert "Drive remains inactive" in result.stdout
+
+        mock_acknowledge.assert_called_once_with("mission-123", "warning-123", "hold")
+
+    @patch("specify_cli.cli.commands.mission.set_drive")
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_drive_set_inactive(self, mock_resolve, mock_set_drive, runner):
+        """Test drive set to inactive."""
+        # Setup
+        mock_resolve.return_value = "mission-123"
+        mock_set_drive.return_value = {"status": "success", "drive_intent": "inactive"}
+
+        # Execute
+        result = runner.invoke(app, ["drive", "set", "inactive"])
+
+        # Verify
+        assert result.exit_code == 0
+        assert "Drive intent set to" in result.stdout
+        assert "inactive" in result.stdout
+
+
+class TestMissionStatus:
+    """Tests for spec-kitty mission status command."""
+
+    @patch("specify_cli.cli.commands.mission.get_mission_roster")
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_status_display(self, mock_resolve, mock_roster, runner):
+        """Test status command displays roster."""
+        # Setup
+        from specify_cli.collaboration.models import SessionState
+        from datetime import datetime
+
+        mock_resolve.return_value = "mission-123"
+        mock_roster.return_value = [
+            SessionState(
+                mission_id="mission-123",
+                mission_run_id="run-1",
+                participant_id="participant-001",
+                role="developer",
+                joined_at=datetime(2026, 1, 1, 10, 0, 0),
+                last_activity_at=datetime(2026, 1, 1, 10, 30, 0),
+                drive_intent="active",
+                focus="wp:WP01",
+            ),
+            SessionState(
+                mission_id="mission-123",
+                mission_run_id="run-1",
+                participant_id="participant-002",
+                role="reviewer",
+                joined_at=datetime(2026, 1, 1, 10, 5, 0),
+                last_activity_at=datetime(2026, 1, 1, 10, 25, 0),
+                drive_intent="inactive",
+                focus=None,
+            ),
+        ]
+
+        # Execute
+        result = runner.invoke(app, ["status"])
+
+        # Verify
+        assert result.exit_code == 0
+        assert "Mission mission-123" in result.stdout
+        assert "DEVELOPER" in result.stdout
+        assert "REVIEWER" in result.stdout
+        assert "wp:WP01" in result.stdout
+        assert "1 active drivers" in result.stdout
+
+    @patch("specify_cli.cli.commands.mission.get_mission_roster")
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_status_verbose(self, mock_resolve, mock_roster, runner):
+        """Test status command with verbose flag."""
+        # Setup
+        from specify_cli.collaboration.models import SessionState
+        from datetime import datetime
+
+        mock_resolve.return_value = "mission-123"
+        mock_roster.return_value = [
+            SessionState(
+                mission_id="mission-123",
+                mission_run_id="run-1",
+                participant_id="participant-001-full-id",
+                role="developer",
+                joined_at=datetime(2026, 1, 1, 10, 0, 0),
+                last_activity_at=datetime(2026, 1, 1, 10, 30, 0),
+                drive_intent="active",
+                focus="wp:WP01",
+            ),
+        ]
+
+        # Execute
+        result = runner.invoke(app, ["status", "--verbose"])
+
+        # Verify
+        assert result.exit_code == 0
+        assert "participant-001-full-id" in result.stdout
+
+
+class TestMissionComment:
+    """Tests for spec-kitty mission comment command."""
+
+    @patch("specify_cli.cli.commands.mission.emit_event")
+    @patch("specify_cli.cli.commands.mission.ensure_joined")
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_comment_with_text(self, mock_resolve, mock_ensure, mock_emit, runner):
+        """Test comment command with text argument."""
+        # Setup
+        from specify_cli.collaboration.models import SessionState
+        from datetime import datetime
+
+        mock_resolve.return_value = "mission-123"
+        mock_ensure.return_value = SessionState(
+            mission_id="mission-123",
+            mission_run_id="run-1",
+            participant_id="participant-001",
+            role="developer",
+            joined_at=datetime(2026, 1, 1, 10, 0, 0),
+            last_activity_at=datetime(2026, 1, 1, 10, 30, 0),
+            drive_intent="active",
+            focus="wp:WP01",
+        )
+
+        # Execute
+        result = runner.invoke(app, ["comment", "Test comment"])
+
+        # Verify
+        assert result.exit_code == 0
+        assert "Comment posted" in result.stdout
+
+        mock_emit.assert_called_once()
+
+    @patch("specify_cli.cli.commands.mission.emit_event")
+    @patch("specify_cli.cli.commands.mission.ensure_joined")
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_comment_truncates_long_text(self, mock_resolve, mock_ensure, mock_emit, runner):
+        """Test comment command truncates text over 500 chars."""
+        # Setup
+        from specify_cli.collaboration.models import SessionState
+        from datetime import datetime
+
+        mock_resolve.return_value = "mission-123"
+        mock_ensure.return_value = SessionState(
+            mission_id="mission-123",
+            mission_run_id="run-1",
+            participant_id="participant-001",
+            role="developer",
+            joined_at=datetime(2026, 1, 1, 10, 0, 0),
+            last_activity_at=datetime(2026, 1, 1, 10, 30, 0),
+            drive_intent="active",
+            focus="wp:WP01",
+        )
+
+        long_text = "x" * 600
+
+        # Execute
+        result = runner.invoke(app, ["comment", long_text])
+
+        # Verify
+        assert result.exit_code == 0
+        assert "Truncating comment to 500 chars" in result.stdout
+
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_comment_empty_text(self, mock_resolve, runner):
+        """Test comment command rejects empty text."""
+        # Setup
+        mock_resolve.return_value = "mission-123"
+
+        # Execute
+        result = runner.invoke(app, ["comment", "   "])
+
+        # Verify
+        assert result.exit_code == 1
+        assert "Comment cannot be empty" in result.stdout
+
+
+class TestMissionDecide:
+    """Tests for spec-kitty mission decide command."""
+
+    @patch("specify_cli.cli.commands.mission.emit_event")
+    @patch("specify_cli.cli.commands.mission.ensure_joined")
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_decide_with_text(self, mock_resolve, mock_ensure, mock_emit, runner):
+        """Test decide command with text argument."""
+        # Setup
+        from specify_cli.collaboration.models import SessionState
+        from datetime import datetime
+
+        mock_resolve.return_value = "mission-123"
+        mock_ensure.return_value = SessionState(
+            mission_id="mission-123",
+            mission_run_id="run-1",
+            participant_id="participant-001",
+            role="developer",
+            joined_at=datetime(2026, 1, 1, 10, 0, 0),
+            last_activity_at=datetime(2026, 1, 1, 10, 30, 0),
+            drive_intent="active",
+            focus="wp:WP01",
+        )
+
+        # Execute
+        result = runner.invoke(app, ["decide", "Use PostgreSQL"])
+
+        # Verify
+        assert result.exit_code == 0
+        assert "Decision captured" in result.stdout
+
+        mock_emit.assert_called_once()
+        call_args = mock_emit.call_args
+        event = call_args[0][1]
+        assert event.event_type == "DecisionCaptured"
+        assert event.payload["chosen_option"] == "Use PostgreSQL"
+        assert event.payload["topic"] == "wp:WP01"
