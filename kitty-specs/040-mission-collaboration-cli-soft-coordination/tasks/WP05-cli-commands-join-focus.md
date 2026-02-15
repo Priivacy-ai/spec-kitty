@@ -1,9 +1,13 @@
 ---
 work_package_id: WP05
 title: CLI Commands - Join & Focus
-dependencies: ["WP04"]
-lane: "planned"
-subtasks: ["T021", "T022", "T027"]
+lane: "doing"
+dependencies: [WP04]
+base_branch: 040-mission-collaboration-cli-soft-coordination-WP04
+base_commit: 02691ff86790e3b570ea00c36c4682c8dd9b6c0c
+created_at: '2026-02-15T13:56:33.126459+00:00'
+subtasks: [T021, T022, T027]
+shell_pid: "62639"
 ---
 
 # WP05: CLI Commands - Join & Focus
