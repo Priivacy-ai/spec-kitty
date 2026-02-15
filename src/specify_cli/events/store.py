@@ -2,14 +2,36 @@
 
 from pathlib import Path
 import json
-import fcntl  # Unix file locking
 import os
+import sys
 import httpx
 from datetime import datetime
+
+# Cross-platform file locking
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
 
 from specify_cli.events import EventAdapter
 from specify_cli.events.models import EventQueueEntry
 from spec_kitty_events.models import Event
+
+
+def _lock_file(file_handle) -> None:
+    """Acquire exclusive lock on file (cross-platform)."""
+    if sys.platform == "win32":
+        msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, 1)
+    else:
+        fcntl.flock(file_handle.fileno(), fcntl.LOCK_EX)
+
+
+def _unlock_file(file_handle) -> None:
+    """Release lock on file (cross-platform)."""
+    if sys.platform == "win32":
+        msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
 
 
 class EventStore:
@@ -52,10 +74,19 @@ def append_event(mission_id: str, event: Event, replay_status: str = "pending") 
         replay_status: "pending", "delivered", or "failed"
 
     Raises:
-        IOError: If file write fails
+        IOError: If file write fails after retries
+        PermissionError: If insufficient permissions to write queue file
     """
     queue_path = get_queue_path(mission_id)
-    queue_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Check parent directory permissions early
+    try:
+        queue_path.parent.mkdir(parents=True, exist_ok=True)
+    except PermissionError as e:
+        raise PermissionError(
+            f"Cannot create queue directory {queue_path.parent}. "
+            f"Check permissions on ~/.spec-kitty directory. Error: {e}"
+        ) from e
 
     # Create EventQueueEntry with replay metadata
     entry = EventQueueEntry(
@@ -68,19 +99,52 @@ def append_event(mission_id: str, event: Event, replay_status: str = "pending") 
     # Serialize to queue record
     line = json.dumps(entry.to_record(), separators=(',', ':')) + "\n"
 
-    # Atomic write with file locking
-    with open(queue_path, "a") as f:
-        # Acquire exclusive lock (blocks until available)
-        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-        try:
-            f.write(line)
-            f.flush()
-            os.fsync(f.fileno())  # Force write to disk
-        finally:
-            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    # Retry write on transient I/O failures
+    max_retries = 2
+    last_error = None
 
-    # Set file permissions to 0600 (owner read/write only)
-    queue_path.chmod(0o600)
+    for attempt in range(max_retries):
+        try:
+            # Atomic write with file locking
+            with open(queue_path, "a") as f:
+                # Acquire exclusive lock (blocks until available)
+                _lock_file(f)
+                try:
+                    f.write(line)
+                    f.flush()
+                    os.fsync(f.fileno())  # Force write to disk
+                finally:
+                    _unlock_file(f)
+
+            # Set file permissions to 0600 (owner read/write only)
+            try:
+                queue_path.chmod(0o600)
+            except PermissionError:
+                # Non-fatal: Log warning but don't fail
+                print(f"⚠️  Could not set permissions on {queue_path} (continuing)")
+
+            # Success - return
+            return
+
+        except PermissionError as e:
+            # Permission errors are not transient - fail immediately
+            raise PermissionError(
+                f"Cannot write to queue file {queue_path}. "
+                f"Check file permissions and ownership. Error: {e}"
+            ) from e
+
+        except (OSError, IOError) as e:
+            last_error = e
+            if attempt < max_retries - 1:
+                # Transient I/O error - retry once
+                import time
+                time.sleep(0.1)  # Brief delay before retry
+            else:
+                # Final retry failed
+                raise IOError(
+                    f"Failed to write event to queue after {max_retries} attempts. "
+                    f"Event ID: {event.event_id}. Last error: {e}"
+                ) from e
 
 
 def read_pending_events(mission_id: str) -> list[EventQueueEntry]:

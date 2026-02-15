@@ -65,8 +65,8 @@ def _send_batch(
         "Content-Type": "application/json",
     }
 
-    # Serialize events to dicts
-    payload = {"events": [entry.event.model_dump() for entry in batch]}
+    # Serialize events to dicts (use mode="json" to handle datetime serialization)
+    payload = {"events": [entry.event.model_dump(mode="json") for entry in batch]}
 
     for attempt in range(max_retries):
         try:

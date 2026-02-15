@@ -2,8 +2,30 @@
 
 from pathlib import Path
 import json
-import fcntl
 import os
+import sys
+
+# Cross-platform file locking
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
+
+
+def _lock_file(file_handle) -> None:
+    """Acquire exclusive lock on file (cross-platform)."""
+    if sys.platform == "win32":
+        msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, 1)
+    else:
+        fcntl.flock(file_handle.fileno(), fcntl.LOCK_EX)
+
+
+def _unlock_file(file_handle) -> None:
+    """Release lock on file (cross-platform)."""
+    if sys.platform == "win32":
+        msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
 
 
 class LamportClock:
@@ -58,13 +80,13 @@ class LamportClock:
         # Atomic write
         temp_path = self._clock_path.with_suffix(".tmp")
         with open(temp_path, "w") as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            _lock_file(f)
             try:
                 json.dump(all_clocks, f)
                 f.flush()
                 os.fsync(f.fileno())
             finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                _unlock_file(f)
 
         temp_path.replace(self._clock_path)
 
