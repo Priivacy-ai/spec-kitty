@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Unit & Domain Tests
-lane: "planned"
+lane: "for_review"
 dependencies: [WP02, WP03, WP04, WP05, WP06, WP07]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP07
 base_commit: 80140058d5d243c21f3472d5369dea9629fd6e7c
@@ -9,7 +9,7 @@ created_at: '2026-02-15T14:39:11.343552+00:00'
 subtasks: [T031, T032, T033, T034, T035]
 shell_pid: "98369"
 agent: "codex"
-review_status: "has_feedback"
+review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
 ---
 
@@ -237,3 +237,4 @@ def test_gemini_adapter_parse_observation():
 - 2026-02-15T14:45:51Z – unknown – shell_pid=91339 – lane=for_review – Moved to for_review
 - 2026-02-15T14:46:21Z – codex – shell_pid=98369 – lane=doing – Started review via workflow command
 - 2026-02-15T14:49:59Z – codex – shell_pid=98369 – lane=planned – Moved to planned
+- 2026-02-15T15:05:51Z – codex – shell_pid=98369 – lane=for_review – Moved to for_review
