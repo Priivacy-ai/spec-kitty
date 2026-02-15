@@ -125,26 +125,30 @@ Traditional hard-lock models impose rigid ownership that conflicts with organic,
 
 ### Scenario 4: Offline Replay Preserves Context
 
-**Context:** Charlie (developer) works offline for 30 minutes, then reconnects. Meanwhile, Alice made progress.
+**Context:** Charlie (developer) has already joined mission online. Charlie then loses connection but continues working offline for 30 minutes before reconnecting. Meanwhile, Alice made progress online.
 
 **Flow:**
-1. Charlie loses network connection at T0
-2. Charlie runs 5 commands offline (join, focus set, drive set, comment × 2)
-3. Events queued locally (not delivered to SaaS)
-4. Alice runs 3 commands online (focus set, drive set, comment)
-5. Charlie reconnects at T0+30min
-6. CLI replays Charlie's 5 queued events to SaaS
-7. Charlie runs `spec-kitty mission status` and sees merged state (Alice + Charlie events)
+1. Charlie joins mission while online (SaaS mints participant_id, stored in CLI session)
+2. Charlie loses network connection at T0
+3. Charlie runs 4 commands offline (focus set, drive set, comment × 2)
+4. Events queued locally with SaaS-issued participant_id (not delivered to SaaS)
+5. Alice runs 3 commands online (focus set, drive set, comment)
+6. Charlie reconnects at T0+30min
+7. CLI replays Charlie's 4 queued events to SaaS (SaaS validates participant_id in roster)
+8. Charlie runs `spec-kitty mission status` and sees merged state (Alice + Charlie events)
 
 **Expected Outcome:**
-- Offline commands succeed and append to local queue
+- Offline commands (except join) succeed and append to local queue using stored participant_id
 - Reconnect triggers batch replay to SaaS
+- SaaS validates participant_id from queued events against mission roster (accepts valid, rejects unknown)
 - Mission status reflects merged event stream (Lamport clock ordering)
 - No event loss or duplication
 
 **Success Criteria:**
-- Local queue persists events across CLI invocations (durable storage)
+- Must join mission while online before going offline (join cannot be queued)
+- Local queue persists events across CLI invocations (durable storage) with SaaS-issued participant_id
 - Replay preserves event order (causation_id chaining)
+- SaaS rejects replayed events from participants not in roster (hard error, not advisory)
 - Conflict warnings shown if replayed events reveal retroactive collisions
 
 ---
@@ -177,17 +181,22 @@ Traditional hard-lock models impose rigid ownership that conflicts with organic,
 **Command:** `spec-kitty mission join <mission_id> --role <role>`
 
 **Behavior:**
-- Validates mission_id exists (queries SaaS or local cache)
-- Validates role is one of: developer, reviewer, observer, stakeholder
-- Emits ParticipantJoined event with participant_id, role, timestamp
-- Stores joined mission context in CLI session state (~/.spec-kitty/session.json)
+- **SaaS-Authoritative**: Must call SaaS API to join mission (cannot join offline)
+- SaaS validates mission_id exists and user has permission to join
+- SaaS validates role is one of: developer, reviewer, observer, stakeholder
+- **SaaS mints participant_id** (mission-scoped identity bound to auth principal)
+- SaaS returns participant_id + session_token for subsequent collaboration commands
+- CLI stores joined mission context in session state (~/.spec-kitty/session.json) including SaaS-issued participant_id
+- Emits ParticipantJoined event with SaaS-issued participant_id, role, timestamp
 - Returns success message with role capabilities summary
 
 **Acceptance Criteria:**
-- Rejects invalid mission_id with clear error message
+- Requires online connection (fails immediately if offline with clear error)
+- Rejects invalid mission_id with clear error message from SaaS
 - Rejects invalid role (must match role taxonomy)
-- Supports offline join (event queued for replay)
-- Multiple invocations are idempotent (duplicate joins ignored)
+- Rejects unauthorized users (SaaS validates auth principal)
+- Stores SaaS-issued participant_id for use in all subsequent collaboration events
+- Multiple invocations are idempotent (SaaS returns existing participant_id if already joined)
 
 ---
 
@@ -377,20 +386,26 @@ REVIEWER
 ### FR-9: Offline Queue & Replay
 
 **Behavior:**
-- **Local Queue**: Events append to ~/.spec-kitty/events/<mission_id>.jsonl immediately
+- **Prerequisite**: User must join mission while online (SaaS mints participant_id, CLI stores in session)
+- **Local Queue**: Events append to ~/.spec-kitty/events/<mission_id>.jsonl immediately with SaaS-issued participant_id
 - **Online Check**: Each command attempts SaaS delivery (WebSocket or HTTP POST)
 - **Offline Detection**: If delivery fails (network error, timeout), mark event as pending_replay
 - **Replay Trigger**: On next successful online command, batch-send all pending_replay events
 - **Replay Endpoint**: POST to SaaS /api/v2/events/batch with event array
+- **Replay Validation**: SaaS validates participant_id in each event against mission roster
+  - **Accept**: Events from participants in roster (normal replay)
+  - **Reject**: Events from unknown participants (hard error, not advisory anomaly)
 - **Replay Confirmation**: SaaS returns accepted event_ids, CLI marks as delivered
 
 **Edge Cases:**
 - **Concurrent Offline Users**: Lamport clocks may conflict on replay (SaaS resolves via timestamp tie-breaker)
 - **Partial Replay Failure**: If batch replay partially fails, retry only failed events (idempotent event_id)
 - **Stale Context Warning**: If replay reveals retroactive collision (user worked offline while others progressed), emit warning on next command
+- **Unknown Participant**: If participant_id not in roster (e.g., kicked while offline), SaaS rejects all events with clear error
 
 **Acceptance Criteria:**
-- Offline commands succeed instantly (no network wait)
+- Join command fails immediately if offline (cannot queue join for replay)
+- Offline commands (post-join) succeed instantly (no network wait) using stored participant_id
 - Replay completes within 5 seconds for batches up to 100 events
 - Event order preserved (Lamport clock + causation chain)
 - CLI displays replay progress (e.g., "Syncing 12 pending events...")
@@ -455,7 +470,7 @@ actor_identity = adapter.normalize_actor_identity(runtime_ctx)
 
 3. **Organic Handoff Efficiency**: Participant A changes focus from WP01 to WP02, Participant B claims WP01 within 30 seconds without coordination overhead (measured: 0 explicit lock release commands, handoff latency < 30s)
 
-4. **Offline Resilience**: Participant works offline for 30 minutes (50 commands executed), reconnects, and all events replay successfully within 10 seconds with preserved order (measured: 100% replay success rate, replay latency p95 < 10s)
+4. **Offline Resilience**: Participant joins mission while online (SaaS mints participant_id), then works offline for 30 minutes (50 commands executed using stored participant_id), reconnects, and all events replay successfully within 10 seconds with preserved order and validated participant_id (measured: 100% replay success rate for roster participants, 0% for unknown participants, replay latency p95 < 10s)
 
 5. **Adapter Equivalence**: Gemini and Cursor adapters emit events with identical structure for same input scenario (measured: 0 schema differences in contract test suite with 20 recorded scenarios)
 
@@ -642,28 +657,35 @@ Warnings do not hard-block in default mode; acknowledgement is required to proce
 
 ## Assumptions
 
-1. **Mission Identity**: MissionRun IDs are assigned by SaaS (not CLI-generated) via prior mission start/session service
+1. **SaaS-Authoritative Participation**: Mission participation is SaaS-authoritative (cannot join offline)
+   - **Implication**: CLI must successfully join mission online before any collaboration commands work
+   - **Implication**: SaaS mints participant_id and binds it to auth principal
+   - **Implication**: Live event ingest rejects events from participants not in mission roster (hard error)
+   - **Implication**: CLI cannot invent participant identities (must use SaaS-issued participant_id)
+
+2. **Mission Identity**: MissionRun IDs are assigned by SaaS (not CLI-generated) via prior mission start/session service
    - **Implication**: CLI must query SaaS to validate mission_id before join (or cache valid IDs)
 
-2. **Role Capabilities Fixed**: Role → capability mapping is hardcoded for S1/M1 (no tenant customization)
+3. **Role Capabilities Fixed**: Role → capability mapping is hardcoded for S1/M1 (no tenant customization)
    - **Implication**: Policy engine deferred to future sprint (simplifies initial implementation)
 
-3. **Soft Coordination Default**: No hard lock enforcement in S1/M1 (advisory warnings only)
+4. **Soft Coordination Default**: No hard lock enforcement in S1/M1 (advisory warnings only)
    - **Implication**: Collision warnings can be ignored by user (system does not block execution)
 
-4. **Gemini/Cursor Stubs Sufficient**: Baseline adapters ship with tested parsing for common scenarios (edge case handling deferred)
+5. **Gemini/Cursor Stubs Sufficient**: Baseline adapters ship with tested parsing for common scenarios (edge case handling deferred)
    - **Implication**: Production use may reveal gaps requiring post-S1/M1 hardening
 
-5. **Local-First Authority**: CLI local queue is authoritative (SaaS is eventual consistency replica)
+6. **Local-First Event Queue**: CLI local queue is authoritative for event ordering (SaaS is eventual consistency replica)
    - **Implication**: SaaS backend must handle out-of-order replay (Lamport clock + timestamp ordering)
+   - **Implication**: Participant identity is SaaS-authoritative; event queue uses SaaS-issued participant_id
 
-6. **Feature Term Deprecated**: All new domain models use "Mission" terminology (Feature only for external backlog references)
+7. **Feature Term Deprecated**: All new domain models use "Mission" terminology (Feature only for external backlog references)
    - **Implication**: Documentation, code comments, and event naming must avoid "Feature" (except legacy compatibility)
 
-7. **Single Mission Focus**: Participants join one mission at a time (no multi-mission sessions in S1/M1)
+8. **Single Mission Focus**: Participants join one mission at a time (no multi-mission sessions in S1/M1)
    - **Implication**: CLI session.json stores one active mission_id (switching missions requires rejoin)
 
-8. **Network Connectivity**: Offline mode assumes eventual reconnection (no indefinite offline operation)
+9. **Network Connectivity**: Offline mode assumes eventual reconnection (no indefinite offline operation)
    - **Implication**: Replay queue has unbounded growth potential (requires periodic cleanup in future)
 
 ## Out of Scope
