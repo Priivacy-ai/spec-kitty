@@ -1,13 +1,13 @@
 ---
 work_package_id: WP09
 title: Integration Tests
-lane: "for_review"
+lane: "doing"
 dependencies: [WP02, WP03, WP04]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP04
 base_commit: 02691ff86790e3b570ea00c36c4682c8dd9b6c0c
 created_at: '2026-02-15T15:12:58.561177+00:00'
 subtasks: [T036, T037, T038, T039]
-shell_pid: "33611"
+shell_pid: "42985"
 agent: "codex"
 review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
@@ -213,3 +213,4 @@ def test_offline_online_flow():
 - 2026-02-15T15:21:28Z – codex – shell_pid=33611 – lane=doing – Started review via workflow command
 - 2026-02-15T15:26:24Z – codex – shell_pid=33611 – lane=planned – Moved to planned
 - 2026-02-15T15:29:49Z – codex – shell_pid=33611 – lane=for_review – Moved to for_review
+- 2026-02-15T15:30:23Z – codex – shell_pid=42985 – lane=doing – Started review via workflow command
