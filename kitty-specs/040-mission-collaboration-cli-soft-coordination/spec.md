@@ -184,7 +184,8 @@ Traditional hard-lock models impose rigid ownership that conflicts with organic,
 - **SaaS-Authoritative**: Must call SaaS API to join mission (cannot join offline)
 - SaaS validates mission_id exists and user has permission to join
 - SaaS validates role is one of: developer, reviewer, observer, stakeholder
-- **SaaS mints participant_id** (mission-scoped identity bound to auth principal)
+- **Rejects `llm_actor` role**: CLI and SaaS must reject `--role llm_actor` (not a join role)
+- **SaaS mints participant_id** (mission-scoped ULID bound to auth principal)
 - SaaS returns participant_id + session_token for subsequent collaboration commands
 - CLI stores joined mission context in session state (~/.spec-kitty/session.json) including SaaS-issued participant_id
 - Emits ParticipantJoined event with SaaS-issued participant_id, role, timestamp
@@ -193,9 +194,10 @@ Traditional hard-lock models impose rigid ownership that conflicts with organic,
 **Acceptance Criteria:**
 - Requires online connection (fails immediately if offline with clear error)
 - Rejects invalid mission_id with clear error message from SaaS
-- Rejects invalid role (must match role taxonomy)
+- Rejects invalid role (must be developer, reviewer, observer, or stakeholder)
+- Rejects `--role llm_actor` with clear error message (not a join role)
 - Rejects unauthorized users (SaaS validates auth principal)
-- Stores SaaS-issued participant_id for use in all subsequent collaboration events
+- Stores SaaS-issued participant_id (ULID) for use in all subsequent collaboration events
 - Multiple invocations are idempotent (SaaS returns existing participant_id if already joined)
 
 ---
@@ -348,12 +350,11 @@ REVIEWER
 **Canonical Envelope (spec_kitty_events.models.Event):**
 ```python
 {
-  "event_id": "uuid-v4",
+  "event_id": "01HQRS8ZMBE6XYZABC0123DEFG",  # ULID format (26 chars)
   "event_type": "DriveIntentSet",
   "aggregate_id": "mission-abc-123",  # mission_id
-  "correlation_id": "run-xyz-789",    # mission_run_id (session correlation)
   "payload": {
-    "participant_id": "alice@example.com",
+    "participant_id": "01HQRS8ZMBE6XYZ0000000001",  # SaaS-issued participant_id (ULID)
     "previous_state": "inactive",
     "new_state": "active",
     "focus_context": "wp:WP01"
@@ -361,13 +362,13 @@ REVIEWER
   "timestamp": "2026-02-15T10:30:00Z",
   "node_id": "cli-alice-macbook",
   "lamport_clock": 42,
-  "causation_id": "event-uuid-causing-this",
-  "project_uuid": "proj-uuid",
-  "project_slug": "spec-kitty",
-  "schema_version": "2.0",
-  "data_tier": "collaboration"
+  "causation_id": "01HQRS8ZMBE6XYZABC0123ABCD"  # ULID of triggering event (26 chars)
 }
 ```
+
+**Note:** The 2.x Event model uses ULID format for event_id and causation_id (26 characters). Additional metadata fields (correlation_id, project_uuid, schema_version, data_tier) are part of the feature 006 collaboration event extension and will be specified in that feature's contract.
+
+**Payload Schema Alignment:** The DriveIntentSet payload shown above (previous_state, new_state, focus_context) is a draft structure. Final payload contract must align with feature 006 collaboration event specifications to ensure schema validation passes. If feature 006 defines intent-based payload structure, this must be updated accordingly before implementation.
 
 **Behavior:**
 - All commands emit events synchronously to local queue (durable append)
@@ -391,7 +392,7 @@ REVIEWER
 - **Online Check**: Each command attempts SaaS delivery (WebSocket or HTTP POST)
 - **Offline Detection**: If delivery fails (network error, timeout), mark event as pending_replay
 - **Replay Trigger**: On next successful online command, batch-send all pending_replay events
-- **Replay Endpoint**: POST to SaaS /api/v2/events/batch with event array
+- **Replay Endpoint**: POST to SaaS /api/v1/events/batch/ with event array
 - **Replay Validation**: SaaS validates participant_id in each event against mission roster
   - **Accept**: Events from participants in roster (normal replay)
   - **Reject**: Events from unknown participants (hard error, not advisory anomaly)
@@ -531,8 +532,9 @@ actor_identity = adapter.normalize_actor_identity(runtime_ctx)
 **Description:** Developer, reviewer, observer, or stakeholder in a mission
 
 **Attributes:**
-- participant_id (user email or agent identifier)
-- role (developer, reviewer, observer, stakeholder, llm_actor)
+- participant_id (SaaS-issued ULID, mission-scoped, bound to auth principal)
+- role (developer, reviewer, observer, stakeholder)
+- participant_type (human, llm_context, service) - for provenance/identity metadata
 - drive_intent (active, inactive)
 - focus (none, wp:<id>, step:<id>)
 - last_activity_at (ISO timestamp)
@@ -542,42 +544,50 @@ actor_identity = adapter.normalize_actor_identity(runtime_ctx)
 - Participates in 1 MissionRun
 - May focus on 1 WorkPackage or 1 PromptStep (or none)
 
+**Note:** `llm_actor` is NOT a join role. LLM activity is represented via `participant_type=llm_context` under a human-joined participant, or as derived actor identity in event provenance. CLI must reject `--role llm_actor`.
+
 ---
 
 ### CollaborationEvent
 **Description:** Canonical event envelope (14 event types)
 
-**Attributes:**
-- event_id (UUID v4, primary key)
+**Attributes (base Event model):**
+- event_id (ULID, 26 chars, primary key)
 - event_type (ParticipantJoined, DriveIntentSet, FocusChanged, etc.)
 - aggregate_id (mission_id)
-- correlation_id (mission_run_id)
-- payload (event-specific data)
+- payload (event-specific data, includes participant_id)
 - timestamp (ISO timestamp)
-- lamport_clock (integer, logical ordering)
-- causation_id (event_id of triggering event, nullable)
 - node_id (CLI instance identifier)
+- lamport_clock (integer, logical ordering)
+- causation_id (ULID of triggering event, nullable, 26 chars)
+
+**Additional metadata (feature 006 extension):**
+- correlation_id (mission_run_id for session correlation)
 - project_uuid, project_slug (project context)
-- schema_version (e.g., "2.0")
-- data_tier (e.g., "collaboration")
+- schema_version (semver, e.g., "1.0.0")
+- data_tier (integer 0-4, not string)
 
 **Relationships:**
 - Emitted by 1 Participant (via participant_id in payload)
 - Scoped to 1 MissionRun (via aggregate_id)
 - May reference 1 causation Event (via causation_id)
 
+**Note:** Base Event model uses ULID format (26 chars). Additional metadata fields are part of the feature 006 collaboration event extension.
+
 ---
 
 ### ActorIdentity
-**Description:** Normalized participant identity (human or LLM agent)
+**Description:** Adapter-normalized identity for agent/human actors (used during join flow, not in events)
 
 **Attributes:**
 - agent_type (claude, gemini, cursor, human)
-- user_id (email or username)
-- session_id (CLI session UUID)
+- auth_principal (user email or OAuth subject, bound to SaaS-issued participant_id)
+- session_id (CLI session ULID)
 
 **Relationships:**
-- Represents 1 Participant in events
+- Maps to 1 Participant (SaaS binds auth_principal → participant_id at join time)
+
+**Note:** ActorIdentity is used by adapters during join to normalize agent/user context. SaaS mints the mission-scoped participant_id and binds it to the auth_principal. Events use participant_id (ULID), not auth_principal.
 
 ---
 
@@ -597,11 +607,25 @@ actor_identity = adapter.normalize_actor_identity(runtime_ctx)
 
 ### Role Taxonomy (S1/M1 Default)
 
+**Join Roles (allowed in `mission join --role <role>`):**
 - **developer**: Execution-capable participant with full collaboration capabilities
 - **reviewer**: Review-first participant, execution-capable for takeover/handoff scenarios
 - **observer**: Non-execution participant with read-only visibility
 - **stakeholder**: Non-execution participant with decision-input capability
-- **llm_actor**: Recorded actor type for provenance/events (not a human CLI join role)
+
+**IMPORTANT:** `llm_actor` is NOT a join role. CLI must reject `--role llm_actor` with error.
+
+### Actor Type Taxonomy (Identity Metadata)
+
+**Participant Types (provenance/identity, not permission roles):**
+- **human**: Human developer/reviewer/observer/stakeholder
+- **llm_context**: LLM agent activity (linked to human participant or derived identity)
+- **service**: Automated service/bot (future)
+
+**Separation of Concerns:**
+- **Role** → Permissions (can_execute, can_drive, etc.) - used for authorization
+- **Participant Type** → Identity/provenance - used for event metadata and audit trails
+- **LLM activity** → Represented as `participant_type=llm_context`, NOT as a separate role
 
 ### Capability Model (Role → Permissions)
 
