@@ -1,13 +1,13 @@
 ---
 work_package_id: WP03
 title: Session State Management
-lane: "for_review"
+lane: "doing"
 dependencies: [WP01]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP02
 base_commit: 9f352ec48cd0200bc28d33ec408e8575b9fcbb08
 created_at: '2026-02-15T13:12:20.111712+00:00'
 subtasks: [T011, T012, T013, T014]
-shell_pid: "37111"
+shell_pid: "42577"
 agent: "codex"
 review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
@@ -460,3 +460,4 @@ After WP03 completion:
 - 2026-02-15T13:16:50Z – codex – shell_pid=37111 – lane=doing – Started review via workflow command
 - 2026-02-15T13:21:56Z – codex – shell_pid=37111 – lane=planned – Moved to planned
 - 2026-02-15T13:26:07Z – codex – shell_pid=37111 – lane=for_review – Moved to for_review
+- 2026-02-15T13:26:33Z – codex – shell_pid=42577 – lane=doing – Started review via workflow command
