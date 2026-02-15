@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: CLI Commands - Drive, Status, Comment, Decide
-lane: "doing"
+lane: "planned"
 dependencies: [WP04]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP05
 base_commit: d70ff8af542b259384f490305a6e26edccae3a59
@@ -9,6 +9,8 @@ created_at: '2026-02-15T14:04:29.765150+00:00'
 subtasks: [T023, T024, T025, T026]
 shell_pid: "70461"
 agent: "codex"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 ---
 
 # WP06: CLI Commands - Drive, Status, Comment, Decide
@@ -254,3 +256,4 @@ def decide_command(text: str | None = None, mission_id: str | None = None) -> No
 
 - 2026-02-15T14:08:19Z – unknown – shell_pid=67591 – lane=for_review – Moved to for_review
 - 2026-02-15T14:10:01Z – codex – shell_pid=70461 – lane=doing – Started review via workflow command
+- 2026-02-15T14:14:10Z – codex – shell_pid=70461 – lane=planned – Moved to planned
