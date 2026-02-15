@@ -69,7 +69,7 @@ class EventQueueEntry:
         last_retry_at = datetime.fromisoformat(str(last_retry_str)) if last_retry_str else None
 
         # Reconstruct Event (implementation depends on Event model from 006)
-        event = Event(**data_copy) if hasattr(Event, '__init__') else Event.model_validate(data_copy)  # type: ignore[arg-type]
+        event = Event(**data_copy) if hasattr(Event, '__init__') else Event.model_validate(data_copy)
 
         return cls(
             event=event,

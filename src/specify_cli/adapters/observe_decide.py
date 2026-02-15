@@ -1,7 +1,7 @@
 """ObserveDecideAdapter protocol for AI agent normalization."""
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 
 @dataclass
@@ -30,7 +30,7 @@ class ObservationSignal:
     """
     signal_type: str  # step_started, step_completed, decision_requested, error_detected
     entity_id: str  # wp_id or step_id
-    metadata: dict  # Provider-specific additional data
+    metadata: dict[str, Any]  # Provider-specific additional data
 
 
 @dataclass
@@ -40,7 +40,7 @@ class DecisionRequestDraft:
     """
     question: str
     options: list[str]
-    context: dict
+    context: dict[str, Any]
 
 
 @dataclass
@@ -66,7 +66,7 @@ class ObserveDecideAdapter(Protocol):
     - Feature 040: Adapter interface, implementations
     """
 
-    def normalize_actor_identity(self, runtime_ctx: dict) -> ActorIdentity:
+    def normalize_actor_identity(self, runtime_ctx: dict[str, Any]) -> ActorIdentity:
         """
         Extract actor identity from agent runtime context.
 
@@ -78,7 +78,7 @@ class ObserveDecideAdapter(Protocol):
         """
         ...
 
-    def parse_observation(self, output: str | dict) -> list[ObservationSignal]:
+    def parse_observation(self, output: str | dict[str, Any]) -> list[ObservationSignal]:
         """
         Parse agent output into structured observation signals.
 
