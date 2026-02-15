@@ -9,6 +9,7 @@ from typing import Optional
 
 from ..scanner import (
     format_path_for_display,
+    resolve_active_feature,
     resolve_feature_dir,
     scan_all_features,
     scan_feature_kanban,
@@ -38,8 +39,7 @@ class FeatureHandler(DashboardHandler):
             feature_dir = project_path / feature['path']
             feature['is_legacy'] = is_legacy_format(feature_dir)
 
-        # Derive active mission from the most active feature (per-feature mission model)
-        # Priority: feature with WPs in doing > for_review > most recent feature
+        # Derive active mission from the same active-feature resolver used by CLI status.
         mission_context = {
             'name': 'No active feature',
             'domain': 'unknown',
@@ -49,18 +49,7 @@ class FeatureHandler(DashboardHandler):
             'path': '',
         }
 
-        active_feature = None
-        for feature in features:
-            stats = feature.get('kanban_stats', {})
-            if stats.get('doing', 0) > 0:
-                active_feature = feature
-                break
-            if stats.get('for_review', 0) > 0 and active_feature is None:
-                active_feature = feature
-
-        # Fall back to most recent feature if none are active
-        if active_feature is None and features:
-            active_feature = features[0]  # Already sorted by id descending (most recent first)
+        active_feature = resolve_active_feature(project_path, features)
 
         if active_feature:
             feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
@@ -119,6 +108,7 @@ class FeatureHandler(DashboardHandler):
 
         response = {
             'features': features,
+            'active_feature_id': active_feature.get('id') if active_feature else None,
             'project_path': format_path_for_display(str(project_path)),
             'worktrees_root': worktrees_root_display,
             'active_worktree': active_worktree_display,

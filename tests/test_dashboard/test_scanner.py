@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from specify_cli.dashboard import scanner
+from specify_cli.core.feature_detection import FeatureContext
 
 
 def _create_feature(tmp_path: Path) -> Path:
@@ -40,3 +41,37 @@ def test_scan_feature_kanban_returns_prompt(tmp_path):
     task = lanes["planned"][0]
     assert task["id"] == "WP01"
     assert "prompt_markdown" in task
+
+
+def test_resolve_active_feature_uses_core_detector(tmp_path, monkeypatch):
+    features = [
+        {"id": "009-old-feature"},
+        {"id": "010-new-feature"},
+    ]
+
+    def _fake_detect_feature(*_args, **_kwargs):
+        return FeatureContext(
+            slug="010-new-feature",
+            number="010",
+            name="new-feature",
+            directory=tmp_path / "kitty-specs" / "010-new-feature",
+            detection_method="fallback_latest_incomplete",
+        )
+
+    monkeypatch.setattr(scanner, "detect_feature", _fake_detect_feature)
+
+    resolved = scanner.resolve_active_feature(tmp_path, features)
+    assert resolved is not None
+    assert resolved["id"] == "010-new-feature"
+
+
+def test_resolve_active_feature_falls_back_to_first(tmp_path, monkeypatch):
+    features = [
+        {"id": "009-old-feature"},
+        {"id": "010-new-feature"},
+    ]
+
+    monkeypatch.setattr(scanner, "detect_feature", lambda *_args, **_kwargs: None)
+    resolved = scanner.resolve_active_feature(tmp_path, features)
+    assert resolved is not None
+    assert resolved["id"] == "009-old-feature"

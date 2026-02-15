@@ -1031,7 +1031,7 @@ function updateWorkflowIcons(workflow) {
     document.getElementById('icon-implement').textContent = iconMap[workflow.implement] || '⏳';
 }
 
-function updateFeatureList(features) {
+function updateFeatureList(features, activeFeatureId = null) {
     allFeatures = features;
     const selectContainer = document.getElementById('feature-selector-container');
     const select = document.getElementById('feature-select');
@@ -1086,16 +1086,19 @@ function updateFeatureList(features) {
         selectContainer.style.display = 'none';
         singleFeatureName.style.display = 'block';
         singleFeatureName.textContent = `Feature: ${features[0].name}`;
-        currentFeature = features[0].id;
+        currentFeature = activeFeatureId || features[0].id;
         setFeatureSelectActive(false);
     } else {
         // Handle multiple features - show dropdown
         selectContainer.style.display = 'block';
         singleFeatureName.style.display = 'none';
 
+        const activeFeatureExists = activeFeatureId && features.find(f => f.id === activeFeatureId);
         // Try to restore saved feature, fall back to first feature
         const savedFeatureExists = savedState.feature && features.find(f => f.id === savedState.feature);
-        if (!currentFeature || !features.find(f => f.id === currentFeature)) {
+        if (activeFeatureExists) {
+            currentFeature = activeFeatureId;
+        } else if (!currentFeature || !features.find(f => f.id === currentFeature)) {
             currentFeature = savedFeatureExists ? savedState.feature : features[0].id;
         }
 
@@ -1191,7 +1194,7 @@ function fetchData(isInitialLoad = false) {
         .then(data => {
             // Use full update on initial load, silent update on polls
             if (isInitialLoad) {
-                updateFeatureList(data.features);
+                updateFeatureList(data.features, data.active_feature_id || null);
             } else {
                 updateFeatureListSilent(data.features);
 
