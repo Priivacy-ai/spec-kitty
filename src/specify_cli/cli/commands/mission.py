@@ -424,7 +424,10 @@ def drive_set_command(state: str, mission_id: str | None = None) -> None:
 
             if acknowledgement == "continue":
                 # Re-call set_drive (bypass check)
-                set_drive(resolved_mission_id, state)
+                result = set_drive(resolved_mission_id, state)
+                if "collision" in result:
+                    console.print(f"[red]❌ Collision still exists after acknowledgement[/red]")
+                    raise typer.Exit(1)
                 console.print(f"✅ Drive intent set to [bold]{state}[/bold] (collision acknowledged)")
             elif acknowledgement == "hold":
                 console.print("⏸️  Drive remains inactive")
@@ -561,6 +564,10 @@ def decide_command(text: str | None = None, mission_id: str | None = None) -> No
 
         if text is None:
             text = typer.prompt("Decision text")
+
+        if len(text.strip()) == 0:
+            console.print("[red]❌ Decision cannot be empty[/red]")
+            raise typer.Exit(1)
 
         decision_id = generate_event_id()
 

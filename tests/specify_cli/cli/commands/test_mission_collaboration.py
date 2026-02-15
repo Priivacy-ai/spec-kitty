@@ -401,10 +401,12 @@ class TestMissionStatus:
 class TestMissionComment:
     """Tests for spec-kitty mission comment command."""
 
+    @patch("specify_cli.cli.commands.mission.generate_event_id")
+    @patch("specify_cli.cli.commands.mission.LamportClock")
     @patch("specify_cli.cli.commands.mission.emit_event")
     @patch("specify_cli.cli.commands.mission.ensure_joined")
     @patch("specify_cli.cli.commands.mission.resolve_mission_id")
-    def test_comment_with_text(self, mock_resolve, mock_ensure, mock_emit, runner):
+    def test_comment_with_text(self, mock_resolve, mock_ensure, mock_emit, mock_clock, mock_gen_id, runner):
         """Test comment command with text argument."""
         # Setup
         from specify_cli.collaboration.models import SessionState
@@ -421,6 +423,10 @@ class TestMissionComment:
             drive_intent="active",
             focus="wp:WP01",
         )
+        mock_gen_id.return_value = "01HXN7KQGZP8VXZB5RMKY6JTQW"
+        mock_clock_instance = MagicMock()
+        mock_clock_instance.increment.return_value = 1
+        mock_clock.return_value = mock_clock_instance
 
         # Execute
         result = runner.invoke(app, ["comment", "Test comment"])
@@ -431,10 +437,12 @@ class TestMissionComment:
 
         mock_emit.assert_called_once()
 
+    @patch("specify_cli.cli.commands.mission.generate_event_id")
+    @patch("specify_cli.cli.commands.mission.LamportClock")
     @patch("specify_cli.cli.commands.mission.emit_event")
     @patch("specify_cli.cli.commands.mission.ensure_joined")
     @patch("specify_cli.cli.commands.mission.resolve_mission_id")
-    def test_comment_truncates_long_text(self, mock_resolve, mock_ensure, mock_emit, runner):
+    def test_comment_truncates_long_text(self, mock_resolve, mock_ensure, mock_emit, mock_clock, mock_gen_id, runner):
         """Test comment command truncates text over 500 chars."""
         # Setup
         from specify_cli.collaboration.models import SessionState
@@ -451,6 +459,10 @@ class TestMissionComment:
             drive_intent="active",
             focus="wp:WP01",
         )
+        mock_gen_id.return_value = "01HXN7KQGZP8VXZB5RMKY6JTQW"
+        mock_clock_instance = MagicMock()
+        mock_clock_instance.increment.return_value = 1
+        mock_clock.return_value = mock_clock_instance
 
         long_text = "x" * 600
 
@@ -478,11 +490,51 @@ class TestMissionComment:
 class TestMissionDecide:
     """Tests for spec-kitty mission decide command."""
 
+    @patch("specify_cli.cli.commands.mission.generate_event_id")
+    @patch("specify_cli.cli.commands.mission.LamportClock")
     @patch("specify_cli.cli.commands.mission.emit_event")
     @patch("specify_cli.cli.commands.mission.ensure_joined")
     @patch("specify_cli.cli.commands.mission.resolve_mission_id")
-    def test_decide_with_text(self, mock_resolve, mock_ensure, mock_emit, runner):
+    def test_decide_with_text(self, mock_resolve, mock_ensure, mock_emit, mock_clock, mock_gen_id, runner):
         """Test decide command with text argument."""
+        # Setup
+        from specify_cli.collaboration.models import SessionState
+        from datetime import datetime
+
+        mock_resolve.return_value = "mission-123"
+        mock_ensure.return_value = SessionState(
+            mission_id="mission-123",
+            mission_run_id="run-1",
+            participant_id="participant-001",
+            role="developer",
+            joined_at=datetime(2026, 1, 1, 10, 0, 0),
+            last_activity_at=datetime(2026, 1, 1, 10, 30, 0),
+            drive_intent="active",
+            focus="wp:WP01",
+        )
+        mock_gen_id.return_value = "01HXN7KQGZP8VXZB5RMKY6JTQW"
+        mock_clock_instance = MagicMock()
+        mock_clock_instance.increment.return_value = 1
+        mock_clock.return_value = mock_clock_instance
+
+        # Execute
+        result = runner.invoke(app, ["decide", "Use PostgreSQL"])
+
+        # Verify
+        assert result.exit_code == 0
+        assert "Decision captured" in result.stdout
+
+        mock_emit.assert_called_once()
+        call_args = mock_emit.call_args
+        event = call_args[0][1]
+        assert event.event_type == "DecisionCaptured"
+        assert event.payload["chosen_option"] == "Use PostgreSQL"
+        assert event.payload["topic"] == "wp:WP01"
+
+    @patch("specify_cli.cli.commands.mission.ensure_joined")
+    @patch("specify_cli.cli.commands.mission.resolve_mission_id")
+    def test_decide_empty_text(self, mock_resolve, mock_ensure, runner):
+        """Test decide command rejects empty text."""
         # Setup
         from specify_cli.collaboration.models import SessionState
         from datetime import datetime
@@ -500,15 +552,8 @@ class TestMissionDecide:
         )
 
         # Execute
-        result = runner.invoke(app, ["decide", "Use PostgreSQL"])
+        result = runner.invoke(app, ["decide", "   "])
 
         # Verify
-        assert result.exit_code == 0
-        assert "Decision captured" in result.stdout
-
-        mock_emit.assert_called_once()
-        call_args = mock_emit.call_args
-        event = call_args[0][1]
-        assert event.event_type == "DecisionCaptured"
-        assert event.payload["chosen_option"] == "Use PostgreSQL"
-        assert event.payload["topic"] == "wp:WP01"
+        assert result.exit_code == 1
+        assert "Decision cannot be empty" in result.stdout
