@@ -212,6 +212,9 @@ architecture/           # Architectural design decisions and technical specifica
   ├── PHASE1_IMPLEMENTATION.md               # Base branch tracking spec
   └── PHASE2_IMPLEMENTATION.md               # Multi-parent merge spec
 src/                   # Source code
+  └── specify_cli/
+      ├── core/events/   # Event ABCs, Pydantic models, factory (Feature 040)
+      └── telemetry/     # JSONL event writer (Feature 040)
 tests/                 # Test suite
 kitty-specs/          # Feature specifications (dogfooding spec-kitty)
 docs/                 # User documentation
