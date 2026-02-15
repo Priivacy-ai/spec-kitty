@@ -1,0 +1,72 @@
+## Context: Configuration & Project Structure
+
+### Vision
+
+| | |
+|---|---|
+| **Definition** | A project-level intent document capturing the repository's purpose, desired outcomes, scope boundaries, and stakeholder overview. Created during [Bootstrap](#bootstrap) as the first interactive step. Provides persistent context for all subsequent `/spec-kitty.specify` discovery interviews — agents reference it to align feature proposals with project intent. Deliberately purpose-first (not problem-first) to accommodate non-solution repositories (creative writing, exploration, research). |
+| **Context** | Configuration |
+| **Status** | candidate |
+| **Location** | `.kittify/memory/vision.md` |
+| **Related terms** | [Bootstrap](#bootstrap), [Constitution](#constitution), [Feature](#feature) |
+| **Distinction** | Vision captures *what/why* (project intent). Constitution captures *how* (technical standards and governance). Different lifecycles, different audiences. |
+
+---
+
+### Bootstrap
+
+| | |
+|---|---|
+| **Definition** | The interactive onboarding command (`/spec-kitty.bootstrap`) proposed in architecture journeys to capture project-level intent and governance in a guided flow. It complements the current standalone `/spec-kitty.constitution` command. Intended outputs are `vision.md` (purpose, outcomes, scope) and `constitution.md` (technical standards, quality gates, governance), with optional approach customization for specialist agent profiles. |
+| **Context** | Configuration |
+| **Status** | candidate |
+| **Location** | Proposed journey artifact; not yet the canonical live command path |
+| **Related terms** | [Vision](#vision), [Constitution](#constitution), [Approach](#approach), [Agent Profile](#agent-profile) |
+| **Journey** | [001-project-onboarding-bootstrap](../architecture/journeys/001-project-onboarding-bootstrap.md) |
+| **Phases** | 1. Vision (required) → 2. Agent Customization (recommended) → 3. Technical Standards → 4. Code Quality (optional) → 5. Tribal Knowledge (optional) → 6. Governance (optional) |
+
+---
+
+### `.kittify/`
+
+| | |
+|---|---|
+| **Definition** | Spec Kitty's project-local configuration directory. Contains `config.yaml` (current source of truth for configured tool/agent routing), `merge-state.json` (merge progress), and `memory/constitution.md`. Distinct from `doctrine/` — `.kittify/` is SK-specific; `doctrine/` is the governance framework. |
+| **Context** | Configuration |
+| **Status** | canonical |
+
+---
+
+### `kitty-specs/`
+
+| | |
+|---|---|
+| **Definition** | Directory where all feature specifications, plans, tasks, and work package files are stored. Follows naming pattern `<number>-<slug>/`. All planning artifacts are committed to the main branch here before implementation begins. |
+| **Context** | Configuration |
+| **Status** | canonical |
+| **Related terms** | [Feature](#feature) |
+
+---
+
+### VCS Lock
+
+| | |
+|---|---|
+| **Definition** | The feature-level rule that VCS backend selection is persisted in `meta.json` at creation time and remains fixed for that feature's lifecycle to keep WP execution consistent. |
+| **Context** | Configuration |
+| **Status** | canonical |
+| **In code** | `kitty-specs/<feature>/meta.json` (`vcs` field) |
+| **Related terms** | [Feature](#feature), [`kitty-specs/`](#kitty-specs) |
+
+---
+
+### `doctrine/`
+
+| | |
+|---|---|
+| **Definition** | Directory at project root where Doctrine framework artifacts live, distributed as a git subtree. Its root-level placement signals cross-cutting authority. Contains guidelines, directives, approaches, tactics, templates, and agent profiles. |
+| **Context** | Configuration |
+| **Status** | canonical |
+| **Related terms** | [Doctrine](#doctrine-agentic-doctrine) |
+
+---
