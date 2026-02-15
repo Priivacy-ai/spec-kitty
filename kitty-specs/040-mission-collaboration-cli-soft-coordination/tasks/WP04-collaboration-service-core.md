@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Collaboration Service Core
-lane: "doing"
+lane: "for_review"
 dependencies: [WP02, WP03]
 base_branch: 040-mission-collaboration-cli-soft-coordination-WP03
 base_commit: 912014a3789215bc7927451d95e2a08c2945a284
@@ -556,3 +556,4 @@ def acknowledge_warning(
 ## Activity Log
 
 - 2026-02-15T13:31:11Z – claude – shell_pid=45781 – lane=doing – Assigned agent via workflow command
+- 2026-02-15T13:35:39Z – claude – shell_pid=45781 – lane=for_review – Ready for review: Implemented collaboration service core with join_mission, set_focus, set_drive, detect_collision, get_mission_roster, and acknowledge_warning use-cases. All functions emit canonical events, perform validation, and integrate with session state. Collision detection identifies 2+ active drivers (high severity) or 1 active driver (medium severity) on same focus. Materialized view replays events to build roster cache. All tests passing.
