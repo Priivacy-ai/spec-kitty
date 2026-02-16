@@ -66,6 +66,138 @@ class TestMetadataExtraction:
         assert len(terms) == 0
 
 
+class TestMetadataValidation:
+    """Tests for defensive metadata validation (regression tests for Codex review)."""
+
+    def test_watch_terms_wrong_type_string(self):
+        """watch_terms as string (not list) is silently ignored."""
+        metadata = {"glossary_watch_terms": "workspace"}
+        terms = extract_metadata_hints(metadata)
+        assert len(terms) == 0
+
+    def test_watch_terms_wrong_type_dict(self):
+        """watch_terms as dict (not list) is silently ignored."""
+        metadata = {"glossary_watch_terms": {"workspace": "value"}}
+        terms = extract_metadata_hints(metadata)
+        assert len(terms) == 0
+
+    def test_watch_terms_list_with_non_strings(self):
+        """watch_terms list with non-string items filters invalid entries."""
+        metadata = {
+            "glossary_watch_terms": [
+                "workspace",  # Valid
+                42,  # Invalid (int)
+                None,  # Invalid (None)
+                ["nested"],  # Invalid (list)
+                "mission",  # Valid
+            ]
+        }
+        terms = extract_metadata_hints(metadata)
+        assert len(terms) == 2
+        surfaces = {t.surface for t in terms}
+        assert surfaces == {"workspace", "mission"}
+
+    def test_aliases_wrong_type_list(self):
+        """aliases as list (not dict) is silently ignored."""
+        metadata = {"glossary_aliases": ["workspace", "mission"]}
+        terms = extract_metadata_hints(metadata)
+        assert len(terms) == 0
+
+    def test_aliases_wrong_type_string(self):
+        """aliases as string (not dict) is silently ignored."""
+        metadata = {"glossary_aliases": "WP:work package"}
+        terms = extract_metadata_hints(metadata)
+        assert len(terms) == 0
+
+    def test_aliases_dict_with_non_string_keys(self):
+        """aliases dict with non-string keys filters invalid entries."""
+        metadata = {
+            "glossary_aliases": {
+                "WP": "work package",  # Valid
+                42: "invalid key",  # Invalid (int key)
+                None: "null key",  # Invalid (None key)
+                "spec": "specification",  # Valid
+            }
+        }
+        terms = extract_metadata_hints(metadata)
+        assert len(terms) == 2
+        surfaces = {t.surface for t in terms}
+        assert surfaces == {"work package", "specification"}
+
+    def test_aliases_dict_with_non_string_values(self):
+        """aliases dict with non-string values filters invalid entries."""
+        metadata = {
+            "glossary_aliases": {
+                "WP": "work package",  # Valid
+                "num": 42,  # Invalid (int value)
+                "none": None,  # Invalid (None value)
+                "spec": "specification",  # Valid
+            }
+        }
+        terms = extract_metadata_hints(metadata)
+        assert len(terms) == 2
+        surfaces = {t.surface for t in terms}
+        assert surfaces == {"work package", "specification"}
+
+    def test_exclude_terms_wrong_type_string(self):
+        """exclude_terms as string (not list) is silently ignored."""
+        metadata = {
+            "glossary_watch_terms": ["workspace", "test"],
+            "glossary_exclude_terms": "test",  # Should be list
+        }
+        terms = extract_metadata_hints(metadata)
+        # Exclude is ignored (wrong type), so both terms extracted
+        assert len(terms) == 2
+
+    def test_exclude_terms_wrong_type_dict(self):
+        """exclude_terms as dict (not list) is silently ignored."""
+        metadata = {
+            "glossary_watch_terms": ["workspace", "test"],
+            "glossary_exclude_terms": {"test": True},
+        }
+        terms = extract_metadata_hints(metadata)
+        # Exclude is ignored (wrong type), so both terms extracted
+        assert len(terms) == 2
+
+    def test_exclude_terms_list_with_non_strings(self):
+        """exclude_terms list with non-string items filters invalid entries."""
+        metadata = {
+            "glossary_watch_terms": ["workspace", "mission", "test"],
+            "glossary_exclude_terms": [
+                "test",  # Valid
+                42,  # Invalid (int)
+                None,  # Invalid (None)
+            ],
+        }
+        terms = extract_metadata_hints(metadata)
+        assert len(terms) == 2
+        surfaces = {t.surface for t in terms}
+        assert surfaces == {"workspace", "mission"}
+        assert "test" not in surfaces
+
+    def test_combined_malformed_metadata(self):
+        """Multiple malformed fields handled gracefully."""
+        metadata = {
+            "glossary_watch_terms": "not_a_list",  # Wrong type
+            "glossary_aliases": ["not", "a", "dict"],  # Wrong type
+            "glossary_exclude_terms": {"not": "a list"},  # Wrong type
+        }
+        terms = extract_metadata_hints(metadata)
+        # All malformed, should return empty
+        assert len(terms) == 0
+
+    def test_mixed_valid_and_invalid_metadata(self):
+        """Valid and invalid fields mixed - valid ones processed."""
+        metadata = {
+            "glossary_watch_terms": ["workspace"],  # Valid
+            "glossary_aliases": "invalid",  # Invalid (ignored)
+            "glossary_exclude_terms": {"invalid": True},  # Invalid (ignored)
+        }
+        terms = extract_metadata_hints(metadata)
+        assert len(terms) == 1
+        assert terms[0].surface == "workspace"
+
+
 class TestQuotedPhrases:
     """Tests for T011: Quoted phrase extraction."""
 
