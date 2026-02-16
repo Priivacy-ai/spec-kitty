@@ -363,3 +363,189 @@ class TestMiddlewareEdgeCases:
 
         # Should still process text (just no metadata hints)
         assert len(result.extracted_terms) >= 0
+
+
+class TestMetadataDrivenFieldSelection:
+    """Regression tests for metadata.glossary_fields runtime override (cycle 3 fix)."""
+
+    def test_metadata_glossary_fields_overrides_constructor(self):
+        """metadata.glossary_fields overrides constructor default at runtime."""
+        middleware = GlossaryCandidateExtractionMiddleware(
+            glossary_fields=["description", "prompt"]  # Constructor default
+        )
+
+        context = MockContext(
+            step_input={
+                "description": 'The "workspace" is in description.',
+                "prompt": 'The "mission" is in prompt.',
+                "custom_field": 'The "primitive" is in custom_field.',
+            },
+            metadata={
+                "glossary_fields": ["custom_field"]  # Runtime override
+            },
+        )
+
+        result = middleware.process(context)
+
+        # Should only scan custom_field (metadata override)
+        surfaces = {t.surface for t in result.extracted_terms}
+        assert "primitive" in surfaces  # From custom_field
+        assert "workspace" not in surfaces  # description ignored
+        assert "mission" not in surfaces  # prompt ignored
+
+    def test_metadata_glossary_fields_empty_list(self):
+        """metadata.glossary_fields=[] scans no fields."""
+        middleware = GlossaryCandidateExtractionMiddleware()
+
+        context = MockContext(
+            step_input={
+                "description": 'The "workspace" is here.',
+            },
+            metadata={
+                "glossary_fields": []  # Empty list = scan nothing
+            },
+        )
+
+        result = middleware.process(context)
+
+        # Should extract no terms from text (but may have metadata hints)
+        text_terms = [t for t in result.extracted_terms if t.source != "metadata_hint"]
+        assert len(text_terms) == 0
+
+    def test_metadata_glossary_fields_invalid_type_ignored(self):
+        """Invalid metadata.glossary_fields (not list) falls back to constructor."""
+        middleware = GlossaryCandidateExtractionMiddleware(
+            glossary_fields=["description"]
+        )
+
+        context = MockContext(
+            step_input={
+                "description": 'The "workspace" is here.',
+                "other": 'The "mission" is ignored.',
+            },
+            metadata={
+                "glossary_fields": "not_a_list"  # Invalid type
+            },
+        )
+
+        result = middleware.process(context)
+
+        # Should fall back to constructor fields (description only)
+        surfaces = {t.surface for t in result.extracted_terms}
+        assert "workspace" in surfaces  # From description
+        assert "mission" not in surfaces  # other field ignored
+
+    def test_metadata_glossary_fields_invalid_elements_ignored(self):
+        """metadata.glossary_fields with non-string elements falls back to constructor."""
+        middleware = GlossaryCandidateExtractionMiddleware(
+            glossary_fields=["description"]
+        )
+
+        context = MockContext(
+            step_input={
+                "description": 'The "workspace" is here.',
+            },
+            metadata={
+                "glossary_fields": ["description", 123, None]  # Invalid elements
+            },
+        )
+
+        result = middleware.process(context)
+
+        # Should fall back to constructor fields (invalid list ignored)
+        surfaces = {t.surface for t in result.extracted_terms}
+        assert "workspace" in surfaces
+
+    def test_metadata_glossary_fields_multiple_fields(self):
+        """metadata.glossary_fields with multiple fields scans all of them."""
+        middleware = GlossaryCandidateExtractionMiddleware(
+            glossary_fields=["description"]  # Constructor default
+        )
+
+        context = MockContext(
+            step_input={
+                "field1": 'The "workspace" is in field1.',
+                "field2": 'The "mission" is in field2.',
+                "field3": 'The "primitive" is in field3.',
+                "ignored": 'The "term" is ignored.',
+            },
+            metadata={
+                "glossary_fields": ["field1", "field2", "field3"]  # Runtime override
+            },
+        )
+
+        result = middleware.process(context)
+
+        # Should scan all three metadata-specified fields
+        surfaces = {t.surface for t in result.extracted_terms}
+        assert "workspace" in surfaces  # field1
+        assert "mission" in surfaces  # field2
+        assert "primitive" in surfaces  # field3
+        assert "term" not in surfaces  # ignored field not scanned
+
+    def test_metadata_glossary_fields_with_step_output(self):
+        """metadata.glossary_fields applies to both step_input and step_output."""
+        middleware = GlossaryCandidateExtractionMiddleware()
+
+        context = MockContext(
+            step_input={
+                "custom_input": 'The "workspace" is in input.',
+            },
+            step_output={
+                "custom_output": 'The "mission" is in output.',
+            },
+            metadata={
+                "glossary_fields": ["custom_input", "custom_output"]
+            },
+        )
+
+        result = middleware.process(context)
+
+        # Should scan both input and output fields
+        surfaces = {t.surface for t in result.extracted_terms}
+        assert "workspace" in surfaces  # From step_input
+        assert "mission" in surfaces  # From step_output
+
+    def test_metadata_glossary_fields_no_metadata(self):
+        """No metadata.glossary_fields uses constructor default."""
+        middleware = GlossaryCandidateExtractionMiddleware(
+            glossary_fields=["description"]
+        )
+
+        context = MockContext(
+            step_input={
+                "description": 'The "workspace" is here.',
+                "other": 'The "mission" is ignored.',
+            },
+            metadata={},  # No glossary_fields
+        )
+
+        result = middleware.process(context)
+
+        # Should use constructor default (description only)
+        surfaces = {t.surface for t in result.extracted_terms}
+        assert "workspace" in surfaces
+        assert "mission" not in surfaces
+
+    def test_metadata_glossary_fields_combined_with_watch_terms(self):
+        """metadata.glossary_fields works alongside glossary_watch_terms."""
+        middleware = GlossaryCandidateExtractionMiddleware()
+
+        context = MockContext(
+            step_input={
+                "custom_field": 'The "workspace" is in custom_field.',
+                "ignored_field": 'The "mission" is ignored.',
+            },
+            metadata={
+                "glossary_fields": ["custom_field"],  # Only scan custom_field
+                "glossary_watch_terms": ["primitive"],  # Metadata hints
+            },
+        )
+
+        result = middleware.process(context)
+
+        # Should have metadata hint + text extraction from custom_field only
+        surfaces = {t.surface for t in result.extracted_terms}
+        assert "primitive" in surfaces  # From glossary_watch_terms
+        assert "workspace" in surfaces  # From custom_field text
+        assert "mission" not in surfaces  # ignored_field not scanned
