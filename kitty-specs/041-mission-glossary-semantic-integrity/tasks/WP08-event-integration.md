@@ -1,14 +1,14 @@
 ---
 work_package_id: WP08
 title: Event Integration
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP07
 base_commit: 2107124ad5b63c0c73071503b1cac6032e0a7958
 created_at: '2026-02-16T16:27:51.105337+00:00'
 subtasks: [T036, T037, T038, T039]
-shell_pid: "28509"
-agent: "coordinator"
+shell_pid: "33593"
+agent: "codex"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -965,3 +965,4 @@ When reviewing this WP, verify:
 - 2026-02-16T00:00:00Z -- llm:claude-sonnet-4.5 -- lane=planned -- WP created with comprehensive guidance
 - 2026-02-16T16:27:51Z – coordinator – shell_pid=28509 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T16:42:20Z – coordinator – shell_pid=28509 – lane=for_review – Ready for review: All 8 canonical event types implemented with JSONL persistence, middleware integration, and 66 tests (411 total pass)
+- 2026-02-16T16:42:51Z – codex – shell_pid=33593 – lane=doing – Started review via workflow command
