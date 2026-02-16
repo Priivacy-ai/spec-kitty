@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Interactive Clarification UI
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP05
 base_commit: e123f4871b4da4d6bae8a55af3fd48f54c7d701e
@@ -1199,3 +1199,4 @@ When reviewing this WP, verify:
 - 2026-02-16T16:06:00Z – codex – shell_pid=17323 – lane=doing – Started review via workflow command
 - 2026-02-16T16:09:51Z – codex – shell_pid=17323 – lane=planned – Moved to planned
 - 2026-02-16T16:10:22Z – coordinator – shell_pid=20022 – lane=doing – Started implementation via workflow command
+- 2026-02-16T16:14:19Z – coordinator – shell_pid=20022 – lane=for_review – Fixed: deterministic candidate ranking by scope precedence, updated severity icons to emoji circles. Added 16 regression tests.
