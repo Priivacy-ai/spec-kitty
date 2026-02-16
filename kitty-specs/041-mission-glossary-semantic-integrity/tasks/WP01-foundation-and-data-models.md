@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Foundation & Data Models
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 2.x
 base_commit: c60760d595370200d1f4c30554b18a380b702a6d
@@ -9,6 +9,8 @@ created_at: '2026-02-16T13:12:59.865818+00:00'
 subtasks: [T001, T002, T003, T004, T005]
 shell_pid: "29815"
 agent: "codex"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -859,3 +861,4 @@ After WP01 completion:
 - 2026-02-16T13:13:00Z – claude-sonnet – shell_pid=16885 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T13:17:03Z – claude-sonnet – shell_pid=16885 – lane=for_review – Ready for review: Foundation and data models complete. All 10 tests passing with 94% coverage. Core models (TermSurface, TermSense, SemanticConflict), exceptions, and GlossaryScope implemented.
 - 2026-02-16T13:31:57Z – codex – shell_pid=29815 – lane=doing – Started review via workflow command
+- 2026-02-16T13:33:41Z – codex – shell_pid=29815 – lane=planned – Moved to planned
