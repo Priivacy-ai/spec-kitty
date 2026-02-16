@@ -5,9 +5,14 @@ middleware components into a sequential execution chain:
 
     Layer 1: GlossaryCandidateExtractionMiddleware (term extraction)
     Layer 2: SemanticCheckMiddleware (conflict detection)
-    Layer 3: GenerationGateMiddleware (generation blocking)
-    Layer 4: ClarificationMiddleware (interactive conflict resolution)
+    Layer 3: ClarificationMiddleware (interactive conflict resolution)
+    Layer 4: GenerationGateMiddleware (generation blocking)
     Layer 5: ResumeMiddleware (checkpoint/resume)
+
+Clarification runs BEFORE the generation gate so that users get a chance
+to resolve conflicts interactively. Only truly unresolved conflicts reach
+the gate. Without this ordering the gate would raise BlockedByConflict
+immediately and the clarification layer would never execute.
 
 The pipeline executes middleware in order, passing the context object
 through each layer. Expected exceptions (BlockedByConflict, DeferredToAsync,
@@ -202,7 +207,12 @@ def create_standard_pipeline(
 
     Returns:
         Configured pipeline instance with 5 middleware layers in order:
-        extraction -> semantic check -> generation gate -> clarification -> resume.
+        extraction -> semantic check -> clarification -> generation gate -> resume.
+
+    The clarification middleware runs BEFORE the generation gate so that
+    users get a chance to resolve conflicts interactively before the gate
+    decides whether to block. Only truly unresolved conflicts (those the
+    user declined to fix or deferred) reach the gate.
     """
     from specify_cli.glossary.checkpoint import ScopeRef  # noqa: F401 (used by store)
     from specify_cli.glossary.clarification import ClarificationMiddleware
@@ -232,7 +242,12 @@ def create_standard_pipeline(
     else:
         prompt_fn = None  # Non-interactive: defer all conflicts
 
-    # Build middleware layers in order
+    # Build middleware layers in order.
+    #
+    # IMPORTANT: Clarification runs BEFORE the generation gate (layers 3/4).
+    # This ensures users can resolve conflicts interactively before the
+    # gate decides whether to block. Without this ordering, the gate would
+    # raise BlockedByConflict immediately and clarification would never run.
     middleware: List[GlossaryMiddleware] = [
         # Layer 1: Extract term candidates from step inputs
         GlossaryCandidateExtractionMiddleware(repo_root=repo_root),
@@ -241,15 +256,15 @@ def create_standard_pipeline(
             glossary_store=store,
             repo_root=repo_root,
         ),
-        # Layer 3: Block generation on unresolved high-severity conflicts
-        GenerationGateMiddleware(
-            repo_root=repo_root,
-            runtime_override=runtime_strictness,
-        ),
-        # Layer 4: Interactive conflict clarification
+        # Layer 3: Interactive conflict clarification (runs BEFORE gate)
         ClarificationMiddleware(
             repo_root=repo_root,
             prompt_fn=prompt_fn,
+        ),
+        # Layer 4: Block generation on unresolved conflicts (after clarification)
+        GenerationGateMiddleware(
+            repo_root=repo_root,
+            runtime_override=runtime_strictness,
         ),
         # Layer 5: Checkpoint/resume
         ResumeMiddleware(project_root=repo_root),

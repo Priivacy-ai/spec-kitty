@@ -305,7 +305,11 @@ class TestCreateStandardPipeline:
         assert len(pipeline.middleware) == 5
 
     def test_middleware_order_is_correct(self, tmp_path):
-        """Verify correct order: extraction, check, gate, clarification, resume."""
+        """Verify correct order: extraction, check, clarification, gate, resume.
+
+        Clarification runs BEFORE the gate so users can resolve conflicts
+        interactively before the gate decides whether to block.
+        """
         from specify_cli.glossary.clarification import ClarificationMiddleware
         from specify_cli.glossary.middleware import (
             GlossaryCandidateExtractionMiddleware,
@@ -319,8 +323,8 @@ class TestCreateStandardPipeline:
 
         assert isinstance(pipeline.middleware[0], GlossaryCandidateExtractionMiddleware)
         assert isinstance(pipeline.middleware[1], SemanticCheckMiddleware)
-        assert isinstance(pipeline.middleware[2], GenerationGateMiddleware)
-        assert isinstance(pipeline.middleware[3], ClarificationMiddleware)
+        assert isinstance(pipeline.middleware[2], ClarificationMiddleware)
+        assert isinstance(pipeline.middleware[3], GenerationGateMiddleware)
         assert isinstance(pipeline.middleware[4], ResumeMiddleware)
 
     def test_runtime_strictness_passed_to_gate(self, tmp_path):
@@ -329,7 +333,8 @@ class TestCreateStandardPipeline:
             tmp_path, runtime_strictness=Strictness.OFF
         )
 
-        gate = pipeline.middleware[2]
+        # Gate is at index 3 (after clarification at index 2)
+        gate = pipeline.middleware[3]
         assert gate.runtime_override == Strictness.OFF
 
     def test_creates_events_directory(self, tmp_path):
@@ -370,7 +375,8 @@ class TestCreateStandardPipeline:
         pipeline = create_standard_pipeline(
             tmp_path, interaction_mode="interactive"
         )
-        clarification = pipeline.middleware[3]
+        # Clarification is at index 2 (before gate at index 3)
+        clarification = pipeline.middleware[2]
         assert isinstance(clarification, ClarificationMiddleware)
         assert clarification.prompt_fn is not None
 
@@ -382,7 +388,8 @@ class TestCreateStandardPipeline:
         pipeline = create_standard_pipeline(
             tmp_path, interaction_mode="non-interactive"
         )
-        clarification = pipeline.middleware[3]
+        # Clarification is at index 2 (before gate at index 3)
+        clarification = pipeline.middleware[2]
         assert isinstance(clarification, ClarificationMiddleware)
         assert clarification.prompt_fn is None
 
