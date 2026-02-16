@@ -423,13 +423,23 @@ class GenerationGateMiddleware:
             step_id = getattr(context, "step_id", "unknown")
             mission_id = getattr(context, "mission_id", "unknown")
 
-            # Emit event BEFORE raising exception (ensure observability)
-            emit_generation_blocked_event(
-                step_id=step_id,
-                mission_id=mission_id,
-                conflicts=conflicts,
-                strictness_mode=effective_strictness,
-            )
+            # Emit event BEFORE raising exception (ensure observability).
+            # Guard: if emission fails, log the error but ALWAYS proceed
+            # to raise BlockedByConflict -- blocking must never be bypassed.
+            try:
+                emit_generation_blocked_event(
+                    step_id=step_id,
+                    mission_id=mission_id,
+                    conflicts=conflicts,
+                    strictness_mode=effective_strictness,
+                )
+            except Exception as emit_err:
+                import logging
+                _logger = logging.getLogger(__name__)
+                _logger.error(
+                    "Failed to emit generation-blocked event (blocking proceeds): %s",
+                    emit_err,
+                )
 
             # Block generation by raising exception
             raise BlockedByConflict(

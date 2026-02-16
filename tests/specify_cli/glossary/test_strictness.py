@@ -460,3 +460,88 @@ class TestCategorizeConflicts:
         assert len(result[Severity.LOW]) == 5
         assert len(result[Severity.MEDIUM]) == 0
         assert len(result[Severity.HIGH]) == 0
+
+    def test_unknown_severity_bucketed_as_high(self):
+        """Unknown/invalid severity is bucketed into HIGH for safety.
+
+        Regression test for review issue 2: a conflict with an unexpected
+        severity value must not cause a KeyError in categorize_conflicts
+        and must be treated as HIGH.
+        """
+        # Create a conflict, then forcibly set severity to a non-enum value
+        conflict = SemanticConflict(
+            term=TermSurface(surface_text="rogue"),
+            conflict_type=ConflictType.UNKNOWN,
+            severity=Severity.LOW,  # placeholder, overridden below
+            confidence=0.5,
+            candidate_senses=[],
+            context="test",
+        )
+        # Bypass the enum -- simulate an unexpected severity value
+        object.__setattr__(conflict, "severity", "critical")
+
+        result = categorize_conflicts([conflict])
+
+        # Should not KeyError, and the conflict should land in HIGH
+        assert len(result[Severity.HIGH]) == 1
+        assert result[Severity.HIGH][0] is conflict
+        assert len(result[Severity.LOW]) == 0
+        assert len(result[Severity.MEDIUM]) == 0
+
+
+class TestUnknownSeverityBlocking:
+    """Test that unknown/invalid severities are treated as HIGH for blocking.
+
+    Regression tests for review issue 2: unknown severities must not silently
+    pass through MEDIUM mode, and must not crash categorize_conflicts.
+    """
+
+    def test_medium_blocks_unknown_severity(self):
+        """MEDIUM mode blocks on a conflict with an unknown severity value.
+
+        In MEDIUM mode, only HIGH severity blocks. Unknown severities must
+        be treated as HIGH for safety, so they should trigger blocking.
+        """
+        conflict = SemanticConflict(
+            term=TermSurface(surface_text="rogue"),
+            conflict_type=ConflictType.UNKNOWN,
+            severity=Severity.LOW,  # placeholder
+            confidence=0.5,
+            candidate_senses=[],
+            context="test",
+        )
+        # Forcibly set an unrecognised severity
+        object.__setattr__(conflict, "severity", "critical")
+
+        result = should_block(Strictness.MEDIUM, [conflict])
+        assert result is True, "Unknown severity must be treated as HIGH and block in MEDIUM mode"
+
+    def test_off_does_not_block_unknown_severity(self):
+        """OFF mode never blocks, even with unknown severity."""
+        conflict = SemanticConflict(
+            term=TermSurface(surface_text="rogue"),
+            conflict_type=ConflictType.UNKNOWN,
+            severity=Severity.LOW,  # placeholder
+            confidence=0.5,
+            candidate_senses=[],
+            context="test",
+        )
+        object.__setattr__(conflict, "severity", "critical")
+
+        result = should_block(Strictness.OFF, [conflict])
+        assert result is False
+
+    def test_max_blocks_unknown_severity(self):
+        """MAX mode blocks on any conflict, including unknown severity."""
+        conflict = SemanticConflict(
+            term=TermSurface(surface_text="rogue"),
+            conflict_type=ConflictType.UNKNOWN,
+            severity=Severity.LOW,  # placeholder
+            confidence=0.5,
+            candidate_senses=[],
+            context="test",
+        )
+        object.__setattr__(conflict, "severity", "unknown_val")
+
+        result = should_block(Strictness.MAX, [conflict])
+        assert result is True

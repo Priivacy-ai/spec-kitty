@@ -152,11 +152,17 @@ def should_block(
     if strictness == Strictness.MAX:
         return len(conflicts) > 0
 
-    # MEDIUM mode: block only on high-severity
+    # MEDIUM mode: block only on high-severity.
+    # Unknown/invalid severities are treated as HIGH for safety --
+    # an unrecognised severity must not silently pass through.
     # Import inside function to avoid circular dependency
     from .models import Severity
 
-    return any(c.severity == Severity.HIGH for c in conflicts)
+    _known_severities = set(Severity)
+    return any(
+        c.severity == Severity.HIGH or c.severity not in _known_severities
+        for c in conflicts
+    )
 
 
 def categorize_conflicts(
@@ -203,6 +209,10 @@ def categorize_conflicts(
     }
 
     for conflict in conflicts:
-        categorized[conflict.severity].append(conflict)
+        # Unknown/invalid severities are bucketed as HIGH for safety.
+        # This prevents KeyError and ensures unrecognised severities
+        # never silently pass through as non-blocking.
+        bucket = conflict.severity if conflict.severity in categorized else Severity.HIGH
+        categorized[bucket].append(conflict)
 
     return categorized
