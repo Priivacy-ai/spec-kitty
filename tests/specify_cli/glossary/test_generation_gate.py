@@ -574,3 +574,51 @@ class TestEdgeCases:
         message = str(exc_info.value)
         assert "Generation blocked" in message
         assert "Resolve conflicts" in message
+
+    def test_blocked_by_conflict_still_raised_when_event_emission_fails(
+        self, mock_context, high_severity_conflict, monkeypatch
+    ):
+        """BlockedByConflict MUST be raised even if emit_generation_blocked_event raises.
+
+        Regression test for review issue 1: if the event emitter throws
+        (transport failure, serialization, etc.), the middleware must still
+        raise BlockedByConflict so that generation is never allowed through.
+        """
+        from specify_cli.glossary import events
+
+        def failing_emit(*args, **kwargs):
+            raise RuntimeError("Transport failure in event emission")
+
+        monkeypatch.setattr(events, "emit_generation_blocked_event", failing_emit)
+
+        gate = GenerationGateMiddleware(runtime_override=Strictness.MEDIUM)
+        mock_context.conflicts = [high_severity_conflict]
+
+        # BlockedByConflict must still be raised, not RuntimeError
+        with pytest.raises(BlockedByConflict) as exc_info:
+            gate.process(mock_context)
+
+        assert exc_info.value.strictness == Strictness.MEDIUM
+        assert len(exc_info.value.conflicts) == 1
+
+    def test_event_emission_error_is_logged(
+        self, mock_context, high_severity_conflict, monkeypatch, caplog
+    ):
+        """When event emission fails, the error is logged."""
+        import logging
+        from specify_cli.glossary import events
+
+        def failing_emit(*args, **kwargs):
+            raise ValueError("Serialization error")
+
+        monkeypatch.setattr(events, "emit_generation_blocked_event", failing_emit)
+
+        gate = GenerationGateMiddleware(runtime_override=Strictness.MEDIUM)
+        mock_context.conflicts = [high_severity_conflict]
+
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(BlockedByConflict):
+                gate.process(mock_context)
+
+        assert "Failed to emit generation-blocked event" in caplog.text
+        assert "Serialization error" in caplog.text
