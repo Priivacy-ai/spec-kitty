@@ -17,8 +17,8 @@ A mission author wants to ensure semantic consistency in their custom mission by
 
 **Acceptance Scenarios**:
 
-1. **Given** a mission step has `glossary_check: enabled` metadata, **When** the step executes, **Then** the runtime extracts candidate terms from step inputs and emits a `SemanticCheckEvaluated` event
-2. **Given** a mission step has no glossary check metadata, **When** the step executes, **Then** no semantic checks are performed and generation proceeds normally
+1. **Given** a mission step has no glossary check metadata and strictness is `medium` or `max`, **When** the step executes, **Then** the runtime extracts candidate terms from step inputs and emits a `SemanticCheckEvaluated` event (checks enabled by default)
+2. **Given** a mission step has `glossary_check: disabled` metadata, **When** the step executes, **Then** no semantic checks are performed and generation proceeds normally
 3. **Given** a mission has default `glossary_check: enabled` in mission config, **When** a step inherits this default, **Then** glossary checks run for that step
 
 ---
@@ -82,7 +82,7 @@ An operator wants to run missions with different enforcement levels in different
 
 **Acceptance Scenarios**:
 
-1. **Given** global strictness is set to `off`, **When** a mission step runs, **Then** no glossary checks are performed and generation proceeds without blocking
+1. **Given** global strictness is set to `off`, **When** a mission step runs, **Then** no glossary checks are performed, no `SemanticCheckEvaluated` events are emitted, and generation proceeds without blocking
 2. **Given** mission strictness is set to `medium`, **When** a low-severity conflict occurs, **Then** a warning is logged but generation is not blocked
 3. **Given** mission strictness is set to `medium`, **When** a high-severity conflict occurs, **Then** generation is blocked until the conflict is resolved
 4. **Given** runtime strictness override is `max`, **When** any unresolved conflict occurs, **Then** generation is blocked regardless of severity
@@ -105,7 +105,7 @@ An operator wants to run missions with different enforcement levels in different
 
 - **FR-001**: System MUST resolve terms against scope hierarchy in order: mission_local → team_domain → audience_domain → spec_kitty_core
 - **FR-002**: System MUST detect 4 conflict types: (A) unknown terms (no match in scope stack), (B) ambiguous terms (multiple active senses, unqualified usage), (C) inconsistent usage (LLM output contradicts active glossary), (D) unresolved critical terms (low confidence, no resolved sense before generation)
-- **FR-003**: System MUST emit `SemanticCheckEvaluated` events with severity (low/medium/high), confidence (0.0-1.0), and findings (list of conflicts per term)
+- **FR-003**: System MUST emit `SemanticCheckEvaluated` events when glossary checks run (i.e., when strictness is `medium` or `max`, or when a primitive explicitly enables checks despite `off` mode), including severity (low/medium/high), confidence (0.0-1.0), effective_strictness, recommended_action, and findings (list of conflicts per term) conforming to feature 007 event contracts
 - **FR-004**: System MUST block LLM generation on unresolved high-severity conflicts in `medium` and `max` strictness modes
 - **FR-005**: System MUST support 3 strictness modes: `off` (no enforcement), `medium` (warn broadly, block high-severity only), `max` (block any unresolved conflict)
 - **FR-006**: System MUST apply strictness precedence: global defaults → mission defaults → primitive/step metadata → runtime override
@@ -122,6 +122,7 @@ An operator wants to run missions with different enforcement levels in different
 - **FR-017**: System MUST present ranked candidate senses during clarification (ordered by scope precedence, then by confidence/frequency)
 - **FR-018**: System MUST allow free-text custom sense input during clarification (not limited to pre-defined candidates)
 - **FR-019**: System MUST request user confirmation before resuming if context has changed materially during async conflict resolution
+- **FR-020**: System MUST enable glossary checks by default for all mission primitives unless (a) global/mission/step strictness is explicitly set to `off`, or (b) primitive metadata explicitly disables checks via `glossary_check: disabled`
 
 ### Key Entities
 
@@ -138,14 +139,18 @@ An operator wants to run missions with different enforcement levels in different
 - **SemanticConflict**: Classification of a term conflict
   - Attributes: term (TermSurface), conflict_type (unknown/ambiguous/inconsistent/unresolved_critical), severity (low/medium/high), confidence (float), candidate_senses (list of TermSense), context (usage location)
 
-- **SemanticCheckEvaluated**: Event emitted after semantic check runs
-  - Attributes: step_id, mission_id, timestamp, findings (list of SemanticConflict), overall_severity (low/medium/high), blocked (boolean)
+- **SemanticCheckEvaluated**: Event emitted after semantic check runs (canonical contract from feature 007)
+  - Attributes: step_id, mission_id, timestamp, findings (list of SemanticConflict with detailed classification payload), overall_severity (low/medium/high), confidence (float 0.0-1.0), effective_strictness (off/medium/max), recommended_action (proceed/warn/block), blocked (boolean)
+  - Reference: Feature 007 glossary event contracts
 
 - **GenerationBlockedBySemanticConflict**: Event emitted when generation gate blocks
-  - Attributes: step_id, mission_id, timestamp, conflicts (list of SemanticConflict), strictness_mode (off/medium/max)
+  - Attributes: step_id, mission_id, timestamp, conflicts (list of SemanticConflict), strictness_mode (off/medium/max), effective_strictness (off/medium/max)
 
-- **GlossaryResolution**: Event recording conflict resolution
-  - Attributes: conflict_id, selected_sense (TermSense or custom definition), actor, timestamp, resolution_mode (interactive/async)
+- **GlossaryClarificationResolved**: Canonical event recording interactive/async conflict resolution (feature 007 contract)
+  - Attributes: conflict_id, term_surface, selected_sense (TermSense reference), actor, timestamp, resolution_mode (interactive/async), provenance
+
+- **GlossarySenseUpdated**: Canonical event recording custom sense definition (feature 007 contract)
+  - Attributes: term_surface, scope (GlossaryScope), new_sense (TermSense with definition), actor, timestamp, update_type (create/update), provenance
 
 ## Success Criteria
 
