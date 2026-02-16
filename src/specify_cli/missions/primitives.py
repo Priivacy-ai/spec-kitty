@@ -22,8 +22,19 @@ class PrimitiveExecutionContext:
     """Execution context for mission primitives.
 
     This context flows through the glossary middleware pipeline. Each middleware
-    layer reads and writes fields on this object. The context is mutable by
-    design -- middleware layers modify it in-place and return it.
+    layer reads and writes fields on this object.
+
+    **Mutability design (intentional):**
+    The context is mutable by design. All middleware stages in the pipeline
+    receive and modify the **same** ``PrimitiveExecutionContext`` instance.
+    Each middleware's ``process()`` method mutates fields in-place (e.g.,
+    appending to ``extracted_terms``, setting ``effective_strictness``) and
+    returns the same object. This is a deliberate pipeline pattern choice:
+    middleware stages are sequentially composed, never run in parallel, and
+    the shared-mutable-context avoids the overhead of copying potentially
+    large term/conflict lists at each layer boundary. Callers should be
+    aware that the context they pass to ``GlossaryMiddlewarePipeline.process()``
+    will be mutated in-place by intermediate middleware layers.
 
     Fields are grouped into two categories:
     - Core fields: Required for every primitive execution
@@ -92,11 +103,14 @@ class PrimitiveExecutionContext:
         """Determine if glossary checks are enabled for this step.
 
         Rules (in precedence order):
-        1. Explicit metadata ``glossary_check: disabled`` -> False
-        2. Explicit metadata ``glossary_check: enabled`` -> True
+        1. Explicit metadata ``glossary_check: false`` / ``"disabled"`` / ``"false"`` -> False
+        2. Explicit metadata ``glossary_check: true`` / ``"enabled"`` / ``"true"`` -> True
         3. Metadata ``glossary_check: null`` -> fall through to mission config
         4. Mission config ``glossary.enabled: false`` -> False
         5. Default -> True (enabled by default per FR-020)
+
+        Boolean values from YAML (``glossary_check: false`` parses as Python ``False``)
+        are handled explicitly. String comparisons are case-insensitive.
 
         Returns:
             True if glossary checks should run, False to skip.
@@ -106,10 +120,18 @@ class PrimitiveExecutionContext:
             value = self.metadata["glossary_check"]
             if value is None:
                 pass  # Treat null as unset, fall through
-            elif value == "disabled":
-                return False
+            elif isinstance(value, bool):
+                return value
+            elif isinstance(value, str):
+                lower = value.lower()
+                if lower in ("disabled", "false"):
+                    return False
+                if lower in ("enabled", "true"):
+                    return True
+                # Unknown string value -> treat as enabled (safe default)
+                return True
             else:
-                return True  # Any explicit non-null, non-disabled value = enabled
+                return True  # Any explicit non-null, non-bool, non-string value = enabled
 
         # Mission config
         if "glossary" in self.config:

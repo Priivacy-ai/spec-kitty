@@ -1,10 +1,13 @@
 """Tests for glossary pipeline attachment (T042)."""
 
 import pytest
+from unittest.mock import MagicMock
 
 from specify_cli.glossary.attachment import (
     attach_glossary_pipeline,
+    glossary_enabled,
     read_glossary_check_metadata,
+    run_with_glossary,
 )
 from specify_cli.glossary.strictness import Strictness
 from specify_cli.missions.primitives import PrimitiveExecutionContext
@@ -116,3 +119,100 @@ class TestReadGlossaryCheckMetadata:
             "another_key": 42,
         }
         assert read_glossary_check_metadata(metadata) is True
+
+
+# ---------------------------------------------------------------------------
+# Regression: Issue 1 -- run_with_glossary() wrapper
+# ---------------------------------------------------------------------------
+
+
+class TestRunWithGlossary:
+    """Test run_with_glossary() direct wrapper for mission primitives."""
+
+    def test_processes_context_successfully(self, tmp_path):
+        (tmp_path / ".kittify").mkdir()
+        ctx = _make_context()
+        result = run_with_glossary(context=ctx, repo_root=tmp_path)
+        assert result is not None
+        assert hasattr(result, "step_id")
+        assert result.effective_strictness == Strictness.MEDIUM
+
+    def test_skips_when_disabled(self, tmp_path):
+        (tmp_path / ".kittify").mkdir()
+        ctx = _make_context(metadata={"glossary_check": False})
+        result = run_with_glossary(context=ctx, repo_root=tmp_path)
+        assert result.effective_strictness is None
+        assert result.extracted_terms == []
+
+    def test_passes_runtime_strictness(self, tmp_path):
+        (tmp_path / ".kittify").mkdir()
+        ctx = _make_context()
+        result = run_with_glossary(
+            context=ctx,
+            repo_root=tmp_path,
+            runtime_strictness=Strictness.OFF,
+        )
+        assert result.effective_strictness == Strictness.OFF
+
+
+# ---------------------------------------------------------------------------
+# Regression: Issue 1 -- glossary_enabled() decorator
+# ---------------------------------------------------------------------------
+
+
+class TestGlossaryEnabledDecorator:
+    """Test glossary_enabled() decorator for mission primitives."""
+
+    def test_decorator_processes_context_before_function(self, tmp_path):
+        (tmp_path / ".kittify").mkdir()
+
+        @glossary_enabled(repo_root=tmp_path)
+        def my_primitive(context):
+            # By the time we get here, effective_strictness should be set
+            return context.effective_strictness
+
+        ctx = _make_context()
+        result = my_primitive(ctx)
+        assert result == Strictness.MEDIUM
+
+    def test_decorator_skips_when_disabled(self, tmp_path):
+        (tmp_path / ".kittify").mkdir()
+
+        @glossary_enabled(repo_root=tmp_path)
+        def my_primitive(context):
+            return context.effective_strictness
+
+        ctx = _make_context(metadata={"glossary_check": False})
+        result = my_primitive(ctx)
+        assert result is None  # Pipeline was skipped, strictness not set
+
+    def test_decorator_preserves_function_name(self, tmp_path):
+        (tmp_path / ".kittify").mkdir()
+
+        @glossary_enabled(repo_root=tmp_path)
+        def my_named_primitive(context):
+            return context
+
+        assert my_named_primitive.__name__ == "my_named_primitive"
+
+    def test_decorator_passes_extra_args(self, tmp_path):
+        (tmp_path / ".kittify").mkdir()
+
+        @glossary_enabled(repo_root=tmp_path)
+        def my_primitive(context, extra_arg, kwarg_val=None):
+            return (context.effective_strictness, extra_arg, kwarg_val)
+
+        ctx = _make_context()
+        result = my_primitive(ctx, "hello", kwarg_val=42)
+        assert result == (Strictness.MEDIUM, "hello", 42)
+
+    def test_decorator_with_runtime_strictness(self, tmp_path):
+        (tmp_path / ".kittify").mkdir()
+
+        @glossary_enabled(repo_root=tmp_path, runtime_strictness=Strictness.MAX)
+        def my_primitive(context):
+            return context.effective_strictness
+
+        ctx = _make_context()
+        result = my_primitive(ctx)
+        assert result == Strictness.MAX

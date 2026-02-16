@@ -390,6 +390,38 @@ class TestPipelineDisabled:
         assert result.conflicts == []
         assert result.effective_strictness is None
 
+    def test_pipeline_skips_when_step_disabled_bool_false(self, tmp_path):
+        """Regression: YAML `glossary_check: false` (boolean) must skip."""
+        (tmp_path / ".kittify").mkdir()
+
+        ctx = _make_context(
+            inputs={"description": "test with workspace mission terms"},
+            metadata={"glossary_check": False},
+        )
+
+        pipeline = create_standard_pipeline(tmp_path)
+        result = pipeline.process(ctx)
+
+        assert result.extracted_terms == []
+        assert result.conflicts == []
+        assert result.effective_strictness is None
+
+    def test_pipeline_skips_when_step_disabled_string_false(self, tmp_path):
+        """Regression: string 'false' must skip."""
+        (tmp_path / ".kittify").mkdir()
+
+        ctx = _make_context(
+            inputs={"description": "test with workspace mission terms"},
+            metadata={"glossary_check": "false"},
+        )
+
+        pipeline = create_standard_pipeline(tmp_path)
+        result = pipeline.process(ctx)
+
+        assert result.extracted_terms == []
+        assert result.conflicts == []
+        assert result.effective_strictness is None
+
     def test_pipeline_skips_when_mission_disabled(self, tmp_path):
         (tmp_path / ".kittify").mkdir()
 

@@ -64,8 +64,11 @@ from .pipeline import (
 )
 from .attachment import (
     attach_glossary_pipeline,
+    glossary_enabled,
     read_glossary_check_metadata,
+    run_with_glossary,
 )
+from .pipeline import prompt_conflict_resolution_safe
 
 __all__ = [
     "TermSurface",
@@ -119,7 +122,10 @@ __all__ = [
     "GlossaryMiddleware",
     "create_standard_pipeline",
     "attach_glossary_pipeline",
+    "glossary_enabled",
     "read_glossary_check_metadata",
+    "run_with_glossary",
+    "prompt_conflict_resolution_safe",
 ]
 
 __version__ = "0.1.0"

@@ -5,17 +5,34 @@ to mission primitive execution. The attachment is driven by metadata in step
 definitions: ``glossary_check: enabled`` (or the default, which is enabled
 per FR-020).
 
-Usage:
+Usage as a callable processor::
+
     processor = attach_glossary_pipeline(
         repo_root=Path("."),
         runtime_strictness=Strictness.MEDIUM,
         interaction_mode="interactive",
     )
     processed_context = processor(context)
+
+Usage as a decorator on mission primitive functions::
+
+    @glossary_enabled(repo_root=Path("."))
+    def my_primitive(context: PrimitiveExecutionContext) -> dict:
+        # Glossary pipeline runs automatically before this body
+        return {"result": "ok"}
+
+Usage as a direct wrapper::
+
+    result_context = run_with_glossary(
+        context=ctx,
+        repo_root=Path("."),
+        runtime_strictness=Strictness.OFF,
+    )
 """
 
 from __future__ import annotations
 
+import functools
 import logging
 import time
 from pathlib import Path
@@ -124,3 +141,77 @@ def read_glossary_check_metadata(step_metadata: dict[str, Any]) -> bool:
 
     # Unknown value -> treat as enabled (safe default)
     return True
+
+
+def run_with_glossary(
+    context: Any,
+    repo_root: Path,
+    runtime_strictness: Optional[Strictness] = None,
+    interaction_mode: str = "interactive",
+) -> Any:
+    """Run the glossary pipeline on a PrimitiveExecutionContext.
+
+    This is the primary hook point for mission primitive executors.
+    Call this before executing the primitive logic to ensure glossary
+    checks run when ``glossary_check`` is enabled (the default).
+
+    Args:
+        context: PrimitiveExecutionContext to process.
+        repo_root: Path to repository root.
+        runtime_strictness: CLI ``--strictness`` override (highest precedence).
+        interaction_mode: ``"interactive"`` or ``"non_interactive"``.
+
+    Returns:
+        Processed context with glossary fields populated.
+
+    Raises:
+        BlockedByConflict: Generation blocked by unresolved conflicts.
+        DeferredToAsync: Conflict resolution deferred.
+        AbortResume: User aborted resume.
+    """
+    processor = attach_glossary_pipeline(
+        repo_root=repo_root,
+        runtime_strictness=runtime_strictness,
+        interaction_mode=interaction_mode,
+    )
+    return processor(context)
+
+
+def glossary_enabled(
+    repo_root: Path,
+    runtime_strictness: Optional[Strictness] = None,
+    interaction_mode: str = "interactive",
+) -> Callable:
+    """Decorator that runs the glossary pipeline before a mission primitive.
+
+    The decorated function's first positional argument must be a
+    ``PrimitiveExecutionContext``. The pipeline processes the context
+    before the function body executes.
+
+    Args:
+        repo_root: Path to repository root.
+        runtime_strictness: CLI ``--strictness`` override (highest precedence).
+        interaction_mode: ``"interactive"`` or ``"non_interactive"``.
+
+    Returns:
+        Decorator function.
+
+    Example::
+
+        @glossary_enabled(repo_root=Path("."))
+        def execute_specify(context: PrimitiveExecutionContext) -> dict:
+            # context has already been processed by the glossary pipeline
+            return {"result": context.effective_strictness}
+    """
+    def decorator(fn: Callable) -> Callable:
+        @functools.wraps(fn)
+        def wrapper(context: Any, *args: Any, **kwargs: Any) -> Any:
+            processed = run_with_glossary(
+                context=context,
+                repo_root=repo_root,
+                runtime_strictness=runtime_strictness,
+                interaction_mode=interaction_mode,
+            )
+            return fn(processed, *args, **kwargs)
+        return wrapper
+    return decorator

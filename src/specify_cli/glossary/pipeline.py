@@ -31,6 +31,64 @@ from specify_cli.glossary.strictness import Strictness
 logger = logging.getLogger(__name__)
 
 
+def prompt_conflict_resolution_safe(
+    conflict: Any,
+    candidates: list[Any],
+) -> tuple[str, str | None]:
+    """Prompt the user to resolve a semantic conflict interactively.
+
+    Presents candidate senses for the conflicting term and asks the user
+    to select one or provide a custom definition. Wraps all I/O errors
+    so the caller never gets an unhandled exception from stdin/stdout.
+
+    Args:
+        conflict: SemanticConflict instance with ``term.surface_text``.
+        candidates: List of SenseRef candidate senses.
+
+    Returns:
+        Tuple of (choice, custom_definition):
+        - ("select", None) when user picks a numbered candidate
+          (sets ``conflict.selected_index`` to the chosen 0-based index).
+        - ("custom", "definition text") when user types a custom sense.
+        - ("defer", None) on invalid input or I/O failure.
+    """
+    try:
+        term_name = conflict.term.surface_text
+        print(f"\nConflict: term '{term_name}' is ambiguous.")
+        print("Candidate senses:")
+        for idx, sense in enumerate(candidates):
+            print(f"  [{idx + 1}] {sense.definition} (scope={sense.scope}, confidence={sense.confidence})")
+        print(f"  [c] Provide a custom definition")
+        print(f"  [d] Defer resolution")
+
+        choice = input("Select [1-{}/c/d]: ".format(len(candidates))).strip().lower()
+
+        if choice == "d" or choice == "":
+            return ("defer", None)
+
+        if choice == "c":
+            custom_def = input("Enter custom definition: ").strip()
+            if custom_def:
+                return ("custom", custom_def)
+            return ("defer", None)
+
+        # Try to parse as a number
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(candidates):
+                conflict.selected_index = idx
+                return ("select", None)
+        except ValueError:
+            pass
+
+        # Invalid input -> defer
+        return ("defer", None)
+
+    except (EOFError, KeyboardInterrupt, OSError):
+        # Non-interactive environment or user interrupt
+        return ("defer", None)
+
+
 class GlossaryMiddleware(Protocol):
     """Protocol for glossary middleware components.
 
@@ -169,10 +227,10 @@ def create_standard_pipeline(
     _load_seed_files_into_store(repo_root, store)
 
     # Determine prompt function for clarification
-    prompt_fn = None  # Non-interactive: defer all conflicts
-    # In interactive mode, the ClarificationMiddleware defaults to deferring
-    # if no prompt_fn is provided, which is the correct behavior for now.
-    # A real interactive prompt_fn would be wired in via the CLI layer.
+    if interaction_mode == "interactive":
+        prompt_fn = prompt_conflict_resolution_safe
+    else:
+        prompt_fn = None  # Non-interactive: defer all conflicts
 
     # Build middleware layers in order
     middleware: List[GlossaryMiddleware] = [
