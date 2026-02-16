@@ -81,10 +81,14 @@ def mock_event_log(tmp_path):
 
     Events:
     - SemanticCheckEvaluated (blocked, 1 finding: workspace, ambiguous, high)
+    - GlossaryClarificationRequested (deferred with UUID conflict_id)
     - GlossaryClarificationResolved (resolves the workspace conflict)
     """
     events_dir = tmp_path / ".kittify" / "events" / "glossary"
     events_dir.mkdir(parents=True)
+
+    # Use a real UUID as conflict_id (as ClarificationMiddleware would)
+    workspace_conflict_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
     events = [
         {
@@ -123,8 +127,20 @@ def mock_event_log(tmp_path):
             "recommended_action": "block",
         },
         {
+            "event_type": "GlossaryClarificationRequested",
+            "conflict_id": workspace_conflict_id,
+            "term": "workspace",
+            "question": "What does 'workspace' mean in this context?",
+            "options": ["Git worktree directory", "IDE workspace folder"],
+            "urgency": "high",
+            "mission_id": "software-dev",
+            "run_id": "run-1",
+            "step_id": "test-001",
+            "timestamp": "2026-02-16T12:01:00Z",
+        },
+        {
             "event_type": "GlossaryClarificationResolved",
-            "conflict_id": "test-001-workspace",
+            "conflict_id": workspace_conflict_id,
             "term_surface": "workspace",
             "selected_sense": {
                 "surface": "workspace",
@@ -147,12 +163,18 @@ def mock_event_log(tmp_path):
     return tmp_path
 
 
+# Canonical conflict IDs for unresolved fixture (used in tests)
+UNRESOLVED_WORKSPACE_CID = "bbbb1111-2222-3333-4444-555566667777"
+UNRESOLVED_CONFIG_CID = "cccc1111-2222-3333-4444-555566667777"
+
+
 @pytest.fixture
 def mock_event_log_unresolved(tmp_path):
     """Create mock event log with only unresolved conflicts.
 
     Events:
     - SemanticCheckEvaluated (blocked, 2 findings: workspace and config)
+    - GlossaryClarificationRequested for each finding (with UUID conflict_ids)
     """
     events_dir = tmp_path / ".kittify" / "events" / "glossary"
     events_dir.mkdir(parents=True)
@@ -195,6 +217,30 @@ def mock_event_log_unresolved(tmp_path):
             "confidence": 0.9,
             "recommended_action": "block",
         },
+        {
+            "event_type": "GlossaryClarificationRequested",
+            "conflict_id": UNRESOLVED_WORKSPACE_CID,
+            "term": "workspace",
+            "question": "What does 'workspace' mean in this context?",
+            "options": ["Git worktree directory"],
+            "urgency": "high",
+            "mission_id": "software-dev",
+            "run_id": "run-2",
+            "step_id": "test-002",
+            "timestamp": "2026-02-16T13:00:01Z",
+        },
+        {
+            "event_type": "GlossaryClarificationRequested",
+            "conflict_id": UNRESOLVED_CONFIG_CID,
+            "term": "config",
+            "question": "What does 'config' mean in this context?",
+            "options": [],
+            "urgency": "medium",
+            "mission_id": "software-dev",
+            "run_id": "run-2",
+            "step_id": "test-002",
+            "timestamp": "2026-02-16T13:00:02Z",
+        },
     ]
 
     event_file = events_dir / "software-dev.events.jsonl"
@@ -235,6 +281,18 @@ def mock_event_log_multi_mission(tmp_path):
             "confidence": 0.9,
             "recommended_action": "block",
         },
+        {
+            "event_type": "GlossaryClarificationRequested",
+            "conflict_id": "dddd1111-2222-3333-4444-555566667777",
+            "term": "workspace",
+            "question": "What does 'workspace' mean in this context?",
+            "options": [],
+            "urgency": "high",
+            "mission_id": "software-dev",
+            "run_id": "run-1",
+            "step_id": "sw-001",
+            "timestamp": "2026-02-16T12:00:01Z",
+        },
     ]
 
     sw_file = events_dir / "software-dev.events.jsonl"
@@ -265,6 +323,18 @@ def mock_event_log_multi_mission(tmp_path):
             "overall_severity": "low",
             "confidence": 0.5,
             "recommended_action": "warn",
+        },
+        {
+            "event_type": "GlossaryClarificationRequested",
+            "conflict_id": "eeee1111-2222-3333-4444-555566667777",
+            "term": "tutorial",
+            "question": "What does 'tutorial' mean in this context?",
+            "options": [],
+            "urgency": "low",
+            "mission_id": "documentation",
+            "run_id": "run-2",
+            "step_id": "doc-001",
+            "timestamp": "2026-02-16T13:00:01Z",
         },
     ]
 
@@ -571,7 +641,7 @@ class TestGlossaryConflicts:
         events_dir.mkdir(parents=True)
 
         event_file = events_dir / "test.events.jsonl"
-        good_event = {
+        good_check_event = {
             "event_type": "SemanticCheckEvaluated",
             "step_id": "good-001",
             "mission_id": "test",
@@ -589,11 +659,24 @@ class TestGlossaryConflicts:
                 }
             ],
         }
+        good_requested_event = {
+            "event_type": "GlossaryClarificationRequested",
+            "conflict_id": "malformed-test-uuid",
+            "term": "valid",
+            "question": "What does 'valid' mean?",
+            "options": [],
+            "urgency": "low",
+            "mission_id": "test",
+            "run_id": "r1",
+            "step_id": "good-001",
+            "timestamp": "2026-02-16T12:00:01Z",
+        }
 
         with event_file.open("w") as f:
             f.write("this is not valid json\n")
-            f.write(json.dumps(good_event) + "\n")
+            f.write(json.dumps(good_check_event) + "\n")
             f.write("{broken json\n")
+            f.write(json.dumps(good_requested_event) + "\n")
 
         result = runner.invoke(glossary_app, ["conflicts"])
         assert result.exit_code == 0
@@ -661,7 +744,7 @@ class TestGlossaryResolve:
         # Input: select candidate #1
         result = runner.invoke(
             glossary_app,
-            ["resolve", "test-002-workspace"],
+            ["resolve", UNRESOLVED_WORKSPACE_CID],
             input="1\n",
         )
 
@@ -679,24 +762,24 @@ class TestGlossaryResolve:
         lines = event_file.read_text().strip().split("\n")
         last_event = json.loads(lines[-1])
         assert last_event["event_type"] == "GlossaryClarificationResolved"
-        assert last_event["conflict_id"] == "test-002-workspace"
+        assert last_event["conflict_id"] == UNRESOLVED_WORKSPACE_CID
         assert last_event["resolution_mode"] == "async"
 
     def test_resolve_custom_definition(self, mock_event_log_unresolved, monkeypatch):
-        """Verify resolving with a custom definition."""
+        """Verify resolving with a custom definition emits both events."""
         monkeypatch.chdir(mock_event_log_unresolved)
 
         # Input: 'C' for custom, then the definition
         result = runner.invoke(
             glossary_app,
-            ["resolve", "test-002-workspace"],
+            ["resolve", UNRESOLVED_WORKSPACE_CID],
             input="C\nMy custom definition for workspace\n",
         )
 
         assert result.exit_code == 0
         assert "resolved successfully" in result.stdout.lower()
 
-        # Verify event was written with custom sense
+        # Verify BOTH events were written
         event_file = (
             mock_event_log_unresolved
             / ".kittify"
@@ -705,10 +788,18 @@ class TestGlossaryResolve:
             / "software-dev.events.jsonl"
         )
         lines = event_file.read_text().strip().split("\n")
-        last_event = json.loads(lines[-1])
-        assert last_event["event_type"] == "GlossaryClarificationResolved"
-        assert last_event["selected_sense"]["definition"] == "My custom definition for workspace"
-        assert last_event["selected_sense"]["scope"] == "team_domain"
+
+        # Second-to-last: GlossaryClarificationResolved
+        resolved_event = json.loads(lines[-2])
+        assert resolved_event["event_type"] == "GlossaryClarificationResolved"
+        assert resolved_event["selected_sense"]["definition"] == "My custom definition for workspace"
+        assert resolved_event["selected_sense"]["scope"] == "team_domain"
+
+        # Last: GlossarySenseUpdated
+        sense_event = json.loads(lines[-1])
+        assert sense_event["event_type"] == "GlossarySenseUpdated"
+        assert sense_event["new_sense"]["definition"] == "My custom definition for workspace"
+        assert sense_event["term_surface"] == "workspace"
 
     def test_resolve_defer(self, mock_event_log_unresolved, monkeypatch):
         """Verify deferring resolution exits cleanly."""
@@ -716,7 +807,7 @@ class TestGlossaryResolve:
 
         result = runner.invoke(
             glossary_app,
-            ["resolve", "test-002-workspace"],
+            ["resolve", UNRESOLVED_WORKSPACE_CID],
             input="D\n",
         )
 
@@ -727,9 +818,11 @@ class TestGlossaryResolve:
         """Verify already-resolved conflict shows warning, exits on 'no'."""
         monkeypatch.chdir(mock_event_log)
 
+        # Use the UUID from mock_event_log fixture
+        resolved_cid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         result = runner.invoke(
             glossary_app,
-            ["resolve", "test-001-workspace"],
+            ["resolve", resolved_cid],
             input="n\n",
         )
 
@@ -740,10 +833,12 @@ class TestGlossaryResolve:
         """Verify re-resolving an already-resolved conflict when confirmed."""
         monkeypatch.chdir(mock_event_log)
 
+        # Use the UUID from mock_event_log fixture
+        resolved_cid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         # Confirm yes, then select candidate 1
         result = runner.invoke(
             glossary_app,
-            ["resolve", "test-001-workspace"],
+            ["resolve", resolved_cid],
             input="y\n1\n",
         )
 
@@ -757,7 +852,7 @@ class TestGlossaryResolve:
         # Candidate index out of range (only 1 candidate)
         result = runner.invoke(
             glossary_app,
-            ["resolve", "test-002-workspace"],
+            ["resolve", UNRESOLVED_WORKSPACE_CID],
             input="99\n",
         )
 
@@ -778,7 +873,7 @@ class TestGlossaryResolve:
 
         result = runner.invoke(
             glossary_app,
-            ["resolve", "test-002-workspace", "--mission", "custom-mission"],
+            ["resolve", UNRESOLVED_WORKSPACE_CID, "--mission", "custom-mission"],
             input="1\n",
         )
 
@@ -804,7 +899,7 @@ class TestGlossaryResolve:
 
         result = runner.invoke(
             glossary_app,
-            ["resolve", "test-002-workspace"],
+            ["resolve", UNRESOLVED_WORKSPACE_CID],
             input="D\n",
         )
 
@@ -823,8 +918,8 @@ class TestGlossaryResolve:
 class TestExtractConflicts:
     """Tests for the internal _extract_conflicts_from_events helper."""
 
-    def test_extracts_blocked_findings(self):
-        """Verify findings from blocked events are extracted."""
+    def test_extracts_from_clarification_requested(self):
+        """Verify conflicts are extracted from GlossaryClarificationRequested events."""
         from specify_cli.cli.commands.glossary import _extract_conflicts_from_events
 
         events = [
@@ -842,19 +937,32 @@ class TestExtractConflicts:
                         "severity": "low",
                     }
                 ],
-            }
+            },
+            {
+                "event_type": "GlossaryClarificationRequested",
+                "conflict_id": "uuid-1234-5678",
+                "term": "test",
+                "question": "What does 'test' mean?",
+                "options": [],
+                "urgency": "low",
+                "mission_id": "m1",
+                "run_id": "r1",
+                "step_id": "s1",
+                "timestamp": "2026-01-01T00:00:01Z",
+            },
         ]
 
         result = _extract_conflicts_from_events(events)
         assert len(result) == 1
         assert result[0]["term"] == "test"
-        assert result[0]["conflict_id"] == "s1-test"
+        assert result[0]["conflict_id"] == "uuid-1234-5678"
         assert result[0]["status"] == "unresolved"
 
-    def test_marks_resolved(self):
-        """Verify resolved events mark conflicts as resolved."""
+    def test_uses_real_uuid_not_synthesized(self):
+        """Regression: conflict_id must be UUID from event, not step_id-term."""
         from specify_cli.cli.commands.glossary import _extract_conflicts_from_events
 
+        real_uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         events = [
             {
                 "event_type": "SemanticCheckEvaluated",
@@ -864,16 +972,60 @@ class TestExtractConflicts:
                 "blocked": True,
                 "effective_strictness": "medium",
                 "findings": [
-                    {
-                        "term": {"surface_text": "test"},
-                        "conflict_type": "ambiguous",
-                        "severity": "high",
-                    }
+                    {"term": {"surface_text": "test"}, "conflict_type": "unknown", "severity": "low"}
                 ],
             },
             {
+                "event_type": "GlossaryClarificationRequested",
+                "conflict_id": real_uuid,
+                "term": "test",
+                "options": [],
+                "urgency": "low",
+                "mission_id": "m1",
+                "run_id": "r1",
+                "step_id": "s1",
+                "timestamp": "2026-01-01T00:00:01Z",
+            },
+        ]
+
+        result = _extract_conflicts_from_events(events)
+        assert len(result) == 1
+        # Must be the real UUID, not "s1-test"
+        assert result[0]["conflict_id"] == real_uuid
+        assert result[0]["conflict_id"] != "s1-test"
+
+    def test_marks_resolved_with_uuid(self):
+        """Verify resolved events mark conflicts as resolved using UUID match."""
+        from specify_cli.cli.commands.glossary import _extract_conflicts_from_events
+
+        cid = "resolve-uuid-1234"
+        events = [
+            {
+                "event_type": "SemanticCheckEvaluated",
+                "step_id": "s1",
+                "mission_id": "m1",
+                "timestamp": "2026-01-01T00:00:00Z",
+                "blocked": True,
+                "effective_strictness": "medium",
+                "findings": [
+                    {"term": {"surface_text": "test"}, "conflict_type": "ambiguous", "severity": "high"}
+                ],
+            },
+            {
+                "event_type": "GlossaryClarificationRequested",
+                "conflict_id": cid,
+                "term": "test",
+                "options": [],
+                "urgency": "high",
+                "mission_id": "m1",
+                "run_id": "r1",
+                "step_id": "s1",
+                "timestamp": "2026-01-01T00:00:01Z",
+            },
+            {
                 "event_type": "GlossaryClarificationResolved",
-                "conflict_id": "s1-test",
+                "conflict_id": cid,
+                "term_surface": "test",
                 "timestamp": "2026-01-01T00:01:00Z",
             },
         ]
@@ -881,9 +1033,30 @@ class TestExtractConflicts:
         result = _extract_conflicts_from_events(events)
         assert len(result) == 1
         assert result[0]["status"] == "resolved"
+        assert result[0]["conflict_id"] == cid
+
+    def test_immediately_resolved_without_requested(self):
+        """Verify immediately resolved conflicts (no Requested event) appear."""
+        from specify_cli.cli.commands.glossary import _extract_conflicts_from_events
+
+        cid = "immediate-resolve-uuid"
+        events = [
+            {
+                "event_type": "GlossaryClarificationResolved",
+                "conflict_id": cid,
+                "term_surface": "test",
+                "timestamp": "2026-01-01T00:01:00Z",
+            },
+        ]
+
+        result = _extract_conflicts_from_events(events)
+        assert len(result) == 1
+        assert result[0]["conflict_id"] == cid
+        assert result[0]["status"] == "resolved"
+        assert result[0]["term"] == "test"
 
     def test_skips_non_blocked(self):
-        """Verify non-blocked events are ignored."""
+        """Verify non-blocked SemanticCheckEvaluated without clarification events are ignored."""
         from specify_cli.cli.commands.glossary import _extract_conflicts_from_events
 
         events = [
@@ -913,6 +1086,17 @@ class TestExtractConflicts:
                 "findings": [{"term": {"surface_text": "a"}, "conflict_type": "unknown", "severity": "low"}],
             },
             {
+                "event_type": "GlossaryClarificationRequested",
+                "conflict_id": "uuid-a",
+                "term": "a",
+                "options": [],
+                "urgency": "low",
+                "mission_id": "m1",
+                "run_id": "r1",
+                "step_id": "s1",
+                "timestamp": "2026-01-01T00:00:01Z",
+            },
+            {
                 "event_type": "SemanticCheckEvaluated",
                 "step_id": "s2",
                 "mission_id": "m2",
@@ -920,6 +1104,17 @@ class TestExtractConflicts:
                 "blocked": True,
                 "effective_strictness": "max",
                 "findings": [{"term": {"surface_text": "b"}, "conflict_type": "unknown", "severity": "low"}],
+            },
+            {
+                "event_type": "GlossaryClarificationRequested",
+                "conflict_id": "uuid-b",
+                "term": "b",
+                "options": [],
+                "urgency": "low",
+                "mission_id": "m2",
+                "run_id": "r2",
+                "step_id": "s2",
+                "timestamp": "2026-01-01T00:00:01Z",
             },
         ]
 
@@ -942,6 +1137,17 @@ class TestExtractConflicts:
                 "findings": [{"term": {"surface_text": "a"}, "conflict_type": "unknown", "severity": "low"}],
             },
             {
+                "event_type": "GlossaryClarificationRequested",
+                "conflict_id": "uuid-a",
+                "term": "a",
+                "options": [],
+                "urgency": "low",
+                "mission_id": "m1",
+                "run_id": "r1",
+                "step_id": "s1",
+                "timestamp": "2026-01-01T00:00:01Z",
+            },
+            {
                 "event_type": "SemanticCheckEvaluated",
                 "step_id": "s2",
                 "mission_id": "m2",
@@ -950,14 +1156,25 @@ class TestExtractConflicts:
                 "effective_strictness": "max",
                 "findings": [{"term": {"surface_text": "b"}, "conflict_type": "unknown", "severity": "low"}],
             },
+            {
+                "event_type": "GlossaryClarificationRequested",
+                "conflict_id": "uuid-b",
+                "term": "b",
+                "options": [],
+                "urgency": "low",
+                "mission_id": "m2",
+                "run_id": "r2",
+                "step_id": "s2",
+                "timestamp": "2026-01-01T00:00:01Z",
+            },
         ]
 
         result = _extract_conflicts_from_events(events, strictness_filter="max")
         assert len(result) == 1
         assert result[0]["term"] == "b"
 
-    def test_handles_plain_string_term(self):
-        """Verify term as plain string (not dict) is handled."""
+    def test_enriches_from_semantic_check(self):
+        """Verify conflict data is enriched from SemanticCheckEvaluated findings."""
         from specify_cli.cli.commands.glossary import _extract_conflicts_from_events
 
         events = [
@@ -970,17 +1187,31 @@ class TestExtractConflicts:
                 "effective_strictness": "medium",
                 "findings": [
                     {
-                        "term": "plaintext",
-                        "conflict_type": "unknown",
-                        "severity": "low",
+                        "term": {"surface_text": "test"},
+                        "conflict_type": "ambiguous",
+                        "severity": "high",
                     }
                 ],
-            }
+            },
+            {
+                "event_type": "GlossaryClarificationRequested",
+                "conflict_id": "enrich-uuid",
+                "term": "test",
+                "options": [],
+                "urgency": "high",
+                "mission_id": "m1",
+                "run_id": "r1",
+                "step_id": "s1",
+                "timestamp": "2026-01-01T00:00:01Z",
+            },
         ]
 
         result = _extract_conflicts_from_events(events)
         assert len(result) == 1
-        assert result[0]["term"] == "plaintext"
+        # Type comes from SemanticCheckEvaluated finding
+        assert result[0]["type"] == "ambiguous"
+        # Effective strictness comes from SemanticCheckEvaluated event
+        assert result[0]["effective_strictness"] == "medium"
 
 
 # =============================================================================
@@ -1064,3 +1295,257 @@ class TestStoreHelpers:
         store = _load_store_from_seeds(tmp_path)
         terms = _get_all_terms_from_store(store)
         assert len(terms) == 0
+
+
+# =============================================================================
+# Regression tests for review feedback fixes (cycle 2/3)
+# =============================================================================
+
+
+class TestRegressionEventLogReplay:
+    """Regression tests for Fix 1: glossary list must replay event log.
+
+    The list command was only reading seed YAML files but never replaying
+    GlossarySenseUpdated and GlossaryClarificationResolved events from the
+    event log. Custom senses and resolved clarifications were invisible.
+    """
+
+    def test_list_includes_sense_updated_from_events(self, tmp_path, monkeypatch):
+        """Verify glossary list shows terms added via GlossarySenseUpdated events."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create empty glossary directory (no seed files)
+        glossaries_dir = tmp_path / ".kittify" / "glossaries"
+        glossaries_dir.mkdir(parents=True)
+
+        # Create event log with a GlossarySenseUpdated event
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        events_dir.mkdir(parents=True)
+
+        event = {
+            "event_type": "GlossarySenseUpdated",
+            "term_surface": "deployment",
+            "scope": "team_domain",
+            "new_sense": {
+                "surface": "deployment",
+                "scope": "team_domain",
+                "definition": "Process of releasing code to production",
+                "confidence": 1.0,
+                "status": "active",
+            },
+            "actor": {"actor_id": "user:cli"},
+            "update_type": "create",
+            "provenance": {"source": "cli_resolve"},
+            "timestamp": "2026-02-16T14:00:00+00:00",
+        }
+
+        event_file = events_dir / "software-dev.events.jsonl"
+        event_file.write_text(json.dumps(event) + "\n")
+
+        result = runner.invoke(glossary_app, ["list"])
+        assert result.exit_code == 0
+        assert "deployment" in result.stdout
+        assert "Total: 1 term(s)" in result.stdout
+
+    def test_list_includes_clarification_resolved_senses(self, tmp_path, monkeypatch):
+        """Verify glossary list shows senses from GlossaryClarificationResolved events."""
+        monkeypatch.chdir(tmp_path)
+
+        glossaries_dir = tmp_path / ".kittify" / "glossaries"
+        glossaries_dir.mkdir(parents=True)
+
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        events_dir.mkdir(parents=True)
+
+        event = {
+            "event_type": "GlossaryClarificationResolved",
+            "conflict_id": "resolved-uuid-1234",
+            "term_surface": "pipeline",
+            "selected_sense": {
+                "surface": "pipeline",
+                "scope": "team_domain",
+                "definition": "Series of data processing steps",
+                "confidence": 0.95,
+            },
+            "actor": {"actor_id": "user:bob"},
+            "resolution_mode": "async",
+            "provenance": {"source": "user_clarification"},
+            "timestamp": "2026-02-16T14:00:00+00:00",
+        }
+
+        event_file = events_dir / "test.events.jsonl"
+        event_file.write_text(json.dumps(event) + "\n")
+
+        result = runner.invoke(glossary_app, ["list", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert len(data) == 1
+        assert data[0]["surface"] == "pipeline"
+        assert data[0]["definition"] == "Series of data processing steps"
+
+    def test_list_merges_seeds_and_events(self, tmp_path, monkeypatch):
+        """Verify glossary list combines seed file terms with event log terms."""
+        monkeypatch.chdir(tmp_path)
+
+        # Seed file with one term
+        glossaries_dir = tmp_path / ".kittify" / "glossaries"
+        glossaries_dir.mkdir(parents=True)
+        seed = glossaries_dir / "team_domain.yaml"
+        seed.write_text(
+            "terms:\n"
+            "  - surface: workspace\n"
+            "    definition: Git worktree directory\n"
+            "    confidence: 0.9\n"
+            "    status: active\n"
+        )
+
+        # Event log with a different term
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        events_dir.mkdir(parents=True)
+        event = {
+            "event_type": "GlossarySenseUpdated",
+            "term_surface": "deployment",
+            "scope": "team_domain",
+            "new_sense": {
+                "surface": "deployment",
+                "scope": "team_domain",
+                "definition": "Release to production",
+                "confidence": 1.0,
+                "status": "active",
+            },
+            "actor": {"actor_id": "user:cli"},
+            "update_type": "create",
+            "provenance": {"source": "cli_resolve"},
+            "timestamp": "2026-02-16T14:00:00+00:00",
+        }
+        event_file = events_dir / "test.events.jsonl"
+        event_file.write_text(json.dumps(event) + "\n")
+
+        result = runner.invoke(glossary_app, ["list", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        surfaces = {d["surface"] for d in data}
+        assert "workspace" in surfaces  # from seed
+        assert "deployment" in surfaces  # from event log
+
+
+class TestRegressionRealConflictIds:
+    """Regression tests for Fix 2: use real UUID conflict_ids from events.
+
+    The code was synthesizing conflict_ids as step_id-term instead of using
+    the canonical UUID conflict_ids from GlossaryClarificationRequested and
+    GlossaryClarificationResolved events. This caused resolve to never find
+    real conflicts.
+    """
+
+    def test_conflicts_display_real_uuids(self, mock_event_log, monkeypatch):
+        """Verify conflict list shows real UUID conflict_ids, not synthesized ones."""
+        monkeypatch.chdir(mock_event_log)
+
+        result = runner.invoke(glossary_app, ["conflicts", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert len(data) >= 1
+
+        # The conflict_id must be a real UUID, not step_id-term format
+        for conflict in data:
+            assert "-" in conflict["conflict_id"]
+            # Must NOT be the old synthesized format "test-001-workspace"
+            assert not conflict["conflict_id"].startswith("test-001-")
+
+    def test_resolve_finds_conflict_by_uuid(self, mock_event_log_unresolved, monkeypatch):
+        """Verify resolve command can find a conflict by its UUID conflict_id."""
+        monkeypatch.chdir(mock_event_log_unresolved)
+
+        # Use real UUID from fixture
+        result = runner.invoke(
+            glossary_app,
+            ["resolve", UNRESOLVED_WORKSPACE_CID],
+            input="D\n",
+        )
+
+        assert result.exit_code == 0
+        assert "workspace" in result.stdout
+
+    def test_resolve_rejects_synthesized_id(self, mock_event_log_unresolved, monkeypatch):
+        """Verify resolve command does NOT find conflicts by old synthesized IDs."""
+        monkeypatch.chdir(mock_event_log_unresolved)
+
+        # Old synthesized format should not be found
+        result = runner.invoke(
+            glossary_app,
+            ["resolve", "test-002-workspace"],
+        )
+
+        assert result.exit_code == 1
+        assert "not found" in result.stdout.lower()
+
+
+class TestRegressionSenseUpdatedOnCustomResolve:
+    """Regression tests for Fix 3: emit GlossarySenseUpdated for custom definitions.
+
+    When the user provides a custom definition via 'glossary resolve' (choice "C"),
+    only GlossaryClarificationResolved was being emitted. The fix adds
+    GlossarySenseUpdated emission to match ClarificationMiddleware behavior.
+    """
+
+    def test_custom_resolve_emits_both_events(self, mock_event_log_unresolved, monkeypatch):
+        """Verify custom resolution emits both Resolved and SenseUpdated events."""
+        monkeypatch.chdir(mock_event_log_unresolved)
+
+        result = runner.invoke(
+            glossary_app,
+            ["resolve", UNRESOLVED_WORKSPACE_CID],
+            input="C\nCustom workspace definition\n",
+        )
+        assert result.exit_code == 0
+
+        # Read all events
+        event_file = (
+            mock_event_log_unresolved
+            / ".kittify"
+            / "events"
+            / "glossary"
+            / "software-dev.events.jsonl"
+        )
+        lines = event_file.read_text().strip().split("\n")
+        new_events = [json.loads(line) for line in lines]
+
+        # Find the two new events (last two lines)
+        event_types = [e["event_type"] for e in new_events]
+        assert "GlossaryClarificationResolved" in event_types
+        assert "GlossarySenseUpdated" in event_types
+
+        # Verify SenseUpdated has the custom definition
+        sense_events = [e for e in new_events if e["event_type"] == "GlossarySenseUpdated"]
+        assert len(sense_events) >= 1
+        assert sense_events[-1]["new_sense"]["definition"] == "Custom workspace definition"
+        assert sense_events[-1]["term_surface"] == "workspace"
+
+    def test_candidate_resolve_does_not_emit_sense_updated(
+        self, mock_event_log_unresolved, monkeypatch
+    ):
+        """Verify selecting a candidate (not custom) does NOT emit SenseUpdated."""
+        monkeypatch.chdir(mock_event_log_unresolved)
+
+        result = runner.invoke(
+            glossary_app,
+            ["resolve", UNRESOLVED_WORKSPACE_CID],
+            input="1\n",
+        )
+        assert result.exit_code == 0
+
+        # Read all events
+        event_file = (
+            mock_event_log_unresolved
+            / ".kittify"
+            / "events"
+            / "glossary"
+            / "software-dev.events.jsonl"
+        )
+        lines = event_file.read_text().strip().split("\n")
+        new_events = [json.loads(line) for line in lines]
+
+        # Only GlossaryClarificationResolved should be added, not SenseUpdated
+        sense_events = [e for e in new_events if e["event_type"] == "GlossarySenseUpdated"]
+        assert len(sense_events) == 0
