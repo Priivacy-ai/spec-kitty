@@ -1,0 +1,53 @@
+# Spec Kitty Canonical Terms
+# This file defines the authoritative meanings of Spec Kitty domain concepts.
+
+terms:
+  - surface: workspace
+    definition: Git worktree directory created for implementing a work package
+    confidence: 1.0
+    status: active
+
+  - surface: work package
+    definition: Execution slice inside a mission run, the unit of human/agent handoff
+    confidence: 1.0
+    status: active
+
+  - surface: wp
+    definition: Abbreviation for work package
+    confidence: 1.0
+    status: active
+
+  - surface: mission
+    definition: Purpose-specific workflow machine with defined inputs, process, outcomes, and states
+    confidence: 1.0
+    status: active
+
+  - surface: primitive
+    definition: Custom mission-defined executable operation or step unit
+    confidence: 1.0
+    status: active
+
+  - surface: phase
+    definition: Grouping container for mission primitives, not the enforcement unit
+    confidence: 1.0
+    status: active
+
+  - surface: lane
+    definition: Kanban status for work packages (planned, doing, for_review, done)
+    confidence: 1.0
+    status: active
+
+  - surface: strictness
+    definition: Glossary enforcement mode (off, medium, max)
+    confidence: 1.0
+    status: active
+
+  - surface: semantic conflict
+    definition: Mismatch or ambiguity in term usage with assigned severity score
+    confidence: 1.0
+    status: active
+
+  - surface: scope
+    definition: Bounded semantic scope (mission_local, team_domain, audience_domain, spec_kitty_core)
+    confidence: 1.0
+    status: active
