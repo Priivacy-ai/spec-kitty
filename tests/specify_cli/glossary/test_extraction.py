@@ -267,6 +267,25 @@ class TestAcronyms:
         surfaces = {t.surface for t in terms}
         assert "a" not in surfaces
 
+    def test_filter_common_words_and(self):
+        """Common word 'AND' filtered from acronyms (regression: codex review)."""
+        text = "AND THE API are uppercase."
+        terms = extract_acronyms(text)
+
+        surfaces = {t.surface for t in terms}
+        assert "and" not in surfaces  # Common word filtered
+        assert "the" not in surfaces  # Common word filtered
+        assert "api" in surfaces  # Real acronym preserved
+
+    def test_filter_common_words_comprehensive(self):
+        """All common words filtered from acronyms (regression: codex review)."""
+        text = "OR AND THE BUT IF SO GO ME NO."
+        terms = extract_acronyms(text)
+
+        # All common words should be filtered
+        surfaces = {t.surface for t in terms}
+        assert surfaces == set()  # All are common words
+
 
 class TestCasingPatterns:
     """Tests for T011: Casing pattern extraction."""
