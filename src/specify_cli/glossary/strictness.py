@@ -4,6 +4,8 @@ This module implements the strictness policy system with three enforcement modes
 (off/medium/max) and four-tier precedence resolution (global → mission → step → runtime).
 """
 
+from __future__ import annotations
+
 from enum import StrEnum
 from pathlib import Path
 from typing import List

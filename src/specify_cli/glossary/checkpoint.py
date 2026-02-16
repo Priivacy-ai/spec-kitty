@@ -338,10 +338,11 @@ def prompt_context_change_confirmation(
         f"  Checkpoint hash: {old_hash}...\n"
         f"  Current hash:    {new_hash}...\n"
     )
-    return typer.confirm(
+    result: bool = typer.confirm(
         "Resume despite context change?",
         default=False,
     )
+    return result
 
 
 def compute_input_diff(

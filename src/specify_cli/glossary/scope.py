@@ -1,5 +1,7 @@
 """GlossaryScope enum and scope resolution utilities."""
 
+from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
