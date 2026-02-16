@@ -1,9 +1,13 @@
 ---
 work_package_id: WP09
 title: Middleware Pipeline Integration
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 041-mission-glossary-semantic-integrity-WP08
+base_commit: ff769aa6a680f4ad197e1d71736da9f8a69eced5
+created_at: '2026-02-16T17:25:17.996693+00:00'
 subtasks: [T040, T041, T042, T043]
+shell_pid: "49095"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
