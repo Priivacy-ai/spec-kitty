@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Interactive Clarification UI
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP05
 base_commit: e123f4871b4da4d6bae8a55af3fd48f54c7d701e
@@ -9,6 +9,8 @@ created_at: '2026-02-16T15:55:53.271355+00:00'
 subtasks: [T025, T026, T027, T028, T029]
 shell_pid: "17323"
 agent: "codex"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -17,12 +19,16 @@ history:
 
 # Work Package Prompt: WP06 -- Interactive Clarification UI
 
-## Review Feedback Status
+## Review Feedback
 
-> **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
-> - If `review_status` is empty or `""`, proceed with implementation as described below.
-> - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
-> - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-02-16
+
+**Issue 1**: Candidate ranking isn't enforced. `render_conflict` (src/specify_cli/glossary/rendering.py:49-90) and the middleware prompts/options (src/specify_cli/glossary/middleware.py:565-722) iterate `conflict.candidate_senses` in whatever order they were built. The spec requires ranked candidates to appear in scope precedence order (mission_local → team_domain → audience_domain → spec_kitty_core) and then by confidence. Because no sorting happens here, the UI/event options can present a different order if the store insertion order changes or if multiple senses exist within the same scope, violating Success Criterion #2 and deterministic ranking. **Fix**: sort the candidate list before rendering/prompting/emitting, using the scope precedence map plus descending confidence, and use that sorted list for numbering and for the async options list.
+
+**Issue 2** (minor UX): Severity icons deviate from the spec guidance. `SEVERITY_ICONS` (rendering.py:24-27) uses textual "!!! HIGH" strings instead of the red/yellow/blue dot icons (`🔴/🟡/🔵`) called for in T025. This makes severity less scannable in the Rich panels. **Fix**: switch to the emoji icons (or equivalent glyphs) while keeping the existing color mapping.
+
 
 ## Review Feedback
 
@@ -1191,3 +1197,4 @@ When reviewing this WP, verify:
 - 2026-02-16T15:55:53Z – coordinator – shell_pid=13051 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T16:05:26Z – coordinator – shell_pid=13051 – lane=for_review – Ready for review: Implemented all subtasks T025-T029 -- Rich conflict rendering, Typer prompts, non-interactive detection, ClarificationMiddleware, 93 new tests all passing
 - 2026-02-16T16:06:00Z – codex – shell_pid=17323 – lane=doing – Started review via workflow command
+- 2026-02-16T16:09:51Z – codex – shell_pid=17323 – lane=planned – Moved to planned
