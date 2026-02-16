@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Semantic Check & Conflict Detection
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 2.x
 base_commit: 50240be10a0ea2da7e20c8406142f76249a3f8b7
@@ -202,3 +202,4 @@ All definition of done criteria met
 - 2026-02-16T15:19:10Z – coordinator – shell_pid=91407 – lane=doing – Review feedback acknowledged: implementing missing conflict types (INCONSISTENT, UNRESOLVED_CRITICAL) and fixing mypy strict errors
 - 2026-02-16T15:22:31Z – coordinator – shell_pid=91407 – lane=for_review – Ready for review (cycle 2/3): All 4 conflict types implemented (UNKNOWN, AMBIGUOUS, INCONSISTENT, UNRESOLVED_CRITICAL) with comprehensive detection logic. Fixed all mypy --strict type errors in conflict.py, middleware.py, store.py, and scope.py. Added tests for new conflict types. All 157 glossary tests pass. Addresses all Codex review feedback.
 - 2026-02-16T15:23:10Z – codex – shell_pid=93747 – lane=doing – Started review via workflow command
+- 2026-02-16T15:26:42Z – codex – shell_pid=93747 – lane=planned – Moved to planned
