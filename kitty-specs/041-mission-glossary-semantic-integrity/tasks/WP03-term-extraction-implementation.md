@@ -1,14 +1,14 @@
 ---
 work_package_id: WP03
 title: Term Extraction Implementation
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 28a2fdf773a7b7aae3371a4aec50602bdb6dbf23
 created_at: '2026-02-16T14:05:12.902282+00:00'
 subtasks: [T010, T011, T012, T013, T014, T015]
-agent: "coordinator"
-shell_pid: "64243"
+agent: "codex"
+shell_pid: "66189"
 review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
 history:
@@ -225,3 +225,4 @@ pytest --cov=src/specify_cli/glossary/extraction --cov-report=term-missing
 - 2026-02-16T14:17:21Z – codex – shell_pid=57393 – lane=planned – Moved to planned
 - 2026-02-16T14:28:55Z – coordinator – shell_pid=64243 – lane=doing – Started implementation via workflow command
 - 2026-02-16T14:32:07Z – coordinator – shell_pid=64243 – lane=for_review – Fixed: added comprehensive type validation for all metadata fields (glossary_watch_terms, glossary_aliases, glossary_exclude_terms) with 12 regression tests. Graceful degradation on malformed metadata.
+- 2026-02-16T14:32:47Z – codex – shell_pid=66189 – lane=doing – Started review via workflow command
