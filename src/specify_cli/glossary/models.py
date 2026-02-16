@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Any, List, Optional
 
 
 @dataclass(frozen=True)
@@ -93,12 +93,12 @@ class SemanticConflict:
 
 # Serialization helpers for event emission
 
-def term_surface_to_dict(ts: TermSurface) -> dict:
+def term_surface_to_dict(ts: TermSurface) -> dict[str, Any]:
     """Serialize TermSurface to dict."""
     return {"surface_text": ts.surface_text}
 
 
-def term_sense_to_dict(ts: TermSense) -> dict:
+def term_sense_to_dict(ts: TermSense) -> dict[str, Any]:
     """Serialize TermSense to dict."""
     return {
         "surface": term_surface_to_dict(ts.surface),
@@ -114,7 +114,7 @@ def term_sense_to_dict(ts: TermSense) -> dict:
     }
 
 
-def semantic_conflict_to_dict(sc: SemanticConflict) -> dict:
+def semantic_conflict_to_dict(sc: SemanticConflict) -> dict[str, Any]:
     """Serialize SemanticConflict to dict."""
     return {
         "term": term_surface_to_dict(sc.term),
