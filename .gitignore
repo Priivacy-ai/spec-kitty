@@ -74,3 +74,11 @@ sdd-*/
 # Block WP status files (managed in main repo, prevents merge conflicts)
 # Research artifacts in kitty-specs/**/research/ are allowed
 kitty-specs/**/tasks/*.md
+
+# User-managed glossaries (optional)
+.kittify/glossaries/team_domain.yaml
+.kittify/glossaries/audience_domain.yaml
+.kittify/glossaries/mission_local.yaml
+
+# Keep spec_kitty_core.yaml tracked (canonical terms)
+!.kittify/glossaries/spec_kitty_core.yaml
