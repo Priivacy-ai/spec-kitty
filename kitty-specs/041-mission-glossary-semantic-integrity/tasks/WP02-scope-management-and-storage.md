@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Scope Management & Storage
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP01
 base_commit: 38b22ebffcce1b3d0095c2fbec0713eb5c370948
@@ -484,3 +484,4 @@ pytest --cov=src/specify_cli/glossary/scope --cov=src/specify_cli/glossary/store
 ## Activity Log
 
 - 2026-02-16T13:17:43Z – claude-sonnet – shell_pid=20675 – lane=doing – Assigned agent via workflow command
+- 2026-02-16T13:28:57Z – claude-sonnet – shell_pid=20675 – lane=for_review – Ready for review: Scope management and storage complete. Seed file loader, scope activation, GlossaryStore with hierarchy lookup, spec_kitty_core.yaml. All 19 tests passing with 96% coverage.
