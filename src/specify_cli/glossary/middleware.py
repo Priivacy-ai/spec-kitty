@@ -9,11 +9,18 @@ persist events to JSONL files via the events module.
 
 from __future__ import annotations
 
+import logging
+import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 
+from rich.console import Console
+
 from .extraction import ExtractedTerm, extract_all_terms
+
+_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from . import models, scope, store
