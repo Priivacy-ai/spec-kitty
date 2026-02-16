@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Interactive Clarification UI
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP05
 base_commit: e123f4871b4da4d6bae8a55af3fd48f54c7d701e
@@ -1189,3 +1189,4 @@ When reviewing this WP, verify:
 
 - 2026-02-16T00:00:00Z -- llm:claude-sonnet-4.5 -- lane=planned -- WP created with comprehensive guidance
 - 2026-02-16T15:55:53Z – coordinator – shell_pid=13051 – lane=doing – Assigned agent via workflow command
+- 2026-02-16T16:05:26Z – coordinator – shell_pid=13051 – lane=for_review – Ready for review: Implemented all subtasks T025-T029 -- Rich conflict rendering, Typer prompts, non-interactive detection, ClarificationMiddleware, 93 new tests all passing
