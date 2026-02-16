@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Glossary Management CLI
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP09
 base_commit: 982caa3a76885020cadacef5107c105f50b42454
@@ -9,6 +9,8 @@ created_at: '2026-02-16T17:59:56.173426+00:00'
 subtasks: [T044, T045, T046, T047]
 shell_pid: "69247"
 agent: "codex"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -17,12 +19,18 @@ history:
 
 # Work Package Prompt: WP10 -- Glossary Management CLI
 
-## Review Feedback Status
+## Review Feedback
 
-> **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
-> - If `review_status` is empty or `""`, proceed with implementation as described below.
-> - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
-> - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-02-16
+
+**Issue 1**: Conflict IDs are synthesized instead of using the IDs emitted by clarification. `_extract_conflicts_from_events` builds `conflict_id = f"{step_id}-{term_text}"` and `resolve` searches using the same pattern (glossary.py:146-149, 441-454), ignoring the `conflict_id` recorded in GlossaryClarificationRequested/Resolved events (UUIDs from ClarificationMiddleware). Real conflicts will stay “unresolved” and `glossary resolve <conflict_id>` will not find the UUIDs in the log. Use the event’s `conflict_id` consistently when listing and resolving.
+
+**Issue 2**: `glossary list` ignores the event log. It builds a store only from seed YAML files (glossary.py:62-70, 234-239) and never applies GlossaryClarificationResolved or GlossarySenseUpdated events, violating the requirement that commands read from the event log. Any runtime updates or custom clarifications are invisible, so the command doesn’t reflect actual glossary state. Rebuild from the event log (or call `load_from_events`) and merge seed + event data before listing.
+
+**Issue 3**: Async resolve doesn’t update the glossary for custom definitions. When the user chooses “C”, the command only writes a GlossaryClarificationResolved event (_local_append_event at glossary.py:532-552) and never emits GlossarySenseUpdated or updates the store. Spec calls for the same flow as ClarificationMiddleware and for custom senses to be persisted. Reuse ClarificationMiddleware/emit_sense_updated (or at minimum emit a GlossarySenseUpdated event) so the glossary reflects the chosen definition.
+
 
 ## Review Feedback
 
@@ -813,3 +821,4 @@ When reviewing this WP, verify:
 - 2026-02-16T17:59:56Z – coordinator – shell_pid=63494 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T18:08:44Z – coordinator – shell_pid=63494 – lane=for_review – Ready for review: glossary list/conflicts/resolve commands with --strictness flag, 47 tests at 97% coverage
 - 2026-02-16T18:09:15Z – codex – shell_pid=69247 – lane=doing – Started review via workflow command
+- 2026-02-16T18:13:07Z – codex – shell_pid=69247 – lane=planned – Moved to planned
