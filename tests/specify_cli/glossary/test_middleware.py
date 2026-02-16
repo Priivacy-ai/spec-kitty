@@ -997,3 +997,119 @@ class TestSemanticCheckIntegration:
         conflict_types = {c.conflict_type for c in context.conflicts}
         # At least one of: AMBIGUOUS (workspace) or UNKNOWN (unknown)
         assert ConflictType.AMBIGUOUS in conflict_types or ConflictType.UNKNOWN in conflict_types
+
+    def test_middleware_detects_unresolved_critical(
+        self, semantic_check_store: GlossaryStore
+    ):
+        """Middleware detects UNRESOLVED_CRITICAL for unknown low-confidence terms in critical steps."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        context = MockContext(
+            metadata={"critical_step": True},
+            extracted_terms=[
+                ExtractedTerm(
+                    surface="unknown_critical_term",
+                    source="quoted_phrase",
+                    confidence=0.3,  # Low confidence
+                    original="unknown_critical_term",
+                )
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        assert len(result.conflicts) == 1
+        conflict = result.conflicts[0]
+        assert conflict.conflict_type == ConflictType.UNRESOLVED_CRITICAL
+        assert conflict.severity == Severity.HIGH  # Always high for unresolved critical
+
+    def test_middleware_detects_inconsistent(self, semantic_check_store: GlossaryStore):
+        """Middleware detects INCONSISTENT for contradictory usage of known terms."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        # LLM output that contradicts the glossary definition
+        llm_output_with_contradiction = (
+            'The feature is not a unit of work. '
+            'The feature refers to a plugin or extension module.'
+        )
+
+        context = MockContext(
+            metadata={},
+            step_input={"description": 'Using the "feature" term.'},
+            step_output={"result": llm_output_with_contradiction},
+            extracted_terms=[
+                ExtractedTerm(
+                    surface="feature",
+                    source="quoted_phrase",
+                    confidence=0.8,
+                    original="feature",
+                )
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        # Should detect INCONSISTENT conflict
+        assert len(result.conflicts) == 1
+        conflict = result.conflicts[0]
+        assert conflict.conflict_type == ConflictType.INCONSISTENT
+        assert conflict.severity == Severity.LOW  # Always low (informational)
+
+    def test_middleware_all_four_conflict_types(
+        self, semantic_check_store: GlossaryStore
+    ):
+        """Middleware can detect all 4 conflict types in a single pass."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        # Prepare LLM output with contradiction for "feature"
+        llm_output = (
+            'The feature is not a unit of work. '
+            'The feature refers to something else entirely.'
+        )
+
+        context = MockContext(
+            metadata={"critical_step": True},
+            step_input={
+                "description": (
+                    'Using "feature", "workspace", "unknown_term", and "critical_unknown".'
+                )
+            },
+            step_output={"result": llm_output},
+            extracted_terms=[
+                # INCONSISTENT: known term with contradictory usage
+                ExtractedTerm("feature", "quoted_phrase", 0.8, "feature"),
+                # AMBIGUOUS: multiple active senses
+                ExtractedTerm("workspace", "quoted_phrase", 0.8, "workspace"),
+                # UNKNOWN: no match, high confidence
+                ExtractedTerm("unknown_term", "quoted_phrase", 0.9, "unknown_term"),
+                # UNRESOLVED_CRITICAL: no match, low confidence, critical step
+                ExtractedTerm("critical_unknown", "quoted_phrase", 0.3, "critical_unknown"),
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        # Should detect 4 conflicts (one of each type)
+        assert len(result.conflicts) == 4
+
+        conflict_types = {c.conflict_type for c in result.conflicts}
+        assert ConflictType.INCONSISTENT in conflict_types
+        assert ConflictType.AMBIGUOUS in conflict_types
+        assert ConflictType.UNKNOWN in conflict_types
+        assert ConflictType.UNRESOLVED_CRITICAL in conflict_types
+
+        # Verify severity assignments
+        for conflict in result.conflicts:
+            if conflict.conflict_type == ConflictType.INCONSISTENT:
+                assert conflict.severity == Severity.LOW
+            elif conflict.conflict_type == ConflictType.AMBIGUOUS:
+                assert conflict.severity == Severity.HIGH  # Critical step
+            elif conflict.conflict_type == ConflictType.UNRESOLVED_CRITICAL:
+                assert conflict.severity == Severity.HIGH
+            elif conflict.conflict_type == ConflictType.UNKNOWN:
+                # Should be LOW (high confidence)
+                if conflict.term.surface_text == "unknown_term":
+                    assert conflict.severity == Severity.LOW
