@@ -8,6 +8,7 @@ base_commit: c60760d595370200d1f4c30554b18a380b702a6d
 created_at: '2026-02-16T13:12:59.865818+00:00'
 subtasks: [T001, T002, T003, T004, T005]
 shell_pid: "16885"
+agent: "claude-sonnet"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -852,3 +853,7 @@ mypy src/specify_cli/glossary/ --strict
 After WP01 completion:
 - **WP02**: Scope Management & Storage (depends on WP01 models)
 - **WP03**: Term Extraction (depends on WP01 models, can run parallel with WP02)
+
+## Activity Log
+
+- 2026-02-16T13:13:00Z – claude-sonnet – shell_pid=16885 – lane=doing – Assigned agent via workflow command
