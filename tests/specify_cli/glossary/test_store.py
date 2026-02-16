@@ -102,3 +102,54 @@ def test_scope_resolution_skip_missing(tmp_path):
     # Lookup with team_domain missing - should still find spec_kitty_core
     results = store.lookup("workspace", ("team_domain", "spec_kitty_core"))
     assert len(results) == 1
+
+
+def test_lookup_cache_hit_and_invalidation(tmp_path):
+    """Lookup uses LRU cache and invalidates on add_sense."""
+    store = GlossaryStore(tmp_path)
+
+    # Add initial sense
+    sense1 = TermSense(
+        surface=TermSurface("workspace"),
+        scope="team_domain",
+        definition="Initial definition",
+        provenance=Provenance("user:alice", datetime.now(), "user"),
+        confidence=0.9,
+    )
+    store.add_sense(sense1)
+
+    # First lookup - cache miss
+    results1 = store.lookup("workspace", ("team_domain",))
+    assert len(results1) == 1
+    assert results1[0].definition == "Initial definition"
+
+    # Second lookup with same args - should hit cache
+    results2 = store.lookup("workspace", ("team_domain",))
+    assert len(results2) == 1
+    assert results2[0].definition == "Initial definition"
+
+    # Cache hit: verify cache_info exists
+    cache_info = store._lookup_cached.cache_info()
+    assert cache_info.hits > 0  # At least one cache hit
+    assert cache_info.misses > 0  # At least one cache miss
+
+    # Add new sense - should invalidate cache
+    sense2 = TermSense(
+        surface=TermSurface("workspace"),
+        scope="team_domain",
+        definition="Updated definition",
+        provenance=Provenance("user:bob", datetime.now(), "user"),
+        confidence=0.95,
+    )
+    store.add_sense(sense2)
+
+    # Cache should be cleared - next lookup should be cache miss
+    cache_info_after_add = store._lookup_cached.cache_info()
+    assert cache_info_after_add.hits == 0  # Cache was cleared
+    assert cache_info_after_add.misses == 0  # Cache was cleared
+
+    # Lookup after invalidation - should see both senses
+    results3 = store.lookup("workspace", ("team_domain",))
+    assert len(results3) == 2  # Both senses returned
+    assert results3[0].definition == "Initial definition"
+    assert results3[1].definition == "Updated definition"

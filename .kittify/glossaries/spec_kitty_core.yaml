@@ -33,7 +33,7 @@ terms:
     status: active
 
   - surface: lane
-    definition: Kanban status for work packages (planned, in_progress, for_review, done)
+    definition: Kanban status for work packages (planned, doing, for_review, done)
     confidence: 1.0
     status: active
 
