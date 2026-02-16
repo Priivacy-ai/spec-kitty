@@ -3,6 +3,7 @@ from datetime import datetime
 from specify_cli.glossary.models import (
     TermSurface, TermSense, SemanticConflict, Provenance,
     SenseStatus, ConflictType, Severity, SenseRef,
+    term_surface_to_dict, term_sense_to_dict, semantic_conflict_to_dict,
 )
 
 def test_term_surface_normalized():
@@ -86,3 +87,94 @@ def test_semantic_conflict_validation():
         candidate_senses=[],
     )
     assert len(sc2.candidate_senses) == 0
+
+
+def test_term_surface_to_dict():
+    """term_surface_to_dict serializes TermSurface correctly."""
+    ts = TermSurface("workspace")
+    result = term_surface_to_dict(ts)
+
+    assert result == {"surface_text": "workspace"}
+    assert isinstance(result, dict)
+
+
+def test_term_sense_to_dict():
+    """term_sense_to_dict serializes TermSense with enum values and ISO timestamp."""
+    prov = Provenance(
+        actor_id="user:alice",
+        timestamp=datetime(2026, 2, 16, 12, 0, 0),
+        source="user_clarification"
+    )
+
+    ts = TermSense(
+        surface=TermSurface("workspace"),
+        scope="team_domain",
+        definition="Git worktree directory",
+        provenance=prov,
+        confidence=0.9,
+        status=SenseStatus.ACTIVE,
+    )
+
+    result = term_sense_to_dict(ts)
+
+    # Check structure
+    assert "surface" in result
+    assert "scope" in result
+    assert "definition" in result
+    assert "provenance" in result
+    assert "confidence" in result
+    assert "status" in result
+
+    # Check values
+    assert result["surface"] == {"surface_text": "workspace"}
+    assert result["scope"] == "team_domain"
+    assert result["definition"] == "Git worktree directory"
+    assert result["confidence"] == 0.9
+    assert result["status"] == "active"  # Enum value, not enum object
+
+    # Check provenance structure
+    assert result["provenance"]["actor_id"] == "user:alice"
+    assert result["provenance"]["timestamp"] == "2026-02-16T12:00:00"  # ISO format
+    assert result["provenance"]["source"] == "user_clarification"
+
+
+def test_semantic_conflict_to_dict():
+    """semantic_conflict_to_dict serializes SemanticConflict with enum values."""
+    ts = TermSurface("workspace")
+    sc = SemanticConflict(
+        term=ts,
+        conflict_type=ConflictType.AMBIGUOUS,
+        severity=Severity.HIGH,
+        confidence=0.9,
+        candidate_senses=[
+            SenseRef("workspace", "team_domain", "Git worktree", 0.9),
+            SenseRef("workspace", "team_domain", "VS Code workspace", 0.7),
+        ],
+        context="step input: description field",
+    )
+
+    result = semantic_conflict_to_dict(sc)
+
+    # Check structure
+    assert "term" in result
+    assert "conflict_type" in result
+    assert "severity" in result
+    assert "confidence" in result
+    assert "candidate_senses" in result
+    assert "context" in result
+
+    # Check values
+    assert result["term"] == {"surface_text": "workspace"}
+    assert result["conflict_type"] == "ambiguous"  # Enum value
+    assert result["severity"] == "high"  # Enum value
+    assert result["confidence"] == 0.9
+    assert result["context"] == "step input: description field"
+
+    # Check candidate_senses structure
+    assert len(result["candidate_senses"]) == 2
+    assert result["candidate_senses"][0] == {
+        "surface": "workspace",
+        "scope": "team_domain",
+        "definition": "Git worktree",
+        "confidence": 0.9,
+    }
