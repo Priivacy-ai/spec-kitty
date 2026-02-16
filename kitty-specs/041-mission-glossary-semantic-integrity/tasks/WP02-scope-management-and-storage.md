@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Scope Management & Storage
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP01
 base_commit: 38b22ebffcce1b3d0095c2fbec0713eb5c370948
@@ -490,3 +490,4 @@ pytest --cov=src/specify_cli/glossary/scope --cov=src/specify_cli/glossary/store
 - 2026-02-16T13:34:26Z – codex – shell_pid=31580 – lane=doing – Started review via workflow command
 - 2026-02-16T13:36:24Z – codex – shell_pid=31580 – lane=planned – Moved to planned
 - 2026-02-16T13:50:49Z – claude-sonnet – shell_pid=42486 – lane=doing – Started implementation via workflow command
+- 2026-02-16T13:53:15Z – claude-sonnet – shell_pid=42486 – lane=for_review – Fixed Codex feedback: Updated lane terminology to 'doing', implemented LRU cache with invalidation. All 20 tests passing.
