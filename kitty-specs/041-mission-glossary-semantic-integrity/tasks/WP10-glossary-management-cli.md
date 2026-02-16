@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Glossary Management CLI
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP09
 base_commit: 982caa3a76885020cadacef5107c105f50b42454
@@ -25,11 +25,7 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-02-16
 
-**Issue 1**: Conflict IDs are synthesized instead of using the IDs emitted by clarification. `_extract_conflicts_from_events` builds `conflict_id = f"{step_id}-{term_text}"` and `resolve` searches using the same pattern (glossary.py:146-149, 441-454), ignoring the `conflict_id` recorded in GlossaryClarificationRequested/Resolved events (UUIDs from ClarificationMiddleware). Real conflicts will stay “unresolved” and `glossary resolve <conflict_id>` will not find the UUIDs in the log. Use the event’s `conflict_id` consistently when listing and resolving.
-
-**Issue 2**: `glossary list` ignores the event log. It builds a store only from seed YAML files (glossary.py:62-70, 234-239) and never applies GlossaryClarificationResolved or GlossarySenseUpdated events, violating the requirement that commands read from the event log. Any runtime updates or custom clarifications are invisible, so the command doesn’t reflect actual glossary state. Rebuild from the event log (or call `load_from_events`) and merge seed + event data before listing.
-
-**Issue 3**: Async resolve doesn’t update the glossary for custom definitions. When the user chooses “C”, the command only writes a GlossaryClarificationResolved event (_local_append_event at glossary.py:532-552) and never emits GlossarySenseUpdated or updates the store. Spec calls for the same flow as ClarificationMiddleware and for custom senses to be persisted. Reuse ClarificationMiddleware/emit_sense_updated (or at minimum emit a GlossarySenseUpdated event) so the glossary reflects the chosen definition.
+**Issue 1**: Deprecated glossary senses are coerced to draft, so the CLI never shows or filters them as deprecated. In `src/specify_cli/glossary/scope.py:105-116` and `src/specify_cli/cli/commands/glossary.py:93-106`, any status other than "active" is forced to `SenseStatus.DRAFT`. This drops the `deprecated` state defined in `TermSense` and advertised in `--status` help, so a term marked `status: deprecated` (in seeds or `GlossarySenseUpdated` events) will render as `draft` and `--status deprecated` always returns empty. Please map status strings to all three enum values (`active`, `draft`, `deprecated`) for seeds and event replay, and add a regression test to ensure `glossary list --status deprecated` surfaces deprecated terms.
 
 
 ## Review Feedback
@@ -825,3 +821,4 @@ When reviewing this WP, verify:
 - 2026-02-16T18:13:38Z – coordinator – shell_pid=74163 – lane=doing – Started implementation via workflow command
 - 2026-02-16T18:21:29Z – coordinator – shell_pid=74163 – lane=for_review – Fixed: event log replay in glossary list, real UUID conflict IDs, GlossarySenseUpdated emission for custom resolve. 57/57 tests pass, 8 regression tests added.
 - 2026-02-16T18:22:03Z – codex – shell_pid=77836 – lane=doing – Started review via workflow command
+- 2026-02-16T18:29:51Z – codex – shell_pid=77836 – lane=planned – Moved to planned
