@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Checkpoint/Resume Mechanism
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP05
 base_commit: e123f4871b4da4d6bae8a55af3fd48f54c7d701e
@@ -1032,3 +1032,4 @@ When reviewing this WP, verify:
 
 - 2026-02-16T00:00:00Z -- llm:claude-sonnet-4.5 -- lane=planned -- WP created with comprehensive guidance
 - 2026-02-16T15:56:00Z – coordinator – shell_pid=13209 – lane=doing – Assigned agent via workflow command
+- 2026-02-16T16:07:16Z – coordinator – shell_pid=13209 – lane=for_review – Ready for review: checkpoint/resume mechanism with 91 tests, 95% coverage on checkpoint module, 345/345 glossary tests passing
