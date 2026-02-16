@@ -169,6 +169,48 @@ class TestIsGlossaryEnabled:
         ctx = _make_context(metadata={"glossary_check": "something_else"})
         assert ctx.is_glossary_enabled() is True
 
+    # --- Regression tests for Issue 2: boolean False handling ---
+
+    def test_bool_false_disables_glossary(self):
+        """YAML `glossary_check: false` parses as Python False."""
+        ctx = _make_context(metadata={"glossary_check": False})
+        assert ctx.is_glossary_enabled() is False
+
+    def test_bool_true_enables_glossary(self):
+        """YAML `glossary_check: true` parses as Python True."""
+        ctx = _make_context(metadata={"glossary_check": True})
+        assert ctx.is_glossary_enabled() is True
+
+    def test_string_false_disables_glossary(self):
+        """String 'false' (case-insensitive) should disable."""
+        ctx = _make_context(metadata={"glossary_check": "false"})
+        assert ctx.is_glossary_enabled() is False
+
+    def test_string_False_disables_glossary(self):
+        """String 'False' (mixed case) should disable."""
+        ctx = _make_context(metadata={"glossary_check": "False"})
+        assert ctx.is_glossary_enabled() is False
+
+    def test_string_true_enables_glossary(self):
+        """String 'true' (case-insensitive) should enable."""
+        ctx = _make_context(metadata={"glossary_check": "true"})
+        assert ctx.is_glossary_enabled() is True
+
+    def test_string_disabled_case_insensitive(self):
+        """String 'Disabled' (mixed case) should disable."""
+        ctx = _make_context(metadata={"glossary_check": "Disabled"})
+        assert ctx.is_glossary_enabled() is False
+
+    def test_string_DISABLED_upper_case(self):
+        """String 'DISABLED' (upper case) should disable."""
+        ctx = _make_context(metadata={"glossary_check": "DISABLED"})
+        assert ctx.is_glossary_enabled() is False
+
+    def test_string_enabled_case_insensitive(self):
+        """String 'Enabled' (mixed case) should enable."""
+        ctx = _make_context(metadata={"glossary_check": "Enabled"})
+        assert ctx.is_glossary_enabled() is True
+
     def test_empty_config_and_metadata(self):
         ctx = _make_context(config={}, metadata={})
         assert ctx.is_glossary_enabled() is True

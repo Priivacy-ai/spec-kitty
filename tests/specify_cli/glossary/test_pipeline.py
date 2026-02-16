@@ -129,10 +129,32 @@ class TestPipelineExecution:
 class TestPipelineSkipOnDisabled:
     """Test pipeline skipping when glossary is disabled."""
 
-    def test_skips_when_glossary_disabled(self):
+    def test_skips_when_glossary_disabled_string(self):
         mw = _MockMiddleware("mw1")
         pipeline = GlossaryMiddlewarePipeline(middleware=[mw], skip_on_disabled=True)
         ctx = _make_context(metadata={"glossary_check": "disabled"})
+
+        result = pipeline.process(ctx)
+
+        assert mw.call_count == 0
+        assert result is ctx
+
+    def test_skips_when_glossary_disabled_bool_false(self):
+        """Regression: YAML `glossary_check: false` (boolean) must skip."""
+        mw = _MockMiddleware("mw1")
+        pipeline = GlossaryMiddlewarePipeline(middleware=[mw], skip_on_disabled=True)
+        ctx = _make_context(metadata={"glossary_check": False})
+
+        result = pipeline.process(ctx)
+
+        assert mw.call_count == 0
+        assert result is ctx
+
+    def test_skips_when_glossary_disabled_string_false(self):
+        """Regression: string 'false' must skip."""
+        mw = _MockMiddleware("mw1")
+        pipeline = GlossaryMiddlewarePipeline(middleware=[mw], skip_on_disabled=True)
+        ctx = _make_context(metadata={"glossary_check": "false"})
 
         result = pipeline.process(ctx)
 
@@ -339,3 +361,122 @@ class TestCreateStandardPipeline:
         )
         assert len(results) >= 1
         assert results[0].definition == "A git worktree"
+
+    def test_interactive_mode_wires_prompt_fn(self, tmp_path):
+        """Regression: interactive mode must wire a real prompt_fn."""
+        from specify_cli.glossary.clarification import ClarificationMiddleware
+
+        (tmp_path / ".kittify").mkdir()
+        pipeline = create_standard_pipeline(
+            tmp_path, interaction_mode="interactive"
+        )
+        clarification = pipeline.middleware[3]
+        assert isinstance(clarification, ClarificationMiddleware)
+        assert clarification.prompt_fn is not None
+
+    def test_non_interactive_mode_uses_none_prompt_fn(self, tmp_path):
+        """Regression: non-interactive mode must use None prompt_fn."""
+        from specify_cli.glossary.clarification import ClarificationMiddleware
+
+        (tmp_path / ".kittify").mkdir()
+        pipeline = create_standard_pipeline(
+            tmp_path, interaction_mode="non-interactive"
+        )
+        clarification = pipeline.middleware[3]
+        assert isinstance(clarification, ClarificationMiddleware)
+        assert clarification.prompt_fn is None
+
+
+class TestInteractiveClarificationResolves:
+    """Regression: Issue 3 -- verify interactive mode actually resolves conflicts."""
+
+    def _setup_ambiguous_workspace(self, tmp_path):
+        glossaries = tmp_path / ".kittify" / "glossaries"
+        glossaries.mkdir(parents=True, exist_ok=True)
+        (glossaries / "team_domain.yaml").write_text(
+            "terms:\n"
+            "  - surface: workspace\n"
+            "    definition: Git worktree directory for a work package\n"
+            "    confidence: 0.9\n"
+            "    status: active\n"
+            "  - surface: workspace\n"
+            "    definition: VS Code workspace configuration file\n"
+            "    confidence: 0.7\n"
+            "    status: active\n"
+        )
+
+    def test_interactive_mode_resolves_conflict_via_prompt(self, tmp_path, monkeypatch):
+        """In interactive mode, conflicts should be resolved (not just deferred)."""
+        self._setup_ambiguous_workspace(tmp_path)
+
+        # Mock the prompt function to always select candidate #1
+        def mock_prompt(conflict, candidates):
+            conflict.selected_index = 0
+            return ("select", None)
+
+        # Patch prompt_conflict_resolution_safe so the pipeline uses our mock
+        monkeypatch.setattr(
+            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            mock_prompt,
+        )
+
+        ctx = _make_context(
+            inputs={"description": "The workspace contains files"},
+            metadata={"glossary_watch_terms": ["workspace"]},
+        )
+
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.OFF,  # Don't block at gate
+            interaction_mode="interactive",
+        )
+
+        result = pipeline.process(ctx)
+
+        # The conflict should be resolved (removed from context.conflicts)
+        # and moved to resolved_conflicts
+        resolved = getattr(result, "resolved_conflicts", [])
+        assert len(resolved) >= 1
+        assert resolved[0].term.surface_text == "workspace"
+
+        # The remaining conflicts should not include the resolved one
+        remaining_workspace = [
+            c for c in result.conflicts
+            if c.term.surface_text == "workspace"
+        ]
+        assert len(remaining_workspace) == 0
+
+
+class TestMutableContextDocumentation:
+    """Regression: Issue 4 -- mutable context design is documented."""
+
+    def test_docstring_mentions_mutability(self):
+        """PrimitiveExecutionContext docstring must document mutable design."""
+        docstring = PrimitiveExecutionContext.__doc__
+        assert docstring is not None
+        assert "mutable" in docstring.lower() or "Mutable" in docstring
+        assert "same" in docstring.lower()  # mentions "same instance"
+
+    def test_context_mutated_in_place_by_pipeline(self):
+        """Middleware stages receive and modify the same context instance."""
+        call_contexts = []
+
+        class TrackingMiddleware:
+            def process(self, context):
+                call_contexts.append(id(context))
+                context.extracted_terms.append("tracked")
+                return context
+
+        pipeline = GlossaryMiddlewarePipeline(
+            middleware=[TrackingMiddleware(), TrackingMiddleware()]
+        )
+        ctx = _make_context()
+        original_id = id(ctx)
+        result = pipeline.process(ctx)
+
+        # All middleware received the same object
+        assert all(cid == original_id for cid in call_contexts)
+        # Result is the same object
+        assert id(result) == original_id
+        # Mutations accumulated
+        assert len(result.extracted_terms) == 2
