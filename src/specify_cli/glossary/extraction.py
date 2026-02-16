@@ -146,6 +146,9 @@ def extract_acronyms(text: str) -> List[ExtractedTerm]:
         acronym = match.group(0)
         # Lowercase for normalization (acronyms stored in lowercase internally)
         normalized = acronym.lower()
+        # Filter common words (AND, THE, etc.)
+        if normalized in COMMON_WORDS:
+            continue
         # Don't normalize further (acronyms are already normalized)
         terms.add(normalized)
 
