@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Semantic Check & Conflict Detection
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: 50240be10a0ea2da7e20c8406142f76249a3f8b7
@@ -181,3 +181,16 @@ pytest tests/specify_cli/glossary/test_middleware.py::test_semantic_check -v
 ## Activity Log
 
 - 2026-02-16T15:04:11Z – coordinator – shell_pid=84395 – lane=doing – Assigned agent via workflow command
+- 2026-02-16T15:14:21Z – coordinator – shell_pid=84395 – lane=for_review – Ready for review: semantic check implementation complete
+
+Implementation details:
+- T016: Term resolution - resolve_term() resolves terms across 4-tier scope hierarchy
+- T017: Conflict classification - classify_conflict() detects UNKNOWN and AMBIGUOUS conflicts
+- T018: Severity scoring - score_severity() implements scoring matrix (high/medium/low)
+- T019: SemanticCheckMiddleware - orchestrates resolution, classification, scoring
+- T020: Comprehensive tests - 151 total glossary tests pass
+
+Coverage: >90% for all WP04 files
+Type safety: mypy --strict compliance
+Performance: <100ms for typical inputs
+All definition of done criteria met
