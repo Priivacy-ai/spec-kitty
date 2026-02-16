@@ -79,18 +79,29 @@ class GlossaryCandidateExtractionMiddleware:
         Side effects:
             - Emits TermCandidateObserved events (WP08)
         """
-        # 1. Collect text from glossary fields
+        # 1. Determine which fields to scan
+        # Check if metadata specifies glossary_fields (runtime override)
+        fields_to_scan = self.glossary_fields
+        if context.metadata and "glossary_fields" in context.metadata:
+            metadata_fields = context.metadata["glossary_fields"]
+            # Validate it's a list of strings
+            if isinstance(metadata_fields, list) and all(
+                isinstance(f, str) for f in metadata_fields
+            ):
+                fields_to_scan = metadata_fields
+
+        # 2. Collect text from glossary fields
         text_parts: List[str] = []
 
         # Scan configured fields in step_input
-        for field_name in self.glossary_fields:
+        for field_name in fields_to_scan:
             if field_name in context.step_input:
                 value = context.step_input[field_name]
                 if isinstance(value, str):
                     text_parts.append(value)
 
         # Scan configured fields in step_output
-        for field_name in self.glossary_fields:
+        for field_name in fields_to_scan:
             if field_name in context.step_output:
                 value = context.step_output[field_name]
                 if isinstance(value, str):
@@ -99,17 +110,17 @@ class GlossaryCandidateExtractionMiddleware:
         # Combine all text
         combined_text = "\n".join(text_parts)
 
-        # 2. Extract terms (metadata hints + heuristics)
+        # 3. Extract terms (metadata hints + heuristics)
         extracted = extract_all_terms(
             text=combined_text,
             metadata=context.metadata if context.metadata else None,
             limit_words=1000,
         )
 
-        # 3. Add to context
+        # 4. Add to context
         context.extracted_terms.extend(extracted)
 
-        # 4. Emit events (WP08 - event emission adapters)
+        # 5. Emit events (WP08 - event emission adapters)
         # For now, just log (events module not implemented yet)
         # When WP08 is done, this will call:
         # from .events import emit_term_candidate_observed
