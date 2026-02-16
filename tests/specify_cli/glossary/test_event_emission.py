@@ -1208,9 +1208,14 @@ class TestCanonicalEventContracts:
     we simulate EVENTS_AVAILABLE=True by patching.
     """
 
-    def test_events_available_flag_is_false(self):
-        """EVENTS_AVAILABLE is False when spec-kitty-events not installed."""
-        assert EVENTS_AVAILABLE is False
+    def test_events_available_flag_reflects_package(self):
+        """EVENTS_AVAILABLE reflects whether spec-kitty-events glossary is importable."""
+        try:
+            import spec_kitty_events.glossary.events  # noqa: F401
+            pkg_available = True
+        except (ImportError, ModuleNotFoundError):
+            pkg_available = False
+        assert EVENTS_AVAILABLE is pkg_available
 
     def test_append_event_delegates_when_available(self):
         """When EVENTS_AVAILABLE is True, append_event delegates to _pkg_append_event."""
@@ -1227,10 +1232,11 @@ class TestCanonicalEventContracts:
 
     def test_append_event_no_disk_write_when_unavailable(self, tmp_path):
         """When EVENTS_AVAILABLE is False, append_event does NOT write to disk."""
-        assert EVENTS_AVAILABLE is False
-        log_path = tmp_path / "test.jsonl"
-        append_event({"event_type": "Test"}, log_path)
-        assert not log_path.exists()
+        import specify_cli.glossary.events as events_mod
+        with patch.object(events_mod, "EVENTS_AVAILABLE", False):
+            log_path = tmp_path / "test.jsonl"
+            append_event({"event_type": "Test"}, log_path)
+            assert not log_path.exists()
 
     def test_persist_event_instantiates_canonical_class_when_available(self, tmp_path):
         """_persist_event creates a canonical class INSTANCE and passes it to _pkg_append_event."""
