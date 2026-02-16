@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Type Safety & Integration Tests
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 2.x
 base_commit: 88ad24685d9db6b360378df47d72f5cb50067874
@@ -25,11 +25,11 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-02-16
 
-**Issue 1**: Importing the glossary middleware now raises `TypeError: unsupported operand type(s) for |: 'str' and 'NoneType'` because `GenerationGateMiddleware.__init__` uses a forward reference string in a `|` union without `from __future__ import annotations` (src/specify_cli/glossary/middleware.py:355-359). This breaks the entire pipeline and prevents pytest from even collecting tests. Add the future import at the top of the module (or drop the quotes/keep annotations deferred) so the union is evaluated as typing, not at runtime.
+**Issue 1**: `mypy --strict src/specify_cli/glossary/` still fails (417 errors across 80 files). Running from the worktree (`cd /Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty/.worktrees/041-mission-glossary-semantic-integrity-WP11 && mypy --strict src/specify_cli/glossary/`) pulls in the broader `specify_cli` package because the glossary public API imports from other subpackages. The run reports missing stubs for `toml`/`yaml`, missing return annotations in `sync/config.py`, incorrect `join` calls in `gitignore_manager.py`, etc. This violates the WP goal of zero mypy errors scoped to glossary. Please either (a) isolate glossary’s API so `mypy` doesn’t traverse unrelated modules, or (b) add the required annotations/stubs (`types-toml`, `types-PyYAML`, etc.) so the command completes cleanly.
 
-**Issue 2**: The required command `mypy --strict src/specify_cli/glossary/` currently fails with 417 errors (missing stubs and untyped functions across CLI modules) because mypy pulls in `specify_cli/__init__.py` and the broader CLI tree. Success criterion #1 is not met. Either narrow the mypy target (e.g., adjust config to limit to glossary) or add the missing annotations/stubs so the command passes cleanly.
+**Issue 2**: Python 3.11 compatibility regression in `GenerationGateMiddleware` (src/specify_cli/glossary/middleware.py:347-353). The parameter annotation uses a quoted forward reference with the `|` operator (`runtime_override: "Strictness" | None`). On Python 3.11 (the project’s minimum version), this expression is evaluated eagerly and raises `TypeError: unsupported operand type(s) for |: 'str' and 'NoneType'`, preventing imports and blocking pipelines. Please add `from __future__ import annotations` at the top of the module or change the annotation to `Optional["Strictness"]`/`Strictness | None` with postponed evaluation.
 
-**Issue 3**: `src/specify_cli/cli/commands/__init__.py` was changed to register the new glossary command, but per AGENTS.md any change to a Spec Kitty CLI `__init__.py` requires bumping the version in pyproject.toml and adding a CHANGELOG entry. Those updates are missing; please bump the version and document the change.
+**Issue 3**: Documentation deliverable missing. T051 requires adding real integration examples, common patterns, and troubleshooting to `kitty-specs/041-mission-glossary-semantic-integrity/quickstart.md`, but there are no changes to that file in this branch (confirmed via `git diff --name-only 2.x..HEAD -- kitty-specs/041-mission-glossary-semantic-integrity/quickstart.md`). Please update the quickstart with the requested content from the integration tests before resubmitting.
 
 
 ## Review Feedback
@@ -866,3 +866,4 @@ When reviewing this WP, verify:
 - 2026-02-16T18:55:56Z – codex – shell_pid=92246 – lane=doing – Started review via workflow command
 - 2026-02-16T18:56:51Z – codex – shell_pid=92246 – lane=planned – Moved to planned
 - 2026-02-16T18:57:28Z – coordinator – shell_pid=93314 – lane=doing – Started implementation via workflow command
+- 2026-02-16T18:58:32Z – coordinator – shell_pid=93314 – lane=planned – Moved to planned
