@@ -4,6 +4,8 @@ This module implements term resolution against the scope hierarchy.
 Terms are resolved in precedence order: mission_local → team_domain → audience_domain → spec_kitty_core.
 """
 
+from __future__ import annotations
+
 from typing import List
 
 from .models import TermSense
