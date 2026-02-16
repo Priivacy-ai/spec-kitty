@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Term Extraction Implementation
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 2.x
 base_commit: 28a2fdf773a7b7aae3371a4aec50602bdb6dbf23
@@ -235,3 +235,4 @@ pytest --cov=src/specify_cli/glossary/extraction --cov-report=term-missing
 - 2026-02-16T14:46:47Z – coordinator – shell_pid=73336 – lane=doing – Acknowledged review feedback - fixing stemming corruption and event emission (cycle 4)
 - 2026-02-16T14:50:05Z – coordinator – shell_pid=73336 – lane=for_review – Fixed: stemming bug resolved (class/glass/address/status preserved), event emission implemented with proper stub interface, 101 tests passing, mypy strict clean (cycle 4 arbiter override - final attempt)
 - 2026-02-16T14:50:48Z – codex – shell_pid=77135 – lane=doing – Started review via workflow command
+- 2026-02-16T14:52:47Z – codex – shell_pid=77135 – lane=planned – Moved to planned
