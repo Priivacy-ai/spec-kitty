@@ -676,9 +676,8 @@ def emit_semantic_check_evaluated(
     else:
         recommended = "warn"
 
-    eff_str = effective_strictness or getattr(context, "effective_strictness", "medium")
-    if hasattr(eff_str, "value"):
-        eff_str = eff_str.value
+    eff_str_raw: Any = effective_strictness or getattr(context, "effective_strictness", "medium")
+    eff_str: str = eff_str_raw.value if hasattr(eff_str_raw, "value") else str(eff_str_raw)
 
     blocked = len(conflicts) > 0 and eff_str != "off"
 

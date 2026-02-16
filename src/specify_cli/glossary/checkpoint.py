@@ -308,7 +308,8 @@ def handle_context_change(
 
     # Context changed - prompt user for confirmation
     if confirm_fn is not None:
-        return confirm_fn(old_hash, new_hash)
+        result: bool = confirm_fn(old_hash, new_hash)
+        return result
 
     return prompt_context_change_confirmation(old_hash, new_hash)
 

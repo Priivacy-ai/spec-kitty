@@ -15,6 +15,7 @@ from .extraction import ExtractedTerm, extract_all_terms
 
 if TYPE_CHECKING:
     from . import models, scope, store
+    from .checkpoint import StepCheckpoint
 
 
 class PrimitiveExecutionContext(Protocol):
@@ -494,7 +495,7 @@ class GenerationGateMiddleware:
     def _build_scope_refs(
         self,
         context: PrimitiveExecutionContext,
-    ) -> list:
+    ) -> list[Any]:
         """Build scope refs from context's active glossary scopes.
 
         Args:

@@ -76,7 +76,7 @@ class ClarificationMiddleware:
         if not conflicts:
             return context
 
-        resolved_conflicts: list = []
+        resolved_conflicts: list[Any] = []
 
         for conflict in conflicts:
             conflict_id = str(uuid.uuid4())
