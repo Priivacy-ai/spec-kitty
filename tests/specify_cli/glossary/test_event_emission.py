@@ -6,20 +6,22 @@ Tests cover:
 - Event ordering across middleware pipeline
 - Event filtering (read_events with event_type filter)
 - All 8 canonical event types
-- Stub/fallback behavior: log-only, NO JSONL writes (Issue 3 regression)
-- ClarificationMiddleware emits 3 event types (Issue 2 regression)
-- Scope activation emits GlossaryScopeActivated (Issue 2 regression)
+- Fallback behavior: log-only, NO JSONL writes when EVENTS_AVAILABLE is False
+- ClarificationMiddleware emits 3 event types
+- Scope activation emits GlossaryScopeActivated
+- Canonical event class instantiation when EVENTS_AVAILABLE is True
 - Event emission at middleware boundaries
 - Round-trip: emit -> persist -> read
 - Edge cases: corrupt JSONL, empty files, concurrent writes
 """
 
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 from dataclasses import dataclass, field
 
 import pytest
@@ -27,6 +29,7 @@ import pytest
 from specify_cli.glossary.events import (
     EVENTS_AVAILABLE,
     _local_append_event,
+    _persist_event,
     append_event,
     build_clarification_requested,
     build_clarification_resolved,
@@ -363,8 +366,7 @@ class TestEventPayloadBuilders:
 
 # ---------------------------------------------------------------------------
 # T038: Event Persistence (JSONL append and read)
-# Uses _local_append_event for direct persistence tests since append_event
-# is log-only in fallback mode (Issue 3 fix).
+# Uses _local_append_event for direct persistence tests (test utility).
 # ---------------------------------------------------------------------------
 
 
@@ -503,21 +505,16 @@ class TestEventPersistence:
 
 
 # ---------------------------------------------------------------------------
-# Issue 3 REGRESSION: Fallback path must be log-only, NO JSONL writes
+# Fallback: log-only, NO JSONL writes when EVENTS_AVAILABLE is False
 # ---------------------------------------------------------------------------
 
 
 class TestFallbackLogOnly:
-    """Regression tests for Issue 3: public append_event() is log-only in fallback.
-
-    When EVENTS_AVAILABLE is False (spec-kitty-events not installed):
-    - The public append_event() function must NOT write to disk (log-only)
-    - Internal emit_* functions still persist via _local_append_event when
-      repo_root is provided (needed for checkpoint/resume to work)
-
-    The distinction:
-    - append_event() = public API, log-only in fallback
-    - _persist_canonical_event() = internal helper, always persists locally
+    """Tests verifying that when EVENTS_AVAILABLE is False:
+    - The public append_event() does NOT write to disk (log-only)
+    - All emit_* functions do NOT write to disk (log-only)
+    - No _local_append_event is ever called from production paths
+    - Only logger.info is used for fallback output
     """
 
     def test_append_event_does_not_write_file_in_fallback(self, tmp_path):
@@ -527,11 +524,10 @@ class TestFallbackLogOnly:
         append_event({"event_type": "TestEvent"}, log_path)
         assert not log_path.exists(), "Fallback append_event must NOT write to disk"
 
-    def test_emit_with_repo_root_persists_locally_in_fallback(self, tmp_path, sample_extracted_term, mock_context):
-        """emit_term_candidate_observed DOES write JSONL via _local_append_event in fallback.
+    def test_emit_with_repo_root_does_NOT_write_in_fallback(self, tmp_path, sample_extracted_term, mock_context):
+        """emit_term_candidate_observed does NOT write JSONL when EVENTS_AVAILABLE is False.
 
-        Internal emit functions use _persist_canonical_event which writes locally
-        even in fallback mode, because middleware (checkpoint/resume) depends on it.
+        Even with repo_root provided, fallback mode is log-only. No JSONL files.
         """
         assert EVENTS_AVAILABLE is False
         emit_term_candidate_observed(
@@ -540,14 +536,14 @@ class TestFallbackLogOnly:
             repo_root=tmp_path,
         )
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        assert events_dir.exists()
-        jsonl_files = list(events_dir.glob("*.events.jsonl"))
-        assert len(jsonl_files) >= 1, "emit functions should persist locally even in fallback"
-        content = jsonl_files[0].read_text().strip()
-        assert "TermCandidateObserved" in content
+        # The directory may or may not exist (get_event_log_path not called in fallback)
+        # but there must be NO JSONL files
+        if events_dir.exists():
+            jsonl_files = list(events_dir.glob("*.events.jsonl"))
+            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
 
-    def test_emit_blocked_persists_locally_in_fallback(self, tmp_path, sample_conflict):
-        """emit_generation_blocked_event DOES write JSONL via _local_append_event."""
+    def test_emit_blocked_does_NOT_write_in_fallback(self, tmp_path, sample_conflict):
+        """emit_generation_blocked_event does NOT write JSONL when EVENTS_AVAILABLE is False."""
         assert EVENTS_AVAILABLE is False
         emit_generation_blocked_event(
             step_id="s",
@@ -558,19 +554,101 @@ class TestFallbackLogOnly:
             repo_root=tmp_path,
         )
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        assert events_dir.exists()
-        jsonl_files = list(events_dir.glob("*.events.jsonl"))
-        assert len(jsonl_files) >= 1
-        content = jsonl_files[0].read_text().strip()
-        assert "GenerationBlockedBySemanticConflict" in content
+        if events_dir.exists():
+            jsonl_files = list(events_dir.glob("*.events.jsonl"))
+            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
 
-    def test_fallback_append_event_logs_debug(self, caplog):
-        """Public append_event() logs at DEBUG level in fallback mode."""
+    def test_emit_checkpoint_does_NOT_write_in_fallback(self, tmp_path):
+        """emit_step_checkpointed does NOT write JSONL when EVENTS_AVAILABLE is False."""
         assert EVENTS_AVAILABLE is False
-        import logging
-        with caplog.at_level(logging.DEBUG, logger="specify_cli.glossary.events"):
+        from specify_cli.glossary.checkpoint import create_checkpoint
+
+        checkpoint = create_checkpoint(
+            mission_id="m",
+            run_id="r",
+            step_id="s",
+            strictness=Strictness.OFF,
+            scope_refs=[],
+            inputs={},
+            cursor="pre_generation_gate",
+        )
+        emit_step_checkpointed(checkpoint, project_root=tmp_path)
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        if events_dir.exists():
+            jsonl_files = list(events_dir.glob("*.events.jsonl"))
+            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
+
+    def test_emit_scope_activated_does_NOT_write_in_fallback(self, tmp_path):
+        """emit_scope_activated does NOT write JSONL when EVENTS_AVAILABLE is False."""
+        assert EVENTS_AVAILABLE is False
+        emit_scope_activated(
+            scope_id="team_domain",
+            glossary_version_id="v3",
+            mission_id="m",
+            run_id="r",
+            repo_root=tmp_path,
+        )
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        if events_dir.exists():
+            jsonl_files = list(events_dir.glob("*.events.jsonl"))
+            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
+
+    def test_emit_clarification_requested_does_NOT_write_in_fallback(
+        self, tmp_path, mock_context, sample_conflict
+    ):
+        """emit_clarification_requested does NOT write JSONL when EVENTS_AVAILABLE is False."""
+        assert EVENTS_AVAILABLE is False
+        emit_clarification_requested(
+            conflict=sample_conflict,
+            context=mock_context,
+            repo_root=tmp_path,
+        )
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        if events_dir.exists():
+            jsonl_files = list(events_dir.glob("*.events.jsonl"))
+            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
+
+    def test_emit_clarification_resolved_does_NOT_write_in_fallback(
+        self, tmp_path, mock_context, sample_conflict
+    ):
+        """emit_clarification_resolved does NOT write JSONL when EVENTS_AVAILABLE is False."""
+        assert EVENTS_AVAILABLE is False
+        selected = sample_conflict.candidate_senses[0]
+        emit_clarification_resolved(
+            conflict_id="c-1",
+            conflict=sample_conflict,
+            selected_sense=selected,
+            context=mock_context,
+            repo_root=tmp_path,
+        )
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        if events_dir.exists():
+            jsonl_files = list(events_dir.glob("*.events.jsonl"))
+            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
+
+    def test_emit_sense_updated_does_NOT_write_in_fallback(
+        self, tmp_path, mock_context, sample_conflict
+    ):
+        """emit_sense_updated does NOT write JSONL when EVENTS_AVAILABLE is False."""
+        assert EVENTS_AVAILABLE is False
+        emit_sense_updated(
+            conflict=sample_conflict,
+            custom_definition="test def",
+            scope_value="team_domain",
+            context=mock_context,
+            repo_root=tmp_path,
+        )
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        if events_dir.exists():
+            jsonl_files = list(events_dir.glob("*.events.jsonl"))
+            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
+
+    def test_fallback_append_event_logs_info(self, caplog):
+        """Public append_event() logs at INFO level in fallback mode."""
+        assert EVENTS_AVAILABLE is False
+        with caplog.at_level(logging.INFO, logger="specify_cli.glossary.events"):
             append_event({"event_type": "TestEvent"}, Path("/fake/path"))
-        assert "Stub event (no persistence)" in caplog.text
+        assert "glossary.TestEvent" in caplog.text
 
     def test_emit_without_repo_root_does_not_write(self, sample_extracted_term, mock_context, tmp_path):
         """emit_term_candidate_observed does NOT write when repo_root is None."""
@@ -593,7 +671,7 @@ class TestTermCandidateObservedEmission:
     """Tests for emit_term_candidate_observed()."""
 
     def test_emits_event_returns_dict(self, tmp_path, sample_extracted_term, mock_context):
-        """TermCandidateObserved returns event dict with repo_root provided."""
+        """TermCandidateObserved returns event dict."""
         event = emit_term_candidate_observed(
             term=sample_extracted_term,
             context=mock_context,
@@ -972,14 +1050,12 @@ class TestEventOrdering:
 
 
 # ---------------------------------------------------------------------------
-# Issue 2 REGRESSION: ClarificationMiddleware emits 3 clarification events
+# ClarificationMiddleware emits 3 clarification events
 # ---------------------------------------------------------------------------
 
 
 class TestClarificationMiddlewareEmitsEvents:
-    """Regression tests for Issue 2: ClarificationMiddleware never calls emitters.
-
-    The ClarificationMiddleware must emit:
+    """Tests: ClarificationMiddleware must emit:
     - GlossaryClarificationRequested when user defers
     - GlossaryClarificationResolved when user selects candidate
     - GlossarySenseUpdated when user provides custom sense
@@ -1069,12 +1145,12 @@ class TestClarificationMiddlewareEmitsEvents:
 
 
 # ---------------------------------------------------------------------------
-# Issue 2 REGRESSION: Scope activation emits GlossaryScopeActivated
+# Scope activation emits GlossaryScopeActivated
 # ---------------------------------------------------------------------------
 
 
 class TestScopeActivationEmitsEvent:
-    """Regression tests for Issue 2: scope activation never calls emit."""
+    """Tests: scope activation calls emit_scope_activated."""
 
     def test_activate_scope_calls_emit_scope_activated(self, tmp_path):
         """activate_scope() calls emit_scope_activated with correct params."""
@@ -1116,19 +1192,20 @@ class TestScopeActivationEmitsEvent:
 
 
 # ---------------------------------------------------------------------------
-# Issue 1 REGRESSION: Canonical event classes usage when available
+# Canonical event class instantiation when EVENTS_AVAILABLE is True
 # ---------------------------------------------------------------------------
 
 
 class TestCanonicalEventContracts:
-    """Regression tests for Issue 1: canonical classes never instantiated.
+    """Tests verifying canonical event class instantiation.
 
-    When EVENTS_AVAILABLE is True, the code should use canonical classes from
-    spec-kitty-events. Since the package is not installed in tests, we verify
-    the architecture by checking:
-    1. Import path is correct (tried at module level)
-    2. EVENTS_AVAILABLE flag controls behavior
-    3. append_event delegates to _pkg_append_event when available
+    When EVENTS_AVAILABLE is True:
+    - _persist_event creates canonical class INSTANCES (not dicts)
+    - Those instances are passed to _pkg_append_event
+    - append_event delegates to _pkg_append_event
+
+    Since spec-kitty-events is not installed in the test environment,
+    we simulate EVENTS_AVAILABLE=True by patching.
     """
 
     def test_events_available_flag_is_false(self):
@@ -1155,14 +1232,129 @@ class TestCanonicalEventContracts:
         append_event({"event_type": "Test"}, log_path)
         assert not log_path.exists()
 
+    def test_persist_event_instantiates_canonical_class_when_available(self, tmp_path):
+        """_persist_event creates a canonical class INSTANCE and passes it to _pkg_append_event."""
+        import specify_cli.glossary.events as events_mod
+
+        mock_pkg_append = MagicMock()
+        mock_canonical_cls = MagicMock()
+        mock_instance = MagicMock()
+        mock_canonical_cls.return_value = mock_instance
+
+        with patch.object(events_mod, "EVENTS_AVAILABLE", True), \
+             patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True):
+            event_dict = {"event_type": "TermCandidateObserved", "term": "workspace"}
+            _persist_event(event_dict, tmp_path, "test-mission",
+                           canonical_cls=mock_canonical_cls)
+
+            # Verify canonical class was instantiated with the event dict
+            mock_canonical_cls.assert_called_once_with(**event_dict)
+            # Verify the INSTANCE (not the dict) was passed to _pkg_append_event
+            mock_pkg_append.assert_called_once()
+            actual_instance = mock_pkg_append.call_args[0][0]
+            assert actual_instance is mock_instance
+
+    def test_persist_event_logs_only_when_unavailable(self, tmp_path, caplog):
+        """_persist_event only logs (no file I/O) when EVENTS_AVAILABLE is False."""
+        assert EVENTS_AVAILABLE is False
+        event_dict = {"event_type": "TestEvent", "data": "hello"}
+        with caplog.at_level(logging.INFO, logger="specify_cli.glossary.events"):
+            _persist_event(event_dict, tmp_path, "test-mission")
+        assert "glossary.TestEvent" in caplog.text
+        # Verify no JSONL files were created
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        if events_dir.exists():
+            jsonl_files = list(events_dir.glob("*.events.jsonl"))
+            assert len(jsonl_files) == 0
+
+    def test_emit_term_creates_canonical_instance_when_available(
+        self, tmp_path, sample_extracted_term, mock_context
+    ):
+        """emit_term_candidate_observed uses _CanonicTermCandidateObserved when available."""
+        import specify_cli.glossary.events as events_mod
+
+        mock_pkg_append = MagicMock()
+        mock_canonical_cls = MagicMock()
+        mock_instance = MagicMock()
+        mock_canonical_cls.return_value = mock_instance
+
+        with patch.object(events_mod, "EVENTS_AVAILABLE", True), \
+             patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True), \
+             patch.object(events_mod, "_CanonicTermCandidateObserved",
+                          mock_canonical_cls, create=True):
+            event = emit_term_candidate_observed(
+                term=sample_extracted_term,
+                context=mock_context,
+                repo_root=tmp_path,
+            )
+
+            assert event is not None
+            assert event["event_type"] == "TermCandidateObserved"
+            # Verify canonical class was instantiated
+            mock_canonical_cls.assert_called_once()
+            # Verify instance passed to _pkg_append_event
+            mock_pkg_append.assert_called_once()
+            assert mock_pkg_append.call_args[0][0] is mock_instance
+
+    def test_emit_blocked_creates_canonical_instance_when_available(
+        self, tmp_path, sample_conflict
+    ):
+        """emit_generation_blocked_event uses _CanonicGenerationBlockedBySemanticConflict."""
+        import specify_cli.glossary.events as events_mod
+
+        mock_pkg_append = MagicMock()
+        mock_canonical_cls = MagicMock()
+        mock_instance = MagicMock()
+        mock_canonical_cls.return_value = mock_instance
+
+        with patch.object(events_mod, "EVENTS_AVAILABLE", True), \
+             patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True), \
+             patch.object(events_mod, "_CanonicGenerationBlockedBySemanticConflict",
+                          mock_canonical_cls, create=True):
+            event = emit_generation_blocked_event(
+                step_id="s",
+                mission_id="m",
+                conflicts=[sample_conflict],
+                strictness_mode=Strictness.MEDIUM,
+                run_id="r",
+                repo_root=tmp_path,
+            )
+
+            assert event is not None
+            mock_canonical_cls.assert_called_once()
+            mock_pkg_append.assert_called_once()
+            assert mock_pkg_append.call_args[0][0] is mock_instance
+
+    def test_emit_scope_creates_canonical_instance_when_available(self, tmp_path):
+        """emit_scope_activated uses _CanonicGlossaryScopeActivated."""
+        import specify_cli.glossary.events as events_mod
+
+        mock_pkg_append = MagicMock()
+        mock_canonical_cls = MagicMock()
+        mock_instance = MagicMock()
+        mock_canonical_cls.return_value = mock_instance
+
+        with patch.object(events_mod, "EVENTS_AVAILABLE", True), \
+             patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True), \
+             patch.object(events_mod, "_CanonicGlossaryScopeActivated",
+                          mock_canonical_cls, create=True):
+            event = emit_scope_activated(
+                scope_id="team_domain",
+                glossary_version_id="v3",
+                mission_id="m",
+                run_id="r",
+                repo_root=tmp_path,
+            )
+
+            assert event is not None
+            mock_canonical_cls.assert_called_once()
+            mock_pkg_append.assert_called_once()
+            assert mock_pkg_append.call_args[0][0] is mock_instance
+
     def test_canonical_import_path_correct(self):
         """The import path for canonical classes is spec_kitty_events.glossary.events."""
-        # This verifies the try/except block uses the correct import path.
-        # Since the package isn't installed, we just verify the code structure.
         import specify_cli.glossary.events as mod
-        # The module should have attempted the import
         assert hasattr(mod, "EVENTS_AVAILABLE")
-        # Since package isn't installed, should be False
         assert mod.EVENTS_AVAILABLE is False
 
 
@@ -1324,32 +1516,41 @@ class TestEventEmissionErrorHandling:
     """Tests for error handling in event emission."""
 
     def test_emission_does_not_crash_on_error(self, mock_context, sample_extracted_term):
-        """Event emission failure returns None, does not raise."""
-        # Use a path that will cause an error (not a directory)
+        """Event emission failure returns None, does not raise.
+
+        Note: When EVENTS_AVAILABLE is False, emit_* functions just log
+        and return the event dict. They do not attempt file I/O, so they
+        do not fail even with a bad repo_root.
+        """
+        # With EVENTS_AVAILABLE=False, emit always succeeds (log-only)
+        assert EVENTS_AVAILABLE is False
         bad_root = Path("/dev/null/not/a/path")
-        # Should NOT raise -- errors are caught and logged
         event = emit_term_candidate_observed(
             term=sample_extracted_term,
             context=mock_context,
             repo_root=bad_root,
         )
-        # With a bad path, _persist_canonical_event fails and returns None
-        assert event is None
+        # In fallback mode, the event dict is returned (no file I/O attempted)
+        assert event is not None
+        assert event["event_type"] == "TermCandidateObserved"
 
-    def test_blocked_event_emission_error_returns_none(self, sample_conflict):
-        """emit_generation_blocked_event handles errors gracefully."""
-        bad_root = Path("/dev/null/not/a/path")
-        # Should NOT raise -- errors are caught and logged
-        event = emit_generation_blocked_event(
-            step_id="s",
-            mission_id="m",
-            conflicts=[sample_conflict],
-            strictness_mode=Strictness.MEDIUM,
-            run_id="r",
-            repo_root=bad_root,
-        )
-        # With a bad path, _persist_canonical_event fails and returns None
-        assert event is None
+    def test_emission_error_when_available_returns_none(self, mock_context, sample_extracted_term, tmp_path):
+        """When EVENTS_AVAILABLE is True but persistence fails, returns None."""
+        import specify_cli.glossary.events as events_mod
+
+        mock_pkg_append = MagicMock(side_effect=OSError("disk full"))
+        mock_canonical_cls = MagicMock()
+
+        with patch.object(events_mod, "EVENTS_AVAILABLE", True), \
+             patch.object(events_mod, "_pkg_append_event", mock_pkg_append, create=True), \
+             patch.object(events_mod, "_CanonicTermCandidateObserved",
+                          mock_canonical_cls, create=True):
+            event = emit_term_candidate_observed(
+                term=sample_extracted_term,
+                context=mock_context,
+                repo_root=tmp_path,
+            )
+            assert event is None  # Error caught, returns None
 
     def test_events_available_flag(self):
         """EVENTS_AVAILABLE is False when spec-kitty-events not installed."""

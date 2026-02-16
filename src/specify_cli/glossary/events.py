@@ -5,13 +5,14 @@ package is not available, it provides stub implementations that log events
 without any filesystem persistence (log-only fallback).
 
 When spec-kitty-events IS available:
-- Canonical event class instances are created and serialized
+- Canonical event class INSTANCES are created from the imported package
+- Those instances are passed to the package's append_event() for persistence
 - Events are persisted to JSONL via the package's append_event()
 
 When spec-kitty-events is NOT available:
 - Plain dicts are built for in-memory use and returned to callers
-- Events are logged via Python logging (DEBUG level)
-- NO JSONL files are written to disk
+- Events are logged via Python logging (INFO level)
+- NO JSONL files are written to disk -- no _local_append_event, no file I/O
 
 Event classes:
 - GlossaryScopeActivated
@@ -132,23 +133,22 @@ def append_event(event_dict: dict[str, Any], event_log_path: Path) -> None:
 
     # Fallback: log-only, NO filesystem writes
     event_type = event_dict.get("event_type", "UnknownEvent")
-    logger.debug(
-        "Stub event (no persistence): %s -- %s",
+    logger.info(
+        "glossary.%s: %s",
         event_type,
         json.dumps(event_dict, sort_keys=True, default=str)[:200],
     )
 
 
 def _local_append_event(event_dict: dict[str, Any], event_log_path: Path) -> None:
-    """Low-level JSONL append used only when EVENTS_AVAILABLE is True.
+    """Low-level JSONL append -- test utility only.
 
-    This is provided as an explicit local persistence adapter for
-    situations where the canonical package's append_event needs a
-    local fallback (e.g., serialization adapter). In normal operation,
-    use append_event() which delegates to the package.
+    This function writes a single JSON line to a JSONL file. It is exposed
+    for test code that needs direct JSONL writes (e.g., round-trip tests).
 
-    When EVENTS_AVAILABLE is False, this function MUST NOT be called --
-    the fallback path is log-only.
+    Production emit_* functions NEVER call this. They use _persist_event()
+    which delegates to the canonical package when available and is a no-op
+    (log-only) when the package is not installed.
 
     Args:
         event_dict: JSON-serializable event payload
@@ -504,36 +504,54 @@ def build_step_checkpointed(
 
 
 # ---------------------------------------------------------------------------
-# Canonical event instantiation (when spec-kitty-events is available)
+# Canonical event persistence
+#
+# When EVENTS_AVAILABLE is True:
+#   - Instantiate the canonical event class from spec-kitty-events
+#   - Pass that INSTANCE (not a dict) to _pkg_append_event
+#
+# When EVENTS_AVAILABLE is False:
+#   - Log only via logger.info -- NO file I/O whatsoever
+#   - Checkpoint/resume will not work without the package; that is
+#     acceptable graceful degradation
 # ---------------------------------------------------------------------------
 
-def _persist_canonical_event(
+
+def _persist_event(
     event_dict: dict[str, Any],
     repo_root: Path,
     mission_id: str,
+    canonical_cls: Any = None,
 ) -> None:
-    """Persist an event dict to JSONL.
+    """Persist an event to the event log.
 
     When EVENTS_AVAILABLE is True:
-        Delegates to the package's append_event (canonical persistence).
+        Creates a canonical event class instance and passes it to the
+        package's append_event for persistence.
     When EVENTS_AVAILABLE is False:
-        Uses _local_append_event for direct JSONL writes.
-        This enables checkpoint/resume even without the canonical package.
-
-    Note: This is distinct from the public append_event() which is log-only
-    in fallback mode. Internal emit_* functions call this helper so that
-    events are always persisted when a repo_root is provided.
+        Logs the event via Python logging. NO file I/O.
 
     Args:
-        event_dict: JSON-serializable event payload
+        event_dict: JSON-serializable event payload (used both for
+                    constructing canonical instances and as the return value)
         repo_root: Repository root for event log path
         mission_id: Mission identifier for JSONL file
+        canonical_cls: The canonical event class to instantiate (only used
+                       when EVENTS_AVAILABLE is True)
     """
-    event_log_path = get_event_log_path(repo_root, mission_id)
     if EVENTS_AVAILABLE:
-        _pkg_append_event(event_dict, event_log_path)
+        event_log_path = get_event_log_path(repo_root, mission_id)
+        # Instantiate the canonical event class with the payload data
+        canonical_instance = canonical_cls(**event_dict)
+        _pkg_append_event(canonical_instance, event_log_path)
     else:
-        _local_append_event(event_dict, event_log_path)
+        # Fallback: log-only, NO filesystem writes
+        event_type = event_dict.get("event_type", "UnknownEvent")
+        logger.info(
+            "glossary.%s: %s",
+            event_type,
+            json.dumps(event_dict, sort_keys=True, default=str)[:200],
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -566,6 +584,11 @@ def emit_term_candidate_observed(
 ) -> dict[str, Any] | None:
     """Emit TermCandidateObserved event for an extracted term.
 
+    When EVENTS_AVAILABLE is True and repo_root is provided:
+        Creates a _CanonicTermCandidateObserved instance and persists it.
+    When EVENTS_AVAILABLE is False:
+        Logs the event payload via logger.info. No file I/O.
+
     Args:
         term: ExtractedTerm instance
         context: PrimitiveExecutionContext (must have step_id, mission_id, etc.)
@@ -591,10 +614,11 @@ def emit_term_candidate_observed(
     )
 
     try:
-        if repo_root is not None:
-            _persist_canonical_event(event, repo_root, mission_id)
+        if repo_root is not None and EVENTS_AVAILABLE:
+            _persist_event(event, repo_root, mission_id,
+                           canonical_cls=_CanonicTermCandidateObserved)
         else:
-            logger.debug("TermCandidateObserved: %s (no repo_root, log only)", term.surface)
+            logger.info("glossary.TermCandidateObserved: term=%s", term.surface)
     except Exception as exc:
         logger.error("Failed to emit TermCandidateObserved: %s", exc)
         return None
@@ -609,6 +633,11 @@ def emit_semantic_check_evaluated(
     repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Emit SemanticCheckEvaluated event.
+
+    When EVENTS_AVAILABLE is True and repo_root is provided:
+        Creates a _CanonicSemanticCheckEvaluated instance and persists it.
+    When EVENTS_AVAILABLE is False:
+        Logs the event payload via logger.info. No file I/O.
 
     Args:
         context: PrimitiveExecutionContext
@@ -666,10 +695,11 @@ def emit_semantic_check_evaluated(
     )
 
     try:
-        if repo_root is not None:
-            _persist_canonical_event(event, repo_root, mission_id)
+        if repo_root is not None and EVENTS_AVAILABLE:
+            _persist_event(event, repo_root, mission_id,
+                           canonical_cls=_CanonicSemanticCheckEvaluated)
         else:
-            logger.debug("SemanticCheckEvaluated: %d findings (log only)", len(conflicts))
+            logger.info("glossary.SemanticCheckEvaluated: findings=%d", len(conflicts))
     except Exception as exc:
         logger.error("Failed to emit SemanticCheckEvaluated: %s", exc)
         return None
@@ -686,6 +716,11 @@ def emit_generation_blocked_event(
     repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Emit GenerationBlockedBySemanticConflict event.
+
+    When EVENTS_AVAILABLE is True and repo_root is provided:
+        Creates a _CanonicGenerationBlockedBySemanticConflict instance and persists it.
+    When EVENTS_AVAILABLE is False:
+        Logs the event payload via logger.info. No file I/O.
 
     Args:
         step_id: Step identifier
@@ -710,15 +745,14 @@ def emit_generation_blocked_event(
     )
 
     try:
-        if repo_root is not None:
-            _persist_canonical_event(event, repo_root, mission_id)
+        if repo_root is not None and EVENTS_AVAILABLE:
+            _persist_event(event, repo_root, mission_id,
+                           canonical_cls=_CanonicGenerationBlockedBySemanticConflict)
         else:
             logger.info(
-                "Generation blocked: %d conflicts, strictness=%s, step=%s, mission=%s",
-                len(conflicts),
-                mode_str,
-                step_id,
-                mission_id,
+                "glossary.GenerationBlockedBySemanticConflict: "
+                "conflicts=%d, strictness=%s, step=%s, mission=%s",
+                len(conflicts), mode_str, step_id, mission_id,
             )
     except Exception as exc:
         logger.error("Failed to emit GenerationBlockedBySemanticConflict: %s", exc)
@@ -733,7 +767,10 @@ def emit_step_checkpointed(
 ) -> dict[str, Any] | None:
     """Emit StepCheckpointed event to event log.
 
-    Persists checkpoint state before the generation gate blocks execution.
+    When EVENTS_AVAILABLE is True and project_root is provided:
+        Creates a _CanonicStepCheckpointed instance and persists it.
+    When EVENTS_AVAILABLE is False:
+        Logs the event payload via logger.info. No file I/O.
 
     Args:
         checkpoint: StepCheckpoint instance
@@ -767,8 +804,14 @@ def emit_step_checkpointed(
     )
 
     try:
-        if project_root is not None:
-            _persist_canonical_event(event, project_root, checkpoint.mission_id)
+        if project_root is not None and EVENTS_AVAILABLE:
+            _persist_event(event, project_root, checkpoint.mission_id,
+                           canonical_cls=_CanonicStepCheckpointed)
+        elif not EVENTS_AVAILABLE:
+            logger.info(
+                "glossary.StepCheckpointed: step=%s, cursor=%s (log only)",
+                checkpoint.step_id, checkpoint.cursor,
+            )
     except Exception as exc:
         logger.error("Failed to persist StepCheckpointed event: %s", exc)
         return None
@@ -783,6 +826,11 @@ def emit_clarification_requested(
     repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Emit GlossaryClarificationRequested event.
+
+    When EVENTS_AVAILABLE is True and repo_root is provided:
+        Creates a _CanonicGlossaryClarificationRequested instance and persists it.
+    When EVENTS_AVAILABLE is False:
+        Logs the event payload via logger.info. No file I/O.
 
     Args:
         conflict: SemanticConflict instance
@@ -813,10 +861,11 @@ def emit_clarification_requested(
     )
 
     try:
-        if repo_root is not None:
-            _persist_canonical_event(event, repo_root, mission_id)
+        if repo_root is not None and EVENTS_AVAILABLE:
+            _persist_event(event, repo_root, mission_id,
+                           canonical_cls=_CanonicGlossaryClarificationRequested)
         else:
-            logger.debug("ClarificationRequested: %s (log only)", conflict.term.surface_text)
+            logger.info("glossary.GlossaryClarificationRequested: term=%s", conflict.term.surface_text)
     except Exception as exc:
         logger.error("Failed to emit GlossaryClarificationRequested: %s", exc)
         return None
@@ -833,6 +882,11 @@ def emit_clarification_resolved(
     repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Emit GlossaryClarificationResolved event.
+
+    When EVENTS_AVAILABLE is True and repo_root is provided:
+        Creates a _CanonicGlossaryClarificationResolved instance and persists it.
+    When EVENTS_AVAILABLE is False:
+        Logs the event payload via logger.info. No file I/O.
 
     Args:
         conflict_id: UUID from the requesting event
@@ -873,10 +927,11 @@ def emit_clarification_resolved(
     )
 
     try:
-        if repo_root is not None:
-            _persist_canonical_event(event, repo_root, mission_id)
+        if repo_root is not None and EVENTS_AVAILABLE:
+            _persist_event(event, repo_root, mission_id,
+                           canonical_cls=_CanonicGlossaryClarificationResolved)
         else:
-            logger.debug("ClarificationResolved: %s (log only)", conflict.term.surface_text)
+            logger.info("glossary.GlossaryClarificationResolved: term=%s", conflict.term.surface_text)
     except Exception as exc:
         logger.error("Failed to emit GlossaryClarificationResolved: %s", exc)
         return None
@@ -893,6 +948,11 @@ def emit_sense_updated(
     repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Emit GlossarySenseUpdated event.
+
+    When EVENTS_AVAILABLE is True and repo_root is provided:
+        Creates a _CanonicGlossarySenseUpdated instance and persists it.
+    When EVENTS_AVAILABLE is False:
+        Logs the event payload via logger.info. No file I/O.
 
     Args:
         conflict: SemanticConflict instance
@@ -934,10 +994,11 @@ def emit_sense_updated(
     )
 
     try:
-        if repo_root is not None:
-            _persist_canonical_event(event, repo_root, mission_id)
+        if repo_root is not None and EVENTS_AVAILABLE:
+            _persist_event(event, repo_root, mission_id,
+                           canonical_cls=_CanonicGlossarySenseUpdated)
         else:
-            logger.debug("SenseUpdated: %s (log only)", conflict.term.surface_text)
+            logger.info("glossary.GlossarySenseUpdated: term=%s", conflict.term.surface_text)
     except Exception as exc:
         logger.error("Failed to emit GlossarySenseUpdated: %s", exc)
         return None
@@ -953,6 +1014,11 @@ def emit_scope_activated(
     repo_root: Path | None = None,
 ) -> dict[str, Any] | None:
     """Emit GlossaryScopeActivated event.
+
+    When EVENTS_AVAILABLE is True and repo_root is provided:
+        Creates a _CanonicGlossaryScopeActivated instance and persists it.
+    When EVENTS_AVAILABLE is False:
+        Logs the event payload via logger.info. No file I/O.
 
     Args:
         scope_id: Glossary scope (e.g., "team_domain")
@@ -972,10 +1038,11 @@ def emit_scope_activated(
     )
 
     try:
-        if repo_root is not None:
-            _persist_canonical_event(event, repo_root, mission_id)
+        if repo_root is not None and EVENTS_AVAILABLE:
+            _persist_event(event, repo_root, mission_id,
+                           canonical_cls=_CanonicGlossaryScopeActivated)
         else:
-            logger.debug("ScopeActivated: %s (log only)", scope_id)
+            logger.info("glossary.GlossaryScopeActivated: scope=%s", scope_id)
     except Exception as exc:
         logger.error("Failed to emit GlossaryScopeActivated: %s", exc)
         return None
