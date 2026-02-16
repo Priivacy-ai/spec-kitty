@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Generation Gate & Strictness Policy
-lane: doing
+lane: "for_review"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP04
 base_commit: 50ac9da5882b14d5dbf0c212e6a6708039ab0a56
@@ -9,7 +9,7 @@ created_at: '2026-02-16T15:38:23.226688+00:00'
 subtasks: [T021, T022, T023, T024]
 agent: coordinator
 shell_pid: '9812'
-review_status: has_feedback
+review_status: acknowledged
 reviewed_by: Robert Douglass
 history:
 - event: created
@@ -706,3 +706,4 @@ When reviewing this WP, verify:
 - 2026-02-16T15:46:17Z – codex – shell_pid=7357 – lane=doing – Started review via workflow command
 - 2026-02-16T15:49:44Z – codex – shell_pid=7357 – lane=planned – Moved to planned
 - 2026-02-16T15:50:15Z – coordinator – shell_pid=9812 – lane=doing – Started implementation via workflow command
+- 2026-02-16T15:52:55Z – coordinator – shell_pid=9812 – lane=for_review – Fixed: guarded event emission with try/except, unknown severity fallback to HIGH in should_block and categorize_conflicts, 6 regression tests added
