@@ -1,14 +1,14 @@
 ---
 work_package_id: WP10
 title: Glossary Management CLI
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP09
 base_commit: 982caa3a76885020cadacef5107c105f50b42454
 created_at: '2026-02-16T17:59:56.173426+00:00'
 subtasks: [T044, T045, T046, T047]
-shell_pid: "81443"
-agent: "coordinator"
+shell_pid: "82698"
+agent: "codex"
 review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
 history:
@@ -824,3 +824,4 @@ When reviewing this WP, verify:
 - 2026-02-16T18:29:51Z – codex – shell_pid=77836 – lane=planned – Moved to planned
 - 2026-02-16T18:31:44Z – coordinator – shell_pid=81443 – lane=doing – Started implementation via workflow command
 - 2026-02-16T18:34:52Z – coordinator – shell_pid=81443 – lane=for_review – Cycle 3/3: Fixed deprecated status mapping in scope.py and glossary.py. Added _parse_sense_status() helper with explicit 3-way mapping. 4 regression tests added. 61/61 tests pass.
+- 2026-02-16T18:35:16Z – codex – shell_pid=82698 – lane=doing – Started review via workflow command
