@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Semantic Check & Conflict Detection
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 2.x
 base_commit: 50240be10a0ea2da7e20c8406142f76249a3f8b7
@@ -9,6 +9,8 @@ created_at: '2026-02-16T15:04:11.047257+00:00'
 subtasks: [T016, T017, T018, T019, T020]
 shell_pid: "89622"
 agent: "codex"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -195,3 +197,4 @@ Type safety: mypy --strict compliance
 Performance: <100ms for typical inputs
 All definition of done criteria met
 - 2026-02-16T15:15:21Z – codex – shell_pid=89622 – lane=doing – Started review via workflow command
+- 2026-02-16T15:17:12Z – codex – shell_pid=89622 – lane=planned – Moved to planned
