@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Generation Gate & Strictness Policy
-lane: "doing"
+lane: "for_review"
 dependencies: [WP04]
 base_branch: 041-mission-glossary-semantic-integrity-WP04
 base_commit: 50ac9da5882b14d5dbf0c212e6a6708039ab0a56
@@ -696,3 +696,4 @@ When reviewing this WP, verify:
 
 - 2026-02-16T00:00:00Z -- llm:claude-sonnet-4.5 -- lane=planned -- WP created with comprehensive guidance
 - 2026-02-16T15:38:23Z – coordinator – shell_pid=3144 – lane=doing – Assigned agent via workflow command
+- 2026-02-16T15:45:43Z – coordinator – shell_pid=3144 – lane=for_review – Ready for review - generation gate implemented with strictness modes (OFF/MEDIUM/MAX), 4-tier precedence resolution, comprehensive tests with 93% coverage
