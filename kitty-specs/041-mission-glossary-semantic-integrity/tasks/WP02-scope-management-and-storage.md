@@ -1,9 +1,13 @@
 ---
 work_package_id: WP02
 title: Scope Management & Storage
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 041-mission-glossary-semantic-integrity-WP01
+base_commit: 38b22ebffcce1b3d0095c2fbec0713eb5c370948
+created_at: '2026-02-16T13:17:43.185840+00:00'
 subtasks: [T006, T007, T008, T009, T048]
+shell_pid: "20675"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
