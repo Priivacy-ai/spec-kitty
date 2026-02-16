@@ -8,6 +8,7 @@ base_commit: 50240be10a0ea2da7e20c8406142f76249a3f8b7
 created_at: '2026-02-16T15:04:11.047257+00:00'
 subtasks: [T016, T017, T018, T019, T020]
 shell_pid: "84395"
+agent: "coordinator"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -176,3 +177,7 @@ pytest tests/specify_cli/glossary/test_middleware.py::test_semantic_check -v
 **Acceptance**:
 - [ ] All 4 conflict types detected
 - [ ] Severity scores align with risk
+
+## Activity Log
+
+- 2026-02-16T15:04:11Z – coordinator – shell_pid=84395 – lane=doing – Assigned agent via workflow command
