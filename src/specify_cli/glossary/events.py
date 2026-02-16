@@ -1,85 +1,696 @@
-"""Event emission adapters (WP08).
+"""Event emission adapters for Feature 007 canonical glossary events.
 
-This module provides stub implementations for event emission.
-Full implementation will be completed in WP08 (orchestrator integration).
+This module imports event classes from spec-kitty-events package. If the
+package is not available, it provides stub implementations that emit events
+locally to JSONL files with correct schemas.
 
-WP07 adds:
-- emit_step_checkpointed(): Persist checkpoint state before generation gate blocks.
+Event classes:
+- GlossaryScopeActivated
+- TermCandidateObserved
+- SemanticCheckEvaluated
+- GlossaryClarificationRequested
+- GlossaryClarificationResolved
+- GlossarySenseUpdated
+- GenerationBlockedBySemanticConflict
+- StepCheckpointed
+
+Event log format: .kittify/events/glossary/{mission_id}.events.jsonl
 """
 
 import json
 import logging
+import re
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List
-
-if TYPE_CHECKING:
-    from .checkpoint import StepCheckpoint
-    from .models import SemanticConflict
-    from .strictness import Strictness
+from typing import Any, Iterator, List
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Import adapters: try spec-kitty-events package, fall back to local stubs
+# ---------------------------------------------------------------------------
+
+try:
+    from spec_kitty_events.glossary.events import (  # type: ignore[import-not-found]
+        GlossaryScopeActivated,
+        TermCandidateObserved,
+        SemanticCheckEvaluated,
+        GlossaryClarificationRequested,
+        GlossaryClarificationResolved,
+        GlossarySenseUpdated,
+        GenerationBlockedBySemanticConflict,
+        StepCheckpointed,
+    )
+    from spec_kitty_events.persistence import append_event as _pkg_append_event  # type: ignore[import-not-found]
+
+    EVENTS_AVAILABLE = True
+    logger.info("spec-kitty-events package available, using canonical events")
+
+except ImportError:
+    EVENTS_AVAILABLE = False
+    logger.debug(
+        "spec-kitty-events package not available, using local event adapters"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Event log path resolution
+# ---------------------------------------------------------------------------
+
+
+def _sanitize_mission_id(mission_id: str) -> str:
+    """Sanitize mission ID for use as filename.
+
+    Replaces path separators and special characters with hyphens.
+
+    Args:
+        mission_id: Raw mission identifier
+
+    Returns:
+        Filesystem-safe mission ID string
+    """
+    return re.sub(r"[^a-zA-Z0-9_\-.]", "-", mission_id)
+
+
+def get_event_log_path(
+    repo_root: Path,
+    mission_id: str,
+) -> Path:
+    """Get event log path for a mission.
+
+    Creates the parent directory if it does not exist.
+
+    Args:
+        repo_root: Repository root
+        mission_id: Mission identifier
+
+    Returns:
+        Path to mission's event log file
+    """
+    events_dir = repo_root / ".kittify" / "events" / "glossary"
+    events_dir.mkdir(parents=True, exist_ok=True)
+
+    safe_id = _sanitize_mission_id(mission_id)
+    return events_dir / f"{safe_id}.events.jsonl"
+
+
+# ---------------------------------------------------------------------------
+# JSONL persistence (local implementation, used when package unavailable)
+# ---------------------------------------------------------------------------
+
+
+def append_event(event_dict: dict[str, Any], event_log_path: Path) -> None:
+    """Append a single event dict to a JSONL event log.
+
+    Each event is written as one JSON line. The file is opened in
+    append mode so concurrent writers produce valid JSONL (one
+    complete line per write call).
+
+    Args:
+        event_dict: JSON-serializable event payload
+        event_log_path: Path to the .events.jsonl file
+    """
+    if EVENTS_AVAILABLE:
+        _pkg_append_event(event_dict, event_log_path)
+        return
+
+    # Local JSONL append
+    event_log_path.parent.mkdir(parents=True, exist_ok=True)
+    with event_log_path.open("a") as f:
+        f.write(json.dumps(event_dict, sort_keys=True, default=str) + "\n")
+
+
+def read_events(
+    event_log_path: Path,
+    event_type: str | None = None,
+) -> Iterator[dict[str, Any]]:
+    """Read events from JSONL event log.
+
+    Args:
+        event_log_path: Path to event log file
+        event_type: Optional filter by event type (e.g., "StepCheckpointed")
+
+    Yields:
+        Event payloads as dictionaries
+    """
+    if not event_log_path.exists():
+        return
+
+    with open(event_log_path, "r") as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped:
+                continue
+
+            try:
+                event = json.loads(stripped)
+            except json.JSONDecodeError as e:
+                logger.warning("Skipping malformed event line: %s", e)
+                continue
+
+            if event_type and event.get("event_type") != event_type:
+                continue
+
+            yield event
+
+
+# ---------------------------------------------------------------------------
+# Event payload builders
+# ---------------------------------------------------------------------------
+
+def _now_iso() -> str:
+    """Return current UTC timestamp as ISO string."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+def build_glossary_scope_activated(
+    scope_id: str,
+    glossary_version_id: str,
+    mission_id: str,
+    run_id: str,
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Build GlossaryScopeActivated event payload.
+
+    Args:
+        scope_id: Glossary scope (e.g., "team_domain")
+        glossary_version_id: Glossary version (e.g., "v3")
+        mission_id: Mission identifier
+        run_id: Run identifier
+        timestamp: ISO timestamp (default: now)
+
+    Returns:
+        JSON-serializable event dict
+    """
+    return {
+        "event_type": "GlossaryScopeActivated",
+        "scope_id": scope_id,
+        "glossary_version_id": glossary_version_id,
+        "mission_id": mission_id,
+        "run_id": run_id,
+        "timestamp": timestamp or _now_iso(),
+    }
+
+
+def build_term_candidate_observed(
+    term: str,
+    source_step: str,
+    actor_id: str,
+    confidence: float,
+    extraction_method: str,
+    context: str,
+    mission_id: str,
+    run_id: str,
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Build TermCandidateObserved event payload.
+
+    Args:
+        term: Extracted term surface text
+        source_step: Step that produced the term
+        actor_id: Actor who triggered extraction
+        confidence: Extraction confidence (0.0-1.0)
+        extraction_method: Method used (metadata_hint, casing_pattern, etc.)
+        context: Where the term was found
+        mission_id: Mission identifier
+        run_id: Run identifier
+        timestamp: ISO timestamp (default: now)
+
+    Returns:
+        JSON-serializable event dict
+    """
+    return {
+        "event_type": "TermCandidateObserved",
+        "term": term,
+        "source_step": source_step,
+        "actor_id": actor_id,
+        "confidence": confidence,
+        "extraction_method": extraction_method,
+        "context": context,
+        "mission_id": mission_id,
+        "run_id": run_id,
+        "timestamp": timestamp or _now_iso(),
+    }
+
+
+def build_semantic_check_evaluated(
+    step_id: str,
+    mission_id: str,
+    run_id: str,
+    findings: list[dict[str, Any]],
+    overall_severity: str,
+    confidence: float,
+    effective_strictness: str,
+    recommended_action: str,
+    blocked: bool,
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Build SemanticCheckEvaluated event payload.
+
+    Args:
+        step_id: Step identifier
+        mission_id: Mission identifier
+        run_id: Run identifier
+        findings: List of conflict finding dicts
+        overall_severity: Max severity ("low", "medium", "high")
+        confidence: Overall confidence
+        effective_strictness: Resolved strictness ("off", "medium", "max")
+        recommended_action: Recommended action ("proceed", "warn", "block")
+        blocked: Whether generation was blocked
+        timestamp: ISO timestamp (default: now)
+
+    Returns:
+        JSON-serializable event dict
+    """
+    return {
+        "event_type": "SemanticCheckEvaluated",
+        "step_id": step_id,
+        "mission_id": mission_id,
+        "run_id": run_id,
+        "findings": findings,
+        "overall_severity": overall_severity,
+        "confidence": confidence,
+        "effective_strictness": effective_strictness,
+        "recommended_action": recommended_action,
+        "blocked": blocked,
+        "timestamp": timestamp or _now_iso(),
+    }
+
+
+def build_generation_blocked(
+    step_id: str,
+    mission_id: str,
+    run_id: str,
+    conflicts: list[dict[str, Any]],
+    strictness_mode: str,
+    effective_strictness: str,
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Build GenerationBlockedBySemanticConflict event payload.
+
+    Args:
+        step_id: Step identifier
+        mission_id: Mission identifier
+        run_id: Run identifier
+        conflicts: List of conflict finding dicts
+        strictness_mode: Strictness mode string
+        effective_strictness: Resolved strictness string
+        timestamp: ISO timestamp (default: now)
+
+    Returns:
+        JSON-serializable event dict
+    """
+    return {
+        "event_type": "GenerationBlockedBySemanticConflict",
+        "step_id": step_id,
+        "mission_id": mission_id,
+        "run_id": run_id,
+        "conflicts": conflicts,
+        "strictness_mode": strictness_mode,
+        "effective_strictness": effective_strictness,
+        "timestamp": timestamp or _now_iso(),
+    }
+
+
+def build_clarification_requested(
+    question: str,
+    term: str,
+    options: list[str],
+    urgency: str,
+    mission_id: str,
+    run_id: str,
+    step_id: str,
+    conflict_id: str | None = None,
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Build GlossaryClarificationRequested event payload.
+
+    Args:
+        question: Human-readable clarification question
+        term: Term requiring clarification
+        options: Ranked candidate definitions
+        urgency: Urgency level ("low", "medium", "high")
+        mission_id: Mission identifier
+        run_id: Run identifier
+        step_id: Step identifier
+        conflict_id: UUID tracking ID (auto-generated if None)
+        timestamp: ISO timestamp (default: now)
+
+    Returns:
+        JSON-serializable event dict
+    """
+    return {
+        "event_type": "GlossaryClarificationRequested",
+        "question": question,
+        "term": term,
+        "options": options,
+        "urgency": urgency,
+        "mission_id": mission_id,
+        "run_id": run_id,
+        "step_id": step_id,
+        "conflict_id": conflict_id or str(uuid.uuid4()),
+        "timestamp": timestamp or _now_iso(),
+    }
+
+
+def build_clarification_resolved(
+    conflict_id: str,
+    term_surface: str,
+    selected_sense: dict[str, Any],
+    actor: dict[str, Any],
+    resolution_mode: str,
+    provenance: dict[str, Any],
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Build GlossaryClarificationResolved event payload.
+
+    Args:
+        conflict_id: UUID from the requesting event
+        term_surface: Term that was clarified
+        selected_sense: Selected SenseRef dict
+        actor: ActorIdentity dict
+        resolution_mode: "interactive" or "async"
+        provenance: Provenance dict
+        timestamp: ISO timestamp (default: now)
+
+    Returns:
+        JSON-serializable event dict
+    """
+    return {
+        "event_type": "GlossaryClarificationResolved",
+        "conflict_id": conflict_id,
+        "term_surface": term_surface,
+        "selected_sense": selected_sense,
+        "actor": actor,
+        "resolution_mode": resolution_mode,
+        "provenance": provenance,
+        "timestamp": timestamp or _now_iso(),
+    }
+
+
+def build_sense_updated(
+    term_surface: str,
+    scope: str,
+    new_sense: dict[str, Any],
+    actor: dict[str, Any],
+    update_type: str,
+    provenance: dict[str, Any],
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Build GlossarySenseUpdated event payload.
+
+    Args:
+        term_surface: Term surface text
+        scope: Glossary scope (e.g., "team_domain")
+        new_sense: New TermSense dict
+        actor: ActorIdentity dict
+        update_type: "create" or "update"
+        provenance: Provenance dict
+        timestamp: ISO timestamp (default: now)
+
+    Returns:
+        JSON-serializable event dict
+    """
+    return {
+        "event_type": "GlossarySenseUpdated",
+        "term_surface": term_surface,
+        "scope": scope,
+        "new_sense": new_sense,
+        "actor": actor,
+        "update_type": update_type,
+        "provenance": provenance,
+        "timestamp": timestamp or _now_iso(),
+    }
+
+
+def build_step_checkpointed(
+    mission_id: str,
+    run_id: str,
+    step_id: str,
+    strictness: str,
+    scope_refs: list[dict[str, str]],
+    input_hash: str,
+    cursor: str,
+    retry_token: str,
+    timestamp: str | None = None,
+) -> dict[str, Any]:
+    """Build StepCheckpointed event payload.
+
+    Args:
+        mission_id: Mission identifier
+        run_id: Run identifier
+        step_id: Step identifier
+        strictness: Strictness mode string
+        scope_refs: List of scope ref dicts
+        input_hash: SHA256 of step inputs
+        cursor: Execution stage
+        retry_token: UUID for idempotency
+        timestamp: ISO timestamp (default: now)
+
+    Returns:
+        JSON-serializable event dict
+    """
+    return {
+        "event_type": "StepCheckpointed",
+        "mission_id": mission_id,
+        "run_id": run_id,
+        "step_id": step_id,
+        "strictness": strictness,
+        "scope_refs": scope_refs,
+        "input_hash": input_hash,
+        "cursor": cursor,
+        "retry_token": retry_token,
+        "timestamp": timestamp or _now_iso(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# High-level emission functions used by middleware
+# ---------------------------------------------------------------------------
+
+def _serialize_conflicts(
+    conflicts: list[Any],
+) -> list[dict[str, Any]]:
+    """Serialize conflict objects to dicts for event payloads.
+
+    Args:
+        conflicts: List of SemanticConflict dataclass instances
+
+    Returns:
+        List of JSON-serializable conflict dicts
+    """
+    from .models import semantic_conflict_to_dict
+
+    result: list[dict[str, Any]] = []
+    for c in conflicts:
+        result.append(semantic_conflict_to_dict(c))
+    return result
+
+
+def emit_term_candidate_observed(
+    term: Any,
+    context: Any,
+    repo_root: Path | None = None,
+) -> dict[str, Any] | None:
+    """Emit TermCandidateObserved event for an extracted term.
+
+    Args:
+        term: ExtractedTerm instance
+        context: PrimitiveExecutionContext (must have step_id, mission_id, etc.)
+        repo_root: Repository root (for event log path). If None, log only.
+
+    Returns:
+        Event dict if emitted, None if emission failed
+    """
+    step_id = getattr(context, "step_id", "unknown")
+    mission_id = getattr(context, "mission_id", "unknown")
+    run_id = getattr(context, "run_id", "unknown")
+    actor_id = getattr(context, "actor_id", "unknown")
+
+    event = build_term_candidate_observed(
+        term=term.surface,
+        source_step=step_id,
+        actor_id=actor_id,
+        confidence=term.confidence,
+        extraction_method=term.source,
+        context=f"source: {term.source}",
+        mission_id=mission_id,
+        run_id=run_id,
+    )
+
+    try:
+        if repo_root is not None:
+            event_log_path = get_event_log_path(repo_root, mission_id)
+            append_event(event, event_log_path)
+        else:
+            logger.debug("TermCandidateObserved: %s (no repo_root, log only)", term.surface)
+    except Exception as exc:
+        logger.error("Failed to emit TermCandidateObserved: %s", exc)
+        return None
+
+    return event
+
+
+def emit_semantic_check_evaluated(
+    context: Any,
+    conflicts: list[Any],
+    effective_strictness: str | None = None,
+    repo_root: Path | None = None,
+) -> dict[str, Any] | None:
+    """Emit SemanticCheckEvaluated event.
+
+    Args:
+        context: PrimitiveExecutionContext
+        conflicts: List of SemanticConflict instances
+        effective_strictness: Resolved strictness string
+        repo_root: Repository root (for event log path). If None, log only.
+
+    Returns:
+        Event dict if emitted, None if emission failed
+    """
+    step_id = getattr(context, "step_id", "unknown")
+    mission_id = getattr(context, "mission_id", "unknown")
+    run_id = getattr(context, "run_id", "unknown")
+
+    # Compute overall severity
+    if conflicts:
+        from .models import Severity
+        severities = [c.severity for c in conflicts]
+        if Severity.HIGH in severities:
+            overall = "high"
+        elif Severity.MEDIUM in severities:
+            overall = "medium"
+        else:
+            overall = "low"
+
+        overall_confidence = max(c.confidence for c in conflicts)
+    else:
+        overall = "low"
+        overall_confidence = 1.0
+
+    # Determine recommended action
+    if not conflicts:
+        recommended = "proceed"
+    elif overall == "high":
+        recommended = "block"
+    else:
+        recommended = "warn"
+
+    eff_str = effective_strictness or getattr(context, "effective_strictness", "medium")
+    if hasattr(eff_str, "value"):
+        eff_str = eff_str.value
+
+    blocked = len(conflicts) > 0 and eff_str != "off"
+
+    event = build_semantic_check_evaluated(
+        step_id=step_id,
+        mission_id=mission_id,
+        run_id=run_id,
+        findings=_serialize_conflicts(conflicts),
+        overall_severity=overall,
+        confidence=overall_confidence,
+        effective_strictness=eff_str,
+        recommended_action=recommended,
+        blocked=blocked,
+    )
+
+    try:
+        if repo_root is not None:
+            event_log_path = get_event_log_path(repo_root, mission_id)
+            append_event(event, event_log_path)
+        else:
+            logger.debug("SemanticCheckEvaluated: %d findings (log only)", len(conflicts))
+    except Exception as exc:
+        logger.error("Failed to emit SemanticCheckEvaluated: %s", exc)
+        return None
+
+    return event
 
 
 def emit_generation_blocked_event(
     step_id: str,
     mission_id: str,
-    conflicts: List["SemanticConflict"],
-    strictness_mode: "Strictness",
-) -> None:
+    conflicts: list[Any],
+    strictness_mode: Any,
+    run_id: str | None = None,
+    repo_root: Path | None = None,
+) -> dict[str, Any] | None:
     """Emit GenerationBlockedBySemanticConflict event.
 
-    This is a stub for WP05. Full implementation in WP08.
-
     Args:
-        step_id: ID of the step being executed
-        mission_id: ID of the mission containing the step
-        conflicts: List of conflicts that caused blocking
-        strictness_mode: The effective strictness mode
+        step_id: Step identifier
+        mission_id: Mission identifier
+        conflicts: List of SemanticConflict instances
+        strictness_mode: Strictness enum or string
+        run_id: Run identifier
+        repo_root: Repository root (for event log path). If None, log only.
 
-    Note:
-        When WP08 is complete, this will emit a proper event with:
-        - event_type: "GenerationBlockedBySemanticConflict"
-        - step_id: step identifier
-        - mission_id: mission identifier
-        - conflicts: serialized conflict details
-        - strictness_mode: effective strictness setting
-        - timestamp: event timestamp
+    Returns:
+        Event dict if emitted, None if emission failed
     """
-    # TODO (WP08): Import from spec_kitty_events.glossary.events
-    # For now, just log
-    logger.info(
-        f"Generation blocked: {len(conflicts)} conflicts, "
-        f"strictness={strictness_mode}, step={step_id}, mission={mission_id}"
+    mode_str = strictness_mode.value if hasattr(strictness_mode, "value") else str(strictness_mode)
+
+    event = build_generation_blocked(
+        step_id=step_id,
+        mission_id=mission_id,
+        run_id=run_id or "unknown",
+        conflicts=_serialize_conflicts(conflicts),
+        strictness_mode=mode_str,
+        effective_strictness=mode_str,
     )
+
+    try:
+        if repo_root is not None:
+            event_log_path = get_event_log_path(repo_root, mission_id)
+            append_event(event, event_log_path)
+        else:
+            logger.info(
+                "Generation blocked: %d conflicts, strictness=%s, step=%s, mission=%s",
+                len(conflicts),
+                mode_str,
+                step_id,
+                mission_id,
+            )
+    except Exception as exc:
+        logger.error("Failed to emit GenerationBlockedBySemanticConflict: %s", exc)
+        return None
+
+    return event
 
 
 def emit_step_checkpointed(
-    checkpoint: "StepCheckpoint",
+    checkpoint: Any,
     project_root: Path | None = None,
-) -> None:
+) -> dict[str, Any] | None:
     """Emit StepCheckpointed event to event log.
 
     Persists checkpoint state before the generation gate blocks execution.
-    This is a stub for WP07. Full event infrastructure in WP08 via
-    spec-kitty-events.
-
-    The checkpoint is serialized to JSONL and appended to the glossary
-    checkpoint event log at .kittify/events/glossary/checkpoints.jsonl.
 
     Args:
-        checkpoint: Checkpoint state to persist
+        checkpoint: StepCheckpoint instance
         project_root: Repository root for event log storage. If None,
                       only logs (useful for testing without filesystem).
 
-    Note:
-        When WP08 is complete, this will emit a proper event with:
-        - event_type: "StepCheckpointed"
-        - checkpoint payload (mission/run/step IDs, hash, cursor, etc.)
-        - timestamp: event timestamp
+    Returns:
+        Event dict if emitted, None if emission failed
     """
     from .checkpoint import checkpoint_to_dict
 
-    payload = checkpoint_to_dict(checkpoint)
+    # Build standardized event from checkpoint data
+    ckpt_dict = checkpoint_to_dict(checkpoint)
+    event = build_step_checkpointed(
+        mission_id=ckpt_dict["mission_id"],
+        run_id=ckpt_dict["run_id"],
+        step_id=ckpt_dict["step_id"],
+        strictness=ckpt_dict["strictness"],
+        scope_refs=ckpt_dict["scope_refs"],
+        input_hash=ckpt_dict["input_hash"],
+        cursor=ckpt_dict["cursor"],
+        retry_token=ckpt_dict["retry_token"],
+        timestamp=ckpt_dict["timestamp"],
+    )
 
     logger.info(
         "Checkpoint emitted: step=%s, cursor=%s, hash=%s...",
@@ -88,10 +699,223 @@ def emit_step_checkpointed(
         checkpoint.input_hash[:8],
     )
 
-    if project_root is not None:
-        events_dir = project_root / ".kittify" / "events" / "glossary"
-        events_dir.mkdir(parents=True, exist_ok=True)
-        events_file = events_dir / "checkpoints.jsonl"
+    try:
+        if project_root is not None:
+            event_log_path = get_event_log_path(project_root, checkpoint.mission_id)
+            append_event(event, event_log_path)
+    except Exception as exc:
+        logger.error("Failed to persist StepCheckpointed event: %s", exc)
+        return None
 
-        with events_file.open("a") as f:
-            f.write(json.dumps(payload, sort_keys=True) + "\n")
+    return event
+
+
+def emit_clarification_requested(
+    conflict: Any,
+    context: Any,
+    conflict_id: str | None = None,
+    repo_root: Path | None = None,
+) -> dict[str, Any] | None:
+    """Emit GlossaryClarificationRequested event.
+
+    Args:
+        conflict: SemanticConflict instance
+        context: PrimitiveExecutionContext
+        conflict_id: UUID for tracking (auto-generated if None)
+        repo_root: Repository root (for event log path). If None, log only.
+
+    Returns:
+        Event dict if emitted, None if emission failed
+    """
+    step_id = getattr(context, "step_id", "unknown")
+    mission_id = getattr(context, "mission_id", "unknown")
+    run_id = getattr(context, "run_id", "unknown")
+
+    cid = conflict_id or str(uuid.uuid4())
+    options = [s.definition for s in conflict.candidate_senses] if conflict.candidate_senses else []
+    urgency = conflict.severity.value if hasattr(conflict.severity, "value") else str(conflict.severity)
+
+    event = build_clarification_requested(
+        question=f"What does '{conflict.term.surface_text}' mean in this context?",
+        term=conflict.term.surface_text,
+        options=options,
+        urgency=urgency,
+        mission_id=mission_id,
+        run_id=run_id,
+        step_id=step_id,
+        conflict_id=cid,
+    )
+
+    try:
+        if repo_root is not None:
+            event_log_path = get_event_log_path(repo_root, mission_id)
+            append_event(event, event_log_path)
+        else:
+            logger.debug("ClarificationRequested: %s (log only)", conflict.term.surface_text)
+    except Exception as exc:
+        logger.error("Failed to emit GlossaryClarificationRequested: %s", exc)
+        return None
+
+    return event
+
+
+def emit_clarification_resolved(
+    conflict_id: str,
+    conflict: Any,
+    selected_sense: Any,
+    context: Any,
+    resolution_mode: str = "interactive",
+    repo_root: Path | None = None,
+) -> dict[str, Any] | None:
+    """Emit GlossaryClarificationResolved event.
+
+    Args:
+        conflict_id: UUID from the requesting event
+        conflict: SemanticConflict instance
+        selected_sense: SenseRef that was selected
+        context: PrimitiveExecutionContext
+        resolution_mode: "interactive" or "async"
+        repo_root: Repository root (for event log path). If None, log only.
+
+    Returns:
+        Event dict if emitted, None if emission failed
+    """
+    mission_id = getattr(context, "mission_id", "unknown")
+    actor_id = getattr(context, "actor_id", "unknown")
+
+    ts = _now_iso()
+
+    event = build_clarification_resolved(
+        conflict_id=conflict_id,
+        term_surface=conflict.term.surface_text,
+        selected_sense={
+            "surface": selected_sense.surface,
+            "scope": selected_sense.scope,
+            "definition": selected_sense.definition,
+            "confidence": selected_sense.confidence,
+        },
+        actor={
+            "actor_id": actor_id,
+            "actor_type": "human",
+            "display_name": actor_id,
+        },
+        resolution_mode=resolution_mode,
+        provenance={
+            "source": "user_clarification",
+            "timestamp": ts,
+            "actor_id": actor_id,
+        },
+    )
+
+    try:
+        if repo_root is not None:
+            event_log_path = get_event_log_path(repo_root, mission_id)
+            append_event(event, event_log_path)
+        else:
+            logger.debug("ClarificationResolved: %s (log only)", conflict.term.surface_text)
+    except Exception as exc:
+        logger.error("Failed to emit GlossaryClarificationResolved: %s", exc)
+        return None
+
+    return event
+
+
+def emit_sense_updated(
+    conflict: Any,
+    custom_definition: str,
+    scope_value: str,
+    context: Any,
+    update_type: str = "create",
+    repo_root: Path | None = None,
+) -> dict[str, Any] | None:
+    """Emit GlossarySenseUpdated event.
+
+    Args:
+        conflict: SemanticConflict instance
+        custom_definition: Custom sense definition text
+        scope_value: Glossary scope string (e.g., "team_domain")
+        context: PrimitiveExecutionContext
+        update_type: "create" or "update"
+        repo_root: Repository root (for event log path). If None, log only.
+
+    Returns:
+        Event dict if emitted, None if emission failed
+    """
+    mission_id = getattr(context, "mission_id", "unknown")
+    actor_id = getattr(context, "actor_id", "unknown")
+
+    ts = _now_iso()
+
+    event = build_sense_updated(
+        term_surface=conflict.term.surface_text,
+        scope=scope_value,
+        new_sense={
+            "surface": conflict.term.surface_text,
+            "scope": scope_value,
+            "definition": custom_definition,
+            "confidence": 1.0,
+            "status": "active",
+        },
+        actor={
+            "actor_id": actor_id,
+            "actor_type": "human",
+            "display_name": actor_id,
+        },
+        update_type=update_type,
+        provenance={
+            "source": "user_clarification",
+            "timestamp": ts,
+            "actor_id": actor_id,
+        },
+    )
+
+    try:
+        if repo_root is not None:
+            event_log_path = get_event_log_path(repo_root, mission_id)
+            append_event(event, event_log_path)
+        else:
+            logger.debug("SenseUpdated: %s (log only)", conflict.term.surface_text)
+    except Exception as exc:
+        logger.error("Failed to emit GlossarySenseUpdated: %s", exc)
+        return None
+
+    return event
+
+
+def emit_scope_activated(
+    scope_id: str,
+    glossary_version_id: str,
+    mission_id: str,
+    run_id: str,
+    repo_root: Path | None = None,
+) -> dict[str, Any] | None:
+    """Emit GlossaryScopeActivated event.
+
+    Args:
+        scope_id: Glossary scope (e.g., "team_domain")
+        glossary_version_id: Glossary version (e.g., "v3")
+        mission_id: Mission identifier
+        run_id: Run identifier
+        repo_root: Repository root (for event log path). If None, log only.
+
+    Returns:
+        Event dict if emitted, None if emission failed
+    """
+    event = build_glossary_scope_activated(
+        scope_id=scope_id,
+        glossary_version_id=glossary_version_id,
+        mission_id=mission_id,
+        run_id=run_id,
+    )
+
+    try:
+        if repo_root is not None:
+            event_log_path = get_event_log_path(repo_root, mission_id)
+            append_event(event, event_log_path)
+        else:
+            logger.debug("ScopeActivated: %s (log only)", scope_id)
+    except Exception as exc:
+        logger.error("Failed to emit GlossaryScopeActivated: %s", exc)
+        return None
+
+    return event

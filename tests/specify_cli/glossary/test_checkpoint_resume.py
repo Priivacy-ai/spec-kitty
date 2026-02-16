@@ -42,6 +42,13 @@ from specify_cli.glossary.scope import GlossaryScope
 from specify_cli.glossary.strictness import Strictness
 
 
+def _checkpoint_event_dict(checkpoint: StepCheckpoint) -> dict[str, Any]:
+    """Convert checkpoint to event dict with event_type for JSONL persistence."""
+    payload = checkpoint_to_dict(checkpoint)
+    payload["event_type"] = "StepCheckpointed"
+    return payload
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -191,8 +198,8 @@ class TestResumeMiddlewareHappyPath:
     ):
         """ResumeMiddleware restores strictness, scopes, cursor from checkpoint."""
         # Write checkpoint to event log
-        payload = checkpoint_to_dict(sample_checkpoint)
-        (events_dir / "checkpoints.jsonl").write_text(
+        payload = _checkpoint_event_dict(sample_checkpoint)
+        (events_dir / "m.events.jsonl").write_text(
             json.dumps(payload, sort_keys=True) + "\n"
         )
 
@@ -212,8 +219,8 @@ class TestResumeMiddlewareHappyPath:
     def test_restores_retry_token(
         self, mock_context, sample_checkpoint, tmp_path, events_dir
     ):
-        payload = checkpoint_to_dict(sample_checkpoint)
-        (events_dir / "checkpoints.jsonl").write_text(
+        payload = _checkpoint_event_dict(sample_checkpoint)
+        (events_dir / "m.events.jsonl").write_text(
             json.dumps(payload, sort_keys=True) + "\n"
         )
 
@@ -236,8 +243,8 @@ class TestResumeMiddlewareHappyPath:
             inputs=sample_inputs,
             cursor="pre_generation_gate",
         )
-        payload = checkpoint_to_dict(cp)
-        (events_dir / "checkpoints.jsonl").write_text(
+        payload = _checkpoint_event_dict(cp)
+        (events_dir / "m.events.jsonl").write_text(
             json.dumps(payload, sort_keys=True) + "\n"
         )
 
@@ -256,8 +263,8 @@ class TestResumeMiddlewareContextChange:
         self, mock_context, sample_checkpoint, tmp_path, events_dir
     ):
         """User confirms context change -- resume proceeds."""
-        payload = checkpoint_to_dict(sample_checkpoint)
-        (events_dir / "checkpoints.jsonl").write_text(
+        payload = _checkpoint_event_dict(sample_checkpoint)
+        (events_dir / "m.events.jsonl").write_text(
             json.dumps(payload, sort_keys=True) + "\n"
         )
 
@@ -277,8 +284,8 @@ class TestResumeMiddlewareContextChange:
         self, mock_context, sample_checkpoint, tmp_path, events_dir
     ):
         """User declines context change -- AbortResume raised."""
-        payload = checkpoint_to_dict(sample_checkpoint)
-        (events_dir / "checkpoints.jsonl").write_text(
+        payload = _checkpoint_event_dict(sample_checkpoint)
+        (events_dir / "m.events.jsonl").write_text(
             json.dumps(payload, sort_keys=True) + "\n"
         )
 
@@ -299,8 +306,8 @@ class TestResumeMiddlewareContextChange:
         self, mock_context, sample_checkpoint, tmp_path, events_dir
     ):
         """When inputs unchanged, confirm_fn is not called."""
-        payload = checkpoint_to_dict(sample_checkpoint)
-        (events_dir / "checkpoints.jsonl").write_text(
+        payload = _checkpoint_event_dict(sample_checkpoint)
+        (events_dir / "m.events.jsonl").write_text(
             json.dumps(payload, sort_keys=True) + "\n"
         )
 
@@ -361,15 +368,18 @@ class TestGenerationGateCheckpointEmission:
         with pytest.raises(BlockedByConflict):
             gate.process(mock_context)
 
-        events_file = tmp_path / ".kittify" / "events" / "glossary" / "checkpoints.jsonl"
+        events_file = tmp_path / ".kittify" / "events" / "glossary" / "041-mission.events.jsonl"
         assert events_file.exists()
 
         lines = [l for l in events_file.read_text().splitlines() if l.strip()]
-        assert len(lines) == 1
+        # Both StepCheckpointed and GenerationBlockedBySemanticConflict events
+        assert len(lines) >= 1
 
-        payload = json.loads(lines[0])
-        assert payload["step_id"] == mock_context.step_id
-        assert payload["cursor"] == "pre_generation_gate"
+        # First event should be the checkpoint
+        checkpoint_payload = json.loads(lines[0])
+        assert checkpoint_payload["event_type"] == "StepCheckpointed"
+        assert checkpoint_payload["step_id"] == mock_context.step_id
+        assert checkpoint_payload["cursor"] == "pre_generation_gate"
 
     def test_checkpoint_has_correct_strictness(
         self, mock_context, high_severity_conflict, tmp_path
@@ -560,7 +570,7 @@ class TestCrossSessionResumeFlow:
 
         # Verify checkpoint was persisted
         checkpoint_file = (
-            tmp_path / ".kittify" / "events" / "glossary" / "checkpoints.jsonl"
+            tmp_path / ".kittify" / "events" / "glossary" / "feature-042.events.jsonl"
         )
         assert checkpoint_file.exists()
 
@@ -690,6 +700,7 @@ class TestCrossSessionResumeFlow:
         input_hash = compute_input_hash(inputs)
 
         older_payload = {
+            "event_type": "StepCheckpointed",
             "mission_id": "m",
             "run_id": "r",
             "step_id": "step-001",
@@ -701,6 +712,7 @@ class TestCrossSessionResumeFlow:
             "timestamp": "2026-02-16T08:00:00+00:00",
         }
         newer_payload = {
+            "event_type": "StepCheckpointed",
             "mission_id": "m",
             "run_id": "r",
             "step_id": "step-001",
@@ -718,7 +730,7 @@ class TestCrossSessionResumeFlow:
             json.dumps(older_payload, sort_keys=True),
             json.dumps(newer_payload, sort_keys=True),
         ]
-        (events_dir / "checkpoints.jsonl").write_text("\n".join(lines) + "\n")
+        (events_dir / "m.events.jsonl").write_text("\n".join(lines) + "\n")
 
         context = MockPrimitiveContext(
             step_id="step-001",
@@ -774,10 +786,11 @@ class TestCrossSessionResumeFlow:
         assert len(tokens) == 2
         assert tokens[0] != tokens[1]
 
-        # Event log has two entries
-        events_file = tmp_path / ".kittify" / "events" / "glossary" / "checkpoints.jsonl"
+        # Event log has entries (StepCheckpointed + GenerationBlocked per block)
+        events_file = tmp_path / ".kittify" / "events" / "glossary" / "m.events.jsonl"
         lines = [l for l in events_file.read_text().splitlines() if l.strip()]
-        assert len(lines) == 2
+        checkpoint_lines = [l for l in lines if '"StepCheckpointed"' in l]
+        assert len(checkpoint_lines) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -797,8 +810,8 @@ class TestEdgeCases:
 
     def test_resume_with_magicmock_context(self, tmp_path, sample_checkpoint, events_dir):
         """Works with MagicMock context objects."""
-        payload = checkpoint_to_dict(sample_checkpoint)
-        (events_dir / "checkpoints.jsonl").write_text(
+        payload = _checkpoint_event_dict(sample_checkpoint)
+        (events_dir / "m.events.jsonl").write_text(
             json.dumps(payload, sort_keys=True) + "\n"
         )
 
@@ -832,8 +845,8 @@ class TestEdgeCases:
             cursor="post_gate",
         )
 
-        payload = checkpoint_to_dict(cp)
-        (events_dir / "checkpoints.jsonl").write_text(
+        payload = _checkpoint_event_dict(cp)
+        (events_dir / "m.events.jsonl").write_text(
             json.dumps(payload, sort_keys=True) + "\n"
         )
 

@@ -1,10 +1,14 @@
-"""Glossary extraction middleware (WP03).
+"""Glossary extraction middleware (WP03, updated WP08).
 
 This module implements middleware that extracts glossary term candidates from
 primitive execution context (step inputs/outputs) and emits events.
+
+WP08 replaces all event emission stubs with real implementations that
+persist events to JSONL files via the events module.
 """
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 
 from .extraction import ExtractedTerm, extract_all_terms
@@ -55,20 +59,27 @@ class GlossaryCandidateExtractionMiddleware:
     2. Extracts terms from heuristics (quoted phrases, acronyms, casing patterns, repeated nouns)
     3. Normalizes all terms
     4. Scores confidence
-    5. Emits TermCandidateObserved events (WP08)
+    5. Emits TermCandidateObserved events to JSONL event log
     6. Adds extracted terms to context.extracted_terms
 
     Performance target: <100ms for typical step input (100-500 words).
     """
 
-    def __init__(self, glossary_fields: List[str] | None = None) -> None:
+    def __init__(
+        self,
+        glossary_fields: List[str] | None = None,
+        repo_root: Path | None = None,
+    ) -> None:
         """Initialize middleware.
 
         Args:
             glossary_fields: List of field names to scan for terms.
                 If None, scans all fields. Default: ["description", "prompt", "output"]
+            repo_root: Repository root for event log persistence. If None,
+                events are logged but not persisted to disk.
         """
         self.glossary_fields = glossary_fields or ["description", "prompt", "output"]
+        self.repo_root = repo_root
 
     def process(self, context: PrimitiveExecutionContext) -> PrimitiveExecutionContext:
         """Process context and extract term candidates.
@@ -134,33 +145,27 @@ class GlossaryCandidateExtractionMiddleware:
         term: ExtractedTerm,
         context: PrimitiveExecutionContext,
     ) -> None:
-        """Emit TermCandidateObserved event (stub until WP08).
+        """Emit TermCandidateObserved event to event log.
 
         Args:
             term: Extracted term to emit event for
             context: Execution context providing metadata
-
-        Note:
-            This is a stub implementation. The actual event emission infrastructure
-            will be implemented in WP08 (orchestrator integration). When WP08 is
-            complete, this method will be replaced with:
-
-            from .events import emit_term_candidate_observed
-            emit_term_candidate_observed(term, context)
-
-            For now, this serves as:
-            1. Documentation of the event emission contract
-            2. Placeholder for testing middleware behavior
-            3. Interface definition for WP08 integration
         """
-        # Stub: Event emission deferred to WP08
-        # When implemented, this will emit an event with:
-        # - event_type: "TermCandidateObserved"
-        # - term.surface: normalized term surface
-        # - term.confidence: extraction confidence score
-        # - term.source: extraction source (metadata_hint, quoted_phrase, etc.)
-        # - context.metadata: step metadata for correlation
-        pass
+        from .events import emit_term_candidate_observed
+
+        try:
+            emit_term_candidate_observed(
+                term=term,
+                context=context,
+                repo_root=self.repo_root,
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error(
+                "Failed to emit TermCandidateObserved for %s: %s",
+                term.surface,
+                exc,
+            )
 
     def scan_fields(self, data: Dict[str, Any]) -> str:
         """Scan configured fields in a data dictionary.
@@ -189,7 +194,7 @@ class SemanticCheckMiddleware:
     1. Resolves extracted terms against scope hierarchy
     2. Classifies conflicts (UNKNOWN, AMBIGUOUS, INCONSISTENT, UNRESOLVED_CRITICAL)
     3. Scores severity based on step criticality + confidence
-    4. Emits SemanticCheckEvaluated events (WP08)
+    4. Emits SemanticCheckEvaluated events to JSONL event log
     5. Adds conflicts to context.conflicts
 
     Usage:
@@ -201,6 +206,7 @@ class SemanticCheckMiddleware:
         self,
         glossary_store: "store.GlossaryStore",
         scope_order: List["scope.GlossaryScope"] | None = None,
+        repo_root: Path | None = None,
     ) -> None:
         """Initialize middleware.
 
@@ -208,11 +214,14 @@ class SemanticCheckMiddleware:
             glossary_store: GlossaryStore to query for term resolution
             scope_order: List of GlossaryScope in precedence order.
                 If None, uses default SCOPE_RESOLUTION_ORDER.
+            repo_root: Repository root for event log persistence. If None,
+                events are logged but not persisted to disk.
         """
         from . import scope, store
 
         self.glossary_store: store.GlossaryStore = glossary_store
         self.scope_order = scope_order or scope.SCOPE_RESOLUTION_ORDER
+        self.repo_root = repo_root
 
     def process(self, context: PrimitiveExecutionContext) -> PrimitiveExecutionContext:
         """Process context and detect semantic conflicts.
@@ -302,33 +311,25 @@ class SemanticCheckMiddleware:
         context: PrimitiveExecutionContext,
         conflicts: List["models.SemanticConflict"],
     ) -> None:
-        """Emit SemanticCheckEvaluated event (stub until WP08).
+        """Emit SemanticCheckEvaluated event to event log.
 
         Args:
             context: Execution context
             conflicts: List of detected conflicts
-
-        Note:
-            This is a stub implementation. The actual event emission infrastructure
-            will be implemented in WP08 (orchestrator integration). When WP08 is
-            complete, this method will be replaced with:
-
-            from .events import emit_semantic_check_evaluated
-            emit_semantic_check_evaluated(context, conflicts)
-
-            For now, this serves as:
-            1. Documentation of the event emission contract
-            2. Placeholder for testing middleware behavior
-            3. Interface definition for WP08 integration
         """
-        # Stub: Event emission deferred to WP08
-        # When implemented, this will emit an event with:
-        # - event_type: "SemanticCheckEvaluated"
-        # - conflicts: List of SemanticConflict serialized to dict
-        # - overall_severity: max(conflict.severity for conflict in conflicts)
-        # - recommended_action: "block" | "warn" | "allow"
-        # - context.metadata: step metadata for correlation
-        pass
+        from .events import emit_semantic_check_evaluated
+
+        try:
+            emit_semantic_check_evaluated(
+                context=context,
+                conflicts=conflicts,
+                repo_root=self.repo_root,
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error(
+                "Failed to emit SemanticCheckEvaluated: %s", exc
+            )
 
 
 class GenerationGateMiddleware:
@@ -469,6 +470,8 @@ class GenerationGateMiddleware:
                     mission_id=mission_id,
                     conflicts=conflicts,
                     strictness_mode=effective_strictness,
+                    run_id=run_id,
+                    repo_root=self.repo_root,
                 )
             except Exception as emit_err:
                 import logging

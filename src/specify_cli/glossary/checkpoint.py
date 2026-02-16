@@ -143,7 +143,8 @@ def load_checkpoint(
     """Load latest checkpoint for step_id from event log.
 
     Reads StepCheckpointed events from event log and returns the most recent
-    checkpoint for the given step_id.
+    checkpoint for the given step_id. Scans all mission event logs in the
+    glossary events directory.
 
     Args:
         project_root: Repository root (contains .kittify/events/)
@@ -152,42 +153,31 @@ def load_checkpoint(
     Returns:
         Latest StepCheckpoint for step_id, or None if not found
     """
-    # TODO (WP08): Use spec_kitty_events to read event log
-    # For now, stub implementation that reads from JSONL file if it exists
-    events_dir = project_root / ".kittify" / "events" / "glossary"
-    events_file = events_dir / "checkpoints.jsonl"
+    from .events import read_events
 
-    if not events_file.exists():
-        logger.info("No checkpoint event log found for step=%s", step_id)
+    events_dir = project_root / ".kittify" / "events" / "glossary"
+    if not events_dir.exists():
+        logger.info("No glossary events directory for step=%s", step_id)
         return None
 
     latest: Optional[StepCheckpoint] = None
 
-    for line_num, line in enumerate(events_file.read_text().splitlines(), 1):
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            payload = json.loads(line)
-        except json.JSONDecodeError:
-            logger.warning(
-                "Corrupt checkpoint event at line %d, skipping", line_num
-            )
-            continue
+    # Scan all mission event logs in the glossary events directory
+    for event_log_path in events_dir.glob("*.events.jsonl"):
+        for event_payload in read_events(event_log_path, event_type="StepCheckpointed"):
+            if event_payload.get("step_id") != step_id:
+                continue
 
-        if payload.get("step_id") != step_id:
-            continue
+            try:
+                checkpoint = parse_checkpoint_event(event_payload)
+            except ValueError as exc:
+                logger.warning(
+                    "Invalid checkpoint event in %s: %s", event_log_path.name, exc
+                )
+                continue
 
-        try:
-            checkpoint = parse_checkpoint_event(payload)
-        except ValueError as exc:
-            logger.warning(
-                "Invalid checkpoint event at line %d: %s", line_num, exc
-            )
-            continue
-
-        if latest is None or checkpoint.timestamp > latest.timestamp:
-            latest = checkpoint
+            if latest is None or checkpoint.timestamp > latest.timestamp:
+                latest = checkpoint
 
     if latest is not None:
         logger.info(
