@@ -1,14 +1,14 @@
 ---
 work_package_id: WP02
 title: Scope Management & Storage
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP01
 base_commit: 38b22ebffcce1b3d0095c2fbec0713eb5c370948
 created_at: '2026-02-16T13:17:43.185840+00:00'
 subtasks: [T006, T007, T008, T009, T048]
-shell_pid: "20675"
-agent: "claude-sonnet"
+shell_pid: "31580"
+agent: "codex"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -485,3 +485,4 @@ pytest --cov=src/specify_cli/glossary/scope --cov=src/specify_cli/glossary/store
 
 - 2026-02-16T13:17:43Z – claude-sonnet – shell_pid=20675 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T13:28:57Z – claude-sonnet – shell_pid=20675 – lane=for_review – Ready for review: Scope management and storage complete. Seed file loader, scope activation, GlossaryStore with hierarchy lookup, spec_kitty_core.yaml. All 19 tests passing with 96% coverage.
+- 2026-02-16T13:34:26Z – codex – shell_pid=31580 – lane=doing – Started review via workflow command
