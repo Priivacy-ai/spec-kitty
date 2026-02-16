@@ -1,14 +1,14 @@
 ---
 work_package_id: WP03
 title: Term Extraction Implementation
-lane: "planned"
+lane: "doing"
 dependencies: []
-base_branch: 041-mission-glossary-semantic-integrity-WP01
-base_commit: 38b22ebffcce1b3d0095c2fbec0713eb5c370948
-created_at: '2026-02-16T13:29:13.169505+00:00'
+base_branch: 2.x
+base_commit: 28a2fdf773a7b7aae3371a4aec50602bdb6dbf23
+created_at: '2026-02-16T14:05:12.902282+00:00'
 subtasks: [T010, T011, T012, T013, T014, T015]
-shell_pid: "27938"
-agent: "claude-sonnet"
+agent: claude-sonnet
+shell_pid: "51478"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
