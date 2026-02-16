@@ -46,6 +46,7 @@ Attachment:
     GlossaryAwarePrimitiveRunner, attach_glossary_pipeline,
     glossary_enabled, read_glossary_check_metadata, run_with_glossary
 """
+from __future__ import annotations
 
 from .models import (
     Provenance,
