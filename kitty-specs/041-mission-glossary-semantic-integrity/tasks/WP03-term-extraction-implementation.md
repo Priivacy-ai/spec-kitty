@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Term Extraction Implementation
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP01
 base_commit: 38b22ebffcce1b3d0095c2fbec0713eb5c370948
@@ -217,3 +217,4 @@ pytest --cov=src/specify_cli/glossary/extraction --cov-report=term-missing
 ## Activity Log
 
 - 2026-02-16T13:29:13Z – claude-sonnet – shell_pid=27938 – lane=doing – Assigned agent via workflow command
+- 2026-02-16T13:57:27Z – claude-sonnet – shell_pid=27938 – lane=planned – Reclaimed: stale workspace, no implementation
