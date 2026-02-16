@@ -429,7 +429,7 @@ class TestLoadCheckpoint:
         """Returns None if events file is empty."""
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
         events_dir.mkdir(parents=True)
-        (events_dir / "checkpoints.jsonl").write_text("")
+        (events_dir / "m.events.jsonl").write_text("")
         result = load_checkpoint(tmp_path, "step-001")
         assert result is None
 
@@ -438,7 +438,8 @@ class TestLoadCheckpoint:
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
         events_dir.mkdir(parents=True)
         payload = checkpoint_to_dict(sample_checkpoint)
-        (events_dir / "checkpoints.jsonl").write_text(
+        payload["event_type"] = "StepCheckpointed"
+        (events_dir / "041-mission.events.jsonl").write_text(
             json.dumps(payload, sort_keys=True) + "\n"
         )
 
@@ -452,7 +453,8 @@ class TestLoadCheckpoint:
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
         events_dir.mkdir(parents=True)
         payload = checkpoint_to_dict(sample_checkpoint)
-        (events_dir / "checkpoints.jsonl").write_text(
+        payload["event_type"] = "StepCheckpointed"
+        (events_dir / "041-mission.events.jsonl").write_text(
             json.dumps(payload, sort_keys=True) + "\n"
         )
 
@@ -465,6 +467,7 @@ class TestLoadCheckpoint:
         events_dir.mkdir(parents=True)
 
         older = {
+            "event_type": "StepCheckpointed",
             "mission_id": "m",
             "run_id": "r",
             "step_id": "step-001",
@@ -476,6 +479,7 @@ class TestLoadCheckpoint:
             "timestamp": "2026-02-16T10:00:00+00:00",
         }
         newer = {
+            "event_type": "StepCheckpointed",
             "mission_id": "m",
             "run_id": "r",
             "step_id": "step-001",
@@ -491,7 +495,7 @@ class TestLoadCheckpoint:
             json.dumps(older, sort_keys=True),
             json.dumps(newer, sort_keys=True),
         ]
-        (events_dir / "checkpoints.jsonl").write_text("\n".join(lines) + "\n")
+        (events_dir / "m.events.jsonl").write_text("\n".join(lines) + "\n")
 
         result = load_checkpoint(tmp_path, "step-001")
         assert result is not None
@@ -504,6 +508,7 @@ class TestLoadCheckpoint:
         events_dir.mkdir(parents=True)
 
         valid = {
+            "event_type": "StepCheckpointed",
             "mission_id": "m",
             "run_id": "r",
             "step_id": "step-001",
@@ -519,7 +524,7 @@ class TestLoadCheckpoint:
             "not valid json",
             json.dumps(valid, sort_keys=True),
         ]
-        (events_dir / "checkpoints.jsonl").write_text("\n".join(lines) + "\n")
+        (events_dir / "m.events.jsonl").write_text("\n".join(lines) + "\n")
 
         result = load_checkpoint(tmp_path, "step-001")
         assert result is not None
@@ -530,8 +535,9 @@ class TestLoadCheckpoint:
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
         events_dir.mkdir(parents=True)
 
-        invalid = {"step_id": "step-001", "mission_id": "m"}  # Missing fields
+        invalid = {"event_type": "StepCheckpointed", "step_id": "step-001", "mission_id": "m"}  # Missing fields
         valid = {
+            "event_type": "StepCheckpointed",
             "mission_id": "m",
             "run_id": "r",
             "step_id": "step-001",
@@ -547,7 +553,7 @@ class TestLoadCheckpoint:
             json.dumps(invalid, sort_keys=True),
             json.dumps(valid, sort_keys=True),
         ]
-        (events_dir / "checkpoints.jsonl").write_text("\n".join(lines) + "\n")
+        (events_dir / "m.events.jsonl").write_text("\n".join(lines) + "\n")
 
         result = load_checkpoint(tmp_path, "step-001")
         assert result is not None
