@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Event Integration
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP07
 base_commit: 2107124ad5b63c0c73071503b1cac6032e0a7958
@@ -976,3 +976,4 @@ When reviewing this WP, verify:
 - 2026-02-16T16:42:51Z – codex – shell_pid=33593 – lane=doing – Started review via workflow command
 - 2026-02-16T16:46:36Z – codex – shell_pid=33593 – lane=planned – Moved to planned
 - 2026-02-16T16:47:04Z – coordinator – shell_pid=35487 – lane=doing – Started implementation via workflow command
+- 2026-02-16T16:59:50Z – coordinator – shell_pid=35487 – lane=for_review – Fixed: canonical contracts, 8/8 events emitted, log-only fallback for append_event, local persistence via _local_append_event. All 428 tests pass.
