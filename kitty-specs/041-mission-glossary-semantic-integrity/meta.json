@@ -1,0 +1,10 @@
+{
+  "feature_number": "041",
+  "slug": "041-mission-glossary-semantic-integrity",
+  "friendly_name": "Glossary Semantic Integrity Runtime for Mission Framework",
+  "mission": "software-dev",
+  "source_description": "/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-planning/product-ideas/mission-collaboration-platform-ddd/sprint-s2-kickoff-prompt-spec-kitty-cli-2026-02-16.md",
+  "created_at": "2026-02-16T00:00:00Z",
+  "target_branch": "2.x",
+  "vcs": "git"
+}
