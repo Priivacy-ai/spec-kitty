@@ -120,14 +120,44 @@ class GlossaryCandidateExtractionMiddleware:
         # 4. Add to context
         context.extracted_terms.extend(extracted)
 
-        # 5. Emit events (WP08 - event emission adapters)
-        # For now, just log (events module not implemented yet)
-        # When WP08 is done, this will call:
-        # from .events import emit_term_candidate_observed
-        # for term in extracted:
-        #     emit_term_candidate_observed(term, context)
+        # 5. Emit events for each extracted term
+        for term in extracted:
+            self._emit_term_candidate_observed(term, context)
 
         return context
+
+    def _emit_term_candidate_observed(
+        self,
+        term: ExtractedTerm,
+        context: PrimitiveExecutionContext,
+    ) -> None:
+        """Emit TermCandidateObserved event (stub until WP08).
+
+        Args:
+            term: Extracted term to emit event for
+            context: Execution context providing metadata
+
+        Note:
+            This is a stub implementation. The actual event emission infrastructure
+            will be implemented in WP08 (orchestrator integration). When WP08 is
+            complete, this method will be replaced with:
+
+            from .events import emit_term_candidate_observed
+            emit_term_candidate_observed(term, context)
+
+            For now, this serves as:
+            1. Documentation of the event emission contract
+            2. Placeholder for testing middleware behavior
+            3. Interface definition for WP08 integration
+        """
+        # Stub: Event emission deferred to WP08
+        # When implemented, this will emit an event with:
+        # - event_type: "TermCandidateObserved"
+        # - term.surface: normalized term surface
+        # - term.confidence: extraction confidence score
+        # - term.source: extraction source (metadata_hint, quoted_phrase, etc.)
+        # - context.metadata: step metadata for correlation
+        pass
 
     def scan_fields(self, data: Dict[str, Any]) -> str:
         """Scan configured fields in a data dictionary.

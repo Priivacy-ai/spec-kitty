@@ -262,15 +262,22 @@ def normalize_term(surface: str) -> str:
 
 
 def is_likely_word(text: str) -> bool:
-    """Heuristic check if text is a likely English word.
+    """Heuristic check if text is a likely English word after stemming.
 
     Args:
-        text: Normalized text
+        text: Text after removing trailing 's' (candidate singular form)
 
     Returns:
-        True if text looks like a word (simple pattern match)
+        True if text looks like a valid word (i.e., stemming is safe)
 
     Note: This is a simple heuristic. Production might use a dictionary.
+
+    Common false positives prevented:
+        - class -> clas (ends in 'ss', don't stem)
+        - glass -> glas (ends in 'ss', don't stem)
+        - address -> addres (ends in 'ss', don't stem)
+        - status -> statu (ends in 'us', don't stem)
+        - process -> proces (ends in 'ss', don't stem)
     """
     # Must match word pattern (letters only) first
     if not WORD_PATTERN.match(text):
@@ -280,14 +287,34 @@ def is_likely_word(text: str) -> bool:
     if not any(c in text for c in 'aeiouy'):
         return False
 
-    # Must not end with common non-word patterns that result from over-stemming
-    # These patterns suggest we removed too much (e.g., "proces" from "process")
-    if len(text) > 3:
-        # Check for common endings that should not be stemmed further
-        if text.endswith('ces'):  # proces from process
-            return False
-        if text.endswith('sse'):  # masse from masses
-            return False
+    # The original word (before stemming) is text + 's'
+    # Check if original ends with patterns indicating it's already singular
+    original = text + 's'
+
+    # Double-s words: class, glass, mass, pass, address, process, etc.
+    # These are already singular - don't stem
+    if original.endswith('ss'):
+        return False
+
+    # -us endings: status, bonus, campus, etc.
+    # These are already singular (or irregular Latin) - don't stem
+    if original.endswith('us'):
+        return False
+
+    # -as endings: atlas, canvas, etc.
+    # These are already singular - don't stem
+    if original.endswith('as') and len(original) > 3:
+        return False
+
+    # -is endings: analysis, basis, crisis, etc.
+    # These are already singular (Greek origin) - don't stem
+    if original.endswith('is'):
+        return False
+
+    # -os endings: chaos, pathos, etc.
+    # These are already singular (Greek origin) - don't stem
+    if original.endswith('os'):
+        return False
 
     return True
 
