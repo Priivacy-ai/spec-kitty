@@ -57,6 +57,15 @@ from .events import (
     emit_sense_updated,
     emit_scope_activated,
 )
+from .pipeline import (
+    GlossaryMiddlewarePipeline,
+    GlossaryMiddleware,
+    create_standard_pipeline,
+)
+from .attachment import (
+    attach_glossary_pipeline,
+    read_glossary_check_metadata,
+)
 
 __all__ = [
     "TermSurface",
@@ -106,6 +115,11 @@ __all__ = [
     "emit_clarification_resolved",
     "emit_sense_updated",
     "emit_scope_activated",
+    "GlossaryMiddlewarePipeline",
+    "GlossaryMiddleware",
+    "create_standard_pipeline",
+    "attach_glossary_pipeline",
+    "read_glossary_check_metadata",
 ]
 
 __version__ = "0.1.0"
