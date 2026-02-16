@@ -1,14 +1,14 @@
 ---
 work_package_id: WP01
 title: Foundation & Data Models
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: c60760d595370200d1f4c30554b18a380b702a6d
 created_at: '2026-02-16T13:12:59.865818+00:00'
 subtasks: [T001, T002, T003, T004, T005]
-shell_pid: "36474"
-agent: "claude-sonnet"
+shell_pid: "38932"
+agent: "codex"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -864,3 +864,4 @@ After WP01 completion:
 - 2026-02-16T13:33:41Z – codex – shell_pid=29815 – lane=planned – Moved to planned
 - 2026-02-16T13:42:22Z – claude-sonnet – shell_pid=36474 – lane=doing – Started implementation via workflow command
 - 2026-02-16T13:45:31Z – claude-sonnet – shell_pid=36474 – lane=for_review – Fixed Codex feedback: Added dict[str, Any] type annotations and serialization helper tests. All 13 tests passing, mypy --strict clean.
+- 2026-02-16T13:45:39Z – codex – shell_pid=38932 – lane=doing – Started review via workflow command
