@@ -1,9 +1,13 @@
 ---
 work_package_id: WP11
 title: Type Safety & Integration Tests
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: 88ad24685d9db6b360378df47d72f5cb50067874
+created_at: '2026-02-16T18:39:16.143906+00:00'
 subtasks: [T049, T050, T051]
+shell_pid: "84378"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
