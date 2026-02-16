@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Term Extraction Implementation
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: 28a2fdf773a7b7aae3371a4aec50602bdb6dbf23
@@ -237,3 +237,4 @@ pytest --cov=src/specify_cli/glossary/extraction --cov-report=term-missing
 - 2026-02-16T14:50:48Z – codex – shell_pid=77135 – lane=doing – Started review via workflow command
 - 2026-02-16T14:52:47Z – codex – shell_pid=77135 – lane=planned – Moved to planned
 - 2026-02-16T14:53:40Z – coordinator – shell_pid=79292 – lane=doing – Started implementation via workflow command
+- 2026-02-16T14:56:07Z – coordinator – shell_pid=79292 – lane=for_review – Fixed: acronym extraction now filters common words (AND, THE, etc.) with 2 regression tests. All 103 tests passing (cycle 5 trivial fix).
