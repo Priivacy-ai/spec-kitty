@@ -8,6 +8,7 @@ base_commit: 38b22ebffcce1b3d0095c2fbec0713eb5c370948
 created_at: '2026-02-16T13:29:13.169505+00:00'
 subtasks: [T010, T011, T012, T013, T014, T015]
 shell_pid: "27938"
+agent: "claude-sonnet"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -212,3 +213,7 @@ pytest --cov=src/specify_cli/glossary/extraction --cov-report=term-missing
 - [ ] Extracts known terms correctly
 - [ ] No false positives on common words ("the", "and")
 - [ ] Performance <100ms
+
+## Activity Log
+
+- 2026-02-16T13:29:13Z – claude-sonnet – shell_pid=27938 – lane=doing – Assigned agent via workflow command
