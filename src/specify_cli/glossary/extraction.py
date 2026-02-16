@@ -55,30 +55,41 @@ def extract_metadata_hints(metadata: Dict[str, Any]) -> List[ExtractedTerm]:
         - glossary_watch_terms: List[str] - explicit terms to watch
         - glossary_aliases: Dict[str, str] - alias -> canonical mapping
         - glossary_exclude_terms: List[str] - terms to exclude (not returned)
+
+    Note:
+        Malformed metadata (wrong types) is silently ignored to ensure graceful
+        degradation. Invalid entries are skipped rather than causing crashes.
     """
     terms: Set[str] = set()
     exclude_terms: Set[str] = set()
 
-    # Explicit exclusions
+    # Explicit exclusions (validate list[str])
     if "glossary_exclude_terms" in metadata:
-        exclude_terms.update(
-            normalize_term(term)
-            for term in metadata["glossary_exclude_terms"]
-        )
+        exclude_field = metadata["glossary_exclude_terms"]
+        if isinstance(exclude_field, list):
+            for term in exclude_field:
+                if isinstance(term, str):
+                    exclude_terms.add(normalize_term(term))
 
-    # Explicit watch terms
+    # Explicit watch terms (validate list[str])
     if "glossary_watch_terms" in metadata:
-        for term in metadata["glossary_watch_terms"]:
-            normalized = normalize_term(term)
-            if normalized not in exclude_terms:
-                terms.add(normalized)
+        watch_field = metadata["glossary_watch_terms"]
+        if isinstance(watch_field, list):
+            for term in watch_field:
+                if isinstance(term, str):
+                    normalized = normalize_term(term)
+                    if normalized not in exclude_terms:
+                        terms.add(normalized)
 
-    # Aliases (map to canonical)
+    # Aliases (validate dict[str, str])
     if "glossary_aliases" in metadata:
-        for alias, canonical in metadata["glossary_aliases"].items():
-            normalized_canonical = normalize_term(canonical)
-            if normalized_canonical not in exclude_terms:
-                terms.add(normalized_canonical)
+        aliases_field = metadata["glossary_aliases"]
+        if isinstance(aliases_field, dict):
+            for alias, canonical in aliases_field.items():
+                if isinstance(alias, str) and isinstance(canonical, str):
+                    normalized_canonical = normalize_term(canonical)
+                    if normalized_canonical not in exclude_terms:
+                        terms.add(normalized_canonical)
 
     return [
         ExtractedTerm(
