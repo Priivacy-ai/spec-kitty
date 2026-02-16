@@ -21,6 +21,16 @@ from .middleware import (
     GlossaryCandidateExtractionMiddleware,
     SemanticCheckMiddleware,
     GenerationGateMiddleware,
+    ClarificationMiddleware,
+)
+from .rendering import render_conflict, render_conflict_batch, sort_candidates
+from .prompts import (
+    PromptChoice,
+    prompt_conflict_resolution,
+    prompt_conflict_resolution_safe,
+    prompt_context_change_confirmation,
+    is_interactive,
+    auto_defer_conflicts,
 )
 from .strictness import (
     Strictness,
@@ -49,6 +59,16 @@ __all__ = [
     "GlossaryCandidateExtractionMiddleware",
     "SemanticCheckMiddleware",
     "GenerationGateMiddleware",
+    "ClarificationMiddleware",
+    "render_conflict",
+    "render_conflict_batch",
+    "sort_candidates",
+    "PromptChoice",
+    "prompt_conflict_resolution",
+    "prompt_conflict_resolution_safe",
+    "prompt_context_change_confirmation",
+    "is_interactive",
+    "auto_defer_conflicts",
     "Strictness",
     "resolve_strictness",
     "load_global_strictness",
