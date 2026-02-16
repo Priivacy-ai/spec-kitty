@@ -10,6 +10,8 @@ conflict resolution. It emits 3 event types at its boundaries:
 Pipeline position: Layer 4 (after extraction, semantic check, and gate)
 """
 
+from __future__ import annotations
+
 import logging
 import uuid
 from pathlib import Path

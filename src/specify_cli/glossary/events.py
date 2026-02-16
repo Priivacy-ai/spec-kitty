@@ -27,6 +27,8 @@ Event classes:
 Event log format: .kittify/events/glossary/{mission_id}.events.jsonl
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import re
