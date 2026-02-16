@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Glossary Management CLI
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP09
 base_commit: 982caa3a76885020cadacef5107c105f50b42454
@@ -823,3 +823,4 @@ When reviewing this WP, verify:
 - 2026-02-16T18:09:15Z – codex – shell_pid=69247 – lane=doing – Started review via workflow command
 - 2026-02-16T18:13:07Z – codex – shell_pid=69247 – lane=planned – Moved to planned
 - 2026-02-16T18:13:38Z – coordinator – shell_pid=74163 – lane=doing – Started implementation via workflow command
+- 2026-02-16T18:21:29Z – coordinator – shell_pid=74163 – lane=for_review – Fixed: event log replay in glossary list, real UUID conflict IDs, GlossarySenseUpdated emission for custom resolve. 57/57 tests pass, 8 regression tests added.
