@@ -78,6 +78,29 @@ def validate_seed_file(data: Dict[str, Any]) -> None:
             raise ValueError("Term must have 'definition' key")
 
 
+_STATUS_MAP = {
+    "active": SenseStatus.ACTIVE,
+    "deprecated": SenseStatus.DEPRECATED,
+    "draft": SenseStatus.DRAFT,
+}
+
+
+def _parse_sense_status(raw: str | None) -> SenseStatus:
+    """Map a status string to the corresponding SenseStatus enum value.
+
+    Args:
+        raw: Status string from seed file or event payload (e.g. "active",
+            "deprecated", "draft"). None or unrecognised values default
+            to DRAFT.
+
+    Returns:
+        Matching SenseStatus enum member.
+    """
+    if raw is None:
+        return SenseStatus.DRAFT
+    return _STATUS_MAP.get(raw, SenseStatus.DRAFT)
+
+
 def load_seed_file(scope: GlossaryScope, repo_root: Path) -> List[TermSense]:
     """
     Load seed file for a scope.
@@ -112,7 +135,7 @@ def load_seed_file(scope: GlossaryScope, repo_root: Path) -> List[TermSense]:
                 source="seed_file",
             ),
             confidence=term_data.get("confidence", 1.0),
-            status=SenseStatus.ACTIVE if term_data.get("status") == "active" else SenseStatus.DRAFT,
+            status=_parse_sense_status(term_data.get("status")),
         )
         senses.append(sense)
 
