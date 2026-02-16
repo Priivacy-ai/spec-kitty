@@ -1,14 +1,14 @@
 ---
 work_package_id: WP09
 title: Middleware Pipeline Integration
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP08
 base_commit: ff769aa6a680f4ad197e1d71736da9f8a69eced5
 created_at: '2026-02-16T17:25:17.996693+00:00'
 subtasks: [T040, T041, T042, T043]
-shell_pid: "49095"
-agent: "coordinator"
+shell_pid: "52237"
+agent: "codex"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -825,3 +825,4 @@ When reviewing this WP, verify:
 - 2026-02-16T00:00:00Z -- llm:claude-sonnet-4.5 -- lane=planned -- WP created with comprehensive guidance
 - 2026-02-16T17:25:18Z – coordinator – shell_pid=49095 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T17:33:10Z – coordinator – shell_pid=49095 – lane=for_review – Ready for review: Pipeline orchestrator (5-layer), PrimitiveExecutionContext extensions, metadata-driven attachment, 95 tests at 97% coverage
+- 2026-02-16T17:33:51Z – codex – shell_pid=52237 – lane=doing – Started review via workflow command
