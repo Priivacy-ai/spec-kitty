@@ -365,6 +365,40 @@ class TestNormalization:
         # Short words (<= 3 letters) stay plural
         assert normalize_term("was") == "was"
 
+    def test_no_stemming_double_s_words(self):
+        """Words ending in 'ss' are not stemmed (regression test for cycle 4)."""
+        # These words end in 's' but are already singular
+        # Stemming them creates invalid words
+        assert normalize_term("class") == "class"  # not "clas"
+        assert normalize_term("glass") == "glass"  # not "glas"
+        assert normalize_term("address") == "address"  # not "addres"
+        assert normalize_term("process") == "process"  # not "proces"
+        assert normalize_term("mass") == "mass"  # not "mas"
+        assert normalize_term("pass") == "pass"  # not "pas"
+
+    def test_no_stemming_us_endings(self):
+        """Words ending in 'us' are not stemmed (regression test for cycle 4)."""
+        # Latin-origin words ending in -us
+        assert normalize_term("status") == "status"  # not "statu"
+        assert normalize_term("bonus") == "bonus"  # not "bonu"
+        assert normalize_term("campus") == "campus"  # not "campu"
+        assert normalize_term("focus") == "focus"  # not "focu"
+
+    def test_no_stemming_irregular_endings(self):
+        """Words with Greek/Latin endings are not stemmed (regression test for cycle 4)."""
+        # -is endings (Greek origin)
+        assert normalize_term("analysis") == "analysis"  # not "analysi"
+        assert normalize_term("basis") == "basis"  # not "basi"
+        assert normalize_term("crisis") == "crisis"  # not "crisi"
+
+        # -as endings (various origins)
+        assert normalize_term("atlas") == "atlas"  # not "atla"
+        assert normalize_term("canvas") == "canvas"  # not "canva"
+
+        # -os endings (Greek origin)
+        assert normalize_term("chaos") == "chaos"  # not "chao"
+        assert normalize_term("pathos") == "pathos"  # not "patho"
+
     def test_idempotent(self):
         """Normalization is idempotent."""
         term = "workspace"
@@ -377,22 +411,45 @@ class TestNormalization:
 
 
 class TestIsLikelyWord:
-    """Tests for is_likely_word helper."""
+    """Tests for is_likely_word helper (stemming safety checks)."""
 
     def test_valid_words(self):
-        """Valid words return True."""
-        assert is_likely_word("workspace") is True
-        assert is_likely_word("mission") is True
-        assert is_likely_word("primitive") is True
+        """Valid words return True (safe to stem)."""
+        assert is_likely_word("workspace") is True  # workspaces -> workspace OK
+        assert is_likely_word("mission") is True  # missions -> mission OK
+        assert is_likely_word("primitive") is True  # primitives -> primitive OK
 
     def test_no_vowels(self):
-        """Words without vowels return False."""
+        """Words without vowels return False (unsafe to stem)."""
         assert is_likely_word("bcdfg") is False
         assert is_likely_word("xzq") is False
 
-    def test_common_plural_endings(self):
-        """Words ending in ces (over-stemmed) handled correctly."""
-        assert is_likely_word("proces") is False  # process - s (over-stemmed)
+    def test_prevents_double_s_corruption(self):
+        """Prevents stemming words ending in 'ss' (regression test for cycle 4)."""
+        # These are text + 's' combinations where original ends in 'ss'
+        assert is_likely_word("clas") is False  # class -> clas (BAD)
+        assert is_likely_word("glas") is False  # glass -> glas (BAD)
+        assert is_likely_word("addres") is False  # address -> addres (BAD)
+        assert is_likely_word("proces") is False  # process -> proces (BAD)
+
+    def test_prevents_us_ending_corruption(self):
+        """Prevents stemming words ending in 'us' (regression test for cycle 4)."""
+        assert is_likely_word("statu") is False  # status -> statu (BAD)
+        assert is_likely_word("bonu") is False  # bonus -> bonu (BAD)
+        assert is_likely_word("campu") is False  # campus -> campu (BAD)
+
+    def test_prevents_irregular_ending_corruption(self):
+        """Prevents stemming Greek/Latin endings (regression test for cycle 4)."""
+        # -is endings
+        assert is_likely_word("analysi") is False  # analysis -> analysi (BAD)
+        assert is_likely_word("basi") is False  # basis -> basi (BAD)
+
+        # -as endings
+        assert is_likely_word("atla") is False  # atlas -> atla (BAD)
+        assert is_likely_word("canva") is False  # canvas -> canva (BAD)
+
+        # -os endings
+        assert is_likely_word("chao") is False  # chaos -> chao (BAD)
 
     def test_non_alphabetic(self):
         """Non-alphabetic strings return False."""
