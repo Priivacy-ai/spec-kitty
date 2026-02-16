@@ -2,7 +2,7 @@
 work_package_id: WP08
 title: Event Integration
 lane: planned
-dependencies: [WP07]
+dependencies: []
 subtasks: [T036, T037, T038, T039]
 history:
 - event: created

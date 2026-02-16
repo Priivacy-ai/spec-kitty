@@ -2,7 +2,7 @@
 work_package_id: WP07
 title: Checkpoint/Resume Mechanism
 lane: planned
-dependencies: [WP05]
+dependencies: []
 subtasks: [T030, T031, T032, T033, T034, T035]
 history:
 - event: created

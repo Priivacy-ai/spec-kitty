@@ -2,7 +2,7 @@
 work_package_id: WP06
 title: Interactive Clarification UI
 lane: planned
-dependencies: [WP05]
+dependencies: []
 subtasks: [T025, T026, T027, T028, T029]
 history:
 - event: created

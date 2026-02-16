@@ -2,7 +2,7 @@
 work_package_id: WP10
 title: Glossary Management CLI
 lane: planned
-dependencies: [WP09]
+dependencies: []
 subtasks: [T044, T045, T046, T047]
 history:
 - event: created

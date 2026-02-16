@@ -2,7 +2,7 @@
 work_package_id: WP09
 title: Middleware Pipeline Integration
 lane: planned
-dependencies: [WP08]
+dependencies: []
 subtasks: [T040, T041, T042, T043]
 history:
 - event: created
