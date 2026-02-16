@@ -1,13 +1,13 @@
 ---
 work_package_id: WP11
 title: Type Safety & Integration Tests
-lane: "planned"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 88ad24685d9db6b360378df47d72f5cb50067874
 created_at: '2026-02-16T18:39:16.143906+00:00'
 subtasks: [T049, T050, T051]
-shell_pid: "84378"
+shell_pid: "87111"
 agent: "coordinator"
 history:
 - event: created
@@ -850,3 +850,4 @@ When reviewing this WP, verify:
 - 2026-02-16T00:00:00Z -- llm:claude-sonnet-4.5 -- lane=planned -- WP created with comprehensive guidance
 - 2026-02-16T18:39:16Z – coordinator – shell_pid=84378 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T18:45:22Z – coordinator – shell_pid=84378 – lane=planned – Reclaimed: previous agent killed mid-work. Type annotations done (uncommitted), integration tests not started.
+- 2026-02-16T18:45:27Z – coordinator – shell_pid=87111 – lane=doing – Started implementation via workflow command
