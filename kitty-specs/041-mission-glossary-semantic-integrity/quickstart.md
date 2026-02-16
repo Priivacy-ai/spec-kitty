@@ -430,6 +430,103 @@ A: Yes. Event log is deterministic. Same events → same glossary state → same
 
 ---
 
+## Programmatic Usage
+
+### Running the pipeline directly
+
+```python
+from pathlib import Path
+from specify_cli.glossary.pipeline import create_standard_pipeline
+from specify_cli.glossary.strictness import Strictness
+from specify_cli.glossary.exceptions import BlockedByConflict
+from specify_cli.missions.primitives import PrimitiveExecutionContext
+
+# Create execution context
+context = PrimitiveExecutionContext(
+    step_id="specify-001",
+    mission_id="my-mission",
+    run_id="run-001",
+    inputs={"description": "Process workspace artifacts"},
+    metadata={"glossary_check": "enabled"},
+    config={},
+)
+
+# Run with max strictness
+pipeline = create_standard_pipeline(
+    repo_root=Path.cwd(),
+    runtime_strictness=Strictness.MAX,
+    interaction_mode="non_interactive",
+)
+
+try:
+    result = pipeline.process(context)
+    print(f"Extracted {len(result.extracted_terms)} terms")
+    print(f"Conflicts: {len(result.conflicts)}")
+except BlockedByConflict as e:
+    print(f"Blocked by {len(e.conflicts)} conflict(s)")
+    for c in e.conflicts:
+        print(f"  - {c.term}: {c.conflict_type} ({c.severity})")
+```
+
+### Using the glossary CLI
+
+```bash
+# List all terms across scopes
+spec-kitty glossary list
+
+# Filter by scope and status
+spec-kitty glossary list --scope team_domain --status active
+
+# JSON output for scripting
+spec-kitty glossary list --json
+
+# View conflict history
+spec-kitty glossary conflicts
+
+# View only unresolved conflicts
+spec-kitty glossary conflicts --unresolved
+
+# Resolve a conflict interactively
+spec-kitty glossary resolve <conflict-id>
+```
+
+### Disabling glossary checks for a step
+
+```python
+context = PrimitiveExecutionContext(
+    step_id="skip-check",
+    mission_id="my-mission",
+    run_id="run-001",
+    inputs={"description": "..."},
+    metadata={"glossary_check": False},  # Disables checks
+    config={},
+)
+```
+
+## Troubleshooting
+
+**Problem: Pipeline blocks unexpectedly**
+- Check strictness mode: `grep strictness .kittify/config.yaml`
+- Use `--strictness off` to disable temporarily
+- Use `spec-kitty glossary conflicts --unresolved` to see blocking conflicts
+
+**Problem: Term not recognized**
+- Add to seed file in `.kittify/glossaries/<scope>.yaml`
+- Ensure `status: active` and `confidence: 1.0`
+- Restart mission for changes to take effect
+
+**Problem: Too many false positives**
+- Switch from `max` to `medium` strictness
+- Add explicit terms to seed files with high confidence
+- Defer non-critical conflicts with `D` during interactive prompts
+
+**Problem: Events not persisting**
+- Check that `.kittify/events/glossary/` directory is writable
+- Verify `spec-kitty-events` package is installed: `pip show spec-kitty-events`
+- Without the package, events are logged but not persisted to JSONL
+
+---
+
 ## See Also
 
 - [plan.md](plan.md) - Implementation plan with technical details
