@@ -10,6 +10,7 @@ from . import auth as auth_module
 from . import config_cmd as config_cmd_module
 from . import context as context_module
 from . import dashboard as dashboard_module
+from . import glossary as glossary_module
 from . import implement as implement_module
 from . import merge as merge_module
 from . import migrate_cmd as migrate_module
@@ -33,6 +34,7 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(auth_module.app, name="auth", help="Authentication commands")
     app.add_typer(context_module.app, name="context")
     app.command()(dashboard_module.dashboard)
+    app.add_typer(glossary_module.app, name="glossary", help="Glossary management commands")
     app.command()(implement_module.implement)
     app.command()(merge_module.merge)
     app.command()(migrate_module.migrate)
