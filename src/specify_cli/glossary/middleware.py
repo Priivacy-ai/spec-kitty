@@ -329,3 +329,144 @@ class SemanticCheckMiddleware:
         # - recommended_action: "block" | "warn" | "allow"
         # - context.metadata: step metadata for correlation
         pass
+
+
+class GenerationGateMiddleware:
+    """Generation gate that blocks LLM calls on unresolved conflicts.
+
+    This middleware:
+    1. Resolves effective strictness from precedence chain
+    2. Evaluates whether to block based on strictness policy
+    3. Emits GenerationBlockedBySemanticConflict event if blocking
+    4. Raises BlockedByConflict exception to halt pipeline
+
+    Pipeline position: Layer 3 (after extraction and semantic check)
+
+    Usage:
+        gate = GenerationGateMiddleware(
+            repo_root=Path("."),
+            runtime_override=Strictness.MEDIUM,
+        )
+        context = gate.process(context)
+    """
+
+    def __init__(
+        self,
+        repo_root: Path | None = None,
+        runtime_override: "Strictness" | None = None,  # type: ignore[name-defined]
+    ) -> None:
+        """Initialize gate with optional runtime override.
+
+        Args:
+            repo_root: Path to repository root (for loading config)
+            runtime_override: CLI --strictness flag value (highest precedence)
+        """
+        self.repo_root = repo_root
+        self.runtime_override = runtime_override
+
+    def process(
+        self,
+        context: PrimitiveExecutionContext,
+    ) -> PrimitiveExecutionContext:
+        """Evaluate conflicts and block if necessary.
+
+        Args:
+            context: Execution context (must have conflicts populated by SemanticCheckMiddleware)
+
+        Returns:
+            Unmodified context if generation is allowed to proceed
+
+        Raises:
+            BlockedByConflict: When strictness policy requires blocking
+
+        Side effects:
+            - Stores effective_strictness in context
+            - Emits GenerationBlockedBySemanticConflict event (if blocking)
+        """
+        from pathlib import Path
+        from typing import cast, Any
+        from .strictness import (
+            resolve_strictness,
+            should_block,
+            Strictness,
+            load_global_strictness,
+        )
+        from .exceptions import BlockedByConflict
+        from .events import emit_generation_blocked_event
+        from .models import Severity
+
+        # Get conflicts from context (populated by SemanticCheckMiddleware)
+        conflicts = getattr(context, "conflicts", [])
+
+        # Resolve effective strictness
+        global_default = Strictness.MEDIUM
+        if self.repo_root:
+            global_default = load_global_strictness(self.repo_root)
+
+        # Get mission and step overrides from context
+        mission_strictness = getattr(context, "mission_strictness", None)
+        step_strictness = getattr(context, "step_strictness", None)
+
+        effective_strictness = resolve_strictness(
+            global_default=global_default,
+            mission_override=mission_strictness,
+            step_override=step_strictness,
+            runtime_override=self.runtime_override,
+        )
+
+        # Store effective strictness in context for observability
+        setattr(context, "effective_strictness", effective_strictness)
+
+        # Evaluate blocking decision
+        if should_block(effective_strictness, conflicts):
+            # Get step and mission IDs from context
+            step_id = getattr(context, "step_id", "unknown")
+            mission_id = getattr(context, "mission_id", "unknown")
+
+            # Emit event BEFORE raising exception (ensure observability)
+            emit_generation_blocked_event(
+                step_id=step_id,
+                mission_id=mission_id,
+                conflicts=conflicts,
+                strictness_mode=effective_strictness,
+            )
+
+            # Block generation by raising exception
+            raise BlockedByConflict(
+                conflicts=conflicts,
+                strictness=effective_strictness,
+                message=self._format_block_message(conflicts),
+            )
+
+        # Generation allowed - return context unchanged
+        return context
+
+    def _format_block_message(
+        self,
+        conflicts: List["models.SemanticConflict"],
+    ) -> str:
+        """Format user-facing error message for blocked generation.
+
+        Args:
+            conflicts: List of conflicts that caused blocking
+
+        Returns:
+            Formatted error message with conflict count and severity breakdown
+        """
+        from . import models
+
+        high_severity = [c for c in conflicts if c.severity == models.Severity.HIGH]
+        conflict_count = len(conflicts)
+        high_count = len(high_severity)
+
+        if high_count > 0:
+            return (
+                f"Generation blocked: {high_count} high-severity "
+                f"semantic conflict(s) detected (out of {conflict_count} total). "
+                f"Resolve conflicts before proceeding."
+            )
+        else:
+            return (
+                f"Generation blocked: {conflict_count} unresolved "
+                f"semantic conflict(s) detected. Resolve conflicts before proceeding."
+            )

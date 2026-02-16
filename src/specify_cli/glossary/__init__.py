@@ -17,7 +17,18 @@ from .exceptions import (
 from .scope import GlossaryScope
 from .resolution import resolve_term
 from .conflict import classify_conflict, score_severity, create_conflict
-from .middleware import GlossaryCandidateExtractionMiddleware, SemanticCheckMiddleware
+from .middleware import (
+    GlossaryCandidateExtractionMiddleware,
+    SemanticCheckMiddleware,
+    GenerationGateMiddleware,
+)
+from .strictness import (
+    Strictness,
+    resolve_strictness,
+    load_global_strictness,
+    should_block,
+    categorize_conflicts,
+)
 
 __all__ = [
     "TermSurface",
@@ -37,6 +48,12 @@ __all__ = [
     "create_conflict",
     "GlossaryCandidateExtractionMiddleware",
     "SemanticCheckMiddleware",
+    "GenerationGateMiddleware",
+    "Strictness",
+    "resolve_strictness",
+    "load_global_strictness",
+    "should_block",
+    "categorize_conflicts",
 ]
 
 __version__ = "0.1.0"
