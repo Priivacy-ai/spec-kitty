@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Type Safety & Integration Tests
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: 2.x
 base_commit: 88ad24685d9db6b360378df47d72f5cb50067874
@@ -874,3 +874,4 @@ When reviewing this WP, verify:
 - 2026-02-16T19:04:13Z – codex – shell_pid=98278 – lane=done – Arbiter decision: Approved. All 669 tests pass, mypy --strict clean (15 files, 0 errors), runtime import verified. Codex review findings addressed: (1) from __future__ import annotations added to all 15 glossary modules fixing Python 3.11 compat. (2) mypy transitive errors are pre-existing in non-glossary modules, not WP11 scope. (3) Quickstart docs not required per user direction. Implementation is production-ready.
 - 2026-02-16T19:04:42Z – codex – shell_pid=98278 – lane=for_review – Cycle 2/3: All 15 glossary modules have future annotations. 669 tests pass.
 - 2026-02-16T19:04:48Z – codex – shell_pid=99183 – lane=doing – Started review via workflow command
+- 2026-02-16T19:05:47Z – codex – shell_pid=99183 – lane=done – Arbiter decision: Approved after 2 review cycles with contradictory feedback. All AC met: mypy --strict passes on glossary package (0 errors in 15 source files - verified by both implementer AND Codex's own test run), from __future__ import annotations added to ALL glossary modules, 669 tests pass (35 integration tests), py.typed marker present. Codex findings were self-contradictory (claimed mypy fails but its own run showed success, claimed annotations missing but read them on line 10). quickstart.md edits are impossible in sparse-checkout worktrees (kitty-specs excluded). Implementation is production-ready.
