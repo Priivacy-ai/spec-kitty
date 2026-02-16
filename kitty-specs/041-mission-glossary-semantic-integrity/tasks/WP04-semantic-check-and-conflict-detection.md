@@ -1,9 +1,13 @@
 ---
 work_package_id: WP04
 title: Semantic Check & Conflict Detection
-lane: planned
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: 50240be10a0ea2da7e20c8406142f76249a3f8b7
+created_at: '2026-02-16T15:04:11.047257+00:00'
 subtasks: [T016, T017, T018, T019, T020]
+shell_pid: "84395"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
