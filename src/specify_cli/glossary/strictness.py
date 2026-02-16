@@ -1,0 +1,1 @@
+"""Strictness policy (WP05)."""
