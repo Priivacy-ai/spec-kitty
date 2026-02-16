@@ -15,6 +15,9 @@ from .exceptions import (
     AbortResume,
 )
 from .scope import GlossaryScope
+from .resolution import resolve_term
+from .conflict import classify_conflict, score_severity, create_conflict
+from .middleware import GlossaryCandidateExtractionMiddleware, SemanticCheckMiddleware
 
 __all__ = [
     "TermSurface",
@@ -28,6 +31,12 @@ __all__ = [
     "DeferredToAsync",
     "AbortResume",
     "GlossaryScope",
+    "resolve_term",
+    "classify_conflict",
+    "score_severity",
+    "create_conflict",
+    "GlossaryCandidateExtractionMiddleware",
+    "SemanticCheckMiddleware",
 ]
 
 __version__ = "0.1.0"
