@@ -263,6 +263,7 @@ def create_standard_pipeline(
         ClarificationMiddleware(
             repo_root=repo_root,
             prompt_fn=prompt_fn,
+            glossary_store=store,
         ),
         # Layer 4: Block generation on unresolved conflicts (after clarification)
         GenerationGateMiddleware(

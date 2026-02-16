@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class ClarificationMiddleware:
         self,
         repo_root: Path | None = None,
         prompt_fn: Any = None,
+        glossary_store: Any = None,
     ) -> None:
         """Initialize clarification middleware.
 
@@ -54,9 +56,14 @@ class ClarificationMiddleware:
                 Returns ("select", None) with index in conflict.selected_index
                 or ("custom", "definition text") for custom sense.
                 If None, all conflicts are deferred.
+            glossary_store: Optional GlossaryStore instance. When provided,
+                custom senses are applied in-memory immediately after
+                clarification so subsequent checks in the same run see
+                updated meanings.
         """
         self.repo_root = repo_root
         self.prompt_fn = prompt_fn
+        self.glossary_store = glossary_store
 
     def process(
         self,
@@ -82,6 +89,9 @@ class ClarificationMiddleware:
 
         for conflict in conflicts:
             conflict_id = str(uuid.uuid4())
+            # Always emit the request event first so any eventual resolution
+            # references an existing clarification request.
+            self._emit_requested(conflict, conflict_id, context)
 
             if self.prompt_fn is not None:
                 # Interactive mode: prompt user
@@ -96,7 +106,6 @@ class ClarificationMiddleware:
                         exc,
                     )
                     # Defer on prompt failure
-                    self._emit_deferred(conflict, conflict_id, context)
                     continue
 
                 if choice == "select" and conflict.candidate_senses:
@@ -116,12 +125,8 @@ class ClarificationMiddleware:
                         conflict, conflict_id, custom_def, context
                     )
                     resolved_conflicts.append(conflict)
-                else:
-                    # Defer
-                    self._emit_deferred(conflict, conflict_id, context)
-            else:
-                # No prompt function: defer all conflicts
-                self._emit_deferred(conflict, conflict_id, context)
+                # Any other response means deferred. Request event already emitted.
+            # No prompt function means deferred (request event already emitted).
 
         # Remove resolved conflicts from context
         remaining = [c for c in conflicts if c not in resolved_conflicts]
@@ -130,7 +135,7 @@ class ClarificationMiddleware:
 
         return context
 
-    def _emit_deferred(
+    def _emit_requested(
         self,
         conflict: Any,
         conflict_id: str,
@@ -158,6 +163,15 @@ class ClarificationMiddleware:
                 conflict.term.surface_text,
                 exc,
             )
+
+    def _emit_deferred(
+        self,
+        conflict: Any,
+        conflict_id: str,
+        context: Any,
+    ) -> None:
+        """Backward-compat alias for deferred request emission."""
+        self._emit_requested(conflict, conflict_id, context)
 
     def _handle_candidate_selection(
         self,
@@ -212,6 +226,7 @@ class ClarificationMiddleware:
             context: PrimitiveExecutionContext
         """
         from .events import emit_sense_updated
+        from .models import Provenance, SenseStatus, TermSense
 
         try:
             emit_sense_updated(
@@ -222,6 +237,22 @@ class ClarificationMiddleware:
                 update_type="create",
                 repo_root=self.repo_root,
             )
+            if self.glossary_store is not None:
+                actor_id = getattr(context, "actor_id", "unknown")
+                provenance = Provenance(
+                    actor_id=str(actor_id),
+                    timestamp=datetime.now(timezone.utc),
+                    source="user_clarification",
+                )
+                term_sense = TermSense(
+                    surface=conflict.term,
+                    scope="team_domain",
+                    definition=custom_definition,
+                    provenance=provenance,
+                    confidence=1.0,
+                    status=SenseStatus.ACTIVE,
+                )
+                self.glossary_store.add_sense(term_sense)
         except Exception as exc:
             logger.error(
                 "Failed to emit SenseUpdated for %s: %s",

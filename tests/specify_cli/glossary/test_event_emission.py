@@ -505,30 +505,23 @@ class TestEventPersistence:
 
 
 # ---------------------------------------------------------------------------
-# Fallback: log-only, NO JSONL writes when EVENTS_AVAILABLE is False
+# Fallback: local JSONL persistence when canonical adapter is unavailable
 # ---------------------------------------------------------------------------
 
 
-class TestFallbackLogOnly:
-    """Tests verifying that when EVENTS_AVAILABLE is False:
-    - The public append_event() does NOT write to disk (log-only)
-    - All emit_* functions do NOT write to disk (log-only)
-    - No _local_append_event is ever called from production paths
-    - Only logger.info is used for fallback output
-    """
+class TestFallbackLocalPersistence:
+    """Tests for local persistence behavior when EVENTS_AVAILABLE is False."""
 
-    def test_append_event_does_not_write_file_in_fallback(self, tmp_path):
-        """Public append_event() does NOT create or write JSONL when EVENTS_AVAILABLE is False."""
-        assert EVENTS_AVAILABLE is False, "Test requires spec-kitty-events not installed"
-        log_path = tmp_path / "should_not_exist.events.jsonl"
+    def test_append_event_writes_file_in_fallback(self, tmp_path):
+        assert EVENTS_AVAILABLE is False, "Test requires canonical adapter unavailable"
+        log_path = tmp_path / "fallback.events.jsonl"
         append_event({"event_type": "TestEvent"}, log_path)
-        assert not log_path.exists(), "Fallback append_event must NOT write to disk"
+        assert log_path.exists()
+        events = list(read_events(log_path))
+        assert len(events) == 1
+        assert events[0]["event_type"] == "TestEvent"
 
-    def test_emit_with_repo_root_does_NOT_write_in_fallback(self, tmp_path, sample_extracted_term, mock_context):
-        """emit_term_candidate_observed does NOT write JSONL when EVENTS_AVAILABLE is False.
-
-        Even with repo_root provided, fallback mode is log-only. No JSONL files.
-        """
+    def test_emit_with_repo_root_writes_jsonl(self, tmp_path, sample_extracted_term, mock_context):
         assert EVENTS_AVAILABLE is False
         emit_term_candidate_observed(
             term=sample_extracted_term,
@@ -536,122 +529,10 @@ class TestFallbackLogOnly:
             repo_root=tmp_path,
         )
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        # The directory may or may not exist (get_event_log_path not called in fallback)
-        # but there must be NO JSONL files
-        if events_dir.exists():
-            jsonl_files = list(events_dir.glob("*.events.jsonl"))
-            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
-
-    def test_emit_blocked_does_NOT_write_in_fallback(self, tmp_path, sample_conflict):
-        """emit_generation_blocked_event does NOT write JSONL when EVENTS_AVAILABLE is False."""
-        assert EVENTS_AVAILABLE is False
-        emit_generation_blocked_event(
-            step_id="s",
-            mission_id="m",
-            conflicts=[sample_conflict],
-            strictness_mode=Strictness.MEDIUM,
-            run_id="r",
-            repo_root=tmp_path,
-        )
-        events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        if events_dir.exists():
-            jsonl_files = list(events_dir.glob("*.events.jsonl"))
-            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
-
-    def test_emit_checkpoint_does_NOT_write_in_fallback(self, tmp_path):
-        """emit_step_checkpointed does NOT write JSONL when EVENTS_AVAILABLE is False."""
-        assert EVENTS_AVAILABLE is False
-        from specify_cli.glossary.checkpoint import create_checkpoint
-
-        checkpoint = create_checkpoint(
-            mission_id="m",
-            run_id="r",
-            step_id="s",
-            strictness=Strictness.OFF,
-            scope_refs=[],
-            inputs={},
-            cursor="pre_generation_gate",
-        )
-        emit_step_checkpointed(checkpoint, project_root=tmp_path)
-        events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        if events_dir.exists():
-            jsonl_files = list(events_dir.glob("*.events.jsonl"))
-            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
-
-    def test_emit_scope_activated_does_NOT_write_in_fallback(self, tmp_path):
-        """emit_scope_activated does NOT write JSONL when EVENTS_AVAILABLE is False."""
-        assert EVENTS_AVAILABLE is False
-        emit_scope_activated(
-            scope_id="team_domain",
-            glossary_version_id="v3",
-            mission_id="m",
-            run_id="r",
-            repo_root=tmp_path,
-        )
-        events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        if events_dir.exists():
-            jsonl_files = list(events_dir.glob("*.events.jsonl"))
-            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
-
-    def test_emit_clarification_requested_does_NOT_write_in_fallback(
-        self, tmp_path, mock_context, sample_conflict
-    ):
-        """emit_clarification_requested does NOT write JSONL when EVENTS_AVAILABLE is False."""
-        assert EVENTS_AVAILABLE is False
-        emit_clarification_requested(
-            conflict=sample_conflict,
-            context=mock_context,
-            repo_root=tmp_path,
-        )
-        events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        if events_dir.exists():
-            jsonl_files = list(events_dir.glob("*.events.jsonl"))
-            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
-
-    def test_emit_clarification_resolved_does_NOT_write_in_fallback(
-        self, tmp_path, mock_context, sample_conflict
-    ):
-        """emit_clarification_resolved does NOT write JSONL when EVENTS_AVAILABLE is False."""
-        assert EVENTS_AVAILABLE is False
-        selected = sample_conflict.candidate_senses[0]
-        emit_clarification_resolved(
-            conflict_id="c-1",
-            conflict=sample_conflict,
-            selected_sense=selected,
-            context=mock_context,
-            repo_root=tmp_path,
-        )
-        events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        if events_dir.exists():
-            jsonl_files = list(events_dir.glob("*.events.jsonl"))
-            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
-
-    def test_emit_sense_updated_does_NOT_write_in_fallback(
-        self, tmp_path, mock_context, sample_conflict
-    ):
-        """emit_sense_updated does NOT write JSONL when EVENTS_AVAILABLE is False."""
-        assert EVENTS_AVAILABLE is False
-        emit_sense_updated(
-            conflict=sample_conflict,
-            custom_definition="test def",
-            scope_value="team_domain",
-            context=mock_context,
-            repo_root=tmp_path,
-        )
-        events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        if events_dir.exists():
-            jsonl_files = list(events_dir.glob("*.events.jsonl"))
-            assert len(jsonl_files) == 0, "Fallback must NOT write JSONL files"
-
-    def test_fallback_append_event_logs_info(self, caplog):
-        """Public append_event() logs at INFO level in fallback mode."""
-        assert EVENTS_AVAILABLE is False
-        with caplog.at_level(logging.INFO, logger="specify_cli.glossary.events"):
-            append_event({"event_type": "TestEvent"}, Path("/fake/path"))
-        assert "glossary.TestEvent" in caplog.text
+        jsonl_files = list(events_dir.glob("*.events.jsonl"))
+        assert len(jsonl_files) == 1
 
     def test_emit_without_repo_root_does_not_write(self, sample_extracted_term, mock_context, tmp_path):
-        """emit_term_candidate_observed does NOT write when repo_root is None."""
         assert EVENTS_AVAILABLE is False
         emit_term_candidate_observed(
             term=sample_extracted_term,
@@ -659,7 +540,7 @@ class TestFallbackLogOnly:
             repo_root=None,
         )
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        assert not events_dir.exists(), "No disk writes when repo_root is None"
+        assert not events_dir.exists()
 
 
 # ---------------------------------------------------------------------------
@@ -1027,6 +908,7 @@ class TestEventOrdering:
         ]
         actual_types = [e["event_type"] for e in [e1, e2, e3, e4, e5]]
         assert actual_types == expected_types
+        assert e4["semantic_check_event_id"] == e3["event_id"]
 
     def test_multiple_terms_emit_multiple_events(self, tmp_path, mock_context):
         """Each extracted term produces its own TermCandidateObserved event."""
@@ -1089,9 +971,12 @@ class TestClarificationMiddlewareEmitsEvents:
         middleware = ClarificationMiddleware(repo_root=tmp_path, prompt_fn=fake_prompt)
 
         # Patch at the events module level (clarification.py uses local imports)
-        with patch("specify_cli.glossary.events.emit_clarification_resolved") as mock_emit:
+        with patch("specify_cli.glossary.events.emit_clarification_requested") as mock_requested, \
+             patch("specify_cli.glossary.events.emit_clarification_resolved") as mock_emit:
+            mock_requested.return_value = {"event_type": "GlossaryClarificationRequested"}
             mock_emit.return_value = {"event_type": "GlossaryClarificationResolved"}
             middleware.process(mock_context)
+            mock_requested.assert_called_once()
             mock_emit.assert_called_once()
             call_kwargs = mock_emit.call_args[1]
             assert call_kwargs["conflict"] == sample_conflict
@@ -1118,6 +1003,32 @@ class TestClarificationMiddlewareEmitsEvents:
             assert call_kwargs["conflict"] == sample_conflict
             assert call_kwargs["custom_definition"] == "My custom definition"
             assert call_kwargs["repo_root"] == tmp_path
+
+    def test_custom_sense_updates_store_for_same_run_resolution(
+        self, tmp_path, mock_context, sample_conflict
+    ):
+        """Custom sense updates are immediately visible to subsequent lookups."""
+        from specify_cli.glossary.clarification import ClarificationMiddleware
+        from specify_cli.glossary.store import GlossaryStore
+
+        mock_context.conflicts = [sample_conflict]
+
+        def fake_prompt(conflict, candidates):
+            return ("custom", "My custom definition")
+
+        store = GlossaryStore(event_log_path=tmp_path / "events.jsonl")
+        middleware = ClarificationMiddleware(
+            repo_root=tmp_path,
+            prompt_fn=fake_prompt,
+            glossary_store=store,
+        )
+
+        with patch("specify_cli.glossary.events.emit_sense_updated") as mock_emit:
+            mock_emit.return_value = {"event_type": "GlossarySenseUpdated"}
+            middleware.process(mock_context)
+
+        senses = store.lookup("workspace", ("team_domain",))
+        assert any(s.definition == "My custom definition" for s in senses)
 
     def test_middleware_removes_resolved_conflicts(self, tmp_path, mock_context, sample_conflict):
         """Resolved conflicts are removed from context.conflicts."""
@@ -1230,13 +1141,13 @@ class TestCanonicalEventContracts:
             append_event(event_dict, log_path)
             mock_pkg_append.assert_called_once_with(event_dict, log_path)
 
-    def test_append_event_no_disk_write_when_unavailable(self, tmp_path):
-        """When EVENTS_AVAILABLE is False, append_event does NOT write to disk."""
+    def test_append_event_writes_disk_when_unavailable(self, tmp_path):
+        """When EVENTS_AVAILABLE is False, append_event falls back to local JSONL."""
         import specify_cli.glossary.events as events_mod
         with patch.object(events_mod, "EVENTS_AVAILABLE", False):
             log_path = tmp_path / "test.jsonl"
             append_event({"event_type": "Test"}, log_path)
-            assert not log_path.exists()
+            assert log_path.exists()
 
     def test_persist_event_instantiates_canonical_class_when_available(self, tmp_path):
         """_persist_event creates a canonical class INSTANCE and passes it to _pkg_append_event."""
@@ -1260,18 +1171,14 @@ class TestCanonicalEventContracts:
             actual_instance = mock_pkg_append.call_args[0][0]
             assert actual_instance is mock_instance
 
-    def test_persist_event_logs_only_when_unavailable(self, tmp_path, caplog):
-        """_persist_event only logs (no file I/O) when EVENTS_AVAILABLE is False."""
+    def test_persist_event_local_jsonl_when_unavailable(self, tmp_path):
+        """_persist_event writes JSONL fallback when EVENTS_AVAILABLE is False."""
         assert EVENTS_AVAILABLE is False
         event_dict = {"event_type": "TestEvent", "data": "hello"}
-        with caplog.at_level(logging.INFO, logger="specify_cli.glossary.events"):
-            _persist_event(event_dict, tmp_path, "test-mission")
-        assert "glossary.TestEvent" in caplog.text
-        # Verify no JSONL files were created
+        _persist_event(event_dict, tmp_path, "test-mission")
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
-        if events_dir.exists():
-            jsonl_files = list(events_dir.glob("*.events.jsonl"))
-            assert len(jsonl_files) == 0
+        jsonl_files = list(events_dir.glob("*.events.jsonl"))
+        assert len(jsonl_files) == 1
 
     def test_emit_term_creates_canonical_instance_when_available(
         self, tmp_path, sample_extracted_term, mock_context
@@ -1524,11 +1431,10 @@ class TestEventEmissionErrorHandling:
     def test_emission_does_not_crash_on_error(self, mock_context, sample_extracted_term):
         """Event emission failure returns None, does not raise.
 
-        Note: When EVENTS_AVAILABLE is False, emit_* functions just log
-        and return the event dict. They do not attempt file I/O, so they
-        do not fail even with a bad repo_root.
+        In fallback mode, emit_* attempts local JSONL writes. Bad paths
+        should be handled gracefully (no exception escapes to caller).
         """
-        # With EVENTS_AVAILABLE=False, emit always succeeds (log-only)
+        # With EVENTS_AVAILABLE=False, local persistence failures are swallowed.
         assert EVENTS_AVAILABLE is False
         bad_root = Path("/dev/null/not/a/path")
         event = emit_term_candidate_observed(
@@ -1536,12 +1442,12 @@ class TestEventEmissionErrorHandling:
             context=mock_context,
             repo_root=bad_root,
         )
-        # In fallback mode, the event dict is returned (no file I/O attempted)
+        # Caller still gets an event dict despite persistence failure.
         assert event is not None
         assert event["event_type"] == "TermCandidateObserved"
 
-    def test_emission_error_when_available_returns_none(self, mock_context, sample_extracted_term, tmp_path):
-        """When EVENTS_AVAILABLE is True but persistence fails, returns None."""
+    def test_emission_error_when_available_falls_back_local(self, mock_context, sample_extracted_term, tmp_path):
+        """When canonical persistence fails, local JSONL fallback still returns an event."""
         import specify_cli.glossary.events as events_mod
 
         mock_pkg_append = MagicMock(side_effect=OSError("disk full"))
@@ -1556,7 +1462,8 @@ class TestEventEmissionErrorHandling:
                 context=mock_context,
                 repo_root=tmp_path,
             )
-            assert event is None  # Error caught, returns None
+            assert event is not None
+            assert event["event_type"] == "TermCandidateObserved"
 
     def test_events_available_flag(self):
         """EVENTS_AVAILABLE is False when spec-kitty-events not installed."""

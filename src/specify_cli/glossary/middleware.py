@@ -464,6 +464,10 @@ class GenerationGateMiddleware:
 
                 # Store checkpoint in context for downstream access
                 setattr(context, "checkpoint", checkpoint)
+                # Keep token on context for resume middleware compatibility.
+                setattr(context, "retry_token", checkpoint.retry_token)
+                # Backward-compat field used by some callers/tests.
+                setattr(context, "checkpoint_token", checkpoint.retry_token)
             except Exception as ckpt_err:
                 import logging
                 _logger = logging.getLogger(__name__)
@@ -628,13 +632,21 @@ class ResumeMiddleware:
         # Check if this is a resume attempt (retry_token present)
         retry_token = getattr(context, "retry_token", None)
         if not retry_token:
+            retry_token = getattr(context, "checkpoint_token", None)
+        if not retry_token:
             # Fresh execution, no resume needed
             return context
 
         step_id = getattr(context, "step_id", "unknown")
+        mission_id = getattr(context, "mission_id", None)
 
         # Load checkpoint from event log
-        checkpoint = load_checkpoint(self.project_root, step_id)
+        checkpoint = load_checkpoint(
+            self.project_root,
+            step_id=step_id,
+            mission_id=mission_id,
+            retry_token=retry_token,
+        )
 
         if checkpoint is None:
             # No checkpoint found, treat as fresh execution

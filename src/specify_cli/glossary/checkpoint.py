@@ -139,6 +139,8 @@ def create_checkpoint(
 def load_checkpoint(
     project_root: Path,
     step_id: str,
+    mission_id: str | None = None,
+    retry_token: str | None = None,
 ) -> Optional[StepCheckpoint]:
     """Load latest checkpoint for step_id from event log.
 
@@ -149,6 +151,8 @@ def load_checkpoint(
     Args:
         project_root: Repository root (contains .kittify/events/)
         step_id: Step identifier to load checkpoint for
+        mission_id: Optional mission identifier filter (recommended)
+        retry_token: Optional retry token filter (exact-match resume)
 
     Returns:
         Latest StepCheckpoint for step_id, or None if not found
@@ -167,6 +171,10 @@ def load_checkpoint(
         for event_payload in read_events(event_log_path, event_type="StepCheckpointed"):
             if event_payload.get("step_id") != step_id:
                 continue
+            if mission_id is not None and event_payload.get("mission_id") != mission_id:
+                continue
+            if retry_token is not None and event_payload.get("retry_token") != retry_token:
+                continue
 
             try:
                 checkpoint = parse_checkpoint_event(event_payload)
@@ -181,12 +189,18 @@ def load_checkpoint(
 
     if latest is not None:
         logger.info(
-            "Loaded checkpoint for step=%s cursor=%s",
+            "Loaded checkpoint for step=%s mission=%s cursor=%s",
             step_id,
+            mission_id or "*",
             latest.cursor,
         )
     else:
-        logger.info("No checkpoint found for step=%s", step_id)
+        logger.info(
+            "No checkpoint found for step=%s mission=%s retry_token=%s",
+            step_id,
+            mission_id or "*",
+            "set" if retry_token else "unset",
+        )
 
     return latest
 

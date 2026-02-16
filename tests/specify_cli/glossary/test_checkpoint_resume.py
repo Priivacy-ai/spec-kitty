@@ -287,6 +287,7 @@ class TestResumeMiddlewareHappyPath:
         )
 
         mock_context.retry_token = cp.retry_token
+        mock_context.mission_id = "m"
         middleware = ResumeMiddleware(project_root=tmp_path)
         result = middleware.process(mock_context)
 
@@ -795,6 +796,7 @@ class TestCrossSessionResumeFlow:
 
         context = MockPrimitiveContext(
             step_id="step-001",
+            mission_id="m",
             inputs=inputs,
             retry_token=newer_payload["retry_token"],
         )
@@ -917,6 +919,7 @@ class TestEdgeCases:
 
         context = MockPrimitiveContext(
             step_id="step-001",
+            mission_id="m",
             inputs=sample_inputs,
             retry_token=cp.retry_token,
         )

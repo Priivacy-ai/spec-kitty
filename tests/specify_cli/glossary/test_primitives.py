@@ -39,6 +39,10 @@ class TestPrimitiveExecutionContextDefaults:
         ctx = _make_context()
         assert ctx.checkpoint_token is None
 
+    def test_retry_token_defaults_to_none(self):
+        ctx = _make_context()
+        assert ctx.retry_token is None
+
     def test_scope_refs_defaults_to_empty_list(self):
         ctx = _make_context()
         assert ctx.scope_refs == []
@@ -50,6 +54,16 @@ class TestPrimitiveExecutionContextDefaults:
     def test_step_output_defaults_to_empty_dict(self):
         ctx = _make_context()
         assert ctx.step_output == {}
+
+    def test_retry_token_populates_checkpoint_token_alias(self):
+        ctx = _make_context(retry_token="retry-123")
+        assert ctx.retry_token == "retry-123"
+        assert ctx.checkpoint_token == "retry-123"
+
+    def test_checkpoint_token_populates_retry_token_alias(self):
+        ctx = _make_context(checkpoint_token="retry-456")
+        assert ctx.retry_token == "retry-456"
+        assert ctx.checkpoint_token == "retry-456"
 
 
 class TestMissionStrictness:

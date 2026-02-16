@@ -53,6 +53,8 @@ class PrimitiveExecutionContext:
     extracted_terms: List[ExtractedTerm] = field(default_factory=list)
     conflicts: List[SemanticConflict] = field(default_factory=list)
     effective_strictness: Optional[Strictness] = None
+    retry_token: Optional[str] = None
+    # Backward-compat alias used by some callers; mirrors retry_token.
     checkpoint_token: Optional[str] = None
     scope_refs: List[ScopeRef] = field(default_factory=list)
 
@@ -64,6 +66,10 @@ class PrimitiveExecutionContext:
         """Populate step_input from inputs for middleware compatibility."""
         if not self.step_input and self.inputs:
             self.step_input = dict(self.inputs)
+        if self.retry_token and not self.checkpoint_token:
+            self.checkpoint_token = self.retry_token
+        elif self.checkpoint_token and not self.retry_token:
+            self.retry_token = self.checkpoint_token
 
     @property
     def mission_strictness(self) -> Optional[Strictness]:

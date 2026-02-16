@@ -502,6 +502,99 @@ class TestLoadCheckpoint:
         assert result.strictness == Strictness.MAX
         assert result.cursor == "post_clarification"
 
+    def test_filters_by_mission_id(self, tmp_path):
+        """mission_id filter prevents cross-mission checkpoint collisions."""
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        events_dir.mkdir(parents=True)
+
+        mission_a = {
+            "event_type": "StepCheckpointed",
+            "mission_id": "mission-a",
+            "run_id": "r-a",
+            "step_id": "step-001",
+            "strictness": "off",
+            "scope_refs": [],
+            "input_hash": "a" * 64,
+            "cursor": "pre_generation_gate",
+            "retry_token": str(uuid.uuid4()),
+            "timestamp": "2026-02-16T10:00:00+00:00",
+        }
+        mission_b = {
+            "event_type": "StepCheckpointed",
+            "mission_id": "mission-b",
+            "run_id": "r-b",
+            "step_id": "step-001",
+            "strictness": "max",
+            "scope_refs": [],
+            "input_hash": "b" * 64,
+            "cursor": "post_clarification",
+            "retry_token": str(uuid.uuid4()),
+            "timestamp": "2026-02-16T12:00:00+00:00",
+        }
+        (events_dir / "mission-a.events.jsonl").write_text(
+            json.dumps(mission_a, sort_keys=True) + "\n"
+        )
+        (events_dir / "mission-b.events.jsonl").write_text(
+            json.dumps(mission_b, sort_keys=True) + "\n"
+        )
+
+        result = load_checkpoint(tmp_path, "step-001", mission_id="mission-a")
+        assert result is not None
+        assert result.mission_id == "mission-a"
+        assert result.strictness == Strictness.OFF
+
+    def test_filters_by_retry_token(self, tmp_path):
+        """retry_token filter loads the exact checkpoint instance."""
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        events_dir.mkdir(parents=True)
+
+        token_old = str(uuid.uuid4())
+        token_new = str(uuid.uuid4())
+
+        older = {
+            "event_type": "StepCheckpointed",
+            "mission_id": "m",
+            "run_id": "r",
+            "step_id": "step-001",
+            "strictness": "off",
+            "scope_refs": [],
+            "input_hash": "a" * 64,
+            "cursor": "pre_generation_gate",
+            "retry_token": token_old,
+            "timestamp": "2026-02-16T10:00:00+00:00",
+        }
+        newer = {
+            "event_type": "StepCheckpointed",
+            "mission_id": "m",
+            "run_id": "r",
+            "step_id": "step-001",
+            "strictness": "max",
+            "scope_refs": [],
+            "input_hash": "b" * 64,
+            "cursor": "post_clarification",
+            "retry_token": token_new,
+            "timestamp": "2026-02-16T12:00:00+00:00",
+        }
+        (events_dir / "m.events.jsonl").write_text(
+            "\n".join(
+                [
+                    json.dumps(older, sort_keys=True),
+                    json.dumps(newer, sort_keys=True),
+                ]
+            )
+            + "\n"
+        )
+
+        result = load_checkpoint(
+            tmp_path,
+            "step-001",
+            mission_id="m",
+            retry_token=token_old,
+        )
+        assert result is not None
+        assert result.retry_token == token_old
+        assert result.strictness == Strictness.OFF
+
     def test_skips_corrupt_lines(self, tmp_path):
         """Corrupt JSON lines are skipped gracefully."""
         events_dir = tmp_path / ".kittify" / "events" / "glossary"
