@@ -66,8 +66,8 @@ def prompt_conflict_resolution_safe(
         print("Candidate senses:")
         for idx, sense in enumerate(candidates):
             print(f"  [{idx + 1}] {sense.definition} (scope={sense.scope}, confidence={sense.confidence})")
-        print(f"  [c] Provide a custom definition")
-        print(f"  [d] Defer resolution")
+        print("  [c] Provide a custom definition")
+        print("  [d] Defer resolution")
 
         choice = input("Select [1-{}/c/d]: ".format(len(candidates))).strip().lower()
 

@@ -6,6 +6,7 @@ from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .models import SemanticConflict
+    from .strictness import Strictness
 
 
 class GlossaryError(Exception):
@@ -23,7 +24,7 @@ class BlockedByConflict(GlossaryError):
     def __init__(
         self,
         conflicts: List["SemanticConflict"],
-        strictness: "Strictness" = None,  # type: ignore[name-defined]
+        strictness: "Strictness | None" = None,
         message: str | None = None,
     ):
         """Initialize BlockedByConflict exception.

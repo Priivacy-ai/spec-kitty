@@ -10,13 +10,9 @@ persist events to JSONL files via the events module.
 from __future__ import annotations
 
 import logging
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
-
-from rich.console import Console
 
 from .extraction import ExtractedTerm, extract_all_terms
 
@@ -228,9 +224,9 @@ class SemanticCheckMiddleware:
             repo_root: Repository root for event log persistence. If None,
                 events are logged but not persisted to disk.
         """
-        from . import scope, store
+        from . import scope
 
-        self.glossary_store: store.GlossaryStore = glossary_store
+        self.glossary_store = glossary_store
         self.scope_order = scope_order or scope.SCOPE_RESOLUTION_ORDER
         self.repo_root = repo_root
 
@@ -248,7 +244,6 @@ class SemanticCheckMiddleware:
         """
         from typing import cast, Any
         from .conflict import classify_conflict, create_conflict, score_severity
-        from . import models
         from .resolution import resolve_term
 
         conflicts: List[models.SemanticConflict] = []
@@ -395,8 +390,6 @@ class GenerationGateMiddleware:
             - Stores effective_strictness in context
             - Emits GenerationBlockedBySemanticConflict event (if blocking)
         """
-        from pathlib import Path
-        from typing import cast, Any
         from .strictness import (
             resolve_strictness,
             should_block,
@@ -405,7 +398,6 @@ class GenerationGateMiddleware:
         )
         from .exceptions import BlockedByConflict
         from .events import emit_generation_blocked_event
-        from .models import Severity
 
         # Get conflicts from context (populated by SemanticCheckMiddleware)
         conflicts = getattr(context, "conflicts", [])
@@ -441,7 +433,7 @@ class GenerationGateMiddleware:
             # the pipeline halts. If checkpoint emission fails, log and
             # continue -- blocking must never be bypassed.
             try:
-                from .checkpoint import create_checkpoint, ScopeRef
+                from .checkpoint import create_checkpoint
                 from .events import emit_step_checkpointed
 
                 scope_refs = self._build_scope_refs(context)
@@ -620,11 +612,7 @@ class ResumeMiddleware:
         """
         import logging
 
-        from .checkpoint import (
-            StepCheckpoint,
-            handle_context_change,
-            load_checkpoint,
-        )
+        from .checkpoint import handle_context_change, load_checkpoint
         from .exceptions import AbortResume
 
         _logger = logging.getLogger(__name__)

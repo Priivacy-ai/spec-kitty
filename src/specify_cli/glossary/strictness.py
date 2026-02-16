@@ -8,9 +8,12 @@ from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
-from typing import List
+from typing import TYPE_CHECKING
 
 import ruamel.yaml
+
+if TYPE_CHECKING:
+    from .models import SemanticConflict, Severity
 
 
 class Strictness(StrEnum):
@@ -112,7 +115,7 @@ def load_global_strictness(repo_root: Path) -> Strictness:
 
 def should_block(
     strictness: Strictness,
-    conflicts: List["SemanticConflict"],  # type: ignore[name-defined]
+    conflicts: list["SemanticConflict"],
 ) -> bool:
     """Determine if generation should be blocked.
 
@@ -168,8 +171,8 @@ def should_block(
 
 
 def categorize_conflicts(
-    conflicts: List["SemanticConflict"],  # type: ignore[name-defined]
-) -> dict["Severity", List["SemanticConflict"]]:  # type: ignore[name-defined]
+    conflicts: list["SemanticConflict"],
+) -> dict["Severity", list["SemanticConflict"]]:
     """Group conflicts by severity level for reporting.
 
     This helper function organizes conflicts into severity buckets,
@@ -204,7 +207,7 @@ def categorize_conflicts(
     # Import inside function to avoid circular dependency
     from .models import Severity
 
-    categorized: dict[Severity, List["SemanticConflict"]] = {  # type: ignore[name-defined]
+    categorized: dict[Severity, list["SemanticConflict"]] = {
         Severity.LOW: [],
         Severity.MEDIUM: [],
         Severity.HIGH: [],
