@@ -23,6 +23,7 @@ from .middleware import (
     GenerationGateMiddleware,
     ResumeMiddleware,
 )
+from .clarification import ClarificationMiddleware
 from .strictness import (
     Strictness,
     resolve_strictness,
@@ -77,6 +78,7 @@ __all__ = [
     "SemanticCheckMiddleware",
     "GenerationGateMiddleware",
     "ResumeMiddleware",
+    "ClarificationMiddleware",
     "Strictness",
     "resolve_strictness",
     "load_global_strictness",

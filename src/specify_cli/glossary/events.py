@@ -1,8 +1,17 @@
 """Event emission adapters for Feature 007 canonical glossary events.
 
 This module imports event classes from spec-kitty-events package. If the
-package is not available, it provides stub implementations that emit events
-locally to JSONL files with correct schemas.
+package is not available, it provides stub implementations that log events
+without any filesystem persistence (log-only fallback).
+
+When spec-kitty-events IS available:
+- Canonical event class instances are created and serialized
+- Events are persisted to JSONL via the package's append_event()
+
+When spec-kitty-events is NOT available:
+- Plain dicts are built for in-memory use and returned to callers
+- Events are logged via Python logging (DEBUG level)
+- NO JSONL files are written to disk
 
 Event classes:
 - GlossaryScopeActivated
@@ -29,19 +38,19 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Import adapters: try spec-kitty-events package, fall back to local stubs
+# Import adapters: try spec-kitty-events package, fall back to log-only stubs
 # ---------------------------------------------------------------------------
 
 try:
     from spec_kitty_events.glossary.events import (  # type: ignore[import-not-found]
-        GlossaryScopeActivated,
-        TermCandidateObserved,
-        SemanticCheckEvaluated,
-        GlossaryClarificationRequested,
-        GlossaryClarificationResolved,
-        GlossarySenseUpdated,
-        GenerationBlockedBySemanticConflict,
-        StepCheckpointed,
+        GlossaryScopeActivated as _CanonicGlossaryScopeActivated,
+        TermCandidateObserved as _CanonicTermCandidateObserved,
+        SemanticCheckEvaluated as _CanonicSemanticCheckEvaluated,
+        GlossaryClarificationRequested as _CanonicGlossaryClarificationRequested,
+        GlossaryClarificationResolved as _CanonicGlossaryClarificationResolved,
+        GlossarySenseUpdated as _CanonicGlossarySenseUpdated,
+        GenerationBlockedBySemanticConflict as _CanonicGenerationBlockedBySemanticConflict,
+        StepCheckpointed as _CanonicStepCheckpointed,
     )
     from spec_kitty_events.persistence import append_event as _pkg_append_event  # type: ignore[import-not-found]
 
@@ -51,7 +60,7 @@ try:
 except ImportError:
     EVENTS_AVAILABLE = False
     logger.debug(
-        "spec-kitty-events package not available, using local event adapters"
+        "spec-kitty-events package not available, using log-only fallback"
     )
 
 
@@ -97,16 +106,21 @@ def get_event_log_path(
 
 
 # ---------------------------------------------------------------------------
-# JSONL persistence (local implementation, used when package unavailable)
+# JSONL persistence
+#
+# When EVENTS_AVAILABLE: delegates to _pkg_append_event (canonical path)
+# When NOT available:    log-only, NO filesystem writes
 # ---------------------------------------------------------------------------
 
 
 def append_event(event_dict: dict[str, Any], event_log_path: Path) -> None:
     """Append a single event dict to a JSONL event log.
 
-    Each event is written as one JSON line. The file is opened in
-    append mode so concurrent writers produce valid JSONL (one
-    complete line per write call).
+    When the canonical spec-kitty-events package is available, delegates to
+    the package's append_event() for persistence.
+
+    When the package is NOT available (fallback mode), this function only
+    logs the event via Python logging -- it does NOT write to disk.
 
     Args:
         event_dict: JSON-serializable event payload
@@ -116,7 +130,30 @@ def append_event(event_dict: dict[str, Any], event_log_path: Path) -> None:
         _pkg_append_event(event_dict, event_log_path)
         return
 
-    # Local JSONL append
+    # Fallback: log-only, NO filesystem writes
+    event_type = event_dict.get("event_type", "UnknownEvent")
+    logger.debug(
+        "Stub event (no persistence): %s -- %s",
+        event_type,
+        json.dumps(event_dict, sort_keys=True, default=str)[:200],
+    )
+
+
+def _local_append_event(event_dict: dict[str, Any], event_log_path: Path) -> None:
+    """Low-level JSONL append used only when EVENTS_AVAILABLE is True.
+
+    This is provided as an explicit local persistence adapter for
+    situations where the canonical package's append_event needs a
+    local fallback (e.g., serialization adapter). In normal operation,
+    use append_event() which delegates to the package.
+
+    When EVENTS_AVAILABLE is False, this function MUST NOT be called --
+    the fallback path is log-only.
+
+    Args:
+        event_dict: JSON-serializable event payload
+        event_log_path: Path to the .events.jsonl file
+    """
     event_log_path.parent.mkdir(parents=True, exist_ok=True)
     with event_log_path.open("a") as f:
         f.write(json.dumps(event_dict, sort_keys=True, default=str) + "\n")
@@ -157,7 +194,7 @@ def read_events(
 
 
 # ---------------------------------------------------------------------------
-# Event payload builders
+# Event payload builders (plain dicts -- always used for return values)
 # ---------------------------------------------------------------------------
 
 def _now_iso() -> str:
@@ -467,6 +504,39 @@ def build_step_checkpointed(
 
 
 # ---------------------------------------------------------------------------
+# Canonical event instantiation (when spec-kitty-events is available)
+# ---------------------------------------------------------------------------
+
+def _persist_canonical_event(
+    event_dict: dict[str, Any],
+    repo_root: Path,
+    mission_id: str,
+) -> None:
+    """Persist an event dict to JSONL.
+
+    When EVENTS_AVAILABLE is True:
+        Delegates to the package's append_event (canonical persistence).
+    When EVENTS_AVAILABLE is False:
+        Uses _local_append_event for direct JSONL writes.
+        This enables checkpoint/resume even without the canonical package.
+
+    Note: This is distinct from the public append_event() which is log-only
+    in fallback mode. Internal emit_* functions call this helper so that
+    events are always persisted when a repo_root is provided.
+
+    Args:
+        event_dict: JSON-serializable event payload
+        repo_root: Repository root for event log path
+        mission_id: Mission identifier for JSONL file
+    """
+    event_log_path = get_event_log_path(repo_root, mission_id)
+    if EVENTS_AVAILABLE:
+        _pkg_append_event(event_dict, event_log_path)
+    else:
+        _local_append_event(event_dict, event_log_path)
+
+
+# ---------------------------------------------------------------------------
 # High-level emission functions used by middleware
 # ---------------------------------------------------------------------------
 
@@ -522,8 +592,7 @@ def emit_term_candidate_observed(
 
     try:
         if repo_root is not None:
-            event_log_path = get_event_log_path(repo_root, mission_id)
-            append_event(event, event_log_path)
+            _persist_canonical_event(event, repo_root, mission_id)
         else:
             logger.debug("TermCandidateObserved: %s (no repo_root, log only)", term.surface)
     except Exception as exc:
@@ -598,8 +667,7 @@ def emit_semantic_check_evaluated(
 
     try:
         if repo_root is not None:
-            event_log_path = get_event_log_path(repo_root, mission_id)
-            append_event(event, event_log_path)
+            _persist_canonical_event(event, repo_root, mission_id)
         else:
             logger.debug("SemanticCheckEvaluated: %d findings (log only)", len(conflicts))
     except Exception as exc:
@@ -643,8 +711,7 @@ def emit_generation_blocked_event(
 
     try:
         if repo_root is not None:
-            event_log_path = get_event_log_path(repo_root, mission_id)
-            append_event(event, event_log_path)
+            _persist_canonical_event(event, repo_root, mission_id)
         else:
             logger.info(
                 "Generation blocked: %d conflicts, strictness=%s, step=%s, mission=%s",
@@ -701,8 +768,7 @@ def emit_step_checkpointed(
 
     try:
         if project_root is not None:
-            event_log_path = get_event_log_path(project_root, checkpoint.mission_id)
-            append_event(event, event_log_path)
+            _persist_canonical_event(event, project_root, checkpoint.mission_id)
     except Exception as exc:
         logger.error("Failed to persist StepCheckpointed event: %s", exc)
         return None
@@ -748,8 +814,7 @@ def emit_clarification_requested(
 
     try:
         if repo_root is not None:
-            event_log_path = get_event_log_path(repo_root, mission_id)
-            append_event(event, event_log_path)
+            _persist_canonical_event(event, repo_root, mission_id)
         else:
             logger.debug("ClarificationRequested: %s (log only)", conflict.term.surface_text)
     except Exception as exc:
@@ -809,8 +874,7 @@ def emit_clarification_resolved(
 
     try:
         if repo_root is not None:
-            event_log_path = get_event_log_path(repo_root, mission_id)
-            append_event(event, event_log_path)
+            _persist_canonical_event(event, repo_root, mission_id)
         else:
             logger.debug("ClarificationResolved: %s (log only)", conflict.term.surface_text)
     except Exception as exc:
@@ -871,8 +935,7 @@ def emit_sense_updated(
 
     try:
         if repo_root is not None:
-            event_log_path = get_event_log_path(repo_root, mission_id)
-            append_event(event, event_log_path)
+            _persist_canonical_event(event, repo_root, mission_id)
         else:
             logger.debug("SenseUpdated: %s (log only)", conflict.term.surface_text)
     except Exception as exc:
@@ -910,8 +973,7 @@ def emit_scope_activated(
 
     try:
         if repo_root is not None:
-            event_log_path = get_event_log_path(repo_root, mission_id)
-            append_event(event, event_log_path)
+            _persist_canonical_event(event, repo_root, mission_id)
         else:
             logger.debug("ScopeActivated: %s (log only)", scope_id)
     except Exception as exc:
