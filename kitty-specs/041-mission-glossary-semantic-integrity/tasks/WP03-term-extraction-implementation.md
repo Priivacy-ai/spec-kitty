@@ -1,14 +1,14 @@
 ---
 work_package_id: WP03
 title: Term Extraction Implementation
-lane: "planned"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 28a2fdf773a7b7aae3371a4aec50602bdb6dbf23
 created_at: '2026-02-16T14:05:12.902282+00:00'
 subtasks: [T010, T011, T012, T013, T014, T015]
-agent: "codex"
-shell_pid: "77135"
+agent: "coordinator"
+shell_pid: "79292"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -236,3 +236,4 @@ pytest --cov=src/specify_cli/glossary/extraction --cov-report=term-missing
 - 2026-02-16T14:50:05Z – coordinator – shell_pid=73336 – lane=for_review – Fixed: stemming bug resolved (class/glass/address/status preserved), event emission implemented with proper stub interface, 101 tests passing, mypy strict clean (cycle 4 arbiter override - final attempt)
 - 2026-02-16T14:50:48Z – codex – shell_pid=77135 – lane=doing – Started review via workflow command
 - 2026-02-16T14:52:47Z – codex – shell_pid=77135 – lane=planned – Moved to planned
+- 2026-02-16T14:53:40Z – coordinator – shell_pid=79292 – lane=doing – Started implementation via workflow command
