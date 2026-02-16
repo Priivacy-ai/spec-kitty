@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Generation Gate & Strictness Policy
-lane: "doing"
+lane: "planned"
 dependencies: [WP04]
 base_branch: 041-mission-glossary-semantic-integrity-WP04
 base_commit: 50ac9da5882b14d5dbf0c212e6a6708039ab0a56
@@ -9,6 +9,8 @@ created_at: '2026-02-16T15:38:23.226688+00:00'
 subtasks: [T021, T022, T023, T024]
 shell_pid: "7357"
 agent: "codex"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -17,12 +19,16 @@ history:
 
 # Work Package Prompt: WP05 -- Generation Gate & Strictness Policy
 
-## Review Feedback Status
+## Review Feedback
 
-> **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
-> - If `review_status` is empty or `""`, proceed with implementation as described below.
-> - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
-> - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-02-16
+
+**Issue 1**: Event emission failures can bypass blocking. In `src/specify_cli/glossary/middleware.py:421-439`, `emit_generation_blocked_event` is called without protection. If that emitter raises (e.g., downstream transport failure), the middleware will exit before raising `BlockedByConflict`, violating the edge-case requirement to block even when event emission fails. Wrap the emit in `try/except` (log the emission error) and always proceed to raise `BlockedByConflict`.
+
+**Issue 2**: Unknown severities are not treated as HIGH and can crash categorization. In `src/specify_cli/glossary/strictness.py:149-159` and `:162-207`, the code assumes all conflicts use `Severity` enum. A conflict with an unexpected/unknown severity would be treated as non-blocking in MEDIUM mode and would raise `KeyError` in `categorize_conflicts`, contrary to the spec's edge-case guidance to treat unknown severities as HIGH for safety. Add a fallback that maps unrecognized severities to `Severity.HIGH` (and buckets them accordingly) so MEDIUM blocks and categorization stays stable.
+
 
 ## Review Feedback
 
@@ -698,3 +704,4 @@ When reviewing this WP, verify:
 - 2026-02-16T15:38:23Z – coordinator – shell_pid=3144 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T15:45:43Z – coordinator – shell_pid=3144 – lane=for_review – Ready for review - generation gate implemented with strictness modes (OFF/MEDIUM/MAX), 4-tier precedence resolution, comprehensive tests with 93% coverage
 - 2026-02-16T15:46:17Z – codex – shell_pid=7357 – lane=doing – Started review via workflow command
+- 2026-02-16T15:49:44Z – codex – shell_pid=7357 – lane=planned – Moved to planned
