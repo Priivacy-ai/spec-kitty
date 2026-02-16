@@ -1,14 +1,14 @@
 ---
 work_package_id: WP10
 title: Glossary Management CLI
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP09
 base_commit: 982caa3a76885020cadacef5107c105f50b42454
 created_at: '2026-02-16T17:59:56.173426+00:00'
 subtasks: [T044, T045, T046, T047]
-shell_pid: "63494"
-agent: "coordinator"
+shell_pid: "69247"
+agent: "codex"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -812,3 +812,4 @@ When reviewing this WP, verify:
 - 2026-02-16T00:00:00Z -- llm:claude-sonnet-4.5 -- lane=planned -- WP created with comprehensive guidance
 - 2026-02-16T17:59:56Z – coordinator – shell_pid=63494 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T18:08:44Z – coordinator – shell_pid=63494 – lane=for_review – Ready for review: glossary list/conflicts/resolve commands with --strictness flag, 47 tests at 97% coverage
+- 2026-02-16T18:09:15Z – codex – shell_pid=69247 – lane=doing – Started review via workflow command
