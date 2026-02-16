@@ -1,16 +1,25 @@
-"""Glossary extraction middleware (WP03).
+"""Glossary extraction middleware (WP03) and clarification middleware (WP06).
 
 This module implements middleware that extracts glossary term candidates from
-primitive execution context (step inputs/outputs) and emits events.
+primitive execution context (step inputs/outputs), detects semantic conflicts,
+and provides interactive clarification for conflict resolution.
 """
 
+import logging
+import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
+
+from rich.console import Console
 
 from .extraction import ExtractedTerm, extract_all_terms
 
 if TYPE_CHECKING:
     from . import models, scope, store
+
+_logger = logging.getLogger(__name__)
 
 
 class PrimitiveExecutionContext(Protocol):
@@ -480,3 +489,269 @@ class GenerationGateMiddleware:
                 f"Generation blocked: {conflict_count} unresolved "
                 f"semantic conflict(s) detected. Resolve conflicts before proceeding."
             )
+
+
+class ClarificationMiddleware:
+    """Interactive conflict resolution middleware (WP06/T028).
+
+    This middleware orchestrates conflict rendering, user prompting,
+    glossary updates, and event emission for the full clarification workflow.
+
+    Pipeline position: Layer 4 (after generation gate raises BlockedByConflict)
+
+    Usage:
+        middleware = ClarificationMiddleware(console=Console(), max_questions=3)
+        context = middleware.process(context)
+    """
+
+    def __init__(
+        self,
+        console: Console | None = None,
+        max_questions: int = 3,
+    ) -> None:
+        """Initialize clarification middleware.
+
+        Args:
+            console: Rich console instance (creates default if None)
+            max_questions: Max conflicts to prompt per burst (default 3)
+        """
+        self.console = console or Console()
+        self.max_questions = max_questions
+
+    def process(
+        self,
+        context: PrimitiveExecutionContext,
+    ) -> PrimitiveExecutionContext:
+        """Process conflicts and prompt user for resolution.
+
+        Pipeline position: Layer 4 (after generation gate raises BlockedByConflict)
+
+        This middleware is called when generation is blocked. It:
+        1. Renders conflicts with Rich formatting
+        2. Prompts user for each conflict (select/custom/defer)
+        3. Emits events for each resolution
+        4. Updates glossary state in context
+        5. Returns updated context for resume
+
+        Args:
+            context: Primitive execution context with conflicts
+
+        Returns:
+            Updated context with resolved conflicts (if interactive)
+            or deferred conflicts (if non-interactive)
+        """
+        from .rendering import render_conflict_batch
+        from .prompts import prompt_conflict_resolution_safe, PromptChoice
+
+        conflicts = getattr(context, "conflicts", [])
+        if not conflicts:
+            return context
+
+        # Render conflicts (capped at max_questions)
+        to_prompt = render_conflict_batch(
+            self.console,
+            conflicts,
+            max_questions=self.max_questions,
+        )
+
+        # Emit deferred events for conflicts beyond max_questions
+        deferred_conflicts = [c for c in conflicts if c not in to_prompt]
+        for conflict in deferred_conflicts:
+            self._emit_deferred(context, conflict)
+
+        # Process each prompted conflict interactively
+        resolved_count = 0
+        for conflict in to_prompt:
+            choice, value = prompt_conflict_resolution_safe(conflict)
+
+            if choice == PromptChoice.SELECT_CANDIDATE:
+                candidate_idx = value
+                selected_sense = conflict.candidate_senses[candidate_idx]
+                self._handle_candidate_selection(
+                    context, conflict, selected_sense
+                )
+                resolved_count += 1
+
+            elif choice == PromptChoice.CUSTOM_SENSE:
+                custom_definition = value
+                self._handle_custom_sense(
+                    context, conflict, custom_definition
+                )
+                resolved_count += 1
+
+            elif choice == PromptChoice.DEFER:
+                self._emit_deferred(context, conflict)
+
+        # Update context with resolution stats
+        context.resolved_conflicts_count = resolved_count
+        context.deferred_conflicts_count = len(conflicts) - resolved_count
+
+        # If all resolved, clear conflicts (allows generation to proceed)
+        if resolved_count == len(conflicts):
+            context.conflicts = []
+
+        return context
+
+    def _handle_candidate_selection(
+        self,
+        context: PrimitiveExecutionContext,
+        conflict: "models.SemanticConflict",
+        selected_sense: "models.SenseRef",
+    ) -> None:
+        """Handle user selection of a candidate sense.
+
+        Args:
+            context: Execution context
+            conflict: The conflict being resolved
+            selected_sense: The SenseRef selected by the user
+        """
+        from .events import emit_clarification_resolved
+        from .models import Provenance, SenseStatus, TermSense
+
+        conflict_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        actor_id = getattr(context, "actor_id", "user:unknown")
+
+        # Create a TermSense from the selected SenseRef for event emission
+        resolved_sense = TermSense(
+            surface=conflict.term,
+            scope=selected_sense.scope,
+            definition=selected_sense.definition,
+            provenance=Provenance(
+                actor_id=actor_id,
+                timestamp=now,
+                source="candidate_selection",
+            ),
+            confidence=selected_sense.confidence,
+            status=SenseStatus.ACTIVE,
+        )
+
+        # Emit resolution event
+        try:
+            emit_clarification_resolved(
+                conflict_id=conflict_id,
+                term_surface=conflict.term.surface_text,
+                selected_sense=resolved_sense,
+                actor_id=actor_id,
+                timestamp=now,
+                resolution_mode="interactive",
+            )
+        except Exception as err:
+            _logger.error("Failed to emit clarification resolved event: %s", err)
+
+        # Update glossary in context
+        self._update_glossary(context, resolved_sense)
+
+        self.console.print(
+            f"[green]Resolved:[/green] {conflict.term.surface_text} = "
+            f"{selected_sense.definition}"
+        )
+
+    def _handle_custom_sense(
+        self,
+        context: PrimitiveExecutionContext,
+        conflict: "models.SemanticConflict",
+        custom_definition: str,
+    ) -> None:
+        """Handle user-provided custom sense definition.
+
+        Args:
+            context: Execution context
+            conflict: The conflict being resolved
+            custom_definition: User-provided definition text
+        """
+        from .events import emit_sense_updated
+        from .models import Provenance, SenseStatus, TermSense
+        from .scope import GlossaryScope
+
+        now = datetime.now(timezone.utc)
+        actor_id = getattr(context, "actor_id", "user:unknown")
+
+        # Create new sense with user definition
+        new_sense = TermSense(
+            surface=conflict.term,
+            scope=GlossaryScope.TEAM_DOMAIN.value,
+            definition=custom_definition,
+            provenance=Provenance(
+                actor_id=actor_id,
+                timestamp=now,
+                source="user_clarification",
+            ),
+            confidence=1.0,  # User-provided = high confidence
+            status=SenseStatus.ACTIVE,
+        )
+
+        # Emit sense updated event
+        try:
+            emit_sense_updated(
+                term_surface=conflict.term.surface_text,
+                scope=GlossaryScope.TEAM_DOMAIN.value,
+                new_sense=new_sense,
+                actor_id=actor_id,
+                timestamp=now,
+                update_type="create",
+            )
+        except Exception as err:
+            _logger.error("Failed to emit sense updated event: %s", err)
+
+        # Update glossary in context
+        self._update_glossary(context, new_sense)
+
+        self.console.print(
+            f"[green]Added custom sense:[/green] "
+            f"{conflict.term.surface_text} = {custom_definition}"
+        )
+
+    def _emit_deferred(
+        self,
+        context: PrimitiveExecutionContext,
+        conflict: "models.SemanticConflict",
+    ) -> None:
+        """Emit clarification requested event for deferred conflict.
+
+        Args:
+            context: Execution context
+            conflict: The conflict being deferred
+        """
+        from .events import emit_clarification_requested
+
+        conflict_id = str(uuid.uuid4())
+
+        # Build ranked options list
+        options = [sense.definition for sense in conflict.candidate_senses]
+
+        try:
+            emit_clarification_requested(
+                conflict_id=conflict_id,
+                question=(
+                    f"What does '{conflict.term.surface_text}' "
+                    f"mean in this context?"
+                ),
+                term=conflict.term.surface_text,
+                options=options,
+                urgency=conflict.severity.value,
+                step_id=getattr(context, "step_id", "unknown"),
+                mission_id=getattr(context, "mission_id", "unknown"),
+                run_id=getattr(context, "run_id", "unknown"),
+                timestamp=datetime.now(timezone.utc),
+            )
+        except Exception as err:
+            _logger.error(
+                "Failed to emit clarification requested event: %s", err
+            )
+
+    def _update_glossary(
+        self,
+        context: PrimitiveExecutionContext,
+        sense: "models.TermSense",
+    ) -> None:
+        """Update glossary state in context with new/updated sense.
+
+        Args:
+            context: Execution context
+            sense: The resolved TermSense to add
+        """
+        if not hasattr(context, "resolved_senses"):
+            context.resolved_senses = []
+
+        context.resolved_senses.append(sense)
