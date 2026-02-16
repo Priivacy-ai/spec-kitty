@@ -454,8 +454,9 @@ class TestMixedResolutions:
         assert mock_emit_sense.call_count == 1
         assert mock_emit_requested.call_count == 1
 
-        # Conflicts NOT cleared (not all resolved)
-        assert result.conflicts == conflicts
+        # Only the deferred conflict remains in context.conflicts
+        assert len(result.conflicts) == 1
+        assert result.conflicts == [conflicts[2]]  # Only the 3rd (deferred) conflict
 
 
 class TestEdgeCases:
@@ -883,3 +884,180 @@ class TestResolvedSensesAccumulation:
 
         assert len(result.resolved_senses) == 3
         assert result.resolved_conflicts_count == 3
+
+
+class TestResolvedConflictsRemovedFromContext:
+    """Regression tests: resolved conflicts must NOT remain in context.conflicts.
+
+    After mixed resolution (some resolved, some deferred), context.conflicts
+    must contain ONLY the deferred conflicts. Resolved conflicts must be
+    removed to prevent re-rendering, re-prompting, and double-counting in
+    later middleware passes.
+    """
+
+    @patch(_PROMPT_SAFE)
+    @patch(f"{_EVENTS}.emit_clarification_requested")
+    @patch(f"{_EVENTS}.emit_clarification_resolved")
+    @patch(f"{_EVENTS}.emit_sense_updated")
+    def test_mixed_resolution_only_deferred_in_context(
+        self,
+        mock_emit_sense,
+        mock_emit_resolved,
+        mock_emit_requested,
+        mock_prompt,
+        mock_console,
+        mock_context,
+    ):
+        """After mixed resolution, context.conflicts contains only deferred conflicts."""
+        # Resolve first two, defer last one
+        mock_prompt.side_effect = [
+            (PromptChoice.SELECT_CANDIDATE, 0),
+            (PromptChoice.CUSTOM_SENSE, "Custom definition"),
+            (PromptChoice.DEFER, None),
+        ]
+
+        conflicts = [_make_conflict(f"term{i}") for i in range(3)]
+        middleware = ClarificationMiddleware(
+            console=mock_console, max_questions=5
+        )
+        mock_context.conflicts = conflicts
+
+        result = middleware.process(mock_context)
+
+        # Only the deferred conflict (term2) should be in context.conflicts
+        assert len(result.conflicts) == 1
+        assert result.conflicts[0] is conflicts[2]
+        # Resolved conflicts must NOT be in context.conflicts
+        assert conflicts[0] not in result.conflicts
+        assert conflicts[1] not in result.conflicts
+
+    @patch(_PROMPT_SAFE)
+    @patch(f"{_EVENTS}.emit_clarification_requested")
+    @patch(f"{_EVENTS}.emit_clarification_resolved")
+    def test_resolved_conflicts_not_in_context_after_mixed(
+        self,
+        mock_emit_resolved,
+        mock_emit_requested,
+        mock_prompt,
+        mock_console,
+        mock_context,
+    ):
+        """Resolved conflicts are absent from context.conflicts after processing."""
+        # Resolve 2 of 4, defer 2
+        mock_prompt.side_effect = [
+            (PromptChoice.SELECT_CANDIDATE, 0),
+            (PromptChoice.DEFER, None),
+            (PromptChoice.SELECT_CANDIDATE, 0),
+            (PromptChoice.DEFER, None),
+        ]
+
+        conflicts = [_make_conflict(f"term{i}") for i in range(4)]
+        middleware = ClarificationMiddleware(
+            console=mock_console, max_questions=10
+        )
+        mock_context.conflicts = conflicts
+
+        result = middleware.process(mock_context)
+
+        # 2 resolved, 2 deferred
+        assert result.resolved_conflicts_count == 2
+        assert result.deferred_conflicts_count == 2
+        assert len(result.conflicts) == 2
+
+        # The deferred ones are conflicts[1] and conflicts[3]
+        assert result.conflicts[0] is conflicts[1]
+        assert result.conflicts[1] is conflicts[3]
+
+        # Resolved ones are NOT present
+        assert conflicts[0] not in result.conflicts
+        assert conflicts[2] not in result.conflicts
+
+    @patch(_PROMPT_SAFE)
+    @patch(f"{_EVENTS}.emit_clarification_resolved")
+    def test_all_resolved_clears_context_conflicts(
+        self,
+        mock_emit_resolved,
+        mock_prompt,
+        mock_console,
+        mock_context,
+    ):
+        """When all conflicts are resolved, context.conflicts is empty."""
+        mock_prompt.return_value = (PromptChoice.SELECT_CANDIDATE, 0)
+
+        conflicts = [_make_conflict(f"term{i}") for i in range(3)]
+        middleware = ClarificationMiddleware(
+            console=mock_console, max_questions=5
+        )
+        mock_context.conflicts = conflicts
+
+        result = middleware.process(mock_context)
+
+        assert result.conflicts == []
+        assert result.resolved_conflicts_count == 3
+        assert result.deferred_conflicts_count == 0
+
+    @patch(_PROMPT_SAFE)
+    @patch(f"{_EVENTS}.emit_clarification_requested")
+    @patch(f"{_EVENTS}.emit_clarification_resolved")
+    def test_max_questions_auto_deferred_plus_user_deferred(
+        self,
+        mock_emit_resolved,
+        mock_emit_requested,
+        mock_prompt,
+        mock_console,
+        mock_context,
+    ):
+        """Auto-deferred (beyond max_questions) and user-deferred conflicts
+        both appear in context.conflicts; resolved ones do not."""
+        # 5 conflicts, max_questions=3, resolve first 2, defer third
+        mock_prompt.side_effect = [
+            (PromptChoice.SELECT_CANDIDATE, 0),
+            (PromptChoice.SELECT_CANDIDATE, 0),
+            (PromptChoice.DEFER, None),
+        ]
+
+        conflicts = [_make_conflict(f"term{i}") for i in range(5)]
+        middleware = ClarificationMiddleware(
+            console=mock_console, max_questions=3
+        )
+        mock_context.conflicts = conflicts
+
+        result = middleware.process(mock_context)
+
+        # 2 resolved, 1 user-deferred, 2 auto-deferred = 3 total deferred
+        assert result.resolved_conflicts_count == 2
+        assert result.deferred_conflicts_count == 3
+        assert len(result.conflicts) == 3
+
+        # Resolved conflicts (first two prompted) must NOT be present
+        # The prompted conflicts are the first 3 from render_conflict_batch
+        # (sorted by severity, then surface_text)
+        for deferred in result.conflicts:
+            # Each deferred conflict should not be one of the resolved ones
+            assert deferred.term.surface_text in {
+                c.term.surface_text for c in conflicts
+            }
+
+    @patch(_PROMPT_SAFE)
+    @patch(f"{_EVENTS}.emit_clarification_requested")
+    def test_deferred_count_matches_context_conflicts_length(
+        self,
+        mock_emit_requested,
+        mock_prompt,
+        mock_console,
+        mock_context,
+    ):
+        """deferred_conflicts_count always equals len(context.conflicts)."""
+        mock_prompt.return_value = (PromptChoice.DEFER, None)
+
+        conflicts = [_make_conflict(f"term{i}") for i in range(4)]
+        middleware = ClarificationMiddleware(
+            console=mock_console, max_questions=2
+        )
+        mock_context.conflicts = conflicts
+
+        result = middleware.process(mock_context)
+
+        # 2 prompted (all deferred) + 2 auto-deferred = 4 total deferred
+        assert result.deferred_conflicts_count == len(result.conflicts)
+        assert result.deferred_conflicts_count == 4

@@ -554,10 +554,13 @@ class ClarificationMiddleware:
             max_questions=self.max_questions,
         )
 
-        # Emit deferred events for conflicts beyond max_questions
-        deferred_conflicts = [c for c in conflicts if c not in to_prompt]
-        for conflict in deferred_conflicts:
+        # Conflicts beyond max_questions are auto-deferred
+        auto_deferred = [c for c in conflicts if c not in to_prompt]
+        for conflict in auto_deferred:
             self._emit_deferred(context, conflict)
+
+        # Track which prompted conflicts get deferred by the user
+        user_deferred: list = []
 
         # Process each prompted conflict interactively
         resolved_count = 0
@@ -586,14 +589,15 @@ class ClarificationMiddleware:
 
             elif choice == PromptChoice.DEFER:
                 self._emit_deferred(context, conflict)
+                user_deferred.append(conflict)
 
-        # Update context with resolution stats
+        # Build the list of all deferred conflicts (auto-deferred + user-deferred)
+        all_deferred = auto_deferred + user_deferred
+
+        # Update context: only deferred conflicts remain
+        context.conflicts = all_deferred
         context.resolved_conflicts_count = resolved_count
-        context.deferred_conflicts_count = len(conflicts) - resolved_count
-
-        # If all resolved, clear conflicts (allows generation to proceed)
-        if resolved_count == len(conflicts):
-            context.conflicts = []
+        context.deferred_conflicts_count = len(all_deferred)
 
         return context
 
