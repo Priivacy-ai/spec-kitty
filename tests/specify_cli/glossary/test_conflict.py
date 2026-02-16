@@ -99,6 +99,54 @@ def test_classify_conflict_empty_term() -> None:
     assert conflict_type == ConflictType.UNKNOWN
 
 
+def test_classify_conflict_unresolved_critical(sample_term: ExtractedTerm) -> None:
+    """Test UNRESOLVED_CRITICAL classification (unknown term, low confidence, critical step)."""
+    low_confidence_term = ExtractedTerm(
+        surface="workspace",
+        source="quoted_phrase",
+        confidence=0.3,  # Low confidence
+        original="workspace",
+    )
+
+    # With critical step flag and low confidence, should classify as UNRESOLVED_CRITICAL
+    conflict_type = classify_conflict(low_confidence_term, [], is_critical_step=True)
+    assert conflict_type == ConflictType.UNRESOLVED_CRITICAL
+
+    # Without critical step flag, should be regular UNKNOWN
+    conflict_type = classify_conflict(low_confidence_term, [], is_critical_step=False)
+    assert conflict_type == ConflictType.UNKNOWN
+
+    # With high confidence, should be UNKNOWN even if critical
+    high_confidence_term = ExtractedTerm(
+        surface="workspace",
+        source="quoted_phrase",
+        confidence=0.8,
+        original="workspace",
+    )
+    conflict_type = classify_conflict(high_confidence_term, [], is_critical_step=True)
+    assert conflict_type == ConflictType.UNKNOWN
+
+
+def test_classify_conflict_inconsistent(
+    sample_term: ExtractedTerm,
+    sample_senses: list[TermSense],
+) -> None:
+    """Test INCONSISTENT classification (LLM output contradicts glossary)."""
+    single_sense = [sample_senses[0]]  # "Git worktree directory"
+
+    # Without LLM output, should not detect INCONSISTENT
+    conflict_type = classify_conflict(sample_term, single_sense)
+    assert conflict_type is None
+
+    # With LLM output but no contradiction (conservative heuristic), should be None
+    llm_output = "The workspace is a git worktree directory used for feature development."
+    conflict_type = classify_conflict(sample_term, single_sense, llm_output_text=llm_output)
+    assert conflict_type is None  # Conservative: heuristic returns False for now
+
+    # Note: Full INCONSISTENT detection will be enhanced in WP06
+    # This test validates the parameter plumbing works
+
+
 # ============================================================================
 # T018: Severity Scoring Tests
 # ============================================================================

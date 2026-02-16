@@ -43,19 +43,19 @@ class GlossaryStore:
         # Clear lookup cache when sense is added (cache invalidation)
         self._lookup_cached.cache_clear()
 
-    def _lookup_impl(self, surface: str, scopes: tuple) -> tuple:
+    def _lookup_impl(self, surface: str, scopes: tuple[str, ...]) -> tuple[TermSense, ...]:
         """
         Internal cached lookup implementation.
 
         Returns tuple instead of list for immutability (required for caching).
         """
-        results = []
+        results: List[TermSense] = []
         for scope in scopes:
             if scope in self._cache and surface in self._cache[scope]:
                 results.extend(self._cache[scope][surface])
         return tuple(results)
 
-    def lookup(self, surface: str, scopes: tuple) -> List[TermSense]:
+    def lookup(self, surface: str, scopes: tuple[str, ...]) -> List[TermSense]:
         """
         Look up term in scope hierarchy (with LRU cache).
 

@@ -5,9 +5,12 @@ primitive execution context (step inputs/outputs) and emits events.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Protocol
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 
 from .extraction import ExtractedTerm, extract_all_terms
+
+if TYPE_CHECKING:
+    from . import models, scope, store
 
 
 class PrimitiveExecutionContext(Protocol):
@@ -235,6 +238,17 @@ class SemanticCheckMiddleware:
         if hasattr(context, "metadata") and context.metadata:
             is_critical_step = context.metadata.get("critical_step", False)
 
+        # Get LLM output text for INCONSISTENT detection (if available)
+        llm_output_text: Optional[str] = None
+        if hasattr(context, "step_output") and context.step_output:
+            # Extract text from output fields for contradiction detection
+            output_parts: List[str] = []
+            for value in context.step_output.values():
+                if isinstance(value, str):
+                    output_parts.append(value)
+            if output_parts:
+                llm_output_text = "\n".join(output_parts)
+
         # Resolve each extracted term
         for extracted_term in context.extracted_terms:
             # 1. Resolve against scope hierarchy
@@ -244,8 +258,13 @@ class SemanticCheckMiddleware:
                 self.glossary_store,
             )
 
-            # 2. Classify conflict
-            conflict_type = classify_conflict(extracted_term, senses)
+            # 2. Classify conflict (with all 4 types)
+            conflict_type = classify_conflict(
+                extracted_term,
+                senses,
+                is_critical_step=is_critical_step,
+                llm_output_text=llm_output_text,
+            )
 
             # 3. If conflict exists, score severity and create conflict
             if conflict_type is not None:
