@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Event Integration
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP07
 base_commit: 2107124ad5b63c0c73071503b1cac6032e0a7958
@@ -25,11 +25,9 @@ history:
 **Status**: ❌ Changes Requested
 **Date**: 2026-02-16
 
-**Issue 1 (blocking)**: Canonical event contracts are not used. Even when `spec-kitty-events` is present, `append_event` is called with plain dicts (e.g., build_* functions and emit_* wrappers) and never instantiates the imported canonical classes. That will fail once the package is installed because `_pkg_append_event` expects Feature 007 event objects, and it also violates the success criterion that canonical contracts be used when available (src/specify_cli/glossary/events.py:35-123, 168-420, 523-758).
+**Issue 1 (blocking)**: Canonical event contracts still aren’t instantiated. `events.py` builds plain dict payloads and passes them directly to `_pkg_append_event`, never creating the imported `_Canonic*` classes (see lines 44-60, 198-504, 510-536). If `spec-kitty-events` is installed, its append adapter still receives dicts, which violates the success criterion to use Feature 007 canonical event objects and will fail if `_pkg_append_event` expects event instances. Fix: when `EVENTS_AVAILABLE` is True, construct the appropriate `_Canonic…` class for each emitter and pass that object to `_pkg_append_event` (keep dict/log-only behavior for the fallback path).
 
-**Issue 2 (blocking)**: Only four of the eight required events ever fire. The pipeline emits candidate, semantic-check, generation-blocked, and checkpoint events, but there is no ClarificationMiddleware and no call sites for `emit_clarification_requested`, `emit_clarification_resolved`, `emit_sense_updated`, or `emit_scope_activated` (clarification.py is empty; middleware.py contains no calls). As written, clarification and scope-activation events never reach the log, so success criteria #2 and #5 (full coverage and ordering extraction → check → gate → clarification → checkpoint) are not met.
-
-**Issue 3 (blocking)**: Fallback behavior ignores the requested "stub logging only" mode. When `spec-kitty-events` is missing, `append_event` still writes JSONL to disk (lines 115-123) and all emitters call it unconditionally (e.g., lines 523-758), so there is no graceful degrade to logging-only. This diverges from the work-package guidance and makes the observed behavior different once the real package is unavailable.
+**Issue 2 (blocking)**: Fallback path still writes JSONL instead of remaining log-only. `_persist_canonical_event` uses `_local_append_event` whenever `EVENTS_AVAILABLE` is False (lines 510-536), and every emitter calls `_persist_canonical_event` when `repo_root` is provided (e.g., lines 594-597, 668-671, 713-714, 816-817, 876-877, 936-938, 975-976). This continues to create `.kittify/events/glossary/*.events.jsonl` files even when the canonical package is missing, contradicting the “stub logging only, no persistence” requirement from the previous review and the module docstring (lines 3-15). Fix: in fallback mode, emitters should log-only and skip JSONL persistence (e.g., have `_persist_canonical_event` no-op or have emitters return after logging when `EVENTS_AVAILABLE` is False).
 
 
 ## Review Feedback
@@ -978,3 +976,4 @@ When reviewing this WP, verify:
 - 2026-02-16T16:47:04Z – coordinator – shell_pid=35487 – lane=doing – Started implementation via workflow command
 - 2026-02-16T16:59:50Z – coordinator – shell_pid=35487 – lane=for_review – Fixed: canonical contracts, 8/8 events emitted, log-only fallback for append_event, local persistence via _local_append_event. All 428 tests pass.
 - 2026-02-16T17:00:17Z – codex – shell_pid=39799 – lane=doing – Started review via workflow command
+- 2026-02-16T17:04:37Z – codex – shell_pid=39799 – lane=planned – Moved to planned
