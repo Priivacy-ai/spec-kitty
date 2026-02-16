@@ -124,25 +124,25 @@ def activate_scope(
     version_id: str,
     mission_id: str,
     run_id: str,
-    event_emitter: Any,
+    repo_root: Path | None = None,
 ) -> None:
     """
-    Activate a glossary scope and emit event.
+    Activate a glossary scope and emit GlossaryScopeActivated event.
 
     Args:
         scope: Scope to activate
         version_id: Glossary version ID
         mission_id: Mission ID
         run_id: Run ID
-        event_emitter: Event emitter object
+        repo_root: Repository root for event log persistence. If None,
+            events are logged but not persisted to disk.
     """
-    event_emitter.emit(
-        event_type="GlossaryScopeActivated",
-        payload={
-            "scope_id": scope.value,
-            "glossary_version_id": version_id,
-            "mission_id": mission_id,
-            "run_id": run_id,
-            "timestamp": datetime.now().isoformat(),
-        }
+    from .events import emit_scope_activated
+
+    emit_scope_activated(
+        scope_id=scope.value,
+        glossary_version_id=version_id,
+        mission_id=mission_id,
+        run_id=run_id,
+        repo_root=repo_root,
     )
