@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Event Integration
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP07
 base_commit: 2107124ad5b63c0c73071503b1cac6032e0a7958
@@ -9,6 +9,8 @@ created_at: '2026-02-16T16:27:51.105337+00:00'
 subtasks: [T036, T037, T038, T039]
 shell_pid: "33593"
 agent: "codex"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -17,12 +19,18 @@ history:
 
 # Work Package Prompt: WP08 -- Event Integration
 
-## Review Feedback Status
+## Review Feedback
 
-> **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
-> - If `review_status` is empty or `""`, proceed with implementation as described below.
-> - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
-> - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-02-16
+
+**Issue 1 (blocking)**: Canonical event contracts are not used. Even when `spec-kitty-events` is present, `append_event` is called with plain dicts (e.g., build_* functions and emit_* wrappers) and never instantiates the imported canonical classes. That will fail once the package is installed because `_pkg_append_event` expects Feature 007 event objects, and it also violates the success criterion that canonical contracts be used when available (src/specify_cli/glossary/events.py:35-123, 168-420, 523-758).
+
+**Issue 2 (blocking)**: Only four of the eight required events ever fire. The pipeline emits candidate, semantic-check, generation-blocked, and checkpoint events, but there is no ClarificationMiddleware and no call sites for `emit_clarification_requested`, `emit_clarification_resolved`, `emit_sense_updated`, or `emit_scope_activated` (clarification.py is empty; middleware.py contains no calls). As written, clarification and scope-activation events never reach the log, so success criteria #2 and #5 (full coverage and ordering extraction → check → gate → clarification → checkpoint) are not met.
+
+**Issue 3 (blocking)**: Fallback behavior ignores the requested "stub logging only" mode. When `spec-kitty-events` is missing, `append_event` still writes JSONL to disk (lines 115-123) and all emitters call it unconditionally (e.g., lines 523-758), so there is no graceful degrade to logging-only. This diverges from the work-package guidance and makes the observed behavior different once the real package is unavailable.
+
 
 ## Review Feedback
 
@@ -966,3 +974,4 @@ When reviewing this WP, verify:
 - 2026-02-16T16:27:51Z – coordinator – shell_pid=28509 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T16:42:20Z – coordinator – shell_pid=28509 – lane=for_review – Ready for review: All 8 canonical event types implemented with JSONL persistence, middleware integration, and 66 tests (411 total pass)
 - 2026-02-16T16:42:51Z – codex – shell_pid=33593 – lane=doing – Started review via workflow command
+- 2026-02-16T16:46:36Z – codex – shell_pid=33593 – lane=planned – Moved to planned
