@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Term Extraction Implementation
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: 28a2fdf773a7b7aae3371a4aec50602bdb6dbf23
@@ -228,3 +228,4 @@ pytest --cov=src/specify_cli/glossary/extraction --cov-report=term-missing
 - 2026-02-16T14:32:47Z – codex – shell_pid=66189 – lane=doing – Started review via workflow command
 - 2026-02-16T14:35:41Z – codex – shell_pid=66189 – lane=planned – Moved to planned
 - 2026-02-16T14:36:31Z – coordinator – shell_pid=69040 – lane=doing – Started implementation via workflow command
+- 2026-02-16T14:40:27Z – coordinator – shell_pid=69040 – lane=for_review – Fixed: metadata.glossary_fields now implemented with regression tests (cycle 3/3)
