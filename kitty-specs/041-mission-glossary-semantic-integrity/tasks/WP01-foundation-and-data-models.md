@@ -1,13 +1,17 @@
 ---
-work_package_id: "WP01"
-title: "Foundation & Data Models"
-lane: "planned"
+work_package_id: WP01
+title: Foundation & Data Models
+lane: "doing"
 dependencies: []
-subtasks: ["T001", "T002", "T003", "T004", "T005"]
+base_branch: 2.x
+base_commit: c60760d595370200d1f4c30554b18a380b702a6d
+created_at: '2026-02-16T13:12:59.865818+00:00'
+subtasks: [T001, T002, T003, T004, T005]
+shell_pid: "16885"
 history:
-  - event: "created"
-    timestamp: "2026-02-16T00:00:00Z"
-    actor: "llm:claude-sonnet-4.5"
+- event: created
+  timestamp: '2026-02-16T00:00:00Z'
+  actor: llm:claude-sonnet-4.5
 ---
 
 # Work Package: Foundation & Data Models
