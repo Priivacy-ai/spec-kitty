@@ -422,8 +422,45 @@ class GenerationGateMiddleware:
             # Get step and mission IDs from context
             step_id = getattr(context, "step_id", "unknown")
             mission_id = getattr(context, "mission_id", "unknown")
+            run_id = getattr(context, "run_id", "unknown")
 
-            # Emit event BEFORE raising exception (ensure observability).
+            # WP07: CHECKPOINT BEFORE BLOCKING
+            # Emit checkpoint event first so state is persisted before
+            # the pipeline halts. If checkpoint emission fails, log and
+            # continue -- blocking must never be bypassed.
+            try:
+                from .checkpoint import create_checkpoint, ScopeRef
+                from .events import emit_step_checkpointed
+
+                scope_refs = self._build_scope_refs(context)
+                inputs = getattr(context, "inputs", {})
+
+                checkpoint = create_checkpoint(
+                    mission_id=mission_id,
+                    run_id=run_id,
+                    step_id=step_id,
+                    strictness=effective_strictness,
+                    scope_refs=scope_refs,
+                    inputs=inputs,
+                    cursor="pre_generation_gate",
+                )
+
+                emit_step_checkpointed(
+                    checkpoint,
+                    project_root=self.repo_root,
+                )
+
+                # Store checkpoint in context for downstream access
+                setattr(context, "checkpoint", checkpoint)
+            except Exception as ckpt_err:
+                import logging
+                _logger = logging.getLogger(__name__)
+                _logger.error(
+                    "Failed to emit checkpoint (blocking proceeds): %s",
+                    ckpt_err,
+                )
+
+            # Emit generation-blocked event AFTER checkpoint.
             # Guard: if emission fails, log the error but ALWAYS proceed
             # to raise BlockedByConflict -- blocking must never be bypassed.
             try:
@@ -450,6 +487,39 @@ class GenerationGateMiddleware:
 
         # Generation allowed - return context unchanged
         return context
+
+    def _build_scope_refs(
+        self,
+        context: PrimitiveExecutionContext,
+    ) -> list:
+        """Build scope refs from context's active glossary scopes.
+
+        Args:
+            context: Execution context with optional active_scopes field
+
+        Returns:
+            List of ScopeRef instances for checkpoint
+        """
+        from .checkpoint import ScopeRef
+        from .scope import GlossaryScope
+
+        active_scopes = getattr(context, "active_scopes", None)
+        if not active_scopes:
+            return []
+
+        refs = []
+        for scope_val, version in active_scopes.items():
+            if isinstance(scope_val, GlossaryScope):
+                refs.append(ScopeRef(scope=scope_val, version_id=version))
+            else:
+                # Try to convert string to GlossaryScope
+                try:
+                    refs.append(
+                        ScopeRef(scope=GlossaryScope(scope_val), version_id=version)
+                    )
+                except ValueError:
+                    pass  # Skip unknown scopes
+        return refs
 
     def _format_block_message(
         self,
@@ -480,3 +550,134 @@ class GenerationGateMiddleware:
                 f"Generation blocked: {conflict_count} unresolved "
                 f"semantic conflict(s) detected. Resolve conflicts before proceeding."
             )
+
+
+class ResumeMiddleware:
+    """Checkpoint/resume middleware for cross-session recovery (WP07).
+
+    This middleware orchestrates:
+    1. Loading the latest checkpoint for the current step from the event log
+    2. Verifying the input hash to detect context changes
+    3. Prompting user for confirmation if context has changed
+    4. Restoring execution state from checkpoint (strictness, scopes, cursor)
+
+    Pipeline position: Layer 5 (before re-running generation gate on retry)
+
+    Usage:
+        resume = ResumeMiddleware(project_root=Path("."))
+        context = resume.process(context)
+    """
+
+    def __init__(
+        self,
+        project_root: Path,
+        confirm_fn: Any = None,
+    ) -> None:
+        """Initialize resume middleware.
+
+        Args:
+            project_root: Repository root (for event log access)
+            confirm_fn: Optional confirmation function override for
+                        context-change prompts. Signature:
+                        (old_hash: str, new_hash: str) -> bool.
+        """
+        self.project_root = project_root
+        self.confirm_fn = confirm_fn
+
+    def process(
+        self,
+        context: PrimitiveExecutionContext,
+    ) -> PrimitiveExecutionContext:
+        """Load checkpoint, verify context, restore state, resume execution.
+
+        Args:
+            context: Primitive execution context (may have retry_token set)
+
+        Returns:
+            Restored context if checkpoint found and verified,
+            original context if no checkpoint (fresh execution)
+
+        Raises:
+            AbortResume: If user declines context change confirmation
+        """
+        import logging
+
+        from .checkpoint import (
+            StepCheckpoint,
+            handle_context_change,
+            load_checkpoint,
+        )
+        from .exceptions import AbortResume
+
+        _logger = logging.getLogger(__name__)
+
+        # Check if this is a resume attempt (retry_token present)
+        retry_token = getattr(context, "retry_token", None)
+        if not retry_token:
+            # Fresh execution, no resume needed
+            return context
+
+        step_id = getattr(context, "step_id", "unknown")
+
+        # Load checkpoint from event log
+        checkpoint = load_checkpoint(self.project_root, step_id)
+
+        if checkpoint is None:
+            # No checkpoint found, treat as fresh execution
+            _logger.warning(
+                "Checkpoint not found for step=%s, treating as fresh execution",
+                step_id,
+            )
+            return context
+
+        # Verify input context hasn't changed
+        inputs = getattr(context, "inputs", {})
+        if not handle_context_change(
+            checkpoint, inputs, confirm_fn=self.confirm_fn
+        ):
+            # User declined resumption
+            raise AbortResume("User declined resumption due to context change")
+
+        # Restore context from checkpoint
+        self._restore_context(context, checkpoint)
+
+        # Mark as resumed for downstream middleware
+        setattr(context, "resumed_from_checkpoint", True)
+
+        _logger.info(
+            "Resumed from checkpoint: step=%s cursor=%s",
+            step_id,
+            checkpoint.cursor,
+        )
+
+        return context
+
+    def _restore_context(
+        self,
+        context: PrimitiveExecutionContext,
+        checkpoint: "StepCheckpoint",
+    ) -> None:
+        """Restore execution context from checkpoint state.
+
+        Updates context fields with checkpoint values to recreate the
+        execution state at the time of checkpoint.
+
+        Args:
+            context: Context to restore into
+            checkpoint: Checkpoint with saved state
+        """
+        # Restore strictness
+        setattr(context, "strictness", checkpoint.strictness)
+
+        # Restore scope refs as active_scopes dict
+        setattr(
+            context,
+            "active_scopes",
+            {ref.scope: ref.version_id for ref in checkpoint.scope_refs},
+        )
+
+        # Store checkpoint cursor for pipeline resumption
+        setattr(context, "checkpoint_cursor", checkpoint.cursor)
+
+        # Store retry token for idempotency
+        setattr(context, "retry_token", checkpoint.retry_token)

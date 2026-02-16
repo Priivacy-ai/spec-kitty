@@ -21,6 +21,7 @@ from .middleware import (
     GlossaryCandidateExtractionMiddleware,
     SemanticCheckMiddleware,
     GenerationGateMiddleware,
+    ResumeMiddleware,
 )
 from .strictness import (
     Strictness,
@@ -28,6 +29,18 @@ from .strictness import (
     load_global_strictness,
     should_block,
     categorize_conflicts,
+)
+from .checkpoint import (
+    StepCheckpoint,
+    ScopeRef,
+    compute_input_hash,
+    create_checkpoint,
+    verify_input_hash,
+    handle_context_change,
+    load_checkpoint,
+    parse_checkpoint_event,
+    checkpoint_to_dict,
+    compute_input_diff,
 )
 
 __all__ = [
@@ -49,11 +62,22 @@ __all__ = [
     "GlossaryCandidateExtractionMiddleware",
     "SemanticCheckMiddleware",
     "GenerationGateMiddleware",
+    "ResumeMiddleware",
     "Strictness",
     "resolve_strictness",
     "load_global_strictness",
     "should_block",
     "categorize_conflicts",
+    "StepCheckpoint",
+    "ScopeRef",
+    "compute_input_hash",
+    "create_checkpoint",
+    "verify_input_hash",
+    "handle_context_change",
+    "load_checkpoint",
+    "parse_checkpoint_event",
+    "checkpoint_to_dict",
+    "compute_input_diff",
 ]
 
 __version__ = "0.1.0"
