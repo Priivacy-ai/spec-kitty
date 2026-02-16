@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Middleware Pipeline Integration
-lane: "doing"
+lane: "planned"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP08
 base_commit: ff769aa6a680f4ad197e1d71736da9f8a69eced5
@@ -9,6 +9,8 @@ created_at: '2026-02-16T17:25:17.996693+00:00'
 subtasks: [T040, T041, T042, T043]
 shell_pid: "52237"
 agent: "codex"
+review_status: "has_feedback"
+reviewed_by: "Robert Douglass"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -17,12 +19,20 @@ history:
 
 # Work Package Prompt: WP09 -- Middleware Pipeline Integration
 
-## Review Feedback Status
+## Review Feedback
 
-> **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
-> - If `review_status` is empty or `""`, proceed with implementation as described below.
-> - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
-> - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
+**Reviewed by**: Robert Douglass
+**Status**: ❌ Changes Requested
+**Date**: 2026-02-16
+
+**Issue 1 (blocking)**: Glossary pipeline is never attached to mission primitives or CLI flows. `attach_glossary_pipeline` is only defined and tested in isolation but not invoked anywhere in the mission executor/commands, so `glossary_check` metadata is ignored during real primitive execution and the pipeline never runs. Wire the attachment into the mission primitive execution hook (and expose the `--strictness` flag) so glossary checks actually execute.
+
+**Issue 2 (blocking)**: `PrimitiveExecutionContext.is_glossary_enabled` mishandles boolean metadata. YAML values such as `glossary_check: false` or `glossary_check: true` are treated as enabled because the method only checks the string "disabled" (primitives.py:104-112). This contradicts FR-020 and the helper `read_glossary_check_metadata`, so steps that explicitly disable glossary checks will still run the pipeline and may block. Treat boolean False (and case-insensitive "disabled") as disabled and add tests.
+
+**Issue 3 (major)**: Interactive clarification is effectively disabled. `create_standard_pipeline` unconditionally passes `prompt_fn=None` regardless of `interaction_mode`, so `ClarificationMiddleware` always defers conflicts and never prompts/resolves them (pipeline.py:131-195). The end-to-end flow (block → clarification → resolution → resume) in the success criteria cannot occur. Respect `interaction_mode` by wiring an interactive prompt function for interactive mode and add a test that a conflict can be resolved and removed.
+
+**Issue 4 (medium)**: Pipeline mutates a shared context object despite the spec constraint that the context be immutable between middleware stages. `PrimitiveExecutionContext` is documented as mutable (primitives.py:16-29) and middleware modifies lists in place, increasing coupling and making checkpoints harder to reason about. Consider returning a new context per stage or documenting the deviation with tests guarding against unintended mutations.
+
 
 ## Review Feedback
 
@@ -826,3 +836,4 @@ When reviewing this WP, verify:
 - 2026-02-16T17:25:18Z – coordinator – shell_pid=49095 – lane=doing – Assigned agent via workflow command
 - 2026-02-16T17:33:10Z – coordinator – shell_pid=49095 – lane=for_review – Ready for review: Pipeline orchestrator (5-layer), PrimitiveExecutionContext extensions, metadata-driven attachment, 95 tests at 97% coverage
 - 2026-02-16T17:33:51Z – codex – shell_pid=52237 – lane=doing – Started review via workflow command
+- 2026-02-16T17:37:46Z – codex – shell_pid=52237 – lane=planned – Moved to planned
