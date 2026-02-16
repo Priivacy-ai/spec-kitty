@@ -695,3 +695,148 @@ class ResumeMiddleware:
 
         # Store retry token for idempotency
         setattr(context, "retry_token", checkpoint.retry_token)
+
+
+class ClarificationMiddleware:
+    """Interactive conflict resolution middleware (WP06/T028).
+
+    Pipeline position: Layer 4 (after generation gate raises BlockedByConflict).
+    Uses Rich console for rendering and interactive prompts.
+    """
+
+    def __init__(
+        self,
+        console: Console | None = None,
+        max_questions: int = 3,
+    ) -> None:
+        self.console = console or Console()
+        self.max_questions = max_questions
+
+    def process(
+        self,
+        context: PrimitiveExecutionContext,
+    ) -> PrimitiveExecutionContext:
+        """Process conflicts and prompt user for resolution."""
+        from .prompts import PromptChoice, prompt_conflict_resolution_safe
+        from .rendering import render_conflict_batch, sort_candidates
+
+        conflicts = getattr(context, "conflicts", [])
+        if not conflicts:
+            return context
+
+        to_prompt = render_conflict_batch(
+            self.console, conflicts, max_questions=self.max_questions,
+        )
+
+        auto_deferred = [c for c in conflicts if c not in to_prompt]
+        for conflict in auto_deferred:
+            self._emit_deferred(context, conflict)
+
+        user_deferred: list = []
+        resolved_count = 0
+
+        for conflict in to_prompt:
+            ranked_candidates = sort_candidates(conflict.candidate_senses)
+            choice, value = prompt_conflict_resolution_safe(conflict)
+
+            if choice == PromptChoice.SELECT_CANDIDATE:
+                selected_sense = ranked_candidates[value]
+                self._handle_candidate_selection(context, conflict, selected_sense)
+                resolved_count += 1
+            elif choice == PromptChoice.CUSTOM_SENSE:
+                self._handle_custom_sense(context, conflict, value)
+                resolved_count += 1
+            elif choice == PromptChoice.DEFER:
+                self._emit_deferred(context, conflict)
+                user_deferred.append(conflict)
+
+        all_deferred = auto_deferred + user_deferred
+        context.conflicts = all_deferred
+        context.resolved_conflicts_count = resolved_count
+        context.deferred_conflicts_count = len(all_deferred)
+        return context
+
+    def _handle_candidate_selection(self, context, conflict, selected_sense):
+        from .events import emit_clarification_resolved
+        from .models import Provenance, SenseStatus, TermSense
+
+        conflict_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        actor_id = getattr(context, "actor_id", "user:unknown")
+
+        resolved_sense = TermSense(
+            surface=conflict.term, scope=selected_sense.scope,
+            definition=selected_sense.definition,
+            provenance=Provenance(actor_id=actor_id, timestamp=now, source="candidate_selection"),
+            confidence=selected_sense.confidence, status=SenseStatus.ACTIVE,
+        )
+        try:
+            emit_clarification_resolved(
+                conflict_id=conflict_id, term_surface=conflict.term.surface_text,
+                selected_sense=resolved_sense, actor_id=actor_id,
+                timestamp=now, resolution_mode="interactive",
+            )
+        except Exception as err:
+            _logger.error("Failed to emit clarification resolved event: %s", err)
+
+        self._update_glossary(context, resolved_sense)
+        self.console.print(
+            f"[green]Resolved:[/green] {conflict.term.surface_text} = "
+            f"{selected_sense.definition}"
+        )
+
+    def _handle_custom_sense(self, context, conflict, custom_definition):
+        from .events import emit_sense_updated
+        from .models import Provenance, SenseStatus, TermSense
+        from .scope import GlossaryScope
+
+        now = datetime.now(timezone.utc)
+        actor_id = getattr(context, "actor_id", "user:unknown")
+
+        new_sense = TermSense(
+            surface=conflict.term, scope=GlossaryScope.TEAM_DOMAIN.value,
+            definition=custom_definition,
+            provenance=Provenance(actor_id=actor_id, timestamp=now, source="user_clarification"),
+            confidence=1.0, status=SenseStatus.ACTIVE,
+        )
+        try:
+            emit_sense_updated(
+                term_surface=conflict.term.surface_text,
+                scope=GlossaryScope.TEAM_DOMAIN.value, new_sense=new_sense,
+                actor_id=actor_id, timestamp=now, update_type="create",
+            )
+        except Exception as err:
+            _logger.error("Failed to emit sense updated event: %s", err)
+
+        self._update_glossary(context, new_sense)
+        self.console.print(
+            f"[green]Added custom sense:[/green] "
+            f"{conflict.term.surface_text} = {custom_definition}"
+        )
+
+    def _emit_deferred(self, context, conflict):
+        from .events import emit_clarification_requested
+        from .rendering import sort_candidates
+
+        conflict_id = str(uuid.uuid4())
+        ranked_candidates = sort_candidates(conflict.candidate_senses)
+        options = [sense.definition for sense in ranked_candidates]
+
+        try:
+            emit_clarification_requested(
+                conflict_id=conflict_id,
+                question=f"What does '{conflict.term.surface_text}' mean in this context?",
+                term=conflict.term.surface_text, options=options,
+                urgency=conflict.severity.value,
+                step_id=getattr(context, "step_id", "unknown"),
+                mission_id=getattr(context, "mission_id", "unknown"),
+                run_id=getattr(context, "run_id", "unknown"),
+                timestamp=datetime.now(timezone.utc),
+            )
+        except Exception as err:
+            _logger.error("Failed to emit clarification requested event: %s", err)
+
+    def _update_glossary(self, context, sense):
+        if not hasattr(context, "resolved_senses"):
+            context.resolved_senses = []
+        context.resolved_senses.append(sense)
