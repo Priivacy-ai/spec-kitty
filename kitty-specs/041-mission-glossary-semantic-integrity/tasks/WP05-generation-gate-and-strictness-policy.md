@@ -8,6 +8,7 @@ base_commit: 50ac9da5882b14d5dbf0c212e6a6708039ab0a56
 created_at: '2026-02-16T15:38:23.226688+00:00'
 subtasks: [T021, T022, T023, T024]
 shell_pid: "3144"
+agent: "coordinator"
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
@@ -694,3 +695,4 @@ When reviewing this WP, verify:
 ## Activity Log
 
 - 2026-02-16T00:00:00Z -- llm:claude-sonnet-4.5 -- lane=planned -- WP created with comprehensive guidance
+- 2026-02-16T15:38:23Z – coordinator – shell_pid=3144 – lane=doing – Assigned agent via workflow command
