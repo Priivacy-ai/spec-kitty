@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from specify_cli.glossary.scope import (
     GlossaryScope,
     SCOPE_RESOLUTION_ORDER,
@@ -69,18 +69,23 @@ def test_load_seed_file_missing(tmp_path):
     assert senses == []
 
 def test_activate_scope():
-    """Emits GlossaryScopeActivated event."""
-    mock_emitter = MagicMock()
+    """Emits GlossaryScopeActivated event via emit_scope_activated."""
+    # Patch at events module level (scope.py uses local import inside activate_scope)
+    with patch("specify_cli.glossary.events.emit_scope_activated") as mock_emit:
+        mock_emit.return_value = {"event_type": "GlossaryScopeActivated"}
 
-    activate_scope(
-        GlossaryScope.TEAM_DOMAIN,
-        version_id="v3",
-        mission_id="041-mission",
-        run_id="run-001",
-        event_emitter=mock_emitter,
-    )
+        activate_scope(
+            GlossaryScope.TEAM_DOMAIN,
+            version_id="v3",
+            mission_id="041-mission",
+            run_id="run-001",
+            repo_root=None,
+        )
 
-    mock_emitter.emit.assert_called_once()
-    call_args = mock_emitter.emit.call_args
-    assert call_args[1]["event_type"] == "GlossaryScopeActivated"
-    assert call_args[1]["payload"]["scope_id"] == "team_domain"
+        mock_emit.assert_called_once_with(
+            scope_id="team_domain",
+            glossary_version_id="v3",
+            mission_id="041-mission",
+            run_id="run-001",
+            repo_root=None,
+        )

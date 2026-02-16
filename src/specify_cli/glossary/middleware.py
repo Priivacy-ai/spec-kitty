@@ -1,25 +1,20 @@
-"""Glossary extraction middleware (WP03) and clarification middleware (WP06).
+"""Glossary extraction middleware (WP03, updated WP08).
 
 This module implements middleware that extracts glossary term candidates from
-primitive execution context (step inputs/outputs), detects semantic conflicts,
-and provides interactive clarification for conflict resolution.
+primitive execution context (step inputs/outputs) and emits events.
+
+WP08 replaces all event emission stubs with real implementations that
+persist events to JSONL files via the events module.
 """
 
-import logging
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
-
-from rich.console import Console
 
 from .extraction import ExtractedTerm, extract_all_terms
 
 if TYPE_CHECKING:
     from . import models, scope, store
-
-_logger = logging.getLogger(__name__)
 
 
 class PrimitiveExecutionContext(Protocol):
@@ -64,20 +59,27 @@ class GlossaryCandidateExtractionMiddleware:
     2. Extracts terms from heuristics (quoted phrases, acronyms, casing patterns, repeated nouns)
     3. Normalizes all terms
     4. Scores confidence
-    5. Emits TermCandidateObserved events (WP08)
+    5. Emits TermCandidateObserved events to JSONL event log
     6. Adds extracted terms to context.extracted_terms
 
     Performance target: <100ms for typical step input (100-500 words).
     """
 
-    def __init__(self, glossary_fields: List[str] | None = None) -> None:
+    def __init__(
+        self,
+        glossary_fields: List[str] | None = None,
+        repo_root: Path | None = None,
+    ) -> None:
         """Initialize middleware.
 
         Args:
             glossary_fields: List of field names to scan for terms.
                 If None, scans all fields. Default: ["description", "prompt", "output"]
+            repo_root: Repository root for event log persistence. If None,
+                events are logged but not persisted to disk.
         """
         self.glossary_fields = glossary_fields or ["description", "prompt", "output"]
+        self.repo_root = repo_root
 
     def process(self, context: PrimitiveExecutionContext) -> PrimitiveExecutionContext:
         """Process context and extract term candidates.
@@ -143,33 +145,27 @@ class GlossaryCandidateExtractionMiddleware:
         term: ExtractedTerm,
         context: PrimitiveExecutionContext,
     ) -> None:
-        """Emit TermCandidateObserved event (stub until WP08).
+        """Emit TermCandidateObserved event to event log.
 
         Args:
             term: Extracted term to emit event for
             context: Execution context providing metadata
-
-        Note:
-            This is a stub implementation. The actual event emission infrastructure
-            will be implemented in WP08 (orchestrator integration). When WP08 is
-            complete, this method will be replaced with:
-
-            from .events import emit_term_candidate_observed
-            emit_term_candidate_observed(term, context)
-
-            For now, this serves as:
-            1. Documentation of the event emission contract
-            2. Placeholder for testing middleware behavior
-            3. Interface definition for WP08 integration
         """
-        # Stub: Event emission deferred to WP08
-        # When implemented, this will emit an event with:
-        # - event_type: "TermCandidateObserved"
-        # - term.surface: normalized term surface
-        # - term.confidence: extraction confidence score
-        # - term.source: extraction source (metadata_hint, quoted_phrase, etc.)
-        # - context.metadata: step metadata for correlation
-        pass
+        from .events import emit_term_candidate_observed
+
+        try:
+            emit_term_candidate_observed(
+                term=term,
+                context=context,
+                repo_root=self.repo_root,
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error(
+                "Failed to emit TermCandidateObserved for %s: %s",
+                term.surface,
+                exc,
+            )
 
     def scan_fields(self, data: Dict[str, Any]) -> str:
         """Scan configured fields in a data dictionary.
@@ -198,7 +194,7 @@ class SemanticCheckMiddleware:
     1. Resolves extracted terms against scope hierarchy
     2. Classifies conflicts (UNKNOWN, AMBIGUOUS, INCONSISTENT, UNRESOLVED_CRITICAL)
     3. Scores severity based on step criticality + confidence
-    4. Emits SemanticCheckEvaluated events (WP08)
+    4. Emits SemanticCheckEvaluated events to JSONL event log
     5. Adds conflicts to context.conflicts
 
     Usage:
@@ -210,6 +206,7 @@ class SemanticCheckMiddleware:
         self,
         glossary_store: "store.GlossaryStore",
         scope_order: List["scope.GlossaryScope"] | None = None,
+        repo_root: Path | None = None,
     ) -> None:
         """Initialize middleware.
 
@@ -217,11 +214,14 @@ class SemanticCheckMiddleware:
             glossary_store: GlossaryStore to query for term resolution
             scope_order: List of GlossaryScope in precedence order.
                 If None, uses default SCOPE_RESOLUTION_ORDER.
+            repo_root: Repository root for event log persistence. If None,
+                events are logged but not persisted to disk.
         """
         from . import scope, store
 
         self.glossary_store: store.GlossaryStore = glossary_store
         self.scope_order = scope_order or scope.SCOPE_RESOLUTION_ORDER
+        self.repo_root = repo_root
 
     def process(self, context: PrimitiveExecutionContext) -> PrimitiveExecutionContext:
         """Process context and detect semantic conflicts.
@@ -311,33 +311,25 @@ class SemanticCheckMiddleware:
         context: PrimitiveExecutionContext,
         conflicts: List["models.SemanticConflict"],
     ) -> None:
-        """Emit SemanticCheckEvaluated event (stub until WP08).
+        """Emit SemanticCheckEvaluated event to event log.
 
         Args:
             context: Execution context
             conflicts: List of detected conflicts
-
-        Note:
-            This is a stub implementation. The actual event emission infrastructure
-            will be implemented in WP08 (orchestrator integration). When WP08 is
-            complete, this method will be replaced with:
-
-            from .events import emit_semantic_check_evaluated
-            emit_semantic_check_evaluated(context, conflicts)
-
-            For now, this serves as:
-            1. Documentation of the event emission contract
-            2. Placeholder for testing middleware behavior
-            3. Interface definition for WP08 integration
         """
-        # Stub: Event emission deferred to WP08
-        # When implemented, this will emit an event with:
-        # - event_type: "SemanticCheckEvaluated"
-        # - conflicts: List of SemanticConflict serialized to dict
-        # - overall_severity: max(conflict.severity for conflict in conflicts)
-        # - recommended_action: "block" | "warn" | "allow"
-        # - context.metadata: step metadata for correlation
-        pass
+        from .events import emit_semantic_check_evaluated
+
+        try:
+            emit_semantic_check_evaluated(
+                context=context,
+                conflicts=conflicts,
+                repo_root=self.repo_root,
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error(
+                "Failed to emit SemanticCheckEvaluated: %s", exc
+            )
 
 
 class GenerationGateMiddleware:
@@ -431,8 +423,45 @@ class GenerationGateMiddleware:
             # Get step and mission IDs from context
             step_id = getattr(context, "step_id", "unknown")
             mission_id = getattr(context, "mission_id", "unknown")
+            run_id = getattr(context, "run_id", "unknown")
 
-            # Emit event BEFORE raising exception (ensure observability).
+            # WP07: CHECKPOINT BEFORE BLOCKING
+            # Emit checkpoint event first so state is persisted before
+            # the pipeline halts. If checkpoint emission fails, log and
+            # continue -- blocking must never be bypassed.
+            try:
+                from .checkpoint import create_checkpoint, ScopeRef
+                from .events import emit_step_checkpointed
+
+                scope_refs = self._build_scope_refs(context)
+                inputs = getattr(context, "inputs", {})
+
+                checkpoint = create_checkpoint(
+                    mission_id=mission_id,
+                    run_id=run_id,
+                    step_id=step_id,
+                    strictness=effective_strictness,
+                    scope_refs=scope_refs,
+                    inputs=inputs,
+                    cursor="pre_generation_gate",
+                )
+
+                emit_step_checkpointed(
+                    checkpoint,
+                    project_root=self.repo_root,
+                )
+
+                # Store checkpoint in context for downstream access
+                setattr(context, "checkpoint", checkpoint)
+            except Exception as ckpt_err:
+                import logging
+                _logger = logging.getLogger(__name__)
+                _logger.error(
+                    "Failed to emit checkpoint (blocking proceeds): %s",
+                    ckpt_err,
+                )
+
+            # Emit generation-blocked event AFTER checkpoint.
             # Guard: if emission fails, log the error but ALWAYS proceed
             # to raise BlockedByConflict -- blocking must never be bypassed.
             try:
@@ -441,6 +470,8 @@ class GenerationGateMiddleware:
                     mission_id=mission_id,
                     conflicts=conflicts,
                     strictness_mode=effective_strictness,
+                    run_id=run_id,
+                    repo_root=self.repo_root,
                 )
             except Exception as emit_err:
                 import logging
@@ -459,6 +490,39 @@ class GenerationGateMiddleware:
 
         # Generation allowed - return context unchanged
         return context
+
+    def _build_scope_refs(
+        self,
+        context: PrimitiveExecutionContext,
+    ) -> list:
+        """Build scope refs from context's active glossary scopes.
+
+        Args:
+            context: Execution context with optional active_scopes field
+
+        Returns:
+            List of ScopeRef instances for checkpoint
+        """
+        from .checkpoint import ScopeRef
+        from .scope import GlossaryScope
+
+        active_scopes = getattr(context, "active_scopes", None)
+        if not active_scopes:
+            return []
+
+        refs = []
+        for scope_val, version in active_scopes.items():
+            if isinstance(scope_val, GlossaryScope):
+                refs.append(ScopeRef(scope=scope_val, version_id=version))
+            else:
+                # Try to convert string to GlossaryScope
+                try:
+                    refs.append(
+                        ScopeRef(scope=GlossaryScope(scope_val), version_id=version)
+                    )
+                except ValueError:
+                    pass  # Skip unknown scopes
+        return refs
 
     def _format_block_message(
         self,
@@ -491,278 +555,132 @@ class GenerationGateMiddleware:
             )
 
 
-class ClarificationMiddleware:
-    """Interactive conflict resolution middleware (WP06/T028).
+class ResumeMiddleware:
+    """Checkpoint/resume middleware for cross-session recovery (WP07).
 
-    This middleware orchestrates conflict rendering, user prompting,
-    glossary updates, and event emission for the full clarification workflow.
+    This middleware orchestrates:
+    1. Loading the latest checkpoint for the current step from the event log
+    2. Verifying the input hash to detect context changes
+    3. Prompting user for confirmation if context has changed
+    4. Restoring execution state from checkpoint (strictness, scopes, cursor)
 
-    Pipeline position: Layer 4 (after generation gate raises BlockedByConflict)
+    Pipeline position: Layer 5 (before re-running generation gate on retry)
 
     Usage:
-        middleware = ClarificationMiddleware(console=Console(), max_questions=3)
-        context = middleware.process(context)
+        resume = ResumeMiddleware(project_root=Path("."))
+        context = resume.process(context)
     """
 
     def __init__(
         self,
-        console: Console | None = None,
-        max_questions: int = 3,
+        project_root: Path,
+        confirm_fn: Any = None,
     ) -> None:
-        """Initialize clarification middleware.
+        """Initialize resume middleware.
 
         Args:
-            console: Rich console instance (creates default if None)
-            max_questions: Max conflicts to prompt per burst (default 3)
+            project_root: Repository root (for event log access)
+            confirm_fn: Optional confirmation function override for
+                        context-change prompts. Signature:
+                        (old_hash: str, new_hash: str) -> bool.
         """
-        self.console = console or Console()
-        self.max_questions = max_questions
+        self.project_root = project_root
+        self.confirm_fn = confirm_fn
 
     def process(
         self,
         context: PrimitiveExecutionContext,
     ) -> PrimitiveExecutionContext:
-        """Process conflicts and prompt user for resolution.
-
-        Pipeline position: Layer 4 (after generation gate raises BlockedByConflict)
-
-        This middleware is called when generation is blocked. It:
-        1. Renders conflicts with Rich formatting
-        2. Prompts user for each conflict (select/custom/defer)
-        3. Emits events for each resolution
-        4. Updates glossary state in context
-        5. Returns updated context for resume
+        """Load checkpoint, verify context, restore state, resume execution.
 
         Args:
-            context: Primitive execution context with conflicts
+            context: Primitive execution context (may have retry_token set)
 
         Returns:
-            Updated context with resolved conflicts (if interactive)
-            or deferred conflicts (if non-interactive)
-        """
-        from .rendering import render_conflict_batch
-        from .prompts import prompt_conflict_resolution_safe, PromptChoice
+            Restored context if checkpoint found and verified,
+            original context if no checkpoint (fresh execution)
 
-        conflicts = getattr(context, "conflicts", [])
-        if not conflicts:
+        Raises:
+            AbortResume: If user declines context change confirmation
+        """
+        import logging
+
+        from .checkpoint import (
+            StepCheckpoint,
+            handle_context_change,
+            load_checkpoint,
+        )
+        from .exceptions import AbortResume
+
+        _logger = logging.getLogger(__name__)
+
+        # Check if this is a resume attempt (retry_token present)
+        retry_token = getattr(context, "retry_token", None)
+        if not retry_token:
+            # Fresh execution, no resume needed
             return context
 
-        # Render conflicts (capped at max_questions)
-        to_prompt = render_conflict_batch(
-            self.console,
-            conflicts,
-            max_questions=self.max_questions,
+        step_id = getattr(context, "step_id", "unknown")
+
+        # Load checkpoint from event log
+        checkpoint = load_checkpoint(self.project_root, step_id)
+
+        if checkpoint is None:
+            # No checkpoint found, treat as fresh execution
+            _logger.warning(
+                "Checkpoint not found for step=%s, treating as fresh execution",
+                step_id,
+            )
+            return context
+
+        # Verify input context hasn't changed
+        inputs = getattr(context, "inputs", {})
+        if not handle_context_change(
+            checkpoint, inputs, confirm_fn=self.confirm_fn
+        ):
+            # User declined resumption
+            raise AbortResume("User declined resumption due to context change")
+
+        # Restore context from checkpoint
+        self._restore_context(context, checkpoint)
+
+        # Mark as resumed for downstream middleware
+        setattr(context, "resumed_from_checkpoint", True)
+
+        _logger.info(
+            "Resumed from checkpoint: step=%s cursor=%s",
+            step_id,
+            checkpoint.cursor,
         )
-
-        # Conflicts beyond max_questions are auto-deferred
-        auto_deferred = [c for c in conflicts if c not in to_prompt]
-        for conflict in auto_deferred:
-            self._emit_deferred(context, conflict)
-
-        # Track which prompted conflicts get deferred by the user
-        user_deferred: list = []
-
-        # Process each prompted conflict interactively
-        resolved_count = 0
-        for conflict in to_prompt:
-            # Sort candidates by scope precedence then descending confidence
-            # so the prompt numbering matches the rendered table order
-            from .rendering import sort_candidates
-            ranked_candidates = sort_candidates(conflict.candidate_senses)
-
-            choice, value = prompt_conflict_resolution_safe(conflict)
-
-            if choice == PromptChoice.SELECT_CANDIDATE:
-                candidate_idx = value
-                selected_sense = ranked_candidates[candidate_idx]
-                self._handle_candidate_selection(
-                    context, conflict, selected_sense
-                )
-                resolved_count += 1
-
-            elif choice == PromptChoice.CUSTOM_SENSE:
-                custom_definition = value
-                self._handle_custom_sense(
-                    context, conflict, custom_definition
-                )
-                resolved_count += 1
-
-            elif choice == PromptChoice.DEFER:
-                self._emit_deferred(context, conflict)
-                user_deferred.append(conflict)
-
-        # Build the list of all deferred conflicts (auto-deferred + user-deferred)
-        all_deferred = auto_deferred + user_deferred
-
-        # Update context: only deferred conflicts remain
-        context.conflicts = all_deferred
-        context.resolved_conflicts_count = resolved_count
-        context.deferred_conflicts_count = len(all_deferred)
 
         return context
 
-    def _handle_candidate_selection(
+    def _restore_context(
         self,
         context: PrimitiveExecutionContext,
-        conflict: "models.SemanticConflict",
-        selected_sense: "models.SenseRef",
+        checkpoint: "StepCheckpoint",
     ) -> None:
-        """Handle user selection of a candidate sense.
+        """Restore execution context from checkpoint state.
+
+        Updates context fields with checkpoint values to recreate the
+        execution state at the time of checkpoint.
 
         Args:
-            context: Execution context
-            conflict: The conflict being resolved
-            selected_sense: The SenseRef selected by the user
+            context: Context to restore into
+            checkpoint: Checkpoint with saved state
         """
-        from .events import emit_clarification_resolved
-        from .models import Provenance, SenseStatus, TermSense
+        # Restore strictness
+        setattr(context, "strictness", checkpoint.strictness)
 
-        conflict_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
-        actor_id = getattr(context, "actor_id", "user:unknown")
-
-        # Create a TermSense from the selected SenseRef for event emission
-        resolved_sense = TermSense(
-            surface=conflict.term,
-            scope=selected_sense.scope,
-            definition=selected_sense.definition,
-            provenance=Provenance(
-                actor_id=actor_id,
-                timestamp=now,
-                source="candidate_selection",
-            ),
-            confidence=selected_sense.confidence,
-            status=SenseStatus.ACTIVE,
+        # Restore scope refs as active_scopes dict
+        setattr(
+            context,
+            "active_scopes",
+            {ref.scope: ref.version_id for ref in checkpoint.scope_refs},
         )
 
-        # Emit resolution event
-        try:
-            emit_clarification_resolved(
-                conflict_id=conflict_id,
-                term_surface=conflict.term.surface_text,
-                selected_sense=resolved_sense,
-                actor_id=actor_id,
-                timestamp=now,
-                resolution_mode="interactive",
-            )
-        except Exception as err:
-            _logger.error("Failed to emit clarification resolved event: %s", err)
+        # Store checkpoint cursor for pipeline resumption
+        setattr(context, "checkpoint_cursor", checkpoint.cursor)
 
-        # Update glossary in context
-        self._update_glossary(context, resolved_sense)
-
-        self.console.print(
-            f"[green]Resolved:[/green] {conflict.term.surface_text} = "
-            f"{selected_sense.definition}"
-        )
-
-    def _handle_custom_sense(
-        self,
-        context: PrimitiveExecutionContext,
-        conflict: "models.SemanticConflict",
-        custom_definition: str,
-    ) -> None:
-        """Handle user-provided custom sense definition.
-
-        Args:
-            context: Execution context
-            conflict: The conflict being resolved
-            custom_definition: User-provided definition text
-        """
-        from .events import emit_sense_updated
-        from .models import Provenance, SenseStatus, TermSense
-        from .scope import GlossaryScope
-
-        now = datetime.now(timezone.utc)
-        actor_id = getattr(context, "actor_id", "user:unknown")
-
-        # Create new sense with user definition
-        new_sense = TermSense(
-            surface=conflict.term,
-            scope=GlossaryScope.TEAM_DOMAIN.value,
-            definition=custom_definition,
-            provenance=Provenance(
-                actor_id=actor_id,
-                timestamp=now,
-                source="user_clarification",
-            ),
-            confidence=1.0,  # User-provided = high confidence
-            status=SenseStatus.ACTIVE,
-        )
-
-        # Emit sense updated event
-        try:
-            emit_sense_updated(
-                term_surface=conflict.term.surface_text,
-                scope=GlossaryScope.TEAM_DOMAIN.value,
-                new_sense=new_sense,
-                actor_id=actor_id,
-                timestamp=now,
-                update_type="create",
-            )
-        except Exception as err:
-            _logger.error("Failed to emit sense updated event: %s", err)
-
-        # Update glossary in context
-        self._update_glossary(context, new_sense)
-
-        self.console.print(
-            f"[green]Added custom sense:[/green] "
-            f"{conflict.term.surface_text} = {custom_definition}"
-        )
-
-    def _emit_deferred(
-        self,
-        context: PrimitiveExecutionContext,
-        conflict: "models.SemanticConflict",
-    ) -> None:
-        """Emit clarification requested event for deferred conflict.
-
-        Args:
-            context: Execution context
-            conflict: The conflict being deferred
-        """
-        from .events import emit_clarification_requested
-        from .rendering import sort_candidates
-
-        conflict_id = str(uuid.uuid4())
-
-        # Build ranked options list (sorted by scope precedence, descending confidence)
-        ranked_candidates = sort_candidates(conflict.candidate_senses)
-        options = [sense.definition for sense in ranked_candidates]
-
-        try:
-            emit_clarification_requested(
-                conflict_id=conflict_id,
-                question=(
-                    f"What does '{conflict.term.surface_text}' "
-                    f"mean in this context?"
-                ),
-                term=conflict.term.surface_text,
-                options=options,
-                urgency=conflict.severity.value,
-                step_id=getattr(context, "step_id", "unknown"),
-                mission_id=getattr(context, "mission_id", "unknown"),
-                run_id=getattr(context, "run_id", "unknown"),
-                timestamp=datetime.now(timezone.utc),
-            )
-        except Exception as err:
-            _logger.error(
-                "Failed to emit clarification requested event: %s", err
-            )
-
-    def _update_glossary(
-        self,
-        context: PrimitiveExecutionContext,
-        sense: "models.TermSense",
-    ) -> None:
-        """Update glossary state in context with new/updated sense.
-
-        Args:
-            context: Execution context
-            sense: The resolved TermSense to add
-        """
-        if not hasattr(context, "resolved_senses"):
-            context.resolved_senses = []
-
-        context.resolved_senses.append(sense)
+        # Store retry token for idempotency
+        setattr(context, "retry_token", checkpoint.retry_token)
