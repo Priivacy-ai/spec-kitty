@@ -33,7 +33,7 @@ from specify_cli.glossary.models import (
     TermSense,
     TermSurface,
 )
-from specify_cli.glossary.scope import GlossaryScope, load_seed_file
+from specify_cli.glossary.scope import GlossaryScope, _parse_sense_status, load_seed_file
 from specify_cli.glossary.store import GlossaryStore
 from specify_cli.glossary.strictness import Strictness
 
@@ -102,7 +102,7 @@ def _load_store_from_seeds(repo_root: Path) -> GlossaryStore:
                                 source="event_log",
                             ),
                             confidence=new_sense_data.get("confidence", 1.0),
-                            status=SenseStatus.ACTIVE if new_sense_data.get("status") == "active" else SenseStatus.DRAFT,
+                            status=_parse_sense_status(new_sense_data.get("status")),
                         )
                         store.add_sense(sense)
                     except (ValueError, KeyError) as exc:
