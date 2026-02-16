@@ -1549,3 +1549,156 @@ class TestRegressionSenseUpdatedOnCustomResolve:
         # Only GlossaryClarificationResolved should be added, not SenseUpdated
         sense_events = [e for e in new_events if e["event_type"] == "GlossarySenseUpdated"]
         assert len(sense_events) == 0
+
+
+# =============================================================================
+# Regression tests for deprecated status mapping (cycle 3/3)
+# =============================================================================
+
+
+class TestRegressionDeprecatedStatus:
+    """Regression tests for deprecated status coercion bug.
+
+    The old code mapped any status other than "active" to SenseStatus.DRAFT,
+    which silently dropped the "deprecated" state.  Terms marked
+    status: deprecated in seed files or GlossarySenseUpdated events were
+    rendered as "draft", and --status deprecated always returned empty.
+    """
+
+    def test_deprecated_seed_term_surfaces_with_status_filter(
+        self, tmp_path, monkeypatch
+    ):
+        """Verify glossary list --status deprecated shows deprecated seed terms."""
+        monkeypatch.chdir(tmp_path)
+
+        glossaries_dir = tmp_path / ".kittify" / "glossaries"
+        glossaries_dir.mkdir(parents=True)
+
+        seed = glossaries_dir / "team_domain.yaml"
+        seed.write_text(
+            "terms:\n"
+            "  - surface: workspace\n"
+            "    definition: Git worktree directory\n"
+            "    confidence: 0.9\n"
+            "    status: active\n"
+            "  - surface: legacy-api\n"
+            "    definition: Old REST API (superseded by v2)\n"
+            "    confidence: 1.0\n"
+            "    status: deprecated\n"
+        )
+
+        # --status deprecated must return the deprecated term
+        result = runner.invoke(glossary_app, ["list", "--status", "deprecated"])
+        assert result.exit_code == 0
+        assert "legacy-api" in result.stdout
+        assert "Total: 1 term(s)" in result.stdout
+
+    def test_deprecated_seed_term_shown_with_correct_status_in_json(
+        self, tmp_path, monkeypatch
+    ):
+        """Verify JSON output contains status: deprecated, not draft."""
+        monkeypatch.chdir(tmp_path)
+
+        glossaries_dir = tmp_path / ".kittify" / "glossaries"
+        glossaries_dir.mkdir(parents=True)
+
+        seed = glossaries_dir / "team_domain.yaml"
+        seed.write_text(
+            "terms:\n"
+            "  - surface: old-tool\n"
+            "    definition: Superseded by new-tool\n"
+            "    confidence: 0.8\n"
+            "    status: deprecated\n"
+        )
+
+        result = runner.invoke(glossary_app, ["list", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert len(data) == 1
+        assert data[0]["surface"] == "old-tool"
+        assert data[0]["status"] == "deprecated"
+
+    def test_deprecated_event_log_term_surfaces(self, tmp_path, monkeypatch):
+        """Verify deprecated status from GlossarySenseUpdated events is preserved."""
+        monkeypatch.chdir(tmp_path)
+
+        glossaries_dir = tmp_path / ".kittify" / "glossaries"
+        glossaries_dir.mkdir(parents=True)
+
+        events_dir = tmp_path / ".kittify" / "events" / "glossary"
+        events_dir.mkdir(parents=True)
+
+        event = {
+            "event_type": "GlossarySenseUpdated",
+            "term_surface": "retired-term",
+            "scope": "team_domain",
+            "new_sense": {
+                "surface": "retired-term",
+                "scope": "team_domain",
+                "definition": "No longer in use",
+                "confidence": 1.0,
+                "status": "deprecated",
+            },
+            "actor": {"actor_id": "user:admin"},
+            "update_type": "deprecate",
+            "provenance": {"source": "manual"},
+            "timestamp": "2026-02-16T15:00:00+00:00",
+        }
+
+        event_file = events_dir / "test.events.jsonl"
+        event_file.write_text(json.dumps(event) + "\n")
+
+        result = runner.invoke(glossary_app, ["list", "--status", "deprecated", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert len(data) == 1
+        assert data[0]["surface"] == "retired-term"
+        assert data[0]["status"] == "deprecated"
+
+    def test_deprecated_not_mixed_with_draft(self, tmp_path, monkeypatch):
+        """Verify --status draft does NOT return deprecated terms and vice versa."""
+        monkeypatch.chdir(tmp_path)
+
+        glossaries_dir = tmp_path / ".kittify" / "glossaries"
+        glossaries_dir.mkdir(parents=True)
+
+        seed = glossaries_dir / "team_domain.yaml"
+        seed.write_text(
+            "terms:\n"
+            "  - surface: draft-term\n"
+            "    definition: A term still in draft\n"
+            "    confidence: 0.5\n"
+            "    status: draft\n"
+            "  - surface: deprecated-term\n"
+            "    definition: A deprecated term\n"
+            "    confidence: 1.0\n"
+            "    status: deprecated\n"
+            "  - surface: active-term\n"
+            "    definition: An active term\n"
+            "    confidence: 1.0\n"
+            "    status: active\n"
+        )
+
+        # --status draft returns only draft
+        result = runner.invoke(glossary_app, ["list", "--status", "draft", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert len(data) == 1
+        assert data[0]["surface"] == "draft-term"
+        assert data[0]["status"] == "draft"
+
+        # --status deprecated returns only deprecated
+        result = runner.invoke(glossary_app, ["list", "--status", "deprecated", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert len(data) == 1
+        assert data[0]["surface"] == "deprecated-term"
+        assert data[0]["status"] == "deprecated"
+
+        # --status active returns only active
+        result = runner.invoke(glossary_app, ["list", "--status", "active", "--json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert len(data) == 1
+        assert data[0]["surface"] == "active-term"
+        assert data[0]["status"] == "active"
