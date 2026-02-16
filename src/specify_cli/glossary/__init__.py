@@ -63,6 +63,7 @@ from .pipeline import (
     create_standard_pipeline,
 )
 from .attachment import (
+    GlossaryAwarePrimitiveRunner,
     attach_glossary_pipeline,
     glossary_enabled,
     read_glossary_check_metadata,
@@ -121,6 +122,7 @@ __all__ = [
     "GlossaryMiddlewarePipeline",
     "GlossaryMiddleware",
     "create_standard_pipeline",
+    "GlossaryAwarePrimitiveRunner",
     "attach_glossary_pipeline",
     "glossary_enabled",
     "read_glossary_check_metadata",

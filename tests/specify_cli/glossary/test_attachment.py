@@ -216,3 +216,57 @@ class TestGlossaryEnabledDecorator:
         ctx = _make_context()
         result = my_primitive(ctx)
         assert result == Strictness.MAX
+
+
+# ---------------------------------------------------------------------------
+# Regression: Issue 1 -- GlossaryAwarePrimitiveRunner
+# ---------------------------------------------------------------------------
+
+
+class TestGlossaryAwarePrimitiveRunner:
+    """Test GlossaryAwarePrimitiveRunner class (production call site)."""
+
+    def test_runner_creates_successfully(self, tmp_path):
+        from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+        (tmp_path / ".kittify").mkdir()
+        runner = GlossaryAwarePrimitiveRunner(repo_root=tmp_path)
+        assert runner is not None
+
+    def test_runner_execute_calls_pipeline_then_primitive(self, tmp_path):
+        from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+        (tmp_path / ".kittify").mkdir()
+
+        runner = GlossaryAwarePrimitiveRunner(repo_root=tmp_path)
+        call_log = []
+
+        def my_primitive(context):
+            call_log.append("primitive_ran")
+            return {"strictness": context.effective_strictness}
+
+        ctx = _make_context()
+        result = runner.execute(my_primitive, ctx)
+
+        assert call_log == ["primitive_ran"]
+        assert result["strictness"] == Strictness.MEDIUM
+
+    def test_runner_passes_extra_args_to_primitive(self, tmp_path):
+        from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+        (tmp_path / ".kittify").mkdir()
+
+        runner = GlossaryAwarePrimitiveRunner(
+            repo_root=tmp_path,
+            runtime_strictness=Strictness.OFF,
+        )
+
+        def my_primitive(context, extra, key=None):
+            return (context.effective_strictness, extra, key)
+
+        ctx = _make_context()
+        result = runner.execute(my_primitive, ctx, "hello", key="world")
+
+        assert result == (Strictness.OFF, "hello", "world")
+
+    def test_runner_is_importable_from_glossary_package(self):
+        """GlossaryAwarePrimitiveRunner is exported from glossary package."""
+        from specify_cli.glossary import GlossaryAwarePrimitiveRunner
+        assert GlossaryAwarePrimitiveRunner is not None
