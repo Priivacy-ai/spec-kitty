@@ -17,8 +17,10 @@ from specify_cli.glossary.models import (
 from specify_cli.glossary.rendering import (
     render_conflict,
     render_conflict_batch,
+    sort_candidates,
     SEVERITY_COLORS,
     SEVERITY_ICONS,
+    SCOPE_PRECEDENCE,
     _get_severity_color,
     _get_severity_icon,
 )
@@ -107,14 +109,14 @@ class TestSeverityMappings:
     def test_low_severity_color(self):
         assert SEVERITY_COLORS[Severity.LOW] == "blue"
 
-    def test_high_severity_icon(self):
-        assert "HIGH" in SEVERITY_ICONS[Severity.HIGH]
+    def test_high_severity_icon_is_red_circle(self):
+        assert SEVERITY_ICONS[Severity.HIGH] == "\U0001f534"
 
-    def test_medium_severity_icon(self):
-        assert "MEDIUM" in SEVERITY_ICONS[Severity.MEDIUM]
+    def test_medium_severity_icon_is_yellow_circle(self):
+        assert SEVERITY_ICONS[Severity.MEDIUM] == "\U0001f7e1"
 
-    def test_low_severity_icon(self):
-        assert "LOW" in SEVERITY_ICONS[Severity.LOW]
+    def test_low_severity_icon_is_blue_circle(self):
+        assert SEVERITY_ICONS[Severity.LOW] == "\U0001f535"
 
 
 class TestGetSeverityColor:
@@ -135,10 +137,10 @@ class TestGetSeverityColor:
 class TestGetSeverityIcon:
     """Test _get_severity_icon fallback behavior."""
 
-    def test_known_severity(self):
-        assert "HIGH" in _get_severity_icon(Severity.HIGH)
-        assert "MEDIUM" in _get_severity_icon(Severity.MEDIUM)
-        assert "LOW" in _get_severity_icon(Severity.LOW)
+    def test_known_severity_returns_emoji(self):
+        assert _get_severity_icon(Severity.HIGH) == "\U0001f534"
+        assert _get_severity_icon(Severity.MEDIUM) == "\U0001f7e1"
+        assert _get_severity_icon(Severity.LOW) == "\U0001f535"
 
     def test_all_enum_values_mapped(self):
         for sev in Severity:
@@ -427,3 +429,141 @@ class TestRenderConflictBatch:
         # Each conflict: 1 Panel + 1 blank line = 2 calls per conflict
         # Total: 2 conflicts * 2 calls = 4
         assert mock_console.print.call_count == 4
+
+
+class TestSortCandidates:
+    """Test sort_candidates deterministic ranking by scope precedence."""
+
+    def test_sorts_by_scope_precedence(self):
+        """Candidates sorted: mission_local first, spec_kitty_core last."""
+        candidates = [
+            SenseRef("term", "spec_kitty_core", "Core definition", 0.9),
+            SenseRef("term", "mission_local", "Mission definition", 0.9),
+            SenseRef("term", "audience_domain", "Audience definition", 0.9),
+            SenseRef("term", "team_domain", "Team definition", 0.9),
+        ]
+        result = sort_candidates(candidates)
+        assert result[0].scope == "mission_local"
+        assert result[1].scope == "team_domain"
+        assert result[2].scope == "audience_domain"
+        assert result[3].scope == "spec_kitty_core"
+
+    def test_sorts_by_descending_confidence_within_scope(self):
+        """Within same scope, higher confidence appears first."""
+        candidates = [
+            SenseRef("term", "team_domain", "Low confidence", 0.3),
+            SenseRef("term", "team_domain", "High confidence", 0.9),
+            SenseRef("term", "team_domain", "Mid confidence", 0.6),
+        ]
+        result = sort_candidates(candidates)
+        assert result[0].confidence == 0.9
+        assert result[1].confidence == 0.6
+        assert result[2].confidence == 0.3
+
+    def test_scope_precedence_overrides_confidence(self):
+        """mission_local with low confidence appears before team_domain with high confidence."""
+        candidates = [
+            SenseRef("term", "team_domain", "Team def", 0.99),
+            SenseRef("term", "mission_local", "Mission def", 0.1),
+        ]
+        result = sort_candidates(candidates)
+        assert result[0].scope == "mission_local"
+        assert result[1].scope == "team_domain"
+
+    def test_unknown_scope_sorted_last(self):
+        """Candidates with unknown scope appear after all known scopes."""
+        candidates = [
+            SenseRef("term", "unknown_scope", "Unknown def", 0.9),
+            SenseRef("term", "mission_local", "Mission def", 0.5),
+        ]
+        result = sort_candidates(candidates)
+        assert result[0].scope == "mission_local"
+        assert result[1].scope == "unknown_scope"
+
+    def test_empty_candidates(self):
+        """Empty list returns empty list."""
+        assert sort_candidates([]) == []
+
+    def test_single_candidate(self):
+        """Single candidate returned unchanged."""
+        candidates = [SenseRef("term", "team_domain", "Def", 0.8)]
+        result = sort_candidates(candidates)
+        assert len(result) == 1
+        assert result[0].scope == "team_domain"
+
+    def test_does_not_mutate_input(self):
+        """sort_candidates returns a new list, does not mutate original."""
+        candidates = [
+            SenseRef("term", "spec_kitty_core", "Core def", 0.9),
+            SenseRef("term", "mission_local", "Mission def", 0.5),
+        ]
+        original_order = list(candidates)
+        sort_candidates(candidates)
+        assert candidates == original_order  # Original unchanged
+
+    def test_deterministic_same_scope_same_confidence(self):
+        """Multiple calls with same input produce same output."""
+        candidates = [
+            SenseRef("term", "team_domain", "Def A", 0.8),
+            SenseRef("term", "team_domain", "Def B", 0.8),
+        ]
+        result1 = sort_candidates(candidates)
+        result2 = sort_candidates(candidates)
+        assert [s.definition for s in result1] == [s.definition for s in result2]
+
+
+class TestRenderConflictCandidateOrder:
+    """Test that render_conflict displays candidates in scope-precedence order."""
+
+    def test_candidates_rendered_in_scope_precedence_order(self, mock_console):
+        """Candidates in rendered table follow scope precedence, not insertion order."""
+        # Insert in reverse precedence order (spec_kitty_core first)
+        conflict = SemanticConflict(
+            term=TermSurface("term"),
+            conflict_type=ConflictType.AMBIGUOUS,
+            severity=Severity.HIGH,
+            confidence=0.9,
+            candidate_senses=[
+                SenseRef("term", "spec_kitty_core", "Core definition", 0.9),
+                SenseRef("term", "audience_domain", "Audience definition", 0.8),
+                SenseRef("term", "team_domain", "Team definition", 0.7),
+                SenseRef("term", "mission_local", "Mission definition", 0.6),
+            ],
+            context="test",
+        )
+        render_conflict(mock_console, conflict)
+
+        printed_arg = mock_console.print.call_args[0][0]
+        assert isinstance(printed_arg, Panel)
+        table = printed_arg.renderable
+        assert isinstance(table, Table)
+        # Table should have 4 rows
+        assert table.row_count == 4
+        # Verify row order by checking the columns data
+        # Row 0 should be mission_local (highest precedence)
+        # Row 3 should be spec_kitty_core (lowest precedence)
+        # We can access rows via table.columns[col_idx]._cells
+        scope_cells = table.columns[1]._cells
+        assert scope_cells[0] == "mission_local"
+        assert scope_cells[1] == "team_domain"
+        assert scope_cells[2] == "audience_domain"
+        assert scope_cells[3] == "spec_kitty_core"
+
+
+class TestScopePrecedenceMap:
+    """Test SCOPE_PRECEDENCE constant values."""
+
+    def test_mission_local_highest_precedence(self):
+        assert SCOPE_PRECEDENCE["mission_local"] == 0
+
+    def test_team_domain_precedence(self):
+        assert SCOPE_PRECEDENCE["team_domain"] == 1
+
+    def test_audience_domain_precedence(self):
+        assert SCOPE_PRECEDENCE["audience_domain"] == 2
+
+    def test_spec_kitty_core_lowest_precedence(self):
+        assert SCOPE_PRECEDENCE["spec_kitty_core"] == 3
+
+    def test_all_four_scopes_present(self):
+        assert len(SCOPE_PRECEDENCE) == 4

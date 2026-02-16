@@ -22,10 +22,38 @@ SEVERITY_COLORS: dict[Severity, str] = {
 }
 
 SEVERITY_ICONS: dict[Severity, str] = {
-    Severity.HIGH: "!!! HIGH",
-    Severity.MEDIUM: "!!  MEDIUM",
-    Severity.LOW: "!   LOW",
+    Severity.HIGH: "\U0001f534",
+    Severity.MEDIUM: "\U0001f7e1",
+    Severity.LOW: "\U0001f535",
 }
+
+# Scope precedence map: lower number = higher precedence (shown first)
+SCOPE_PRECEDENCE: dict[str, int] = {
+    "mission_local": 0,
+    "team_domain": 1,
+    "audience_domain": 2,
+    "spec_kitty_core": 3,
+}
+
+
+def sort_candidates(candidates: List[SenseRef]) -> List[SenseRef]:
+    """Sort candidate senses by scope precedence then descending confidence.
+
+    Candidates with scope precedence mission_local (0) appear first,
+    then team_domain (1), audience_domain (2), spec_kitty_core (3).
+    Within the same scope, higher confidence appears first.
+    Unknown scopes are sorted after all known scopes.
+
+    Args:
+        candidates: List of SenseRef candidates to sort
+
+    Returns:
+        New sorted list (does not mutate input)
+    """
+    return sorted(
+        candidates,
+        key=lambda s: (SCOPE_PRECEDENCE.get(s.scope, 99), -s.confidence),
+    )
 
 
 def _get_severity_color(severity: Severity) -> str:
@@ -71,8 +99,11 @@ def render_conflict(
         f'conflict: "{conflict.term.surface_text}"'
     )
 
+    # Sort candidates by scope precedence then descending confidence
+    ranked_candidates = sort_candidates(conflict.candidate_senses)
+
     # Create table for candidates
-    if conflict.candidate_senses:
+    if ranked_candidates:
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("#", style="cyan", width=3)
         table.add_column("Scope", style="green")
@@ -80,7 +111,7 @@ def render_conflict(
         table.add_column("Confidence", justify="right", style="yellow")
 
         # Add ranked candidates
-        for idx, sense in enumerate(conflict.candidate_senses, start=1):
+        for idx, sense in enumerate(ranked_candidates, start=1):
             table.add_row(
                 str(idx),
                 sense.scope,

@@ -23,7 +23,7 @@ from .middleware import (
     GenerationGateMiddleware,
     ClarificationMiddleware,
 )
-from .rendering import render_conflict, render_conflict_batch
+from .rendering import render_conflict, render_conflict_batch, sort_candidates
 from .prompts import (
     PromptChoice,
     prompt_conflict_resolution,
@@ -62,6 +62,7 @@ __all__ = [
     "ClarificationMiddleware",
     "render_conflict",
     "render_conflict_batch",
+    "sort_candidates",
     "PromptChoice",
     "prompt_conflict_resolution",
     "prompt_conflict_resolution_safe",

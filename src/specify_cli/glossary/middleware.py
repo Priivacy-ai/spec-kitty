@@ -562,11 +562,16 @@ class ClarificationMiddleware:
         # Process each prompted conflict interactively
         resolved_count = 0
         for conflict in to_prompt:
+            # Sort candidates by scope precedence then descending confidence
+            # so the prompt numbering matches the rendered table order
+            from .rendering import sort_candidates
+            ranked_candidates = sort_candidates(conflict.candidate_senses)
+
             choice, value = prompt_conflict_resolution_safe(conflict)
 
             if choice == PromptChoice.SELECT_CANDIDATE:
                 candidate_idx = value
-                selected_sense = conflict.candidate_senses[candidate_idx]
+                selected_sense = ranked_candidates[candidate_idx]
                 self._handle_candidate_selection(
                     context, conflict, selected_sense
                 )
@@ -714,11 +719,13 @@ class ClarificationMiddleware:
             conflict: The conflict being deferred
         """
         from .events import emit_clarification_requested
+        from .rendering import sort_candidates
 
         conflict_id = str(uuid.uuid4())
 
-        # Build ranked options list
-        options = [sense.definition for sense in conflict.candidate_senses]
+        # Build ranked options list (sorted by scope precedence, descending confidence)
+        ranked_candidates = sort_candidates(conflict.candidate_senses)
+        options = [sense.definition for sense in ranked_candidates]
 
         try:
             emit_clarification_requested(

@@ -748,6 +748,115 @@ class TestSeverityPrioritization:
         assert prompted_conflict.severity == Severity.HIGH
 
 
+class TestCandidateRankingInMiddleware:
+    """Test that ClarificationMiddleware sorts candidates by scope precedence."""
+
+    @patch(_PROMPT_SAFE)
+    @patch(f"{_EVENTS}.emit_clarification_resolved")
+    def test_select_candidate_uses_sorted_order(
+        self,
+        mock_emit_resolved,
+        mock_prompt,
+        mock_console,
+        mock_context,
+    ):
+        """When user selects candidate #1, it should be the highest-precedence candidate
+        (mission_local), not the first in insertion order."""
+        # Insert candidates in reverse precedence order
+        conflict = SemanticConflict(
+            term=TermSurface("workspace"),
+            conflict_type=ConflictType.AMBIGUOUS,
+            severity=Severity.HIGH,
+            confidence=0.9,
+            candidate_senses=[
+                SenseRef("workspace", "spec_kitty_core", "Core workspace def", 0.9),
+                SenseRef("workspace", "team_domain", "Team workspace def", 0.8),
+                SenseRef("workspace", "mission_local", "Mission workspace def", 0.7),
+            ],
+            context="test",
+        )
+
+        # User selects candidate #1 (should be mission_local after sorting)
+        mock_prompt.return_value = (PromptChoice.SELECT_CANDIDATE, 0)
+
+        middleware = ClarificationMiddleware(console=mock_console)
+        mock_context.conflicts = [conflict]
+
+        result = middleware.process(mock_context)
+
+        # The resolved sense should be the mission_local one (highest scope precedence)
+        assert len(result.resolved_senses) == 1
+        assert result.resolved_senses[0].definition == "Mission workspace def"
+        assert result.resolved_senses[0].scope == "mission_local"
+
+    @patch(_PROMPT_SAFE)
+    @patch(f"{_EVENTS}.emit_clarification_resolved")
+    def test_select_last_candidate_uses_lowest_precedence(
+        self,
+        mock_emit_resolved,
+        mock_prompt,
+        mock_console,
+        mock_context,
+    ):
+        """When user selects the last candidate, it should be the lowest-precedence one."""
+        conflict = SemanticConflict(
+            term=TermSurface("workspace"),
+            conflict_type=ConflictType.AMBIGUOUS,
+            severity=Severity.HIGH,
+            confidence=0.9,
+            candidate_senses=[
+                SenseRef("workspace", "spec_kitty_core", "Core workspace def", 0.9),
+                SenseRef("workspace", "mission_local", "Mission workspace def", 0.7),
+            ],
+            context="test",
+        )
+
+        # User selects candidate #2 (should be spec_kitty_core after sorting)
+        mock_prompt.return_value = (PromptChoice.SELECT_CANDIDATE, 1)
+
+        middleware = ClarificationMiddleware(console=mock_console)
+        mock_context.conflicts = [conflict]
+
+        result = middleware.process(mock_context)
+
+        assert len(result.resolved_senses) == 1
+        assert result.resolved_senses[0].definition == "Core workspace def"
+        assert result.resolved_senses[0].scope == "spec_kitty_core"
+
+    @patch(_PROMPT_SAFE)
+    @patch(f"{_EVENTS}.emit_clarification_requested")
+    def test_deferred_options_use_sorted_order(
+        self,
+        mock_emit_requested,
+        mock_prompt,
+        mock_console,
+        mock_context,
+    ):
+        """Deferred event options list uses scope-precedence-sorted order."""
+        conflict = SemanticConflict(
+            term=TermSurface("workspace"),
+            conflict_type=ConflictType.AMBIGUOUS,
+            severity=Severity.HIGH,
+            confidence=0.9,
+            candidate_senses=[
+                SenseRef("workspace", "spec_kitty_core", "Core def", 0.9),
+                SenseRef("workspace", "mission_local", "Mission def", 0.7),
+            ],
+            context="test",
+        )
+
+        mock_prompt.return_value = (PromptChoice.DEFER, None)
+
+        middleware = ClarificationMiddleware(console=mock_console)
+        mock_context.conflicts = [conflict]
+
+        middleware.process(mock_context)
+
+        call_kwargs = mock_emit_requested.call_args[1]
+        # Options should be in scope precedence order: mission_local first
+        assert call_kwargs["options"] == ["Mission def", "Core def"]
+
+
 class TestResolvedSensesAccumulation:
     """Test that resolved_senses accumulates across multiple resolutions."""
 
