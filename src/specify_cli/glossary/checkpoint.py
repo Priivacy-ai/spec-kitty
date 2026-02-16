@@ -308,7 +308,8 @@ def handle_context_change(
 
     # Context changed - prompt user for confirmation
     if confirm_fn is not None:
-        return confirm_fn(old_hash, new_hash)
+        result: bool = confirm_fn(old_hash, new_hash)
+        return result
 
     return prompt_context_change_confirmation(old_hash, new_hash)
 
@@ -337,10 +338,11 @@ def prompt_context_change_confirmation(
         f"  Checkpoint hash: {old_hash}...\n"
         f"  Current hash:    {new_hash}...\n"
     )
-    return typer.confirm(
+    result: bool = typer.confirm(
         "Resume despite context change?",
         default=False,
     )
+    return result
 
 
 def compute_input_diff(

@@ -10,6 +10,8 @@ conflict resolution. It emits 3 event types at its boundaries:
 Pipeline position: Layer 4 (after extraction, semantic check, and gate)
 """
 
+from __future__ import annotations
+
 import logging
 import uuid
 from pathlib import Path
@@ -76,7 +78,7 @@ class ClarificationMiddleware:
         if not conflicts:
             return context
 
-        resolved_conflicts: list = []
+        resolved_conflicts: list[Any] = []
 
         for conflict in conflicts:
             conflict_id = str(uuid.uuid4())

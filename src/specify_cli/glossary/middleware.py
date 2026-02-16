@@ -7,6 +7,8 @@ WP08 replaces all event emission stubs with real implementations that
 persist events to JSONL files via the events module.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
@@ -15,6 +17,8 @@ from .extraction import ExtractedTerm, extract_all_terms
 
 if TYPE_CHECKING:
     from . import models, scope, store
+    from .checkpoint import StepCheckpoint
+    from .strictness import Strictness
 
 
 class PrimitiveExecutionContext(Protocol):
@@ -354,7 +358,7 @@ class GenerationGateMiddleware:
     def __init__(
         self,
         repo_root: Path | None = None,
-        runtime_override: "Strictness" | None = None,  # type: ignore[name-defined]
+        runtime_override: Strictness | None = None,
     ) -> None:
         """Initialize gate with optional runtime override.
 
@@ -494,7 +498,7 @@ class GenerationGateMiddleware:
     def _build_scope_refs(
         self,
         context: PrimitiveExecutionContext,
-    ) -> list:
+    ) -> list[Any]:
         """Build scope refs from context's active glossary scopes.
 
         Args:

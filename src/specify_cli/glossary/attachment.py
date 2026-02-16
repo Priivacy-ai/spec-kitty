@@ -256,7 +256,7 @@ def glossary_enabled(
     repo_root: Path,
     runtime_strictness: Optional[Strictness] = None,
     interaction_mode: str = "interactive",
-) -> Callable:
+) -> Callable[..., Any]:
     """Decorator that runs the glossary pipeline before a mission primitive.
 
     The decorated function's first positional argument must be a
@@ -278,7 +278,7 @@ def glossary_enabled(
             # context has already been processed by the glossary pipeline
             return {"result": context.effective_strictness}
     """
-    def decorator(fn: Callable) -> Callable:
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(fn)
         def wrapper(context: Any, *args: Any, **kwargs: Any) -> Any:
             processed = run_with_glossary(

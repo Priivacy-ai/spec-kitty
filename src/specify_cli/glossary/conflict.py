@@ -4,6 +4,8 @@ This module implements conflict classification and severity scoring for
 semantic conflicts detected during term resolution.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, List, Optional
 
 from .extraction import ExtractedTerm

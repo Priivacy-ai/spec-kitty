@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, List, Protocol
+from typing import TYPE_CHECKING, Any, List, Protocol
 
 from specify_cli.glossary.exceptions import (
     AbortResume,
@@ -32,6 +32,9 @@ from specify_cli.glossary.exceptions import (
     DeferredToAsync,
 )
 from specify_cli.glossary.strictness import Strictness
+
+if TYPE_CHECKING:
+    from specify_cli.glossary.store import GlossaryStore
 
 logger = logging.getLogger(__name__)
 
