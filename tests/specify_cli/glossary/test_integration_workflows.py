@@ -1,62 +1,27 @@
-"""Comprehensive integration tests for glossary end-to-end workflows (WP11/T050).
+"""Cross-module integration tests for glossary semantic integrity (WP11 / T050).
 
-These tests exercise cross-module interactions in realistic scenarios:
-- Full specify -> conflict -> clarify -> resume pipeline
-- Defer to async resolution path
-- Pipeline skip when disabled
-- Strictness mode combinations (off/medium/max)
-- Multiple conflicts in a single step
-- Event emission during pipeline execution
-- Resume from checkpoint after blocking
-- Attachment/decorator integration
-- Performance validation (< 5 seconds for batch)
+These tests verify end-to-end workflows that span multiple glossary modules,
+exercising the full pipeline from term extraction through conflict detection,
+clarification, generation gating, event emission, and checkpoint/resume.
+
+Each test scenario creates realistic repo structures with seed files and config,
+constructs PrimitiveExecutionContext objects, and exercises the full middleware
+chain via create_standard_pipeline(). Unlike the existing pipeline integration
+tests (test_pipeline_integration.py) which focus on individual pipeline
+features, these tests validate multi-step cross-module workflows.
 """
 
-import logging
 import time
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
-from specify_cli.glossary.checkpoint import (
-    ScopeRef,
-    StepCheckpoint,
-    compute_input_hash,
-    create_checkpoint,
-    load_checkpoint,
-)
-from specify_cli.glossary.clarification import ClarificationMiddleware
-from specify_cli.glossary.conflict import classify_conflict, create_conflict, score_severity
-from specify_cli.glossary.events import get_event_log_path
-from specify_cli.glossary.exceptions import AbortResume, BlockedByConflict, DeferredToAsync
-from specify_cli.glossary.extraction import ExtractedTerm, extract_all_terms
-from specify_cli.glossary.middleware import (
-    GenerationGateMiddleware,
-    GlossaryCandidateExtractionMiddleware,
-    MockContext,
-    ResumeMiddleware,
-    SemanticCheckMiddleware,
-)
-from specify_cli.glossary.models import (
-    ConflictType,
-    SemanticConflict,
-    SenseRef,
-    SenseStatus,
-    Severity,
-    TermSurface,
-)
+from specify_cli.glossary.exceptions import BlockedByConflict
+from specify_cli.glossary.models import ConflictType, Severity
 from specify_cli.glossary.pipeline import (
-    GlossaryMiddleware,
     GlossaryMiddlewarePipeline,
     create_standard_pipeline,
 )
-from specify_cli.glossary.resolution import resolve_term
-from specify_cli.glossary.scope import GlossaryScope, load_seed_file
-from specify_cli.glossary.store import GlossaryStore
-from specify_cli.glossary.strictness import Strictness, resolve_strictness, should_block
+from specify_cli.glossary.strictness import Strictness
 from specify_cli.missions.primitives import PrimitiveExecutionContext
 
 
@@ -65,21 +30,7 @@ from specify_cli.missions.primitives import PrimitiveExecutionContext
 # ---------------------------------------------------------------------------
 
 
-def _make_context(**overrides: Any) -> PrimitiveExecutionContext:
-    """Create a PrimitiveExecutionContext with sensible defaults."""
-    defaults: dict[str, Any] = dict(
-        step_id="integration-001",
-        mission_id="software-dev",
-        run_id="run-integration-001",
-        inputs={"description": "Simple test with no technical terms"},
-        metadata={},
-        config={},
-    )
-    defaults.update(overrides)
-    return PrimitiveExecutionContext(**defaults)
-
-
-def _create_seed_file(tmp_path: Path, scope_name: str, terms_yaml: str) -> Path:
+def _create_seed_file(tmp_path, scope_name, terms_yaml):
     """Create a seed file in .kittify/glossaries/."""
     glossaries = tmp_path / ".kittify" / "glossaries"
     glossaries.mkdir(parents=True, exist_ok=True)
@@ -88,8 +39,22 @@ def _create_seed_file(tmp_path: Path, scope_name: str, terms_yaml: str) -> Path:
     return seed_file
 
 
-def _setup_multi_scope_repo(tmp_path: Path) -> Path:
-    """Create a realistic repo with team_domain and spec_kitty_core seed files."""
+def _create_config(tmp_path, config_yaml):
+    """Create .kittify/config.yaml."""
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    config_file = kittify / "config.yaml"
+    config_file.write_text(config_yaml)
+    return config_file
+
+
+def _setup_multi_scope_repo(tmp_path):
+    """Create a realistic multi-scope repo with team_domain and spec_kitty_core terms.
+
+    Returns:
+        tmp_path (the repo root)
+    """
+    # Team domain terms: "workspace" is ambiguous (2 active senses)
     _create_seed_file(
         tmp_path,
         "team_domain",
@@ -113,6 +78,8 @@ def _setup_multi_scope_repo(tmp_path: Path) -> Path:
             "    status: active\n"
         ),
     )
+
+    # Spec kitty core terms: unambiguous
     _create_seed_file(
         tmp_path,
         "spec_kitty_core",
@@ -128,6 +95,7 @@ def _setup_multi_scope_repo(tmp_path: Path) -> Path:
             "    status: active\n"
         ),
     )
+
     return tmp_path
 
 
@@ -137,16 +105,20 @@ def _setup_multi_scope_repo(tmp_path: Path) -> Path:
 
 
 class TestFullWorkflowSpecifyClarifyResume:
-    """End-to-end: specify step encounters ambiguous term, user resolves via
-    interactive clarification, pipeline proceeds without blocking."""
+    """End-to-end: specify step -> extraction -> conflict -> clarification -> gate passes."""
 
-    def test_specify_conflict_clarify_proceeds(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Full flow: ambiguous term -> prompt -> user selects candidate -> gate passes."""
+    def test_interactive_clarification_resolves_conflict_and_pipeline_completes(
+        self, tmp_path, monkeypatch
+    ):
+        """User selects a candidate sense for an ambiguous term. The pipeline
+        should complete without raising BlockedByConflict, even under MEDIUM
+        strictness (which would block unresolved HIGH-severity conflicts)."""
         _setup_multi_scope_repo(tmp_path)
 
-        prompt_calls: list[str] = []
+        # Mock prompt: user selects first candidate
+        prompt_calls = []
 
-        def mock_prompt(conflict: Any, candidates: Any) -> tuple[str, str | None]:
+        def mock_prompt(conflict, candidates):
             prompt_calls.append(conflict.term.surface_text)
             conflict.selected_index = 0
             return ("select", None)
@@ -156,14 +128,21 @@ class TestFullWorkflowSpecifyClarifyResume:
             mock_prompt,
         )
 
-        ctx = _make_context(
+        ctx = PrimitiveExecutionContext(
             step_id="specify-001",
-            inputs={"description": "Implement workspace management feature"},
-            metadata={
-                "glossary_watch_terms": ["workspace"],
-                "glossary_check": "enabled",
-                "critical_step": True,
+            mission_id="software-dev",
+            run_id="run-int-001",
+            inputs={
+                "description": (
+                    "Implement workspace management feature with artifact storage"
+                ),
             },
+            metadata={
+                "glossary_check": "enabled",
+                "glossary_watch_terms": ["workspace"],
+                "critical_step": True,  # AMBIGUOUS -> HIGH severity
+            },
+            config={},
         )
 
         pipeline = create_standard_pipeline(
@@ -171,400 +150,78 @@ class TestFullWorkflowSpecifyClarifyResume:
             runtime_strictness=Strictness.MEDIUM,
             interaction_mode="interactive",
         )
+
         result = pipeline.process(ctx)
 
-        # Verify: conflict was resolved interactively
-        assert len(prompt_calls) == 1
-        assert prompt_calls[0] == "workspace"
+        # Pipeline completed (no BlockedByConflict)
+        assert result.effective_strictness == Strictness.MEDIUM
 
-        # Verify: no remaining conflicts (resolved before gate)
+        # User was prompted for the ambiguous "workspace" term
+        assert "workspace" in prompt_calls
+
+        # Conflict was resolved (moved to resolved_conflicts, not in conflicts)
+        remaining_workspace = [
+            c for c in result.conflicts if c.term.surface_text == "workspace"
+        ]
+        assert len(remaining_workspace) == 0
+
+        resolved = getattr(result, "resolved_conflicts", [])
+        resolved_surfaces = [c.term.surface_text for c in resolved]
+        assert "workspace" in resolved_surfaces
+
+    def test_custom_definition_resolves_and_emits_sense_update(
+        self, tmp_path, monkeypatch
+    ):
+        """User provides a custom definition for an ambiguous term.
+        Pipeline should complete and the custom sense is treated as resolution."""
+        _setup_multi_scope_repo(tmp_path)
+
+        def mock_prompt(conflict, candidates):
+            return ("custom", "The project working directory on disk")
+
+        monkeypatch.setattr(
+            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            mock_prompt,
+        )
+
+        ctx = PrimitiveExecutionContext(
+            step_id="specify-002",
+            mission_id="software-dev",
+            run_id="run-int-002",
+            inputs={"description": "Configure workspace settings"},
+            metadata={
+                "glossary_watch_terms": ["workspace"],
+            },
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.MAX,
+            interaction_mode="interactive",
+        )
+
+        # Even MAX strictness: custom definition resolves the conflict
+        result = pipeline.process(ctx)
+
+        assert result.effective_strictness == Strictness.MAX
         assert len(result.conflicts) == 0
 
-        # Verify: resolved conflicts tracked
         resolved = getattr(result, "resolved_conflicts", [])
         assert len(resolved) >= 1
         assert resolved[0].term.surface_text == "workspace"
 
-        # Verify: strictness was applied
-        assert result.effective_strictness == Strictness.MEDIUM
-
-    def test_specify_conflict_custom_definition_proceeds(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """User provides a custom definition instead of selecting a candidate."""
+    def test_multi_term_workflow_only_ambiguous_terms_prompt(
+        self, tmp_path, monkeypatch
+    ):
+        """When input contains both ambiguous and unambiguous terms, only the
+        ambiguous ones trigger clarification prompts."""
         _setup_multi_scope_repo(tmp_path)
 
-        def mock_prompt(conflict: Any, candidates: Any) -> tuple[str, str | None]:
-            return ("custom", "The project workspace directory on disk")
+        prompted_terms = []
 
-        monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
-            mock_prompt,
-        )
-
-        ctx = _make_context(
-            inputs={"description": "Configure workspace settings"},
-            metadata={"glossary_watch_terms": ["workspace"]},
-        )
-
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.MAX,
-            interaction_mode="interactive",
-        )
-        result = pipeline.process(ctx)
-
-        # Custom definition resolves the conflict
-        assert len(result.conflicts) == 0
-        resolved = getattr(result, "resolved_conflicts", [])
-        assert len(resolved) >= 1
-
-
-# ---------------------------------------------------------------------------
-# Scenario 2: Defer to async resolution
-# ---------------------------------------------------------------------------
-
-
-class TestDeferToAsyncWorkflow:
-    """User defers conflict resolution; conflict remains unresolved and
-    the gate blocks if strictness requires it."""
-
-    def test_defer_leaves_conflict_unresolved_gate_blocks(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Deferral keeps conflict in context; gate blocks under MAX strictness."""
-        _setup_multi_scope_repo(tmp_path)
-
-        defer_calls: list[str] = []
-
-        def mock_prompt(conflict: Any, candidates: Any) -> tuple[str, str | None]:
-            defer_calls.append(conflict.term.surface_text)
-            return ("defer", None)
-
-        monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
-            mock_prompt,
-        )
-
-        ctx = _make_context(
-            inputs={"description": "Setup workspace configuration"},
-            metadata={"glossary_watch_terms": ["workspace"]},
-        )
-
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.MAX,
-            interaction_mode="interactive",
-        )
-
-        with pytest.raises(BlockedByConflict) as exc_info:
-            pipeline.process(ctx)
-
-        assert len(defer_calls) == 1
-        assert len(exc_info.value.conflicts) >= 1
-
-    def test_defer_with_off_strictness_allows_generation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Deferral with OFF strictness: conflicts detected but not blocking."""
-        _setup_multi_scope_repo(tmp_path)
-
-        def mock_prompt(conflict: Any, candidates: Any) -> tuple[str, str | None]:
-            return ("defer", None)
-
-        monkeypatch.setattr(
-            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
-            mock_prompt,
-        )
-
-        ctx = _make_context(
-            inputs={"description": "Setup workspace configuration"},
-            metadata={"glossary_watch_terms": ["workspace"]},
-        )
-
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.OFF,
-            interaction_mode="interactive",
-        )
-        result = pipeline.process(ctx)
-
-        # Conflict exists (deferred) but not blocked
-        assert len(result.conflicts) >= 1
-        assert result.effective_strictness == Strictness.OFF
-
-    def test_non_interactive_defers_all_conflicts(self, tmp_path: Path) -> None:
-        """Non-interactive mode defers all conflicts automatically."""
-        _setup_multi_scope_repo(tmp_path)
-
-        ctx = _make_context(
-            inputs={"description": "test"},
-            metadata={"glossary_watch_terms": ["workspace"]},
-        )
-
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.OFF,
-            interaction_mode="non-interactive",
-        )
-        result = pipeline.process(ctx)
-
-        # Conflicts deferred (not resolved) but not blocked (OFF strictness)
-        assert len(result.conflicts) >= 1
-
-
-# ---------------------------------------------------------------------------
-# Scenario 3: Pipeline skip when disabled
-# ---------------------------------------------------------------------------
-
-
-class TestPipelineSkipWhenDisabled:
-    """Verify pipeline skips entirely when glossary checks are disabled."""
-
-    def test_skip_via_metadata_disabled(self, tmp_path: Path) -> None:
-        """glossary_check: disabled in metadata -> pipeline skipped."""
-        _setup_multi_scope_repo(tmp_path)
-
-        ctx = _make_context(
-            inputs={"description": "workspace pipeline artifact mission primitive"},
-            metadata={"glossary_check": "disabled"},
-        )
-
-        pipeline = create_standard_pipeline(tmp_path)
-        result = pipeline.process(ctx)
-
-        assert result.extracted_terms == []
-        assert result.conflicts == []
-        assert result.effective_strictness is None
-
-    def test_skip_via_metadata_bool_false(self, tmp_path: Path) -> None:
-        """glossary_check: false (boolean) in metadata -> pipeline skipped."""
-        _setup_multi_scope_repo(tmp_path)
-
-        ctx = _make_context(
-            inputs={"description": "workspace pipeline artifact"},
-            metadata={"glossary_check": False},
-        )
-
-        pipeline = create_standard_pipeline(tmp_path)
-        result = pipeline.process(ctx)
-
-        assert result.extracted_terms == []
-        assert result.conflicts == []
-        assert result.effective_strictness is None
-
-    def test_skip_via_mission_config(self, tmp_path: Path) -> None:
-        """glossary.enabled: false in mission config -> pipeline skipped."""
-        _setup_multi_scope_repo(tmp_path)
-
-        ctx = _make_context(
-            inputs={"description": "workspace pipeline artifact"},
-            config={"glossary": {"enabled": False}},
-        )
-
-        pipeline = create_standard_pipeline(tmp_path)
-        result = pipeline.process(ctx)
-
-        assert result.extracted_terms == []
-        assert result.conflicts == []
-        assert result.effective_strictness is None
-
-    def test_enabled_by_default_when_no_metadata(self, tmp_path: Path) -> None:
-        """Default: pipeline runs when no explicit disable metadata."""
-        _setup_multi_scope_repo(tmp_path)
-
-        ctx = _make_context(
-            inputs={"description": "test"},
-            metadata={"glossary_watch_terms": ["workspace"]},
-        )
-
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.OFF,
-        )
-        result = pipeline.process(ctx)
-
-        # Pipeline ran: terms extracted
-        assert len(result.extracted_terms) >= 1
-        assert result.effective_strictness == Strictness.OFF
-
-
-# ---------------------------------------------------------------------------
-# Scenario 4: Strictness mode combinations (off/medium/max)
-# ---------------------------------------------------------------------------
-
-
-class TestStrictnessModes:
-    """Verify all three strictness modes behave correctly with various
-    conflict severities."""
-
-    def test_off_never_blocks(self, tmp_path: Path) -> None:
-        """OFF strictness never blocks, even with HIGH severity conflicts."""
-        _setup_multi_scope_repo(tmp_path)
-
-        ctx = _make_context(
-            inputs={"description": "workspace test"},
-            metadata={
-                "glossary_watch_terms": ["workspace"],
-                "critical_step": True,  # AMBIGUOUS + critical = HIGH severity
-            },
-        )
-
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.OFF,
-        )
-        result = pipeline.process(ctx)
-
-        assert result.effective_strictness == Strictness.OFF
-        # Conflicts detected but not blocked
-        workspace_conflicts = [
-            c for c in result.conflicts if c.term.surface_text == "workspace"
-        ]
-        assert len(workspace_conflicts) >= 1
-
-    def test_medium_blocks_high_severity_only(self, tmp_path: Path) -> None:
-        """MEDIUM strictness blocks HIGH severity but allows MEDIUM/LOW."""
-        _setup_multi_scope_repo(tmp_path)
-
-        # HIGH severity: AMBIGUOUS + critical_step
-        ctx_high = _make_context(
-            step_id="high-sev",
-            inputs={"description": "workspace test"},
-            metadata={
-                "glossary_watch_terms": ["workspace"],
-                "critical_step": True,
-            },
-        )
-
-        pipeline_med = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.MEDIUM,
-        )
-
-        with pytest.raises(BlockedByConflict):
-            pipeline_med.process(ctx_high)
-
-        # MEDIUM severity: AMBIGUOUS + non-critical (severity=MEDIUM, not HIGH)
-        ctx_med = _make_context(
-            step_id="med-sev",
-            inputs={"description": "workspace test"},
-            metadata={
-                "glossary_watch_terms": ["workspace"],
-                # no critical_step -> AMBIGUOUS severity = MEDIUM
-            },
-        )
-
-        pipeline_med2 = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.MEDIUM,
-        )
-        # MEDIUM severity AMBIGUOUS: should NOT block under MEDIUM strictness
-        # (MEDIUM strictness blocks only HIGH severity)
-        result = pipeline_med2.process(ctx_med)
-        assert result.effective_strictness == Strictness.MEDIUM
-
-    def test_max_blocks_any_conflict(self, tmp_path: Path) -> None:
-        """MAX strictness blocks any conflict regardless of severity."""
-        _setup_multi_scope_repo(tmp_path)
-
-        # Even non-critical AMBIGUOUS (MEDIUM severity) should block under MAX
-        ctx = _make_context(
-            inputs={"description": "workspace test"},
-            metadata={"glossary_watch_terms": ["workspace"]},
-        )
-
-        pipeline_max = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.MAX,
-        )
-
-        with pytest.raises(BlockedByConflict) as exc_info:
-            pipeline_max.process(ctx)
-
-        assert exc_info.value.strictness == Strictness.MAX
-
-    def test_unknown_term_low_severity_passes_medium(self, tmp_path: Path) -> None:
-        """UNKNOWN term with high confidence -> LOW severity -> passes MEDIUM."""
-        (tmp_path / ".kittify").mkdir()
-
-        ctx = _make_context(
-            inputs={"description": "test"},
-            metadata={
-                "glossary_watch_terms": ["frobulator"],
-                # high confidence metadata hint -> confidence 1.0
-                # UNKNOWN + confidence >= 0.8 -> LOW severity
-            },
-        )
-
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.MEDIUM,
-        )
-        result = pipeline.process(ctx)
-
-        # LOW severity UNKNOWN should not block under MEDIUM
-        frobulator = [c for c in result.conflicts if c.term.surface_text == "frobulator"]
-        assert len(frobulator) == 1
-        assert frobulator[0].severity == Severity.LOW
-
-    def test_strictness_precedence_runtime_overrides_all(self, tmp_path: Path) -> None:
-        """Runtime --strictness flag overrides mission and step config."""
-        _setup_multi_scope_repo(tmp_path)
-
-        config_yaml = tmp_path / ".kittify" / "config.yaml"
-        config_yaml.write_text("glossary:\n  strictness: max\n")
-
-        ctx = _make_context(
-            inputs={"description": "workspace test"},
-            metadata={
-                "glossary_watch_terms": ["workspace"],
-                "glossary_check_strictness": "max",  # Step says MAX
-            },
-            config={"glossary": {"strictness": "max"}},  # Mission says MAX
-        )
-
-        # Runtime says OFF -> overrides everything
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.OFF,
-        )
-        result = pipeline.process(ctx)
-        assert result.effective_strictness == Strictness.OFF
-
-
-# ---------------------------------------------------------------------------
-# Scenario 5: Multiple conflicts in a single step
-# ---------------------------------------------------------------------------
-
-
-class TestMultipleConflictsSingleStep:
-    """Verify handling of multiple ambiguous terms in one pipeline execution."""
-
-    def test_multiple_ambiguous_terms_all_resolved(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Two ambiguous terms, user resolves both, pipeline proceeds."""
-        _create_seed_file(
-            tmp_path,
-            "team_domain",
-            (
-                "terms:\n"
-                "  - surface: workspace\n"
-                "    definition: Git worktree directory\n"
-                "    confidence: 0.9\n"
-                "    status: active\n"
-                "  - surface: workspace\n"
-                "    definition: VS Code workspace config\n"
-                "    confidence: 0.7\n"
-                "    status: active\n"
-                "  - surface: mission\n"
-                "    definition: Purpose-specific workflow\n"
-                "    confidence: 0.9\n"
-                "    status: active\n"
-                "  - surface: mission\n"
-                "    definition: Organization goal\n"
-                "    confidence: 0.6\n"
-                "    status: active\n"
-            ),
-        )
-
-        prompt_log: list[str] = []
-
-        def mock_prompt(conflict: Any, candidates: Any) -> tuple[str, str | None]:
-            prompt_log.append(conflict.term.surface_text)
+        def mock_prompt(conflict, candidates):
+            prompted_terms.append(conflict.term.surface_text)
             conflict.selected_index = 0
             return ("select", None)
 
@@ -573,9 +230,15 @@ class TestMultipleConflictsSingleStep:
             mock_prompt,
         )
 
-        ctx = _make_context(
+        ctx = PrimitiveExecutionContext(
+            step_id="specify-003",
+            mission_id="software-dev",
+            run_id="run-int-003",
             inputs={"description": "test"},
-            metadata={"glossary_watch_terms": ["workspace", "mission"]},
+            metadata={
+                "glossary_watch_terms": ["workspace", "mission", "pipeline"],
+            },
+            config={},
         )
 
         pipeline = create_standard_pipeline(
@@ -583,29 +246,415 @@ class TestMultipleConflictsSingleStep:
             runtime_strictness=Strictness.MAX,
             interaction_mode="interactive",
         )
+
         result = pipeline.process(ctx)
 
-        # Both resolved
-        assert len(result.conflicts) == 0
-        resolved = getattr(result, "resolved_conflicts", [])
-        resolved_terms = {c.term.surface_text for c in resolved}
-        assert "workspace" in resolved_terms
-        assert "mission" in resolved_terms
-        assert len(prompt_log) == 2
+        # Only "workspace" is ambiguous (2 active senses)
+        # "mission" and "pipeline" each have 1 active sense -> no conflict
+        assert "workspace" in prompted_terms
+        assert "mission" not in prompted_terms
+        assert "pipeline" not in prompted_terms
 
-    def test_multiple_conflicts_partial_defer_blocks(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """One resolved, one deferred -> gate blocks on the deferred one."""
+        assert len(result.conflicts) == 0
+
+
+# ---------------------------------------------------------------------------
+# Scenario 2: Defer workflow -- user defers conflict
+# ---------------------------------------------------------------------------
+
+
+class TestDeferWorkflow:
+    """User defers conflict resolution. Conflict should remain unresolved
+    and the generation gate should block (under MEDIUM/MAX strictness)."""
+
+    def test_defer_leaves_conflict_unresolved_and_gate_blocks(
+        self, tmp_path, monkeypatch
+    ):
+        """Deferring a HIGH-severity ambiguous conflict under MEDIUM strictness
+        should result in BlockedByConflict."""
+        _setup_multi_scope_repo(tmp_path)
+
+        def mock_prompt(conflict, candidates):
+            return ("defer", None)
+
+        monkeypatch.setattr(
+            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            mock_prompt,
+        )
+
+        ctx = PrimitiveExecutionContext(
+            step_id="specify-defer-001",
+            mission_id="software-dev",
+            run_id="run-int-004",
+            inputs={"description": "Configure workspace settings"},
+            metadata={
+                "glossary_watch_terms": ["workspace"],
+                "critical_step": True,
+            },
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.MEDIUM,
+            interaction_mode="interactive",
+        )
+
+        with pytest.raises(BlockedByConflict) as exc_info:
+            pipeline.process(ctx)
+
+        # Exception contains the unresolved workspace conflict
+        conflict_terms = {c.term.surface_text for c in exc_info.value.conflicts}
+        assert "workspace" in conflict_terms
+
+    def test_defer_under_off_strictness_completes(
+        self, tmp_path, monkeypatch
+    ):
+        """Even when user defers, OFF strictness never blocks."""
+        _setup_multi_scope_repo(tmp_path)
+
+        def mock_prompt(conflict, candidates):
+            return ("defer", None)
+
+        monkeypatch.setattr(
+            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            mock_prompt,
+        )
+
+        ctx = PrimitiveExecutionContext(
+            step_id="specify-defer-002",
+            mission_id="software-dev",
+            run_id="run-int-005",
+            inputs={"description": "Configure workspace settings"},
+            metadata={
+                "glossary_watch_terms": ["workspace"],
+            },
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.OFF,
+            interaction_mode="interactive",
+        )
+
+        # OFF strictness: no blocking regardless of deferred conflicts
+        result = pipeline.process(ctx)
+
+        assert result.effective_strictness == Strictness.OFF
+        # Conflict remains unresolved (deferred)
+        workspace_conflicts = [
+            c for c in result.conflicts if c.term.surface_text == "workspace"
+        ]
+        assert len(workspace_conflicts) >= 1
+
+    def test_non_interactive_mode_defers_all(self, tmp_path):
+        """In non-interactive mode with MAX strictness, all conflicts defer
+        and the gate blocks."""
+        _setup_multi_scope_repo(tmp_path)
+
+        ctx = PrimitiveExecutionContext(
+            step_id="specify-ni-001",
+            mission_id="software-dev",
+            run_id="run-int-006",
+            inputs={"description": "workspace test"},
+            metadata={
+                "glossary_watch_terms": ["workspace"],
+            },
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.MAX,
+            interaction_mode="non-interactive",
+        )
+
+        with pytest.raises(BlockedByConflict):
+            pipeline.process(ctx)
+
+
+# ---------------------------------------------------------------------------
+# Scenario 3: Pipeline skip when disabled
+# ---------------------------------------------------------------------------
+
+
+class TestPipelineSkipWhenDisabled:
+    """Pipeline must skip all processing when glossary checks are disabled."""
+
+    def test_disabled_via_metadata_skips_extraction(self, tmp_path):
+        """glossary_check: disabled in metadata -> no extraction, no conflicts."""
+        _setup_multi_scope_repo(tmp_path)
+
+        ctx = PrimitiveExecutionContext(
+            step_id="plan-001",
+            mission_id="software-dev",
+            run_id="run-int-007",
+            inputs={
+                "description": "This has workspace and pipeline terms everywhere",
+            },
+            metadata={"glossary_check": "disabled"},
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(tmp_path)
+        result = pipeline.process(ctx)
+
+        assert len(result.extracted_terms) == 0
+        assert len(result.conflicts) == 0
+        assert result.effective_strictness is None
+
+    def test_disabled_via_mission_config_skips_extraction(self, tmp_path):
+        """glossary.enabled: false in config -> no extraction, no conflicts."""
+        _setup_multi_scope_repo(tmp_path)
+
+        ctx = PrimitiveExecutionContext(
+            step_id="plan-002",
+            mission_id="software-dev",
+            run_id="run-int-008",
+            inputs={
+                "description": "workspace pipeline artifact mission primitive",
+            },
+            metadata={},
+            config={"glossary": {"enabled": False}},
+        )
+
+        pipeline = create_standard_pipeline(tmp_path)
+        result = pipeline.process(ctx)
+
+        assert len(result.extracted_terms) == 0
+        assert len(result.conflicts) == 0
+        assert result.effective_strictness is None
+
+    def test_disabled_via_boolean_false_skips(self, tmp_path):
+        """glossary_check: false (YAML boolean) -> skip."""
+        _setup_multi_scope_repo(tmp_path)
+
+        ctx = PrimitiveExecutionContext(
+            step_id="plan-003",
+            mission_id="software-dev",
+            run_id="run-int-009",
+            inputs={"description": "workspace test"},
+            metadata={"glossary_check": False},
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(tmp_path)
+        result = pipeline.process(ctx)
+
+        assert len(result.extracted_terms) == 0
+        assert len(result.conflicts) == 0
+
+
+# ---------------------------------------------------------------------------
+# Scenario 4: Strictness mode combinations
+# ---------------------------------------------------------------------------
+
+
+class TestStrictnessModes:
+    """Verify OFF/MEDIUM/MAX strictness modes with various conflict scenarios."""
+
+    def _setup_ambiguous_workspace(self, tmp_path):
         _create_seed_file(
             tmp_path,
             "team_domain",
             (
                 "terms:\n"
                 "  - surface: workspace\n"
-                "    definition: Git worktree directory\n"
+                "    definition: Git worktree directory for a work package\n"
                 "    confidence: 0.9\n"
                 "    status: active\n"
                 "  - surface: workspace\n"
-                "    definition: VS Code workspace config\n"
+                "    definition: VS Code workspace configuration file\n"
+                "    confidence: 0.7\n"
+                "    status: active\n"
+            ),
+        )
+
+    def test_off_mode_never_blocks(self, tmp_path):
+        """OFF mode: conflicts are detected but never trigger blocking."""
+        self._setup_ambiguous_workspace(tmp_path)
+
+        ctx = PrimitiveExecutionContext(
+            step_id="strict-off-001",
+            mission_id="test",
+            run_id="run-strict-001",
+            inputs={"description": "workspace test"},
+            metadata={
+                "glossary_watch_terms": ["workspace"],
+                "critical_step": True,  # HIGH severity
+            },
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.OFF,
+            interaction_mode="non-interactive",
+        )
+
+        result = pipeline.process(ctx)
+
+        assert result.effective_strictness == Strictness.OFF
+        # Conflicts are detected but not blocking
+        workspace_conflicts = [
+            c for c in result.conflicts if c.term.surface_text == "workspace"
+        ]
+        assert len(workspace_conflicts) >= 1
+        assert workspace_conflicts[0].conflict_type == ConflictType.AMBIGUOUS
+
+    def test_medium_mode_blocks_high_severity_only(self, tmp_path):
+        """MEDIUM mode: blocks on HIGH severity, allows LOW/MEDIUM through."""
+        self._setup_ambiguous_workspace(tmp_path)
+
+        # Critical step -> AMBIGUOUS -> HIGH severity -> SHOULD BLOCK
+        ctx_critical = PrimitiveExecutionContext(
+            step_id="strict-med-001",
+            mission_id="test",
+            run_id="run-strict-002",
+            inputs={"description": "workspace test"},
+            metadata={
+                "glossary_watch_terms": ["workspace"],
+                "critical_step": True,
+            },
+            config={},
+        )
+
+        pipeline_critical = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.MEDIUM,
+            interaction_mode="non-interactive",
+        )
+
+        with pytest.raises(BlockedByConflict):
+            pipeline_critical.process(ctx_critical)
+
+        # Non-critical step -> AMBIGUOUS -> MEDIUM severity -> should NOT block
+        ctx_noncritical = PrimitiveExecutionContext(
+            step_id="strict-med-002",
+            mission_id="test",
+            run_id="run-strict-003",
+            inputs={"description": "workspace test"},
+            metadata={
+                "glossary_watch_terms": ["workspace"],
+                # No critical_step -> AMBIGUOUS -> MEDIUM severity
+            },
+            config={},
+        )
+
+        pipeline_noncritical = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.MEDIUM,
+            interaction_mode="non-interactive",
+        )
+
+        # MEDIUM severity under MEDIUM strictness -> no block
+        result = pipeline_noncritical.process(ctx_noncritical)
+        assert result.effective_strictness == Strictness.MEDIUM
+
+    def test_max_mode_blocks_any_conflict(self, tmp_path):
+        """MAX mode: blocks on any conflict regardless of severity."""
+        self._setup_ambiguous_workspace(tmp_path)
+
+        # Non-critical step -> AMBIGUOUS -> MEDIUM severity
+        ctx = PrimitiveExecutionContext(
+            step_id="strict-max-001",
+            mission_id="test",
+            run_id="run-strict-004",
+            inputs={"description": "workspace test"},
+            metadata={
+                "glossary_watch_terms": ["workspace"],
+                # No critical_step -> AMBIGUOUS -> MEDIUM severity
+            },
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.MAX,
+            interaction_mode="non-interactive",
+        )
+
+        # MAX blocks even MEDIUM severity
+        with pytest.raises(BlockedByConflict):
+            pipeline.process(ctx)
+
+    def test_unknown_term_under_max_blocks(self, tmp_path):
+        """MAX mode: an UNKNOWN term (not in any glossary) triggers blocking."""
+        (tmp_path / ".kittify").mkdir()
+
+        ctx = PrimitiveExecutionContext(
+            step_id="strict-max-002",
+            mission_id="test",
+            run_id="run-strict-005",
+            inputs={"description": "test"},
+            metadata={
+                "glossary_watch_terms": ["frobnicator"],
+            },
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.MAX,
+            interaction_mode="non-interactive",
+        )
+
+        with pytest.raises(BlockedByConflict) as exc_info:
+            pipeline.process(ctx)
+
+        conflict_terms = {c.term.surface_text for c in exc_info.value.conflicts}
+        assert "frobnicator" in conflict_terms
+
+    def test_strictness_precedence_runtime_over_config(self, tmp_path):
+        """Runtime --strictness override takes precedence over config.yaml."""
+        self._setup_ambiguous_workspace(tmp_path)
+        _create_config(tmp_path, "glossary:\n  strictness: max\n")
+
+        ctx = PrimitiveExecutionContext(
+            step_id="strict-prec-001",
+            mission_id="test",
+            run_id="run-strict-006",
+            inputs={"description": "workspace test"},
+            metadata={
+                "glossary_watch_terms": ["workspace"],
+            },
+            config={},
+        )
+
+        # Config says MAX, but runtime override says OFF
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.OFF,
+            interaction_mode="non-interactive",
+        )
+
+        # OFF overrides MAX -> no block
+        result = pipeline.process(ctx)
+        assert result.effective_strictness == Strictness.OFF
+
+
+# ---------------------------------------------------------------------------
+# Scenario 5: Multiple conflicts in one step
+# ---------------------------------------------------------------------------
+
+
+class TestMultipleConflictsSingleStep:
+    """Verify handling of multiple ambiguous terms detected in a single step."""
+
+    def test_multiple_ambiguous_terms_all_reported(self, tmp_path):
+        """Two ambiguous terms should both appear in BlockedByConflict."""
+        _create_seed_file(
+            tmp_path,
+            "team_domain",
+            (
+                "terms:\n"
+                "  - surface: workspace\n"
+                "    definition: Git worktree directory for a work package\n"
+                "    confidence: 0.9\n"
+                "    status: active\n"
+                "  - surface: workspace\n"
+                "    definition: VS Code workspace configuration file\n"
                 "    confidence: 0.7\n"
                 "    status: active\n"
                 "  - surface: mission\n"
@@ -613,13 +662,138 @@ class TestMultipleConflictsSingleStep:
                 "    confidence: 0.9\n"
                 "    status: active\n"
                 "  - surface: mission\n"
-                "    definition: Organization goal\n"
+                "    definition: Organizational goal statement\n"
                 "    confidence: 0.6\n"
                 "    status: active\n"
             ),
         )
 
-        def mock_prompt(conflict: Any, candidates: Any) -> tuple[str, str | None]:
+        ctx = PrimitiveExecutionContext(
+            step_id="multi-001",
+            mission_id="test-multi",
+            run_id="run-multi-001",
+            inputs={"description": "test"},
+            metadata={
+                "glossary_watch_terms": ["workspace", "mission"],
+                "critical_step": True,
+            },
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.MAX,
+            interaction_mode="non-interactive",
+        )
+
+        with pytest.raises(BlockedByConflict) as exc_info:
+            pipeline.process(ctx)
+
+        conflict_terms = {c.term.surface_text for c in exc_info.value.conflicts}
+        assert "workspace" in conflict_terms
+        assert "mission" in conflict_terms
+
+    def test_resolve_all_multiple_conflicts_interactively(
+        self, tmp_path, monkeypatch
+    ):
+        """User resolves all conflicts interactively. Pipeline completes."""
+        _create_seed_file(
+            tmp_path,
+            "team_domain",
+            (
+                "terms:\n"
+                "  - surface: workspace\n"
+                "    definition: Git worktree directory for a work package\n"
+                "    confidence: 0.9\n"
+                "    status: active\n"
+                "  - surface: workspace\n"
+                "    definition: VS Code workspace configuration file\n"
+                "    confidence: 0.7\n"
+                "    status: active\n"
+                "  - surface: mission\n"
+                "    definition: Purpose-specific workflow\n"
+                "    confidence: 0.9\n"
+                "    status: active\n"
+                "  - surface: mission\n"
+                "    definition: Organizational goal statement\n"
+                "    confidence: 0.6\n"
+                "    status: active\n"
+            ),
+        )
+
+        prompt_count = 0
+
+        def mock_prompt(conflict, candidates):
+            nonlocal prompt_count
+            prompt_count += 1
+            conflict.selected_index = 0
+            return ("select", None)
+
+        monkeypatch.setattr(
+            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            mock_prompt,
+        )
+
+        ctx = PrimitiveExecutionContext(
+            step_id="multi-002",
+            mission_id="test-multi",
+            run_id="run-multi-002",
+            inputs={"description": "test"},
+            metadata={
+                "glossary_watch_terms": ["workspace", "mission"],
+            },
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(
+            tmp_path,
+            runtime_strictness=Strictness.MAX,
+            interaction_mode="interactive",
+        )
+
+        result = pipeline.process(ctx)
+
+        # Both conflicts resolved
+        assert len(result.conflicts) == 0
+        assert prompt_count == 2  # One prompt per ambiguous term
+
+        resolved = getattr(result, "resolved_conflicts", [])
+        resolved_surfaces = {c.term.surface_text for c in resolved}
+        assert "workspace" in resolved_surfaces
+        assert "mission" in resolved_surfaces
+
+    def test_partial_resolution_some_deferred(self, tmp_path, monkeypatch):
+        """User resolves one conflict but defers another.
+        Under MAX strictness, the deferred conflict causes blocking."""
+        _create_seed_file(
+            tmp_path,
+            "team_domain",
+            (
+                "terms:\n"
+                "  - surface: workspace\n"
+                "    definition: Git worktree directory for a work package\n"
+                "    confidence: 0.9\n"
+                "    status: active\n"
+                "  - surface: workspace\n"
+                "    definition: VS Code workspace configuration file\n"
+                "    confidence: 0.7\n"
+                "    status: active\n"
+                "  - surface: mission\n"
+                "    definition: Purpose-specific workflow\n"
+                "    confidence: 0.9\n"
+                "    status: active\n"
+                "  - surface: mission\n"
+                "    definition: Organizational goal statement\n"
+                "    confidence: 0.6\n"
+                "    status: active\n"
+            ),
+        )
+
+        call_count = 0
+
+        def mock_prompt(conflict, candidates):
+            nonlocal call_count
+            call_count += 1
             if conflict.term.surface_text == "workspace":
                 conflict.selected_index = 0
                 return ("select", None)
@@ -631,9 +805,15 @@ class TestMultipleConflictsSingleStep:
             mock_prompt,
         )
 
-        ctx = _make_context(
+        ctx = PrimitiveExecutionContext(
+            step_id="multi-003",
+            mission_id="test-multi",
+            run_id="run-multi-003",
             inputs={"description": "test"},
-            metadata={"glossary_watch_terms": ["workspace", "mission"]},
+            metadata={
+                "glossary_watch_terms": ["workspace", "mission"],
+            },
+            config={},
         )
 
         pipeline = create_standard_pipeline(
@@ -642,78 +822,65 @@ class TestMultipleConflictsSingleStep:
             interaction_mode="interactive",
         )
 
-        # mission deferred -> gate blocks
+        # workspace resolved, mission deferred -> MAX blocks on remaining
         with pytest.raises(BlockedByConflict) as exc_info:
             pipeline.process(ctx)
 
-        # Only mission remains unresolved
-        unresolved = exc_info.value.conflicts
-        unresolved_terms = {c.term.surface_text for c in unresolved}
-        assert "mission" in unresolved_terms
-        assert "workspace" not in unresolved_terms
+        # Only the deferred "mission" conflict should be in the exception
+        remaining_terms = {c.term.surface_text for c in exc_info.value.conflicts}
+        assert "mission" in remaining_terms
+        # workspace was resolved, should not be in remaining
+        assert "workspace" not in remaining_terms
 
 
 # ---------------------------------------------------------------------------
-# Scenario 6: Cross-module state flow validation
+# Scenario 6: Scope hierarchy resolution
 # ---------------------------------------------------------------------------
 
 
-class TestCrossModuleStateFlow:
-    """Verify that state flows correctly across all middleware layers."""
+class TestScopeHierarchyIntegration:
+    """Test that multi-scope resolution works end-to-end through the pipeline."""
 
-    def test_extracted_terms_flow_to_semantic_check(self, tmp_path: Path) -> None:
-        """Terms extracted in layer 1 are visible in layer 2 (semantic check)."""
-        _setup_multi_scope_repo(tmp_path)
-
-        ctx = _make_context(
-            inputs={"description": "test"},
-            metadata={"glossary_watch_terms": ["workspace", "pipeline"]},
-        )
-
-        pipeline = create_standard_pipeline(
+    def test_term_resolved_from_single_scope_no_conflict(self, tmp_path):
+        """A term with 1 active sense in one scope -> no conflict."""
+        _create_seed_file(
             tmp_path,
-            runtime_strictness=Strictness.OFF,
+            "team_domain",
+            (
+                "terms:\n"
+                "  - surface: artifact\n"
+                "    definition: Build output file\n"
+                "    confidence: 1.0\n"
+                "    status: active\n"
+            ),
         )
+
+        ctx = PrimitiveExecutionContext(
+            step_id="scope-001",
+            mission_id="test",
+            run_id="run-scope-001",
+            inputs={"description": "test"},
+            metadata={"glossary_watch_terms": ["artifact"]},
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(tmp_path)
         result = pipeline.process(ctx)
 
-        # Both terms were extracted
-        extracted_surfaces = {t.surface for t in result.extracted_terms}
-        assert "workspace" in extracted_surfaces
-        assert "pipeline" in extracted_surfaces
+        assert len(result.conflicts) == 0
+        assert len(result.extracted_terms) >= 1
 
-        # workspace has 2 active senses -> AMBIGUOUS conflict
-        workspace_conflicts = [
-            c for c in result.conflicts if c.term.surface_text == "workspace"
-        ]
-        assert len(workspace_conflicts) == 1
-        assert workspace_conflicts[0].conflict_type == ConflictType.AMBIGUOUS
-
-        # pipeline has 1 active sense -> no conflict
-        pipeline_conflicts = [
-            c for c in result.conflicts if c.term.surface_text == "pipeline"
-        ]
-        assert len(pipeline_conflicts) == 0
-
-    def test_effective_strictness_stored_in_context(self, tmp_path: Path) -> None:
-        """GenerationGateMiddleware stores effective_strictness in context."""
+    def test_term_in_no_scope_is_unknown(self, tmp_path):
+        """A metadata-hinted term not found in any scope -> UNKNOWN conflict."""
         (tmp_path / ".kittify").mkdir()
 
-        ctx = _make_context()
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.MAX,
-        )
-        result = pipeline.process(ctx)
-
-        assert result.effective_strictness == Strictness.MAX
-
-    def test_conflict_candidates_include_scope_info(self, tmp_path: Path) -> None:
-        """SemanticConflict.candidate_senses carry scope and definition."""
-        _setup_multi_scope_repo(tmp_path)
-
-        ctx = _make_context(
+        ctx = PrimitiveExecutionContext(
+            step_id="scope-002",
+            mission_id="test",
+            run_id="run-scope-002",
             inputs={"description": "test"},
-            metadata={"glossary_watch_terms": ["workspace"]},
+            metadata={"glossary_watch_terms": ["xylophone"]},
+            config={},
         )
 
         pipeline = create_standard_pipeline(
@@ -722,33 +889,274 @@ class TestCrossModuleStateFlow:
         )
         result = pipeline.process(ctx)
 
-        workspace_conflict = next(
-            (c for c in result.conflicts if c.term.surface_text == "workspace"),
-            None,
+        unknown_conflicts = [
+            c for c in result.conflicts if c.term.surface_text == "xylophone"
+        ]
+        assert len(unknown_conflicts) == 1
+        assert unknown_conflicts[0].conflict_type == ConflictType.UNKNOWN
+
+    def test_cross_scope_terms_resolved_independently(self, tmp_path):
+        """Terms from different scopes are each resolved independently."""
+        _setup_multi_scope_repo(tmp_path)
+
+        ctx = PrimitiveExecutionContext(
+            step_id="scope-003",
+            mission_id="test",
+            run_id="run-scope-003",
+            inputs={"description": "test"},
+            metadata={
+                # "pipeline" is in team_domain (unambiguous)
+                # "mission" is in spec_kitty_core (unambiguous)
+                "glossary_watch_terms": ["pipeline", "mission"],
+            },
+            config={},
         )
-        assert workspace_conflict is not None
-        assert len(workspace_conflict.candidate_senses) == 2
-        # Both candidates from team_domain
-        for sense_ref in workspace_conflict.candidate_senses:
-            assert sense_ref.scope == "team_domain"
-            assert sense_ref.definition  # non-empty
+
+        pipeline = create_standard_pipeline(tmp_path)
+        result = pipeline.process(ctx)
+
+        # Both are unambiguous single-sense terms -> no conflicts
+        assert len(result.conflicts) == 0
+        # Both were extracted
+        extracted_surfaces = {t.surface for t in result.extracted_terms}
+        assert "pipeline" in extracted_surfaces
+        assert "mission" in extracted_surfaces
 
 
 # ---------------------------------------------------------------------------
-# Scenario 7: Production hook integration (execute_with_glossary)
+# Scenario 7: Event emission through the full stack
 # ---------------------------------------------------------------------------
 
 
-class TestProductionHookIntegration:
-    """Verify execute_with_glossary integrates all components end-to-end."""
+class TestEventEmissionEndToEnd:
+    """Verify that events are emitted at each pipeline stage.
 
-    def test_e2e_clarify_then_primitive_runs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Full production path: hook -> pipeline -> clarification -> primitive."""
+    Since spec-kitty-events may not be installed, events go through log-only
+    mode. We verify the event builder functions return correct payloads.
+    """
+
+    def test_extraction_emits_term_candidate_events(self, tmp_path):
+        """Term extraction stage should emit TermCandidateObserved events."""
+        (tmp_path / ".kittify").mkdir()
+
+        from specify_cli.glossary.events import emit_term_candidate_observed
+        from specify_cli.glossary.extraction import ExtractedTerm
+
+        term = ExtractedTerm(
+            surface="workspace",
+            source="metadata_hint",
+            confidence=1.0,
+            original="workspace",
+        )
+
+        ctx = PrimitiveExecutionContext(
+            step_id="evt-001",
+            mission_id="test",
+            run_id="run-evt-001",
+            inputs={"description": "test"},
+            metadata={},
+            config={},
+        )
+
+        event = emit_term_candidate_observed(
+            term=term, context=ctx, repo_root=tmp_path
+        )
+
+        assert event is not None
+        assert event["event_type"] == "TermCandidateObserved"
+        assert event["term"] == "workspace"
+        assert event["confidence"] == 1.0
+        assert event["extraction_method"] == "metadata_hint"
+
+    def test_semantic_check_emits_evaluation_event(self, tmp_path):
+        """Semantic check stage should emit SemanticCheckEvaluated event."""
+        from specify_cli.glossary.events import emit_semantic_check_evaluated
+        from specify_cli.glossary.models import (
+            ConflictType,
+            SemanticConflict,
+            SenseRef,
+            Severity,
+            TermSurface,
+        )
+
+        ctx = PrimitiveExecutionContext(
+            step_id="evt-002",
+            mission_id="test",
+            run_id="run-evt-002",
+            inputs={"description": "test"},
+            metadata={},
+            config={},
+        )
+
+        conflict = SemanticConflict(
+            term=TermSurface("workspace"),
+            conflict_type=ConflictType.AMBIGUOUS,
+            severity=Severity.HIGH,
+            confidence=0.9,
+            candidate_senses=[
+                SenseRef("workspace", "team_domain", "Git worktree", 0.9),
+                SenseRef("workspace", "team_domain", "VS Code config", 0.7),
+            ],
+            context="test",
+        )
+
+        event = emit_semantic_check_evaluated(
+            context=ctx,
+            conflicts=[conflict],
+            repo_root=tmp_path,
+        )
+
+        assert event is not None
+        assert event["event_type"] == "SemanticCheckEvaluated"
+        assert event["overall_severity"] == "high"
+        assert len(event["findings"]) == 1
+
+    def test_generation_blocked_emits_event(self, tmp_path):
+        """Generation gate blocking should emit GenerationBlockedBySemanticConflict."""
+        from specify_cli.glossary.events import emit_generation_blocked_event
+        from specify_cli.glossary.models import (
+            ConflictType,
+            SemanticConflict,
+            SenseRef,
+            Severity,
+            TermSurface,
+        )
+
+        conflict = SemanticConflict(
+            term=TermSurface("workspace"),
+            conflict_type=ConflictType.AMBIGUOUS,
+            severity=Severity.HIGH,
+            confidence=0.9,
+            candidate_senses=[
+                SenseRef("workspace", "team_domain", "Git worktree", 0.9),
+            ],
+            context="test",
+        )
+
+        event = emit_generation_blocked_event(
+            step_id="evt-003",
+            mission_id="test",
+            conflicts=[conflict],
+            strictness_mode=Strictness.MEDIUM,
+            run_id="run-evt-003",
+            repo_root=tmp_path,
+        )
+
+        assert event is not None
+        assert event["event_type"] == "GenerationBlockedBySemanticConflict"
+        assert event["strictness_mode"] == "medium"
+        assert len(event["conflicts"]) == 1
+
+    def test_clarification_requested_emits_event(self, tmp_path):
+        """Deferred conflict should emit GlossaryClarificationRequested."""
+        from specify_cli.glossary.events import emit_clarification_requested
+        from specify_cli.glossary.models import (
+            ConflictType,
+            SemanticConflict,
+            SenseRef,
+            Severity,
+            TermSurface,
+        )
+
+        ctx = PrimitiveExecutionContext(
+            step_id="evt-004",
+            mission_id="test",
+            run_id="run-evt-004",
+            inputs={"description": "test"},
+            metadata={},
+            config={},
+        )
+
+        conflict = SemanticConflict(
+            term=TermSurface("workspace"),
+            conflict_type=ConflictType.AMBIGUOUS,
+            severity=Severity.HIGH,
+            confidence=0.9,
+            candidate_senses=[
+                SenseRef("workspace", "team_domain", "Git worktree", 0.9),
+                SenseRef("workspace", "team_domain", "VS Code config", 0.7),
+            ],
+            context="test",
+        )
+
+        event = emit_clarification_requested(
+            conflict=conflict,
+            context=ctx,
+            conflict_id="test-conflict-id",
+            repo_root=tmp_path,
+        )
+
+        assert event is not None
+        assert event["event_type"] == "GlossaryClarificationRequested"
+        assert event["term"] == "workspace"
+        assert len(event["options"]) == 2
+
+    def test_clarification_resolved_emits_event(self, tmp_path):
+        """Resolved conflict should emit GlossaryClarificationResolved."""
+        from specify_cli.glossary.events import emit_clarification_resolved
+        from specify_cli.glossary.models import (
+            ConflictType,
+            SemanticConflict,
+            SenseRef,
+            Severity,
+            TermSurface,
+        )
+
+        ctx = PrimitiveExecutionContext(
+            step_id="evt-005",
+            mission_id="test",
+            run_id="run-evt-005",
+            inputs={"description": "test"},
+            metadata={},
+            config={},
+        )
+
+        conflict = SemanticConflict(
+            term=TermSurface("workspace"),
+            conflict_type=ConflictType.AMBIGUOUS,
+            severity=Severity.HIGH,
+            confidence=0.9,
+            candidate_senses=[
+                SenseRef("workspace", "team_domain", "Git worktree", 0.9),
+            ],
+            context="test",
+        )
+
+        selected_sense = SenseRef("workspace", "team_domain", "Git worktree", 0.9)
+
+        event = emit_clarification_resolved(
+            conflict_id="test-conflict-resolved",
+            conflict=conflict,
+            selected_sense=selected_sense,
+            context=ctx,
+            resolution_mode="interactive",
+            repo_root=tmp_path,
+        )
+
+        assert event is not None
+        assert event["event_type"] == "GlossaryClarificationResolved"
+        assert event["conflict_id"] == "test-conflict-resolved"
+        assert event["resolution_mode"] == "interactive"
+        assert event["selected_sense"]["definition"] == "Git worktree"
+
+
+# ---------------------------------------------------------------------------
+# Scenario 8: Production code path (execute_with_glossary)
+# ---------------------------------------------------------------------------
+
+
+class TestProductionCodePath:
+    """Verify full integration through the production execute_with_glossary hook."""
+
+    def test_full_e2e_production_specify_clarify_proceed(
+        self, tmp_path, monkeypatch
+    ):
+        """Full production path: hook -> pipeline -> clarify -> primitive."""
         from specify_cli.missions.glossary_hook import execute_with_glossary
 
         _setup_multi_scope_repo(tmp_path)
 
-        def mock_prompt(conflict: Any, candidates: Any) -> tuple[str, str | None]:
+        def mock_prompt(conflict, candidates):
             conflict.selected_index = 0
             return ("select", None)
 
@@ -757,23 +1165,29 @@ class TestProductionHookIntegration:
             mock_prompt,
         )
 
-        primitive_results: list[dict[str, Any]] = []
+        primitive_results = []
 
-        def my_specify_primitive(context: Any) -> dict[str, Any]:
-            result = {
+        def my_specify_primitive(context):
+            primitive_results.append({
                 "strictness": context.effective_strictness,
                 "remaining_conflicts": len(context.conflicts),
-                "resolved_count": len(getattr(context, "resolved_conflicts", [])),
-            }
-            primitive_results.append(result)
-            return result
+                "terms_extracted": len(context.extracted_terms),
+            })
+            return primitive_results[-1]
 
-        ctx = _make_context(
-            inputs={"description": "Implement workspace management feature"},
+        ctx = PrimitiveExecutionContext(
+            step_id="prod-001",
+            mission_id="software-dev",
+            run_id="run-prod-001",
+            inputs={
+                "description": "Implement workspace management feature",
+            },
             metadata={
+                "glossary_check": "enabled",
                 "glossary_watch_terms": ["workspace"],
                 "critical_step": True,
             },
+            config={},
         )
 
         result = execute_with_glossary(
@@ -784,48 +1198,31 @@ class TestProductionHookIntegration:
             interaction_mode="interactive",
         )
 
+        # Primitive executed
         assert len(primitive_results) == 1
+        # Conflict was resolved by clarification
         assert result["remaining_conflicts"] == 0
-        assert result["resolved_count"] >= 1
         assert result["strictness"] == Strictness.MEDIUM
+        assert result["terms_extracted"] >= 1
 
-    def test_e2e_blocked_propagates_through_hook(self, tmp_path: Path) -> None:
-        """BlockedByConflict propagates through execute_with_glossary."""
+    def test_production_path_disabled_skips_pipeline_runs_primitive(
+        self, tmp_path
+    ):
+        """When glossary is disabled, the primitive still runs."""
         from specify_cli.missions.glossary_hook import execute_with_glossary
 
         _setup_multi_scope_repo(tmp_path)
 
-        def my_primitive(context: Any) -> dict[str, str]:
-            return {"result": "should not run"}
-
-        ctx = _make_context(
-            inputs={"description": "workspace test"},
-            metadata={
-                "glossary_watch_terms": ["workspace"],
-                "critical_step": True,
-            },
-        )
-
-        with pytest.raises(BlockedByConflict):
-            execute_with_glossary(
-                primitive_fn=my_primitive,
-                context=ctx,
-                repo_root=tmp_path,
-                runtime_strictness=Strictness.MEDIUM,
-                interaction_mode="non-interactive",
-            )
-
-    def test_e2e_disabled_still_runs_primitive(self, tmp_path: Path) -> None:
-        """Pipeline disabled -> primitive still executes."""
-        from specify_cli.missions.glossary_hook import execute_with_glossary
-
-        _setup_multi_scope_repo(tmp_path)
-
-        def my_primitive(context: Any) -> dict[str, Any]:
+        def my_primitive(context):
             return {"ran": True, "strictness": context.effective_strictness}
 
-        ctx = _make_context(
+        ctx = PrimitiveExecutionContext(
+            step_id="prod-002",
+            mission_id="software-dev",
+            run_id="run-prod-002",
+            inputs={"description": "workspace test"},
             metadata={"glossary_check": "disabled"},
+            config={},
         )
 
         result = execute_with_glossary(
@@ -835,312 +1232,227 @@ class TestProductionHookIntegration:
         )
 
         assert result["ran"] is True
-        assert result["strictness"] is None
+        assert result["strictness"] is None  # Pipeline was skipped
 
 
 # ---------------------------------------------------------------------------
-# Scenario 8: Seed file loading across scopes
+# Scenario 9: Error handling and edge cases
 # ---------------------------------------------------------------------------
 
 
-class TestMultiScopeResolution:
-    """Verify term resolution across multiple scope levels."""
+class TestErrorHandlingEdgeCases:
+    """Test error paths and edge cases in cross-module workflows."""
 
-    def test_term_in_one_scope_no_conflict(self, tmp_path: Path) -> None:
-        """Term in spec_kitty_core with single sense -> no conflict."""
-        _setup_multi_scope_repo(tmp_path)
+    def test_malformed_seed_file_does_not_crash_pipeline(self, tmp_path):
+        """Pipeline handles malformed seed files gracefully."""
+        glossaries = tmp_path / ".kittify" / "glossaries"
+        glossaries.mkdir(parents=True)
+        (glossaries / "team_domain.yaml").write_text("{{{{invalid yaml content")
 
-        ctx = _make_context(
-            inputs={"description": "test"},
-            metadata={"glossary_watch_terms": ["mission"]},
+        ctx = PrimitiveExecutionContext(
+            step_id="edge-001",
+            mission_id="test",
+            run_id="run-edge-001",
+            inputs={"description": "workspace test"},
+            metadata={"glossary_watch_terms": ["workspace"]},
+            config={},
         )
 
         pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.MAX,
+            tmp_path, runtime_strictness=Strictness.OFF
         )
+
+        # Should not crash
         result = pipeline.process(ctx)
+        assert result is not None
 
-        # mission has single sense in spec_kitty_core -> no conflict
-        mission_conflicts = [
-            c for c in result.conflicts if c.term.surface_text == "mission"
-        ]
-        assert len(mission_conflicts) == 0
+    def test_empty_seed_file_handled(self, tmp_path):
+        """Pipeline handles empty seed file gracefully."""
+        glossaries = tmp_path / ".kittify" / "glossaries"
+        glossaries.mkdir(parents=True)
+        (glossaries / "team_domain.yaml").write_text("")
 
-    def test_term_not_in_any_scope_is_unknown(self, tmp_path: Path) -> None:
-        """Term not in any seed file -> UNKNOWN conflict."""
-        _setup_multi_scope_repo(tmp_path)
-
-        ctx = _make_context(
+        ctx = PrimitiveExecutionContext(
+            step_id="edge-002",
+            mission_id="test",
+            run_id="run-edge-002",
             inputs={"description": "test"},
-            metadata={"glossary_watch_terms": ["frobnicator"]},
+            metadata={},
+            config={},
         )
 
         pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.OFF,
+            tmp_path, runtime_strictness=Strictness.OFF
         )
+
         result = pipeline.process(ctx)
+        assert result is not None
 
-        frob = [c for c in result.conflicts if c.term.surface_text == "frobnicator"]
-        assert len(frob) == 1
-        assert frob[0].conflict_type == ConflictType.UNKNOWN
+    def test_no_kittify_directory_handled(self, tmp_path):
+        """Pipeline creates .kittify if needed and handles missing glossaries."""
+        # tmp_path has no .kittify directory
+        ctx = PrimitiveExecutionContext(
+            step_id="edge-003",
+            mission_id="test",
+            run_id="run-edge-003",
+            inputs={"description": "test"},
+            metadata={},
+            config={},
+        )
 
-    def test_deprecated_sense_ignored_for_ambiguity(self, tmp_path: Path) -> None:
-        """Two senses but one deprecated -> single active sense -> no conflict."""
+        pipeline = create_standard_pipeline(
+            tmp_path, runtime_strictness=Strictness.OFF
+        )
+
+        result = pipeline.process(ctx)
+        assert result is not None
+
+    def test_prompt_function_failure_defers_conflict(self, tmp_path, monkeypatch):
+        """If the prompt function raises an exception, the conflict is deferred
+        (not lost), and the pipeline continues to the gate."""
         _create_seed_file(
             tmp_path,
             "team_domain",
             (
                 "terms:\n"
-                "  - surface: widget\n"
-                "    definition: UI component\n"
+                "  - surface: workspace\n"
+                "    definition: Git worktree directory for a work package\n"
                 "    confidence: 0.9\n"
                 "    status: active\n"
-                "  - surface: widget\n"
-                "    definition: Factory gadget (legacy)\n"
-                "    confidence: 0.5\n"
-                "    status: deprecated\n"
+                "  - surface: workspace\n"
+                "    definition: VS Code workspace configuration file\n"
+                "    confidence: 0.7\n"
+                "    status: active\n"
             ),
         )
 
-        ctx = _make_context(
-            inputs={"description": "test"},
-            metadata={"glossary_watch_terms": ["widget"]},
+        def broken_prompt(conflict, candidates):
+            raise RuntimeError("Simulated prompt failure")
+
+        monkeypatch.setattr(
+            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            broken_prompt,
+        )
+
+        ctx = PrimitiveExecutionContext(
+            step_id="edge-004",
+            mission_id="test",
+            run_id="run-edge-004",
+            inputs={"description": "workspace test"},
+            metadata={
+                "glossary_watch_terms": ["workspace"],
+            },
+            config={},
         )
 
         pipeline = create_standard_pipeline(
             tmp_path,
             runtime_strictness=Strictness.MAX,
+            interaction_mode="interactive",
         )
-        result = pipeline.process(ctx)
 
-        # Only 1 active sense -> no AMBIGUOUS conflict
-        widget_conflicts = [
-            c for c in result.conflicts if c.term.surface_text == "widget"
-        ]
-        assert len(widget_conflicts) == 0
+        # Prompt fails -> conflict deferred -> MAX blocks
+        with pytest.raises(BlockedByConflict):
+            pipeline.process(ctx)
+
+    def test_null_context_raises_value_error(self):
+        """Pipeline raises ValueError if context is None."""
+        pipeline = GlossaryMiddlewarePipeline(middleware=[])
+
+        with pytest.raises(ValueError, match="must not be None"):
+            pipeline.process(None)
 
 
 # ---------------------------------------------------------------------------
-# Scenario 9: Attachment decorator integration
-# ---------------------------------------------------------------------------
-
-
-class TestAttachmentDecoratorIntegration:
-    """Verify the @glossary_enabled decorator and GlossaryAwarePrimitiveRunner."""
-
-    def test_glossary_aware_runner_runs_pipeline(self, tmp_path: Path) -> None:
-        """GlossaryAwarePrimitiveRunner.execute() runs pipeline before primitive."""
-        from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
-
-        (tmp_path / ".kittify").mkdir()
-
-        runner = GlossaryAwarePrimitiveRunner(
-            repo_root=tmp_path,
-            runtime_strictness=Strictness.OFF,
-        )
-
-        def my_primitive(context: Any, extra: str) -> dict[str, Any]:
-            return {
-                "strictness": context.effective_strictness,
-                "extra": extra,
-            }
-
-        ctx = _make_context()
-        result = runner.execute(my_primitive, ctx, "hello")
-
-        assert result["strictness"] == Strictness.OFF
-        assert result["extra"] == "hello"
-
-    def test_run_with_glossary_processes_context(self, tmp_path: Path) -> None:
-        """run_with_glossary processes context through the pipeline."""
-        from specify_cli.glossary.attachment import run_with_glossary
-
-        (tmp_path / ".kittify").mkdir()
-
-        ctx = _make_context()
-        processed = run_with_glossary(
-            context=ctx,
-            repo_root=tmp_path,
-            runtime_strictness=Strictness.MEDIUM,
-        )
-
-        assert processed.effective_strictness == Strictness.MEDIUM
-
-
-# ---------------------------------------------------------------------------
-# Scenario 10: Performance validation
+# Performance validation
 # ---------------------------------------------------------------------------
 
 
 class TestIntegrationPerformance:
-    """Verify integration test performance meets the < 5 seconds budget."""
+    """Verify integration test workflows complete within performance budget."""
 
-    def test_10_iterations_under_5_seconds(self, tmp_path: Path) -> None:
-        """Run 10 full pipeline iterations in < 5 seconds total."""
+    def test_full_pipeline_under_200ms(self, tmp_path):
+        """Full pipeline execution (no conflict) completes in < 200ms."""
         _setup_multi_scope_repo(tmp_path)
+
+        ctx = PrimitiveExecutionContext(
+            step_id="perf-001",
+            mission_id="test",
+            run_id="run-perf-001",
+            inputs={"description": "Simple test with no special terms"},
+            metadata={},
+            config={},
+        )
+
+        pipeline = create_standard_pipeline(tmp_path)
+
+        start = time.perf_counter()
+        pipeline.process(ctx)
+        elapsed = time.perf_counter() - start
+
+        assert elapsed < 0.2, f"Pipeline too slow: {elapsed:.3f}s (expected < 0.2s)"
+
+    def test_ten_iterations_under_five_seconds(self, tmp_path, monkeypatch):
+        """10 full pipeline iterations with conflict resolution < 5 seconds total."""
+        _setup_multi_scope_repo(tmp_path)
+
+        def mock_prompt(conflict, candidates):
+            conflict.selected_index = 0
+            return ("select", None)
+
+        monkeypatch.setattr(
+            "specify_cli.glossary.pipeline.prompt_conflict_resolution_safe",
+            mock_prompt,
+        )
 
         start = time.perf_counter()
 
         for i in range(10):
-            ctx = _make_context(
+            ctx = PrimitiveExecutionContext(
                 step_id=f"perf-{i:03d}",
+                mission_id="perf-test",
                 run_id=f"run-perf-{i:03d}",
-                inputs={"description": "workspace and artifact terms"},
-                metadata={"glossary_watch_terms": ["workspace", "artifact"]},
+                inputs={
+                    "description": "Implement workspace and artifact handling",
+                },
+                metadata={
+                    "glossary_watch_terms": ["workspace"],
+                },
+                config={},
             )
 
             pipeline = create_standard_pipeline(
                 tmp_path,
-                runtime_strictness=Strictness.OFF,
+                runtime_strictness=Strictness.MAX,
+                interaction_mode="interactive",
             )
             pipeline.process(ctx)
 
         elapsed = time.perf_counter() - start
-        assert elapsed < 5.0, f"10 iterations took {elapsed:.2f}s (budget: 5.0s)"
+        assert elapsed < 5.0, (
+            f"10 pipeline iterations too slow: {elapsed:.2f}s (expected < 5.0s)"
+        )
 
-    def test_pipeline_single_run_under_200ms(self, tmp_path: Path) -> None:
-        """Single pipeline run with seed files completes in < 200ms."""
-        _setup_multi_scope_repo(tmp_path)
+    def test_hundred_watch_terms_under_200ms(self, tmp_path):
+        """Pipeline with 100 metadata watch terms completes in < 200ms."""
+        (tmp_path / ".kittify").mkdir()
 
-        ctx = _make_context(
-            inputs={"description": "workspace pipeline artifact terms"},
-            metadata={"glossary_watch_terms": ["workspace", "pipeline", "artifact"]},
+        terms = [f"term{i}" for i in range(100)]
+        ctx = PrimitiveExecutionContext(
+            step_id="perf-100",
+            mission_id="perf-test",
+            run_id="run-perf-100",
+            inputs={"description": "test"},
+            metadata={"glossary_watch_terms": terms},
+            config={},
         )
 
         pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.OFF,
+            tmp_path, runtime_strictness=Strictness.OFF
         )
 
         start = time.perf_counter()
         pipeline.process(ctx)
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 0.2, f"Pipeline too slow: {elapsed:.3f}s"
-
-
-# ---------------------------------------------------------------------------
-# Scenario 11: Error paths and edge cases
-# ---------------------------------------------------------------------------
-
-
-class TestErrorPathsAndEdgeCases:
-    """Test error handling across the integrated pipeline."""
-
-    def test_malformed_seed_file_does_not_crash_pipeline(self, tmp_path: Path) -> None:
-        """Pipeline continues when one seed file is malformed."""
-        glossaries = tmp_path / ".kittify" / "glossaries"
-        glossaries.mkdir(parents=True)
-        (glossaries / "team_domain.yaml").write_text("{{{{invalid yaml")
-
-        # Valid spec_kitty_core
-        _create_seed_file(
-            tmp_path,
-            "spec_kitty_core",
-            (
-                "terms:\n"
-                "  - surface: mission\n"
-                "    definition: Structured workflow\n"
-                "    confidence: 1.0\n"
-                "    status: active\n"
-            ),
-        )
-
-        ctx = _make_context(
-            inputs={"description": "test"},
-            metadata={"glossary_watch_terms": ["mission"]},
-        )
-
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.MAX,
-        )
-        result = pipeline.process(ctx)
-
-        # mission found in spec_kitty_core -> no conflict
-        assert result is not None
-
-    def test_empty_inputs_no_crash(self, tmp_path: Path) -> None:
-        """Pipeline handles empty inputs gracefully."""
-        (tmp_path / ".kittify").mkdir()
-
-        ctx = _make_context(
-            inputs={},
-            metadata={},
-        )
-
-        pipeline = create_standard_pipeline(tmp_path)
-        result = pipeline.process(ctx)
-
-        assert result.extracted_terms == []
-        assert result.conflicts == []
-
-    def test_none_context_raises_valueerror(self, tmp_path: Path) -> None:
-        """Pipeline rejects None context with ValueError."""
-        (tmp_path / ".kittify").mkdir()
-
-        pipeline = create_standard_pipeline(tmp_path)
-
-        with pytest.raises(ValueError, match="must not be None"):
-            pipeline.process(None)  # type: ignore[arg-type]
-
-    def test_prompt_function_exception_defers(self, tmp_path: Path) -> None:
-        """If prompt function raises, conflict is deferred (not crash)."""
-        _setup_multi_scope_repo(tmp_path)
-
-        def broken_prompt(conflict: Any, candidates: Any) -> tuple[str, str | None]:
-            raise RuntimeError("Prompt broken!")
-
-        ctx = _make_context(
-            inputs={"description": "workspace test"},
-            metadata={"glossary_watch_terms": ["workspace"]},
-        )
-
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.OFF,
-            interaction_mode="interactive",
-        )
-        # Replace the prompt function with a broken one
-        for mw in pipeline.middleware:
-            if isinstance(mw, ClarificationMiddleware):
-                mw.prompt_fn = broken_prompt
-
-        result = pipeline.process(ctx)
-
-        # Conflict deferred (prompt failed), but pipeline didn't crash (OFF)
-        assert len(result.conflicts) >= 1
-
-    def test_blocked_exception_carries_conflict_details(self, tmp_path: Path) -> None:
-        """BlockedByConflict exception includes conflict objects with full data."""
-        _setup_multi_scope_repo(tmp_path)
-
-        ctx = _make_context(
-            inputs={"description": "workspace test"},
-            metadata={
-                "glossary_watch_terms": ["workspace"],
-                "critical_step": True,
-            },
-        )
-
-        pipeline = create_standard_pipeline(
-            tmp_path,
-            runtime_strictness=Strictness.MEDIUM,
-        )
-
-        with pytest.raises(BlockedByConflict) as exc_info:
-            pipeline.process(ctx)
-
-        exc = exc_info.value
-        assert len(exc.conflicts) >= 1
-        assert exc.strictness == Strictness.MEDIUM
-        assert "blocked" in str(exc).lower() or "conflict" in str(exc).lower()
-
-        # Verify conflict has candidate senses
-        ws_conflict = next(
-            c for c in exc.conflicts if c.term.surface_text == "workspace"
-        )
-        assert len(ws_conflict.candidate_senses) == 2
-        assert ws_conflict.conflict_type == ConflictType.AMBIGUOUS
+        assert elapsed < 0.2, f"Pipeline too slow with 100 terms: {elapsed:.3f}s"
