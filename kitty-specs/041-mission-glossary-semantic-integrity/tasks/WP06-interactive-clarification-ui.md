@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Interactive Clarification UI
-lane: "doing"
+lane: "for_review"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP05
 base_commit: e123f4871b4da4d6bae8a55af3fd48f54c7d701e
@@ -9,7 +9,7 @@ created_at: '2026-02-16T15:55:53.271355+00:00'
 subtasks: [T025, T026, T027, T028, T029]
 shell_pid: "25165"
 agent: "coordinator"
-review_status: "has_feedback"
+review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
 history:
 - event: created
@@ -1201,3 +1201,4 @@ When reviewing this WP, verify:
 - 2026-02-16T16:15:46Z – codex – shell_pid=23165 – lane=doing – Started review via workflow command
 - 2026-02-16T16:18:44Z – codex – shell_pid=23165 – lane=planned – Moved to planned
 - 2026-02-16T16:19:27Z – coordinator – shell_pid=25165 – lane=doing – Started implementation via workflow command
+- 2026-02-16T16:22:53Z – coordinator – shell_pid=25165 – lane=for_review – Fixed: deferred-only conflicts retained in context after mixed resolution
