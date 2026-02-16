@@ -1,11 +1,20 @@
-"""Tests for glossary extraction middleware (WP03)."""
+"""Tests for glossary extraction middleware (WP03) and semantic check middleware (WP04)."""
 
 import pytest
+from datetime import datetime
+from pathlib import Path
+
 from specify_cli.glossary.middleware import (
     GlossaryCandidateExtractionMiddleware,
+    SemanticCheckMiddleware,
     MockContext,
 )
 from specify_cli.glossary.extraction import ExtractedTerm
+from specify_cli.glossary.models import (
+    TermSurface, TermSense, Provenance, SenseStatus, ConflictType, Severity
+)
+from specify_cli.glossary.scope import GlossaryScope, SCOPE_RESOLUTION_ORDER
+from specify_cli.glossary.store import GlossaryStore
 
 
 class TestMiddlewareBasics:
@@ -640,3 +649,467 @@ class TestEventEmission:
         assert "term" in params, "Expected 'term' parameter"
         assert "context" in params, "Expected 'context' parameter"
         assert len(params) == 2, f"Expected 2 parameters, got {len(params)}"
+
+
+# ============================================================================
+# WP04: SemanticCheckMiddleware Tests (T019)
+# ============================================================================
+
+
+@pytest.fixture
+def semantic_check_store(tmp_path: Path) -> GlossaryStore:
+    """Create a GlossaryStore with sample data for semantic check tests."""
+    store = GlossaryStore(tmp_path / "events.log")
+
+    provenance = Provenance(
+        actor_id="user:alice",
+        timestamp=datetime(2026, 2, 16, 12, 0, 0),
+        source="user_clarification",
+    )
+
+    # Add terms for testing different conflict scenarios
+    # 1. Single sense (no conflict)
+    store.add_sense(TermSense(
+        surface=TermSurface("feature"),
+        scope=GlossaryScope.SPEC_KITTY_CORE.value,
+        definition="A unit of work with specifications",
+        provenance=provenance,
+        confidence=1.0,
+        status=SenseStatus.ACTIVE,
+    ))
+
+    # 2. Multiple senses (ambiguous conflict)
+    store.add_sense(TermSense(
+        surface=TermSurface("workspace"),
+        scope=GlossaryScope.MISSION_LOCAL.value,
+        definition="Git worktree directory",
+        provenance=provenance,
+        confidence=1.0,
+        status=SenseStatus.ACTIVE,
+    ))
+    store.add_sense(TermSense(
+        surface=TermSurface("workspace"),
+        scope=GlossaryScope.TEAM_DOMAIN.value,
+        definition="VS Code workspace file",
+        provenance=provenance,
+        confidence=0.9,
+        status=SenseStatus.ACTIVE,
+    ))
+
+    return store
+
+
+class TestSemanticCheckMiddleware:
+    """Tests for SemanticCheckMiddleware (WP04 T019, T020)."""
+
+    def test_middleware_initialization_default(self, semantic_check_store: GlossaryStore):
+        """SemanticCheckMiddleware initializes with default scope order."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        assert middleware.glossary_store == semantic_check_store
+        assert middleware.scope_order == SCOPE_RESOLUTION_ORDER
+
+    def test_middleware_initialization_custom_scopes(
+        self, semantic_check_store: GlossaryStore
+    ):
+        """SemanticCheckMiddleware initializes with custom scope order."""
+        custom_order = [GlossaryScope.TEAM_DOMAIN, GlossaryScope.SPEC_KITTY_CORE]
+        middleware = SemanticCheckMiddleware(semantic_check_store, custom_order)
+
+        assert middleware.scope_order == custom_order
+
+    def test_process_no_conflicts(self, semantic_check_store: GlossaryStore):
+        """Middleware processes context with no conflicts."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        context = MockContext(
+            metadata={},
+            extracted_terms=[
+                ExtractedTerm(
+                    surface="feature",
+                    source="quoted_phrase",
+                    confidence=0.8,
+                    original="feature",
+                )
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        # No conflicts should be detected (single sense match)
+        assert len(result.conflicts) == 0
+
+    def test_process_unknown_conflict(self, semantic_check_store: GlossaryStore):
+        """Middleware detects UNKNOWN conflict for unmatched terms."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        context = MockContext(
+            metadata={},
+            extracted_terms=[
+                ExtractedTerm(
+                    surface="nonexistent",
+                    source="quoted_phrase",
+                    confidence=0.8,
+                    original="nonexistent",
+                )
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        assert len(result.conflicts) == 1
+        conflict = result.conflicts[0]
+        assert conflict.conflict_type == ConflictType.UNKNOWN
+        assert conflict.term.surface_text == "nonexistent"
+        assert conflict.severity == Severity.LOW  # High confidence unknown
+
+    def test_process_ambiguous_conflict(self, semantic_check_store: GlossaryStore):
+        """Middleware detects AMBIGUOUS conflict for multiple senses."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        context = MockContext(
+            metadata={},
+            extracted_terms=[
+                ExtractedTerm(
+                    surface="workspace",
+                    source="quoted_phrase",
+                    confidence=0.8,
+                    original="workspace",
+                )
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        assert len(result.conflicts) == 1
+        conflict = result.conflicts[0]
+        assert conflict.conflict_type == ConflictType.AMBIGUOUS
+        assert conflict.term.surface_text == "workspace"
+        assert conflict.severity == Severity.MEDIUM  # Non-critical step
+        assert len(conflict.candidate_senses) == 2
+
+    def test_process_critical_step_severity(self, semantic_check_store: GlossaryStore):
+        """Middleware scores HIGH severity for conflicts in critical steps."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        context = MockContext(
+            metadata={"critical_step": True},
+            extracted_terms=[
+                ExtractedTerm(
+                    surface="workspace",
+                    source="quoted_phrase",
+                    confidence=0.8,
+                    original="workspace",
+                )
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        assert len(result.conflicts) == 1
+        conflict = result.conflicts[0]
+        assert conflict.severity == Severity.HIGH  # Critical step + ambiguous
+
+    def test_process_multiple_terms(self, semantic_check_store: GlossaryStore):
+        """Middleware processes multiple extracted terms."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        context = MockContext(
+            metadata={},
+            extracted_terms=[
+                ExtractedTerm("feature", "quoted_phrase", 0.8, "feature"),
+                ExtractedTerm("workspace", "quoted_phrase", 0.8, "workspace"),
+                ExtractedTerm("unknown", "quoted_phrase", 0.5, "unknown"),
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        # Should detect 2 conflicts: ambiguous (workspace) + unknown (unknown)
+        assert len(result.conflicts) == 2
+
+        conflict_types = {c.conflict_type for c in result.conflicts}
+        assert ConflictType.AMBIGUOUS in conflict_types
+        assert ConflictType.UNKNOWN in conflict_types
+
+    def test_process_preserves_existing_conflicts(
+        self, semantic_check_store: GlossaryStore
+    ):
+        """Middleware extends existing conflicts list."""
+        from specify_cli.glossary.models import SemanticConflict, SenseRef
+
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        # Create an existing conflict manually
+        existing_conflict = SemanticConflict(
+            term=TermSurface("existing"),
+            conflict_type=ConflictType.UNKNOWN,
+            severity=Severity.LOW,
+            confidence=0.8,
+            candidate_senses=[],
+            context="test",
+        )
+
+        context = MockContext(
+            metadata={},
+            extracted_terms=[
+                ExtractedTerm("workspace", "quoted_phrase", 0.8, "workspace")
+            ],
+        )
+        context.conflicts = [existing_conflict]
+
+        result = middleware.process(context)
+
+        # Should have both existing and new conflict
+        assert len(result.conflicts) == 2
+        surfaces = {c.term.surface_text for c in result.conflicts}
+        assert "existing" in surfaces
+        assert "workspace" in surfaces
+
+    def test_process_context_string_populated(
+        self, semantic_check_store: GlossaryStore
+    ):
+        """Middleware populates context field with extraction source."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        context = MockContext(
+            metadata={},
+            extracted_terms=[
+                ExtractedTerm("unknown", "metadata_hint", 1.0, "unknown")
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        assert len(result.conflicts) == 1
+        conflict = result.conflicts[0]
+        assert "metadata_hint" in conflict.context
+
+    def test_process_no_critical_step_metadata(
+        self, semantic_check_store: GlossaryStore
+    ):
+        """Middleware handles missing critical_step metadata gracefully."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        context = MockContext(
+            metadata={},  # No critical_step field
+            extracted_terms=[
+                ExtractedTerm("workspace", "quoted_phrase", 0.8, "workspace")
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        # Should default to is_critical_step=False
+        assert len(result.conflicts) == 1
+        assert result.conflicts[0].severity == Severity.MEDIUM
+
+    def test_emit_semantic_check_stub(self, semantic_check_store: GlossaryStore):
+        """_emit_semantic_check_evaluated stub is safe to call (no-op until WP08)."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        context = MockContext(
+            metadata={},
+            extracted_terms=[
+                ExtractedTerm("workspace", "quoted_phrase", 0.8, "workspace")
+            ],
+        )
+        context.conflicts = []
+
+        # Should not raise exception (stub is safe)
+        result = middleware.process(context)
+
+        # Conflicts should still be added to context
+        assert len(result.conflicts) > 0
+
+    def test_emit_interface_contract(self, semantic_check_store: GlossaryStore):
+        """Event emission method signature matches WP08 contract."""
+        from inspect import signature
+
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        # Check method exists
+        assert hasattr(middleware, "_emit_semantic_check_evaluated")
+
+        # Check signature: (self, context, conflicts)
+        sig = signature(middleware._emit_semantic_check_evaluated)
+        params = list(sig.parameters.keys())
+
+        assert "context" in params, "Expected 'context' parameter"
+        assert "conflicts" in params, "Expected 'conflicts' parameter"
+        assert len(params) == 2, f"Expected 2 parameters, got {len(params)}"
+
+
+class TestSemanticCheckIntegration:
+    """Integration tests combining extraction and semantic check middleware."""
+
+    def test_full_pipeline_no_conflicts(self, semantic_check_store: GlossaryStore):
+        """Test full pipeline: extract → semantic check (no conflicts)."""
+        # 1. Extract terms
+        extraction_middleware = GlossaryCandidateExtractionMiddleware(
+            glossary_fields=["description"]
+        )
+
+        context = MockContext(
+            metadata={},
+            step_input={"description": 'The "feature" is defined.'},
+        )
+
+        context = extraction_middleware.process(context)
+
+        # 2. Check semantics
+        check_middleware = SemanticCheckMiddleware(semantic_check_store)
+        context.conflicts = []
+        context = check_middleware.process(context)
+
+        # No conflicts (feature has single sense)
+        assert len(context.conflicts) == 0
+
+    def test_full_pipeline_with_conflicts(self, semantic_check_store: GlossaryStore):
+        """Test full pipeline: extract → semantic check (with conflicts)."""
+        # 1. Extract terms
+        extraction_middleware = GlossaryCandidateExtractionMiddleware(
+            glossary_fields=["description"]
+        )
+
+        context = MockContext(
+            metadata={},
+            step_input={"description": 'The "workspace" and "unknown" terms.'},
+        )
+
+        context = extraction_middleware.process(context)
+
+        # 2. Check semantics
+        check_middleware = SemanticCheckMiddleware(semantic_check_store)
+        context.conflicts = []
+        context = check_middleware.process(context)
+
+        # Should detect conflicts
+        assert len(context.conflicts) >= 1
+
+        conflict_types = {c.conflict_type for c in context.conflicts}
+        # At least one of: AMBIGUOUS (workspace) or UNKNOWN (unknown)
+        assert ConflictType.AMBIGUOUS in conflict_types or ConflictType.UNKNOWN in conflict_types
+
+    def test_middleware_detects_unresolved_critical(
+        self, semantic_check_store: GlossaryStore
+    ):
+        """Middleware detects UNRESOLVED_CRITICAL for unknown low-confidence terms in critical steps."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        context = MockContext(
+            metadata={"critical_step": True},
+            extracted_terms=[
+                ExtractedTerm(
+                    surface="unknown_critical_term",
+                    source="quoted_phrase",
+                    confidence=0.3,  # Low confidence
+                    original="unknown_critical_term",
+                )
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        assert len(result.conflicts) == 1
+        conflict = result.conflicts[0]
+        assert conflict.conflict_type == ConflictType.UNRESOLVED_CRITICAL
+        assert conflict.severity == Severity.HIGH  # Always high for unresolved critical
+
+    def test_middleware_detects_inconsistent(self, semantic_check_store: GlossaryStore):
+        """Middleware detects INCONSISTENT for contradictory usage of known terms."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        # LLM output that contradicts the glossary definition
+        llm_output_with_contradiction = (
+            'The feature is not a unit of work. '
+            'The feature refers to a plugin or extension module.'
+        )
+
+        context = MockContext(
+            metadata={},
+            step_input={"description": 'Using the "feature" term.'},
+            step_output={"result": llm_output_with_contradiction},
+            extracted_terms=[
+                ExtractedTerm(
+                    surface="feature",
+                    source="quoted_phrase",
+                    confidence=0.8,
+                    original="feature",
+                )
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        # Should detect INCONSISTENT conflict
+        assert len(result.conflicts) == 1
+        conflict = result.conflicts[0]
+        assert conflict.conflict_type == ConflictType.INCONSISTENT
+        assert conflict.severity == Severity.LOW  # Always low (informational)
+
+    def test_middleware_all_four_conflict_types(
+        self, semantic_check_store: GlossaryStore
+    ):
+        """Middleware can detect all 4 conflict types in a single pass."""
+        middleware = SemanticCheckMiddleware(semantic_check_store)
+
+        # Prepare LLM output with contradiction for "feature"
+        llm_output = (
+            'The feature is not a unit of work. '
+            'The feature refers to something else entirely.'
+        )
+
+        context = MockContext(
+            metadata={"critical_step": True},
+            step_input={
+                "description": (
+                    'Using "feature", "workspace", "unknown_term", and "critical_unknown".'
+                )
+            },
+            step_output={"result": llm_output},
+            extracted_terms=[
+                # INCONSISTENT: known term with contradictory usage
+                ExtractedTerm("feature", "quoted_phrase", 0.8, "feature"),
+                # AMBIGUOUS: multiple active senses
+                ExtractedTerm("workspace", "quoted_phrase", 0.8, "workspace"),
+                # UNKNOWN: no match, high confidence
+                ExtractedTerm("unknown_term", "quoted_phrase", 0.9, "unknown_term"),
+                # UNRESOLVED_CRITICAL: no match, low confidence, critical step
+                ExtractedTerm("critical_unknown", "quoted_phrase", 0.3, "critical_unknown"),
+            ],
+        )
+        context.conflicts = []
+
+        result = middleware.process(context)
+
+        # Should detect 4 conflicts (one of each type)
+        assert len(result.conflicts) == 4
+
+        conflict_types = {c.conflict_type for c in result.conflicts}
+        assert ConflictType.INCONSISTENT in conflict_types
+        assert ConflictType.AMBIGUOUS in conflict_types
+        assert ConflictType.UNKNOWN in conflict_types
+        assert ConflictType.UNRESOLVED_CRITICAL in conflict_types
+
+        # Verify severity assignments
+        for conflict in result.conflicts:
+            if conflict.conflict_type == ConflictType.INCONSISTENT:
+                assert conflict.severity == Severity.LOW
+            elif conflict.conflict_type == ConflictType.AMBIGUOUS:
+                assert conflict.severity == Severity.HIGH  # Critical step
+            elif conflict.conflict_type == ConflictType.UNRESOLVED_CRITICAL:
+                assert conflict.severity == Severity.HIGH
+            elif conflict.conflict_type == ConflictType.UNKNOWN:
+                # Should be LOW (high confidence)
+                if conflict.term.surface_text == "unknown_term":
+                    assert conflict.severity == Severity.LOW

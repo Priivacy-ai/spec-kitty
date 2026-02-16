@@ -5,9 +5,12 @@ primitive execution context (step inputs/outputs) and emits events.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Protocol
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 
 from .extraction import ExtractedTerm, extract_all_terms
+
+if TYPE_CHECKING:
+    from . import models, scope, store
 
 
 class PrimitiveExecutionContext(Protocol):
@@ -177,3 +180,152 @@ class GlossaryCandidateExtractionMiddleware:
                     text_parts.append(value)
 
         return "\n".join(text_parts)
+
+
+class SemanticCheckMiddleware:
+    """Middleware that resolves extracted terms and detects semantic conflicts.
+
+    This middleware:
+    1. Resolves extracted terms against scope hierarchy
+    2. Classifies conflicts (UNKNOWN, AMBIGUOUS, INCONSISTENT, UNRESOLVED_CRITICAL)
+    3. Scores severity based on step criticality + confidence
+    4. Emits SemanticCheckEvaluated events (WP08)
+    5. Adds conflicts to context.conflicts
+
+    Usage:
+        middleware = SemanticCheckMiddleware(glossary_store, scope_order)
+        context = middleware.process(context)
+    """
+
+    def __init__(
+        self,
+        glossary_store: "store.GlossaryStore",
+        scope_order: List["scope.GlossaryScope"] | None = None,
+    ) -> None:
+        """Initialize middleware.
+
+        Args:
+            glossary_store: GlossaryStore to query for term resolution
+            scope_order: List of GlossaryScope in precedence order.
+                If None, uses default SCOPE_RESOLUTION_ORDER.
+        """
+        from . import scope, store
+
+        self.glossary_store: store.GlossaryStore = glossary_store
+        self.scope_order = scope_order or scope.SCOPE_RESOLUTION_ORDER
+
+    def process(self, context: PrimitiveExecutionContext) -> PrimitiveExecutionContext:
+        """Process context and detect semantic conflicts.
+
+        Args:
+            context: Execution context with extracted_terms populated
+
+        Returns:
+            Updated context with conflicts populated
+
+        Side effects:
+            - Emits SemanticCheckEvaluated event (WP08)
+        """
+        from typing import cast, Any
+        from .conflict import classify_conflict, create_conflict, score_severity
+        from . import models
+        from .resolution import resolve_term
+
+        conflicts: List[models.SemanticConflict] = []
+
+        # Get step criticality flag from metadata (default: False)
+        is_critical_step = False
+        if hasattr(context, "metadata") and context.metadata:
+            is_critical_step = context.metadata.get("critical_step", False)
+
+        # Get LLM output text for INCONSISTENT detection (if available)
+        llm_output_text: Optional[str] = None
+        if hasattr(context, "step_output") and context.step_output:
+            # Extract text from output fields for contradiction detection
+            output_parts: List[str] = []
+            for value in context.step_output.values():
+                if isinstance(value, str):
+                    output_parts.append(value)
+            if output_parts:
+                llm_output_text = "\n".join(output_parts)
+
+        # Resolve each extracted term
+        for extracted_term in context.extracted_terms:
+            # 1. Resolve against scope hierarchy
+            senses = resolve_term(
+                extracted_term.surface,
+                self.scope_order,
+                self.glossary_store,
+            )
+
+            # 2. Classify conflict (with all 4 types)
+            conflict_type = classify_conflict(
+                extracted_term,
+                senses,
+                is_critical_step=is_critical_step,
+                llm_output_text=llm_output_text,
+            )
+
+            # 3. If conflict exists, score severity and create conflict
+            if conflict_type is not None:
+                severity = score_severity(
+                    conflict_type,
+                    extracted_term.confidence,
+                    is_critical_step,
+                )
+
+                # Determine context string
+                context_str = f"source: {extracted_term.source}"
+
+                conflict = create_conflict(
+                    term=extracted_term,
+                    conflict_type=conflict_type,
+                    severity=severity,
+                    candidate_senses=senses,
+                    context=context_str,
+                )
+
+                conflicts.append(conflict)
+
+        # Add conflicts to context (using setattr to handle Protocol)
+        if not hasattr(context, "conflicts"):
+            setattr(context, "conflicts", [])
+        cast(Any, context).conflicts.extend(conflicts)
+
+        # Emit SemanticCheckEvaluated event
+        self._emit_semantic_check_evaluated(context, conflicts)
+
+        return context
+
+    def _emit_semantic_check_evaluated(
+        self,
+        context: PrimitiveExecutionContext,
+        conflicts: List["models.SemanticConflict"],
+    ) -> None:
+        """Emit SemanticCheckEvaluated event (stub until WP08).
+
+        Args:
+            context: Execution context
+            conflicts: List of detected conflicts
+
+        Note:
+            This is a stub implementation. The actual event emission infrastructure
+            will be implemented in WP08 (orchestrator integration). When WP08 is
+            complete, this method will be replaced with:
+
+            from .events import emit_semantic_check_evaluated
+            emit_semantic_check_evaluated(context, conflicts)
+
+            For now, this serves as:
+            1. Documentation of the event emission contract
+            2. Placeholder for testing middleware behavior
+            3. Interface definition for WP08 integration
+        """
+        # Stub: Event emission deferred to WP08
+        # When implemented, this will emit an event with:
+        # - event_type: "SemanticCheckEvaluated"
+        # - conflicts: List of SemanticConflict serialized to dict
+        # - overall_severity: max(conflict.severity for conflict in conflicts)
+        # - recommended_action: "block" | "warn" | "allow"
+        # - context.metadata: step metadata for correlation
+        pass

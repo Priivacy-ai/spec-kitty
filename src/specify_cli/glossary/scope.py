@@ -1,7 +1,13 @@
 """GlossaryScope enum and scope resolution utilities."""
 
+from datetime import datetime
 from enum import Enum
-from typing import List
+from pathlib import Path
+from typing import Any, Dict, List
+
+from ruamel.yaml import YAML
+
+from .models import Provenance, SenseStatus, TermSense, TermSurface
 
 
 class GlossaryScope(Enum):
@@ -50,3 +56,93 @@ def should_use_scope(scope: GlossaryScope, configured_scopes: List[GlossaryScope
         True if scope is configured and should be used
     """
     return scope in configured_scopes
+
+
+def validate_seed_file(data: Dict[str, Any]) -> None:
+    """
+    Validate seed file schema.
+
+    Args:
+        data: Parsed YAML data
+
+    Raises:
+        ValueError: If seed file schema is invalid
+    """
+    if "terms" not in data:
+        raise ValueError("Seed file must have 'terms' key")
+
+    for term in data["terms"]:
+        if "surface" not in term:
+            raise ValueError("Term must have 'surface' key")
+        if "definition" not in term:
+            raise ValueError("Term must have 'definition' key")
+
+
+def load_seed_file(scope: GlossaryScope, repo_root: Path) -> List[TermSense]:
+    """
+    Load seed file for a scope.
+
+    Args:
+        scope: GlossaryScope to load
+        repo_root: Repository root path
+
+    Returns:
+        List of TermSense objects from seed file
+    """
+    seed_path = repo_root / ".kittify" / "glossaries" / f"{scope.value}.yaml"
+
+    if not seed_path.exists():
+        return []  # Skip cleanly if not configured
+
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    data = yaml.load(seed_path)
+
+    validate_seed_file(data)
+
+    senses = []
+    for term_data in data.get("terms", []):
+        sense = TermSense(
+            surface=TermSurface(term_data["surface"]),
+            scope=scope.value,
+            definition=term_data["definition"],
+            provenance=Provenance(
+                actor_id="system:seed_file",
+                timestamp=datetime.now(),
+                source="seed_file",
+            ),
+            confidence=term_data.get("confidence", 1.0),
+            status=SenseStatus.ACTIVE if term_data.get("status") == "active" else SenseStatus.DRAFT,
+        )
+        senses.append(sense)
+
+    return senses
+
+
+def activate_scope(
+    scope: GlossaryScope,
+    version_id: str,
+    mission_id: str,
+    run_id: str,
+    event_emitter: Any,
+) -> None:
+    """
+    Activate a glossary scope and emit event.
+
+    Args:
+        scope: Scope to activate
+        version_id: Glossary version ID
+        mission_id: Mission ID
+        run_id: Run ID
+        event_emitter: Event emitter object
+    """
+    event_emitter.emit(
+        event_type="GlossaryScopeActivated",
+        payload={
+            "scope_id": scope.value,
+            "glossary_version_id": version_id,
+            "mission_id": mission_id,
+            "run_id": run_id,
+            "timestamp": datetime.now().isoformat(),
+        }
+    )
