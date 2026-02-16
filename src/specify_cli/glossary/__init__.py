@@ -57,6 +57,19 @@ from .events import (
     emit_sense_updated,
     emit_scope_activated,
 )
+from .pipeline import (
+    GlossaryMiddlewarePipeline,
+    GlossaryMiddleware,
+    create_standard_pipeline,
+)
+from .attachment import (
+    GlossaryAwarePrimitiveRunner,
+    attach_glossary_pipeline,
+    glossary_enabled,
+    read_glossary_check_metadata,
+    run_with_glossary,
+)
+from .pipeline import prompt_conflict_resolution_safe
 
 __all__ = [
     "TermSurface",
@@ -106,6 +119,15 @@ __all__ = [
     "emit_clarification_resolved",
     "emit_sense_updated",
     "emit_scope_activated",
+    "GlossaryMiddlewarePipeline",
+    "GlossaryMiddleware",
+    "create_standard_pipeline",
+    "GlossaryAwarePrimitiveRunner",
+    "attach_glossary_pipeline",
+    "glossary_enabled",
+    "read_glossary_check_metadata",
+    "run_with_glossary",
+    "prompt_conflict_resolution_safe",
 ]
 
 __version__ = "0.1.0"
