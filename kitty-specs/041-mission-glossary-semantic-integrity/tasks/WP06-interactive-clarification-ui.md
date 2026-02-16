@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Interactive Clarification UI
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP05
 base_commit: e123f4871b4da4d6bae8a55af3fd48f54c7d701e
@@ -1203,3 +1203,4 @@ When reviewing this WP, verify:
 - 2026-02-16T16:19:27Z – coordinator – shell_pid=25165 – lane=doing – Started implementation via workflow command
 - 2026-02-16T16:22:53Z – coordinator – shell_pid=25165 – lane=for_review – Fixed: deferred-only conflicts retained in context after mixed resolution
 - 2026-02-16T16:23:19Z – codex – shell_pid=26531 – lane=doing – Started review via workflow command
+- 2026-02-16T16:27:16Z – codex – shell_pid=26531 – lane=done – Review passed: resolved vs deferred conflicts handled correctly; glossary test suite green
