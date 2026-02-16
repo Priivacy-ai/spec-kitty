@@ -1,15 +1,15 @@
 ---
 work_package_id: WP03
 title: Term Extraction Implementation
-lane: "planned"
+lane: "doing"
 dependencies: []
 base_branch: 2.x
 base_commit: 28a2fdf773a7b7aae3371a4aec50602bdb6dbf23
 created_at: '2026-02-16T14:05:12.902282+00:00'
 subtasks: [T010, T011, T012, T013, T014, T015]
-agent: "codex"
-shell_pid: "57393"
-review_status: "has_feedback"
+agent: "coordinator"
+shell_pid: "64243"
+review_status: "acknowledged"
 reviewed_by: "Robert Douglass"
 history:
 - event: created
@@ -223,3 +223,4 @@ pytest --cov=src/specify_cli/glossary/extraction --cov-report=term-missing
 - 2026-02-16T14:14:14Z – claude-sonnet – shell_pid=51478 – lane=for_review – Ready for review: term extraction implementation complete with tests (99% coverage, <100ms performance, mypy strict)
 - 2026-02-16T14:15:08Z – codex – shell_pid=57393 – lane=doing – Started review via workflow command
 - 2026-02-16T14:17:21Z – codex – shell_pid=57393 – lane=planned – Moved to planned
+- 2026-02-16T14:28:55Z – coordinator – shell_pid=64243 – lane=doing – Started implementation via workflow command
