@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: Type Safety & Integration Tests
-lane: "done"
+lane: "for_review"
 dependencies: []
 base_branch: 2.x
 base_commit: 88ad24685d9db6b360378df47d72f5cb50067874
@@ -872,3 +872,4 @@ When reviewing this WP, verify:
 - 2026-02-16T19:03:52Z – coordinator – shell_pid=94135 – lane=for_review – Cycle 2/3: Fixed import crash, mypy --strict zero errors, 669 tests pass
 - 2026-02-16T19:03:59Z – codex – shell_pid=98278 – lane=doing – Started review via workflow command
 - 2026-02-16T19:04:13Z – codex – shell_pid=98278 – lane=done – Arbiter decision: Approved. All 669 tests pass, mypy --strict clean (15 files, 0 errors), runtime import verified. Codex review findings addressed: (1) from __future__ import annotations added to all 15 glossary modules fixing Python 3.11 compat. (2) mypy transitive errors are pre-existing in non-glossary modules, not WP11 scope. (3) Quickstart docs not required per user direction. Implementation is production-ready.
+- 2026-02-16T19:04:42Z – codex – shell_pid=98278 – lane=for_review – Cycle 2/3: All 15 glossary modules have future annotations. 669 tests pass.
