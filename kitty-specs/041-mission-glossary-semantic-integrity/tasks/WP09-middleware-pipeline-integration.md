@@ -1,14 +1,14 @@
 ---
 work_package_id: WP09
 title: Middleware Pipeline Integration
-lane: "for_review"
+lane: "doing"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP08
 base_commit: ff769aa6a680f4ad197e1d71736da9f8a69eced5
 created_at: '2026-02-16T17:25:17.996693+00:00'
 subtasks: [T040, T041, T042, T043]
-shell_pid: "58220"
-agent: "coordinator"
+shell_pid: "60384"
+agent: "codex"
 review_status: "has_feedback"
 reviewed_by: "Robert Douglass"
 history:
@@ -841,3 +841,4 @@ When reviewing this WP, verify:
 - 2026-02-16T17:47:51Z – codex – shell_pid=56309 – lane=planned – Moved to planned
 - 2026-02-16T17:48:32Z – coordinator – shell_pid=58220 – lane=doing – Started implementation via workflow command
 - 2026-02-16T17:54:20Z – coordinator – shell_pid=58220 – lane=for_review – Fixed: pipeline wired into mission execution via execute_with_glossary and GlossaryAwarePrimitiveRunner, clarification runs before gate (reordered pipeline), 573 tests passing
+- 2026-02-16T17:54:53Z – codex – shell_pid=60384 – lane=doing – Started review via workflow command
