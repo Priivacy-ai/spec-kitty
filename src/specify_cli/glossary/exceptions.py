@@ -1,5 +1,7 @@
 """Exception hierarchy for glossary semantic integrity."""
 
+from __future__ import annotations
+
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:

@@ -6,6 +6,8 @@ heuristics, with scope-aware normalization and confidence scoring.
 Performance target: <100ms for typical step input (100-500 words).
 """
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Set
