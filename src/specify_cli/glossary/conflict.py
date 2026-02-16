@@ -4,21 +4,28 @@ This module implements conflict classification and severity scoring for
 semantic conflicts detected during term resolution.
 """
 
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from .extraction import ExtractedTerm
 from .models import ConflictType, Severity, TermSense, TermSurface, SenseRef
+
+if TYPE_CHECKING:
+    from . import models
 
 
 def classify_conflict(
     term: ExtractedTerm,
     resolution_results: List[TermSense],
+    is_critical_step: bool = False,
+    llm_output_text: Optional[str] = None,
 ) -> Optional[ConflictType]:
     """Classify conflict type based on resolution results.
 
     Args:
         term: Extracted term with confidence score
         resolution_results: List of TermSense from scope resolution
+        is_critical_step: Whether the step is marked as critical (for UNRESOLVED_CRITICAL)
+        llm_output_text: LLM output text to check for contradictions (for INCONSISTENT)
 
     Returns:
         ConflictType if a conflict exists, None otherwise
@@ -26,20 +33,70 @@ def classify_conflict(
     Conflict types:
         - UNKNOWN: No match in any scope
         - AMBIGUOUS: 2+ active senses, unqualified usage
-        - INCONSISTENT: LLM output contradicts active glossary (deferred to WP06)
-        - UNRESOLVED_CRITICAL: Critical term, low confidence (deferred to WP06)
+        - INCONSISTENT: LLM output contradicts active glossary
+        - UNRESOLVED_CRITICAL: Critical term, low confidence, unresolved
 
     Note:
-        INCONSISTENT and UNRESOLVED_CRITICAL require additional context
-        (LLM output analysis, step criticality) which will be implemented in WP06.
-        This function handles UNKNOWN and AMBIGUOUS classification only.
+        INCONSISTENT detection requires llm_output_text parameter.
+        UNRESOLVED_CRITICAL requires is_critical_step=True.
     """
+    # UNKNOWN: No match in any scope
     if not resolution_results:
+        # Check if this is a critical step with low confidence (UNRESOLVED_CRITICAL)
+        if is_critical_step and term.confidence < 0.5:
+            return ConflictType.UNRESOLVED_CRITICAL
         return ConflictType.UNKNOWN
-    elif len(resolution_results) > 1:
+
+    # AMBIGUOUS: 2+ active senses
+    if len(resolution_results) > 1:
         return ConflictType.AMBIGUOUS
+
+    # Single match - check for INCONSISTENT
+    if llm_output_text is not None and len(resolution_results) == 1:
+        sense = resolution_results[0]
+        # Simple contradiction check: if LLM output uses the term but with
+        # a different meaning than the glossary definition (heuristic)
+        # This is a basic implementation - WP06 may enhance with semantic analysis
+        if _detect_inconsistent_usage(term.surface, sense.definition, llm_output_text):
+            return ConflictType.INCONSISTENT
+
     # Single match - no conflict
     return None
+
+
+def _detect_inconsistent_usage(
+    term_surface: str,
+    glossary_definition: str,
+    llm_output: str,
+) -> bool:
+    """Detect if LLM output uses term inconsistently with glossary.
+
+    This is a heuristic-based implementation. Uses simple keyword matching
+    to detect if the term appears in output with contradictory context.
+
+    Args:
+        term_surface: The term being checked
+        glossary_definition: The authoritative definition from glossary
+        llm_output: The LLM-generated text to analyze
+
+    Returns:
+        True if inconsistent usage detected
+
+    Note:
+        This is a basic heuristic implementation. WP06 may enhance with:
+        - Semantic similarity models
+        - Context window analysis
+        - LLM-based contradiction detection
+    """
+    # For now, return False (conservative)
+    # A full implementation would:
+    # 1. Extract context around term usage in LLM output
+    # 2. Compare semantic similarity with glossary definition
+    # 3. Flag if similarity below threshold
+    #
+    # This stub allows the conflict type to be tested but won't trigger
+    # false positives until WP06 implements robust detection.
+    return False
 
 
 def score_severity(

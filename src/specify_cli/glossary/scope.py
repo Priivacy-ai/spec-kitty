@@ -3,7 +3,7 @@
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, List
+from typing import Any, Dict, List
 
 from ruamel.yaml import YAML
 
@@ -58,7 +58,7 @@ def should_use_scope(scope: GlossaryScope, configured_scopes: List[GlossaryScope
     return scope in configured_scopes
 
 
-def validate_seed_file(data: dict) -> None:
+def validate_seed_file(data: Dict[str, Any]) -> None:
     """
     Validate seed file schema.
 
