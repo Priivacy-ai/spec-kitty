@@ -7,7 +7,7 @@ semantic conflicts detected during term resolution.
 from typing import TYPE_CHECKING, List, Optional
 
 from .extraction import ExtractedTerm
-from .models import ConflictType, Severity, TermSense, TermSurface, SenseRef
+from .models import ConflictType, Severity, TermSense, TermSurface, SenseRef, SenseStatus
 
 if TYPE_CHECKING:
     from . import models
@@ -47,8 +47,9 @@ def classify_conflict(
             return ConflictType.UNRESOLVED_CRITICAL
         return ConflictType.UNKNOWN
 
-    # AMBIGUOUS: 2+ active senses
-    if len(resolution_results) > 1:
+    # AMBIGUOUS: 2+ active senses (filter out deprecated/draft)
+    active_senses = [s for s in resolution_results if s.status == SenseStatus.ACTIVE]
+    if len(active_senses) > 1:
         return ConflictType.AMBIGUOUS
 
     # Single match - check for INCONSISTENT
@@ -82,20 +83,100 @@ def _detect_inconsistent_usage(
     Returns:
         True if inconsistent usage detected
 
+    Implementation:
+        Uses keyword-based contradiction detection:
+        1. Extract key concepts from glossary definition (nouns)
+        2. Search for term usage context in LLM output
+        3. Check if context contradicts key concepts
+
+        Contradiction indicators:
+        - Negation words near term ("not a", "isn't a", "unlike")
+        - Alternative definitions ("refers to", "means", "is a")
+        - Context missing key concepts from definition
+
     Note:
         This is a basic heuristic implementation. WP06 may enhance with:
         - Semantic similarity models
         - Context window analysis
         - LLM-based contradiction detection
     """
-    # For now, return False (conservative)
-    # A full implementation would:
-    # 1. Extract context around term usage in LLM output
-    # 2. Compare semantic similarity with glossary definition
-    # 3. Flag if similarity below threshold
-    #
-    # This stub allows the conflict type to be tested but won't trigger
-    # false positives until WP06 implements robust detection.
+    # Normalize inputs
+    term_lower = term_surface.lower()
+    definition_lower = glossary_definition.lower()
+    output_lower = llm_output.lower()
+
+    # Quick exit: term not in output
+    if term_lower not in output_lower:
+        return False
+
+    # Extract key concepts from definition (simple noun extraction)
+    # Split definition into words, filter stop words
+    stop_words = {
+        "a", "an", "the", "is", "are", "of", "for", "to", "in", "on",
+        "at", "by", "with", "from", "as", "and", "or", "but",
+    }
+    definition_words = set(
+        word.strip(".,;:!?")
+        for word in definition_lower.split()
+        if len(word) > 3 and word not in stop_words
+    )
+
+    # Find term occurrences in output with context window
+    import re
+
+    # Pattern: capture 50 chars before and after term
+    pattern = rf"(.{{0,50}})\b{re.escape(term_lower)}\b(.{{0,50}})"
+    matches = list(re.finditer(pattern, output_lower))
+
+    for match in matches:
+        before_context = match.group(1)
+        after_context = match.group(2)
+        context = before_context + " " + term_lower + " " + after_context
+
+        # Check for direct negation of definition key concepts
+        # Example: definition has "unit of work", output says "not a unit of work"
+        for def_word in definition_words:
+            # Pattern: "is not a {def_word}", "isn't a {def_word}", "{term} not a {def_word}"
+            negation_of_concept = (
+                rf"\b(is\s+not|isn['']t|not\s+a|not\s+an)\s+({def_word}|[a-z]+\s+{def_word})"
+            )
+            if re.search(negation_of_concept, context):
+                return True  # Negation of key concept = contradiction
+
+        # Check for broader negation patterns
+        negation_patterns = [
+            rf"\b{re.escape(term_lower)}\s+is\s+not\s+a?\b",
+            rf"\b{re.escape(term_lower)}\s+isn['']t\s+a?\b",
+            rf"\bnot\s+a\s+{re.escape(term_lower)}\b",
+            rf"\bunlike\s+{re.escape(term_lower)}\b",
+            rf"\bcontrary\s+to\s+{re.escape(term_lower)}\b",
+        ]
+
+        for neg_pattern in negation_patterns:
+            if re.search(neg_pattern, context):
+                return True  # Negation found = contradiction
+
+        # Check for alternative definitions
+        alternative_patterns = [
+            rf"\b{re.escape(term_lower)}\s+(refers\s+to|means|is\s+a|is\s+an)\b",
+        ]
+
+        for alt_pattern in alternative_patterns:
+            if re.search(alt_pattern, context):
+                # Check if the alternative definition contradicts key concepts
+                context_words = set(
+                    word.strip(".,;:!?")
+                    for word in context.split()
+                    if len(word) > 3 and word not in stop_words
+                )
+
+                # If less than 30% overlap with definition key concepts, flag inconsistency
+                if definition_words:
+                    overlap = len(definition_words & context_words)
+                    overlap_ratio = overlap / len(definition_words)
+                    if overlap_ratio < 0.3:
+                        return True  # Low overlap = likely contradiction
+
     return False
 
 
