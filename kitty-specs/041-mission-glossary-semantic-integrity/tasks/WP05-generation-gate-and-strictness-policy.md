@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Generation Gate & Strictness Policy
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP04
 base_commit: 50ac9da5882b14d5dbf0c212e6a6708039ab0a56
@@ -708,3 +708,4 @@ When reviewing this WP, verify:
 - 2026-02-16T15:50:15Z – coordinator – shell_pid=9812 – lane=doing – Started implementation via workflow command
 - 2026-02-16T15:52:55Z – coordinator – shell_pid=9812 – lane=for_review – Fixed: guarded event emission with try/except, unknown severity fallback to HIGH in should_block and categorize_conflicts, 6 regression tests added
 - 2026-02-16T15:53:24Z – codex – shell_pid=11394 – lane=doing – Started review via workflow command
+- 2026-02-16T15:55:23Z – codex – shell_pid=11394 – lane=done – Review passed: generation gate guarding + unknown severity fallback verified
