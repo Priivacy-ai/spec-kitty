@@ -12,15 +12,37 @@ class GlossaryError(Exception):
 
 
 class BlockedByConflict(GlossaryError):
-    """Generation blocked by unresolved high-severity conflict."""
+    """Generation blocked by unresolved semantic conflicts.
 
-    def __init__(self, conflicts: List["SemanticConflict"]):
+    This exception is raised by the generation gate middleware when
+    the effective strictness policy requires blocking generation.
+    """
+
+    def __init__(
+        self,
+        conflicts: List["SemanticConflict"],
+        strictness: "Strictness" = None,  # type: ignore[name-defined]
+        message: str | None = None,
+    ):
+        """Initialize BlockedByConflict exception.
+
+        Args:
+            conflicts: List of conflicts that triggered the block
+            strictness: The effective strictness mode (for context)
+            message: Optional custom message (defaults to generic message)
+        """
         self.conflicts = conflicts
-        conflict_count = len(conflicts)
-        super().__init__(
-            f"Generation blocked by {conflict_count} semantic conflict(s). "
-            f"Resolve conflicts or use --strictness off to bypass."
-        )
+        self.strictness = strictness
+
+        # Use custom message if provided, otherwise generate default
+        if message:
+            super().__init__(message)
+        else:
+            conflict_count = len(conflicts)
+            super().__init__(
+                f"Generation blocked by {conflict_count} semantic conflict(s). "
+                f"Resolve conflicts or use --strictness off to bypass."
+            )
 
 
 class DeferredToAsync(GlossaryError):
