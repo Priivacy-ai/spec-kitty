@@ -549,3 +549,94 @@ class TestMetadataDrivenFieldSelection:
         assert "primitive" in surfaces  # From glossary_watch_terms
         assert "workspace" in surfaces  # From custom_field text
         assert "mission" not in surfaces  # ignored_field not scanned
+
+
+class TestEventEmission:
+    """Tests for T014: Event emission (stub implementation for WP08).
+
+    These tests verify that the event emission interface is properly defined
+    and called for all extracted terms, even though the actual event infrastructure
+    is deferred to WP08.
+    """
+
+    def test_emit_called_for_each_term(self):
+        """_emit_term_candidate_observed is called once per extracted term."""
+        middleware = GlossaryCandidateExtractionMiddleware()
+
+        # Track emission calls
+        emission_calls = []
+
+        # Monkey-patch the emission method to track calls
+        original_emit = middleware._emit_term_candidate_observed
+
+        def track_emit(term, context):
+            emission_calls.append((term.surface, term.confidence, term.source))
+            return original_emit(term, context)
+
+        middleware._emit_term_candidate_observed = track_emit
+
+        context = MockContext(
+            step_input={
+                "description": 'The "workspace" and "mission" are quoted terms.',
+            },
+            metadata={
+                "glossary_watch_terms": ["primitive"],  # Metadata hint
+            },
+        )
+
+        middleware.process(context)
+
+        # Should have emitted events for all extracted terms
+        assert len(emission_calls) > 0
+
+        # Verify metadata hint was emitted (confidence 1.0)
+        metadata_emissions = [
+            (surf, conf, src)
+            for surf, conf, src in emission_calls
+            if src == "metadata_hint"
+        ]
+        assert len(metadata_emissions) == 1
+        assert metadata_emissions[0][0] == "primitive"
+        assert metadata_emissions[0][1] == 1.0
+
+        # Verify quoted phrases were emitted (confidence 0.8)
+        quoted_emissions = [
+            (surf, conf, src)
+            for surf, conf, src in emission_calls
+            if src == "quoted_phrase"
+        ]
+        assert len(quoted_emissions) >= 2
+        surfaces = {surf for surf, _, _ in quoted_emissions}
+        assert "workspace" in surfaces
+        assert "mission" in surfaces
+
+    def test_emit_stub_is_noop(self):
+        """_emit_term_candidate_observed stub is safe to call (no-op until WP08)."""
+        middleware = GlossaryCandidateExtractionMiddleware()
+
+        context = MockContext(
+            step_input={"description": 'The "workspace" is here.'},
+        )
+
+        # Should not raise exception (stub is safe)
+        result = middleware.process(context)
+
+        # Terms should still be added to context
+        assert len(result.extracted_terms) > 0
+
+    def test_emit_interface_contract(self):
+        """Event emission method signature matches WP08 contract."""
+        from inspect import signature
+
+        middleware = GlossaryCandidateExtractionMiddleware()
+
+        # Check method exists
+        assert hasattr(middleware, "_emit_term_candidate_observed")
+
+        # Check signature: (self, term: ExtractedTerm, context: PrimitiveExecutionContext)
+        sig = signature(middleware._emit_term_candidate_observed)
+        params = list(sig.parameters.keys())
+
+        assert "term" in params, "Expected 'term' parameter"
+        assert "context" in params, "Expected 'context' parameter"
+        assert len(params) == 2, f"Expected 2 parameters, got {len(params)}"
