@@ -39,10 +39,10 @@ The product direction requires that agents repeatedly call one command (`next`) 
 
 1. `--agent` is required.
 2. Default behavior auto-completes previously issued step as success unless `--result` override is supplied.
-3. Output includes:
-1. Machine JSON decision payload.
-2. Human-readable prompt text for the same decision.
+3. Output includes both machine JSON decision payload and human-readable prompt text.
 4. Decision kinds: `step`, `decision_required`, `blocked`, `terminal`.
+5. `next` planning for an active run uses the frozen mission template captured at run start (not live mission file edits).
+6. If template drift is detected during active run, `next` MUST return `blocked` with migration-required reason.
 
 ### Consequences
 
@@ -63,6 +63,8 @@ The product direction requires that agents repeatedly call one command (`next`) 
 
 ## Rollout Notes
 
-1. Implement compatibility bridge from `agent workflow` to runtime-backed planning semantics.
-2. Emit telemetry during migration to quantify legacy command usage.
-3. Deprecate legacy flow after adoption threshold is met.
+1. Runtime integration is gated on `spec-kitty-events` mission-next contract publication.
+2. Do not ship CLI-side local-only mission-next event names.
+3. Implement compatibility bridge from `agent workflow` to runtime-backed planning semantics.
+4. Emit telemetry during migration to quantify legacy command usage.
+5. Deprecate legacy flow after adoption threshold is met.
