@@ -38,16 +38,16 @@ from specify_cli.sync.events import emit_wp_status_changed
 
 def _safe_emit_wp_status_changed(
     wp_id: str,
-    previous_status: str,
-    new_status: str,
+    from_lane: str,
+    to_lane: str,
     feature_slug: str | None,
 ) -> None:
     try:
         emit_wp_status_changed(
             wp_id=wp_id,
-            previous_status=previous_status,
-            new_status=new_status,
-            changed_by="user",
+            from_lane=from_lane,
+            to_lane=to_lane,
+            actor="user",
             feature_slug=feature_slug,
         )
     except Exception as exc:
@@ -336,8 +336,8 @@ def merge_workspace_per_wp(
             console.print(f"[green]✓[/green] {wp_id} merged")
             _safe_emit_wp_status_changed(
                 wp_id=wp_id,
-                previous_status="doing",
-                new_status="for_review",
+                from_lane="in_progress",
+                to_lane="for_review",
                 feature_slug=feature_slug,
             )
 

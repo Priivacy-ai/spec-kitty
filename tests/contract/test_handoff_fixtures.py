@@ -28,9 +28,9 @@ FIXTURE_EVENTS = [
         "aggregate_id": "WP01",
         "payload": {
             "wp_id": "WP01",
-            "previous_status": "planned",
-            "new_status": "doing",
-            "changed_by": "claude-agent",
+            "from_lane": "planned",
+            "to_lane": "in_progress",
+            "actor": "claude-agent",
             "feature_slug": "039-cli-2x-readiness",
         },
         "timestamp": "2026-02-12T10:00:00+00:00",
@@ -331,32 +331,17 @@ class TestFixtureJsonFiles:
 
 
 class TestLaneMapping:
-    """Validate the lane mapping documented in the contract."""
+    """Validate canonical 7-lane payload in fixtures."""
 
-    def test_sync_lane_map_matches_implementation(self):
-        """The 7-to-4 lane mapping in the contract must match the actual implementation."""
-        from specify_cli.status.emit import _SYNC_LANE_MAP
-
-        expected = {
-            "planned": "planned",
-            "claimed": "planned",
-            "in_progress": "doing",
-            "for_review": "for_review",
-            "done": "done",
-            "blocked": "doing",
-            "canceled": "planned",
-        }
-        assert _SYNC_LANE_MAP == expected
-
-    def test_wp_status_changed_uses_4_lane_values(self):
-        """WPStatusChanged fixture events use only 4-lane sync values."""
-        valid_sync_lanes = {"planned", "doing", "for_review", "done"}
+    def test_wp_status_changed_uses_canonical_7_lane_values(self):
+        """WPStatusChanged fixture events use canonical 7-lane values."""
+        valid_lanes = {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"}
         for event_data in FIXTURE_EVENTS:
             if event_data["event_type"] == "WPStatusChanged":
                 payload = event_data["payload"]
-                assert payload["previous_status"] in valid_sync_lanes, (
-                    f"Invalid previous_status: {payload['previous_status']}"
+                assert payload["from_lane"] in valid_lanes, (
+                    f"Invalid from_lane: {payload['from_lane']}"
                 )
-                assert payload["new_status"] in valid_sync_lanes, (
-                    f"Invalid new_status: {payload['new_status']}"
+                assert payload["to_lane"] in valid_lanes, (
+                    f"Invalid to_lane: {payload['to_lane']}"
                 )

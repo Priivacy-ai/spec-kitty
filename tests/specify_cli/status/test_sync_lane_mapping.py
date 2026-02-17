@@ -1,28 +1,24 @@
-"""Tests for the 7-to-4 lane collapse mapping (_SYNC_LANE_MAP).
+"""Tests for canonical 7-lane SaaS fan-out.
 
 Covers:
-  T025 - Parametrized tests for all 7 canonical lanes -> 4-lane sync outputs
+  T025 - All 7 canonical lanes pass through fan-out without collapse
   T026 - Invalid lane handling via TransitionError
-  T027 - Centralization verification (_SYNC_LANE_MAP in status/emit.py only)
-  T028 - Contract doc (lane-mapping.md) matches implementation
 """
 
 from __future__ import annotations
 
-import ast
-import re
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from specify_cli.status.emit import (
     TransitionError,
-    _SYNC_LANE_MAP,
+    _saas_fan_out,
     emit_status_transition,
 )
-from specify_cli.status.models import Lane
-from specify_cli.status.transitions import CANONICAL_LANES, LANE_ALIASES
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.transitions import CANONICAL_LANES
 
 
 # ── Fixtures ──────────────────────────────────────────────────
@@ -36,63 +32,82 @@ def feature_dir(tmp_path: Path) -> Path:
     return fd
 
 
-# ── T025: Parametrized tests for all 7 lanes ─────────────────
+# ── T025: Canonical 7-lane fan-out ───────────────────────────
 
 
-class TestSyncLaneMapValues:
-    """Verify every canonical lane maps to the expected 4-lane sync value."""
+class TestCanonicalFanOut:
+    """Verify _saas_fan_out passes all 7 canonical lanes directly without collapse."""
 
-    @pytest.mark.parametrize(
-        "input_lane,expected_output",
-        [
-            ("planned", "planned"),
-            ("claimed", "planned"),
-            ("in_progress", "doing"),
-            ("for_review", "for_review"),
-            ("done", "done"),
-            ("blocked", "doing"),
-            ("canceled", "planned"),
-        ],
-    )
-    def test_sync_lane_map_values(
-        self, input_lane: str, expected_output: str
-    ) -> None:
-        """Each canonical lane maps to the correct 4-lane sync value."""
-        assert _SYNC_LANE_MAP[input_lane] == expected_output
-
-    def test_map_covers_all_canonical_lanes(self) -> None:
-        """_SYNC_LANE_MAP has an entry for every canonical lane."""
-        for lane in CANONICAL_LANES:
-            assert lane in _SYNC_LANE_MAP, (
-                f"Missing _SYNC_LANE_MAP entry for canonical lane '{lane}'"
-            )
-
-    def test_map_has_no_extra_keys(self) -> None:
-        """_SYNC_LANE_MAP contains only canonical lane keys (no stale entries)."""
-        canonical_set = set(CANONICAL_LANES)
-        extra = set(_SYNC_LANE_MAP.keys()) - canonical_set
-        assert extra == set(), (
-            f"_SYNC_LANE_MAP has non-canonical keys: {extra}"
+    def _make_event(
+        self,
+        *,
+        from_lane: Lane = Lane.PLANNED,
+        to_lane: Lane = Lane.CLAIMED,
+    ) -> StatusEvent:
+        return StatusEvent(
+            event_id="01HXYZ0000000000000000TEST",
+            feature_slug="039-test-feature",
+            wp_id="WP01",
+            from_lane=from_lane,
+            to_lane=to_lane,
+            at="2026-02-08T12:00:00Z",
+            actor="test-actor",
+            force=False,
+            execution_mode="worktree",
         )
 
-    def test_map_outputs_are_valid_4_lane_values(self) -> None:
-        """All mapped values belong to the allowed 4-lane SaaS vocabulary."""
-        allowed_saas_lanes = {"planned", "doing", "for_review", "done"}
-        for canonical_lane, sync_lane in _SYNC_LANE_MAP.items():
-            assert sync_lane in allowed_saas_lanes, (
-                f"_SYNC_LANE_MAP['{canonical_lane}'] = '{sync_lane}' "
-                f"is not in allowed SaaS lanes {allowed_saas_lanes}"
-            )
+    @pytest.mark.parametrize(
+        "from_lane,to_lane",
+        [
+            (Lane.PLANNED, Lane.CLAIMED),
+            (Lane.CLAIMED, Lane.IN_PROGRESS),
+            (Lane.IN_PROGRESS, Lane.FOR_REVIEW),
+            (Lane.FOR_REVIEW, Lane.DONE),
+            (Lane.PLANNED, Lane.BLOCKED),
+            (Lane.IN_PROGRESS, Lane.BLOCKED),
+            (Lane.PLANNED, Lane.CANCELED),
+        ],
+    )
+    def test_fan_out_passes_canonical_lanes_directly(
+        self, from_lane: Lane, to_lane: Lane
+    ) -> None:
+        """Each canonical lane value is passed directly to emit_wp_status_changed."""
+        event = self._make_event(from_lane=from_lane, to_lane=to_lane)
+        mock_emit = MagicMock()
+        with patch(
+            "specify_cli.sync.events.emit_wp_status_changed", mock_emit
+        ):
+            _saas_fan_out(event, "039-test-feature", None)
 
-    def test_map_exactly_seven_entries(self) -> None:
-        """_SYNC_LANE_MAP has exactly 7 entries (one per canonical lane)."""
-        assert len(_SYNC_LANE_MAP) == 7
+        mock_emit.assert_called_once_with(
+            wp_id="WP01",
+            from_lane=str(from_lane),
+            to_lane=str(to_lane),
+            actor="test-actor",
+            feature_slug="039-test-feature",
+        )
 
-    def test_doing_alias_maps_through_in_progress(self) -> None:
-        """The 'doing' alias resolves to 'in_progress', which maps to 'doing'."""
-        resolved = LANE_ALIASES.get("doing")
-        assert resolved == "in_progress"
-        assert _SYNC_LANE_MAP[resolved] == "doing"
+    def test_planned_to_claimed_now_emits(self) -> None:
+        """planned->claimed is no longer a no-op (was collapsed to planned->planned)."""
+        event = self._make_event(from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED)
+        mock_emit = MagicMock()
+        with patch(
+            "specify_cli.sync.events.emit_wp_status_changed", mock_emit
+        ):
+            _saas_fan_out(event, "039-test-feature", None)
+        mock_emit.assert_called_once()
+
+    def test_all_canonical_lanes_accepted_by_validators(self) -> None:
+        """All 7 canonical lanes are valid values for from_lane/to_lane validators."""
+        from specify_cli.sync.emitter import _PAYLOAD_RULES
+
+        rules = _PAYLOAD_RULES["WPStatusChanged"]
+        from_validator = rules["validators"]["from_lane"]
+        to_validator = rules["validators"]["to_lane"]
+
+        for lane in CANONICAL_LANES:
+            assert from_validator(lane), f"from_lane validator rejected '{lane}'"
+            assert to_validator(lane), f"to_lane validator rejected '{lane}'"
 
 
 # ── T026: Invalid lane handling via TransitionError ───────────
@@ -142,9 +157,6 @@ class TestInvalidLaneHandling:
 
     def test_case_sensitive_rejection(self, feature_dir: Path) -> None:
         """Uppercase lane values that are not aliases are rejected."""
-        # 'PLANNED' is not in LANE_ALIASES and not a canonical lane value
-        # resolve_lane_alias lowercases, so "PLANNED" -> "planned" works.
-        # But a totally unknown word like "Doing_stuff" should fail.
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
@@ -169,176 +181,3 @@ class TestInvalidLaneHandling:
 
         events_path = feature_dir / EVENTS_FILENAME
         assert not events_path.exists()
-
-    def test_invalid_lane_not_in_sync_map(self) -> None:
-        """Looking up a non-canonical lane in _SYNC_LANE_MAP returns None."""
-        assert _SYNC_LANE_MAP.get("NONEXISTENT") is None
-        assert _SYNC_LANE_MAP.get("") is None
-        assert _SYNC_LANE_MAP.get("42") is None
-
-
-# ── T027: Centralization verification ─────────────────────────
-
-
-class TestMappingCentralization:
-    """Verify _SYNC_LANE_MAP is centralized in status/emit.py and not duplicated."""
-
-    @staticmethod
-    def _find_src_root() -> Path:
-        """Locate the src/specify_cli directory."""
-        # Walk up from this test file to find the project root
-        here = Path(__file__).resolve()
-        for parent in here.parents:
-            candidate = parent / "src" / "specify_cli"
-            if candidate.is_dir():
-                return candidate
-        raise FileNotFoundError("Could not locate src/specify_cli")
-
-    def test_sync_lane_map_defined_in_emit_py(self) -> None:
-        """_SYNC_LANE_MAP is defined in status/emit.py."""
-        src = self._find_src_root()
-        emit_path = src / "status" / "emit.py"
-        assert emit_path.exists(), f"Expected {emit_path} to exist"
-        content = emit_path.read_text(encoding="utf-8")
-        assert "_SYNC_LANE_MAP" in content
-
-    def test_no_duplicate_7_to_4_mapping_outside_emit(self) -> None:
-        """No other Python file in src/specify_cli/ defines a 7-to-4 lane dict."""
-        src = self._find_src_root()
-        emit_path = src / "status" / "emit.py"
-        duplicate_files: list[str] = []
-
-        for py_file in src.rglob("*.py"):
-            if py_file == emit_path:
-                continue
-            content = py_file.read_text(encoding="utf-8")
-            # Check for the specific variable name
-            if "_SYNC_LANE_MAP" in content:
-                # Imports like "from .emit import _SYNC_LANE_MAP" are OK
-                # Definitions like "_SYNC_LANE_MAP = {" are NOT OK
-                lines = content.splitlines()
-                for line in lines:
-                    stripped = line.strip()
-                    if stripped.startswith("_SYNC_LANE_MAP") and "=" in stripped:
-                        # Skip import statements
-                        if "import" not in stripped:
-                            duplicate_files.append(str(py_file.relative_to(src)))
-
-        assert duplicate_files == [], (
-            f"_SYNC_LANE_MAP is defined outside emit.py: {duplicate_files}"
-        )
-
-    def test_emit_py_map_is_importable(self) -> None:
-        """_SYNC_LANE_MAP can be imported from the expected module path."""
-        from specify_cli.status.emit import _SYNC_LANE_MAP as imported_map
-
-        assert isinstance(imported_map, dict)
-        assert len(imported_map) == 7
-
-
-# ── T028: Contract doc matches implementation ─────────────────
-
-
-class TestContractDocMatchesImplementation:
-    """Verify contracts/lane-mapping.md matches _SYNC_LANE_MAP implementation."""
-
-    @staticmethod
-    def _find_contract_doc() -> Path:
-        """Locate lane-mapping.md in kitty-specs contracts."""
-        here = Path(__file__).resolve()
-        for parent in here.parents:
-            candidate = (
-                parent
-                / "kitty-specs"
-                / "039-cli-2x-readiness"
-                / "contracts"
-                / "lane-mapping.md"
-            )
-            if candidate.exists():
-                return candidate
-        raise FileNotFoundError(
-            "Could not locate kitty-specs/039-cli-2x-readiness/contracts/lane-mapping.md"
-        )
-
-    def _parse_mapping_table(self, content: str) -> dict[str, str]:
-        """Extract the 7-to-4 mapping table from the contract markdown.
-
-        Expects a markdown table with columns:
-        | 7-Lane (Internal) | 4-Lane (Sync Payload) | Rationale |
-        """
-        mapping: dict[str, str] = {}
-        # Match table rows like: | PLANNED | planned | ... |
-        # or: | planned | planned | ... |
-        table_row_re = re.compile(
-            r"^\|\s*(\w+)\s*\|\s*(\w+)\s*\|", re.MULTILINE
-        )
-        for match in table_row_re.finditer(content):
-            canonical_lane = match.group(1).strip().lower()
-            sync_lane = match.group(2).strip().lower()
-            # Skip header rows
-            if canonical_lane in ("7", "lane", "internal", "---"):
-                continue
-            if sync_lane in ("4", "lane", "sync", "payload", "---"):
-                continue
-            mapping[canonical_lane] = sync_lane
-        return mapping
-
-    def test_contract_doc_exists(self) -> None:
-        """lane-mapping.md contract document exists."""
-        doc_path = self._find_contract_doc()
-        assert doc_path.exists()
-
-    def test_contract_mapping_matches_implementation(self) -> None:
-        """Every entry in the contract doc matches _SYNC_LANE_MAP."""
-        doc_path = self._find_contract_doc()
-        content = doc_path.read_text(encoding="utf-8")
-        contract_mapping = self._parse_mapping_table(content)
-
-        # Contract should have all 7 entries
-        assert len(contract_mapping) == 7, (
-            f"Contract doc has {len(contract_mapping)} entries, expected 7. "
-            f"Found: {contract_mapping}"
-        )
-
-        # Every contract entry must match the implementation
-        for canonical_lane, contract_sync_lane in contract_mapping.items():
-            impl_sync_lane = _SYNC_LANE_MAP.get(canonical_lane)
-            assert impl_sync_lane is not None, (
-                f"Contract references canonical lane '{canonical_lane}' "
-                f"which is not in _SYNC_LANE_MAP"
-            )
-            assert contract_sync_lane == impl_sync_lane, (
-                f"Contract drift! For lane '{canonical_lane}': "
-                f"contract says '{contract_sync_lane}', "
-                f"implementation says '{impl_sync_lane}'"
-            )
-
-    def test_implementation_fully_covered_by_contract(self) -> None:
-        """Every _SYNC_LANE_MAP entry appears in the contract doc."""
-        doc_path = self._find_contract_doc()
-        content = doc_path.read_text(encoding="utf-8")
-        contract_mapping = self._parse_mapping_table(content)
-
-        for canonical_lane in _SYNC_LANE_MAP:
-            assert canonical_lane in contract_mapping, (
-                f"Implementation has lane '{canonical_lane}' which is "
-                f"missing from the contract document"
-            )
-
-    def test_contract_documents_doing_alias(self) -> None:
-        """Contract doc mentions the 'doing' -> 'in_progress' alias."""
-        doc_path = self._find_contract_doc()
-        content = doc_path.read_text(encoding="utf-8")
-        # The doc should mention the doing alias somewhere
-        assert "doing" in content.lower() and "in_progress" in content.lower(), (
-            "Contract doc should document the 'doing' -> 'in_progress' alias"
-        )
-
-    def test_contract_documents_4_saas_lanes(self) -> None:
-        """Contract doc lists the 4 SaaS lanes."""
-        doc_path = self._find_contract_doc()
-        content = doc_path.read_text(encoding="utf-8")
-        for saas_lane in ("planned", "doing", "for_review", "done"):
-            assert saas_lane in content, (
-                f"Contract doc should list SaaS lane '{saas_lane}'"
-            )

@@ -99,9 +99,9 @@ def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
         try:
             emit_wp_status_changed(
                 wp_id=wp_id,
-                previous_status="for_review",
-                new_status="done",
-                changed_by="user",
+                from_lane="for_review",
+                to_lane="done",
+                actor="user",
                 feature_slug=feature_slug,
             )
         except Exception as exc:

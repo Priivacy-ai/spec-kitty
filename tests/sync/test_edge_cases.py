@@ -39,7 +39,7 @@ class TestNetworkFailureQueuesEvent:
         # mock auth as authenticated so it tries WS first
         emitter._auth.is_authenticated.return_value = True
 
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         # Event should be in offline queue as fallback
         assert temp_queue.size() == 1
@@ -49,7 +49,7 @@ class TestNetworkFailureQueuesEvent:
     ):
         """Unauthenticated state queues events directly."""
         emitter._auth.is_authenticated.return_value = False
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert temp_queue.size() == 1
 
@@ -59,7 +59,7 @@ class TestInvalidSchemaDiscardsEvent:
 
     def test_invalid_wp_id_discards(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Invalid WP ID format results in None return and no queue entry."""
-        event = emitter.emit_wp_status_changed("BADID", "planned", "doing")
+        event = emitter.emit_wp_status_changed("BADID", "planned", "in_progress")
         assert event is None
         assert temp_queue.size() == 0
 
@@ -150,7 +150,7 @@ class TestQueueOverflow:
 
         em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
         # Should not raise even though queue is full
-        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         # Event is still returned (it was valid), but queue rejected it
         assert event is not None
 
@@ -175,7 +175,7 @@ class TestConcurrentEmission:
         def emit_events(thread_id: int):
             try:
                 for i in range(count):
-                    event = em.emit_wp_status_changed("WP01", "planned", "doing")
+                    event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
                     if event is None:
                         errors.append(f"Thread {thread_id} event {i} returned None")
             except Exception as exc:
@@ -207,7 +207,7 @@ class TestConcurrentEmission:
 
         def emit_and_collect():
             for _ in range(20):
-                event = em.emit_wp_status_changed("WP01", "planned", "doing")
+                event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
                 if event:
                     with lock:
                         results.append(event["lamport_clock"])
@@ -238,7 +238,7 @@ class TestNonBlockingEmission:
         em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
 
         # Should not raise
-        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is None
 
     def test_queue_exception_returns_event(self, tmp_path: Path):
@@ -255,7 +255,7 @@ class TestNonBlockingEmission:
         em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
 
         # _route_event catches the exception, so _emit still returns the event
-        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
 
     def test_auth_exception_uses_local_team_slug(self, tmp_path: Path):
@@ -270,6 +270,6 @@ class TestNonBlockingEmission:
 
         em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
 
-        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["team_slug"] == "local"

@@ -170,7 +170,7 @@ class TestIdentityAwareFlow:
             _identity=identity,
         )
 
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
 
         assert event is not None
         assert "project_uuid" in event
@@ -211,16 +211,16 @@ class TestIdentityAwareFlow:
         # Emit event like implement command would
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="planned",
-            new_status="doing",
-            changed_by="claude-opus",
+            from_lane="planned",
+            to_lane="in_progress",
+            actor="claude-opus",
         )
 
         assert event is not None
         assert event["event_type"] == "WPStatusChanged"
         assert event["payload"]["wp_id"] == "WP01"
-        assert event["payload"]["previous_status"] == "planned"
-        assert event["payload"]["new_status"] == "doing"
+        assert event["payload"]["from_lane"] == "planned"
+        assert event["payload"]["to_lane"] == "in_progress"
 
         # Event should be queued
         assert mock_queue.size() == 1
@@ -263,7 +263,7 @@ class TestUnauthenticatedGracefulDegradation:
         )
 
         # Emit event
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
 
         # Event should still be created and queued
         assert event is not None
@@ -433,11 +433,11 @@ class TestNoDuplicateEmissions:
         )
 
         # Simulate implement command (planned -> doing)
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert mock_queue.size() == 1
 
         # Simulate move-task (doing -> for_review)
-        emitter.emit_wp_status_changed("WP01", "doing", "for_review")
+        emitter.emit_wp_status_changed("WP01", "in_progress", "for_review")
         assert mock_queue.size() == 2
 
         # Simulate accept (for_review -> done)
@@ -571,10 +571,10 @@ class TestFullWorkflowIntegration:
         )
 
         # 4. Implement (planned -> doing)
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
 
         # 5. Submit for review (doing -> for_review)
-        emitter.emit_wp_status_changed("WP01", "doing", "for_review")
+        emitter.emit_wp_status_changed("WP01", "in_progress", "for_review")
 
         # 6. Accept (for_review -> done)
         emitter.emit_wp_status_changed("WP01", "for_review", "done")
@@ -634,9 +634,9 @@ class TestFullWorkflowIntegration:
         )
 
         # Emit several events while "offline"
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
-        emitter.emit_wp_status_changed("WP02", "planned", "doing")
-        emitter.emit_wp_status_changed("WP01", "doing", "for_review")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
+        emitter.emit_wp_status_changed("WP02", "planned", "in_progress")
+        emitter.emit_wp_status_changed("WP01", "in_progress", "for_review")
 
         # All events should be queued
         assert mock_queue.size() == 3
@@ -688,9 +688,9 @@ class TestEventPayloadValidation:
 
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="planned",
-            new_status="doing",
-            changed_by="claude-opus",
+            from_lane="planned",
+            to_lane="in_progress",
+            actor="claude-opus",
             feature_slug="test-feature",
         )
 
@@ -704,9 +704,9 @@ class TestEventPayloadValidation:
         # Payload fields
         payload = event["payload"]
         assert payload["wp_id"] == "WP01"
-        assert payload["previous_status"] == "planned"
-        assert payload["new_status"] == "doing"
-        assert payload["changed_by"] == "claude-opus"
+        assert payload["from_lane"] == "planned"
+        assert payload["to_lane"] == "in_progress"
+        assert payload["actor"] == "claude-opus"
         assert payload["feature_slug"] == "test-feature"
 
     def test_event_id_is_ulid(
@@ -737,7 +737,7 @@ class TestEventPayloadValidation:
             _identity=identity,
         )
 
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
 
         # ULID pattern: 26 characters from Crockford's base32 alphabet
         ulid_pattern = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
@@ -771,7 +771,7 @@ class TestEventPayloadValidation:
             _identity=identity,
         )
 
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
 
         # Should parse as ISO 8601
         ts = event["timestamp"]

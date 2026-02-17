@@ -425,3 +425,98 @@ class TestSyncServerCommand:
                 sync_server(url="http://spec-kitty-dev.fly.dev")
         assert exc.value.exit_code == 1
         mock_config.set_server_url.assert_not_called()
+
+
+class TestSyncNowExitCodes:
+    """Tests for sync now --strict/--no-strict exit semantics."""
+
+    def _make_service(self, queue_size: int, result: MagicMock) -> MagicMock:
+        """Build a mock sync service with given queue size and result."""
+        svc = MagicMock()
+        svc.queue.size.return_value = queue_size
+        svc.sync_now.return_value = result
+        return svc
+
+    def _make_result(
+        self,
+        synced: int = 0,
+        duplicate: int = 0,
+        errors: int = 0,
+    ) -> MagicMock:
+        """Build a mock BatchSyncResult."""
+        r = MagicMock()
+        r.synced_count = synced
+        r.duplicate_count = duplicate
+        r.error_count = errors
+        r.failed_results = [MagicMock()] * errors if errors else []
+        return r
+
+    def test_strict_exits_1_on_errors(self):
+        """Default strict mode exits 1 when error_count > 0."""
+        result = self._make_result(synced=2, errors=1)
+        svc = self._make_service(queue_size=3, result=result)
+
+        runner = CliRunner()
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+            with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
+                with patch("specify_cli.sync.batch.write_failure_report"):
+                    res = runner.invoke(sync_app, ["now"])
+        assert res.exit_code == 1
+
+    def test_strict_exits_0_on_success(self):
+        """Strict mode exits 0 when all events sync successfully."""
+        result = self._make_result(synced=3)
+        svc = self._make_service(queue_size=3, result=result)
+
+        runner = CliRunner()
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+            with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
+                res = runner.invoke(sync_app, ["now"])
+        assert res.exit_code == 0
+
+    def test_no_strict_exits_0_even_with_errors(self):
+        """--no-strict exits 0 regardless of errors."""
+        result = self._make_result(synced=1, errors=2)
+        svc = self._make_service(queue_size=3, result=result)
+
+        runner = CliRunner()
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+            with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
+                with patch("specify_cli.sync.batch.write_failure_report"):
+                    res = runner.invoke(sync_app, ["now", "--no-strict"])
+        assert res.exit_code == 0
+
+    def test_empty_queue_exits_0(self):
+        """Empty queue always exits 0 (nothing to do)."""
+        svc = self._make_service(queue_size=0, result=MagicMock())
+
+        runner = CliRunner()
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+            res = runner.invoke(sync_app, ["now"])
+        assert res.exit_code == 0
+
+    def test_strict_with_report_still_exits_1(self, tmp_path):
+        """Strict exits 1 and still writes report when errors present."""
+        result = self._make_result(synced=1, errors=1)
+        svc = self._make_service(queue_size=2, result=result)
+
+        runner = CliRunner()
+        report_path = tmp_path / "failures.json"
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+            with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
+                with patch("specify_cli.sync.batch.write_failure_report") as write_mock:
+                    res = runner.invoke(sync_app, ["now", "--report", str(report_path)])
+        assert res.exit_code == 1
+        write_mock.assert_called_once()
+
+    def test_strict_exits_1_on_auth_missing(self):
+        """Strict exits 1 when queue non-empty but all-zero result (auth missing)."""
+        result = self._make_result(synced=0, duplicate=0, errors=0)
+        svc = self._make_service(queue_size=5, result=result)
+
+        runner = CliRunner()
+        with patch("specify_cli.sync.background.get_sync_service", return_value=svc):
+            with patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"):
+                res = runner.invoke(sync_app, ["now"])
+        assert res.exit_code == 1
+        assert "not authenticated" in res.output

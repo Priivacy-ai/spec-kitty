@@ -148,8 +148,8 @@ def test_implement_emits_wp_status_changed(monkeypatch: pytest.MonkeyPatch, tmp_
     emit_mock.assert_called_once()
     kwargs = emit_mock.call_args.kwargs
     assert kwargs["wp_id"] == "WP01"
-    assert kwargs["previous_status"] == "planned"
-    assert kwargs["new_status"] == "doing"
+    assert kwargs["from_lane"] == "planned"
+    assert kwargs["to_lane"] == "in_progress"
 
 
 def test_merge_emits_wp_status_changed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -209,8 +209,8 @@ def test_merge_emits_wp_status_changed(monkeypatch: pytest.MonkeyPatch, tmp_path
     emit_mock.assert_called_once()
     kwargs = emit_mock.call_args.kwargs
     assert kwargs["wp_id"] == "WP01"
-    assert kwargs["previous_status"] == "doing"
-    assert kwargs["new_status"] == "for_review"
+    assert kwargs["from_lane"] == "in_progress"
+    assert kwargs["to_lane"] == "for_review"
 
 
 def test_accept_emits_wp_status_changed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -265,8 +265,8 @@ def test_accept_emits_wp_status_changed(monkeypatch: pytest.MonkeyPatch, tmp_pat
     emit_mock.assert_called_once()
     kwargs = emit_mock.call_args.kwargs
     assert kwargs["wp_id"] == "WP01"
-    assert kwargs["previous_status"] == "for_review"
-    assert kwargs["new_status"] == "done"
+    assert kwargs["from_lane"] == "for_review"
+    assert kwargs["to_lane"] == "done"
 
 
 def test_accept_error_emits_error_logged(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

@@ -14,7 +14,7 @@
 2. [Event Envelope Field Reference](#2-event-envelope-field-reference)
 3. [Batch Request/Response Format](#3-batch-requestresponse-format)
 4. [Event Types and Payload Schemas](#4-event-types-and-payload-schemas)
-5. [Lane Mapping (7-Lane to 4-Lane Collapse)](#5-lane-mapping-7-lane-to-4-lane-collapse)
+5. [Lane Vocabulary (Canonical 7-Lane)](#5-lane-vocabulary-canonical-7-lane)
 6. [Error Categorization](#6-error-categorization)
 7. [Fixture Data](#7-fixture-data)
 
@@ -313,12 +313,15 @@ Emitted when a work package changes lane (status).
 | Field | Type | Required | Constraints | Example |
 |-------|------|----------|-------------|---------|
 | `wp_id` | string | Yes | Pattern: `^WP\d{2}$` | `"WP01"` |
-| `previous_status` | string | Yes | One of: `"planned"`, `"doing"`, `"for_review"`, `"done"` | `"planned"` |
-| `new_status` | string | Yes | One of: `"planned"`, `"doing"`, `"for_review"`, `"done"` | `"doing"` |
-| `changed_by` | string | No | String if present (actor identity) | `"claude-agent"` |
+| `from_lane` | string | Yes | One of the 7 canonical lanes (see below) | `"planned"` |
+| `to_lane` | string | Yes | One of the 7 canonical lanes (see below) | `"in_progress"` |
+| `actor` | string | No | String if present (actor identity) | `"claude-agent"` |
 | `feature_slug` | string | No | Nullable string | `"039-cli-2x-readiness"` |
 
-**Important**: The `previous_status` and `new_status` values use the **collapsed 4-lane** vocabulary (`planned`, `doing`, `for_review`, `done`), not the internal 7-lane model. See Section 5 for the mapping.
+**Canonical 7-lane vocabulary** (accepted values for `from_lane` and `to_lane`):
+`planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`
+
+Lane values are passed through directly from the canonical status model — no collapse or mapping is applied.
 
 ### 4.2 WPCreated
 
@@ -442,42 +445,33 @@ Emitted when a work package dependency is resolved.
 
 ---
 
-## 5. Lane Mapping (7-Lane to 4-Lane Collapse)
+## 5. Lane Vocabulary (Canonical 7-Lane)
 
-The CLI uses a 7-lane canonical status model internally. When emitting `WPStatusChanged` events for the SaaS batch endpoint, lanes are collapsed to a 4-lane vocabulary via `_SYNC_LANE_MAP` in `src/specify_cli/status/emit.py`.
+The CLI emits `WPStatusChanged` events using the full canonical 7-lane vocabulary directly. No lane collapse or mapping is applied — `_SYNC_LANE_MAP` has been removed.
 
-### 5.1 Mapping Table (Authoritative -- from 2.x implementation)
+### 5.1 Canonical Lanes
 
-| 7-Lane (Internal) | 4-Lane (Sync Payload) | Notes |
-|--------------------|-----------------------|-------|
-| `planned` | `planned` | Direct mapping |
-| `claimed` | `planned` | Claimed but not yet in progress; maps to planned |
-| `in_progress` | `doing` | Active work |
-| `for_review` | `for_review` | Direct mapping |
-| `done` | `done` | Terminal (successful) |
-| `blocked` | `doing` | Blocked items are "in progress but stuck" |
-| `canceled` | `planned` | Canceled items reset to planned in sync vocabulary |
+| Lane | Description |
+|------|-------------|
+| `planned` | Work not yet started |
+| `claimed` | Claimed by an agent but not yet in progress |
+| `in_progress` | Active work underway |
+| `for_review` | Submitted for review |
+| `done` | Complete (terminal) |
+| `blocked` | Blocked by dependency or issue |
+| `canceled` | Canceled (terminal) |
 
-**Important discrepancy note**: The Phase 1 draft (`contracts/lane-mapping.md`) documented `claimed` -> `doing` and `canceled` -> `done`. The actual 2.x implementation maps `claimed` -> `planned` and `canceled` -> `planned`. **This document reflects the actual 2.x code.**
+All 7 values are valid for both `from_lane` and `to_lane` in `WPStatusChanged` payloads.
 
-### 5.2 No-Op Suppression
+### 5.2 SaaS Acceptance Requirements
 
-When a canonical transition collapses to the same 4-lane value on both sides, the CLI **does not emit** a `WPStatusChanged` event to SaaS. For example:
-
-- `planned` -> `claimed` maps to `planned` -> `planned`: **suppressed** (no SaaS event)
-- `in_progress` -> `blocked` maps to `doing` -> `doing`: **suppressed**
-- `done` -> `canceled` would require force; if it maps to the same value: **suppressed**
-
-### 5.3 4-Lane Values Accepted by SaaS
-
-The SaaS batch endpoint MUST accept exactly these values in `WPStatusChanged` payload fields `previous_status` and `new_status`:
-
-- `planned` -- Work not yet started
-- `doing` -- Work in progress (includes in_progress, blocked)
-- `for_review` -- Submitted for review
-- `done` -- Complete (terminal)
+The SaaS batch endpoint MUST accept all 7 canonical lane values in `WPStatusChanged` payload fields `from_lane` and `to_lane`.
 
 Unknown lane values MUST be rejected with a descriptive error.
+
+### 5.3 Alias Resolution (CLI-Side Only)
+
+The CLI resolves the user-facing alias `doing` to `in_progress` at input boundaries (e.g., `move-task --to doing`). This resolution happens before event emission — the alias `doing` never appears in emitted events.
 
 ---
 
@@ -545,9 +539,9 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
       "aggregate_type": "WorkPackage",
       "payload": {
         "wp_id": "WP01",
-        "previous_status": "planned",
-        "new_status": "doing",
-        "changed_by": "claude-agent",
+        "from_lane": "planned",
+        "to_lane": "in_progress",
+        "actor": "claude-agent",
         "feature_slug": "039-cli-2x-readiness"
       },
       "timestamp": "2026-02-12T10:00:00+00:00",
@@ -577,7 +571,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 }
 ```
 
-**Key fields to verify**: `event_id` is 26-char ULID, `previous_status` and `new_status` are 4-lane values, `project_uuid` is valid UUID v4.
+**Key fields to verify**: `event_id` is 26-char ULID, `from_lane` and `to_lane` are canonical 7-lane values, `project_uuid` is valid UUID v4.
 
 ---
 
@@ -594,9 +588,9 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
       "aggregate_type": "WorkPackage",
       "payload": {
         "wp_id": "WP02",
-        "previous_status": "doing",
-        "new_status": "for_review",
-        "changed_by": "wp02-agent",
+        "from_lane": "in_progress",
+        "to_lane": "for_review",
+        "actor": "wp02-agent",
         "feature_slug": "039-cli-2x-readiness"
       },
       "timestamp": "2026-02-12T11:00:00+00:00",
@@ -687,9 +681,9 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
       "aggregate_type": "WorkPackage",
       "payload": {
         "wp_id": "WP01",
-        "previous_status": "planned",
-        "new_status": "doing",
-        "changed_by": "claude-agent",
+        "from_lane": "planned",
+        "to_lane": "in_progress",
+        "actor": "claude-agent",
         "feature_slug": "039-cli-2x-readiness"
       },
       "timestamp": "2026-02-12T10:00:00+00:00",
@@ -782,9 +776,9 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
       "aggregate_type": "WorkPackage",
       "payload": {
         "wp_id": "WP01",
-        "previous_status": "planned",
-        "new_status": "doing",
-        "changed_by": "agent",
+        "from_lane": "planned",
+        "to_lane": "in_progress",
+        "actor": "agent",
         "feature_slug": null
       },
       "timestamp": "2026-02-12T13:00:00+00:00",
@@ -853,5 +847,5 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 | Sync config (server URL) | `src/specify_cli/sync/config.py` |
 | Project identity (UUID, slug) | `src/specify_cli/sync/project_identity.py` |
 | Git metadata (branch, SHA) | `src/specify_cli/sync/git_metadata.py` |
-| Lane mapping (7-to-4 collapse) | `src/specify_cli/status/emit.py` (`_SYNC_LANE_MAP`) |
+| SaaS fan-out (canonical 7-lane) | `src/specify_cli/status/emit.py` (`_saas_fan_out`) |
 | Public event API | `src/specify_cli/sync/events.py` |

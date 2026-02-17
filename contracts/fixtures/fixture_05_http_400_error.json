@@ -9,9 +9,9 @@
         "aggregate_type": "WorkPackage",
         "payload": {
           "wp_id": "WP01",
-          "previous_status": "planned",
-          "new_status": "doing",
-          "changed_by": "agent",
+          "from_lane": "planned",
+          "to_lane": "in_progress",
+          "actor": "agent",
           "feature_slug": null
         },
         "timestamp": "2026-02-12T13:00:00+00:00",

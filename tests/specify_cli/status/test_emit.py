@@ -728,14 +728,14 @@ class TestSaasFanOut:
 
         mock_emit.assert_called_once_with(
             wp_id="WP01",
-            previous_status="planned",
-            new_status="doing",
-            changed_by="test-actor",
+            from_lane="claimed",
+            to_lane="in_progress",
+            actor="test-actor",
             feature_slug="034-test-feature",
         )
 
-    def test_noop_mapping_transition_skipped(self):
-        """No-op SaaS transitions are skipped after lane mapping."""
+    def test_planned_to_claimed_now_emits(self):
+        """planned->claimed now emits (no longer collapsed to no-op)."""
         event = self._make_event(
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -745,7 +745,7 @@ class TestSaasFanOut:
             "specify_cli.sync.events.emit_wp_status_changed", mock_emit
         ):
             _saas_fan_out(event, "034-test-feature", None)
-        mock_emit.assert_not_called()
+        mock_emit.assert_called_once()
 
     def test_saas_exception_does_not_propagate(self):
         """Exception from SaaS emit is caught and logged."""

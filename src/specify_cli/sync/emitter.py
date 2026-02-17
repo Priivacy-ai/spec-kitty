@@ -117,12 +117,12 @@ def _is_nullable_string(value: Any) -> bool:
 
 _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     "WPStatusChanged": {
-        "required": {"wp_id", "previous_status", "new_status"},
+        "required": {"wp_id", "from_lane", "to_lane"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
-            "previous_status": lambda v: v in {"planned", "doing", "for_review", "done"},
-            "new_status": lambda v: v in {"planned", "doing", "for_review", "done"},
-            "changed_by": lambda v: isinstance(v, str) if v is not None else True,
+            "from_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"},
+            "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"},
+            "actor": lambda v: isinstance(v, str) if v is not None else True,
             "feature_slug": lambda v: _is_nullable_string(v),
         },
     },
@@ -284,18 +284,18 @@ class EventEmitter:
     def emit_wp_status_changed(
         self,
         wp_id: str,
-        previous_status: str,
-        new_status: str,
-        changed_by: str = "user",
+        from_lane: str,
+        to_lane: str,
+        actor: str = "user",
         feature_slug: str | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
         """Emit WPStatusChanged event (FR-008)."""
         payload = {
             "wp_id": wp_id,
-            "previous_status": previous_status,
-            "new_status": new_status,
-            "changed_by": changed_by,
+            "from_lane": from_lane,
+            "to_lane": to_lane,
+            "actor": actor,
             "feature_slug": feature_slug,
         }
         return self._emit(

@@ -41,8 +41,8 @@ def create_test_event(index: int, node_id: str = 'test-node') -> dict:
         'causation_id': f'evt-{index-1:06d}' if index > 0 else None,
         'payload': {
             'wp_id': f'WP{index % 100:02d}',
-            'old_status': 'planned',
-            'new_status': 'doing',
+            'from_lane': 'planned',
+            'to_lane': 'in_progress',
             'index': index
         }
     }

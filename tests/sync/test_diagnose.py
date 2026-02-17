@@ -35,9 +35,9 @@ def _make_valid_event(**overrides) -> dict:
         "aggregate_type": "WorkPackage",
         "payload": {
             "wp_id": "WP01",
-            "previous_status": "planned",
-            "new_status": "doing",
-            "changed_by": "test-agent",
+            "from_lane": "planned",
+            "to_lane": "in_progress",
+            "actor": "test-agent",
             "feature_slug": "039-test",
         },
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -180,21 +180,21 @@ class TestWPStatusChangedPayload:
         assert results[0].valid is False
         assert any("wp_id" in e for e in results[0].errors)
 
-    def test_payload_missing_previous_status(self):
-        """WPStatusChanged payload missing previous_status fails."""
+    def test_payload_missing_from_lane(self):
+        """WPStatusChanged payload missing from_lane fails."""
         event = _make_valid_event()
-        del event["payload"]["previous_status"]
+        del event["payload"]["from_lane"]
         results = diagnose_events([event])
         assert results[0].valid is False
-        assert any("previous_status" in e for e in results[0].errors)
+        assert any("from_lane" in e for e in results[0].errors)
 
-    def test_payload_missing_new_status(self):
-        """WPStatusChanged payload missing new_status fails."""
+    def test_payload_missing_to_lane(self):
+        """WPStatusChanged payload missing to_lane fails."""
         event = _make_valid_event()
-        del event["payload"]["new_status"]
+        del event["payload"]["to_lane"]
         results = diagnose_events([event])
         assert results[0].valid is False
-        assert any("new_status" in e for e in results[0].errors)
+        assert any("to_lane" in e for e in results[0].errors)
 
     def test_payload_invalid_wp_id_format(self):
         """WPStatusChanged with invalid wp_id format (not WP##) fails."""
@@ -204,21 +204,21 @@ class TestWPStatusChangedPayload:
         assert results[0].valid is False
         assert any("wp_id" in e for e in results[0].errors)
 
-    def test_payload_invalid_previous_status_value(self):
-        """WPStatusChanged with unknown previous_status lane fails."""
+    def test_payload_invalid_from_lane_value(self):
+        """WPStatusChanged with unknown from_lane lane fails."""
         event = _make_valid_event()
-        event["payload"]["previous_status"] = "nonexistent_lane"
+        event["payload"]["from_lane"] = "nonexistent_lane"
         results = diagnose_events([event])
         assert results[0].valid is False
-        assert any("previous_status" in e for e in results[0].errors)
+        assert any("from_lane" in e for e in results[0].errors)
 
-    def test_payload_invalid_new_status_value(self):
-        """WPStatusChanged with unknown new_status lane fails."""
+    def test_payload_invalid_to_lane_value(self):
+        """WPStatusChanged with unknown to_lane lane fails."""
         event = _make_valid_event()
-        event["payload"]["new_status"] = "nonexistent_lane"
+        event["payload"]["to_lane"] = "nonexistent_lane"
         results = diagnose_events([event])
         assert results[0].valid is False
-        assert any("new_status" in e for e in results[0].errors)
+        assert any("to_lane" in e for e in results[0].errors)
 
 
 # ---------------------------------------------------------------------------

@@ -1013,8 +1013,8 @@ def implement(
 
                     emit_wp_status_changed(
                         wp_id=wp_id,
-                        previous_status=current_lane,
-                        new_status="doing",
+                        from_lane=current_lane,
+                        to_lane="in_progress",
                         feature_slug=feature_slug,
                     )
                 except Exception as emit_exc:

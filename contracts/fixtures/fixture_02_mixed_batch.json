@@ -9,9 +9,9 @@
         "aggregate_type": "WorkPackage",
         "payload": {
           "wp_id": "WP02",
-          "previous_status": "doing",
-          "new_status": "for_review",
-          "changed_by": "wp02-agent",
+          "from_lane": "in_progress",
+          "to_lane": "for_review",
+          "actor": "wp02-agent",
           "feature_slug": "039-cli-2x-readiness"
         },
         "timestamp": "2026-02-12T11:00:00+00:00",

@@ -72,40 +72,40 @@ class TestEventEnvelope:
 
     def test_event_id_is_valid_ulid(self, emitter: EventEmitter, temp_queue):
         """Event ID is a 26-character ULID (SC-009 prerequisite)."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert len(event["event_id"]) == 26
         assert _ULID_PATTERN.match(event["event_id"])
 
     def test_lamport_clock_increments(self, emitter: EventEmitter, temp_queue):
         """Lamport clock increments on each emit (SC-009)."""
-        ev1 = emitter.emit_wp_status_changed("WP01", "planned", "doing")
-        ev2 = emitter.emit_wp_status_changed("WP02", "planned", "doing")
+        ev1 = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
+        ev2 = emitter.emit_wp_status_changed("WP02", "planned", "in_progress")
         assert ev1 is not None and ev2 is not None
         assert ev2["lamport_clock"] > ev1["lamport_clock"]
 
     def test_lamport_clock_starts_at_one(self, emitter: EventEmitter, temp_queue):
         """First event gets lamport_clock=1 (tick from 0)."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["lamport_clock"] == 1
 
     def test_node_id_present(self, emitter: EventEmitter, temp_queue):
         """Event includes node_id from clock."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["node_id"] == "test-node-id"
 
     def test_timestamp_is_iso8601(self, emitter: EventEmitter, temp_queue):
         """Event includes ISO 8601 timestamp."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         # Should contain T and timezone info
         assert "T" in event["timestamp"]
 
     def test_team_slug_from_auth(self, emitter: EventEmitter, temp_queue):
         """Event includes team_slug from AuthClient (SC-010)."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["team_slug"] == "test-team"
 
@@ -117,40 +117,40 @@ class TestEventEnvelope:
             clock=temp_clock, config=mock_config, queue=temp_queue,
             _auth=auth, ws_client=None,
         )
-        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["team_slug"] == "local"
 
     def test_causation_id_included_when_provided(self, emitter: EventEmitter, temp_queue):
         """causation_id passed through to event envelope."""
         cid = emitter.generate_causation_id()
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing", causation_id=cid)
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress", causation_id=cid)
         assert event is not None
         assert event["causation_id"] == cid
 
     def test_causation_id_none_by_default(self, emitter: EventEmitter, temp_queue):
         """causation_id is None when not provided."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["causation_id"] is None
 
     def test_git_branch_present(self, emitter: EventEmitter, temp_queue):
         """Event includes git_branch from resolver."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert "git_branch" in event
         assert event["git_branch"] == "test-branch"
 
     def test_head_commit_sha_present(self, emitter: EventEmitter, temp_queue):
         """Event includes head_commit_sha from resolver."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert "head_commit_sha" in event
         assert event["head_commit_sha"] == "a" * 40
 
     def test_repo_slug_present(self, emitter: EventEmitter, temp_queue):
         """Event includes repo_slug from resolver."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert "repo_slug" in event
         assert event["repo_slug"] == "test-org/test-repo"
@@ -158,7 +158,7 @@ class TestEventEnvelope:
     def test_git_metadata_present_across_event_types(self, emitter: EventEmitter, temp_queue):
         """All event types include git metadata fields."""
         events = [
-            emitter.emit_wp_status_changed("WP01", "planned", "doing"),
+            emitter.emit_wp_status_changed("WP01", "planned", "in_progress"),
             emitter.emit_wp_created("WP01", "Test", "033-test"),
             emitter.emit_feature_created("033-test", "033", "2.x", 1),
         ]
@@ -175,49 +175,49 @@ class TestWPStatusChanged:
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
         """WPStatusChanged event has correct structure."""
         event = emitter.emit_wp_status_changed(
-            wp_id="WP01", previous_status="planned", new_status="doing",
+            wp_id="WP01", from_lane="planned", to_lane="in_progress",
         )
         assert event is not None
         assert event["event_type"] == "WPStatusChanged"
         assert event["aggregate_id"] == "WP01"
         assert event["aggregate_type"] == "WorkPackage"
         assert event["payload"]["wp_id"] == "WP01"
-        assert event["payload"]["previous_status"] == "planned"
-        assert event["payload"]["new_status"] == "doing"
+        assert event["payload"]["from_lane"] == "planned"
+        assert event["payload"]["to_lane"] == "in_progress"
 
-    def test_changed_by_default(self, emitter: EventEmitter, temp_queue):
-        """changed_by defaults to 'user'."""
-        event = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+    def test_actor_default(self, emitter: EventEmitter, temp_queue):
+        """actor defaults to 'user'."""
+        event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
-        assert event["payload"]["changed_by"] == "user"
+        assert event["payload"]["actor"] == "user"
 
-    def test_changed_by_agent(self, emitter: EventEmitter, temp_queue):
-        """changed_by can be set to agent name."""
+    def test_actor_agent(self, emitter: EventEmitter, temp_queue):
+        """actor can be set to agent name."""
         event = emitter.emit_wp_status_changed(
-            "WP01", "planned", "doing", changed_by="claude-opus",
+            "WP01", "planned", "in_progress", actor="claude-opus",
         )
         assert event is not None
-        assert event["payload"]["changed_by"] == "claude-opus"
+        assert event["payload"]["actor"] == "claude-opus"
 
     def test_feature_slug_optional(self, emitter: EventEmitter, temp_queue):
         """feature_slug is optional and nullable."""
         event = emitter.emit_wp_status_changed(
-            "WP01", "planned", "doing", feature_slug="028-sync",
+            "WP01", "planned", "in_progress", feature_slug="028-sync",
         )
         assert event is not None
         assert event["payload"]["feature_slug"] == "028-sync"
 
     def test_queued_in_offline_queue(self, emitter: EventEmitter, temp_queue):
         """Event is queued when no WebSocket connected (SC-006)."""
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert temp_queue.size() == 1
 
     def test_all_valid_status_transitions(self, emitter: EventEmitter, temp_queue):
-        """All status values pass validation."""
-        statuses = ["planned", "doing", "for_review", "done"]
-        for prev, new in zip(statuses, statuses[1:]):
-            event = emitter.emit_wp_status_changed("WP01", prev, new)
-            assert event is not None, f"Failed for {prev} -> {new}"
+        """All 7 canonical lane values pass validation."""
+        lanes = ["planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"]
+        for lane in lanes:
+            event = emitter.emit_wp_status_changed("WP01", "planned", lane)
+            assert event is not None, f"Failed for to_lane={lane}"
 
 
 class TestWPCreated:
@@ -433,7 +433,7 @@ class TestValidation:
 
     def test_invalid_wp_id_returns_none(self, emitter: EventEmitter, temp_queue):
         """Invalid wp_id format causes validation failure."""
-        event = emitter.emit_wp_status_changed("INVALID", "planned", "doing")
+        event = emitter.emit_wp_status_changed("INVALID", "planned", "in_progress")
         assert event is None
 
     def test_invalid_status_returns_none(self, emitter: EventEmitter, temp_queue):
@@ -491,7 +491,7 @@ class TestConvenienceFunctions:
         """emit_wp_status_changed delegates to singleton."""
         mock_emitter = MagicMock()
         mock_get.return_value = mock_emitter
-        emit_wp_status_changed("WP01", "planned", "doing")
+        emit_wp_status_changed("WP01", "planned", "in_progress")
         mock_emitter.emit_wp_status_changed.assert_called_once()
 
     @patch("specify_cli.sync.events.get_emitter")
@@ -598,7 +598,7 @@ class TestGitMetadataInEvents:
             ws_client=None, _identity=mock_identity,
             _git_resolver=null_resolver,
         )
-        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["git_branch"] is None
         assert event["head_commit_sha"] is None
@@ -618,7 +618,7 @@ class TestGitMetadataInEvents:
             ws_client=None, _identity=mock_identity,
             _git_resolver=resolver,
         )
-        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert event["git_branch"] == "main"
         assert event["head_commit_sha"] == "a" * 40
@@ -637,9 +637,9 @@ class TestOfflineReplayCompatibility:
             "aggregate_type": "WorkPackage",
             "payload": {
                 "wp_id": "WP01",
-                "previous_status": "planned",
-                "new_status": "doing",
-                "changed_by": "user",
+                "from_lane": "planned",
+                "to_lane": "in_progress",
+                "actor": "user",
                 "feature_slug": None,
             },
             "timestamp": "2026-02-07T12:00:00+00:00",
@@ -669,9 +669,9 @@ class TestOfflineReplayCompatibility:
             "aggregate_type": "WorkPackage",
             "payload": {
                 "wp_id": "WP01",
-                "previous_status": "planned",
-                "new_status": "doing",
-                "changed_by": "user",
+                "from_lane": "planned",
+                "to_lane": "in_progress",
+                "actor": "user",
                 "feature_slug": None,
             },
             "timestamp": "2026-02-07T12:00:00+00:00",
@@ -698,14 +698,14 @@ class TestInternalValidation:
             event_type="WPStatusChanged",
             aggregate_id="WP01",
             aggregate_type="InvalidType",  # not in VALID_AGGREGATE_TYPES
-            payload={"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            payload={"wp_id": "WP01", "from_lane": "planned", "to_lane": "in_progress"},
         )
         assert event is None
 
     def test_invalid_causation_id_format(self, emitter: EventEmitter, temp_queue):
         """Non-ULID causation_id causes validation failure."""
         event = emitter.emit_wp_status_changed(
-            "WP01", "planned", "doing",
+            "WP01", "planned", "in_progress",
             causation_id="not-a-ulid",  # too short, wrong format
         )
         assert event is None
@@ -741,7 +741,7 @@ class TestInternalValidation:
         original = em._validate_event
         em._validate_event = MagicMock(side_effect=Exception("boom"))
 
-        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is None
 
     def test_lazy_auth_creation(self, temp_queue, temp_clock, mock_config):
@@ -769,7 +769,7 @@ class TestInternalValidation:
             "event_type": "WPStatusChanged",
             "aggregate_id": "WP01",
             "aggregate_type": "WorkPackage",
-            "payload": {"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            "payload": {"wp_id": "WP01", "from_lane": "planned", "to_lane": "in_progress"},
             "node_id": "test-node-id",
             "lamport_clock": 1,
             "causation_id": None,
@@ -785,7 +785,7 @@ class TestInternalValidation:
             "event_type": "WPStatusChanged",
             "aggregate_id": "WP01",
             "aggregate_type": "WorkPackage",
-            "payload": {"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            "payload": {"wp_id": "WP01", "from_lane": "planned", "to_lane": "in_progress"},
             "node_id": "test-node-id",
             "lamport_clock": 1,
             "causation_id": None,
@@ -801,7 +801,7 @@ class TestInternalValidation:
             "event_type": "WPStatusChanged",
             "aggregate_id": "WP01",
             "aggregate_type": "WorkPackage",
-            "payload": {"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            "payload": {"wp_id": "WP01", "from_lane": "planned", "to_lane": "in_progress"},
             "node_id": "test-node-id",
             "lamport_clock": 1,
             "causation_id": "b" * 26,
@@ -849,7 +849,7 @@ class TestRouteEvent:
             "event_type": "WPStatusChanged",
             "aggregate_id": "WP01",
             "aggregate_type": "WorkPackage",
-            "payload": {"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            "payload": {"wp_id": "WP01", "from_lane": "planned", "to_lane": "in_progress"},
             "node_id": "test-node-id",
             "lamport_clock": 1,
             "causation_id": None,
@@ -879,7 +879,7 @@ class TestRouteEvent:
             "event_type": "WPStatusChanged",
             "aggregate_id": "WP01",
             "aggregate_type": "WorkPackage",
-            "payload": {"wp_id": "WP01", "previous_status": "planned", "new_status": "doing"},
+            "payload": {"wp_id": "WP01", "from_lane": "planned", "to_lane": "in_progress"},
             "node_id": "test-node-id",
             "lamport_clock": 1,
             "causation_id": None,

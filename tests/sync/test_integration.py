@@ -28,8 +28,8 @@ class TestFullFlow:
     def test_event_emission_to_queue_to_sync(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Full flow: emit events, verify in queue, sync to mock server (SC-001, SC-006, SC-007)."""
         # 1. Emit events
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
-        emitter.emit_wp_status_changed("WP02", "planned", "doing")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
+        emitter.emit_wp_status_changed("WP02", "planned", "in_progress")
 
         # 2. Verify in queue
         assert temp_queue.size() == 2
@@ -60,7 +60,7 @@ class TestFullFlow:
 
     def test_batch_payload_contains_correct_events(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Batch POST payload contains all emitted events with correct structure."""
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         emitter.emit_wp_created("WP01", "Test WP", "028-sync")
         emitter.emit_wp_assigned("WP01", "claude", "implementation")
 
@@ -96,7 +96,7 @@ class TestFullFlow:
         """Lamport clock values are strictly increasing across events."""
         events = []
         for i in range(5):
-            ev = emitter.emit_wp_status_changed("WP01", "planned", "doing")
+            ev = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
             assert ev is not None
             events.append(ev)
 
@@ -110,7 +110,7 @@ class TestBatchSyncAuthHandling:
 
     def test_401_marks_events_for_retry(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """401 response increments retry count, keeps events in queue."""
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         initial_size = temp_queue.size()
 
         with patch("specify_cli.sync.batch.requests.post") as mock_post:
@@ -132,7 +132,7 @@ class TestBatchSyncAuthHandling:
 
     def test_server_error_keeps_events_queued(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """500 response keeps events in queue for retry."""
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
 
         with patch("specify_cli.sync.batch.requests.post") as mock_post:
             mock_response = MagicMock()
@@ -209,7 +209,7 @@ class TestMultiEventBatch:
 
     def test_mixed_event_types_in_batch(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Multiple event types can be batched together."""
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         emitter.emit_wp_assigned("WP01", "claude", "implementation")
         emitter.emit_history_added("WP01", "note", "Started work")
 

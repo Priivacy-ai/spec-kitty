@@ -1,8 +1,8 @@
 """Tests for CLI command event emission (T040).
 
 Covers:
-- SC-001: implement emits WPStatusChanged(planned→doing)
-- SC-002: merge/move-task emits WPStatusChanged(doing→for_review)
+- SC-001: implement emits WPStatusChanged(planned→in_progress)
+- SC-002: merge/move-task emits WPStatusChanged(in_progress→for_review)
 - SC-003: accept emits WPStatusChanged(for_review→done)
 - SC-004: finalize-tasks emits FeatureCreated + WPCreated batch
 - SC-005: orchestrate emits WPAssigned
@@ -29,28 +29,28 @@ from specify_cli.sync.queue import OfflineQueue
 
 
 class TestImplementEmitsWPStatusChanged:
-    """SC-001: implement command emits WPStatusChanged(planned→doing)."""
+    """SC-001: implement command emits WPStatusChanged(planned→in_progress)."""
 
     def test_planned_to_doing(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """implement: WP moves from planned to doing."""
+        """implement: WP moves from planned to in_progress."""
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="planned",
-            new_status="doing",
-            changed_by="claude-opus",
+            from_lane="planned",
+            to_lane="in_progress",
+            actor="claude-opus",
         )
         assert event is not None
         assert event["event_type"] == "WPStatusChanged"
-        assert event["payload"]["previous_status"] == "planned"
-        assert event["payload"]["new_status"] == "doing"
-        assert event["payload"]["changed_by"] == "claude-opus"
+        assert event["payload"]["from_lane"] == "planned"
+        assert event["payload"]["to_lane"] == "in_progress"
+        assert event["payload"]["actor"] == "claude-opus"
 
     def test_implement_event_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """implement: emitted event includes git metadata fields."""
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="planned",
-            new_status="doing",
+            from_lane="planned",
+            to_lane="in_progress",
         )
         assert event is not None
         assert "git_branch" in event
@@ -62,23 +62,23 @@ class TestImplementEmitsWPStatusChanged:
 
     def test_event_queued_for_sync(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """implement: event is queued in offline queue."""
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert temp_queue.size() == 1
 
 
 class TestMergeEmitsWPStatusChanged:
-    """SC-002: merge/move-task emits WPStatusChanged(doing→for_review)."""
+    """SC-002: merge/move-task emits WPStatusChanged(in_progress→for_review)."""
 
     def test_doing_to_for_review(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """merge: WP moves from doing to for_review."""
+        """merge: WP moves from in_progress to for_review."""
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="doing",
-            new_status="for_review",
+            from_lane="in_progress",
+            to_lane="for_review",
         )
         assert event is not None
-        assert event["payload"]["previous_status"] == "doing"
-        assert event["payload"]["new_status"] == "for_review"
+        assert event["payload"]["from_lane"] == "in_progress"
+        assert event["payload"]["to_lane"] == "for_review"
 
 
 class TestAcceptEmitsWPStatusChanged:
@@ -88,19 +88,19 @@ class TestAcceptEmitsWPStatusChanged:
         """accept: WP moves from for_review to done."""
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="for_review",
-            new_status="done",
+            from_lane="for_review",
+            to_lane="done",
         )
         assert event is not None
-        assert event["payload"]["previous_status"] == "for_review"
-        assert event["payload"]["new_status"] == "done"
+        assert event["payload"]["from_lane"] == "for_review"
+        assert event["payload"]["to_lane"] == "done"
 
     def test_accept_event_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """accept: emitted event includes git metadata fields."""
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="for_review",
-            new_status="done",
+            from_lane="for_review",
+            to_lane="done",
         )
         assert event is not None
         assert event["git_branch"] == "test-branch"
@@ -234,13 +234,13 @@ class TestEmissionFailureNonBlocking:
         config = MagicMock()
 
         em = EventEmitter(clock=clock, config=config, queue=temp_queue, _auth=auth, ws_client=None)
-        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is None
         # Critically: no exception raised
 
     def test_validation_failure_returns_none(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Validation failure returns None, doesn't raise."""
-        event = emitter.emit_wp_status_changed("INVALID_ID", "planned", "doing")
+        event = emitter.emit_wp_status_changed("INVALID_ID", "planned", "in_progress")
         assert event is None
         assert temp_queue.size() == 0
 
@@ -256,7 +256,7 @@ class TestEmissionFailureNonBlocking:
             clock=temp_clock, config=mock_config, queue=broken_queue,
             _auth=auth, ws_client=None,
         )
-        event = em.emit_wp_status_changed("WP01", "planned", "doing")
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None  # Event still created, just not queued
 
 
@@ -337,8 +337,8 @@ class TestIdentityInjection:
         """WPStatusChanged event includes project_uuid."""
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="planned",
-            new_status="doing",
+            from_lane="planned",
+            to_lane="in_progress",
         )
         assert event is not None
         assert "project_uuid" in event
@@ -378,9 +378,9 @@ class TestIdentityInjection:
     ):
         """Identity is resolved once and cached for subsequent events."""
         # Emit multiple events
-        emitter.emit_wp_status_changed("WP01", "planned", "doing")
-        emitter.emit_wp_status_changed("WP02", "planned", "doing")
-        emitter.emit_wp_status_changed("WP03", "planned", "doing")
+        emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
+        emitter.emit_wp_status_changed("WP02", "planned", "in_progress")
+        emitter.emit_wp_status_changed("WP03", "planned", "in_progress")
 
         # All should have the same identity (from cache)
         events = temp_queue.drain_queue()
@@ -397,8 +397,8 @@ class TestMissingIdentityQueuesOnly:
         """Events without project_uuid are queued but not sent via WebSocket."""
         event = emitter_without_identity.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="planned",
-            new_status="doing",
+            from_lane="planned",
+            to_lane="in_progress",
         )
 
         # Event is still created (not None)
@@ -416,8 +416,8 @@ class TestMissingIdentityQueuesOnly:
         """Warning is logged when identity is missing."""
         emitter_without_identity.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="planned",
-            new_status="doing",
+            from_lane="planned",
+            to_lane="in_progress",
         )
 
         # Capture stderr (Rich console output goes to stderr)
@@ -431,8 +431,8 @@ class TestMissingIdentityQueuesOnly:
         for i in range(1, 4):
             emitter_without_identity.emit_wp_status_changed(
                 wp_id=f"WP{i:02d}",
-                previous_status="planned",
-                new_status="doing",
+                from_lane="planned",
+                to_lane="in_progress",
             )
 
         # All 3 events should be queued
@@ -458,9 +458,9 @@ class TestNoDuplicateEmissions:
         # Simulate what implement.py should do: exactly one emission
         emitter.emit_wp_status_changed(
             wp_id="WP01",
-            previous_status="planned",
-            new_status="doing",
-            changed_by="claude-opus",
+            from_lane="planned",
+            to_lane="in_progress",
+            actor="claude-opus",
         )
 
         # Verify exactly 1 event queued (not 2)
@@ -470,8 +470,8 @@ class TestNoDuplicateEmissions:
         events = temp_queue.drain_queue()
         assert len(events) == 1
         assert events[0]["event_type"] == "WPStatusChanged"
-        assert events[0]["payload"]["previous_status"] == "planned"
-        assert events[0]["payload"]["new_status"] == "doing"
+        assert events[0]["payload"]["from_lane"] == "planned"
+        assert events[0]["payload"]["to_lane"] == "in_progress"
 
     def test_accept_emits_once_per_wp(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """accept command should emit exactly one WPStatusChanged per WP.
@@ -487,9 +487,9 @@ class TestNoDuplicateEmissions:
         for wp_id in wp_ids:
             emitter.emit_wp_status_changed(
                 wp_id=wp_id,
-                previous_status="for_review",
-                new_status="done",
-                changed_by="user",
+                from_lane="for_review",
+                to_lane="done",
+                actor="user",
             )
 
         # Verify exactly 3 events (one per WP, not 6)
@@ -499,5 +499,5 @@ class TestNoDuplicateEmissions:
         events = temp_queue.drain_queue()
         for event in events:
             assert event["event_type"] == "WPStatusChanged"
-            assert event["payload"]["previous_status"] == "for_review"
-            assert event["payload"]["new_status"] == "done"
+            assert event["payload"]["from_lane"] == "for_review"
+            assert event["payload"]["to_lane"] == "done"

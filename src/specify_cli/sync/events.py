@@ -6,7 +6,7 @@ convenience functions for emitting each event type.
 Usage:
     from specify_cli.sync.events import emit_wp_status_changed
 
-    emit_wp_status_changed("WP01", "planned", "doing")
+    emit_wp_status_changed("WP01", "planned", "in_progress")
 """
 
 from __future__ import annotations
@@ -75,18 +75,18 @@ def reset_emitter() -> None:
 
 def emit_wp_status_changed(
     wp_id: str,
-    previous_status: str,
-    new_status: str,
-    changed_by: str = "user",
+    from_lane: str,
+    to_lane: str,
+    actor: str = "user",
     feature_slug: str | None = None,
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit WPStatusChanged event via singleton."""
     return get_emitter().emit_wp_status_changed(
         wp_id=wp_id,
-        previous_status=previous_status,
-        new_status=new_status,
-        changed_by=changed_by,
+        from_lane=from_lane,
+        to_lane=to_lane,
+        actor=actor,
         feature_slug=feature_slug,
         causation_id=causation_id,
     )
