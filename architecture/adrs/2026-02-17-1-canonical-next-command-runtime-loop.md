@@ -68,3 +68,19 @@ The product direction requires that agents repeatedly call one command (`next`) 
 3. Implement compatibility bridge from `agent workflow` to runtime-backed planning semantics.
 4. Emit telemetry during migration to quantify legacy command usage.
 5. Deprecate legacy flow after adoption threshold is met.
+
+## Known Limitations (Locked In)
+
+As of **2026-02-17**, some mission mappings/templates for `spec-kitty next` are intentionally incomplete and may return `blocked` or `terminal` before a full loop.
+
+1. `plan` mission initial state/action mapping gap.
+2. `documentation` mission state-machine/template parity gap for `next`.
+
+These are accepted short-term constraints and MUST remain explicitly tracked via:
+
+1. Per-mission tracking docs:
+   `docs/development/tracking/next-mission-mappings/issue-plan-mission-next-mapping.md`
+   `docs/development/tracking/next-mission-mappings/issue-documentation-mission-next-mapping.md`
+2. `xfail(strict=True)` integration tests that express desired behavior and fail loudly on accidental drift/partial fixes.
+
+When either mission is implemented end-to-end, the corresponding tracking doc MUST be updated to closed and the `xfail` test MUST be converted to a normal passing test in the same PR.
