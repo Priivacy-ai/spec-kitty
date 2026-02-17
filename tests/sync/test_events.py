@@ -781,7 +781,7 @@ class TestInternalValidation:
     def test_invalid_event_id_fails_validation(self, emitter: EventEmitter, temp_queue):
         """Invalid event_id causes validation failure."""
         event = {
-            "event_id": "a" * 26,
+            "event_id": "short",
             "event_type": "WPStatusChanged",
             "aggregate_id": "WP01",
             "aggregate_type": "WorkPackage",
@@ -804,7 +804,7 @@ class TestInternalValidation:
             "payload": {"wp_id": "WP01", "from_lane": "planned", "to_lane": "in_progress"},
             "node_id": "test-node-id",
             "lamport_clock": 1,
-            "causation_id": "b" * 26,
+            "causation_id": "xyz",
             "timestamp": "2026-02-04T12:00:00+00:00",
             "team_slug": "test-team",
         }

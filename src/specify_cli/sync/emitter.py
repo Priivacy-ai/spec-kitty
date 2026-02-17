@@ -94,7 +94,10 @@ def _load_contract_schema() -> dict | None:
 
 # Payload validation rules derived from contracts/events.schema.json
 # Each entry maps event_type -> (required_fields, field_validators)
-_ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
+_ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")  # kept for test compat
+
+# Broader ID validation via normalize_event_id (accepts ULID + UUID)
+from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
 _WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
 _FEATURE_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
 _FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")
@@ -598,22 +601,29 @@ class EventEmitter:
                 )
                 return False
 
-            # 3b. Validate ULID patterns for event_id and causation_id
-            event_id = event.get("event_id")
-            if not isinstance(event_id, str) or not _ULID_PATTERN.match(event_id):
-                _console.print(
-                    f"[yellow]Warning: Invalid event_id: {event_id!r}[/yellow]"
-                )
+            # 3b. Normalize + validate envelope IDs (ULID or UUID accepted)
+            try:
+                event["event_id"] = _normalize_event_id(event["event_id"])
+            except (ValueError, TypeError):
+                _console.print(f"[yellow]Warning: Invalid event_id: {event.get('event_id')!r}[/yellow]")
                 return False
+
             causation_id = event.get("causation_id")
-            if causation_id is not None and (
-                not isinstance(causation_id, str)
-                or not _ULID_PATTERN.match(causation_id)
-            ):
-                _console.print(
-                    f"[yellow]Warning: Invalid causation_id: {causation_id!r}[/yellow]"
-                )
-                return False
+            if causation_id is not None:
+                try:
+                    event["causation_id"] = _normalize_event_id(causation_id)
+                except (ValueError, TypeError):
+                    _console.print(f"[yellow]Warning: Invalid causation_id: {causation_id!r}[/yellow]")
+                    return False
+
+            # Future-proof: normalize correlation_id if present
+            correlation_id = event.get("correlation_id")
+            if correlation_id is not None:
+                try:
+                    event["correlation_id"] = _normalize_event_id(correlation_id)
+                except (ValueError, TypeError):
+                    _console.print(f"[yellow]Warning: Invalid correlation_id: {correlation_id!r}[/yellow]")
+                    return False
 
             # 4. Validate payload against per-event-type rules
             if not self._validate_payload(event_type, event["payload"]):

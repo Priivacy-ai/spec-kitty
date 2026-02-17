@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from specify_cli.spec_kitty_events import normalize_event_id
+
 from .models import ULID_PATTERN
 from .transitions import ALLOWED_TRANSITIONS, CANONICAL_LANES
 
@@ -42,7 +44,7 @@ def validate_event_schema(event: dict) -> list[str]:
     Checks:
     - All required fields present: event_id, feature_slug, wp_id,
       from_lane, to_lane, at, actor, force, execution_mode
-    - event_id is valid ULID format (26 chars, Crockford base32)
+    - event_id is valid event ID (ULID Crockford base32, or UUID)
     - from_lane and to_lane are canonical lane values (never aliases)
     - at is valid ISO 8601 timestamp
     - force is boolean
@@ -70,8 +72,8 @@ def validate_event_schema(event: dict) -> list[str]:
 
     # ULID format check
     event_id = event.get("event_id", "")
-    if event_id and not _is_valid_ulid(str(event_id)):
-        findings.append(f"Invalid ULID format: {event_id}")
+    if event_id and not _is_valid_event_id(str(event_id)):
+        findings.append(f"Invalid event ID format: {event_id}")
 
     # Canonical lane check (aliases like "doing" are NOT canonical)
     canonical_set = set(CANONICAL_LANES)
@@ -415,9 +417,13 @@ def _extract_tasks_status_lines(content: str) -> list[str] | None:
     return lines
 
 
-def _is_valid_ulid(value: str) -> bool:
-    """Check if a string is a valid ULID (26 Crockford base32 characters)."""
-    return bool(ULID_PATTERN.match(value))
+def _is_valid_event_id(value: str) -> bool:
+    """Check if a string is a valid event ID (ULID or UUID)."""
+    try:
+        normalize_event_id(value)
+        return True
+    except (ValueError, TypeError):
+        return False
 
 
 def _is_valid_iso8601(value: str) -> bool:

@@ -129,15 +129,25 @@ class TestValidateEventSchema:
         assert any("Missing required field: event_id" in f for f in findings)
         assert any("Missing required field: wp_id" in f for f in findings)
 
-    def test_invalid_ulid_format(self):
+    def test_invalid_event_id_format(self):
         event = _make_event(event_id="not-a-ulid")
         findings = validate_event_schema(event)
-        assert any("Invalid ULID format" in f for f in findings)
+        assert any("Invalid event ID format" in f for f in findings)
 
     def test_valid_ulid_passes(self):
         event = _make_event(event_id="01HXYZ0123456789ABCDEFGHJK")
         findings = validate_event_schema(event)
-        assert not any("ULID" in f for f in findings)
+        assert not any("Invalid event ID" in f for f in findings)
+
+    def test_valid_uuid_hyphenated_passes(self):
+        event = _make_event(event_id="550e8400-e29b-41d4-a716-446655440000")
+        findings = validate_event_schema(event)
+        assert not any("Invalid event ID" in f for f in findings)
+
+    def test_valid_uuid_bare_passes(self):
+        event = _make_event(event_id="550e8400e29b41d4a716446655440000")
+        findings = validate_event_schema(event)
+        assert not any("Invalid event ID" in f for f in findings)
 
     def test_non_canonical_from_lane(self):
         """Alias 'doing' is NOT canonical and should be flagged."""
