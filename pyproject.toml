@@ -61,6 +61,7 @@ dependencies = [
     "packaging>=23.0",
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
     "spec-kitty-events==2.2.0",
+    "spec-kitty-runtime @ git+https://github.com/Priivacy-ai/spec-kitty-runtime.git@v0.1.0a0",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing
     "filelock>=3.13.0",  # Credential storage locking
