@@ -2,6 +2,15 @@
 
 Canonical terminology for Spec Kitty. This glossary is a living artifact and is organized by context domains.
 
+## Architecture Framing
+
+This glossary follows a two-layer architecture:
+
+1. Policy layer (this glossary, journeys, doctrine): defines language, intent, and governance.
+2. Runtime layer (CLI/events/SaaS projections): enforces behavior, emits contracts, and provides replayable state.
+
+Use this glossary as policy authority for language, and runtime artifacts as operational authority for "what happened."
+
 ## Domain Index
 
 | Domain | Summary | File |
@@ -26,6 +35,34 @@ Canonical terminology for Spec Kitty. This glossary is a living artifact and is 
 Term maturity follows:
 
 `candidate` -> `canonical` -> `deprecated` / `superseded`
+
+## Status Semantics
+
+- `canonical`: canonical terminology in the policy layer.
+- `candidate`: proposed terminology pending validation or runtime integration.
+- `superseded` / `deprecated`: preserved for backward compatibility and migration context.
+
+`canonical` does not automatically mean full runtime implementation is complete. Runtime parity depends on core mission/runtime integration work.
+
+## Published Runtime Anchors (`2.x`)
+
+- `src/specify_cli/glossary/`
+- `src/specify_cli/missions/glossary_hook.py`
+- `src/specify_cli/cli/commands/glossary.py`
+- `architecture/adrs/2026-02-17-3-events-contract-parity-and-vendor-deprecation.md`
+
+## Cross-Repo Contract Notes
+
+SaaS glossary projections consume canonical glossary event envelopes with top-level fields such as:
+
+- `event_id`, `event_type`, `aggregate_id`, `lamport_clock`, `payload`
+
+And payload identity/term fallbacks such as:
+
+- mission: `mission_slug` or `mission_id` (fallback `aggregate_id`)
+- term: `term_name` or `term_surface` or `term`
+
+This keeps projections compatible during migration between legacy and canonical payload shapes.
 
 ---
 
