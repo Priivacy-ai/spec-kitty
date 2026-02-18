@@ -35,7 +35,7 @@ from specify_cli.core.vcs import (
 )
 from specify_cli.dashboard import ensure_dashboard_running
 from specify_cli.gitignore_manager import GitignoreManager, ProtectionResult
-from specify_cli.orchestrator.agent_config import (
+from specify_cli.core.agent_config import (
     AgentConfig,
     AgentSelectionConfig,
     SelectionStrategy,

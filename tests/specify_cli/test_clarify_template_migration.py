@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.orchestrator.agent_config import AgentConfig, save_agent_config
+from specify_cli.core.agent_config import AgentConfig, save_agent_config
 from specify_cli.upgrade.migrations.m_0_13_5_fix_clarify_template import (
     FixClarifyTemplateMigration,
 )

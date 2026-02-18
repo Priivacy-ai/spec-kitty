@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.orchestrator.agent_config import AgentConfig, save_agent_config
+from specify_cli.core.agent_config import AgentConfig, save_agent_config
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
     CompleteLaneMigration,

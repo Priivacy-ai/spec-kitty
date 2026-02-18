@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.orchestrator.agent_config import AgentConfigError, load_agent_config
+from specify_cli.core.agent_config import AgentConfigError, load_agent_config
 
 
 def _write_config(tmp_path: Path, content: str) -> Path:
