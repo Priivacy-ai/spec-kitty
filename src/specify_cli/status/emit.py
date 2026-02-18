@@ -175,6 +175,7 @@ def emit_status_transition(
     implementation_evidence_present: bool | None = None,
     execution_mode: str = "worktree",
     repo_root: Path | None = None,
+    policy_metadata: dict | None = None,
 ) -> StatusEvent:
     """Central orchestration function for all status state changes.
 
@@ -199,6 +200,7 @@ def emit_status_transition(
         implementation_evidence_present: Whether implementation evidence is present.
         execution_mode: "worktree" or "direct_repo".
         repo_root: Repository root for SaaS fan-out (optional).
+        policy_metadata: Orchestrator policy metadata dict (optional).
 
     Returns:
         The persisted StatusEvent.
@@ -266,6 +268,7 @@ def emit_status_transition(
         reason=reason,
         review_ref=review_ref,
         evidence=done_evidence,
+        policy_metadata=policy_metadata,
     )
 
     # Step 5: Persist event to JSONL log
@@ -298,7 +301,7 @@ def emit_status_transition(
             )
 
     # Step 8: SaaS fan-out (never blocks canonical persistence)
-    _saas_fan_out(event, feature_slug, repo_root)
+    _saas_fan_out(event, feature_slug, repo_root, policy_metadata=policy_metadata)
 
     # Step 9: Return the event
     return event
@@ -308,6 +311,8 @@ def _saas_fan_out(
     event: StatusEvent,
     feature_slug: str,
     repo_root: Path | None,
+    *,
+    policy_metadata: dict | None = None,
 ) -> None:
     """Conditionally emit a SaaS telemetry event via the sync pipeline.
 
@@ -324,6 +329,7 @@ def _saas_fan_out(
             to_lane=str(event.to_lane),
             actor=event.actor,
             feature_slug=feature_slug,
+            policy_metadata=policy_metadata,
         )
     except ImportError:
         pass  # SaaS sync not available (0.1x branch)

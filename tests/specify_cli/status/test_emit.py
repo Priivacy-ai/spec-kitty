@@ -732,6 +732,7 @@ class TestSaasFanOut:
             to_lane="in_progress",
             actor="test-actor",
             feature_slug="034-test-feature",
+            policy_metadata=None,
         )
 
     def test_planned_to_claimed_now_emits(self):

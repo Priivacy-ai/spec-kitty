@@ -501,3 +501,68 @@ class TestNoDuplicateEmissions:
             assert event["event_type"] == "WPStatusChanged"
             assert event["payload"]["from_lane"] == "for_review"
             assert event["payload"]["to_lane"] == "done"
+
+
+class TestPolicyMetadataPassthrough:
+    """Verify policy_metadata flows from sync.events wrapper through emitter to payload."""
+
+    def test_policy_metadata_included_in_payload(
+        self, emitter: EventEmitter, temp_queue: OfflineQueue
+    ):
+        """policy_metadata passed to emit_wp_status_changed() appears in event payload."""
+        policy = {
+            "orchestrator_id": "test-orch",
+            "orchestrator_version": "0.1.0",
+            "agent_family": "claude",
+            "approval_mode": "supervised",
+            "sandbox_mode": "sandbox",
+            "network_mode": "restricted",
+            "dangerous_flags": [],
+        }
+        event = emitter.emit_wp_status_changed(
+            wp_id="WP01",
+            from_lane="planned",
+            to_lane="claimed",
+            actor="claude",
+            feature_slug="099-test-feature",
+            policy_metadata=policy,
+        )
+        assert event is not None
+        assert event["payload"]["policy_metadata"] == policy
+
+    def test_policy_metadata_none_included_in_payload(
+        self, emitter: EventEmitter, temp_queue: OfflineQueue
+    ):
+        """policy_metadata=None is valid and included in payload."""
+        event = emitter.emit_wp_status_changed(
+            wp_id="WP01",
+            from_lane="planned",
+            to_lane="claimed",
+            actor="claude",
+            policy_metadata=None,
+        )
+        assert event is not None
+        assert event["payload"]["policy_metadata"] is None
+
+    def test_sync_events_wrapper_passes_policy_metadata(
+        self, emitter: EventEmitter, temp_queue: OfflineQueue
+    ):
+        """sync.events.emit_wp_status_changed() passes policy_metadata through to emitter."""
+        from unittest.mock import patch
+
+        policy = {"orchestrator_id": "orch-1", "orchestrator_version": "0.1.0"}
+        with patch(
+            "specify_cli.sync.events.get_emitter", return_value=emitter
+        ):
+            from specify_cli.sync.events import emit_wp_status_changed as wrapper_emit
+
+            event = wrapper_emit(
+                wp_id="WP01",
+                from_lane="planned",
+                to_lane="claimed",
+                actor="claude",
+                policy_metadata=policy,
+            )
+
+        assert event is not None
+        assert event["payload"]["policy_metadata"] == policy

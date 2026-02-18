@@ -152,6 +152,7 @@ class StatusEvent:
     reason: str | None = None
     review_ref: str | None = None
     evidence: DoneEvidence | None = None
+    policy_metadata: dict | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -167,6 +168,7 @@ class StatusEvent:
             "reason": self.reason,
             "review_ref": self.review_ref,
             "evidence": self.evidence.to_dict() if self.evidence else None,
+            "policy_metadata": self.policy_metadata,
         }
         return d
 
@@ -188,6 +190,7 @@ class StatusEvent:
             evidence=DoneEvidence.from_dict(evidence_data)
             if evidence_data
             else None,
+            policy_metadata=data.get("policy_metadata"),
         )
 
 

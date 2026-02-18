@@ -85,6 +85,7 @@ class TestCanonicalFanOut:
             to_lane=str(to_lane),
             actor="test-actor",
             feature_slug="039-test-feature",
+            policy_metadata=None,
         )
 
     def test_planned_to_claimed_now_emits(self) -> None:

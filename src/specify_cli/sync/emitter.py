@@ -127,6 +127,7 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"},
             "actor": lambda v: isinstance(v, str) if v is not None else True,
             "feature_slug": lambda v: _is_nullable_string(v),
+            "policy_metadata": lambda v: v is None or isinstance(v, dict),
         },
     },
     "WPCreated": {
@@ -292,6 +293,7 @@ class EventEmitter:
         actor: str = "user",
         feature_slug: str | None = None,
         causation_id: str | None = None,
+        policy_metadata: dict | None = None,
     ) -> dict[str, Any] | None:
         """Emit WPStatusChanged event (FR-008)."""
         payload = {
@@ -300,6 +302,7 @@ class EventEmitter:
             "to_lane": to_lane,
             "actor": actor,
             "feature_slug": feature_slug,
+            "policy_metadata": policy_metadata,
         }
         return self._emit(
             event_type="WPStatusChanged",

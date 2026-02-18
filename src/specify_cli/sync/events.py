@@ -80,6 +80,7 @@ def emit_wp_status_changed(
     actor: str = "user",
     feature_slug: str | None = None,
     causation_id: str | None = None,
+    policy_metadata: dict | None = None,
 ) -> dict[str, Any] | None:
     """Emit WPStatusChanged event via singleton."""
     return get_emitter().emit_wp_status_changed(
@@ -89,6 +90,7 @@ def emit_wp_status_changed(
         actor=actor,
         feature_slug=feature_slug,
         causation_id=causation_id,
+        policy_metadata=policy_metadata,
     )
 
 

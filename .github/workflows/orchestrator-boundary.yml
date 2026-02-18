@@ -1,0 +1,54 @@
+name: Orchestrator Boundary Guardrails
+
+on: [push, pull_request]
+
+jobs:
+  no-bundled-orchestrator:
+    name: Verify bundled orchestrator is removed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check orchestrator package is absent
+        run: |
+          if [ -d "src/specify_cli/orchestrator" ]; then
+            echo "::error::src/specify_cli/orchestrator must not exist. The bundled orchestrator has been removed. See ADR for orchestrator-api contract."
+            exit 1
+          fi
+          echo "OK: src/specify_cli/orchestrator/ does not exist"
+
+      - name: Check orchestrate command is absent
+        run: |
+          if [ -f "src/specify_cli/cli/commands/orchestrate.py" ]; then
+            echo "::error::src/specify_cli/cli/commands/orchestrate.py must not exist. Use orchestrator-api instead."
+            exit 1
+          fi
+          echo "OK: orchestrate.py does not exist"
+
+  no-banned-flags-in-runtime:
+    name: Verify no banned flags in core runtime
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan core runtime paths for banned flags
+        run: |
+          SCAN_DIRS="src/specify_cli/cli src/specify_cli/next src/specify_cli/status src/specify_cli/merge src/specify_cli/core"
+          BANNED="--full-auto --yolo --dangerously-bypass-approvals-and-sandbox --dangerously-skip-permissions"
+          FOUND=0
+
+          for flag in $BANNED; do
+            # Use -- to prevent grep from interpreting leading dashes as options
+            if grep -r --include="*.py" -l -- "$flag" $SCAN_DIRS 2>/dev/null | grep -q .; then
+              echo "::error::Banned flag '$flag' found in core runtime paths"
+              grep -r --include="*.py" -n -- "$flag" $SCAN_DIRS
+              FOUND=1
+            fi
+          done
+
+          if [ "$FOUND" -eq 1 ]; then
+            echo "::error::One or more banned flags found in core runtime. These flags must only appear in orchestrator_api/envelope.py as validation constants."
+            exit 1
+          fi
+
+          echo "No banned flags found in core runtime paths."
