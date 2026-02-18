@@ -1,11 +1,15 @@
 """Core decision engine for ``spec-kitty next``.
 
-Pure logic, no CLI concerns.  Given a feature directory and mission config,
-derive the current mission state from the event log, evaluate guards, and
-return a deterministic :class:`Decision`.
+Delegates planning to ``spec-kitty-runtime`` via :mod:`runtime_bridge`.
 
-**State advancement**: when guards pass, ``decide_next`` emits a
-``phase_entered`` event so the canonical agent loop advances on each call.
+The :class:`Decision` dataclass and :class:`DecisionKind` constants are the
+public JSON contract.  WP helpers (``_compute_wp_progress``,
+``_find_first_wp_by_lane``) and ``_state_to_action`` are kept for use by the
+bridge layer.
+
+Legacy functions ``derive_mission_state`` and ``evaluate_guards`` are
+preserved for backward compatibility and tests but are no longer called by
+``decide_next``.
 """
 
 from __future__ import annotations
@@ -17,7 +21,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from specify_cli.mission_v1.events import emit_event, read_events
+from specify_cli.mission_v1.events import read_events
 from specify_cli.mission_v1.guards import _read_lane_from_frontmatter
 
 
@@ -50,6 +54,13 @@ class Decision:
     guard_failures: list[str] = field(default_factory=list)
     progress: dict | None = None
     origin: dict = field(default_factory=dict)
+    # Runtime fields (added in v2.0.0)
+    run_id: str | None = None
+    step_id: str | None = None
+    decision_id: str | None = None
+    input_key: str | None = None
+    question: str | None = None
+    options: list[str] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,11 +78,17 @@ class Decision:
             "guard_failures": self.guard_failures,
             "progress": self.progress,
             "origin": self.origin,
+            "run_id": self.run_id,
+            "step_id": self.step_id,
+            "decision_id": self.decision_id,
+            "input_key": self.input_key,
+            "question": self.question,
+            "options": self.options,
         }
 
 
 # ---------------------------------------------------------------------------
-# State derivation from event log
+# State derivation from event log (legacy — kept for backward compat)
 # ---------------------------------------------------------------------------
 
 
@@ -81,6 +98,10 @@ def derive_mission_state(feature_dir: Path, initial_state: str) -> str:
     Scans ``mission-events.jsonl`` for the last ``phase_entered`` event and
     returns its state.  Falls back to *initial_state* when the log is empty
     or contains no ``phase_entered`` events.
+
+    .. deprecated:: 2.0.0
+        No longer used by ``decide_next``.  Runtime state is now managed by
+        ``spec-kitty-runtime`` via ``state.json`` in the run directory.
     """
     events = read_events(feature_dir)
     last_state = initial_state
@@ -94,7 +115,7 @@ def derive_mission_state(feature_dir: Path, initial_state: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Guard evaluation (standalone, without firing transitions)
+# Guard evaluation (legacy — kept for backward compat / tests)
 # ---------------------------------------------------------------------------
 
 
@@ -110,6 +131,10 @@ def evaluate_guards(
 
     Returns ``(all_passed, list_of_failure_descriptions)``.  If there is no
     ``advance`` transition from the current state, returns ``(True, [])``.
+
+    .. deprecated:: 2.0.0
+        No longer used by ``decide_next``.  CLI-level guards are now
+        evaluated in :mod:`runtime_bridge`.
     """
     transitions = mission_config.get("transitions", [])
 
@@ -240,252 +265,20 @@ def decide_next(
 ) -> Decision:
     """Decide the next action for an agent in the mission loop.
 
-    **State advancement**: when guards pass and the machine advances, a
-    ``phase_entered`` event is emitted so the next call sees the new state.
-    This is the only place state is persisted — the canonical loop is::
+    Delegates to :func:`runtime_bridge.decide_next_via_runtime` which uses
+    the ``spec-kitty-runtime`` DAG planner for step resolution and manages
+    run state locally under ``.kittify/runtime/runs/``.
+
+    The canonical agent loop is::
 
         while True:
             decision = spec-kitty next --agent X --json
             if decision.kind == "terminal": break
             execute(decision.prompt_file)
-
-    Algorithm:
-    1. Resolve feature_dir and mission config
-    2. Derive current state from event log
-    3. Handle ``--result`` flags (failed, blocked)
-    4. Check terminal state
-    5. Evaluate guards for ``advance`` from current state
-    6. If guards fail → stay in current state, map to action
-    7. If guards pass → advance, persist ``phase_entered``, map dest to action
-    8. Build prompt via prompt_builder
     """
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    now = datetime.now(timezone.utc).isoformat()
+    from specify_cli.next.runtime_bridge import decide_next_via_runtime
 
-    if not feature_dir.is_dir():
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            feature_slug=feature_slug,
-            mission="unknown",
-            mission_state="unknown",
-            timestamp=now,
-            reason=f"Feature directory not found: {feature_dir}",
-        )
-
-    # --- Resolve mission ---
-    from specify_cli.mission import get_feature_mission_key
-
-    mission_key = get_feature_mission_key(feature_dir)
-
-    try:
-        from specify_cli.runtime.resolver import resolve_mission as resolve_mission_path
-
-        mission_result = resolve_mission_path(mission_key, repo_root)
-        mission_path = mission_result.path.parent
-    except FileNotFoundError:
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            feature_slug=feature_slug,
-            mission=mission_key,
-            mission_state="unknown",
-            timestamp=now,
-            reason=f"Mission '{mission_key}' not found in any resolution tier",
-        )
-
-    from specify_cli.mission_v1 import load_mission
-
-    try:
-        mission = load_mission(mission_path, feature_dir=feature_dir)
-    except Exception as exc:
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            feature_slug=feature_slug,
-            mission=mission_key,
-            mission_state="unknown",
-            timestamp=now,
-            reason=f"Failed to load mission: {exc}",
-        )
-
-    origin = {
-        "mission_tier": getattr(mission_result, "tier", "unknown"),
-        "mission_path": str(mission_path),
-    }
-    if hasattr(origin["mission_tier"], "value"):
-        origin["mission_tier"] = origin["mission_tier"].value
-
-    # --- Derive current state ---
-    config = mission._config if hasattr(mission, "_config") else {}
-    initial_state = config.get("initial", "discovery")
-    current_state = derive_mission_state(feature_dir, initial_state)
-    progress = _compute_wp_progress(feature_dir)
-    mission_name = config.get("mission", {}).get("name", mission_key)
-
-    # --- Handle --result flags ---
-    if result == "failed":
-        return Decision(
-            kind=DecisionKind.decision_required,
-            agent=agent,
-            feature_slug=feature_slug,
-            mission=mission_key,
-            mission_state=current_state,
-            timestamp=now,
-            reason="Previous step reported failure; agent decision required",
-            progress=progress,
-            origin=origin,
-        )
-
-    if result == "blocked":
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            feature_slug=feature_slug,
-            mission=mission_key,
-            mission_state=current_state,
-            timestamp=now,
-            reason="Previous step reported blocked",
-            progress=progress,
-            origin=origin,
-        )
-
-    # --- Terminal check ---
-    if current_state == "done":
-        return Decision(
-            kind=DecisionKind.terminal,
-            agent=agent,
-            feature_slug=feature_slug,
-            mission=mission_key,
-            mission_state=current_state,
-            timestamp=now,
-            reason="Mission complete",
-            progress=progress,
-            origin=origin,
-        )
-
-    # --- Evaluate guards for advance from current state ---
-    guards_passed, guard_failures = evaluate_guards(config, feature_dir, current_state)
-
-    if not guards_passed:
-        # Guards haven't passed -- stay in current state and map it to an action
-        action, wp_id, workspace_path = _state_to_action(
-            current_state, feature_slug, feature_dir, repo_root, mission_name,
-        )
-
-        if action is None:
-            return Decision(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                feature_slug=feature_slug,
-                mission=mission_key,
-                mission_state=current_state,
-                timestamp=now,
-                reason=f"No action mapped for state '{current_state}'",
-                guard_failures=guard_failures,
-                progress=progress,
-                origin=origin,
-            )
-
-        prompt_file = _build_prompt_safe(
-            action, feature_dir, feature_slug, wp_id, agent, repo_root, mission_key,
-        )
-
-        return Decision(
-            kind=DecisionKind.step,
-            agent=agent,
-            feature_slug=feature_slug,
-            mission=mission_key,
-            mission_state=current_state,
-            timestamp=now,
-            action=action,
-            wp_id=wp_id,
-            workspace_path=workspace_path,
-            prompt_file=prompt_file,
-            guard_failures=guard_failures,
-            progress=progress,
-            origin=origin,
-        )
-
-    # --- Guards passed: advance state ---
-    transitions = config.get("transitions", [])
-    dest_state = None
-    for t in transitions:
-        if t.get("trigger") == "advance" and t.get("source") == current_state:
-            dest_state = t.get("dest")
-            break
-
-    if dest_state is None:
-        return Decision(
-            kind=DecisionKind.terminal,
-            agent=agent,
-            feature_slug=feature_slug,
-            mission=mission_key,
-            mission_state=current_state,
-            timestamp=now,
-            reason=f"No advance transition from state '{current_state}'",
-            progress=progress,
-            origin=origin,
-        )
-
-    # *** P0 FIX: persist state advancement ***
-    emit_event(
-        "phase_entered",
-        {"state": dest_state, "from_state": current_state, "agent": agent},
-        mission_name=mission_name,
-        feature_dir=feature_dir,
-    )
-
-    # Terminal check on destination
-    if dest_state == "done":
-        return Decision(
-            kind=DecisionKind.terminal,
-            agent=agent,
-            feature_slug=feature_slug,
-            mission=mission_key,
-            mission_state=dest_state,
-            timestamp=now,
-            reason="Mission complete",
-            progress=progress,
-            origin=origin,
-        )
-
-    # Map destination state to action
-    action, wp_id, workspace_path = _state_to_action(
-        dest_state, feature_slug, feature_dir, repo_root, mission_name,
-    )
-
-    if action is None:
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            feature_slug=feature_slug,
-            mission=mission_key,
-            mission_state=dest_state,
-            timestamp=now,
-            reason=f"No action mapped for state '{dest_state}'",
-            progress=progress,
-            origin=origin,
-        )
-
-    prompt_file = _build_prompt_safe(
-        action, feature_dir, feature_slug, wp_id, agent, repo_root, mission_key,
-    )
-
-    return Decision(
-        kind=DecisionKind.step,
-        agent=agent,
-        feature_slug=feature_slug,
-        mission=mission_key,
-        mission_state=dest_state,
-        timestamp=now,
-        action=action,
-        wp_id=wp_id,
-        workspace_path=workspace_path,
-        prompt_file=prompt_file,
-        progress=progress,
-        origin=origin,
-    )
+    return decide_next_via_runtime(agent, feature_slug, result, repo_root)
 
 
 # ---------------------------------------------------------------------------
@@ -553,6 +346,9 @@ def _state_to_action(
         "discovery": "research",
         "scoping": "specify",
         "methodology": "plan",
+        "tasks_outline": "tasks-outline",
+        "tasks_packages": "tasks-packages",
+        "tasks_finalize": "tasks-finalize",
         "gathering": "implement",
         "synthesis": "review",
         "output": "accept",

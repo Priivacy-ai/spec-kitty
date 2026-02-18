@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- `spec-kitty next` no longer short-circuits `--result failed|blocked` in the CLI bridge; both now flow through `spec-kitty-runtime` `next_step(...)`, preserving canonical runtime lifecycle behavior and run metadata.
+- Runtime mission template selection for `next` now follows deterministic precedence tiers (`explicit`, `env`, `project override`, `project legacy`, `user global`, `project config`, `builtin`) when resolving `mission-runtime.yaml`.
+- `--answer --json` integration coverage now exercises a real pending-decision success path (runtime `requires_inputs`) instead of fake decision IDs.
+- Added replay-parity integration coverage in `spec-kitty` against `spec-kitty-events` canonical fixture stream (`mission-next-replay-full-lifecycle`).
+
 ## [2.0.0a5] - 2026-02-14
 
 ### 🐛 Fixed

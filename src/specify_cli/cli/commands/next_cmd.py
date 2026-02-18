@@ -28,6 +28,8 @@ def next_step(
     result: Annotated[str, typer.Option("--result", help="Result of previous step: success|failed|blocked")] = "success",
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
+    answer: Annotated[Optional[str], typer.Option("--answer", help="Answer to a pending decision")] = None,
+    decision_id: Annotated[Optional[str], typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
 ) -> None:
     """Decide and emit the next agent action for the current mission.
 
@@ -39,6 +41,8 @@ def next_step(
         spec-kitty next --agent claude --json
         spec-kitty next --agent codex --feature 034-my-feature
         spec-kitty next --agent gemini --result failed --json
+        spec-kitty next --agent claude --answer "yes" --json
+        spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --json
     """
     # Validate --result
     if result not in _VALID_RESULTS:
@@ -57,6 +61,11 @@ def next_step(
     except FeatureDetectionError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1)
+
+    # Handle --answer flow
+    answered_id = None
+    if answer is not None:
+        answered_id = _handle_answer(agent, feature_slug, answer, decision_id, repo_root)
 
     # Core decision
     decision = decide_next(agent, feature_slug, result, repo_root)
@@ -77,14 +86,77 @@ def next_step(
         feature_dir=feature_dir if feature_dir.is_dir() else None,
     )
 
-    # Output
+    # Output — always exactly one JSON document
     if json_output:
-        print(json.dumps(decision.to_dict(), indent=2))
+        d = decision.to_dict()
+        if answered_id is not None:
+            d["answered"] = answered_id
+            d["answer"] = answer
+        print(json.dumps(d, indent=2))
     else:
+        if answered_id is not None:
+            print(f"  Answered decision: {answered_id}")
         _print_human(decision)
 
     # Exit code
     if decision.kind == DecisionKind.blocked:
+        raise typer.Exit(1)
+
+
+def _handle_answer(
+    agent: str,
+    feature_slug: str,
+    answer: str,
+    decision_id: str | None,
+    repo_root: object,
+) -> str:
+    """Handle the --answer flow for pending decisions.
+
+    Returns the resolved decision_id.
+    """
+    from pathlib import Path
+
+    repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
+
+    try:
+        from specify_cli.next.runtime_bridge import answer_decision_via_runtime, get_or_start_run
+        from specify_cli.mission import get_feature_mission_key
+
+        feature_dir = repo_root_path / "kitty-specs" / feature_slug
+        mission_key = get_feature_mission_key(feature_dir)
+        run_ref = get_or_start_run(feature_slug, repo_root_path, mission_key)
+
+        # If no decision_id provided, try to auto-resolve
+        if decision_id is None:
+            from spec_kitty_runtime.engine import _read_snapshot
+
+            snapshot = _read_snapshot(Path(run_ref.run_dir))
+            pending = snapshot.pending_decisions
+
+            if len(pending) == 0:
+                print("Error: No pending decisions to answer", file=sys.stderr)
+                raise typer.Exit(1)
+            elif len(pending) == 1:
+                decision_id = next(iter(pending.keys()))
+            else:
+                pending_ids = sorted(pending.keys())
+                print(
+                    f"Error: Multiple pending decisions ({', '.join(pending_ids)}). "
+                    f"Use --decision-id to specify which one.",
+                    file=sys.stderr,
+                )
+                raise typer.Exit(1)
+
+        answer_decision_via_runtime(
+            feature_slug, decision_id, answer, agent, repo_root_path,
+        )
+
+        return decision_id
+
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        print(f"Error answering decision: {exc}", file=sys.stderr)
         raise typer.Exit(1)
 
 
@@ -108,6 +180,14 @@ def _print_human(decision) -> None:
     if decision.reason:
         print(f"  Reason: {decision.reason}")
 
+    if getattr(decision, "question", None):
+        print(f"  Question: {decision.question}")
+    if getattr(decision, "options", None):
+        for i, opt in enumerate(decision.options, 1):
+            print(f"    {i}. {opt}")
+    if decision.decision_id:
+        print(f"  Decision ID: {decision.decision_id}")
+
     if decision.progress:
         p = decision.progress
         total = p.get("total_wps", 0)
@@ -115,6 +195,9 @@ def _print_human(decision) -> None:
         if total > 0:
             pct = int(100 * done / total)
             print(f"  Progress: {done}/{total} WPs done ({pct}%)")
+
+    if decision.run_id:
+        print(f"  Run ID: {decision.run_id}")
 
     if decision.prompt_file:
         print()

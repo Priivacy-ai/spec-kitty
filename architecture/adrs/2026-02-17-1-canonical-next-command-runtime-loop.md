@@ -2,7 +2,7 @@
 
 **Filename:** `2026-02-17-1-canonical-next-command-runtime-loop.md`
 
-**Status:** Proposed
+**Status:** Accepted (amended 2026-02-18)
 
 **Date:** 2026-02-17
 
@@ -68,6 +68,14 @@ The product direction requires that agents repeatedly call one command (`next`) 
 3. Implement compatibility bridge from `agent workflow` to runtime-backed planning semantics.
 4. Emit telemetry during migration to quantify legacy command usage.
 5. Deprecate legacy flow after adoption threshold is met.
+
+## Amendment (2026-02-18)
+
+The initial implementation left three contract gaps that are now explicitly closed:
+
+1. `next` result handling (`failed` / `blocked`) is runtime-driven. CLI no longer short-circuits these outcomes before runtime execution.
+2. Runtime template resolution for `next` honors deterministic discovery precedence tiers for `mission-runtime.yaml`, instead of selecting built-in templates first.
+3. Integration tests include a real successful decision-answer path and replay parity against canonical mission-next conformance fixtures from `spec-kitty-events`.
 
 ## Known Limitations (Locked In)
 

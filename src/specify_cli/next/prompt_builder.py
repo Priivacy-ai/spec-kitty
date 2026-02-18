@@ -40,6 +40,47 @@ def build_prompt(
     return prompt_text, prompt_file
 
 
+def build_decision_prompt(
+    question: str,
+    options: list[str] | None,
+    decision_id: str,
+    feature_slug: str,
+    agent: str,
+) -> tuple[str, Path]:
+    """Build a prompt for a decision_required response.
+
+    Returns ``(prompt_text, prompt_file_path)``.
+    """
+    lines: list[str] = [
+        "=" * 80,
+        "DECISION REQUIRED",
+        "=" * 80,
+        "",
+        f"Feature: {feature_slug}",
+        f"Agent: {agent}",
+        f"Decision ID: {decision_id}",
+        "",
+        f"Question: {question}",
+        "",
+    ]
+
+    if options:
+        lines.append("Options:")
+        for i, opt in enumerate(options, 1):
+            lines.append(f"  {i}. {opt}")
+        lines.append("")
+
+    lines.append("To answer:")
+    lines.append(f'  spec-kitty next --agent {agent} --feature {feature_slug} --answer "<your answer>" --decision-id "{decision_id}"')
+
+    prompt_text = "\n".join(lines)
+    prompt_file = _write_to_temp(
+        "decision", None, prompt_text,
+        agent=agent, feature_slug=feature_slug,
+    )
+    return prompt_text, prompt_file
+
+
 def _build_template_prompt(
     action: str,
     feature_dir: Path,
