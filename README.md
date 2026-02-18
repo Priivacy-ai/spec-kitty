@@ -663,7 +663,7 @@ Browse our [examples directory](https://github.com/Priivacy-ai/spec-kitty/tree/m
 
 ## 🤖 Supported AI Tools
 
-| Agent                                                     | Support | Notes                                             |
+| Tool                                                      | Support | Notes                                             |
 |-----------------------------------------------------------|---------|---------------------------------------------------|
 | [Claude Code](https://www.anthropic.com/claude-code)      | ✅ |                                                   |
 | [GitHub Copilot](https://code.visualstudio.com/)          | ✅ |                                                   |

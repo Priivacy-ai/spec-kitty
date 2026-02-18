@@ -22,7 +22,7 @@
 | **Status** | candidate |
 | **Location** | Proposed journey artifact; not yet the canonical live command path |
 | **Related terms** | [Vision](#vision), [Constitution](#constitution), [Approach](#approach), [Agent Profile](#agent-profile) |
-| **Journey** | [001-project-onboarding-bootstrap](../architecture/journeys/001-project-onboarding-bootstrap.md) |
+| **Journey** | [001-project-onboarding-bootstrap](../../architecture/journeys/001-project-onboarding-bootstrap.md) |
 | **Phases** | 1. Vision (required) → 2. Agent Customization (recommended) → 3. Technical Standards → 4. Code Quality (optional) → 5. Tribal Knowledge (optional) → 6. Governance (optional) |
 
 ---
