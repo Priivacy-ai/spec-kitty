@@ -5,19 +5,22 @@ Non-zero exit on any failure. The --json flag is always available (and
 orchestrator-api is JSON-first by design; prose output is secondary).
 
 Error codes used:
-  POLICY_METADATA_REQUIRED  -- --policy missing on a run-affecting command
-  POLICY_VALIDATION_FAILED  -- policy JSON invalid or contains secrets
-  FEATURE_NOT_FOUND         -- feature slug does not resolve to a kitty-specs dir
-  WP_NOT_FOUND              -- WP ID does not exist in feature
-  TRANSITION_REJECTED       -- transition not allowed by state machine
-  WP_ALREADY_CLAIMED        -- WP claimed by a different actor
-  FEATURE_NOT_READY         -- not all WPs done (for accept-feature)
-  PREFLIGHT_FAILED          -- preflight checks failed (for merge-feature)
+  POLICY_METADATA_REQUIRED    -- --policy missing on a run-affecting command
+  POLICY_VALIDATION_FAILED    -- policy JSON invalid or contains secrets
+  FEATURE_NOT_FOUND           -- feature slug does not resolve to a kitty-specs dir
+  WP_NOT_FOUND                -- WP ID does not exist in feature
+  TRANSITION_REJECTED         -- transition not allowed by state machine
+  WP_ALREADY_CLAIMED          -- WP claimed by a different actor
+  FEATURE_NOT_READY           -- not all WPs done (for accept-feature)
+  PREFLIGHT_FAILED            -- preflight checks failed (for merge-feature)
+  CONTRACT_VERSION_MISMATCH   -- provider version is below MIN_PROVIDER_VERSION
+  UNSUPPORTED_STRATEGY        -- merge strategy not implemented
 """
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import uuid
@@ -95,16 +98,81 @@ def _get_last_actor(feature_dir: Path, wp_id: str) -> str | None:
     return None
 
 
+_WP_ID_RE = re.compile(r"^(WP\d+)")
+
+
+def _extract_wp_id(stem: str) -> str | None:
+    """Extract canonical WP ID from a task filename stem.
+
+    Examples:
+        "WP07"                         -> "WP07"
+        "WP07-adapter-implementations" -> "WP07"
+        "README"                       -> None
+    """
+    m = _WP_ID_RE.match(stem)
+    return m.group(1) if m else None
+
+
+def _resolve_wp_file(tasks_dir: Path, wp_id: str) -> Path | None:
+    """Locate the task file for a WP, accepting suffixed filenames.
+
+    Checks for an exact match first (WP07.md), then falls back to any
+    file whose name starts with '<wp_id>-' (e.g. WP07-adapter-implementations.md).
+    Returns the first match found, or None if no file exists.
+    """
+    exact = tasks_dir / f"{wp_id}.md"
+    if exact.exists():
+        return exact
+    for p in sorted(tasks_dir.glob(f"{wp_id}-*.md")):
+        return p
+    return None
+
+
 # ── Command 1: contract-version ────────────────────────────────────────────
 
 
 @app.command(name="contract-version")
 def contract_version(
+    provider_version: str = typer.Option(
+        None,
+        "--provider-version",
+        help="Caller's provider version; returns CONTRACT_VERSION_MISMATCH if below minimum",
+    ),
     json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
-    """Return the current API contract version."""
+    """Return the current API contract version.
+
+    Pass --provider-version to check compatibility before running state-mutating commands.
+    """
+    cmd = "contract-version"
+
+    if provider_version is not None:
+        from packaging.version import Version, InvalidVersion
+
+        try:
+            if Version(provider_version) < Version(MIN_PROVIDER_VERSION):
+                _fail(
+                    cmd,
+                    "CONTRACT_VERSION_MISMATCH",
+                    f"Provider version {provider_version!r} is below minimum {MIN_PROVIDER_VERSION!r}",
+                    {
+                        "provider_version": provider_version,
+                        "min_supported_provider_version": MIN_PROVIDER_VERSION,
+                        "api_version": CONTRACT_VERSION,
+                    },
+                )
+                return
+        except InvalidVersion:
+            _fail(
+                cmd,
+                "CONTRACT_VERSION_MISMATCH",
+                f"Provider version {provider_version!r} is not a valid version string",
+                {"provider_version": provider_version},
+            )
+            return
+
     envelope = make_envelope(
-        command="contract-version",
+        command=cmd,
         success=True,
         data={
             "api_version": CONTRACT_VERSION,
@@ -139,12 +207,26 @@ def feature_state(
     snapshot = materialize(feature_dir)
     dep_graph = build_dependency_graph(feature_dir)
 
+    # Build the full WP set from task files + dep graph + snapshot
+    # so that untouched WPs (no events yet) still appear as "planned"
+    tasks_dir = feature_dir / "tasks"
+    task_file_wp_ids: set[str] = set()
+    if tasks_dir.exists():
+        for p in tasks_dir.iterdir():
+            if p.suffix == ".md":
+                wp_id = _extract_wp_id(p.stem)
+                if wp_id is not None:
+                    task_file_wp_ids.add(wp_id)
+
+    all_wp_ids = task_file_wp_ids | set(dep_graph.keys()) | set(snapshot.work_packages.keys())
+
     work_packages = []
-    for wp_id, wp_state in snapshot.work_packages.items():
+    for wp_id in sorted(all_wp_ids):
+        wp_state = snapshot.work_packages.get(wp_id, {})
         work_packages.append(
             {
                 "wp_id": wp_id,
-                "lane": wp_state.get("lane"),
+                "lane": wp_state.get("lane", "planned"),
                 "dependencies": dep_graph.get(wp_id, []),
                 "last_actor": wp_state.get("last_actor"),
             }
@@ -259,6 +341,11 @@ def start_implementation(
         _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
         return
 
+    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    if wp_path is None:
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        return
+
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
@@ -268,7 +355,7 @@ def start_implementation(
     last_actor = _get_last_actor(feature_dir, wp)
 
     workspace_path = str(main_repo_root / ".worktrees" / f"{feature}-{wp}")
-    prompt_path = str(feature_dir / "tasks" / f"{wp}.md")
+    prompt_path = str(wp_path)
 
     try:
         if current_lane == "planned":
@@ -395,6 +482,11 @@ def start_review(
         _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
         return
 
+    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    if wp_path is None:
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        return
+
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
@@ -402,7 +494,7 @@ def start_review(
     wp_state = snapshot.work_packages.get(wp, {})
     from_lane = wp_state.get("lane", "planned")
 
-    prompt_path = str(feature_dir / "tasks" / f"{wp}.md")
+    prompt_path = str(wp_path)
 
     try:
         event = emit_status_transition(
@@ -487,6 +579,11 @@ def transition(
         _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
         return
 
+    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    if wp_path is None:
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        return
+
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
@@ -545,9 +642,9 @@ def append_history(
         _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
         return
 
-    wp_path = feature_dir / "tasks" / f"{wp}.md"
-    if not wp_path.exists():
-        _fail(cmd, "WP_NOT_FOUND", f"WP file not found: {wp_path}")
+    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    if wp_path is None:
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
         return
 
     from specify_cli.tasks_support import (
@@ -662,12 +759,22 @@ def accept_feature(
 def merge_feature(
     feature: str = typer.Option(..., "--feature", help="Feature slug"),
     target: str = typer.Option("main", "--target", help="Target branch to merge into"),
-    strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, rebase"),
+    strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge or squash"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
     json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """Run preflight checks then merge all WP branches into target."""
     cmd = "merge-feature"
+
+    _SUPPORTED_STRATEGIES = frozenset(["merge", "squash"])
+    if strategy not in _SUPPORTED_STRATEGIES:
+        _fail(
+            cmd,
+            "UNSUPPORTED_STRATEGY",
+            f"Strategy '{strategy}' is not supported. Supported strategies: {sorted(_SUPPORTED_STRATEGIES)}",
+            {"strategy": strategy, "supported": sorted(_SUPPORTED_STRATEGIES)},
+        )
+        return
 
     main_repo_root = _get_main_repo_root()
     feature_dir = _resolve_feature_dir(main_repo_root, feature)
@@ -718,11 +825,32 @@ def merge_feature(
                 check=True,
                 capture_output=True,
             )
-            merge_cmd = ["git", "-C", str(main_repo_root), "merge", "--no-ff", branch_name, "-m",
-                         f"merge: {feature}/{wp_id} into {target}"]
             if strategy == "squash":
-                merge_cmd = ["git", "-C", str(main_repo_root), "merge", "--squash", branch_name]
-            subprocess.run(merge_cmd, check=True, capture_output=True)
+                subprocess.run(
+                    ["git", "-C", str(main_repo_root), "merge", "--squash", branch_name],
+                    check=True,
+                    capture_output=True,
+                )
+                # squash leaves staged changes; commit them
+                subprocess.run(
+                    [
+                        "git", "-C", str(main_repo_root), "commit",
+                        "-m", f"squash merge: {feature}/{wp_id} into {target}",
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+            else:
+                # Default: --no-ff merge
+                subprocess.run(
+                    [
+                        "git", "-C", str(main_repo_root), "merge",
+                        "--no-ff", branch_name,
+                        "-m", f"merge: {feature}/{wp_id} into {target}",
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
             merged_wps.append(wp_id)
         except subprocess.CalledProcessError as exc:
             _fail(

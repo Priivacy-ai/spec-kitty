@@ -623,3 +623,273 @@ class TestMergeFeature:
         assert data["data"]["merged"] is True
         assert data["data"]["target_branch"] == "main"
         assert data["data"]["strategy"] == "merge"
+
+    def test_unsupported_strategy_rejected(self, tmp_path):
+        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        feature_slug = "099-test-feature"
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "merge-feature",
+                    "--feature", feature_slug,
+                    "--target", "main",
+                    "--strategy", "rebase",
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["error_code"] == "UNSUPPORTED_STRATEGY"
+        assert data["data"]["strategy"] == "rebase"
+        assert "merge" in data["data"]["supported"]
+
+
+# ── contract-version (version mismatch) ───────────────────────────
+
+
+class TestContractVersionMismatch:
+    def test_compatible_provider_version_succeeds(self, tmp_path):
+        from specify_cli.orchestrator_api.envelope import MIN_PROVIDER_VERSION
+
+        result = runner.invoke(
+            app,
+            ["contract-version", "--provider-version", MIN_PROVIDER_VERSION],
+        )
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        assert data["data"]["api_version"] is not None
+
+    def test_below_min_provider_version_returns_mismatch(self, tmp_path):
+        result = runner.invoke(
+            app,
+            ["contract-version", "--provider-version", "0.0.1"],
+        )
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["error_code"] == "CONTRACT_VERSION_MISMATCH"
+        assert "provider_version" in data["data"]
+        assert "min_supported_provider_version" in data["data"]
+
+    def test_invalid_provider_version_returns_mismatch(self, tmp_path):
+        result = runner.invoke(
+            app,
+            ["contract-version", "--provider-version", "not-a-version"],
+        )
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["error_code"] == "CONTRACT_VERSION_MISMATCH"
+
+
+# ── WP_NOT_FOUND for state-mutating commands ──────────────────────
+
+
+class TestWPNotFound:
+    def test_start_implementation_ghost_wp_rejected(self, tmp_path):
+        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--feature", "099-test-feature",
+                    "--wp", "WP99",
+                    "--actor", "claude",
+                    "--policy", _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["error_code"] == "WP_NOT_FOUND"
+
+    def test_start_review_ghost_wp_rejected(self, tmp_path):
+        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-review",
+                    "--feature", "099-test-feature",
+                    "--wp", "WP99",
+                    "--actor", "claude",
+                    "--policy", _valid_policy_json(),
+                    "--review-ref", "ref-001",
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["error_code"] == "WP_NOT_FOUND"
+
+    def test_transition_ghost_wp_rejected(self, tmp_path):
+        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "transition",
+                    "--feature", "099-test-feature",
+                    "--wp", "WP99",
+                    "--to", "canceled",
+                    "--actor", "claude",
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["error_code"] == "WP_NOT_FOUND"
+
+
+# ── feature-state with no events ──────────────────────────────────
+
+
+class TestFeatureStateNoEvents:
+    def test_untouched_wps_appear_as_planned(self, tmp_path):
+        """WPs with no events still appear in feature-state with lane=planned."""
+        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        feature_slug = "099-test-feature"
+
+        # No events emitted at all
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(app, ["feature-state", "--feature", feature_slug])
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        wps = {wp["wp_id"]: wp for wp in data["data"]["work_packages"]}
+        assert "WP01" in wps
+        assert "WP02" in wps
+        assert wps["WP01"]["lane"] == "planned"
+        assert wps["WP02"]["lane"] == "planned"
+
+
+# ── Suffixed WP filenames (P0 regression) ─────────────────────────
+
+
+def _make_feature_with_suffixed_wps(
+    tmp_path: Path, feature_slug: str = "040-test-feature"
+) -> tuple[Path, Path]:
+    """Create a feature directory whose WP files have hyphen-suffixed names.
+
+    e.g. WP07-adapter-implementations.md instead of WP07.md
+    """
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    (tasks_dir / "WP01-core-setup.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Core Setup\nlane: planned\ndependencies: []\n---\n\n# WP01\n",
+        encoding="utf-8",
+    )
+    (tasks_dir / "WP07-adapter-implementations.md").write_text(
+        "---\nwork_package_id: WP07\ntitle: Adapter Implementations\nlane: planned\ndependencies: []\n---\n\n# WP07\n",
+        encoding="utf-8",
+    )
+    # Also include a non-WP file to verify it is excluded
+    (tasks_dir / "README.md").write_text("# Tasks\n", encoding="utf-8")
+
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"status_phase": 1}), encoding="utf-8"
+    )
+    return repo_root, feature_dir
+
+
+class TestSuffixedWPFilenames:
+    """Commands must accept WP IDs whose task files have hyphen-suffixed names."""
+
+    def test_start_implementation_accepts_suffixed_file(self, tmp_path):
+        repo_root, feature_dir = _make_feature_with_suffixed_wps(tmp_path)
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--feature", "040-test-feature",
+                    "--wp", "WP07",
+                    "--actor", "claude",
+                    "--policy", _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        assert data["data"]["wp_id"] == "WP07"
+        # prompt_path must point to the real (suffixed) file
+        assert "WP07-adapter-implementations" in data["data"]["prompt_path"]
+
+    def test_transition_accepts_suffixed_file(self, tmp_path):
+        from specify_cli.status.emit import emit_status_transition
+
+        repo_root, feature_dir = _make_feature_with_suffixed_wps(tmp_path)
+        # Put WP07 in_progress so we can cancel it
+        emit_status_transition(feature_dir, "040-test-feature", "WP07", "claimed", "claude")
+        emit_status_transition(feature_dir, "040-test-feature", "WP07", "in_progress", "claude")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "transition",
+                    "--feature", "040-test-feature",
+                    "--wp", "WP07",
+                    "--to", "canceled",
+                    "--actor", "claude",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        assert data["data"]["wp_id"] == "WP07"
+        assert data["data"]["to_lane"] == "canceled"
+
+    def test_feature_state_emits_canonical_ids_only(self, tmp_path):
+        """feature-state must not include raw filename stems like 'WP07-adapter-implementations'."""
+        repo_root, _ = _make_feature_with_suffixed_wps(tmp_path)
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(app, ["feature-state", "--feature", "040-test-feature"])
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        wp_ids = {wp["wp_id"] for wp in data["data"]["work_packages"]}
+
+        # Canonical IDs must be present
+        assert "WP01" in wp_ids
+        assert "WP07" in wp_ids
+
+        # Raw stems must NOT appear
+        assert "WP01-core-setup" not in wp_ids
+        assert "WP07-adapter-implementations" not in wp_ids
+
+        # Non-WP file must NOT appear
+        assert "README" not in wp_ids
