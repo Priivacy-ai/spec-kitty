@@ -624,6 +624,39 @@ class TestMergeFeature:
         assert data["data"]["target_branch"] == "main"
         assert data["data"]["strategy"] == "merge"
 
+    def test_rebase_strategy_success(self, tmp_path):
+        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        feature_slug = "099-test-feature"
+
+        mock_preflight = MagicMock()
+        mock_preflight.passed = True
+        mock_preflight.errors = []
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ), patch(
+            "specify_cli.orchestrator_api.commands.run_preflight",
+            return_value=mock_preflight,
+        ), patch(
+            "specify_cli.orchestrator_api.commands.get_merge_order",
+            return_value=[],
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "merge-feature",
+                    "--feature", feature_slug,
+                    "--target", "main",
+                    "--strategy", "rebase",
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        assert data["data"]["strategy"] == "rebase"
+
     def test_unsupported_strategy_rejected(self, tmp_path):
         repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
         feature_slug = "099-test-feature"
@@ -638,14 +671,14 @@ class TestMergeFeature:
                     "merge-feature",
                     "--feature", feature_slug,
                     "--target", "main",
-                    "--strategy", "rebase",
+                    "--strategy", "octopus",
                 ],
             )
 
         assert result.exit_code == 1
         data = json.loads(result.output)
         assert data["error_code"] == "UNSUPPORTED_STRATEGY"
-        assert data["data"]["strategy"] == "rebase"
+        assert data["data"]["strategy"] == "octopus"
         assert "merge" in data["data"]["supported"]
 
 

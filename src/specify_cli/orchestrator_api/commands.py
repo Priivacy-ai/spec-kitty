@@ -759,14 +759,14 @@ def accept_feature(
 def merge_feature(
     feature: str = typer.Option(..., "--feature", help="Feature slug"),
     target: str = typer.Option("main", "--target", help="Target branch to merge into"),
-    strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge or squash"),
+    strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
     json_output: bool = typer.Option(True, "--json/--no-json", help="Output as JSON"),
 ) -> None:
     """Run preflight checks then merge all WP branches into target."""
     cmd = "merge-feature"
 
-    _SUPPORTED_STRATEGIES = frozenset(["merge", "squash"])
+    _SUPPORTED_STRATEGIES = frozenset(["merge", "squash", "rebase"])
     if strategy not in _SUPPORTED_STRATEGIES:
         _fail(
             cmd,
@@ -837,6 +837,28 @@ def merge_feature(
                         "git", "-C", str(main_repo_root), "commit",
                         "-m", f"squash merge: {feature}/{wp_id} into {target}",
                     ],
+                    check=True,
+                    capture_output=True,
+                )
+            elif strategy == "rebase":
+                # Rebase WP branch onto target, then fast-forward target.
+                subprocess.run(
+                    ["git", "-C", str(main_repo_root), "checkout", branch_name],
+                    check=True,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "-C", str(main_repo_root), "rebase", target],
+                    check=True,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "-C", str(main_repo_root), "checkout", target],
+                    check=True,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["git", "-C", str(main_repo_root), "merge", "--ff-only", branch_name],
                     check=True,
                     capture_output=True,
                 )
