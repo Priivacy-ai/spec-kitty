@@ -213,8 +213,11 @@ architecture/           # Architectural design decisions and technical specifica
   └── PHASE2_IMPLEMENTATION.md               # Multi-parent merge spec
 src/                   # Source code
   └── specify_cli/
-      ├── core/events/   # Event ABCs, Pydantic models, factory (Feature 040)
-      └── telemetry/     # JSONL event writer (Feature 040)
+      ├── glossary/      # Glossary semantic integrity pipeline + CLI surfaces (implemented)
+      └── next/          # Canonical mission-next command loop integration (implemented)
+      # Planned in future core/runtime work:
+      # - core/events/   # Event ABCs, Pydantic models, factory (Feature 040 target)
+      # - telemetry/     # JSONL event writer (Feature 040 target)
 tests/                 # Test suite
 kitty-specs/          # Feature specifications (dogfooding spec-kitty)
 docs/                 # User documentation
