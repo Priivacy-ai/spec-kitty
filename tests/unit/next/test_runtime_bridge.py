@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.next.decision import DecisionKind
+from spec_kitty_runtime import DiscoveryContext
 
 
 # ---------------------------------------------------------------------------
@@ -117,14 +118,23 @@ class TestRuntimeTemplateKey:
         """Without a project override, the built-in template is used."""
         repo_root = _scaffold_project(tmp_path)
 
-        # Redirect Path.home() so the "user global" ~/.kittify tier resolves
-        # to an empty temp directory, preventing a real ~/.kittify installation
-        # from shadowing the built-in tier on developer machines.
-        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        import specify_cli.next.runtime_bridge as runtime_bridge
 
-        from specify_cli.next.runtime_bridge import _runtime_template_key
+        builtin_root = Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
 
-        result = _runtime_template_key("software-dev", repo_root)
+        # Force deterministic discovery context for this test so user-global
+        # ~/.kittify content cannot shadow the builtin fallback tier.
+        monkeypatch.setattr(
+            runtime_bridge,
+            "_build_discovery_context",
+            lambda root: DiscoveryContext(
+                project_dir=root,
+                builtin_roots=[builtin_root],
+                user_home=tmp_path,
+            ),
+        )
+
+        result = runtime_bridge._runtime_template_key("software-dev", repo_root)
         assert "src/specify_cli/missions/software-dev/mission-runtime.yaml" in result
 
     def test_project_legacy_used_when_override_absent(self, tmp_path: Path) -> None:
