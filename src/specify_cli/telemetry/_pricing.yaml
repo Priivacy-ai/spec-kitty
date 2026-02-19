@@ -1,0 +1,33 @@
+# Default LLM pricing table
+# Prices in USD per 1,000 tokens
+# Last updated: 2026-02-15
+#
+# Project-specific overrides configurable via constitution (Feature 045)
+models:
+  # Anthropic Claude
+  claude-sonnet-4-20250514:
+    input_per_1k: 0.003
+    output_per_1k: 0.015
+  claude-opus-4-20250514:
+    input_per_1k: 0.015
+    output_per_1k: 0.075
+  claude-haiku-3-5-20241022:
+    input_per_1k: 0.0008
+    output_per_1k: 0.004
+  # OpenAI GPT
+  gpt-4.1:
+    input_per_1k: 0.002
+    output_per_1k: 0.008
+  gpt-4.1-mini:
+    input_per_1k: 0.0004
+    output_per_1k: 0.0016
+  gpt-4.1-nano:
+    input_per_1k: 0.0001
+    output_per_1k: 0.0004
+  # Google Gemini
+  gemini-2.5-pro:
+    input_per_1k: 0.00125
+    output_per_1k: 0.01
+  gemini-2.5-flash:
+    input_per_1k: 0.00015
+    output_per_1k: 0.0035

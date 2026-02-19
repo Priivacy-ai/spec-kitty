@@ -208,6 +208,69 @@ This constitution captures the technical standards, architectural principles, an
 
 ---
 
+## Development Workflow: Python Implementation Standards
+
+### Test-First Development (Mandatory)
+
+All Python implementation work MUST follow a test-first approach combining ATDD and TDD.
+
+#### Acceptance Test Driven Development (ATDD)
+
+Before implementing any feature or work package:
+
+1. **Extract acceptance criteria** from the specification (user stories, functional requirements)
+2. **Write acceptance tests first** — high-level tests that verify user-visible behavior (CLI output, API responses, file artifacts)
+3. **Acceptance tests MUST fail** before implementation begins (RED state)
+4. Use acceptance tests to guide the implementation — they define "done"
+
+Acceptance tests should be black-box where possible: test the public API, not internal implementation details.
+
+#### Test Driven Development (TDD)
+
+For each unit of implementation within a work package, apply the RED-GREEN-REFACTOR cycle:
+
+1. **RED**: Write the smallest failing test that expresses the required behavior. Structure every test with **Arrange-Act-Assert**.
+2. **GREEN**: Write only enough production code to make the test pass.
+3. **REFACTOR**: Improve code structure while keeping all tests green. During refactoring, never modify test logic or assertions — only production code.
+4. **Repeat**: Each cycle should take minutes, not hours.
+
+**This is not optional.** Tests MUST be written before production code.
+
+#### Self-Review Protocol
+
+Before marking any work package complete, verify:
+
+1. `pytest -v --cov=src --cov-report=term-missing` — all tests pass, coverage >=90%
+2. `mypy --strict` on modified packages — no type errors
+3. `ruff check src/ tests/` — no linting errors
+4. Each requirement from spec has a corresponding passing test
+5. Implementation aligns with relevant ADRs
+
+### Python Code Style
+
+- **PEP 8** compliance for all code
+- **Type hints required** on all function signatures and complex variables (Python 3.11+ syntax: `list[str]`, `str | None`)
+- **Google-style docstrings** on public APIs (modules, classes, public methods/functions)
+- **Modern Python 3.11+** features preferred (match statements, `StrEnum`, `ExceptionGroup` where appropriate)
+- **pytest fixtures** for reusable test setup; `@pytest.mark.parametrize` for test variations
+- **Descriptive test names** including task/requirement IDs for traceability
+
+### Quality Tools
+
+| Tool | Purpose | Command |
+|------|---------|---------|
+| pytest | Test runner + coverage | `pytest -v --cov=src --cov-report=term-missing` |
+| mypy | Static type checking | `mypy --strict src/specify_cli/` |
+| ruff | Linting (replaces flake8, isort) | `ruff check src/ tests/` |
+
+### Locality of Change
+
+- Only modify files directly related to the current task
+- No "drive-by" refactoring unrelated to the work package
+- Minimal API surface changes — extend, don't restructure
+
+---
+
 ## Code Quality
 
 ### Pull Request Requirements

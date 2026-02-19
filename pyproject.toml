@@ -80,7 +80,10 @@ Changelog = "https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md"
 test = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21.0",  # Required for async tests
+    "pytest-cov>=4.0",  # Coverage reporting
     "build>=1.0.0",  # Required for distribution tests (wheel building)
+    "mypy>=1.0",  # Static type checking (constitution: mypy --strict)
+    "ruff>=0.1.0",  # Linting (constitution: ruff check)
 ]
 
 [project.scripts]

@@ -204,6 +204,8 @@ agents:
 - Python 3.11+ (existing spec-kitty codebase) + subprocess (for jj/git CLI invocation), typing (Protocol), dataclasses (015-first-class-jujutsu-vcs-integration)
 - Filesystem only (meta.json, YAML frontmatter, git/jj repositories) (015-first-class-jujutsu-vcs-integration)
 
+- Python 3.11+ (existing spec-kitty codebase) + `spec_kitty_events` (vendored Pydantic event model, Lamport clocks, EventStore ABC), `typer` (CLI), `rich` (console output), `ruamel.yaml` (pricing table parsing) (043-telemetry-foundation)
+- Per-feature JSONL files (`kitty-specs/<feature>/execution.events.jsonl`) — append-only, stream-parsed (043-telemetry-foundation)
 ## Project Structure
 ```
 architecture/           # Architectural design decisions and technical specifications
@@ -248,13 +250,9 @@ pytest tests/ --browser-channel=chromium --headed=false
 Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
 ## Recent Changes
+- 043-telemetry-foundation: Added Python 3.11+ (existing spec-kitty codebase) + `spec_kitty_events` (vendored Pydantic event model, Lamport clocks, EventStore ABC), `typer` (CLI), `rich` (console output), `ruamel.yaml` (pricing table parsing)
 - 015-first-class-jujutsu-vcs-integration: Adding VCS abstraction layer (Protocol-based), jj as first-class citizen alongside git, new vcs/ subpackage
 - 011-constitution-packaging-safety-and-redesign: Added psutil for cross-platform process management, relocated templates from .kittify/ to src/specify_cli/
-- 010-workspace-per-work-package-for-parallel-development: Added workspace-per-WP model, dependency graph utilities, breaking change to 0.11.0
-- 008-unified-python-cli: Added Python 3.11+ (existing spec-kitty requirement)
-- 007-frontmatter-only-lane: Added Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (console output), ruamel.yaml (frontmatter parsing), typer (CLI)
-- 005-refactor-mission-system: Added Python 3.11+ (existing spec-kitty codebase requirement)
-
 <!-- MANUAL ADDITIONS START -->
 
 ## PyPI Release (Quick Reference)
