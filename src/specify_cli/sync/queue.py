@@ -1,10 +1,16 @@
-"""Offline event queue using SQLite for network outage resilience"""
-import sqlite3
 import json
+import sqlite3
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import List, Dict, Optional
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any, Optional, Protocol
+
+
+class _BatchEventResultLike(Protocol):
+    """Minimal protocol for batch result records consumed by queue processing."""
+
+    status: str
+    event_id: str
 
 
 @dataclass
@@ -38,7 +44,7 @@ class OfflineQueue:
 
     MAX_QUEUE_SIZE = 10000
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Optional[Path] = None) -> None:
         """
         Initialize offline queue.
 
@@ -52,7 +58,7 @@ class OfflineQueue:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         """Initialize database schema with indexes"""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -72,7 +78,7 @@ class OfflineQueue:
         finally:
             conn.close()
 
-    def queue_event(self, event: Dict) -> bool:
+    def queue_event(self, event: dict[str, Any]) -> bool:
         """
         Add event to offline queue.
 
@@ -91,10 +97,10 @@ class OfflineQueue:
             conn.execute(
                 'INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)',
                 (
-                    event['event_id'],
-                    event['event_type'],
+                    str(event["event_id"]),
+                    str(event["event_type"]),
                     json.dumps(event),
-                    int(datetime.now().timestamp())
+                    int(datetime.now().timestamp()),
                 )
             )
             conn.commit()
@@ -105,7 +111,7 @@ class OfflineQueue:
         finally:
             conn.close()
 
-    def drain_queue(self, limit: int = 1000) -> List[Dict]:
+    def drain_queue(self, limit: int = 1000) -> list[dict[str, Any]]:
         """
         Retrieve events from queue (oldest first).
 
@@ -125,15 +131,15 @@ class OfflineQueue:
                 'SELECT event_id, data FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?',
                 (limit,)
             )
-            events = []
+            events: list[dict[str, Any]] = []
             for row in cursor:
-                event_id, data = row
+                _, data = row
                 events.append(json.loads(data))
             return events
         finally:
             conn.close()
 
-    def mark_synced(self, event_ids: List[str]):
+    def mark_synced(self, event_ids: list[str]) -> None:
         """
         Remove successfully synced events from queue.
 
@@ -151,7 +157,7 @@ class OfflineQueue:
         finally:
             conn.close()
 
-    def increment_retry(self, event_ids: List[str]):
+    def increment_retry(self, event_ids: list[str]) -> None:
         """
         Increment retry count for events that failed to sync.
 
@@ -181,12 +187,15 @@ class OfflineQueue:
         """
         conn = sqlite3.connect(self.db_path)
         try:
-            cursor = conn.execute('SELECT COUNT(*) FROM queue')
-            return cursor.fetchone()[0]
+            cursor = conn.execute("SELECT COUNT(*) FROM queue")
+            row = cursor.fetchone()
+            if row is None:
+                return 0
+            return int(row[0])
         finally:
             conn.close()
 
-    def clear(self):
+    def clear(self) -> None:
         """Remove all events from queue"""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -195,7 +204,7 @@ class OfflineQueue:
         finally:
             conn.close()
 
-    def process_batch_results(self, results: list) -> None:
+    def process_batch_results(self, results: list[_BatchEventResultLike]) -> None:
         """Process batch sync results: remove synced/duplicate, bump retry for failures.
 
         Wraps all queue mutations in a single SQLite transaction for
@@ -235,7 +244,7 @@ class OfflineQueue:
         finally:
             conn.close()
 
-    def get_events_by_retry_count(self, max_retries: int = 5) -> List[Dict]:
+    def get_events_by_retry_count(self, max_retries: int = 5) -> list[dict[str, Any]]:
         """
         Get events that haven't exceeded retry limit.
 
@@ -251,9 +260,9 @@ class OfflineQueue:
                 'SELECT event_id, data FROM queue WHERE retry_count < ? ORDER BY timestamp ASC, id ASC',
                 (max_retries,)
             )
-            events = []
+            events: list[dict[str, Any]] = []
             for row in cursor:
-                event_id, data = row
+                _, data = row
                 events.append(json.loads(data))
             return events
         finally:
@@ -273,21 +282,24 @@ class OfflineQueue:
         conn = sqlite3.connect(self.db_path)
         try:
             # Total queued
-            total_queued = conn.execute('SELECT COUNT(*) FROM queue').fetchone()[0]
+            total_queued_row = conn.execute("SELECT COUNT(*) FROM queue").fetchone()
+            total_queued = int(total_queued_row[0]) if total_queued_row is not None else 0
 
             if total_queued == 0:
                 return QueueStats()
 
             # Total retried (retry_count > 0)
-            total_retried = conn.execute(
-                'SELECT COUNT(*) FROM queue WHERE retry_count > 0'
-            ).fetchone()[0]
+            total_retried_row = conn.execute(
+                "SELECT COUNT(*) FROM queue WHERE retry_count > 0"
+            ).fetchone()
+            total_retried = int(total_retried_row[0]) if total_retried_row is not None else 0
 
             # Oldest event age
-            oldest_ts = conn.execute('SELECT MIN(timestamp) FROM queue').fetchone()[0]
+            oldest_ts_row = conn.execute("SELECT MIN(timestamp) FROM queue").fetchone()
+            oldest_ts = oldest_ts_row[0] if oldest_ts_row is not None else None
             oldest_event_age: Optional[timedelta] = None
             if oldest_ts is not None:
-                oldest_dt = datetime.fromtimestamp(oldest_ts, tz=timezone.utc)
+                oldest_dt = datetime.fromtimestamp(int(oldest_ts), tz=timezone.utc)
                 now_dt = datetime.now(tz=timezone.utc)
                 oldest_event_age = now_dt - oldest_dt
 
@@ -305,7 +317,7 @@ class OfflineQueue:
             ''')
             retry_distribution: dict[str, int] = {}
             for bucket, count in cursor:
-                retry_distribution[bucket] = count
+                retry_distribution[str(bucket)] = int(count)
 
             # Top 5 event types by count
             cursor = conn.execute('''
@@ -317,7 +329,7 @@ class OfflineQueue:
             ''')
             top_event_types: list[tuple[str, int]] = []
             for event_type, count in cursor:
-                top_event_types.append((event_type, count))
+                top_event_types.append((str(event_type), int(count)))
 
             return QueueStats(
                 total_queued=total_queued,
