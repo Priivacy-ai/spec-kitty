@@ -4,7 +4,6 @@ import importlib
 import json
 from pathlib import Path
 
-import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app

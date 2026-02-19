@@ -19,9 +19,8 @@ agent directories.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 try:
     from importlib.resources import files

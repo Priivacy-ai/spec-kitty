@@ -10,10 +10,11 @@ from typing import Any, Dict
 import yaml
 
 DEFAULT_PATH_PATTERNS: dict[str, str] = {
+    r"\.kittify/constitution/templates/": ".kittify/memory/templates/",
     r"(?<!\.kittify/)scripts/": ".kittify/scripts/",
     # Rewrite plain template references (e.g., `templates/foo.md`) but do not
     # rewrite embedded source paths like `src/.../templates/foo.md`.
-    r"(?<![\w.-]/)templates/": ".kittify/templates/",
+    r"(?<![\w.-]/)(?<!constitution/)(?<!memory/)templates/": ".kittify/templates/",
     r"(?<!\.kittify/)memory/": ".kittify/memory/",
 }
 

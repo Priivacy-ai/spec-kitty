@@ -1,5 +1,4 @@
 import sys
-from pathlib import Path
 
 from specify_cli.core import ensure_directory, format_path, get_platform, safe_remove
 

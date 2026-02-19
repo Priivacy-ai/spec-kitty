@@ -22,7 +22,6 @@ from specify_cli.mission import (
 )
 from specify_cli.core.feature_detection import (
     detect_feature,
-    FeatureDetectionError,
 )
 
 app = typer.Typer(

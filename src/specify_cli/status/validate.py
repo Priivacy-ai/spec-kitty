@@ -18,7 +18,6 @@ from pathlib import Path
 
 from specify_cli.spec_kitty_events import normalize_event_id
 
-from .models import ULID_PATTERN
 from .transitions import ALLOWED_TRANSITIONS, CANONICAL_LANES
 
 STATUS_BLOCK_START = "<!-- status-model:start -->"
@@ -287,8 +286,8 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
 
     if disk_data.get("last_event_id") != expected_snapshot.last_event_id:
         findings.append(
-            f"Materialization drift: last_event_id mismatch between "
-            f"status.json and reducer output"
+            "Materialization drift: last_event_id mismatch between "
+            "status.json and reducer output"
         )
 
     return findings

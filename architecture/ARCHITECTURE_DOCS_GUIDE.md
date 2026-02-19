@@ -113,7 +113,6 @@ architecture/
 ├── README.md                    # Quick reference and index
 ├── ARCHITECTURE_DOCS_GUIDE.md  # This guide (comprehensive)
 ├── NAVIGATION_GUIDE.md         # How to navigate ADRs
-├── adr-template.md              # Template for new ADRs
 │
 └── adrs/                        # Architectural Decision Records
     ├── 2026-01-23-1-record-architecture-decisions.md
@@ -128,6 +127,8 @@ architecture/
 - Tests (usage examples)
 - docs/ (user guides)
 - kitty-specs/ (feature specs)
+
+ADR template (canonical): `src/doctrine/templates/architecture/adr-template.md`
 
 ---
 
@@ -275,7 +276,7 @@ This ADR system follows guidance from:
 ls architecture/adrs/ | sort | tail -1
 
 # 2. Copy template
-cp architecture/adr-template.md architecture/adrs/2026-02-15-1-your-decision.md
+cp src/doctrine/templates/architecture/adr-template.md architecture/adrs/2026-02-15-1-your-decision.md
 
 # 3. Fill it out
 #    - Keep it concise (1-2 pages)

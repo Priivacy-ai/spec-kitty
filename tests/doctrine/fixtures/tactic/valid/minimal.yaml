@@ -3,5 +3,5 @@ id: schema-validation
 name: Schema Validation
 purpose: Validate artifacts before runtime.
 steps:
-  - load schema
-  - validate fixture
+  - title: load schema
+  - title: validate fixture

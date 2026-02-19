@@ -1426,9 +1426,11 @@ poetry run spec-kitty --help
 poetry run pytest -v --cov=src --cov-report=term-missing
 poetry run mypy --strict src/specify_cli/
 poetry run ruff check src/ tests/
+poetry run python scripts/chores/sonar-lint.py src/
 
 # Compile Contextive glossary from markdown contexts
 poetry run python scripts/chores/glossary-compilation.py
+# Also extracts doctrine tactics/directives into .kittify/memory/contexts/doctrine-artifacts.glossary.yml
 ```
 
 For releases, continue using the repo release workflow (version bump + tag + GitHub Actions publish). Poetry can be used locally for validation/build steps:

@@ -1,7 +1,6 @@
 """Integration tests for merge operations without remote repositories."""
 
 import subprocess
-from pathlib import Path
 
 import pytest
 
@@ -10,7 +9,7 @@ from specify_cli.core.git_ops import (
     has_tracking_branch,
     run_command,
 )
-from specify_cli.merge.executor import execute_merge, execute_legacy_merge, MergeResult
+from specify_cli.merge.executor import execute_merge, execute_legacy_merge
 from specify_cli.cli import StepTracker
 
 

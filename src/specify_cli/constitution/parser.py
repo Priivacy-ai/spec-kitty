@@ -14,9 +14,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 logger = logging.getLogger(__name__)
-from ruamel.yaml.error import YAMLError
 
 
 @dataclass

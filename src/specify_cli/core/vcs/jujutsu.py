@@ -282,7 +282,7 @@ class JujutsuVCS:
             workspace_name = workspace_path.name
 
             # Use jj workspace forget to unregister
-            result = subprocess.run(
+            subprocess.run(
                 ["jj", "workspace", "forget", workspace_name],
                 capture_output=True,
                 text=True,

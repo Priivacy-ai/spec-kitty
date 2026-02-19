@@ -201,5 +201,5 @@ def _print_human(decision) -> None:
 
     if decision.prompt_file:
         print()
-        print(f"  Next step: read the prompt file:")
+        print("  Next step: read the prompt file:")
         print(f"    cat {decision.prompt_file}")

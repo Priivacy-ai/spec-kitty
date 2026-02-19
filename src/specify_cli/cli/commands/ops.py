@@ -112,7 +112,7 @@ def log(
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
         raise typer.Exit(1)
 
-    console.print(f"\n[cyan]Backend:[/cyan] git")
+    console.print("\n[cyan]Backend:[/cyan] git")
     console.print()
 
     # Get operation history (git reflog only)

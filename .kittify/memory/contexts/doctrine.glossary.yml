@@ -1,0 +1,107 @@
+contexts:
+  - name: Doctrine
+    domainVisionStatement: Terms for doctrine context.
+    meta:
+      Generated from: glossary/contexts/doctrine.md
+    terms:
+      - name: Doctrine Domain
+        definition: The domain model that structures reusable governance knowledge in Spec Kitty. It
+          organizes behavior and constraints into composable artifacts (paradigms, directives, 
+          tactics, templates, styleguides, and toolguides).
+        meta:
+          Context: Doctrine
+          Status: canonical
+          Location: '`src/doctrine/`'
+          Related terms: Paradigm, Directive, Tactic, Template Set, Styleguide, Toolguide, 
+            Governance
+      - name: Guideline
+        definition: A high-level doctrine rule expressing non-negotiable or strongly preferred 
+          governance behavior. Guidelines sit at the highest precedence and bound what project-level
+          constitution may customize.
+        meta:
+          Context: Doctrine
+          Status: canonical
+          Location: '`src/doctrine/guidelines/` (target model)'
+          Related terms: Directive, Constitution Selection, Precedence Hierarchy
+      - name: Paradigm
+        definition: A worldview-level framing for how work is approached in a domain. Paradigms 
+          influence selection and interpretation of directives and tactics but are not executable 
+          step recipes themselves.
+        meta:
+          Context: Doctrine
+          Status: canonical
+          Location: '`src/doctrine/paradigms/`'
+          Related terms: Directive, Tactic, Constitution
+      - name: Directive
+        definition: A constraint-oriented governance rule that applies across flows or phases. 
+          Directives encode required or advisory expectations and can reference lower-level tactics 
+          for execution.
+        meta:
+          Context: Doctrine
+          Status: canonical
+          Location: '`src/doctrine/directives/`'
+          Related terms: Paradigm, Tactic, Schema (Doctrine Artifact)
+      - name: Tactic
+        definition: A reusable behavioral execution pattern that defines how work is performed. 
+          Tactics are operational and agent-consumable, and can be selected by directives and 
+          mission context.
+        meta:
+          Context: Doctrine
+          Status: canonical
+          Location: '`src/doctrine/tactics/`'
+          Related terms: Directive, Template Set, Toolguide
+      - name: Template Set
+        definition: A structured set of doctrine templates that shape output artifacts and 
+          interaction contracts for workflows. Template sets allow consistent behavior across 
+          missions while remaining configurable through constitution selections.
+        meta:
+          Context: Doctrine
+          Status: candidate
+          Location: '`src/doctrine/templates/sets/`'
+          Related terms: Tactic, Constitution Selection
+      - name: Styleguide
+        definition: A doctrine artifact defining cross-cutting quality and consistency conventions 
+          (for example coding, documentation, or testing style) that apply across missions and 
+          templates.
+        meta:
+          Context: Doctrine
+          Status: candidate
+          Location: '`src/doctrine/styleguides/`'
+          Related terms: Toolguide, Schema (Doctrine Artifact), Constitution Selection
+      - name: Toolguide
+        definition: A doctrine artifact defining tool-specific operational guidance, syntax, and 
+          constraints (for example PowerShell usage conventions) used by agents and contributors 
+          during execution.
+        meta:
+          Context: Doctrine
+          Status: candidate
+          Location: '`src/doctrine/toolguides/`'
+          Related terms: Styleguide, Tactic, Execution
+      - name: Schema (Doctrine Artifact)
+        definition: A machine-validated contract that defines allowed structure and fields for 
+          doctrine artifacts. Used in CI/tests to fail fast when invalid doctrine files are 
+          introduced.
+        meta:
+          Context: Doctrine
+          Status: canonical
+          Location: '`src/doctrine/schemas/`'
+          Related terms: Directive, Tactic, Styleguide, Toolguide
+      - name: Import Candidate
+        definition: A pull-based curation record for an external doctrine idea. Captures source 
+          provenance, target classification, adaptation notes, and adoption status before 
+          canonization.
+        meta:
+          Context: Doctrine
+          Status: canonical
+          Location: '`src/doctrine/curation/imports/*/candidates/*.import.yaml`'
+          Related terms: Directive, Tactic, Schema (Doctrine Artifact), ADR (Architectural Decision 
+            Record)
+      - name: Constitution Selection
+        definition: The project-level selection layer that activates and narrows doctrine assets 
+          (for example selected paradigms, directives, agent profiles, available tools, and template
+          set) without changing doctrine source artifacts.
+        meta:
+          Context: Doctrine
+          Status: canonical
+          Location: '`.kittify/constitution/`'
+          Related terms: Doctrine Domain, Governance, Configuration & Project Structure

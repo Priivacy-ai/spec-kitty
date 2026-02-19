@@ -90,15 +90,18 @@ def test_wheel_contains_templates(build_artifacts: dict[str, Path]) -> None:
     with zipfile.ZipFile(wheel_path) as zf:
         all_files = zf.namelist()
 
-    template_files = [f for f in all_files if "specify_cli/templates/" in f]
-    mission_files = [f for f in all_files if "specify_cli/missions/" in f]
+    template_files = [f for f in all_files if f.startswith("doctrine/templates/")]
+    mission_files = [
+        f for f in all_files
+        if f.startswith("doctrine/missions/") or f.startswith("specify_cli/missions/")
+    ]
 
     assert template_files, "Wheel missing template files"
     assert mission_files, "Wheel missing mission files"
 
 
 def test_wheel_contains_only_src_package(build_artifacts: dict[str, Path]) -> None:
-    """Verify wheel only contains specify_cli package files."""
+    """Verify wheel only contains package files."""
     wheel_path = build_artifacts["wheel"]
 
     with zipfile.ZipFile(wheel_path) as zf:
@@ -108,7 +111,7 @@ def test_wheel_contains_only_src_package(build_artifacts: dict[str, Path]) -> No
         ]
 
     for file_path in all_files:
-        assert file_path.startswith("specify_cli/"), (
+        assert file_path.startswith(("specify_cli/", "doctrine/")), (
             f"File outside package directory: {file_path}"
         )
 

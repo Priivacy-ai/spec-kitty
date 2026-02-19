@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -10,14 +11,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-logger = logging.getLogger(__name__)
-
 import ulid
 from rich.console import Console
+
+from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
 
 from .clock import LamportClock
 from .config import SyncConfig
 from .queue import OfflineQueue
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .auth import AuthClient
@@ -97,7 +100,6 @@ def _load_contract_schema() -> dict | None:
 _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")  # kept for test compat
 
 # Broader ID validation via normalize_event_id (accepts ULID + UUID)
-from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
 _WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
 _FEATURE_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
 _FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")
@@ -288,6 +290,14 @@ class EventEmitter:
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     _identity: "ProjectIdentity | None" = field(default=None, repr=False)
     _git_resolver: "GitMetadataResolver | None" = field(default=None, repr=False)
+    _background_tasks: set[asyncio.Task[Any]] = field(default_factory=set, repr=False)
+
+    def _track_task(self, task: Any) -> None:
+        """Retain background task references until completion."""
+        if task is None or not hasattr(task, "add_done_callback"):
+            return
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     def _get_identity(self) -> "ProjectIdentity":
         """Get cached project identity, lazily loading on first access.
@@ -734,10 +744,10 @@ class EventEmitter:
             # If authenticated and WebSocket connected, send directly
             if authenticated and self.ws_client is not None and self.ws_client.connected:
                 try:
-                    import asyncio
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
-                        asyncio.ensure_future(self.ws_client.send_event(event))
+                        send_task = asyncio.ensure_future(self.ws_client.send_event(event))
+                        self._track_task(send_task)
                     else:
                         loop.run_until_complete(self.ws_client.send_event(event))
                     return True

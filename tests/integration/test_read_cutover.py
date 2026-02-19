@@ -10,12 +10,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from specify_cli.status.emit import emit_status_transition
-from specify_cli.status.models import Lane, StatusSnapshot
 from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize, reduce
-from specify_cli.status.store import EVENTS_FILENAME, read_events
+from specify_cli.status.store import read_events
 from specify_cli.status.validate import (
     validate_derived_views,
     validate_materialization_drift,

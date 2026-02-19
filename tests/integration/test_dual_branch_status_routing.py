@@ -164,7 +164,7 @@ def test_status_routes_to_main_for_legacy_features(dual_branch_repo):
     repo = dual_branch_repo
 
     # Create feature WITHOUT target_branch (legacy)
-    feature_dir = create_feature_with_target(repo, "001-legacy-feature", target_branch=None)
+    create_feature_with_target(repo, "001-legacy-feature", target_branch=None)
 
     # Move task to doing using agent command
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing")
@@ -198,7 +198,7 @@ def test_status_routes_to_2x_for_dual_branch_features(dual_branch_repo):
 
     # Create feature on main WITH target_branch: "2.x"
     subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
-    feature_dir = create_feature_with_target(repo, "025-saas-feature", target_branch="2.x")
+    create_feature_with_target(repo, "025-saas-feature", target_branch="2.x")
 
     # Merge planning to 2.x (simulates real workflow where planning is on main first)
     subprocess.run(["git", "checkout", "2.x"], cwd=repo, check=True, capture_output=True)
@@ -419,7 +419,7 @@ def test_race_condition_prevented(dual_branch_repo):
     repo = dual_branch_repo
 
     # Create feature with target_branch: "2.x"
-    feature_dir = create_feature_with_target(repo, "028-race-test", target_branch="2.x")
+    create_feature_with_target(repo, "028-race-test", target_branch="2.x")
 
     # Checkout 2.x and create implementation branch
     subprocess.run(["git", "checkout", "2.x"], cwd=repo, check=True, capture_output=True)
@@ -497,7 +497,7 @@ def test_fallback_when_target_missing(dual_branch_repo):
     repo = dual_branch_repo
 
     # Create feature with target_branch pointing to nonexistent branch
-    feature_dir = create_feature_with_target(repo, "029-missing-target", target_branch="nonexistent")
+    create_feature_with_target(repo, "029-missing-target", target_branch="nonexistent")
 
     # Try to move task (should fallback to current branch: main)
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing")
@@ -547,16 +547,6 @@ def test_migration_detection_and_routing(dual_branch_repo):
 
     # Verify commit on main
     assert_commit_on_branch(repo, "main", "Move WP01 to doing")
-
-
-def verify_ancestry(repo: Path, ancestor: str, descendant: str) -> bool:
-    """Check if ancestor is an ancestor of descendant."""
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
-        cwd=repo,
-        capture_output=True,
-    )
-    return result.returncode == 0
 
 
 # ============================================================================
@@ -625,7 +615,7 @@ def test_multiple_lane_transitions_same_target(dual_branch_repo):
     )
 
     # Count commits on main and 2.x before status changes
-    main_commits_before = len(get_commits_on_branch(repo, "main"))
+    len(get_commits_on_branch(repo, "main"))
 
     # Move each WP to doing (each should create a commit on 2.x)
     for wp_num in range(1, 4):
@@ -674,7 +664,7 @@ def test_target_branch_detection_from_worktree_path(dual_branch_repo):
 
     # Create feature on main with target_branch: "2.x"
     subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
-    feature_dir = create_feature_with_target(repo, "032-worktree-detection", target_branch="2.x")
+    create_feature_with_target(repo, "032-worktree-detection", target_branch="2.x")
 
     # Merge to 2.x
     subprocess.run(["git", "checkout", "2.x"], cwd=repo, check=True, capture_output=True)

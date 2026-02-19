@@ -1,6 +1,5 @@
 """Tests for constitution template migration (m_0_13_0_update_constitution_templates)."""
 
-from pathlib import Path
 
 import pytest
 

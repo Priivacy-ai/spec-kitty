@@ -675,7 +675,7 @@ class TestExhaustiveTransitionPairs:
     ])
     def test_rollback_always_beats_done(self, rollback_lane):
         """Any rollback (lane behind for_review) beats forward 'done'."""
-        ours_content = f"---\nlane: done\nreview_status: \"\"\nreviewed_by: \"\"\n---\n"
+        ours_content = "---\nlane: done\nreview_status: \"\"\nreviewed_by: \"\"\n---\n"
         theirs_content = f"---\nlane: {rollback_lane}\nreview_status: \"has_feedback\"\nreviewed_by: alice\n---\n"
 
         result = resolve_lane_conflict_rollback_aware(

@@ -17,7 +17,6 @@ from specify_cli.text_sanitization import (
     sanitize_markdown_text,
     sanitize_file,
     sanitize_directory,
-    PROBLEMATIC_CHARS,
 )
 
 
@@ -332,7 +331,6 @@ class TestEdgeCases:
 
     def test_permission_denied_handling(self):
         """Verify sanitizer handles permission errors gracefully."""
-        import os
         import stat
 
         with TemporaryDirectory() as tmpdir:
@@ -353,7 +351,7 @@ class TestEdgeCases:
                 # Restore permissions for cleanup
                 try:
                     readonly_file.chmod(stat.S_IWUSR | stat.S_IRUSR)
-                except:
+                except Exception:
                     pass
 
 
@@ -368,7 +366,7 @@ class TestRegressions:
             original_content = "This is clean ASCII content with no problematic characters."
             clean_file.write_text(original_content)
 
-            original_mtime = clean_file.stat().st_mtime
+            clean_file.stat().st_mtime
 
             # Sanitize
             was_modified, error = sanitize_file(clean_file, backup=False, dry_run=False)

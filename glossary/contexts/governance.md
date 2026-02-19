@@ -1,81 +1,16 @@
 ## Context: Governance
 
-Terms describing behavioral governance — rules, validation, and compliance.
+Terms describing governance runtime behavior, enforcement, and decision accountability.
 
 ### Doctrine (Agentic Doctrine)
 
-|                   |                                                                                                                                                                                                                                                                                  |
-|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | Spec Kitty's behavioral governance framework — a stack of Guidelines → Paradigms → Directives → Tactics → Templates providing policy enforcement, decision traceability, agent profiles, and precedence-driven constraint systems. Distributed as a git subtree at `doctrine/`. |
-| **Context**       | Governance                                                                                                                                                                                                                                                                       |
-| **Status**        | canonical                                                                                                                                                                                                                                                                        |
-| **Related terms** | [Guideline](#guideline), [Directive](#directive), [Paradigm](#paradigm), [Tactic](#tactic), [Constitution](#constitution)                                                                                                                                                        |
-
----
-
-### Guideline
-
-|                   |                                                                                                                                                                                                                                                    |
-|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | A high-level, immutable governance rule from the governance stack. Two levels: **general** (highest precedence, non-negotiable framework values) and **operational** (day-to-day behavioral norms). No project-level override may contradict them. |
-| **Context**       | Governance                                                                                                                                                                                                                                         |
-| **Status**        | canonical                                                                                                                                                                                                                                          |
-| **Location**      | `doctrine/guidelines/general/`, `doctrine/guidelines/operational/`                                                                                                                                                                                 |
-| **Related terms** | [Precedence Hierarchy](#precedence-hierarchy), [Directive](#directive), [Constitution](#constitution)                                                                                                                                              |
-
----
-
-### Directive
-
-|                   |                                                                                                                                                                                                                                                   |
-|-------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | A numbered, cross-cutting behavioral constraint from the governance stack. Directives have phase tags (indicating when they apply), severity (advisory/required), and structured rules. They can be narrowed by the Constitution but not removed. |
-| **Context**       | Governance                                                                                                                                                                                                                                        |
-| **Status**        | canonical                                                                                                                                                                                                                                         |
-| **Location**      | `doctrine/directives/*.md` (YAML front matter + markdown body)                                                                                                                                                                                    |
-| **In code**       | `Directive` (dataclass), referenced by integer ID (`directive_refs`)                                                                                                                                                                              |
-| **Related terms** | [Guideline](#guideline), [Precedence Hierarchy](#precedence-hierarchy), [Agent Profile](#agent-profile)                                                                                                                                           |
-| **Examples**      | Directive 017 (TDD Required), Directive 023 (Conventional Commits), Directive 034 (Spec-Driven Development)                                                                                                                                       |
-
----
-
-### Paradigm
-
-|                   |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | A set of assumptions, concepts, values, and practices that constitutes a shared way of viewing and framing work in a domain. Paradigms define *how to see and think* about a problem space — distinct from step-by-step [Tactics](#tactic). Paradigms are **user-selectable**: during [Bootstrap](#bootstrap), users choose paradigms that guide specialist agents (for example: spec-driven development, locality of change, decision-first development). Selected paradigms are stored as project-level preferences in the [Constitution](#constitution) and shape behavior across features. |
-| **Context**       | Governance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| **Status**        | canonical                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| **Location**      | Target: `doctrine/paradigms/*.md`; migration source: `doctrine/approaches/*.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| **Related terms** | [Tactic](#tactic), [Mission](#mission), [Constitution](#constitution), [Bootstrap](#bootstrap)                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| **Examples**      | TDD (Test-Driven Development), Test-First Bug Fixing, Locality of Change, Decision-First Development, Living Glossary Practice                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| **Distinction**   | Users select paradigms during bootstrap. Agents execute tactics selected by directives and mission context.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| **Legacy alias**  | Approach                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-
----
-
-### Tactic
-
-|                   |                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-|-------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | A step-by-step execution pattern within the governance stack — concrete procedures for performing specific activities. Together with Templates, they form the lowest precedence governance layer. Tactics are **agent-facing**: agents pull in the specific tactic files they need during execution. Users do not select tactics directly — they select [Paradigms](#paradigm), while directives and mission context determine which tactics apply at execution time. |
-| **Context**       | Governance                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| **Status**        | canonical                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| **Location**      | `doctrine/tactics/*.tactic.md`                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| **Related terms** | [Paradigm](#paradigm), [Template (Doctrine)](#template-doctrine), [Slash Command](#slash-command)                                                                                                                                                                                                                                                                                                                                                             |
-| **Distinction**   | Paradigms define *how to think/see* (user-selectable). Tactics define *how to execute* (agent-consumed).                                                                                                                                                                                                                                                                                                                                                      |
-
----
-
-### Template (Doctrine)
-
-|                   |                                                                                                                                                                                  |
-|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | An output contract and artifact scaffold within the governance stack — the structured format that Tactics produce. Not to be confused with spec-kitty's slash command templates. |
-| **Context**       | Governance                                                                                                                                                                       |
-| **Status**        | canonical                                                                                                                                                                        |
-| **Location**      | `doctrine/templates/`                                                                                                                                                            |
-| **Related terms** | [Tactic](#tactic)                                                                                                                                                                |
+|                   |                                                                                                                                                                                                                                                                         |
+|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | Spec Kitty's governance framework that defines reusable behavioral assets and rules. Domain terms for doctrine artifacts are canonicalized in the Doctrine glossary context.                                                                                           |
+| **Context**       | Governance                                                                                                                                                                                                                                                              |
+| **Status**        | canonical                                                                                                                                                                                                                                                               |
+| **Reference**     | Doctrine domain glossary: `glossary/contexts/doctrine.md`                                                                                                                                                                                                              |
+| **Related terms** | [Constitution](#constitution), [Precedence Hierarchy](#precedence-hierarchy), [Doctrine Domain](./doctrine.md)                                                                                                                                                        |
 
 ---
 
@@ -88,32 +23,8 @@ Terms describing behavioral governance — rules, validation, and compliance.
 | **Status**              | canonical                                                                                                                                                                                                                                                           |
 | **Location**            | `.kittify/memory/constitution.md`                                                                                                                                                                                                                                   |
 | **In code**             | Constitution command templates; parser and enforcement are evolving under Feature 044                                                                                                                                                                               |
-| **Related terms**       | [Guideline](#guideline), [Precedence Hierarchy](#precedence-hierarchy), [Selected Agent Profiles](#selected-agent-profiles), [Available Tools](#available-tools)                                                                                                                                                                                              |
+| **Related terms**       | [Precedence Hierarchy](#precedence-hierarchy), [Doctrine](#doctrine-agentic-doctrine), [Constitution Selection](./doctrine.md)                                                                                                                                    |
 | **Precedence position** | 3 (after General and Operational Guidelines; before Directives)                                                                                                                                                                                                     |
-
----
-
-### Selected Agent Profiles
-
-|                   |                                                                                                                                                                                        |
-|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | The configured subset of doctrine agent profiles active for a specific project/repository. Establishes which behavioral identities are available for orchestration assignments.       |
-| **Context**       | Governance                                                                                                                                                                             |
-| **Status**        | candidate                                                                                                                                                                              |
-| **Location**      | Constitution selection section (target model)                                                                                                                                          |
-| **Related terms** | [Constitution](#constitution), [Agent Profile](#agent-profile), [Mission](#mission)                                                                                                   |
-
----
-
-### Available Tools
-
-|                   |                                                                                                                                                                                 |
-|-------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | The configured set of execution tools available to a project/repository. Constrains tool selection during orchestration and agent assignment.                                  |
-| **Context**       | Governance                                                                                                                                                                      |
-| **Status**        | candidate                                                                                                                                                                       |
-| **Location**      | Constitution selection section (target model)                                                                                                                                   |
-| **Related terms** | [Constitution](#constitution), [Tool](#tool), [Orchestration Assignment](#orchestration-assignment)                                                                          |
 
 ---
 
@@ -125,7 +36,7 @@ Terms describing behavioral governance — rules, validation, and compliance.
 | **Context**          | Governance                                                                                                                                                                                    |
 | **Status**           | canonical                                                                                                                                                                                     |
 | **In code**          | Defined in Feature 044 governance spec; implementation is in progress                                                                                                                         |
-| **Related terms**    | [Guideline](#guideline), [Constitution](#constitution), [Directive](#directive), [Paradigm](#paradigm), [Tactic](#tactic)                                                                     |
+| **Related terms**    | [Constitution](#constitution), [Doctrine](#doctrine-agentic-doctrine), [Guideline](./doctrine.md), [Directive](./doctrine.md), [Paradigm](./doctrine.md), [Tactic](./doctrine.md)        |
 | **Operational rule** | When sources disagree, apply this hierarchy first; use newer accepted ADRs over older ADRs; then align with current implementation behavior                                                   |
 
 ```
@@ -143,30 +54,6 @@ General Guidelines > Operational Guidelines > Constitution > Directives > Paradi
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **In code**       | `GovernancePlugin` (ABC), `NullGovernancePlugin`, `DoctrineGovernancePlugin`                                                                                                                                                            |
 | **Related terms** | [Validation Result](#validation-result), [Governance Context](#governance-context)                                                                                                                                                      |
-
----
-
-### Import Candidate
-
-|                   |                                                                                                                                                                                         |
-|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | A pull-based curation record for an external governance idea. Captures source provenance, target classification, adaptation notes, and adoption status before canonization.            |
-| **Context**       | Governance                                                                                                                                                                              |
-| **Status**        | candidate                                                                                                                                                                               |
-| **Location**      | `doctrine/curation/imports/*/candidates/*.import.yaml` (target model)                                                                                                                 |
-| **Related terms** | [Paradigm](#paradigm), [Directive](#directive), [Tactic](#tactic), [ADR (Architectural Decision Record)](#adr-architectural-decision-record)                                       |
-
----
-
-### Schema (Governance Artifact Schema)
-
-|                   |                                                                                                                                                                              |
-|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | A machine-validated contract for doctrine/governance artifacts (missions, directives, tactics, curation records, profiles). Used as an early CI quality gate.                |
-| **Context**       | Governance                                                                                                                                                                   |
-| **Status**        | candidate                                                                                                                                                                    |
-| **Location**      | `doctrine/schemas/*.schema.yaml` (target model)                                                                                                                             |
-| **Related terms** | [Import Candidate](#import-candidate), [Validation Result](#validation-result), [Constitution](#constitution)                                                              |
 
 ---
 
@@ -208,11 +95,11 @@ General Guidelines > Operational Guidelines > Constitution > Directives > Paradi
 
 |                   |                                                                                                                                                                                                                                                                                                             |
 |-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | The conflict that arises when both [Guidelines](#guideline) and the [Constitution](#constitution) claim top-level behavioral authority over agents. Resolved by the [Precedence Hierarchy](#precedence-hierarchy): Constitution sits at position 3 — it customizes within Guideline bounds, not above them. |
+| **Definition**    | The conflict that arises when both Guidelines and the Constitution claim top-level behavioral authority over agents. Resolved by the Precedence Hierarchy: Constitution sits at position 3 — it customizes within Guideline bounds, not above them.                                                     |
 | **Context**       | Governance                                                                                                                                                                                                                                                                                                  |
 | **Status**        | canonical                                                                                                                                                                                                                                                                                                   |
 | **Synonyms**      | Dual Authority Problem                                                                                                                                                                                                                                                                                      |
-| **Related terms** | [Precedence Hierarchy](#precedence-hierarchy), [Constitution](#constitution), [Guideline](#guideline)                                                                                                                                                                                                       |
+| **Related terms** | [Precedence Hierarchy](#precedence-hierarchy), [Constitution](#constitution), [Guideline](./doctrine.md)                                                                                                                                                                                                  |
 
 ---
 

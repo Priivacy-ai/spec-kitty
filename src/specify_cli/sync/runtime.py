@@ -19,6 +19,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import atexit
 import logging
 from dataclasses import dataclass, field
@@ -76,7 +77,15 @@ class SyncRuntime:
     background_service: BackgroundSyncService | None = field(default=None, repr=False)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     emitter: EventEmitter | None = field(default=None, repr=False)
+    _background_tasks: set[asyncio.Task[object]] = field(default_factory=set, repr=False)
     started: bool = False
+
+    def _track_task(self, task: object) -> None:
+        """Retain task references until completion to prevent GC warnings."""
+        if task is None or not hasattr(task, "add_done_callback"):
+            return
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     def start(self) -> None:
         """Start background services (idempotent).
@@ -118,11 +127,11 @@ class SyncRuntime:
                     server_url=config.get_server_url(),
                     auth_client=auth,
                 )
-                import asyncio
                 try:
                     asyncio.get_running_loop()
                     # Running event loop available: connect non-blocking.
-                    asyncio.ensure_future(self.ws_client.connect())
+                    connect_task = asyncio.ensure_future(self.ws_client.connect())
+                    self._track_task(connect_task)
                 except RuntimeError:
                     # Synchronous CLI context: skip auto WebSocket connect.
                     # Creating a temporary event loop here spawns a background
@@ -167,10 +176,10 @@ class SyncRuntime:
 
         if self.ws_client:
             try:
-                import asyncio
                 try:
                     loop = asyncio.get_running_loop()
-                    asyncio.ensure_future(self.ws_client.disconnect())
+                    disconnect_task = asyncio.ensure_future(self.ws_client.disconnect())
+                    self._track_task(disconnect_task)
                 except RuntimeError:
                     loop = asyncio.new_event_loop()
                     try:

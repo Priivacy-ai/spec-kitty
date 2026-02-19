@@ -12,6 +12,59 @@ from rich.console import Console
 console = Console()
 
 
+def _copy_constitution_toolguide_from_path(source: Path, project_path: Path) -> bool:
+    """Copy a local toolguide file into .kittify/memory/templates/."""
+    if not source.exists():
+        return False
+    dest_dir = project_path / ".kittify" / "memory" / "templates"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, dest_dir / source.name)
+    return True
+
+
+def _copy_constitution_toolguide_from_resource(resource, project_path: Path) -> bool:
+    """Copy a package resource toolguide into .kittify/memory/templates/."""
+    if not resource.exists():
+        return False
+    dest_dir = project_path / ".kittify" / "memory" / "templates"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_file = dest_dir / resource.name
+    with resource.open("rb") as src, open(dest_file, "wb") as dst:
+        shutil.copyfileobj(src, dst)
+    return True
+
+
+def copy_constitution_templates(project_path: Path, repo_root: Path | None = None) -> None:
+    """Install constitution-scoped template assets (toolguides).
+
+    Currently installs the PowerShell syntax guide to:
+    ``.kittify/memory/templates/POWERSHELL_SYNTAX.md``.
+    """
+    if repo_root is not None:
+        local_toolguide = (
+            repo_root / "src" / "doctrine" / "toolguides" / "POWERSHELL_SYNTAX.md"
+        )
+        if _copy_constitution_toolguide_from_path(local_toolguide, project_path):
+            return
+
+    # Package-first source for installed distributions
+    try:
+        doctrine_root = files("doctrine")
+        doctrine_toolguide = doctrine_root.joinpath("toolguides", "POWERSHELL_SYNTAX.md")
+        if _copy_constitution_toolguide_from_resource(doctrine_toolguide, project_path):
+            return
+    except ModuleNotFoundError:
+        pass
+
+    # Legacy fallback while older packages still ship this under templates/
+    try:
+        specify_root = files("specify_cli")
+        legacy_toolguide = specify_root.joinpath("templates", "POWERSHELL_SYNTAX.md")
+        _copy_constitution_toolguide_from_resource(legacy_toolguide, project_path)
+    except ModuleNotFoundError:
+        pass
+
+
 def get_local_repo_root(override_path: str | None = None) -> Path | None:
     """Return repository root when running from a local checkout, else None.
 
@@ -112,6 +165,8 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
             shutil.rmtree(missions_dest)
         shutil.copytree(missions_src, missions_dest)
 
+    copy_constitution_templates(project_path, repo_root=repo_root)
+
     # NOTE: Templates are copied temporarily for agent command generation
     # They will be cleaned up after all commands are generated (see init.py)
     return specify_root / "templates" / "command-templates"
@@ -182,11 +237,14 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
             copy_package_tree(missions_resource, specify_root / "missions")
             break
 
+    copy_constitution_templates(project_path)
+
     return specify_root / "templates" / "command-templates"
 
 
 __all__ = [
     "copy_package_tree",
+    "copy_constitution_templates",
     "copy_specify_base_from_local",
     "copy_specify_base_from_package",
     "get_local_repo_root",

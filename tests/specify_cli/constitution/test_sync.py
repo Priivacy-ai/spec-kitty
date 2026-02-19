@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import pytest
 from ruamel.yaml import YAML
 
 from specify_cli.constitution.hasher import hash_content

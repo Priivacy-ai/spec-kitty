@@ -5,8 +5,7 @@ Tests full workflow from init to merge for both git and jj backends.
 """
 
 import subprocess
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -15,7 +14,6 @@ from specify_cli.core.vcs import (
     JJ_CAPABILITIES,
     VCSBackend,
     get_vcs,
-    is_git_available,
     is_jj_available,
 )
 from specify_cli.core.vcs import detection

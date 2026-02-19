@@ -5,81 +5,14 @@ contexts:
       Generated from: glossary/contexts/governance.md
     terms:
       - name: Doctrine (Agentic Doctrine)
-        definition: Spec Kitty's behavioral governance framework — a stack of Guidelines → Paradigms
-          → Directives → Tactics → Templates providing policy enforcement, decision traceability, 
-          agent profiles, and precedence-driven constraint systems. Distributed as a git subtree at 
-          `doctrine/`.
+        definition: Spec Kitty's governance framework that defines reusable behavioral assets and 
+          rules. Domain terms for doctrine artifacts are canonicalized in the Doctrine glossary 
+          context.
         meta:
           Context: Governance
           Status: canonical
-          Related terms: Guideline, Directive, Paradigm, Tactic, Constitution
-      - name: Guideline
-        definition: 'A high-level, immutable governance rule from the governance stack. Two levels: **general**
-          (highest precedence, non-negotiable framework values) and **operational** (day-to-day behavioral
-          norms). No project-level override may contradict them.'
-        meta:
-          Context: Governance
-          Status: canonical
-          Location: '`doctrine/guidelines/general/`, `doctrine/guidelines/operational/`'
-          Related terms: Precedence Hierarchy, Directive, Constitution
-      - name: Directive
-        definition: A numbered, cross-cutting behavioral constraint from the governance stack. 
-          Directives have phase tags (indicating when they apply), severity (advisory/required), and
-          structured rules. They can be narrowed by the Constitution but not removed.
-        examples:
-          - Directive 017 (TDD Required)
-          - Directive 023 (Conventional Commits)
-          - Directive 034 (Spec-Driven Development)
-        meta:
-          Context: Governance
-          Status: canonical
-          Location: '`doctrine/directives/*.md` (YAML front matter + markdown body)'
-          In code: '`Directive` (dataclass), referenced by integer ID (`directive_refs`)'
-          Related terms: Guideline, Precedence Hierarchy, Agent Profile
-      - name: Paradigm
-        definition: 'A set of assumptions, concepts, values, and practices that constitutes a shared way
-          of viewing and framing work in a domain. Paradigms define *how to see and think* about a problem
-          space — distinct from step-by-step Tactics. Paradigms are **user-selectable**: during Bootstrap,
-          users choose paradigms that guide specialist agents (for example: spec-driven development, locality
-          of change, decision-first development). Selected paradigms are stored as project-level preferences
-          in the Constitution and shape behavior across features.'
-        aliases:
-          - Approach
-        examples:
-          - TDD (Test-Driven Development)
-          - Test-First Bug Fixing
-          - Locality of Change
-          - Decision-First Development
-          - Living Glossary Practice
-        meta:
-          Context: Governance
-          Status: canonical
-          Location: 'Target: `doctrine/paradigms/*.md`; migration source: `doctrine/approaches/*.md`'
-          Related terms: Tactic, Mission, Constitution, Bootstrap
-          Distinction: Users select paradigms during bootstrap. Agents execute tactics selected by 
-            directives and mission context.
-      - name: Tactic
-        definition: 'A step-by-step execution pattern within the governance stack — concrete procedures
-          for performing specific activities. Together with Templates, they form the lowest precedence
-          governance layer. Tactics are **agent-facing**: agents pull in the specific tactic files they
-          need during execution. Users do not select tactics directly — they select Paradigms, while directives
-          and mission context determine which tactics apply at execution time.'
-        meta:
-          Context: Governance
-          Status: canonical
-          Location: '`doctrine/tactics/*.tactic.md`'
-          Related terms: Paradigm, Template (Doctrine), Slash Command
-          Distinction: Paradigms define *how to think/see* (user-selectable). Tactics define *how to
-            execute* (agent-consumed).
-      - name: Template (Doctrine)
-        definition: An output contract and artifact scaffold within the governance stack — the 
-          structured format that Tactics produce. Not to be confused with spec-kitty's slash command
-          templates.
-        meta:
-          Context: Governance
-          Status: canonical
-          Location: '`doctrine/templates/`'
-          Related terms: Tactic
+          Reference: 'Doctrine domain glossary: `glossary/contexts/doctrine.md`'
+          Related terms: Constitution, Precedence Hierarchy, Doctrine Domain
       - name: Constitution
         definition: A project-level governance document that narrows or extends Doctrine rules for a
           specific repository. It is the execution-time selector layer for active paradigms, 
@@ -92,25 +25,8 @@ contexts:
           Location: '`.kittify/memory/constitution.md`'
           In code: Constitution command templates; parser and enforcement are evolving under Feature
             044
-          Related terms: Guideline, Precedence Hierarchy, Selected Agent Profiles, Available Tools
+          Related terms: Precedence Hierarchy, Doctrine, Constitution Selection
           Precedence position: 3 (after General and Operational Guidelines; before Directives)
-      - name: Selected Agent Profiles
-        definition: The configured subset of doctrine agent profiles active for a specific 
-          project/repository. Establishes which behavioral identities are available for 
-          orchestration assignments.
-        meta:
-          Context: Governance
-          Status: candidate
-          Location: Constitution selection section (target model)
-          Related terms: Constitution, Agent Profile, Mission
-      - name: Available Tools
-        definition: The configured set of execution tools available to a project/repository. 
-          Constrains tool selection during orchestration and agent assignment.
-        meta:
-          Context: Governance
-          Status: candidate
-          Location: Constitution selection section (target model)
-          Related terms: Constitution, Tool, Orchestration Assignment
       - name: Precedence Hierarchy
         definition: The conflict resolution order when governance rules disagree. Higher-precedence 
           rules override lower ones. This is the governing rule for resolving conceptual conflicts 
@@ -119,7 +35,7 @@ contexts:
           Context: Governance
           Status: canonical
           In code: Defined in Feature 044 governance spec; implementation is in progress
-          Related terms: Guideline, Constitution, Directive, Paradigm, Tactic
+          Related terms: Constitution, Doctrine, Guideline, Directive, Paradigm, Tactic
           Operational rule: When sources disagree, apply this hierarchy first; use newer accepted 
             ADRs over older ADRs; then align with current implementation behavior
       - name: Governance Plugin
@@ -131,23 +47,6 @@ contexts:
           Status: canonical
           In code: '`GovernancePlugin` (ABC), `NullGovernancePlugin`, `DoctrineGovernancePlugin`'
           Related terms: Validation Result, Governance Context
-      - name: Import Candidate
-        definition: A pull-based curation record for an external governance idea. Captures source 
-          provenance, target classification, adaptation notes, and adoption status before 
-          canonization.
-        meta:
-          Context: Governance
-          Status: candidate
-          Location: '`doctrine/curation/imports/*/candidates/*.import.yaml` (target model)'
-          Related terms: Paradigm, Directive, Tactic, ADR (Architectural Decision Record)
-      - name: Schema (Governance Artifact Schema)
-        definition: A machine-validated contract for doctrine/governance artifacts (missions, 
-          directives, tactics, curation records, profiles). Used as an early CI quality gate.
-        meta:
-          Context: Governance
-          Status: candidate
-          Location: '`doctrine/schemas/*.schema.yaml` (target model)'
-          Related terms: Import Candidate, Validation Result, Constitution
       - name: Validation Result
         definition: Structured output of a governance check. Contains status (pass/warn/block), 
           reasons, directive references, and suggested actions.

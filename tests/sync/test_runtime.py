@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -200,7 +199,7 @@ class TestGetRuntime:
     @patch("specify_cli.sync.runtime.SyncRuntime.start")
     def test_auto_starts_on_first_access(self, mock_start):
         """get_runtime calls start() on first access."""
-        runtime = get_runtime()
+        get_runtime()
         mock_start.assert_called_once()
 
 

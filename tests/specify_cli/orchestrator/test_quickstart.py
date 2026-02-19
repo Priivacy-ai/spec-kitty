@@ -167,7 +167,6 @@ class TestConfigurationDefaults:
 
     def test_probe_timeout_default(self):
         """Probe timeout should default to 10 seconds."""
-        import os
         from tests.specify_cli.orchestrator.config import OrchestratorTestConfig
 
         # Check default value without environment override

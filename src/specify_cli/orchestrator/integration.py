@@ -16,12 +16,11 @@ import logging
 import signal
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable
 
 from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
-from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 from specify_cli.orchestrator.agents import detect_installed_agents, get_invoker, InvocationResult
@@ -31,13 +30,11 @@ from specify_cli.orchestrator.config import (
     WPStatus,
 )
 from specify_cli.orchestrator.executor import (
-    ExecutionContext,
     WorktreeCreationError,
     create_worktree,
     execute_with_logging,
     get_log_path,
     get_worktree_path,
-    worktree_exists,
 )
 from specify_cli.orchestrator.monitor import (
     apply_fallback,
@@ -50,7 +47,6 @@ from specify_cli.orchestrator.monitor import (
 from specify_cli.orchestrator.scheduler import (
     ConcurrencyManager,
     DependencyGraphError,
-    SchedulerState,
     build_wp_graph,
     get_ready_wps,
     is_single_agent_mode,
@@ -135,7 +131,7 @@ def validate_feature(feature_dir: Path) -> dict[str, list[str]]:
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.exists():
         raise ValidationError(
-            f"No tasks directory found. Run /spec-kitty.tasks first."
+            "No tasks directory found. Run /spec-kitty.tasks first."
         )
 
     # Build and validate graph
@@ -317,7 +313,6 @@ def create_live_display(state: OrchestrationRun) -> Table:
     Returns:
         Rich Table combining progress and status.
     """
-    from rich.layout import Layout
 
     # Just return the status table for simplicity
     # Progress is shown in the table title area
@@ -417,7 +412,7 @@ def print_summary(state: OrchestrationRun, console: Console) -> None:
         if wp.status == WPStatus.FAILED
     ]
     if failed_wps:
-        console.print(f"\n[red]Failed Work Packages:[/red]")
+        console.print("\n[red]Failed Work Packages:[/red]")
         for wp_id, wp in failed_wps:
             error = wp.last_error or "Unknown error"
             if len(error) > 80:

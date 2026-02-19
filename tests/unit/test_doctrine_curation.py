@@ -16,6 +16,8 @@ def test_doctrine_structure_paths_exist() -> None:
         REPO_ROOT / "src" / "doctrine" / "directives",
         REPO_ROOT / "src" / "doctrine" / "tactics",
         REPO_ROOT / "src" / "doctrine" / "agent-profiles",
+        REPO_ROOT / "src" / "doctrine" / "styleguides",
+        REPO_ROOT / "src" / "doctrine" / "toolguides",
         REPO_ROOT / "src" / "doctrine" / "schemas",
         REPO_ROOT / "src" / "doctrine" / "curation",
         REPO_ROOT / "src" / "doctrine" / "templates" / "sets",
@@ -38,11 +40,25 @@ def test_import_candidate_schema_contains_adoption_gate() -> None:
     schema = yaml.load(schema_path.read_text(encoding="utf-8"))
 
     required = schema.get("required", [])
+    if not required:
+        # Compatibility schema may define required fields under oneOf branches.
+        branch_required: list[str] = []
+        for branch in schema.get("oneOf", []):
+            branch_required.extend(branch.get("required", []))
+        required = branch_required
+
     assert "id" in required
     assert "source" in required
     assert "status" in required
 
     all_of = schema.get("allOf", [])
+    if not all_of:
+        for branch in schema.get("oneOf", []):
+            branch_all_of = branch.get("allOf", [])
+            if branch_all_of:
+                all_of = branch_all_of
+                break
+
     assert all_of, "Schema must define adoption gate rules"
     rendered = str(all_of)
     assert "adopted" in rendered

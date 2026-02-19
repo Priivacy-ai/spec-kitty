@@ -3,7 +3,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from specify_cli.constitution.schemas import (
     AgentProfile,

@@ -7,7 +7,6 @@ and project-level query functions.
 from datetime import datetime, timezone
 from pathlib import Path
 
-import pytest
 
 from specify_cli.spec_kitty_events.models import Event
 from specify_cli.telemetry.store import SimpleJsonStore

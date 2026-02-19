@@ -17,7 +17,6 @@ from specify_cli.core.vcs.git import (
     git_stash_pop,
 )
 from specify_cli.core.vcs.types import (
-    ConflictType,
     SyncStatus,
 )
 

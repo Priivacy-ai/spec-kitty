@@ -485,7 +485,7 @@ class TestNextCommandCLI:
             ["next", "--agent", "test", "--feature", "042-test-feature", "--json"],
         )
         assert r1.exit_code == 0
-        d1 = json.loads(r1.output)
+        json.loads(r1.output)
 
         # Second call — should have advanced
         r2 = runner.invoke(
@@ -493,7 +493,7 @@ class TestNextCommandCLI:
             ["next", "--agent", "test", "--feature", "042-test-feature", "--json"],
         )
         assert r2.exit_code == 0
-        d2 = json.loads(r2.output)
+        json.loads(r2.output)
 
         # State should have advanced — run state persisted in .kittify/runtime/
         runtime_dir = repo_root / ".kittify" / "runtime"

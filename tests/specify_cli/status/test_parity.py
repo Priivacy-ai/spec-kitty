@@ -169,17 +169,13 @@ class TestBackportReadiness:
         for py_file in sorted(status_pkg_path.glob("*.py")):
             content = py_file.read_text(encoding="utf-8")
             lines = content.split("\n")
-            inside_function = False
-            inside_try = False
-            indent_level = 0
 
             for line_no, line in enumerate(lines, start=1):
                 stripped = line.strip()
 
                 # Track if we're inside a function (indented code)
                 if stripped.startswith("def ") or stripped.startswith("class "):
-                    inside_function = True
-                    indent_level = len(line) - len(line.lstrip())
+                    len(line) - len(line.lstrip())
 
                 # Only flag top-level imports (indent 0)
                 current_indent = len(line) - len(line.lstrip()) if line.strip() else 0

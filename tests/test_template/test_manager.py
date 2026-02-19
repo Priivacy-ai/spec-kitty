@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -43,6 +42,9 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     templates_src.mkdir(parents=True)
     (templates_src / "sample.md").write_text("content", encoding="utf-8")
     (repo_root / "src" / "doctrine" / "templates" / "AGENTS.md").write_text("agents", encoding="utf-8")
+    toolguides_src = repo_root / "src" / "doctrine" / "toolguides"
+    toolguides_src.mkdir(parents=True)
+    (toolguides_src / "POWERSHELL_SYNTAX.md").write_text("ps guide", encoding="utf-8")
 
     missions_src = repo_root / "src" / "doctrine" / "missions" / "default"
     missions_src.mkdir(parents=True)
@@ -59,6 +61,13 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     assert (project_path / ".kittify" / "scripts" / "tasks" / "tasks_cli.py").exists()
     assert (project_path / ".kittify" / "templates" / "command-templates" / "sample.md").exists()
     assert (project_path / ".kittify" / "missions" / "default" / "rules.md").exists()
+    assert (
+        project_path
+        / ".kittify"
+        / "memory"
+        / "templates"
+        / "POWERSHELL_SYNTAX.md"
+    ).exists()
 
 
 def test_copy_specify_base_from_package_uses_packaged_assets(
@@ -79,6 +88,8 @@ def test_copy_specify_base_from_package_uses_packaged_assets(
     templates_root.mkdir(parents=True)
     (templates_root / "sample.md").write_text("demo", encoding="utf-8")
     (fake_pkg / "templates" / "AGENTS.md").write_text("rules", encoding="utf-8")
+    (fake_pkg / "toolguides").mkdir(parents=True)
+    (fake_pkg / "toolguides" / "POWERSHELL_SYNTAX.md").write_text("ps guide", encoding="utf-8")
 
     missions_root = fake_pkg / "missions" / "default"
     missions_root.mkdir(parents=True)
@@ -96,3 +107,10 @@ def test_copy_specify_base_from_package_uses_packaged_assets(
     assert (project_path / ".kittify" / "scripts" / "bash" / "bootstrap.sh").exists()
     assert (project_path / ".kittify" / "scripts" / "tasks" / "tasks_cli.py").exists()
     assert (project_path / ".kittify" / "memory" / "seed.txt").exists()
+    assert (
+        project_path
+        / ".kittify"
+        / "memory"
+        / "templates"
+        / "POWERSHELL_SYNTAX.md"
+    ).exists()

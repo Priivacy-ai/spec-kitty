@@ -19,9 +19,8 @@ CLI commands call these functions internally).
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.project_identity import ProjectIdentity

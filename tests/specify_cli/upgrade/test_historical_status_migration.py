@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from specify_cli.upgrade.migrations.m_2_0_0_historical_status_migration import (
     HistoricalStatusMigration,

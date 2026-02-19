@@ -631,11 +631,10 @@ body.modal-open {
 
 .markdown-content blockquote {
     border-left: 4px solid var(--lavender);
-    padding-left: 1em;
     margin: 1em 0;
     color: var(--medium-text);
     background: #f9f9f9;
-    padding: 10px 15px;
+    padding: 10px 15px 10px 1em;
     border-radius: 4px;
 }
 

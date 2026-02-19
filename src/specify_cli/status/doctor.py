@@ -10,11 +10,10 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 
-from .models import StatusSnapshot
 from .reducer import SNAPSHOT_FILENAME, reduce
 from .store import read_events
 

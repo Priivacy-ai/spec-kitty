@@ -29,6 +29,7 @@ OUTPUT_ROOT = REPO_ROOT / ".kittify" / "memory"
 OUTPUT_CONTEXTS_DIR = OUTPUT_ROOT / "contexts"
 OUTPUT_INDEX = OUTPUT_ROOT / "spec-kitty.glossary.yml"
 PROJECT_GLOSSARY = REPO_ROOT / "project.glossary.yml"
+DOCTRINE_ROOT = REPO_ROOT / "src" / "doctrine"
 
 
 def _slugify(text: str) -> str:
@@ -49,6 +50,14 @@ def _split_list_values(raw_value: str) -> list[str]:
     return items
 
 
+def _display_path(path: Path) -> str:
+    """Return repository-relative path when possible, else absolute path."""
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 @dataclass(frozen=True)
 class ParsedTerm:
     """Represents one parsed glossary term from markdown."""
@@ -67,6 +76,17 @@ class ParsedContext:
     name: str
     vision_statement: str
     terms: list[ParsedTerm]
+    source_file: str
+
+
+@dataclass(frozen=True)
+class DoctrineArtifactTerm:
+    """Represents one doctrine artifact mapped into a glossary term."""
+
+    artifact_id: str
+    name: str
+    description: str
+    artifact_type: str
     source_file: str
 
 
@@ -232,7 +252,93 @@ def parse_context_file(path: Path) -> ParsedContext:
         name=context_name,
         vision_statement=vision_statement,
         terms=terms,
-        source_file=str(path.relative_to(REPO_ROOT)),
+        source_file=_display_path(path),
+    )
+
+
+def _safe_load_yaml_mapping(path: Path) -> dict[str, object]:
+    """Load a YAML document and return mapping root or empty mapping."""
+    loader = YAML(typ="safe")
+    data = loader.load(path.read_text(encoding="utf-8"))
+    if isinstance(data, dict):
+        return data
+    return {}
+
+
+def _first_non_empty(data: dict[str, object], keys: tuple[str, ...]) -> str:
+    """Return the first non-empty string value for keys in priority order."""
+    for key in keys:
+        value = data.get(key)
+        if value is not None:
+            text = str(value).strip()
+            if text:
+                return text
+    return ""
+
+
+def _extract_doctrine_terms(doctrine_root: Path) -> list[DoctrineArtifactTerm]:
+    """Extract doctrine tactic/directive artifacts as glossary terms."""
+    targets: tuple[tuple[str, tuple[str, ...], tuple[str, ...]], ...] = (
+        ("tactics", ("name", "title"), ("description", "purpose", "intent")),
+        ("directives", ("title", "name"), ("description", "intent", "purpose")),
+    )
+    terms: list[DoctrineArtifactTerm] = []
+
+    for directory, name_keys, description_keys in targets:
+        artifact_dir = doctrine_root / directory
+        if not artifact_dir.exists():
+            continue
+
+        for path in sorted(artifact_dir.glob("*.yaml")):
+            data = _safe_load_yaml_mapping(path)
+            artifact_id = _first_non_empty(data, ("id",))
+            name = _first_non_empty(data, name_keys)
+            description = _first_non_empty(data, description_keys)
+
+            if not artifact_id or not name or not description:
+                continue
+
+            terms.append(
+                DoctrineArtifactTerm(
+                    artifact_id=artifact_id,
+                    name=name,
+                    description=description,
+                    artifact_type=directory[:-1],
+                    source_file=_display_path(path),
+                )
+            )
+
+    return sorted(terms, key=lambda term: (term.artifact_type, term.name.lower()))
+
+
+def build_doctrine_context(doctrine_root: Path) -> ParsedContext | None:
+    """Build a generated doctrine artifact context from repository doctrine files."""
+    terms = _extract_doctrine_terms(doctrine_root)
+    if not terms:
+        return None
+
+    parsed_terms: list[ParsedTerm] = []
+    for term in terms:
+        parsed_terms.append(
+            ParsedTerm(
+                name=term.name,
+                definition=term.description,
+                aliases=[],
+                examples=[],
+                meta={
+                    "id": term.artifact_id,
+                    "description": term.description,
+                    "artifact_type": term.artifact_type,
+                    "source": term.source_file,
+                },
+            )
+        )
+
+    return ParsedContext(
+        name="Doctrine Artifacts",
+        vision_statement="Terms extracted from doctrine directives and tactics.",
+        terms=parsed_terms,
+        source_file="src/doctrine/**/*",
     )
 
 
@@ -294,6 +400,7 @@ def compile_glossary(
     output_dir: Path,
     index_path: Path,
     project_glossary_path: Path | None = PROJECT_GLOSSARY,
+    doctrine_root: Path | None = DOCTRINE_ROOT,
 ) -> None:
     """Compile markdown glossary contexts into Contextive YAML files."""
     if not input_dir.exists():
@@ -307,6 +414,10 @@ def compile_glossary(
 
     context_files = sorted(input_dir.glob("*.md"))
     parsed_contexts = [parse_context_file(path) for path in context_files]
+    if doctrine_root is not None:
+        doctrine_context = build_doctrine_context(doctrine_root)
+        if doctrine_context is not None:
+            parsed_contexts.append(doctrine_context)
 
     import_paths: list[str] = []
     for context in parsed_contexts:
@@ -350,6 +461,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=PROJECT_GLOSSARY,
         help="Path for generated project-level glossary entrypoint.",
     )
+    parser.add_argument(
+        "--doctrine-root",
+        type=Path,
+        default=DOCTRINE_ROOT,
+        help="Doctrine root directory used to extract doctrine artifact glossary terms.",
+    )
     return parser
 
 
@@ -358,7 +475,13 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    compile_glossary(args.input, args.output, args.index, args.project_glossary)
+    compile_glossary(
+        args.input,
+        args.output,
+        args.index,
+        args.project_glossary,
+        args.doctrine_root,
+    )
     print(f"Compiled Contextive glossary index: {args.index}")
     print(f"Compiled context files in: {args.output}")
     print(f"Updated project glossary entrypoint: {args.project_glossary}")

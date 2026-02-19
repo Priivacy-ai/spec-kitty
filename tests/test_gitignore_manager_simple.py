@@ -3,7 +3,6 @@
 Simple tests for GitignoreManager that can run without pytest.
 """
 
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -71,7 +70,7 @@ def test_all_agents_protected():
         tmppath = Path(tmpdir)
         manager = GitignoreManager(tmppath)
 
-        result = manager.protect_all_agents()
+        manager.protect_all_agents()
 
         expected_dirs = [
             ".claude/", ".codex/", ".opencode/", ".windsurf/",

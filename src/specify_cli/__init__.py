@@ -121,13 +121,17 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
                         continue
             except Exception:
                 continue
-            st = script.stat(); mode = st.st_mode
+            st = script.stat()
+            mode = st.st_mode
             if mode & 0o111:
                 continue
             new_mode = mode
-            if mode & 0o400: new_mode |= 0o100
-            if mode & 0o040: new_mode |= 0o010
-            if mode & 0o004: new_mode |= 0o001
+            if mode & 0o400:
+                new_mode |= 0o100
+            if mode & 0o040:
+                new_mode |= 0o010
+            if mode & 0o004:
+                new_mode |= 0o001
             if not (new_mode & 0o100):
                 new_mode |= 0o100
             os.chmod(script, new_mode)
@@ -178,7 +182,7 @@ def main():
 
     app()
 
-__all__ = ["main", "app", "__version__"]
+__all__ = ["main", "app", "__version__", "MissionNotFoundError"]
 
 if __name__ == "__main__":
     main()

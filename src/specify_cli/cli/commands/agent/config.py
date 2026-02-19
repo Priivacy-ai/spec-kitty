@@ -300,7 +300,7 @@ def agent_status():
             f"\n[yellow]⚠ {len(orphaned)} orphaned directories found[/yellow] "
             f"(present but not configured)"
         )
-        console.print(f"Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
+        console.print("Run 'spec-kitty agent config sync --remove-orphaned' to clean up")
 
 
 @app.command(name="sync")

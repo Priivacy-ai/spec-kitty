@@ -13,11 +13,10 @@ from pathlib import Path
 import pytest
 
 from specify_cli.status.emit import TransitionError, emit_status_transition
-from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize, materialize_to_json, reduce
+from specify_cli.status.models import Lane
+from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize, materialize_to_json
 from specify_cli.status.store import EVENTS_FILENAME, read_events, read_events_raw
 from specify_cli.status.validate import (
-    validate_done_evidence,
     validate_event_schema,
     validate_materialization_drift,
     validate_transition_legality,

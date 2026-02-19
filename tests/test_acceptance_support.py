@@ -152,7 +152,7 @@ def test_required_fields_still_enforced(feature_repo: Path, feature_slug: str) -
         "Lane should still be required"
 
     # Test missing agent - move to doing first, then remove agent field manually
-    front_orig = wp_path.read_text(encoding="utf-8")
+    wp_path.read_text(encoding="utf-8")
     run_tasks_cli(["update", feature_slug, "WP01", "doing", "--force"], cwd=feature_repo)
     run(["git", "commit", "-am", "Move to doing"], cwd=feature_repo)
 

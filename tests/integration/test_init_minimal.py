@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
 
 # Ensure src is on the path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -559,7 +557,6 @@ class TestScratchDirNotLegacy:
         (project / ".kittify").mkdir(parents=True)
 
         # Place a unique template ONLY in .scratch (not in the proper legacy dir)
-        import shutil
         scratch = project / ".kittify" / ".scratch" / "command-templates"
         scratch.mkdir(parents=True)
         (scratch / "unique-scratch-only.md").write_text("# Should not be found via resolver\n")

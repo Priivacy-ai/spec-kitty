@@ -21,7 +21,7 @@ User journeys in this directory serve three roles:
 
 ## Template
 
-Journeys follow the [User Journey Template](../../src/specify_cli/missions/design/templates/user-journey-template.md),
+Journeys follow the [User Journey Template](../../src/doctrine/templates/architecture/user-journey-template.md),
 which captures:
 
 - **Actors** (with type annotations and persona links)

@@ -11,7 +11,6 @@ from pathlib import Path
 import pytest
 
 from specify_cli.core.stale_detection import (
-    StaleCheckResult,
     check_wp_staleness,
     get_default_branch,
     get_last_meaningful_commit_time,

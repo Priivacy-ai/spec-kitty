@@ -14,9 +14,8 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from specify_cli.runtime.home import get_package_asset_root
 from specify_cli.runtime.resolver import (
-    ResolutionTier,
     resolve_command,
     resolve_mission,
     resolve_template,

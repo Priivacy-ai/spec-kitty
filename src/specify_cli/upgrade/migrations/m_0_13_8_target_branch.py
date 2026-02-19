@@ -106,7 +106,7 @@ class TargetBranchMigration(BaseMigration):
                             ):
                                 target_branch = "2.x"
                                 warnings.append(
-                                    f"Feature 025 auto-detected as 2.x target from spec.md"
+                                    "Feature 025 auto-detected as 2.x target from spec.md"
                                 )
                         except OSError:
                             # Can't read spec, use default

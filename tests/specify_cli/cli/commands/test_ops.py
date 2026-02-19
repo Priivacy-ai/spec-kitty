@@ -6,7 +6,6 @@ Tests operation history and undo functionality for both git and jj backends.
 
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest

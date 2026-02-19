@@ -2,11 +2,14 @@ vcs:
   type: git
 agents:
   available:
+  - copilot
   - claude
-  - opencode
+  - gemini
+  - cursor
   - codex
   selection:
-    preferred_implementer: claude
+    strategy: preferred
+    preferred_implementer: copilot
     preferred_reviewer: codex
 project:
   uuid: 8a4a7da6-a97c-4bb4-893a-b31664abfee4

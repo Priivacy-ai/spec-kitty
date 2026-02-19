@@ -11,17 +11,12 @@ Covers:
 
 from __future__ import annotations
 
-import re
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from specify_cli.sync.emitter import (
     EventEmitter,
-    VALID_EVENT_TYPES,
-    VALID_AGGREGATE_TYPES,
     _ULID_PATTERN,
-    _WP_ID_PATTERN,
     _load_contract_schema,
 )
 from specify_cli.sync.events import (
@@ -738,7 +733,6 @@ class TestInternalValidation:
         )
 
         # Monkey-patch _validate_event to raise
-        original = em._validate_event
         em._validate_event = MagicMock(side_effect=Exception("boom"))
 
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")

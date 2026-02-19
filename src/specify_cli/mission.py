@@ -548,7 +548,7 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
         kittify_dir = Path.cwd() / ".kittify"
 
     # Validate mission exists
-    mission = get_mission_by_name(mission_name, kittify_dir)
+    get_mission_by_name(mission_name, kittify_dir)
 
     # Create or update symlink
     active_mission_link = kittify_dir / "active-mission"
