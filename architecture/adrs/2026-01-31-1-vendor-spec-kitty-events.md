@@ -142,6 +142,34 @@ Confidence level: **High** - This is standard practice for Python packages that 
 * Testing complexity - must test both with and without events installed
 * Documentation burden - must explain optional installation clearly
 
+## Addendum: SimpleJsonStore — File-Backed EventStore Implementation (2026-02-15)
+
+**Context:** Feature 043 (Telemetry Foundation) requires persisting `ExecutionEvent` records to disk. The vendored `spec_kitty_events` library provides an `EventStore` ABC (`save_event`, `load_events`, `load_all_events`) but only ships with `InMemoryEventStore` — no durable storage adapter was ever implemented. The `events/store.py` adapter layer contains a stub marked "will be implemented in WP02" that was never completed.
+
+**Decision:** Implement `SimpleJsonStore` in `src/specify_cli/telemetry/store.py` as a JSONL-backed `EventStore` that completes the vendored library's storage story.
+
+**Key design choices:**
+
+| Choice | Decision | Rationale |
+|--------|----------|-----------|
+| Storage format | JSONL (one JSON object per line, `sort_keys=True`) | Consistent with `status/store.py`, `mission_v1/events.py`, `sync/queue.py` |
+| File location | Per-feature: `kitty-specs/<feature>/execution.events.jsonl` | Collocated with feature artifacts; `aggregate_id` maps to feature slug |
+| Separation from status | Separate file from `status.events.jsonl` | Future aggregation is easier than categorizing mixed event types; status pipeline untouched |
+| Write semantics | Append-only, idempotent by `event_id` | Single-process CLI — no file locking needed; dedup prevents double-writes |
+| Read semantics | Stream-parsed (line-by-line) | Handles >100MB files without loading into memory |
+| Malformed lines | Skip with warning, continue parsing | Consistent with existing `read_events()` behavior in `status/store.py` |
+| Sort order | `(lamport_clock, node_id)` | Matches `InMemoryEventStore` and the merge semantics in ADR 2026-02-09-3 |
+
+**Merge strategy for `execution.events.jsonl`:** Append-only logs with ULID-based `event_id` are naturally conflict-free during git merges. The concatenate-dedupe-sort-reduce algorithm from ADR 2026-02-09-3 applies if needed, but in practice execution events are immutable and written once per invocation — no concurrent modifications to the same event.
+
+**Downstream consumers:** Features 044 (GovernanceEvents) and 046 (routing decisions) will reuse `SimpleJsonStore` for their own event types, establishing it as the standard file-backed persistence layer for the `spec_kitty_events.Event` model.
+
+**Files:**
+- `src/specify_cli/telemetry/store.py` — `SimpleJsonStore` implementing `spec_kitty_events.EventStore`
+- `tests/specify_cli/telemetry/test_store.py` — unit tests
+
+---
+
 ## More Information
 
 **Related Decisions:**

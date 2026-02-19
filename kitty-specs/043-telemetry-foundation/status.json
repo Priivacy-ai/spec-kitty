@@ -1,0 +1,52 @@
+{
+  "event_count": 15,
+  "feature_slug": "043-telemetry-foundation",
+  "last_event_id": "01KHHKWCVH0H334ZNDFX40KSED",
+  "materialized_at": "2026-02-15T21:39:06.738035+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KHHFE980YK26NJFKKQB8GJF2",
+      "last_transition_at": "2026-02-15T20:21:29.985021+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KHHJJ7BR98QNS64YGGJ7NWKD",
+      "last_transition_at": "2026-02-15T21:16:04.856909+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KHHJJ8AYWS6ZGZF31R1GNAYM",
+      "last_transition_at": "2026-02-15T21:16:05.854933+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KHHJJ95ZW9KR84639GAF9YS2",
+      "last_transition_at": "2026-02-15T21:16:06.719528+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KHHKWCVH0H334ZNDFX40KSED",
+      "last_transition_at": "2026-02-15T21:39:06.737355+00:00"
+    }
+  }
+}
