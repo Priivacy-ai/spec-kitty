@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/markdownlint-cli2.json",
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD033": false,
+    "MD041": false
+  },
+  "ignores": [
+    ".git/**",
+    ".venv/**",
+    ".worktrees/**",
+    "node_modules/**"
+  ]
+}

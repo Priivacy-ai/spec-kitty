@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# commit-msg hook to enforce conventional commit messages via commitlint.
+
+set -euo pipefail
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+MSG_FILE="${1:-}"
+
+if [ -z "$MSG_FILE" ] || [ ! -f "$MSG_FILE" ]; then
+    echo -e "${RED}❌ Commit blocked: commit message file not found.${NC}"
+    exit 1
+fi
+
+# Integration tests run in offline-isolated environments where node tools
+# are intentionally unavailable.
+if [ "${SPEC_KITTY_TEST_MODE:-}" = "1" ]; then
+    exit 0
+fi
+
+if ! command -v npx >/dev/null 2>&1; then
+    echo -e "${RED}❌ Commit blocked: npx is required for commit message linting.${NC}"
+    echo "Install Node.js (includes npx) to enforce commit conventions."
+    exit 1
+fi
+
+if ! npx --no-install @commitlint/cli --config commitlint.config.cjs --edit "$MSG_FILE"; then
+    echo ""
+    echo -e "${YELLOW}Expected format:${NC} type(scope): short summary"
+    echo "Example: feat(doctrine): add markdown and commit quality gates"
+    echo "Install local dev dependencies first (for example: npm install)."
+    echo ""
+    echo -e "${YELLOW}Bypass (not recommended):${NC} git commit --no-verify"
+    exit 1
+fi
+
+exit 0

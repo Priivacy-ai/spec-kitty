@@ -1,4 +1,4 @@
-"""Migration: Install encoding validation pre-commit hooks."""
+"""Migration: Install git quality hooks."""
 
 from __future__ import annotations
 
@@ -11,31 +11,39 @@ from .base import BaseMigration, MigrationResult
 
 @MigrationRegistry.register
 class EncodingHooksMigration(BaseMigration):
-    """Install encoding validation pre-commit hooks.
+    """Install git quality hooks.
 
-    This migration installs git hooks that validate file encoding
-    before commits, preventing encoding issues from being committed.
+    This migration installs git hooks that validate encoding,
+    markdown style, agent-directory protection, and commit-message
+    conventions before commits are accepted.
     """
 
     migration_id = "0.5.0_encoding_hooks"
-    description = "Install encoding validation pre-commit hooks"
+    description = "Install git quality hooks"
     target_version = "0.5.0"
 
     HOOK_FILES = [
         "pre-commit",
         "pre-commit-encoding-check",
+        "pre-commit-markdown-check",
         "pre-commit-agent-check",
+        "commit-msg",
     ]
 
     def detect(self, project_path: Path) -> bool:
-        """Check if encoding hooks are missing."""
+        """Check if expected quality hooks are missing."""
         git_dir = project_path / ".git"
         if not git_dir.exists():
             return False  # Not a git repo, can't install hooks
 
-        pre_commit = git_dir / "hooks" / "pre-commit"
+        hooks_dir = git_dir / "hooks"
+        pre_commit = hooks_dir / "pre-commit"
         if not pre_commit.exists():
             return True
+
+        for hook_name in self.HOOK_FILES:
+            if not (hooks_dir / hook_name).exists():
+                return True
 
         try:
             content = pre_commit.read_text(encoding="utf-8", errors="ignore")
@@ -63,7 +71,10 @@ class EncodingHooksMigration(BaseMigration):
                 return False, "Cannot read existing pre-commit hook"
 
             # Check if it's our hook
-            if "spec-kitty" not in content.lower() and "encoding" not in content.lower():
+            if (
+                "spec-kitty" not in content.lower()
+                and "encoding" not in content.lower()
+            ):
                 # It's a custom hook - warn but allow (will append)
                 pass
 

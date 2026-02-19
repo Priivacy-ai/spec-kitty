@@ -100,7 +100,7 @@ class GitignoreManager:
         self.project_path = project_path
         self.gitignore_path = project_path / ".gitignore"
         self.marker = "# Added by Spec Kitty CLI (auto-managed)"
-        self._line_ending = None
+        self._line_ending: str = os.linesep
 
     def ensure_entries(self, entries: List[str]) -> bool:
         """
@@ -213,7 +213,6 @@ class GitignoreManager:
             if self.gitignore_path.exists():
                 content = self.gitignore_path.read_text(encoding="utf-8-sig")
                 existing_before = set(content.splitlines())
-
 
             # Attempt to add all directories
             modified = self.ensure_entries(all_directories)

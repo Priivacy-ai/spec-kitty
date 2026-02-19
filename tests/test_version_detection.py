@@ -54,6 +54,9 @@ def get_venv_metadata_version() -> str:
     """Get the spec-kitty-cli version from the test venv's metadata."""
     metadata_version = get_installed_version()
     if metadata_version is None:
+        venv_dir = os.getenv("SPEC_KITTY_TEST_VENV")
+        if venv_dir and (Path(venv_dir) / ".offline-fallback").exists():
+            pytest.skip("Package metadata is unavailable in offline fallback test venv")
         raise RuntimeError("Could not read package metadata from test venv")
     return metadata_version
 

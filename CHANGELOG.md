@@ -7,7 +7,10 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.1a1] - 2026-02-18
+
+**ACTIVE DEVELOPEMENT: Work in progress.**  
+This release is a continuation of the `2.x` development cycle, see [ADR 2026-01-27](./architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md). The release focusses on improving the Event-based backbone of the Spec Kitty application, and extending the Governance layer to include the [Doctrine Stack](glossary/contexts/doctrine.md) approach. This includes setting up rich Agent Profiles, a repository of behavioural patterns, and new lifecycle commands.
 
 ### 🐛 Fixed
 

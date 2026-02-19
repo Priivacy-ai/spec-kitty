@@ -529,11 +529,17 @@ Spec Kitty automatically protects you with multiple layers:
 **During `spec-kitty init`:**
 
 - ✅ Adds all 12 agent directories to `.gitignore`
-- ✅ Installs pre-commit hooks that block commits containing agent files
+- ✅ Installs git hooks for early quality checks (encoding, markdown style, agent directories, commit message linting)
 - ✅ Creates `.claudeignore` to optimize AI scanning (excludes `.kittify/` templates)
 
-**Pre-commit Hook Protection:**
-The installed pre-commit hook will block any commit that includes files from:
+**Hook Protection:**
+Installed hooks validate:
+- Markdown encoding (`pre-commit-encoding-check`)
+- Markdown style on staged files (`pre-commit-markdown-check`)
+- Agent directory leakage (`pre-commit-agent-check`)
+- Commit message convention (`commit-msg` via commitlint)
+
+The pre-commit agent guard blocks any commit that includes files from:
 `.claude/`, `.codex/`, `.gemini/`, `.cursor/`, `.qwen/`, `.opencode/`,
 `.windsurf/`, `.kilocode/`, `.augment/`, `.roo/`, `.amazonq/`, `.github/copilot/`
 

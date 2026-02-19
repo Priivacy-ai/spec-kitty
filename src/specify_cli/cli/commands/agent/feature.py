@@ -1061,7 +1061,7 @@ def merge_feature(
         if repo_root is None:
             error = "Could not locate project root"
             print(json.dumps({"error": error, "success": False}))
-            sys.exit(1)
+            raise typer.Exit(1)
 
         # Resolve target branch dynamically if not specified
         if target is None:

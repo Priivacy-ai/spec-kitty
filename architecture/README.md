@@ -34,6 +34,7 @@ architecture/
     ├── 2026-01-25-7-research-deliverables-separation.md
     ├── 2026-01-25-8-deterministic-csv-schema-enforcement.md
     ├── 2026-01-26-9-worktree-cleanup-at-merge-not-eager.md
+    ├── 2026-01-27-1-centralized-feature-detection.md
     ├── 2026-01-27-10-per-feature-mission-selection.md
     ├── 2026-01-27-11-dual-repository-pattern.md
     ├── 2026-01-27-12-two-branch-strategy-for-saas-transformation.md
@@ -48,7 +49,8 @@ architecture/
     ├── 2026-02-09-1-canonical-wp-status-model.md
     ├── 2026-02-09-2-wp-lifecycle-state-machine.md
     ├── 2026-02-09-3-event-log-merge-semantics.md
-    └── 2026-02-09-4-cross-repo-evidence-completion.md
+    ├── 2026-02-09-4-cross-repo-evidence-completion.md
+    └── 2026-02-18-1-standardized-automated-quality-gates-for-agentic-development.md
 ```
 
 ADR template (canonical):
@@ -142,6 +144,7 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-01-25-8](adrs/2026-01-25-8-cli-first-command-interface.md) | CLI-First Command Interface | Accepted | CLI/Automation |
 | [2026-01-25-8](adrs/2026-01-25-8-deterministic-csv-schema-enforcement.md) | Deterministic CSV Schema Enforcement | Accepted | Research Mission |
 | [2026-01-26-9](adrs/2026-01-26-9-worktree-cleanup-at-merge-not-eager.md) | Worktree Cleanup at Merge, Not Eager | Accepted | Git Repository Management |
+| [2026-01-27-1](adrs/2026-01-27-1-centralized-feature-detection.md) | Centralized Feature Detection | Accepted | CLI/Automation |
 | [2026-01-27-10](adrs/2026-01-27-10-per-feature-mission-selection.md) | Per-Feature Mission Selection | Accepted | Mission System |
 | [2026-01-27-11](adrs/2026-01-27-11-dual-repository-pattern.md) | Dual-Repository Pattern for Private Dependency | Accepted | Dependency Management |
 | [2026-01-27-12](adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md) | Two-Branch Strategy for SaaS Transformation | Accepted | Release Strategy |
@@ -157,6 +160,7 @@ Create an ADR for every **architecturally significant decision**, including:
 | [2026-02-09-2](adrs/2026-02-09-2-wp-lifecycle-state-machine.md) | WP Lifecycle State Machine (7-Lane) | Accepted | Status & State Management |
 | [2026-02-09-3](adrs/2026-02-09-3-event-log-merge-semantics.md) | Event-Log Merge Semantics (Rollback-Aware) | Accepted | Status & State Management |
 | [2026-02-09-4](adrs/2026-02-09-4-cross-repo-evidence-completion.md) | Cross-Repo Evidence-Based Completion | Accepted | Status & State Management |
+| [2026-02-18-1](adrs/2026-02-18-1-standardized-automated-quality-gates-for-agentic-development.md) | Standardized Automated Quality Gates for Agentic Development | Accepted | Quality Automation |
 
 ### By Topic
 
@@ -190,6 +194,9 @@ Create an ADR for every **architecturally significant decision**, including:
 - 7-lane WP lifecycle state machine with guard conditions (2026-02-09-2)
 - Rollback-aware event-log merge semantics (2026-02-09-3)
 - Cross-repo evidence-based completion with reconciliation (2026-02-09-4)
+
+**Quality Automation** (ADR 2026-02-18-1)
+- Standardized deterministic quality gates across pre-commit, commit-msg, and CI checks (2026-02-18-1)
 
 **Status:** Core architecture documented ✅ (49 tests covering latest ADRs)
 
