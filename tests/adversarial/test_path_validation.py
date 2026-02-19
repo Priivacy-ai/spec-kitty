@@ -203,7 +203,7 @@ class TestSpecialPaths:
             is_valid, error = validate_deliverables_path(null_path)
             if is_valid:
                 pytest.xfail("Null byte paths not blocked in current implementation")
-            assert not is_valid, f"Null byte path should be rejected"
+            assert not is_valid, "Null byte path should be rejected"
 
     def test_project_root_rejected(self):
         """Empty path (project root) should be rejected as ambiguous."""

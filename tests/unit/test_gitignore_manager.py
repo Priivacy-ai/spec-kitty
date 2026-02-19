@@ -109,7 +109,7 @@ class TestGitignoreManager:
 
     def test_protect_all_agents_includes_all_agents(self, manager):
         """Test that all 12 agent directories are protected."""
-        result = manager.protect_all_agents()
+        manager.protect_all_agents()
 
         expected_dirs = [
             ".claude/", ".codex/", ".opencode/", ".windsurf/",

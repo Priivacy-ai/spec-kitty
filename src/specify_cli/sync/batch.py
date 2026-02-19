@@ -6,7 +6,7 @@ and JSON failure report export.
 import gzip
 import json
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -523,7 +523,7 @@ def sync_all_queued_events(
             break
 
     if show_progress:
-        print(f"\n=== Sync Complete ===")
+        print("\n=== Sync Complete ===")
         print(format_sync_summary(total_result))
         if queue.size() > 0:
             print(f"Remaining in queue: {queue.size()} events")

@@ -10,7 +10,7 @@ from typing import Iterator
 
 import pytest
 
-from tests.utils import REPO_ROOT, run, run_tasks_cli, write_wp
+from tests.utils import REPO_ROOT, run, write_wp
 
 
 def pytest_configure(config: pytest.Config) -> None:

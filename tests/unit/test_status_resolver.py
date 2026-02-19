@@ -9,9 +9,7 @@ Tests the auto-resolution of status file conflicts including:
 
 from __future__ import annotations
 
-from pathlib import Path
 
-import pytest
 
 from specify_cli.merge.status_resolver import (
     LANE_PRIORITY,

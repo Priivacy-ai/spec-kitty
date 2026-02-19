@@ -11,17 +11,22 @@ import pytest
 def test_no_bash_script_references_in_bundled_templates():
     """Ensure bundled templates don't reference deleted bash scripts."""
     spec_kitty_root = Path(__file__).parent.parent
-    templates_dir = spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates"
-
-    if not templates_dir.exists():
-        pytest.skip(f"Templates directory not found: {templates_dir}")
+    template_dirs = [
+        spec_kitty_root / "src" / "doctrine" / "templates" / "command-templates",
+        *sorted((spec_kitty_root / "src" / "doctrine" / "missions").glob("*/command-templates")),
+        *sorted((spec_kitty_root / "src" / "specify_cli" / "missions").glob("*/command-templates")),
+    ]
+    template_dirs = [p for p in template_dirs if p.exists()]
+    if not template_dirs:
+        pytest.skip("No command template directories found")
 
     bash_references = []
 
-    for template in templates_dir.glob("*.md"):
-        content = template.read_text(encoding="utf-8")
-        if "scripts/bash/" in content or ".kittify/scripts/bash/" in content:
-            bash_references.append(template.name)
+    for template_dir in template_dirs:
+        for template in template_dir.glob("*.md"):
+            content = template.read_text(encoding="utf-8")
+            if "scripts/bash/" in content or ".kittify/scripts/bash/" in content:
+                bash_references.append(str(template.relative_to(spec_kitty_root)))
 
     assert len(bash_references) == 0, (
         f"Bash script references found in templates to be bundled: {bash_references}. "
@@ -132,8 +137,8 @@ def test_wheel_bundles_templates_correctly():
         result = subprocess.run(
             [str(python), "-c",
              "from importlib.resources import files; "
-             "t = files('specify_cli').joinpath('templates'); "
-             "print(list(t.iterdir()))"],
+             "t = files('doctrine').joinpath('templates'); "
+             "print([p.name for p in t.iterdir()])"],
             capture_output=True,
             text=True
         )

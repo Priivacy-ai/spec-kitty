@@ -12,7 +12,6 @@ and adds VCS abstraction layer functionality.
 
 from __future__ import annotations
 
-import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,7 +32,7 @@ from .types import (
 )
 
 # Import existing git helpers where they provide reusable functionality
-from ..git_ops import get_current_branch, is_git_repo, run_command
+from ..git_ops import get_current_branch, is_git_repo
 
 
 class GitVCS:
@@ -1342,7 +1341,7 @@ def git_get_reflog(repo_path: Path, limit: int = 20) -> list[OperationInfo]:
                     continue
 
                 commit_id = parts[0]
-                ref = parts[1]
+                parts[1]
                 description = parts[2]
                 timestamp_str = parts[3]
 

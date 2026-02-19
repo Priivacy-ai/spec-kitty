@@ -83,7 +83,7 @@ class UpdateSlashCommandsMigration(BaseMigration):
         errors: List[str] = []
 
         missions_dir = project_path / ".kittify" / "missions"
-        claude_commands = project_path / ".claude" / "commands"
+        project_path / ".claude" / "commands"
 
         # Find mission templates
         command_templates_dir = None

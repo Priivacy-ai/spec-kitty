@@ -124,7 +124,7 @@ def update_context(
                 print(json.dumps({"error": error_msg, "success": False}))
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-                console.print(f"[yellow]Hint:[/yellow] Run /spec-kitty.plan to create plan.md first")
+                console.print("[yellow]Hint:[/yellow] Run /spec-kitty.plan to create plan.md first")
             sys.exit(1)
 
         # Verify agent file exists

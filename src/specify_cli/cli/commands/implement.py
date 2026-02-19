@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import functools
 import json
-import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,7 +20,6 @@ from specify_cli.core.dependency_graph import (
 from specify_cli.core.vcs import (
     get_vcs,
     VCSBackend,
-    VCSLockError,
 )
 from specify_cli.frontmatter import read_frontmatter, update_fields
 from specify_cli.tasks_support import (
@@ -183,7 +181,7 @@ def validate_workspace_path(workspace_path: Path, wp_id: str) -> bool:
         return True  # Reuse existing
 
     # Directory exists but not a worktree
-    console.print(f"[red]Error:[/red] Directory exists but is not a valid worktree")
+    console.print("[red]Error:[/red] Directory exists but is not a valid worktree")
     console.print(f"Path: {workspace_path}")
     console.print(f"Remove manually: rm -rf {workspace_path}")
     raise typer.Exit(1)
@@ -316,7 +314,7 @@ def check_for_dependents(
             continue
 
     if incomplete_deps:
-        console.print(f"\n[yellow]⚠️  Dependency Alert:[/yellow]")
+        console.print("\n[yellow]⚠️  Dependency Alert:[/yellow]")
         console.print(f"{', '.join(incomplete_deps)} depend on {wp_id} (not yet done)")
         console.print("If you modify this WP, dependent WPs will need manual rebase:")
         for dep_id in incomplete_deps:
@@ -394,7 +392,7 @@ def _ensure_planning_artifacts_committed_git(
                     files_to_commit.append(filepath)
 
         if files_to_commit:
-            console.print(f"\n[cyan]Planning artifacts not committed:[/cyan]")
+            console.print("\n[cyan]Planning artifacts not committed:[/cyan]")
             for f in files_to_commit:
                 console.print(f"  {f}")
 
@@ -420,7 +418,7 @@ def _ensure_planning_artifacts_committed_git(
                 check=False
             )
             if result.returncode != 0:
-                console.print(f"[red]Error:[/red] Failed to stage files")
+                console.print("[red]Error:[/red] Failed to stage files")
                 console.print(result.stderr)
                 raise typer.Exit(1)
 
@@ -436,7 +434,7 @@ def _ensure_planning_artifacts_committed_git(
                 check=False
             )
             if result.returncode != 0:
-                console.print(f"[red]Error:[/red] Failed to commit")
+                console.print("[red]Error:[/red] Failed to commit")
                 console.print(result.stderr)
                 raise typer.Exit(1)
 
@@ -619,14 +617,14 @@ def implement(
                 raise typer.Exit(1)
 
             # Auto-merge mode: Create merge commit combining all dependencies
-            console.print(f"\n[cyan]Multi-parent dependency detected:[/cyan]")
+            console.print("\n[cyan]Multi-parent dependency detected:[/cyan]")
             console.print(f"  {wp_id} depends on: {', '.join(declared_deps)}")
 
             if dep_status.all_done:
-                console.print(f"  [yellow]Warning:[/yellow] All dependencies done - merge conflicts likely")
-                console.print(f"  Attempting auto-merge (use merge command for safer workflow)...")
+                console.print("  [yellow]Warning:[/yellow] All dependencies done - merge conflicts likely")
+                console.print("  Attempting auto-merge (use merge command for safer workflow)...")
             else:
-                console.print(f"  Auto-creating merge base combining all dependencies...")
+                console.print("  Auto-creating merge base combining all dependencies...")
 
             auto_merge_base = True
             # Will create merge base after validation completes
@@ -669,8 +667,8 @@ def implement(
                     console.print(tracker.render())
                     console.print(f"\n[red]Error:[/red] Base workspace {base} does not exist")
                     console.print(f"Status: {base} is in '{base_lane}' lane but workspace missing")
-                    console.print(f"\nPossible causes:")
-                    console.print(f"  - Workspace was deleted manually")
+                    console.print("\nPossible causes:")
+                    console.print("  - Workspace was deleted manually")
                     console.print(f"  - {base} needs to be implemented first: spec-kitty implement {base}")
                     raise typer.Exit(1)
 
@@ -702,7 +700,7 @@ def implement(
             feature_dir = repo_root / "kitty-specs" / feature_slug
             if not feature_dir.exists():
                 console.print(f"\n[red]Error:[/red] Feature directory not found: {feature_dir}")
-                console.print(f"Run /spec-kitty.specify first")
+                console.print("Run /spec-kitty.specify first")
                 raise typer.Exit(1)
 
             # Get VCS backend (auto-detect or from meta.json)
@@ -758,11 +756,11 @@ def implement(
                     display_rebase_warning(workspace_path, wp_id, base_branch, feature_slug)
                 else:
                     # No explicit base, but workspace is stale (base changed)
-                    console.print(f"\n[yellow]⚠️  Workspace is stale (base has changed)[/yellow]")
+                    console.print("\n[yellow]⚠️  Workspace is stale (base has changed)[/yellow]")
                     if vcs_backend == VCSBackend.JUJUTSU:
                         console.print("Run [bold]jj workspace update-stale[/bold] to sync")
                     else:
-                        console.print(f"Consider rebasing if needed")
+                        console.print("Consider rebasing if needed")
 
             # Check for dependent WPs (T079)
             check_for_dependents(repo_root, feature_slug, wp_id)
@@ -771,7 +769,7 @@ def implement(
 
         # Validate workspace path doesn't exist as a non-workspace directory
         if workspace_path.exists():
-            console.print(f"[red]Error:[/red] Directory exists but is not a valid workspace")
+            console.print("[red]Error:[/red] Directory exists but is not a valid workspace")
             console.print(f"Path: {workspace_path}")
             console.print(f"Remove manually: rm -rf {workspace_path}")
             raise typer.Exit(1)
@@ -805,15 +803,15 @@ def implement(
                 if not merge_result.success:
                     tracker.error("create", "merge base creation failed")
                     console.print(tracker.render())
-                    console.print(f"\n[red]Error:[/red] Failed to create merge base")
+                    console.print("\n[red]Error:[/red] Failed to create merge base")
                     console.print(f"Reason: {merge_result.error}")
 
                     if merge_result.conflicts:
-                        console.print(f"\n[yellow]Conflicts in:[/yellow]")
+                        console.print("\n[yellow]Conflicts in:[/yellow]")
                         for conflict_file in merge_result.conflicts:
                             console.print(f"  - {conflict_file}")
 
-                    console.print(f"\n[yellow]Recovery options:[/yellow]")
+                    console.print("\n[yellow]Recovery options:[/yellow]")
                     console.print("1. Pick a dependency as the base, then merge the others in the worktree:")
                     console.print(f"   spec-kitty implement {wp_id} --base <WPxx>")
                     console.print(f"   cd .worktrees/{feature_slug}-{wp_id}")
@@ -899,7 +897,7 @@ def implement(
             try:
                 base_wp = locate_work_package(repo_root, feature_slug, base)
                 base_lane = base_wp.lane or "planned"
-            except Exception as e:
+            except Exception:
                 # Base WP file not found
                 tracker.error("create", f"base WP {base} not found")
                 console.print(tracker.render())
@@ -926,8 +924,8 @@ def implement(
                     console.print(tracker.render())
                     console.print(f"[red]Error:[/red] Base workspace {base} does not exist")
                     console.print(f"Status: {base} is in '{base_lane}' lane but workspace missing")
-                    console.print(f"\nPossible causes:")
-                    console.print(f"  - Workspace was deleted manually")
+                    console.print("\nPossible causes:")
+                    console.print("  - Workspace was deleted manually")
                     console.print(f"  - {base} needs to be implemented first: spec-kitty implement {base}")
                     raise typer.Exit(1)
 
@@ -971,7 +969,7 @@ def implement(
         if not create_result.success:
             tracker.error("create", "workspace creation failed")
             console.print(tracker.render())
-            console.print(f"\n[red]Error:[/red] Failed to create workspace")
+            console.print("\n[red]Error:[/red] Failed to create workspace")
             console.print(f"Error: {create_result.error}")
             raise typer.Exit(1)
 
@@ -1097,7 +1095,7 @@ def implement(
                 console.print(f"[cyan]→ {wp_id} moved to 'doing' (committed to {resolution.current})[/cyan]")
             else:
                 # Commit failed - file might be unchanged or other issue
-                console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change")
+                console.print("[yellow]Warning:[/yellow] Could not auto-commit lane change")
 
             # Emit event for 2.x (with sync integration)
             if lane_changed:
@@ -1138,7 +1136,7 @@ def implement(
     else:
         # Human-readable output
         console.print(tracker.render())
-        console.print(f"\n[bold green]✓ Workspace created successfully[/bold green]")
+        console.print("\n[bold green]✓ Workspace created successfully[/bold green]")
 
         # Check for dependent WPs after creation (T079)
         check_for_dependents(repo_root, feature_slug, wp_id)

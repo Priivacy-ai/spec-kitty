@@ -1,7 +1,7 @@
 """Tests for WebSocket client reconnection with exponential backoff"""
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 from specify_cli.sync.client import WebSocketClient, ConnectionStatus
 
 

@@ -25,5 +25,20 @@ properties:
     type: array
     minItems: 1
     items:
-      type: string
-      minLength: 1
+      type: object
+      additionalProperties: false
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        examples:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1

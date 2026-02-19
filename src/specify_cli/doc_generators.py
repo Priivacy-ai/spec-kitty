@@ -12,7 +12,7 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Protocol
 
 
 class DocGenerator(Protocol):
@@ -187,7 +187,7 @@ class JSDocGenerator:
         """
         source_dir = options.get("source_dir", "src/")
         template = options.get("template", "docdash")
-        project_name = options.get("project_name", "Project")
+        options.get("project_name", "Project")
 
         config = {
             "source": {
@@ -538,7 +538,7 @@ rustdoc is configured via Cargo.toml. Add the following to your Cargo.toml:
 ```toml
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["{f"--document-private-items" if document_private else ""}"]
+rustdoc-args = ["{"--document-private-items" if document_private else ""}"]
 ```
 
 This configuration:

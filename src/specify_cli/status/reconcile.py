@@ -23,7 +23,6 @@ from specify_cli.status.reducer import reduce, SNAPSHOT_FILENAME
 from specify_cli.status.store import read_events
 from specify_cli.status.transitions import (
     ALLOWED_TRANSITIONS,
-    TERMINAL_LANES,
     is_terminal,
     validate_transition,
 )
@@ -459,7 +458,7 @@ def reconcile(
         try:
             events = read_events(feature_dir)
             snapshot = reduce(events)
-        except Exception as exc:
+        except Exception:
             # No events either -- empty snapshot (all WPs effectively planned)
             snapshot = StatusSnapshot(
                 feature_slug=feature_slug,

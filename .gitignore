@@ -99,6 +99,7 @@ out/reports/**
 
 src/doctrine/curation/imports/**
 !src/doctrine/curation/imports/.gitkeep
+!src/doctrine/curation/imports/example-zombies
 
 work
 out

@@ -9,7 +9,6 @@ Expected: When workflow/planning commands complete, an ExecutionEvent is appende
 execution.events.jsonl with agent, model, tokens, cost, and duration.
 """
 
-from pathlib import Path
 import json
 import pytest
 from typer.testing import CliRunner

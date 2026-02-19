@@ -9,7 +9,7 @@ It replaces the fragmented approach where only .codex/ was protected.
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import List
 
 
 @dataclass
@@ -231,7 +231,7 @@ class GitignoreManager:
                         else:
                             result.entries_skipped.append(directory)
 
-        except PermissionError as e:
+        except PermissionError:
             result.success = False
             result.errors.append(
                 f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"
@@ -294,7 +294,7 @@ class GitignoreManager:
                         else:
                             result.entries_skipped.append(directory)
 
-        except PermissionError as e:
+        except PermissionError:
             result.success = False
             result.errors.append(
                 f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"

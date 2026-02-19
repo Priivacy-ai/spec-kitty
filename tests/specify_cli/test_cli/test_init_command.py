@@ -15,7 +15,6 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
-from specify_cli.core.vcs import VCSBackend
 
 
 @pytest.fixture()

@@ -5,7 +5,6 @@ from datetime import timedelta
 from io import StringIO
 from pathlib import Path
 import tempfile
-import os
 from specify_cli.sync.queue import OfflineQueue, QueueStats
 
 
@@ -313,7 +312,7 @@ class TestOfflineQueueDefaultPath:
         with tempfile.TemporaryDirectory() as tmpdir:
             monkeypatch.setenv("HOME", tmpdir)
             expected_path = Path(tmpdir) / ".spec-kitty" / "queue.db"
-            test_queue = OfflineQueue(Path(tmpdir) / 'test.db')
+            OfflineQueue(Path(tmpdir) / 'test.db')
             # The real default path check
             default_queue = OfflineQueue()
             assert default_queue.db_path == expected_path

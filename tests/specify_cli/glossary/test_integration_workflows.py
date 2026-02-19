@@ -16,7 +16,7 @@ import time
 import pytest
 
 from specify_cli.glossary.exceptions import BlockedByConflict
-from specify_cli.glossary.models import ConflictType, Severity
+from specify_cli.glossary.models import ConflictType
 from specify_cli.glossary.pipeline import (
     GlossaryMiddlewarePipeline,
     create_standard_pipeline,

@@ -1,4 +1,3 @@
-import pytest
 from specify_cli.glossary.exceptions import (
     GlossaryError,
     BlockedByConflict,

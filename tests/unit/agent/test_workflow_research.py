@@ -194,7 +194,6 @@ class TestDeliverablesPathInPrompt:
         self, mock_slug: Mock, mock_root: Mock, research_task_file: Path, tmp_path: Path
     ):
         """The generated prompt file should contain deliverables_path for research."""
-        import tempfile
 
         repo_root = research_task_file.parent.parent.parent.parent
         mock_root.return_value = repo_root

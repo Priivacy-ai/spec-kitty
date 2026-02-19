@@ -17,7 +17,7 @@ Auto-generated from all feature plans. Last updated: [DATE]
 
 [IF SCRIPT_TYPE=powershell]
 ## PowerShell Syntax
-**⚠️ IMPORTANT**: You are in a PowerShell environment. See [.kittify/templates/POWERSHELL_SYNTAX.md](.kittify/templates/POWERSHELL_SYNTAX.md) for correct syntax.
+**⚠️ IMPORTANT**: You are in a PowerShell environment. See [.kittify/memory/templates/POWERSHELL_SYNTAX.md](.kittify/memory/templates/POWERSHELL_SYNTAX.md) for correct syntax.
 
 Quick reminders:
 - Use `-Json` not `--json`

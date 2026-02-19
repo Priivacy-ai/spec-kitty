@@ -1,9 +1,9 @@
 id: "imp-zombies-tdd-001"
 source:
   title: "ZOMBIES TDD"
-  type: "book"
-  publisher: "example"
-  url: "https://example.org/zombies-tdd"
+  type: "article"
+  publisher: "James Grenning"
+  url: "https://blog.wingman-sw.com/tdd-guided-by-zombies"
   accessed_on: "2026-02-17"
 classification:
   target_concepts:

@@ -1,8 +1,10 @@
 imports:
   - ./contexts/configuration-project-structure.glossary.yml
+  - ./contexts/doctrine.glossary.yml
   - ./contexts/events-telemetry.glossary.yml
   - ./contexts/execution.glossary.yml
   - ./contexts/governance.glossary.yml
   - ./contexts/identity.glossary.yml
   - ./contexts/orchestration.glossary.yml
   - ./contexts/practices-principles.glossary.yml
+  - ./contexts/doctrine-artifacts.glossary.yml

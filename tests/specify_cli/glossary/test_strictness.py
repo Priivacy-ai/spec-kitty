@@ -1,7 +1,6 @@
 """Tests for strictness policy system (WP05)."""
 
 import pytest
-from pathlib import Path
 from specify_cli.glossary.strictness import (
     Strictness,
     resolve_strictness,

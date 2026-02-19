@@ -44,7 +44,7 @@ def feature_with_merged_dependency(test_project: Path, run_cli):
         '{\n'
         '  "spec_number": "025",\n'
         '  "slug": "025-cli-event-log-integration",\n'
-        f'  "target_branch": "2.x"\n'
+        '  "target_branch": "2.x"\n'
         '}',
         encoding="utf-8"
     )
@@ -206,7 +206,7 @@ def test_implement_multi_parent_all_done_uses_target(test_project, run_cli):
         '{\n'
         '  "spec_number": "010",\n'
         '  "slug": "010-workspace-per-wp",\n'
-        f'  "target_branch": "main"\n'
+        '  "target_branch": "main"\n'
         '}',
         encoding="utf-8"
     )
@@ -283,7 +283,7 @@ def test_implement_in_progress_dependency_uses_workspace(test_project, run_cli):
         '{\n'
         '  "spec_number": "025",\n'
         '  "slug": "025-cli-event-log-integration",\n'
-        f'  "target_branch": "main"\n'
+        '  "target_branch": "main"\n'
         '}',
         encoding="utf-8"
     )

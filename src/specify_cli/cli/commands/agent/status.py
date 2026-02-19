@@ -424,11 +424,11 @@ def doctor(
         console.print(f"\n[bold]Feature Status: {result.feature_slug}[/bold]")
         if result.is_healthy:
             console.print(
-                f"  [green]Healthy[/green]"
+                "  [green]Healthy[/green]"
             )
         else:
             console.print(
-                f"  [yellow]Issues found[/yellow]"
+                "  [yellow]Issues found[/yellow]"
             )
             table = Table(title="Doctor Findings")
             table.add_column("Severity", style="bold")

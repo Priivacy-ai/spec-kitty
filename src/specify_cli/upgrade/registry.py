@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Type
 
 from packaging.version import Version
@@ -80,7 +81,6 @@ class MigrationRegistry:
         Returns:
             List of applicable migrations in order
         """
-        from pathlib import Path
         from_v = Version(from_version)
         to_v = Version(to_version)
 

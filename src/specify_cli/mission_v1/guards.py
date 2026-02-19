@@ -334,7 +334,7 @@ def compile_guards(config: dict[str, Any], feature_dir: Path | None = None) -> d
     transitions = config.get("transitions", [])
 
     for idx, transition in enumerate(transitions):
-        trigger = transition.get("trigger", f"t{idx}")
+        transition.get("trigger", f"t{idx}")
 
         for key in ("conditions", "unless"):
             entries = transition.get(key)

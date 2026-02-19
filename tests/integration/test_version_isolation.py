@@ -8,8 +8,6 @@ mismatch errors that can cause spurious test failures.
 from __future__ import annotations
 
 import subprocess
-import sys
-from pathlib import Path
 
 import pytest
 

@@ -353,34 +353,6 @@ def assert_commit_on_branch(repo: Path, branch: str, expected_substring: str):
     )
 
 
-def get_commits_on_branch(repo: Path, branch: str, limit: int = 20) -> list[str]:
-    """Get commit messages on a branch."""
-    result = subprocess.run(
-        ["git", "log", branch, "--oneline", f"-{limit}"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return result.stdout.strip().split("\n") if result.stdout.strip() else []
-
-
-def count_commits_matching(repo: Path, branch: str, pattern: str) -> int:
-    """Count commits on branch matching pattern."""
-    commits = get_commits_on_branch(repo, branch)
-    return sum(1 for commit in commits if pattern in commit)
-
-
-def verify_ancestry(repo: Path, ancestor: str, descendant: str) -> bool:
-    """Check if ancestor is an ancestor of descendant."""
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
-        cwd=repo,
-        capture_output=True,
-    )
-    return result.returncode == 0
-
-
 # ============================================================================
 # Additional Workflow Tests
 # ============================================================================
@@ -493,7 +465,7 @@ def test_wp02_depends_on_wp01_with_2x_target(dual_branch_repo):
     # ========================================================================
 
     # Main should have ONLY planning commit, NO status commits
-    main_commits = get_commits_on_branch(repo, "main")
+    get_commits_on_branch(repo, "main")
     wp01_status_on_main = count_commits_matching(repo, "main", "Move WP01")
     wp02_status_on_main = count_commits_matching(repo, "main", "Move WP02")
 
@@ -584,7 +556,7 @@ def test_review_rework_commits_to_correct_branch(dual_branch_repo):
     # Request changes (back to doing)
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "doing")
     assert result.returncode == 0
-    commits_2x_after_rework_request = get_commits_on_branch(repo, "2.x")
+    get_commits_on_branch(repo, "2.x")
 
     # Re-submit (back to for_review)
     result = run_cli(repo, "agent", "tasks", "move-task", "WP01", "--to", "for_review")

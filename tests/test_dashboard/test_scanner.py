@@ -77,62 +77,6 @@ def test_resolve_active_feature_falls_back_to_first(tmp_path, monkeypatch):
     assert resolved["id"] == "009-old-feature"
 
 
-def test_constitution_artifact_checks_project_level_path(tmp_path):
-    """Bug: Scanner incorrectly checks per-feature constitution.md instead of project-level .kittify/constitution/constitution.md
-    
-    Expected: Constitution artifact should check project-level paths:
-      - .kittify/constitution/constitution.md (new path, post-migration)
-      - .kittify/memory/constitution.md (old path, pre-migration)
-    
-    Actual: Scanner checks kitty-specs/{feature}/constitution.md (per-feature path)
-    
-    Context: Feature 011 removed per-mission constitutions. Only ONE project-level
-    constitution exists. Dashboard shows "Constitution not created" even when
-    constitution exists at .kittify/memory/constitution.md.
-    """
-    # Setup: Create feature with constitution at PROJECT level (correct location)
-    feature_dir = tmp_path / "kitty-specs" / "001-demo-feature"
-    feature_dir.mkdir(parents=True)
-    
-    # Create project-level constitution at new path
-    constitution_dir = tmp_path / ".kittify" / "constitution"
-    constitution_dir.mkdir(parents=True)
-    constitution_path = constitution_dir / "constitution.md"
-    constitution_path.write_text("# Project Constitution\n", encoding="utf-8")
-    
-    # Act: Get feature artifacts
-    artifacts = scanner.get_feature_artifacts(feature_dir)
-    
-    # Assert: Constitution should be detected (project-level, not per-feature)
-    # BUG: This assertion will FAIL because scanner checks feature_dir/constitution.md
-    assert artifacts["constitution"]["exists"], (
-        "Constitution artifact should be detected at project level "
-        "(.kittify/constitution/constitution.md), not per-feature "
-        "(kitty-specs/001-demo-feature/constitution.md)"
-    )
-
-
-def test_constitution_artifact_checks_legacy_path_fallback(tmp_path):
-    """Constitution should also detect old pre-migration path for backward compatibility."""
-    # Setup: Create feature with constitution at OLD path (.kittify/memory/)
-    feature_dir = tmp_path / "kitty-specs" / "001-demo-feature"
-    feature_dir.mkdir(parents=True)
-    
-    # Create project-level constitution at old path (unmigrated project)
-    memory_dir = tmp_path / ".kittify" / "memory"
-    memory_dir.mkdir(parents=True)
-    old_constitution = memory_dir / "constitution.md"
-    old_constitution.write_text("# Project Constitution (old path)\n", encoding="utf-8")
-    
-    # Act: Get feature artifacts
-    artifacts = scanner.get_feature_artifacts(feature_dir)
-    
-    # Assert: Constitution should be detected at old path
-    # BUG: This will also FAIL because scanner doesn't check old path
-    assert artifacts["constitution"]["exists"], (
-        "Constitution artifact should be detected at legacy path "
-        "(.kittify/memory/constitution.md) for unmigrated projects"
-    )
 
 
 def test_constitution_artifact_checks_project_level_path(tmp_path):

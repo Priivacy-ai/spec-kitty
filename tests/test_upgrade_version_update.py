@@ -1,10 +1,6 @@
 """Integration test for upgrade version update behavior."""
 
-import os
 from datetime import datetime
-from pathlib import Path
-import yaml
-import pytest
 
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.runner import MigrationRunner
@@ -31,7 +27,7 @@ def test_upgrade_updates_metadata_to_correct_version(tmp_path):
 
     # Run upgrade to current version
     runner = MigrationRunner(tmp_path)
-    result = runner.upgrade(__version__, dry_run=False, include_worktrees=False)
+    runner.upgrade(__version__, dry_run=False, include_worktrees=False)
 
     # Load updated metadata
     updated = ProjectMetadata.load(kittify_dir)
@@ -65,7 +61,7 @@ def test_upgrade_dry_run_does_not_update_version(tmp_path):
 
     # Run upgrade in dry-run mode
     runner = MigrationRunner(tmp_path)
-    result = runner.upgrade(__version__, dry_run=True, include_worktrees=False)
+    runner.upgrade(__version__, dry_run=True, include_worktrees=False)
 
     # Load metadata
     after_dry_run = ProjectMetadata.load(kittify_dir)

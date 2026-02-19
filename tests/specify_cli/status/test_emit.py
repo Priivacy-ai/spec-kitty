@@ -23,9 +23,7 @@ from specify_cli.status.emit import (
 from specify_cli.status.models import (
     DoneEvidence,
     Lane,
-    ReviewApproval,
     StatusEvent,
-    StatusSnapshot,
 )
 from specify_cli.status.store import EVENTS_FILENAME, read_events
 

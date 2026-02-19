@@ -128,7 +128,7 @@ def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) ->
                             if is_valid_now:
                                 print(f"   ✅ Fixed! Converted from {detected} to UTF-8")
                             else:
-                                print(f"   ⚠️ Conversion completed but file still has issues")
+                                print("   ⚠️ Conversion completed but file still has issues")
                                 problem_files.append(md_file)
                 else:
                     problem_files.append(md_file)

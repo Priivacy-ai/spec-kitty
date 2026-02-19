@@ -14,9 +14,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
-from specify_cli.sync.batch import batch_sync, BatchSyncResult
+from specify_cli.sync.batch import batch_sync
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.clock import LamportClock

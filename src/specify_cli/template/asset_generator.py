@@ -174,10 +174,10 @@ def _raise_template_discovery_error(commands_dir: Path) -> None:
     error_msg = (
         "Templates could not be found in any of the expected locations:\n\n"
         "Checked paths (in order):\n"
-        f"  ✗ Packaged resources (bundled with CLI)\n"
-        f"  ✗ Environment variable SPEC_KITTY_TEMPLATE_ROOT" +
+        "  ✗ Packaged resources (bundled with CLI)\n"
+        "  ✗ Environment variable SPEC_KITTY_TEMPLATE_ROOT" +
         (f" = {env_root}" if env_root else " (not set)") + "\n" +
-        f"  ✗ Remote repository SPECIFY_TEMPLATE_REPO" +
+        "  ✗ Remote repository SPECIFY_TEMPLATE_REPO" +
         (f" = {remote_repo}" if remote_repo else " (not configured)") + "\n\n"
         "To fix this, try one of these approaches:\n\n"
         "1. Reinstall from PyPI (recommended for end users):\n"

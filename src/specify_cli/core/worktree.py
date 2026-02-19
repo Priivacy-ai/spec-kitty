@@ -17,8 +17,7 @@ import warnings
 from pathlib import Path
 from typing import Optional, Tuple
 
-from .paths import locate_project_root
-from .vcs import VCSBackend, get_vcs
+from .vcs import get_vcs
 
 
 def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
@@ -207,7 +206,7 @@ def create_feature_worktree(
         if not result.success:
             raise RuntimeError(f"Failed to create workspace: {result.error}")
 
-    except Exception as e:
+    except Exception:
         # If VCS abstraction fails, fall back to direct git command with warning
         warnings.warn(
             "VCS abstraction failed, falling back to direct git commands. "

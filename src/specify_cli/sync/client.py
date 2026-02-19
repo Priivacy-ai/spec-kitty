@@ -245,8 +245,8 @@ class WebSocketClient:
                 data = json.loads(message)
                 await self._handle_message(data)
         except asyncio.CancelledError:
-            # Expected during explicit disconnect/shutdown.
-            pass
+            # Preserve cancellation semantics for callers/shutdown orchestration.
+            raise
         except ConnectionClosed:
             self.connected = False
             self.status = ConnectionStatus.OFFLINE

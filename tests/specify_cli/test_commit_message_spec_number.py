@@ -1,12 +1,9 @@
 """Test that commit messages include spec numbers."""
 
-import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
-from specify_cli.cli.commands.agent.tasks import move_task
 
 
 def test_spec_number_extraction():

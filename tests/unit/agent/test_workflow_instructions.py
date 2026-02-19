@@ -205,7 +205,7 @@ class TestMoveTaskPreflightCheck:
             )
 
             # Should block
-            assert is_valid is False, f"Expected validation to fail"
+            assert is_valid is False, "Expected validation to fail"
             assert len(guidance) > 0, "Expected guidance messages"
             # Check for any message about uncommitted/staged/unstaged changes
             assert any(

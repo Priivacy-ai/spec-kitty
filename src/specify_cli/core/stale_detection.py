@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from specify_cli.core.vcs import get_vcs, VCSError
 
 
 @dataclass

@@ -24,7 +24,6 @@ architecture/
 ├── README.md                              # This file
 ├── ARCHITECTURE_DOCS_GUIDE.md            # Comprehensive ADR guide
 ├── NAVIGATION_GUIDE.md                   # How to navigate ADRs
-├── adr-template.md                        # Template for new ADRs
 └── adrs/                                  # Architectural Decision Records
     ├── 2026-01-23-1-record-architecture-decisions.md
     ├── 2026-01-23-2-explicit-base-branch-tracking.md
@@ -50,6 +49,12 @@ architecture/
     ├── 2026-02-09-2-wp-lifecycle-state-machine.md
     ├── 2026-02-09-3-event-log-merge-semantics.md
     └── 2026-02-09-4-cross-repo-evidence-completion.md
+```
+
+ADR template (canonical):
+
+```
+src/doctrine/templates/architecture/adr-template.md
 ```
 
 **Note:** Implementation details are documented in code, tests, and docstrings. ADRs focus on decisions and link directly to code.
@@ -207,7 +212,7 @@ ls architecture/adrs/ | grep "$(date +%Y-%m-%d)"
 
 ```bash
 # Format: YYYY-MM-DD-N-your-decision-title.md
-cp architecture/adr-template.md architecture/adrs/2026-01-23-3-your-decision-title.md
+cp src/doctrine/templates/architecture/adr-template.md architecture/adrs/2026-01-23-3-your-decision-title.md
 ```
 
 ### Step 3: Fill Out the ADR

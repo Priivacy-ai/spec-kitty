@@ -7,12 +7,10 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from specify_cli.status.phase import (
     DEFAULT_PHASE,
     DEFAULT_PHASE_SOURCE,
-    MAX_PHASE_01X,
     VALID_PHASES,
     _read_config_phase,
     _read_meta_phase,

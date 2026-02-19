@@ -14,10 +14,8 @@ Tests cover:
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-import pytest
 
 from specify_cli.core.worktree_topology import (
     WPTopologyEntry,
@@ -241,7 +239,7 @@ class TestRenderTopologyText:
             ],
         )
         lines = render_topology_text(topology, "WP02")
-        wp02_lines = [l for l in lines if "WP02" in l and "→" in l]
+        wp02_lines = [line for line in lines if "WP02" in line and "→" in line]
         assert len(wp02_lines) > 0
 
     def test_non_current_wp_not_highlighted(self):
@@ -257,7 +255,7 @@ class TestRenderTopologyText:
         )
         lines = render_topology_text(topology, "WP02")
         # WP01 line should have space marker, not arrow
-        wp01_lines = [l for l in lines if "WP01" in l and "[done]" in l]
+        wp01_lines = [line for line in lines if "WP01" in line and "[done]" in line]
         for line in wp01_lines:
             # The marker before WP01 should be a space, not →
             idx = line.index("WP01")

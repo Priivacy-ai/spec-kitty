@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-import httpx
 import typer
 from rich.console import Console
 from rich.live import Live
@@ -43,9 +42,8 @@ from specify_cli.core.agent_config import (
 )
 from .init_help import INIT_COMMAND_DOC
 from specify_cli.template import (
-    GitHubClientError,
-    SSL_CONTEXT,
     build_http_client,
+    copy_constitution_templates,
     copy_specify_base_from_local,
     copy_specify_base_from_package,
     download_and_extract_template,
@@ -706,6 +704,7 @@ def init(
                             use_global = _has_global_runtime() and template_mode == "package"
                             if use_global:
                                 _prepare_project_minimal(project_path)
+                                copy_constitution_templates(project_path)
                                 pkg_templates = _get_package_templates_root()
                                 if pkg_templates is not None:
                                     templates_root = pkg_templates
@@ -928,9 +927,9 @@ def init(
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        f"○ [cyan]/spec-kitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/spec-kitty.plan[/] if used)",
-        f"○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/], before [cyan]/spec-kitty.implement[/])",
-        f"○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])"
+        "○ [cyan]/spec-kitty.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/spec-kitty.plan[/] if used)",
+        "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/], before [cyan]/spec-kitty.implement[/])",
+        "○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])"
     ]
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1,2))
     _console.print()

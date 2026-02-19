@@ -91,7 +91,7 @@ def test_apply_copies_all_files(migration: InstallDocumentationMission, tmp_path
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
 
-    result = migration.apply(tmp_path)
+    migration.apply(tmp_path)
 
     doc_mission = kittify / "missions" / "documentation"
 
