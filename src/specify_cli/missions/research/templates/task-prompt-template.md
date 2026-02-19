@@ -53,7 +53,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Context & Methodology
 
 - Reference prerequisite work and related documents.
-- Link to supporting specs: `.kittify/memory/constitution.md`, `kitty-specs/.../plan.md` (methodology), `kitty-specs/.../spec.md` (research question), `research.md`, `data-model.md`.
+- Link to supporting specs: `.kittify/constitution/constitution.md`, `kitty-specs/.../plan.md` (methodology), `kitty-specs/.../spec.md` (research question), `research.md`, `data-model.md`.
 - Highlight methodological constraints or quality requirements.
 
 ## Evidence Tracking Requirements

@@ -78,7 +78,7 @@ The `spec-kitty implement` command will display warnings when:
 ## Context & Constraints
 
 - Reference prerequisite work and related documents.
-- Link to supporting specs: `.kittify/memory/constitution.md`, `kitty-specs/.../plan.md`, `kitty-specs/.../tasks.md`, data model, contracts, research, quickstart.
+- Link to supporting specs: `.kittify/constitution/constitution.md`, `kitty-specs/.../plan.md`, `kitty-specs/.../tasks.md`, data model, contracts, research, quickstart.
 - Highlight architectural decisions, constraints, or trade-offs to honor.
 
 ## Subtasks & Detailed Guidance

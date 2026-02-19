@@ -1,0 +1,52 @@
+{
+  "event_count": 15,
+  "feature_slug": "045-constitution-doctrine-config-sync",
+  "last_event_id": "01KHJGMATDRSKHZJHPVNFC9073",
+  "materialized_at": "2026-02-16T06:01:31.213871+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KHHQQ2MR1HTGGW70J6WDAXS0",
+      "last_transition_at": "2026-02-15T22:46:06.744269+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KHHRHV4DYYGC9GCYZNDXGQG5",
+      "last_transition_at": "2026-02-15T23:00:43.789243+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KHHSHC2ACHV9QVPCC2FNESMP",
+      "last_transition_at": "2026-02-15T23:17:56.938419+00:00"
+    },
+    "WP04": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KHJGKN19K72AJ689C0WA0V0M",
+      "last_transition_at": "2026-02-16T06:01:08.905898+00:00"
+    },
+    "WP05": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KHJGMATDRSKHZJHPVNFC9073",
+      "last_transition_at": "2026-02-16T06:01:31.213224+00:00"
+    }
+  }
+}

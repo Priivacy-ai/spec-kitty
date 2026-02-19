@@ -105,9 +105,12 @@ class APIHandler(DashboardHandler):
             self.wfile.write(json.dumps(error_msg).encode())
 
     def handle_constitution(self) -> None:
-        """Serve project-level constitution from .kittify/memory/constitution.md"""
+        """Serve project-level constitution from .kittify/constitution/constitution.md"""
         try:
-            constitution_path = Path(self.project_dir) / ".kittify" / "memory" / "constitution.md"
+            constitution_path = Path(self.project_dir) / ".kittify" / "constitution" / "constitution.md"
+            # Fallback to old path for unmigrated projects
+            if not constitution_path.exists():
+                constitution_path = Path(self.project_dir) / ".kittify" / "memory" / "constitution.md"
 
             if not constitution_path.exists():
                 self.send_response(404)

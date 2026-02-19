@@ -54,7 +54,7 @@ This command performs a comprehensive cross-artifact analysis. It reads (but doe
 - **spec.md** – Requirements, user stories, edge cases
 - **plan.md** – Architecture choices, data model, technical design
 - **tasks.md** – Work breakdown, task descriptions, phases
-- **constitution.md** – Project principles (from `.kittify/memory/constitution.md`)
+- **constitution.md** – Project principles (from `.kittify/constitution/constitution.md`)
 
 **Output**: analysis.md report with consistency findings and recommendations
 

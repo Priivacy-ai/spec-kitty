@@ -251,7 +251,7 @@ def setup_feature_directory(
     Creates:
     - kitty-specs/###-name/ directory
     - Subdirectories: checklists/, research/, tasks/
-    - Symlinks to .kittify/memory/ (or file copies on Windows)
+    - Symlinks to .kittify/constitution/ (or file copies on Windows)
     - spec.md from template
     - tasks/README.md
 
@@ -357,41 +357,45 @@ spec-kitty agent tasks move-task WP01 --to doing
 
     # Setup shared constitution and AGENTS.md via symlink (or copy on Windows)
     # Calculate relative path from worktree to main repo
-    # Worktree: .worktrees/001-feature/.kittify/memory
-    # Main:     .kittify/memory
-    # Relative: ../../../.kittify/memory
-    relative_memory_path = Path("../../../.kittify/memory")
+    # Worktree: .worktrees/001-feature/.kittify/constitution
+    # Main:     .kittify/constitution
+    # Relative: ../../../.kittify/constitution
+    relative_constitution_path = Path("../../../.kittify/constitution")
     relative_agents_path = Path("../../../.kittify/AGENTS.md")
 
-    worktree_memory = worktree_kittify / "memory"
+    worktree_constitution = worktree_kittify / "constitution"
     worktree_agents = worktree_kittify / "AGENTS.md"
 
     # Detect if we're on Windows or symlinks are not supported
     is_windows = platform.system() == "Windows"
     use_copy = is_windows or not create_symlinks
 
-    # Setup memory/ symlink or copy
-    if worktree_memory.is_symlink():
+    # Setup constitution/ symlink or copy
+    if worktree_constitution.is_symlink():
         # Remove existing symlink first (can't use rmtree on symlinks)
-        worktree_memory.unlink()
-    elif worktree_memory.exists() and worktree_memory.is_dir():
+        worktree_constitution.unlink()
+    elif worktree_constitution.exists() and worktree_constitution.is_dir():
         # Remove existing directory (from git worktree add)
-        shutil.rmtree(worktree_memory)
+        shutil.rmtree(worktree_constitution)
 
     if use_copy:
-        # Copy memory directory
-        main_memory = repo_root / ".kittify" / "memory"
-        if main_memory.exists() and main_memory.is_dir():
-            shutil.copytree(main_memory, worktree_memory)
+        # Copy constitution directory (try new path, fallback to old)
+        main_constitution = repo_root / ".kittify" / "constitution"
+        if not main_constitution.exists():
+            main_constitution = repo_root / ".kittify" / "memory"
+        if main_constitution.exists() and main_constitution.is_dir():
+            shutil.copytree(main_constitution, worktree_constitution)
     else:
         # Create relative symlink
         try:
-            worktree_memory.symlink_to(relative_memory_path, target_is_directory=True)
+            worktree_constitution.symlink_to(relative_constitution_path, target_is_directory=True)
         except (OSError, NotImplementedError):
             # Symlink failed, fall back to copy
-            main_memory = repo_root / ".kittify" / "memory"
-            if main_memory.exists() and main_memory.is_dir():
-                shutil.copytree(main_memory, worktree_memory)
+            main_constitution = repo_root / ".kittify" / "constitution"
+            if not main_constitution.exists():
+                main_constitution = repo_root / ".kittify" / "memory"
+            if main_constitution.exists() and main_constitution.is_dir():
+                shutil.copytree(main_constitution, worktree_constitution)
 
     # Setup AGENTS.md symlink or copy
     if worktree_agents.exists():

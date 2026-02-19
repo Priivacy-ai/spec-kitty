@@ -784,13 +784,22 @@ def move_task(
     force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks or missing feedback")] = False,
     auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch")] = True,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    # Telemetry options for ExecutionEvent emission
+    model: Annotated[Optional[str], typer.Option("--model", help="LLM model used (for telemetry)")] = None,
+    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input token count (for telemetry)")] = None,
+    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output token count (for telemetry)")] = None,
+    cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Cost in USD (for telemetry)")] = None,
+    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Execution duration in milliseconds (for telemetry)")] = None,
 ) -> None:
     """Move task between lanes (planned → doing → for_review → done).
 
+    Emits ExecutionEvent for telemetry when moving to for_review (implementation)
+    or done (review), enabling cost tracking even in human-in-the-loop workflows.
+
     Examples:
         spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
-        spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$
-        spec-kitty agent tasks move-task WP03 --to done --note "Review passed"
+        spec-kitty agent tasks move-task WP02 --to for_review --agent claude --model claude-sonnet-4.5
+        spec-kitty agent tasks move-task WP03 --to done --note "Review passed" --agent codex
         spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md
     """
     try:
@@ -1050,6 +1059,51 @@ def move_task(
 
         if event is None:
             raise TransitionError("No status transition event was emitted")
+
+        # --- Emit ExecutionEvent for telemetry (fire-and-forget) ---
+        # Emit when moving to for_review (implementation) or done (review)
+        try:
+            from specify_cli.telemetry.emit import emit_execution_event
+
+            effective_agent = agent or extract_scalar(wp.frontmatter, "agent") or "unknown"
+            
+            # Determine role and success based on transition
+            role = None
+            success = True
+            
+            if canonical_lane == "for_review" and old_lane == "in_progress":
+                # Implementation complete
+                role = "implementer"
+                success = True
+            elif canonical_lane == "done" and old_lane == "for_review":
+                # Review complete (approval)
+                role = "reviewer"
+                success = True
+            elif canonical_lane in ("in_progress", "planned") and old_lane == "for_review":
+                # Review complete (changes requested) - still counts as review work
+                role = "reviewer"
+                success = False  # Changes requested, not approved
+            
+            # Only emit if we have a role (meaningful transition for telemetry)
+            if role:
+                emit_execution_event(
+                    feature_dir=feature_dir,
+                    feature_slug=feature_slug,
+                    wp_id=task_id,
+                    agent=effective_agent,
+                    role=role,
+                    model=model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                    duration_ms=duration_ms or 0,
+                    success=success,
+                    error=None,
+                    exit_code=0 if success else 1,
+                )
+        except Exception as e:
+            # Fire-and-forget: log but don't fail the transition
+            logger.warning(f"Failed to emit ExecutionEvent: {e}")
 
         # --- Post-emit: apply metadata fields to WP file ---
         # The emit pipeline (via legacy_bridge) may have updated the lane
