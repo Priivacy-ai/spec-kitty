@@ -82,3 +82,28 @@ kitty-specs/**/tasks/*.md
 
 # Keep spec_kitty_core.yaml tracked (canonical terms)
 !.kittify/glossaries/spec_kitty_core.yaml
+doctrine_ref
+/work/
+
+# CI report outputs
+.coverage
+out/reports/**
+!out/reports/
+!out/reports/.gitkeep
+!out/reports/xunit-reports/
+!out/reports/xunit-reports/.gitkeep
+!out/reports/coverage/
+!out/reports/coverage/.gitkeep
+!out/reports/static-analysis/
+!out/reports/static-analysis/.gitkeep
+
+src/doctrine/curation/imports/**
+!src/doctrine/curation/imports/.gitkeep
+
+work
+out
+.nvimlog
+.claude/
+
+tmp/**
+!tmp/.gitkeep
