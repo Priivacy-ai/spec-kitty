@@ -49,8 +49,8 @@ def cost_cmd(
         None, "--until", help="End date (ISO 8601)"
     ),
     group_by: str = typer.Option(
-        "agent", "--group-by", "-g", help="Group by: agent, model, feature",
-        click_type=click.Choice(["agent", "model", "feature"]),
+        "agent", "--group-by", "-g", help="Group by: agent, model, feature, role",
+        click_type=click.Choice(["agent", "model", "feature", "role"]),
     ),
     json_output: bool = typer.Option(
         False, "--json", help="Output as JSON"
@@ -139,3 +139,75 @@ def _print_table(summaries: list[CostSummary], group_by: str) -> None:
     )
 
     console.print(table)
+
+
+@app.command("emit")
+def emit_cmd(
+    feature: str = typer.Option(
+        ..., "--feature", "-f", help="Feature slug (e.g., 048-full-lifecycle-telemetry-events)"
+    ),
+    role: str = typer.Option(
+        ..., "--role", "-r", help="Phase role",
+        click_type=click.Choice(["specifier", "planner", "implementer", "reviewer", "merger"]),
+    ),
+    agent: str | None = typer.Option(None, "--agent", help="Agent identifier (claude, copilot, codex, cursor, etc.)"),
+    model: str | None = typer.Option(None, "--model", help="LLM model identifier"),
+    input_tokens: int | None = typer.Option(None, "--input-tokens", help="Input tokens consumed"),
+    output_tokens: int | None = typer.Option(None, "--output-tokens", help="Output tokens generated"),
+    cost_usd: float | None = typer.Option(None, "--cost-usd", help="Cost in USD"),
+    duration_ms: int = typer.Option(0, "--duration-ms", help="Duration in milliseconds"),
+    success: bool = typer.Option(True, "--success/--failure", help="Phase outcome"),
+    wp_id: str = typer.Option("N/A", "--wp-id", help="Work package ID"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+) -> None:
+    """Emit a telemetry event for a workflow phase completion."""
+    try:
+        repo_root = find_repo_root()
+    except TaskCliError:
+        console.print("[red]Error:[/red] Not inside a spec-kitty project.")
+        raise typer.Exit(code=1) from None
+
+    feature_dir = repo_root / "kitty-specs" / feature
+    if not feature_dir.exists():
+        feature_dir.mkdir(parents=True, exist_ok=True)
+
+    effective_agent = agent or "unknown"
+
+    try:
+        from specify_cli.telemetry.emit import emit_execution_event
+
+        emit_execution_event(
+            feature_dir=feature_dir,
+            feature_slug=feature,
+            wp_id=wp_id,
+            agent=effective_agent,
+            role=role,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=cost_usd,
+            duration_ms=duration_ms,
+            success=success,
+            node_id="cli",
+        )
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).warning("Telemetry emission failed: %s", exc)
+        if json_output:
+            print(json.dumps({"result": "error", "error": str(exc)}))
+        else:
+            console.print(f"[yellow]Warning:[/yellow] Telemetry emission failed: {exc}")
+        # Fire-and-forget: always exit 0
+        return
+
+    if json_output:
+        print(json.dumps({
+            "result": "success",
+            "feature": feature,
+            "role": role,
+            "agent": effective_agent,
+            "model": model,
+        }))
+    else:
+        console.print(f"[green]✓[/green] Telemetry event emitted: {role} for {feature}")

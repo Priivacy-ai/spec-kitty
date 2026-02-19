@@ -584,3 +584,19 @@ A rushed job with vague, oversized WPs causes:
 - Feature failure
 
 **Invest the tokens now. Be thorough. Future agents will thank you.**
+
+## Telemetry (final step)
+
+After completing all steps above and reporting to the user, emit a telemetry event to record this task generation phase:
+
+```bash
+spec-kitty agent telemetry emit \
+  --feature <feature-slug> \
+  --role planner \
+  --agent <your-agent-name> \
+  --model <your-model-id>
+```
+
+Note: Task generation uses `--role planner` because it is part of the planning lifecycle.
+
+Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if your agent runtime provides usage metrics. This is fire-and-forget — failures never block the workflow.

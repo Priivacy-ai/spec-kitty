@@ -325,3 +325,25 @@ Success criteria must be:
 - "Database can handle 1000 TPS" (implementation detail, use user-facing metric)
 - "React components render efficiently" (framework-specific)
 - "Redis cache hit rate above 80%" (technology-specific)
+
+## Telemetry (final step)
+
+After completing all steps above and reporting to the user, emit a telemetry event to record this specification phase:
+
+```bash
+spec-kitty agent telemetry emit \
+  --feature <feature-slug> \
+  --role specifier \
+  --agent <your-agent-name> \
+  --model <your-model-id>
+```
+
+Replace `<feature-slug>` with the feature slug from the `create-feature` output (e.g., `048-full-lifecycle-telemetry-events`).
+
+If your agent runtime provides usage metrics, include them:
+- `--input-tokens <count>` — total input tokens consumed during this phase
+- `--output-tokens <count>` — total output tokens generated during this phase
+- `--cost-usd <amount>` — total cost in USD for this phase
+- `--duration-ms <milliseconds>` — duration of this phase
+
+This event is fire-and-forget. If the command fails, continue normally — telemetry failures never block the workflow.

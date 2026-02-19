@@ -301,6 +301,56 @@ def test_invalid_group_by():
         cost_summary(events, group_by="invalid")
 
 
+def test_cost_summary_by_role():
+    """Test grouping by role (phase) for per-phase cost breakdown."""
+    events = [
+        make_event(event_num=1, agent="claude", input_tokens=5000, output_tokens=2000, cost_usd=0.50),
+        make_event(event_num=2, agent="claude", input_tokens=3000, output_tokens=1000, cost_usd=0.30),
+        make_event(event_num=3, agent="copilot", input_tokens=8000, output_tokens=4000, cost_usd=1.00),
+        make_event(event_num=4, agent="claude", input_tokens=2000, output_tokens=500, cost_usd=0.15),
+    ]
+    # Add role to payloads
+    events[0].payload["role"] = "specifier"
+    events[1].payload["role"] = "planner"
+    events[2].payload["role"] = "implementer"
+    events[3].payload["role"] = "specifier"
+
+    summaries = cost_summary(events, group_by="role")
+
+    assert len(summaries) == 3
+
+    specifier = next(s for s in summaries if s.group_key == "specifier")
+    assert specifier.group_by == "role"
+    assert specifier.total_input_tokens == 7000  # 5000 + 2000
+    assert specifier.total_output_tokens == 2500  # 2000 + 500
+    assert specifier.event_count == 2
+    assert specifier.total_cost_usd == 0.65  # 0.50 + 0.15
+
+    planner = next(s for s in summaries if s.group_key == "planner")
+    assert planner.event_count == 1
+    assert planner.total_cost_usd == 0.30
+
+    implementer = next(s for s in summaries if s.group_key == "implementer")
+    assert implementer.event_count == 1
+    assert implementer.total_cost_usd == 1.00
+
+
+def test_cost_summary_by_role_unknown_fallback():
+    """Test that events without role field are grouped under 'unknown'."""
+    events = [
+        make_event(event_num=1, cost_usd=0.10),
+        make_event(event_num=2, cost_usd=0.20),
+    ]
+    # Don't add role to payloads — should default to "unknown"
+
+    summaries = cost_summary(events, group_by="role")
+
+    assert len(summaries) == 1
+    assert summaries[0].group_key == "unknown"
+    assert summaries[0].event_count == 2
+    assert summaries[0].total_cost_usd == pytest.approx(0.30)
+
+
 def test_mixed_cost_scenarios():
     """Test mix of explicit costs, estimated costs, and zero costs."""
     events = [

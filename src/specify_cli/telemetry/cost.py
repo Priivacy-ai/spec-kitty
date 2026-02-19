@@ -60,7 +60,7 @@ def cost_summary(events: list[Event], group_by: str = "agent") -> list[CostSumma
 
     Args:
         events: List of telemetry events
-        group_by: Grouping key - "agent", "model", or "feature"
+        group_by: Grouping key - "agent", "model", "feature", or "role"
 
     Returns:
         List of CostSummary objects sorted by total_cost_usd descending
@@ -87,6 +87,8 @@ def cost_summary(events: list[Event], group_by: str = "agent") -> list[CostSumma
             key = payload.get("model", "unknown")
         elif group_by == "feature":
             key = event.aggregate_id
+        elif group_by == "role":
+            key = payload.get("role", "unknown")
         else:
             raise ValueError(f"Invalid group_by: {group_by}")
 

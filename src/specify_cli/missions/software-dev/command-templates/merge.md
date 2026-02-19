@@ -381,3 +381,17 @@ Together they complete the workflow:
 ```
 specify → plan → tasks → implement → review → accept → merge ✅
 ```
+
+## Telemetry (final step)
+
+After completing the merge, emit a telemetry event to record this merge phase:
+
+```bash
+spec-kitty agent telemetry emit \
+  --feature <feature-slug> \
+  --role merger \
+  --agent <your-agent-name> \
+  --model <your-model-id>
+```
+
+Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if available. This is fire-and-forget — failures never block the workflow.
