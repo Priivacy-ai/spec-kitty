@@ -323,14 +323,16 @@ def implement(
         git_available = (main_repo_root / ".git").exists()
 
         # Determine which WP to implement
+        normalized_wp_id: str
         if wp_id:
             normalized_wp_id = _normalize_wp_id(wp_id)
         else:
             # Auto-detect first planned WP
-            normalized_wp_id = _find_first_planned_wp(repo_root, feature_slug)
-            if not normalized_wp_id:
+            detected_wp_id = _find_first_planned_wp(repo_root, feature_slug)
+            if not detected_wp_id:
                 print("Error: No planned work packages found. Specify a WP ID explicitly.")
                 raise typer.Exit(1)
+            normalized_wp_id = detected_wp_id
 
         # ALWAYS validate dependencies before creating workspace or displaying prompts
         # This prevents creating workspaces with wrong base branches
@@ -418,6 +420,7 @@ def implement(
                     print("If you're using a generated agent command file, --agent is already included.")
                     print("This tracks WHO is working on the WP (prevents abandoned tasks).")
                     raise typer.Exit(1)
+            effective_agent = agent or "unknown"
 
             from datetime import datetime, timezone
             import os
@@ -429,15 +432,15 @@ def implement(
             updated_front = wp.frontmatter
             if current_lane != "doing":
                 updated_front = set_scalar(updated_front, "lane", "doing")
-            updated_front = set_scalar(updated_front, "agent", agent)
+            updated_front = set_scalar(updated_front, "agent", effective_agent)
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
             # Build history entry
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             if current_lane != "doing":
-                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started implementation via workflow command"
+                history_entry = f"- {timestamp} – {effective_agent} – shell_pid={shell_pid} – lane=doing – Started implementation via workflow command"
             else:
-                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Assigned agent via workflow command"
+                history_entry = f"- {timestamp} – {effective_agent} – shell_pid={shell_pid} – lane=doing – Assigned agent via workflow command"
 
             # Add history entry to body
             updated_body = append_activity_log(wp.body, history_entry)
@@ -452,11 +455,11 @@ def implement(
                 safe_commit(
                     repo_path=main_repo_root,
                     files_to_commit=[actual_wp_path],
-                    commit_message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
+                    commit_message=f"chore: Start {normalized_wp_id} implementation [{effective_agent}]",
                     allow_empty=True,  # OK if already in this state
                 )
 
-            print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
+            print(f"✓ Claimed {normalized_wp_id} (agent: {effective_agent}, PID: {shell_pid}, target: {target_branch})")
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
@@ -673,7 +676,7 @@ def _resolve_review_context(
     repo_root: Path,
     feature_slug: str,
     wp_frontmatter: str,
-) -> dict:
+) -> dict[str, object]:
     """Resolve git branch and base context for review prompts.
 
     Determines the WP's branch name, its base branch (what it was branched
@@ -686,7 +689,7 @@ def _resolve_review_context(
     3. Also try common base branches (main, 2.x, master, develop)
     4. Pick the candidate with fewest commits ahead (closest ancestor)
     """
-    ctx: dict = {
+    ctx: dict[str, object] = {
         "branch_name": "unknown",
         "base_branch": "unknown",
         "commit_count": 0,
@@ -702,8 +705,6 @@ def _resolve_review_context(
         ctx["branch_name"] = branch
     else:
         return ctx
-
-    branch = ctx["branch_name"]
 
     # Build candidate base branches
     candidates: list[str] = []
@@ -845,14 +846,16 @@ def review(
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
 
         # Determine which WP to review
+        normalized_wp_id: str
         if wp_id:
             normalized_wp_id = _normalize_wp_id(wp_id)
         else:
             # Auto-detect first for_review WP
-            normalized_wp_id = _find_first_for_review_wp(repo_root, feature_slug)
-            if not normalized_wp_id:
+            detected_wp_id = _find_first_for_review_wp(repo_root, feature_slug)
+            if not detected_wp_id:
                 print("Error: No work packages ready for review. Specify a WP ID explicitly.")
                 raise typer.Exit(1)
+            normalized_wp_id = detected_wp_id
 
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)

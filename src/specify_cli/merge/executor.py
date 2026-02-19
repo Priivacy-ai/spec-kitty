@@ -593,17 +593,17 @@ def _validate_wp_ready(
         Tuple of (is_valid, error_message)
     """
     # Check 1: Branch exists in git
-    result = subprocess.run(
+    branch_check = subprocess.run(
         ["git", "rev-parse", "--verify", branch_name],
         cwd=str(repo_root),
         capture_output=True,
         check=False,
     )
-    if result.returncode != 0:
+    if branch_check.returncode != 0:
         return False, f"Branch {branch_name} does not exist"
 
     # Check 2: No uncommitted changes in worktree
-    result = subprocess.run(
+    status_check = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=str(worktree_path),
         capture_output=True,
@@ -611,7 +611,7 @@ def _validate_wp_ready(
         encoding="utf-8",
         errors="replace",
     )
-    if result.stdout.strip():
+    if status_check.stdout.strip():
         return False, f"Worktree {worktree_path.name} has uncommitted changes"
 
     return True, ""

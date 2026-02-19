@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from .models import StatusEvent
 
@@ -37,7 +38,7 @@ def append_event(feature_dir: Path, event: StatusEvent) -> None:
         fh.write(line + "\n")
 
 
-def read_events_raw(feature_dir: Path) -> list[dict]:
+def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
     """Read raw JSON dicts from the events file.
 
     Returns an empty list when the file does not exist.
@@ -49,7 +50,7 @@ def read_events_raw(feature_dir: Path) -> list[dict]:
     if not path.exists():
         return []
 
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as fh:
         for line_number, raw_line in enumerate(fh, start=1):
             stripped = raw_line.strip()

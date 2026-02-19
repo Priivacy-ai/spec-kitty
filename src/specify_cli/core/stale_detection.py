@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 
 
@@ -68,6 +69,9 @@ def get_default_branch(repo_path: Path) -> str:
             ["git", "rev-parse", "--verify", branch],
             cwd=repo_path,
             capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         if result.returncode == 0:
@@ -283,7 +287,7 @@ def find_worktree_for_wp(
 def check_doing_wps_for_staleness(
     main_repo_root: Path,
     feature_slug: str,
-    doing_wps: list[dict],
+    doing_wps: list[dict[str, Any]],
     threshold_minutes: int = 10,
 ) -> dict[str, StaleCheckResult]:
     """
@@ -298,7 +302,7 @@ def check_doing_wps_for_staleness(
     Returns:
         Dict mapping WP ID to StaleCheckResult
     """
-    results = {}
+    results: dict[str, StaleCheckResult] = {}
 
     for wp in doing_wps:
         wp_id = wp.get("id") or wp.get("work_package_id")

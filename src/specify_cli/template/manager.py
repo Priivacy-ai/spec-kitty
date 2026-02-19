@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from importlib.abc import Traversable
 from importlib.resources import files
 from pathlib import Path
 
@@ -22,9 +23,15 @@ def _copy_constitution_toolguide_from_path(source: Path, project_path: Path) -> 
     return True
 
 
-def _copy_constitution_toolguide_from_resource(resource, project_path: Path) -> bool:
+def _resource_exists(resource: Traversable) -> bool:
+    return resource.is_file() or resource.is_dir()
+
+
+def _copy_constitution_toolguide_from_resource(
+    resource: Traversable, project_path: Path
+) -> bool:
     """Copy a package resource toolguide into .kittify/memory/templates/."""
-    if not resource.exists():
+    if not _resource_exists(resource):
         return False
     dest_dir = project_path / ".kittify" / "memory" / "templates"
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -172,7 +179,7 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
     return specify_root / "templates" / "command-templates"
 
 
-def copy_package_tree(resource, dest: Path) -> None:
+def copy_package_tree(resource: Traversable, dest: Path) -> None:
     """Recursively copy an importlib.resources directory tree."""
     if dest.exists():
         shutil.rmtree(dest)
@@ -193,21 +200,21 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     specify_root.mkdir(parents=True, exist_ok=True)
 
     memory_resource = data_root.joinpath("memory")
-    if memory_resource.exists():
+    if _resource_exists(memory_resource):
         copy_package_tree(memory_resource, specify_root / "memory")
 
     scripts_resource = data_root.joinpath("scripts")
-    if scripts_resource.exists():
+    if _resource_exists(scripts_resource):
         scripts_dest = specify_root / "scripts"
         if scripts_dest.exists():
             shutil.rmtree(scripts_dest)
         scripts_dest.mkdir(parents=True, exist_ok=True)
         variant_name = "bash" if script_type == "sh" else "powershell"
         variant_resource = scripts_resource.joinpath(variant_name)
-        if variant_resource.exists():
+        if _resource_exists(variant_resource):
             copy_package_tree(variant_resource, scripts_dest / variant_name)
         tasks_resource = scripts_resource.joinpath("tasks")
-        if tasks_resource.exists():
+        if _resource_exists(tasks_resource):
             copy_package_tree(tasks_resource, scripts_dest / "tasks")
         for resource_file in scripts_resource.iterdir():
             if resource_file.is_file():
@@ -217,11 +224,11 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
                     shutil.copyfileobj(src, dst)
 
     templates_resource = data_root.joinpath("templates")
-    if templates_resource.exists():
+    if _resource_exists(templates_resource):
         templates_dest = specify_root / "templates"
         copy_package_tree(templates_resource, templates_dest)
         agents_template = templates_resource.joinpath("AGENTS.md")
-        if agents_template.exists():
+        if _resource_exists(agents_template):
             with agents_template.open("rb") as src, open(
                 specify_root / "AGENTS.md", "wb"
             ) as dst:
@@ -233,7 +240,7 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
         data_root.joinpath("template_data", "missions"),  # Legacy fallback
     ]
     for missions_resource in missions_resource_candidates:
-        if missions_resource.exists():
+        if _resource_exists(missions_resource):
             copy_package_tree(missions_resource, specify_root / "missions")
             break
 

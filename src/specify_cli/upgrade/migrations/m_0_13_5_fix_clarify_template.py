@@ -59,7 +59,7 @@ class FixClarifyTemplateMigration(BaseMigration):
             template_path = data_root.joinpath(
                 "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
             )
-            if template_path.exists():
+            if template_path.is_file():
                 return True, ""
         except Exception as e:
             return False, f"Cannot access packaged missions: {e}"
@@ -78,7 +78,7 @@ class FixClarifyTemplateMigration(BaseMigration):
                 "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
             )
 
-            if not template_path.exists():
+            if not template_path.is_file():
                 errors.append("Clarify template not found in packaged missions")
                 return MigrationResult(
                     success=False,

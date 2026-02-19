@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 __all__ = ["run_diagnostics"]
 
@@ -17,24 +17,24 @@ def _ensure_specify_cli_on_path() -> None:
         sys.path.insert(0, str(candidate))
 
 
-def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
+def run_diagnostics(project_dir: Path) -> dict[str, Any]:
     """Run comprehensive diagnostics on the project setup using enhanced verification."""
     try:
-        from ..manifest import FileManifest, WorktreeStatus  # type: ignore
-        from ..acceptance import detect_feature_slug, AcceptanceError
+        from ..manifest import FileManifest, WorktreeStatus
+        from ..acceptance import detect_feature_slug
     except (ImportError, ValueError):
         try:
-            from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
-            from specify_cli.acceptance import detect_feature_slug, AcceptanceError
+            from specify_cli.manifest import FileManifest, WorktreeStatus
+            from specify_cli.acceptance import detect_feature_slug
         except ImportError:
             _ensure_specify_cli_on_path()
-            from specify_cli.manifest import FileManifest, WorktreeStatus  # type: ignore
-            from specify_cli.acceptance import detect_feature_slug, AcceptanceError
+            from specify_cli.manifest import FileManifest, WorktreeStatus
+            from specify_cli.acceptance import detect_feature_slug
 
     kittify_dir = project_dir / ".kittify"
     repo_root = project_dir
 
-    diagnostics: Dict[str, Any] = {
+    diagnostics: dict[str, Any] = {
         'project_path': str(project_dir),
         'current_working_directory': str(Path.cwd()),
         'git_branch': None,
@@ -118,7 +118,7 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
                 'artifacts_in_main': feature_status['artifacts_in_main'],
                 'artifacts_in_worktree': feature_status['artifacts_in_worktree'],
             }
-    except (AcceptanceError, Exception) as exc:  # type: ignore[misc]
+    except Exception as exc:
         diagnostics['current_feature'] = {
             'detected': False,
             'error': str(exc),
@@ -144,7 +144,7 @@ def run_diagnostics(project_dir: Path) -> Dict[str, Any]:
 
     # Check dashboard health
     dashboard_file = kittify_dir / '.dashboard'
-    dashboard_health = {
+    dashboard_health: dict[str, Any] = {
         'metadata_exists': dashboard_file.exists(),
         'can_start': None,
         'startup_test': None,

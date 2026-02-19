@@ -74,7 +74,7 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
             template_path = data_root.joinpath(
                 "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
             )
-            if template_path.exists():
+            if template_path.is_file():
                 return True, ""
         except Exception as e:
             return False, f"Cannot access packaged missions: {e}"
@@ -103,7 +103,7 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
                 "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
             )
 
-            if template_path.exists():
+            if template_path.is_file():
                 template_content = template_path.read_text(encoding="utf-8")
                 template_source = "packaged missions"
         except Exception:

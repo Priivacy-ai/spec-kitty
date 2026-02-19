@@ -34,7 +34,7 @@ from specify_cli.core.vcs import (
     VCSBackend,
 )
 from specify_cli.dashboard import ensure_dashboard_running
-from specify_cli.gitignore_manager import GitignoreManager, ProtectionResult
+from specify_cli.gitignore_manager import GitignoreManager
 from specify_cli.core.agent_config import (
     AgentConfig,
     AgentSelectionConfig,
@@ -46,11 +46,13 @@ from specify_cli.template import (
     copy_constitution_templates,
     copy_specify_base_from_local,
     copy_specify_base_from_package,
-    download_and_extract_template,
     generate_agent_assets,
     get_local_repo_root,
     parse_repo_slug,
     prepare_command_templates,
+)
+from specify_cli.template.github_client import (
+    download_and_extract_template as download_and_extract_template_github,
 )
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.runtime.resolver import resolve_command
@@ -60,6 +62,9 @@ _console: Console | None = None
 _show_banner: Callable[[], None] | None = None
 _activate_mission: Callable[[Path, str, str, Console], str] | None = None
 _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = None
+
+# Backward-compatible symbol used by tests and older integrations.
+download_and_extract_template = download_and_extract_template_github
 
 
 # =============================================================================
@@ -194,7 +199,7 @@ def _get_package_templates_root() -> Path | None:
         pkg_root = get_package_asset_root()  # .../doctrine/missions/
         templates_dir = pkg_root.parent / "templates"
         if templates_dir.is_dir():
-            return templates_dir
+            return Path(templates_dir)
     except FileNotFoundError:
         pass
     return None
@@ -348,12 +353,13 @@ def _install_git_hooks(project_path: Path, templates_root: Path | None = None, t
 
 
 def init(
-    project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
-    ai_assistant: str = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"),
-    script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps", rich_help_panel="Selection"),
-    preferred_implementer: str = typer.Option(None, "--preferred-implementer", help="Preferred agent for implementation", rich_help_panel="Selection"),
-    preferred_reviewer: str = typer.Option(None, "--preferred-reviewer", help="Preferred agent for review", rich_help_panel="Selection"),
-    mission_key: str = typer.Option(None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"),
+    project_name: str | None = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
+    ai_assistant: str | None = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"),
+    script_type: str | None = typer.Option(None, "--script", help="Script type to use: sh or ps", rich_help_panel="Selection"),
+    agent_strategy: str | None = typer.Option(None, "--agent-strategy", help="Agent selection strategy: preferred or random", rich_help_panel="Selection"),
+    preferred_implementer: str | None = typer.Option(None, "--preferred-implementer", help="Preferred agent for implementation", rich_help_panel="Selection"),
+    preferred_reviewer: str | None = typer.Option(None, "--preferred-reviewer", help="Preferred agent for review", rich_help_panel="Selection"),
+    mission_key: str | None = typer.Option(None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
     here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
@@ -361,9 +367,9 @@ def init(
     non_interactive: bool = typer.Option(False, "--non-interactive", "--yes", help="Run without interactive prompts (suitable for CI/CD)"),
     skip_tls: bool = typer.Option(False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"),
     debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
-    github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
-    template_root: str = typer.Option(None, "--template-root", help="Override default template location (useful for development mode)"),
-):
+    github_token: str | None = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
+    template_root: str | None = typer.Option(None, "--template-root", help="Override default template location (useful for development mode)"),
+) -> None:
     """Initialize a new Spec Kitty project."""
     # Use the injected dependencies
     assert _console is not None
@@ -412,6 +418,7 @@ def init(
                     _console.print("[yellow]Operation cancelled[/yellow]")
                     raise typer.Exit(0)
     else:
+        assert project_name is not None
         project_path = Path(project_name).resolve()
         if project_path.exists():
             error_panel = Panel(
@@ -526,8 +533,8 @@ def init(
     # Agent role preferences
     preferred_implementer_value: str | None = preferred_implementer
     preferred_reviewer_value: str | None = preferred_reviewer
-    preferred_implementer: str | None = None
-    preferred_reviewer: str | None = None
+    selected_preferred_implementer: str | None = None
+    selected_preferred_reviewer: str | None = None
 
     if non_interactive:
         try:
@@ -548,9 +555,11 @@ def init(
             if preferred_implementer_value not in selected_agents:
                 _console.print("[red]Error:[/red] --preferred-implementer must be one of the selected agents")
                 raise typer.Exit(1)
-            preferred_implementer = preferred_implementer_value
+            selected_preferred_implementer = preferred_implementer_value
+        elif non_interactive:
+            selected_preferred_implementer = selected_agents[0]
         else:
-            preferred_implementer = select_with_arrows(
+            selected_preferred_implementer = select_with_arrows(
                 agent_display_map,
                 "Which agent should be the preferred IMPLEMENTER?",
                 default_key=selected_agents[0],
@@ -560,31 +569,54 @@ def init(
         _console.print()
         if len(selected_agents) > 1:
             # Default to a different agent for review
-            default_reviewer = next((a for a in selected_agents if a != preferred_implementer), selected_agents[0])
+            default_reviewer = next((a for a in selected_agents if a != selected_preferred_implementer), selected_agents[0])
             if preferred_reviewer_value:
                 if preferred_reviewer_value not in selected_agents:
                     _console.print("[red]Error:[/red] --preferred-reviewer must be one of the selected agents")
                     raise typer.Exit(1)
-                preferred_reviewer = preferred_reviewer_value
+                selected_preferred_reviewer = preferred_reviewer_value
+            elif non_interactive:
+                selected_preferred_reviewer = default_reviewer
             else:
-                preferred_reviewer = select_with_arrows(
+                selected_preferred_reviewer = select_with_arrows(
                     agent_display_map,
                     "Which agent should be the preferred REVIEWER?",
                     default_key=default_reviewer,
                 )
-            if preferred_reviewer == preferred_implementer and len(selected_agents) > 1:
+            if selected_preferred_reviewer == selected_preferred_implementer and len(selected_agents) > 1:
                 _console.print("[yellow]Note:[/yellow] Same agent for implementation and review (cross-review disabled)")
         else:
             # Only one agent - same for both
-            preferred_reviewer = preferred_implementer
-            _console.print(f"[dim]Single agent mode: {AI_CHOICES[preferred_implementer]} will do both implementation and review[/dim]")
+            selected_preferred_reviewer = selected_preferred_implementer
+            if selected_preferred_implementer is not None:
+                _console.print(f"[dim]Single agent mode: {AI_CHOICES[selected_preferred_implementer]} will do both implementation and review[/dim]")
+    else:
+        if preferred_implementer_value or preferred_reviewer_value:
+            _console.print("[red]Error:[/red] --preferred-implementer/--preferred-reviewer require --agent-strategy preferred")
+            raise typer.Exit(1)
+
+    if non_interactive:
+        try:
+            resolved_strategy, resolved_impl, resolved_rev = _resolve_non_interactive_strategy(
+                selected_agents,
+                selected_strategy,
+                preferred_implementer_value,
+                preferred_reviewer_value,
+            )
+        except ValueError as exc:
+            _console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
+        selected_strategy = resolved_strategy
+        if selected_strategy == "preferred":
+            selected_preferred_implementer = resolved_impl
+            selected_preferred_reviewer = resolved_rev
 
     # Build agent config to save later
     agent_config = AgentConfig(
         available=selected_agents,
         selection=AgentSelectionConfig(
-            preferred_implementer=preferred_implementer,
-            preferred_reviewer=preferred_reviewer,
+            preferred_implementer=selected_preferred_implementer,
+            preferred_reviewer=selected_preferred_reviewer,
         ),
     )
 
@@ -639,7 +671,7 @@ def init(
     # New tree-based progress (no emojis); include earlier substeps
     tracker = StepTracker("Initialize Specify Project")
     # Flag to allow suppressing legacy headings
-    sys._specify_tracker_active = True
+    setattr(sys, "_specify_tracker_active", True)
     # Pre steps recorded as completed before live rendering
     tracker.add("precheck", "Check required tools")
     tracker.complete("precheck", "ok")
@@ -730,6 +762,7 @@ def init(
                                     use_global = False
                             if not use_global:
                                 if template_mode == "local":
+                                    assert local_repo is not None
                                     command_templates_dir = copy_specify_base_from_local(local_repo, project_path, selected_script)
                                 else:
                                     command_templates_dir = copy_specify_base_from_package(project_path, selected_script)
@@ -772,6 +805,8 @@ def init(
                 else:
                     is_current_dir_flag = here if index == 0 else True
                     allow_existing_flag = index > 0
+                    if repo_owner is None or repo_name is None:
+                        repo_owner, repo_name = parse_repo_slug(DEFAULT_TEMPLATE_REPO)
                     download_and_extract_template(
                         project_path,
                         agent_key,
@@ -803,7 +838,7 @@ def init(
                 tracker.complete("mission-activate", mission_status)
 
             # Ensure scripts are executable (POSIX)
-            _ensure_executable_scripts(project_path, tracker=tracker)
+            _ensure_executable_scripts(project_path, tracker)
 
             # Git step - must happen BEFORE hook installation
             if not no_git:
@@ -1112,7 +1147,7 @@ def register_init_command(
     # If not, add a hidden dummy command to force subcommand mode
     if not hasattr(app, 'registered_commands') or not getattr(app, 'registered_commands'):
         @app.command("__force_multi_command_mode__", hidden=True)
-        def _dummy():
+        def _dummy() -> None:
             pass
 
     # Register the command with explicit name to ensure it's always a subcommand

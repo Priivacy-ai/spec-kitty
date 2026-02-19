@@ -588,7 +588,10 @@ def get_feature_mission_key(feature_dir: Path) -> str:
     try:
         with open(meta_file, 'r', encoding='utf-8') as f:
             meta = json.load(f)
-        return meta.get("mission", "software-dev")
+        mission = meta.get("mission")
+        if isinstance(mission, str) and mission:
+            return mission
+        return "software-dev"
     except (json.JSONDecodeError, OSError):
         return "software-dev"
 
@@ -620,14 +623,22 @@ def get_deliverables_path(feature_dir: Path, feature_slug: Optional[str] = None)
             with open(meta_file, 'r', encoding='utf-8') as f:
                 meta = json.load(f)
             deliverables_path = meta.get("deliverables_path")
-            if deliverables_path:
+            if isinstance(deliverables_path, str) and deliverables_path:
                 return deliverables_path
 
             # Check if this is a research mission - provide default if so
-            mission = meta.get("mission", "software-dev")
+            mission = (
+                meta.get("mission")
+                if isinstance(meta.get("mission"), str)
+                else "software-dev"
+            )
             if mission == "research":
                 # Generate default path using slug from meta or directory name
-                slug = meta.get("slug") or feature_slug or feature_dir.name
+                slug = (
+                    meta.get("slug")
+                    if isinstance(meta.get("slug"), str) and meta.get("slug")
+                    else feature_slug or feature_dir.name
+                )
                 return f"docs/research/{slug}/"
         except (json.JSONDecodeError, OSError):
             pass

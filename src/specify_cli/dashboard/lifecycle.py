@@ -15,9 +15,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 
 from .server import find_free_port, start_dashboard
 
@@ -112,7 +112,7 @@ def _is_process_alive(pid: int) -> bool:
     """
     try:
         proc = psutil.Process(pid)
-        return proc.is_running()
+        return bool(proc.is_running())
     except psutil.NoSuchProcess:
         # Process doesn't exist
         return False
@@ -149,7 +149,10 @@ def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
         return False
 
     try:
-        data = json.loads(payload.decode('utf-8'))
+        data_raw: Any = json.loads(payload.decode('utf-8'))
+        if not isinstance(data_raw, dict):
+            return False
+        data: dict[str, Any] = data_raw
         # Verify this is actually a spec-kitty dashboard by checking for expected fields
         return 'project_path' in data and 'status' in data
     except Exception:
@@ -235,9 +238,12 @@ def _check_dashboard_health(
         return False
 
     try:
-        data = json.loads(payload.decode('utf-8'))
+        data_raw: Any = json.loads(payload.decode('utf-8'))
     except (UnicodeDecodeError, json.JSONDecodeError):
         return False
+    if not isinstance(data_raw, dict):
+        return False
+    data: dict[str, Any] = data_raw
 
     remote_path = data.get('project_path')
     if not remote_path:
@@ -258,7 +264,7 @@ def _check_dashboard_health(
 
     remote_token = data.get('token')
     if expected_token:
-        return remote_token == expected_token
+        return isinstance(remote_token, str) and remote_token == expected_token
 
     return True
 

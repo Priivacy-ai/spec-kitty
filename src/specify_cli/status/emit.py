@@ -48,7 +48,7 @@ class TransitionError(Exception):
 def _generate_ulid() -> str:
     """Generate a new ULID string."""
     if hasattr(_ulid_mod, "new"):
-        return _ulid_mod.new().str
+        return str(_ulid_mod.new().str)
     return str(_ulid_mod.ULID())
 
 
@@ -168,14 +168,14 @@ def emit_status_transition(
     *,
     force: bool = False,
     reason: str | None = None,
-    evidence: dict | None = None,
+    evidence: dict[str, Any] | None = None,
     review_ref: str | None = None,
     workspace_context: str | None = None,
     subtasks_complete: bool | None = None,
     implementation_evidence_present: bool | None = None,
     execution_mode: str = "worktree",
     repo_root: Path | None = None,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, Any] | None = None,
 ) -> StatusEvent:
     """Central orchestration function for all status state changes.
 
@@ -312,7 +312,7 @@ def _saas_fan_out(
     feature_slug: str,
     repo_root: Path | None,
     *,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, Any] | None = None,
 ) -> None:
     """Conditionally emit a SaaS telemetry event via the sync pipeline.
 

@@ -152,7 +152,7 @@ class StatusEvent:
     reason: str | None = None
     review_ref: str | None = None
     evidence: DoneEvidence | None = None
-    policy_metadata: dict | None = None
+    policy_metadata: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {

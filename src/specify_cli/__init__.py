@@ -147,8 +147,8 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
             console.print(f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]")
         if failures:
             console.print("[yellow]Some scripts could not be updated:[/yellow]")
-            for f in failures:
-                console.print(f"  - {f}")
+            for failure in failures:
+                console.print(f"  - {failure}")
 
 
 # Register the init command with necessary dependencies
@@ -162,7 +162,7 @@ register_init_command(
 
 register_commands(app)
 
-def main():
+def main() -> None:
     import sys
     # Ensure UTF-8 encoding on Windows to handle Unicode characters in git output
     # Fixes: https://github.com/Priivacy-ai/spec-kitty/issues/66

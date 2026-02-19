@@ -3,7 +3,7 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 2.0.0a5
+  version: 2.0.1a1
   initialized_at: '2026-02-17T17:51:07.116988'
   last_upgraded_at: null
 environment:
@@ -11,4 +11,4 @@ environment:
   platform: linux
   platform_version: Linux-6.8.0-100-generic-x86_64-with-glibc2.39
 migrations:
-  applied: []
+  applied: [ ]

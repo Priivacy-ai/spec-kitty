@@ -15,6 +15,15 @@ adaptation:
   notes:
     - "Map to Spec Kitty doctrine naming."
     - "Keep constitution as activation authority."
+source_references:
+  - kind: "external"
+    path: "https://blog.wingman-sw.com/tdd-guided-by-zombies"
+    lines: "n/a"
+    note: "Primary source article."
+external_references:
+  - url: "https://blog.wingman-sw.com/tdd-guided-by-zombies"
+    attribution_reason: "Original author and conceptual source for ZOMBIES guidance."
+    extraction_action: "none"
 status: "adopted"
 resulting_artifacts:
   - "src/doctrine/tactics/zombies-tdd.tactic.yaml"

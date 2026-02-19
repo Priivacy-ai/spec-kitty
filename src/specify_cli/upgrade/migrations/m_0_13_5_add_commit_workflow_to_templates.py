@@ -61,7 +61,7 @@ class AddCommitWorkflowToTemplatesMigration(BaseMigration):
                 template_path = data_root.joinpath(
                     "missions", mission, "command-templates", self.TEMPLATE_FILE
                 )
-                if not template_path.exists():
+                if not template_path.is_file():
                     return False, f"Template not found: missions/{mission}/command-templates/{self.TEMPLATE_FILE}"
             return True, ""
         except Exception as e:
@@ -96,7 +96,7 @@ class AddCommitWorkflowToTemplatesMigration(BaseMigration):
                     "missions", mission_name, "command-templates", self.TEMPLATE_FILE
                 )
 
-                if not template_path.exists():
+                if not template_path.is_file():
                     warnings.append(f"Template not found for mission: {mission_name}")
                     continue
 

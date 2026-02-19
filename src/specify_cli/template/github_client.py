@@ -7,7 +7,7 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Tuple
+from typing import Any
 
 import httpx
 from rich.console import Console
@@ -67,7 +67,7 @@ def download_template_from_github(
     debug: bool = False,
     github_token: str | None = None,
     console: Console | None = None,
-) -> Tuple[Path, dict]:
+) -> tuple[Path, dict[str, Any]]:
     """Download the release asset for the requested AI assistant."""
     console = console or DEFAULT_CONSOLE
     client = client or build_http_client()

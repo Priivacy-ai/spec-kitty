@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 def _generate_event_id() -> str:
     """Return a 26-char ULID string, falling back to uuid4 hex prefix."""
     try:
-        from ulid import ULID  # type: ignore[import-untyped]
+        from ulid import ULID
 
         return str(ULID())
     except Exception:
@@ -107,6 +107,7 @@ def emit_execution_event(
             timestamp=datetime.now(timezone.utc),
             node_id=effective_node,
             lamport_clock=lamport_value,
+            causation_id=None,
         )
 
         store = SimpleJsonStore(feature_dir / "execution.events.jsonl")

@@ -1,0 +1,74 @@
+# =============================================================================
+# Runtime DAG-based Mission Template (v2.1.0)
+# =============================================================================
+#
+# Transitional template alongside the v1 state-machine mission.yaml.
+# Used by spec-kitty next when bridging to spec-kitty-runtime.
+#
+# The runtime engine uses DAG-based step planning instead of state transitions.
+# WP-level iteration within "implement" and "review" steps is managed by the
+# CLI bridge layer, not the runtime.
+#
+# v2.1.0: Split monolithic "tasks" step into 3 atomic steps:
+#   tasks_outline  → Create tasks.md breakdown document
+#   tasks_packages → Generate individual WP prompt files
+#   tasks_finalize → Validate dependencies and finalize metadata
+
+mission:
+  key: software-dev
+  name: Software Dev Kitty
+  version: "2.1.0"
+
+steps:
+  - id: discovery
+    title: Discovery & Research
+    prompt_template: research.md
+    description: Research technologies and best practices
+
+  - id: specify
+    title: Specification
+    depends_on: [discovery]
+    prompt_template: specify.md
+    description: Define user scenarios and acceptance criteria
+
+  - id: plan
+    title: Implementation Planning
+    depends_on: [specify]
+    prompt_template: plan.md
+    description: Design technical architecture
+
+  - id: tasks_outline
+    title: Task Outline
+    depends_on: [plan]
+    prompt_template: tasks-outline.md
+    description: Create task breakdown document (tasks.md)
+
+  - id: tasks_packages
+    title: Work Package Creation
+    depends_on: [tasks_outline]
+    prompt_template: tasks-packages.md
+    description: Generate individual WP prompt files (tasks/WP*.md)
+
+  - id: tasks_finalize
+    title: Task Finalization
+    depends_on: [tasks_packages]
+    prompt_template: tasks-finalize.md
+    description: Validate dependencies and finalize WP metadata
+
+  - id: implement
+    title: Implementation
+    depends_on: [tasks_finalize]
+    prompt_template: implement.md
+    description: Execute implementation
+
+  - id: review
+    title: Code Review
+    depends_on: [implement]
+    prompt_template: review.md
+    description: Review and validate
+
+  - id: accept
+    title: Acceptance
+    depends_on: [review]
+    prompt_template: accept.md
+    description: Validate feature completeness

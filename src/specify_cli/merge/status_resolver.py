@@ -481,9 +481,9 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
 
         for region in regions:
             if CHECKBOX_PATTERN.search(region.ours) or CHECKBOX_PATTERN.search(region.theirs):
-                resolved_region = resolve_checkbox_conflict(region.ours, region.theirs)
-                resolved_region = _preserve_trailing_newline(resolved_region, region.original)
-                resolved_content = resolved_content.replace(region.original, resolved_region)
+                checkbox_region = resolve_checkbox_conflict(region.ours, region.theirs)
+                checkbox_region = _preserve_trailing_newline(checkbox_region, region.original)
+                resolved_content = resolved_content.replace(region.original, checkbox_region)
                 resolved_count += 1
                 resolution_types.add("checkbox")
                 continue

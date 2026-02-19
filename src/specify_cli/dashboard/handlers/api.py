@@ -19,7 +19,7 @@ class APIHandler(DashboardHandler):
 
     def handle_root(self) -> None:
         """Return the rendered dashboard HTML shell."""
-        project_path = Path(self.project_dir).resolve()
+        project_path = Path(self.project_dir or Path.cwd()).resolve()
 
         # Derive active mission from the most active feature (per-feature mission model)
         mission_context = {
@@ -46,7 +46,7 @@ class APIHandler(DashboardHandler):
                     'version': mission.config.version,
                     'slug': mission.path.name,
                     'description': mission.config.description or '',
-                    'path': format_path_for_display(str(mission.path)),
+                    'path': format_path_for_display(str(mission.path)) or "",
                 }
         except (MissionError, Exception):
             pass  # Keep default "No active feature" context
@@ -64,7 +64,7 @@ class APIHandler(DashboardHandler):
         self.end_headers()
 
         try:
-            project_path = str(Path(self.project_dir).resolve())
+            project_path = str(Path(self.project_dir or Path.cwd()).resolve())
         except Exception:
             project_path = str(self.project_dir)
 
@@ -86,7 +86,7 @@ class APIHandler(DashboardHandler):
     def handle_diagnostics(self) -> None:
         """Run diagnostics and report JSON payloads (or errors)."""
         try:
-            diagnostics = run_diagnostics(Path(self.project_dir))
+            diagnostics = run_diagnostics(Path(self.project_dir or Path.cwd()))
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.send_header('Cache-Control', 'no-cache')
@@ -107,10 +107,11 @@ class APIHandler(DashboardHandler):
     def handle_constitution(self) -> None:
         """Serve project-level constitution from .kittify/constitution/constitution.md"""
         try:
-            constitution_path = Path(self.project_dir) / ".kittify" / "constitution" / "constitution.md"
+            project_path = Path(self.project_dir or Path.cwd())
+            constitution_path = project_path / ".kittify" / "constitution" / "constitution.md"
             # Fallback to old path for unmigrated projects
             if not constitution_path.exists():
-                constitution_path = Path(self.project_dir) / ".kittify" / "memory" / "constitution.md"
+                constitution_path = project_path / ".kittify" / "memory" / "constitution.md"
 
             if not constitution_path.exists():
                 self.send_response(404)

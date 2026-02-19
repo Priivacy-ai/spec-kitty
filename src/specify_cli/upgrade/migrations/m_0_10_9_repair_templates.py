@@ -111,7 +111,7 @@ class RepairTemplatesMigration(BaseMigration):
             # Step 3: Regenerate all agent slash commands
             if not dry_run and command_templates_dir:
                 # Import here to avoid circular dependencies
-                from specify_cli.cli.commands.init import generate_agent_assets
+                from specify_cli.template import generate_agent_assets
                 import yaml
 
                 # Get AI configuration from metadata

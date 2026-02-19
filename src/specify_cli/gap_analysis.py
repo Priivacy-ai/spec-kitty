@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from ruamel.yaml import YAML
 
@@ -108,7 +108,10 @@ def parse_frontmatter(content: str) -> Optional[Dict[str, Any]]:
     yaml.preserve_quotes = True
     try:
         frontmatter_text = "\n".join(lines[1:end_idx])
-        return yaml.load(frontmatter_text)
+        loaded = yaml.load(frontmatter_text)
+        if isinstance(loaded, dict):
+            return cast(Dict[str, Any], loaded)
+        return None
     except Exception:
         return None
 
@@ -811,7 +814,7 @@ def analyze_documentation_gaps(
     doc_files = list(docs_dir.rglob("*.md"))
 
     # Classify each file
-    classified = {}
+    classified: Dict[Path, Tuple[DivioType, float]] = {}
     for doc_file in doc_files:
         try:
             content = doc_file.read_text(encoding='utf-8')
@@ -831,10 +834,13 @@ def analyze_documentation_gaps(
     gap_tuples = coverage_matrix.get_gaps()
 
     # Prioritize gaps
-    prioritized_gaps = prioritize_gaps(gap_tuples, project_areas, classified)
+    classified_types: Dict[Path, DivioType] = {
+        path: divio_type for path, (divio_type, _) in classified.items()
+    }
+    prioritized_gaps = prioritize_gaps(gap_tuples, project_areas, classified_types)
 
     # Detect version mismatches (Python only for now)
-    outdated = []
+    outdated: List[Tuple[Path, str]] = []
     # TODO: Implement version mismatch detection (T038)
 
     return GapAnalysis(

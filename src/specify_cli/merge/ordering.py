@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from rich.console import Console
+
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,
     detect_cycles,
@@ -109,7 +111,7 @@ def get_merge_order(
 
 def display_merge_order(
     ordered_workspaces: list[tuple[Path, str, str]],
-    console,
+    console: Console,
 ) -> None:
     """Display the merge order to the user.
 

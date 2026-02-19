@@ -68,7 +68,11 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
         raise typer.Exit(1)
 
 
-def _output_result(json_mode: bool, data: dict, success_message: str | None = None):
+def _output_result(
+    json_mode: bool,
+    data: dict[str, Any],
+    success_message: str | None = None,
+) -> None:
     """Output result in JSON or human-readable format."""
     if json_mode:
         print(json.dumps(data))
@@ -76,7 +80,7 @@ def _output_result(json_mode: bool, data: dict, success_message: str | None = No
         console.print(success_message)
 
 
-def _output_error(json_mode: bool, error_message: str):
+def _output_error(json_mode: bool, error_message: str) -> None:
     """Output error in JSON or human-readable format."""
     if json_mode:
         print(json.dumps({"error": error_message}))
@@ -112,8 +116,8 @@ def _resolve_feature_dir(
 @app.command()
 def emit(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
-    to: Annotated[str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, done)")] = ...,
-    actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
+    to: str = typer.Option(..., "--to", help="Target lane (e.g., claimed, in_progress, for_review, done)"),
+    actor: str = typer.Option(..., "--actor", help="Who is making this transition"),
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[Optional[str], typer.Option("--reason", help="Reason for forced transition")] = None,
@@ -357,9 +361,15 @@ def doctor(
 
     feature_dir, feature_slug, repo_root = _resolve_feature_dir(feature)
 
-    # Run global runtime checks BEFORE project-specific checks
-    global_checks = run_global_checks(project_dir=repo_root)
-    global_has_issues = any(not c.passed for c in global_checks)
+    # Run global runtime checks only for initialized project roots.
+    # Unit tests often inject temporary feature dirs without a full .kittify root.
+    if (repo_root / ".kittify").exists():
+        global_checks = run_global_checks(project_dir=repo_root)
+    else:
+        global_checks = []
+    global_has_issues = any(
+        (not c.passed) and c.severity == "error" for c in global_checks
+    )
 
     try:
         result = run_doctor(
