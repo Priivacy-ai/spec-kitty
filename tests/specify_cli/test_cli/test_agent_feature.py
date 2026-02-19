@@ -11,24 +11,21 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.feature import app
-from tests.branch_contract import IS_2X_BRANCH, LEGACY_0X_ONLY_REASON
 
 runner = CliRunner()
 
 
-@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 class TestCreateFeatureCommand:
     """Tests for create-feature command."""
 
-    @patch("specify_cli.cli.commands.agent.feature.emit_feature_created")
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_creates_feature_with_json_output(
         self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, mock_emit: Mock, tmp_path: Path
+        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should create feature and output JSON format."""
         # Setup
@@ -56,15 +53,23 @@ class TestCreateFeatureCommand:
         assert feature_dir.exists()
         assert (feature_dir / "spec.md").exists()
 
-    @patch("specify_cli.cli.commands.agent.feature.emit_feature_created")
+        # meta.json should exist for all missions (not only documentation)
+        meta_path = feature_dir / "meta.json"
+        assert meta_path.exists()
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        assert meta["feature_number"] == "001"
+        assert meta["slug"] == "001-test-feature"
+        assert meta["feature_slug"] == "001-test-feature"
+        assert meta["mission"] == "software-dev"
+        assert meta["target_branch"] == "main"
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
     @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_creates_feature_with_human_output(
         self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, mock_emit: Mock, tmp_path: Path
+        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
     ):
         """Should create feature and output human-readable format."""
         # Setup
@@ -141,25 +146,31 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
-    def test_requires_main_branch(
-        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+    @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
+    def test_creates_feature_from_any_branch(
+        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
+        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
     ):
-        """Should require main branch for feature creation."""
-        # Setup: On wrong branch
+        """Should allow feature creation from any branch (not just main)."""
+        # Setup: On non-main branch
         mock_locate.return_value = tmp_path
         mock_is_git.return_value = True
         mock_branch.return_value = "develop"
+        mock_get_number.return_value = 1
+
+        # Create necessary directories
+        (tmp_path / ".kittify" / "templates").mkdir(parents=True)
+        (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
 
         # Execute
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
 
-        # Verify
-        assert result.exit_code == 1
-        # Parse only the first line (JSON output)
+        # Verify - should succeed from any branch
+        assert result.exit_code == 0
         first_line = result.stdout.strip().split('\n')[0]
         output = json.loads(first_line)
-        assert "error" in output
-        assert "main" in output["error"].lower()
+        assert output["result"] == "success"
 
 
 class TestCheckPrerequisitesCommand:

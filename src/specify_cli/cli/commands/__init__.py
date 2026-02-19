@@ -12,6 +12,7 @@ from . import context as context_module
 from . import dashboard as dashboard_module
 from . import glossary as glossary_module
 from . import implement as implement_module
+from . import lifecycle as lifecycle_module
 from . import merge as merge_module
 from . import migrate_cmd as migrate_module
 from . import next_cmd as next_cmd_module
@@ -37,6 +38,9 @@ def register_commands(app: typer.Typer) -> None:
     app.command()(dashboard_module.dashboard)
     app.add_typer(glossary_module.app, name="glossary", help="Glossary management commands")
     app.command()(implement_module.implement)
+    app.command()(lifecycle_module.specify)
+    app.command()(lifecycle_module.plan)
+    app.command()(lifecycle_module.tasks)
     app.command()(merge_module.merge)
     app.command()(migrate_module.migrate)
     app.command(name="next")(next_cmd_module.next_step)

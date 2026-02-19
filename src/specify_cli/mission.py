@@ -40,6 +40,19 @@ MISSION_ROOT_FIELDS: tuple[str, ...] = (
     "commands",
 )
 
+# Hybrid mission configs produced by older generators may include v1 state-machine
+# keys alongside v0 mission schema keys. Ignore these compatibility keys so
+# mission discovery does not skip otherwise valid missions.
+MISSION_COMPAT_IGNORED_FIELDS: tuple[str, ...] = (
+    "mission",
+    "initial",
+    "states",
+    "transitions",
+    "guards",
+    "inputs",
+    "outputs",
+)
+
 
 class PhaseConfig(BaseModel):
     """Workflow phase definition."""
@@ -208,8 +221,16 @@ class Mission:
                 f"got {type(raw_config).__name__} instead."
             )
 
+        # Drop known compatibility keys from hybrid mission.yaml files.
+        # Unknown extra fields still fail validation as before.
+        normalized_config = {
+            key: value
+            for key, value in raw_config.items()
+            if key not in MISSION_COMPAT_IGNORED_FIELDS
+        }
+
         try:
-            return MissionConfig.model_validate(raw_config)
+            return MissionConfig.model_validate(normalized_config)
         except ValidationError as error:
             raise MissionError(_format_validation_error(config_file, error)) from error
 

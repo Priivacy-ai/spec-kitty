@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+from datetime import datetime, timezone
 from importlib.resources import files
 import subprocess
 import sys
@@ -194,6 +195,7 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
 @app.command(name="create-feature")
 def create_feature(
     feature_slug: Annotated[str, typer.Argument(help="Feature slug (e.g., 'user-auth')")],
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Create new feature directory structure in planning repository.
@@ -381,6 +383,65 @@ spec-kitty agent tasks move-task WP01 --to doing
 
         # Commit spec.md to planning branch
         _commit_to_branch(spec_file, feature_slug_formatted, "spec", repo_root, planning_branch, json_output)
+
+        # Ensure baseline feature metadata exists for downstream commands
+        # (implement/merge/mission detection rely on meta.json in every mission).
+        meta_file = feature_dir / "meta.json"
+        meta: dict[str, object] = {}
+        if meta_file.exists():
+            try:
+                meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                meta = {}
+
+        meta.setdefault("feature_number", f"{feature_number:03d}")
+        meta.setdefault("slug", feature_slug_formatted)
+        meta.setdefault("feature_slug", feature_slug_formatted)
+        meta.setdefault("friendly_name", feature_slug.replace("-", " ").strip())
+        meta.setdefault("mission", mission or "software-dev")
+        meta.setdefault("target_branch", planning_branch)
+        meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())
+
+        meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        try:
+            _commit_to_branch(
+                meta_file,
+                feature_slug_formatted,
+                "meta",
+                repo_root,
+                planning_branch,
+                json_output,
+            )
+        except Exception:
+            # Non-fatal: file is still present for local workflows.
+            pass
+
+        # T013: Initialize documentation state if mission is documentation
+        if mission == "documentation":
+            meta.setdefault("mission", "documentation")
+            if "documentation_state" not in meta:
+                meta["documentation_state"] = {
+                    "iteration_mode": "initial",
+                    "divio_types_selected": [],
+                    "generators_configured": [],
+                    "target_audience": "developers",
+                    "last_audit_date": None,
+                    "coverage_percentage": 0.0,
+                }
+            meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+            try:
+                _commit_to_branch(
+                    meta_file,
+                    feature_slug_formatted,
+                    "meta",
+                    repo_root,
+                    planning_branch,
+                    json_output,
+                )
+            except Exception:
+                pass
+            if not json_output:
+                console.print("[cyan]→ Documentation state initialized in meta.json[/cyan]")
 
         # Emit FeatureCreated event (non-blocking)
         try:

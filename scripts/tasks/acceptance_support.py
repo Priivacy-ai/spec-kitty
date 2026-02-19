@@ -544,6 +544,19 @@ def choose_mode(preference: Optional[str], repo_root: Path) -> AcceptanceMode:
     return "local"
 
 
+def _resolve_feature_branch_name(summary: AcceptanceSummary) -> str:
+    """Resolve the branch name to use in merge/cleanup guidance.
+
+    Acceptance may be executed from the target branch (e.g., main). In that case,
+    instructions must still refer to the feature branch instead of suggesting
+    deletion of the target branch.
+    """
+    branch = (summary.branch or "").strip()
+    if branch and branch not in {"HEAD", "main", "master"}:
+        return branch
+    return summary.feature
+
+
 def perform_acceptance(
     summary: AcceptanceSummary,
     *,
@@ -629,12 +642,12 @@ def perform_acceptance(
     instructions: List[str] = []
     cleanup_instructions: List[str] = []
 
-    branch = summary.branch or summary.feature
+    feature_branch = _resolve_feature_branch_name(summary)
     if mode == "pr":
         instructions.extend(
             [
-                f"Review the acceptance commit on branch `{branch}`.",
-                f"Push your branch: `git push origin {branch}`",
+                f"Review the acceptance commit on branch `{feature_branch}`.",
+                f"Push your branch: `git push origin {feature_branch}`",
                 "Open a pull request referencing spec/plan/tasks artifacts.",
                 "Include acceptance summary and test evidence in the PR description.",
             ]
@@ -644,7 +657,7 @@ def perform_acceptance(
             [
                 "Switch to your integration branch (e.g., `git checkout main`).",
                 "Synchronize it (e.g., `git pull --ff-only`).",
-                f"Merge the feature: `git merge {branch}`",
+                f"Merge the feature: `git merge {feature_branch}`",
             ]
         )
     else:  # checklist
@@ -656,7 +669,9 @@ def perform_acceptance(
         cleanup_instructions.append(
             f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`"
         )
-    cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
+    cleanup_instructions.append(
+        f"Delete the feature branch when done: `git branch -d {feature_branch}`"
+    )
 
     notes: List[str] = []
     if accept_commit:

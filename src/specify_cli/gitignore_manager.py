@@ -68,6 +68,12 @@ AGENT_DIRECTORIES = [
     AgentDirectory("copilot", ".github/copilot/", True, "GitHub Copilot (user settings)"),
 ]
 
+# Runtime/generated artifacts that should never be tracked.
+RUNTIME_PROTECTED_ENTRIES = [
+    ".kittify/.dashboard",
+    ".kittify/missions/__pycache__/",
+]
+
 
 class GitignoreManager:
     """Manages gitignore entries for AI agent directories."""
@@ -188,7 +194,7 @@ class GitignoreManager:
         This is the primary method used during spec-kitty init to ensure
         comprehensive protection of all AI agent directories.
 
-        Also protects runtime files like .kittify/.dashboard.
+        Also protects runtime-generated files under .kittify/.
 
         Returns:
             ProtectionResult containing details of the operation
@@ -200,7 +206,7 @@ class GitignoreManager:
             all_directories = [agent.directory for agent in AGENT_DIRECTORIES]
 
             # Add runtime files that should never be tracked
-            all_directories.append(".kittify/.dashboard")
+            all_directories.extend(RUNTIME_PROTECTED_ENTRIES)
 
             # Track existing entries before modification
             existing_before = set()
