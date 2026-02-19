@@ -146,3 +146,32 @@ markers = [
     "platform_linux: Linux-specific tests",
     "requires_symlinks: Tests that need symlink support",
 ]
+
+[tool.mypy]
+# Keep strict mode as the default quality bar for actively maintained code.
+strict = true
+
+[[tool.mypy.overrides]]
+# Transitional quarantine for legacy modules that are still being migrated to strict typing.
+module = [
+    "specify_cli.agent_utils.status",
+    "specify_cli.cli.commands.glossary",
+    "specify_cli.cli.ui",
+    "specify_cli.core.feature_detection",
+    "specify_cli.events.adapter",
+    "specify_cli.manifest",
+    "specify_cli.mission_v1.compat",
+    "specify_cli.mission_v1.events",
+    "specify_cli.mission_v1.runner",
+    "specify_cli.scripts.tasks.acceptance_support",
+    "specify_cli.scripts.tasks.task_helpers",
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.status.validate",
+    "specify_cli.sync.auth",
+    "specify_cli.sync.background",
+    "specify_cli.sync.batch",
+    "specify_cli.sync.client",
+    "specify_cli.tasks_support",
+    "specify_cli.verify_enhanced",
+]
+ignore_errors = true
