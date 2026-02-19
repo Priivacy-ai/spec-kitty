@@ -158,10 +158,33 @@ def _get_artifact_info(path: Path) -> Dict[str, any]:
     }
 
 
+def _get_project_constitution_info(feature_dir: Path) -> Dict[str, any]:
+    """Check for project-level constitution (not per-feature).
+    
+    Constitution is project-wide, not feature-specific. Checks:
+    1. .kittify/constitution/constitution.md (new path, post Feature 045 migration)
+    2. .kittify/memory/constitution.md (old path, pre-migration)
+    
+    Context: Feature 011 removed per-mission/per-feature constitutions.
+    Only ONE project-level constitution exists.
+    """
+    # Navigate from feature_dir (kitty-specs/NNN-feature) to project root
+    project_root = feature_dir.parent.parent
+    
+    # Check new path first (post-migration)
+    new_path = project_root / ".kittify" / "constitution" / "constitution.md"
+    if new_path.exists():
+        return _get_artifact_info(new_path)
+    
+    # Fallback to old path (pre-migration, backward compatibility)
+    old_path = project_root / ".kittify" / "memory" / "constitution.md"
+    return _get_artifact_info(old_path)
+
+
 def get_feature_artifacts(feature_dir: Path) -> Dict[str, Dict[str, any]]:
     """Return which artifacts exist for a feature with modification info."""
     return {
-        "constitution": _get_artifact_info(feature_dir / "constitution.md"),
+        "constitution": _get_project_constitution_info(feature_dir),
         "spec": _get_artifact_info(feature_dir / "spec.md"),
         "plan": _get_artifact_info(feature_dir / "plan.md"),
         "tasks": _get_artifact_info(feature_dir / "tasks.md"),

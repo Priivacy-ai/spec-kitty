@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import shutil
 import subprocess
@@ -30,7 +29,6 @@ from specify_cli.tasks_support import (
     append_activity_log,
     build_document,
     extract_scalar,
-    find_repo_root,
     locate_work_package,
     set_scalar,
     split_frontmatter,
@@ -222,7 +220,7 @@ def _ensure_sparse_checkout(worktree_path: Path) -> bool:
         orphan_kitty = worktree_path / "kitty-specs"
         if orphan_kitty.exists():
             shutil.rmtree(orphan_kitty)
-            print(f"✓ Removed orphaned kitty-specs/ from worktree (now uses planning repo)")
+            print("✓ Removed orphaned kitty-specs/ from worktree (now uses planning repo)")
 
     return True
 
@@ -286,6 +284,11 @@ def implement(
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
     base: Annotated[Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
+    model: Annotated[Optional[str], typer.Option("--model", help="LLM model used (for telemetry)")] = None,
+    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input token count (for telemetry)")] = None,
+    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output token count (for telemetry)")] = None,
+    cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Estimated cost in USD (for telemetry)")] = None,
+    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Execution duration in milliseconds (for telemetry)")] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -513,30 +516,30 @@ def implement(
         lines.append("=" * 80)
         lines.append("WHEN YOU'RE DONE:")
         lines.append("=" * 80)
-        lines.append(f"✓ Implementation complete and tested:")
-        lines.append(f"  1. **Commit your implementation files:**")
-        lines.append(f"     git status  # Check what you changed")
-        lines.append(f"     git add <your-implementation-files>  # NOT WP status files")
+        lines.append("✓ Implementation complete and tested:")
+        lines.append("  1. **Commit your implementation files:**")
+        lines.append("     git status  # Check what you changed")
+        lines.append("     git add <your-implementation-files>  # NOT WP status files")
         lines.append(f"     git commit -m \"feat({normalized_wp_id}): <brief description>\"")
-        lines.append(f"     git log -1 --oneline  # Verify commit succeeded")
-        lines.append(f"  2. Mark all subtasks as done:")
-        lines.append(f"     spec-kitty agent tasks mark-status T001 T002 T003 --status done")
-        lines.append(f"  3. Move WP to review:")
+        lines.append("     git log -1 --oneline  # Verify commit succeeded")
+        lines.append("  2. Mark all subtasks as done:")
+        lines.append("     spec-kitty agent tasks mark-status T001 T002 T003 --status done")
+        lines.append("  3. Move WP to review:")
         lines.append(f"     spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
         lines.append("")
-        lines.append(f"✗ Blocked or cannot complete:")
+        lines.append("✗ Blocked or cannot complete:")
         lines.append(f"  spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
         lines.append("=" * 80)
         lines.append("")
-        lines.append(f"📍 WORKING DIRECTORY:")
+        lines.append("📍 WORKING DIRECTORY:")
         lines.append(f"   cd {workspace_path}")
-        lines.append(f"   # All implementation work happens in this workspace")
+        lines.append("   # All implementation work happens in this workspace")
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
         lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
         lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
-        lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
+        lines.append("   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
         lines.append("")
 
@@ -582,19 +585,19 @@ def implement(
         lines.append("🎯 IMPLEMENTATION COMPLETE? RUN THESE COMMANDS:")
         lines.append("=" * 80)
         lines.append("")
-        lines.append(f"✅ Implementation complete and tested:")
-        lines.append(f"   1. **Commit your implementation files:**")
-        lines.append(f"      git status  # Check what you changed")
-        lines.append(f"      git add <your-implementation-files>  # NOT WP status files")
+        lines.append("✅ Implementation complete and tested:")
+        lines.append("   1. **Commit your implementation files:**")
+        lines.append("      git status  # Check what you changed")
+        lines.append("      git add <your-implementation-files>  # NOT WP status files")
         lines.append(f"      git commit -m \"feat({normalized_wp_id}): <brief description>\"")
-        lines.append(f"      git log -1 --oneline  # Verify commit succeeded")
-        lines.append(f"      (Use fix: for bugs, chore: for maintenance, docs: for documentation)")
-        lines.append(f"   2. Mark all subtasks as done:")
-        lines.append(f"      spec-kitty agent tasks mark-status T001 T002 T003 --status done")
-        lines.append(f"   3. Move WP to review (will check for uncommitted changes):")
+        lines.append("      git log -1 --oneline  # Verify commit succeeded")
+        lines.append("      (Use fix: for bugs, chore: for maintenance, docs: for documentation)")
+        lines.append("   2. Mark all subtasks as done:")
+        lines.append("      spec-kitty agent tasks mark-status T001 T002 T003 --status done")
+        lines.append("   3. Move WP to review (will check for uncommitted changes):")
         lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review: <summary>\"")
         lines.append("")
-        lines.append(f"⚠️  Blocked or cannot complete:")
+        lines.append("⚠️  Blocked or cannot complete:")
         lines.append(f"   spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
         lines.append("")
         lines.append("⚠️  NOTE: The move-task command will FAIL if you have uncommitted changes!")
@@ -610,19 +613,44 @@ def implement(
         print()
         print(f"📍 Workspace: cd {workspace_path}")
         if has_feedback:
-            print(f"⚠️  Has review feedback - check prompt file")
+            print("⚠️  Has review feedback - check prompt file")
         if mission_key == "research" and deliverables_path:
             print(f"🔬 Research deliverables: {deliverables_path}")
-            print(f"   (NOT in kitty-specs/ - those are planning artifacts)")
+            print("   (NOT in kitty-specs/ - those are planning artifacts)")
         print()
         print("▶▶▶ NEXT STEP: Read the full prompt file now:")
         print(f"    cat {prompt_file}")
         print()
         print("After implementation, run:")
         print(f"  1. git status && git add <your-files> && git commit -m \"feat({normalized_wp_id}): <description>\"")
-        print(f"  2. spec-kitty agent tasks mark-status T001 T002 ... --status done")
+        print("  2. spec-kitty agent tasks mark-status T001 T002 ... --status done")
         print(f"  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
-        print(f"     (Pre-flight check will verify no uncommitted changes)")
+        print("     (Pre-flight check will verify no uncommitted changes)")
+
+        # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
+        try:
+            from specify_cli.telemetry.emit import emit_execution_event
+
+            emit_execution_event(
+                feature_dir=feature_dir,
+                feature_slug=feature_slug,
+                wp_id=normalized_wp_id,
+                agent=agent or "unknown",
+                role="implementer",
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=cost_usd,
+                duration_ms=duration_ms or 0,
+                success=True,
+                error=None,
+            )
+        except Exception as telemetry_err:
+            # Fire-and-forget: log but don't block workflow
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to emit execution event: {telemetry_err}"
+            )
 
     except Exception as e:
         print(f"Error: {e}")
@@ -774,6 +802,11 @@ def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
+    model: Annotated[Optional[str], typer.Option("--model", help="LLM model used (for telemetry)")] = None,
+    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input token count (for telemetry)")] = None,
+    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output token count (for telemetry)")] = None,
+    cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Estimated cost in USD (for telemetry)")] = None,
+    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Execution duration in milliseconds (for telemetry)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
 
@@ -1030,24 +1063,24 @@ def review(
         lines.append("=" * 80)
         lines.append("WHEN YOU'RE DONE:")
         lines.append("=" * 80)
-        lines.append(f"✓ Review passed, no issues:")
+        lines.append("✓ Review passed, no issues:")
         lines.append(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
         lines.append("")
-        lines.append(f"⚠️  Changes requested:")
-        lines.append(f"  1. Add feedback to the WP file's '## Review Feedback' section")
+        lines.append("⚠️  Changes requested:")
+        lines.append("  1. Add feedback to the WP file's '## Review Feedback' section")
         lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --note \"Changes requested\"")
         lines.append("=" * 80)
         lines.append("")
-        lines.append(f"📍 WORKING DIRECTORY:")
+        lines.append("📍 WORKING DIRECTORY:")
         lines.append(f"   cd {workspace_path}")
-        lines.append(f"   # Review the implementation in this workspace")
-        lines.append(f"   # Read code, run tests, check against requirements")
+        lines.append("   # Review the implementation in this workspace")
+        lines.append("   # Read code, run tests, check against requirements")
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
         lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
         lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
-        lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
+        lines.append("   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
         lines.append("")
         lines.append("Review the implementation against the requirements below.")
@@ -1071,20 +1104,20 @@ def review(
         lines.append("🎯 REVIEW COMPLETE? RUN ONE OF THESE COMMANDS:")
         lines.append("=" * 80)
         lines.append("")
-        lines.append(f"✅ APPROVE (no issues found):")
+        lines.append("✅ APPROVE (no issues found):")
         lines.append(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed: <summary>\"")
         lines.append("")
         # Create unique temp file path for review feedback (avoids conflicts between agents)
         review_feedback_path = Path(tempfile.gettempdir()) / f"spec-kitty-review-feedback-{normalized_wp_id}.md"
 
-        lines.append(f"❌ REQUEST CHANGES (issues found):")
-        lines.append(f"   1. Write feedback:")
+        lines.append("❌ REQUEST CHANGES (issues found):")
+        lines.append("   1. Write feedback:")
         lines.append(f"      cat > {review_feedback_path} <<'EOF'")
-        lines.append(f"**Issue 1**: <description and how to fix>")
-        lines.append(f"**Issue 2**: <description and how to fix>")
-        lines.append(f"EOF")
+        lines.append("**Issue 1**: <description and how to fix>")
+        lines.append("**Issue 2**: <description and how to fix>")
+        lines.append("EOF")
         lines.append("")
-        lines.append(f"   2. Move to planned with feedback:")
+        lines.append("   2. Move to planned with feedback:")
         lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
         lines.append("")
         lines.append("⚠️  NOTE: You MUST run one of these commands to complete the review!")
@@ -1116,6 +1149,31 @@ def review(
         print("After review, run:")
         print(f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
         print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
+
+        # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
+        try:
+            from specify_cli.telemetry.emit import emit_execution_event
+
+            emit_execution_event(
+                feature_dir=feature_dir,
+                feature_slug=feature_slug,
+                wp_id=normalized_wp_id,
+                agent=agent or "unknown",
+                role="reviewer",
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=cost_usd,
+                duration_ms=duration_ms or 0,
+                success=True,
+                error=None,
+            )
+        except Exception as telemetry_err:
+            # Fire-and-forget: log but don't block workflow
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Failed to emit execution event: {telemetry_err}"
+            )
 
     except Exception as e:
         print(f"Error: {e}")

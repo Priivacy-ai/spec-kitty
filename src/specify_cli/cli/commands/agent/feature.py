@@ -21,20 +21,17 @@ from specify_cli.cli.commands.accept import accept as top_level_accept
 from specify_cli.cli.commands.merge import merge as top_level_merge
 from specify_cli.core.dependency_graph import (
     detect_cycles,
-    parse_wp_dependencies,
     validate_dependencies,
 )
 from specify_cli.core.git_ops import get_current_branch, is_git_repo, run_command
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.core.feature_detection import (
-    detect_feature,
     detect_feature_directory,
     FeatureDetectionError,
 )
 from specify_cli.git import safe_commit
 from specify_cli.core.worktree import (
     get_next_feature_number,
-    setup_feature_directory,
     validate_feature_structure,
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
@@ -197,6 +194,12 @@ def create_feature(
     feature_slug: Annotated[str, typer.Argument(help="Feature slug (e.g., 'user-auth')")],
     mission: Annotated[Optional[str], typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent identifier (for telemetry)")] = None,
+    model: Annotated[Optional[str], typer.Option("--model", help="Model used (for telemetry)")] = None,
+    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input tokens consumed (for telemetry)")] = None,
+    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output tokens generated (for telemetry)")] = None,
+    cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Cost in USD (for telemetry)")] = None,
+    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Duration in milliseconds (for telemetry)")] = None,
 ) -> None:
     """Create new feature directory structure in planning repository.
 
@@ -205,6 +208,7 @@ def create_feature(
 
     Examples:
         spec-kitty agent create-feature "new-dashboard" --json
+        spec-kitty agent create-feature "new-dashboard" --agent claude --model claude-sonnet-4.5 --input-tokens 5000 --output-tokens 2500
     """
     # Validate kebab-case format early (before any operations)
     KEBAB_CASE_PATTERN = r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -240,7 +244,7 @@ def create_feature(
                 for i, part in enumerate(cwd.parts):
                     if part == ".worktrees":
                         main_repo = Path(*cwd.parts[:i])
-                        console.print(f"\n[cyan]Run from the main repository instead:[/cyan]")
+                        console.print("\n[cyan]Run from the main repository instead:[/cyan]")
                         console.print(f"  cd {main_repo}")
                         console.print(f"  spec-kitty agent create-feature {feature_slug}")
                         break
@@ -454,6 +458,28 @@ spec-kitty agent tasks move-task WP01 --to doing
         except Exception:
             pass  # Non-blocking, event emission failures are not fatal
 
+        # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
+        try:
+            from specify_cli.telemetry.emit import emit_execution_event
+            emit_execution_event(
+                feature_dir=feature_dir,
+                feature_slug=feature_slug_formatted,
+                wp_id="N/A",  # No WP for feature creation
+                agent=agent or "unknown",
+                role="planner",  # Planning role, not implementer
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=cost_usd,
+                duration_ms=duration_ms or 0,
+                success=True,
+                error=None,
+            )
+        except Exception as e:
+            # Non-blocking: log but don't fail command
+            if not json_output:
+                console.print(f"[yellow]Warning:[/yellow] Telemetry emission failed: {e}")
+
         if json_output:
             print(json.dumps({
                 "result": "success",
@@ -534,6 +560,12 @@ def check_prerequisites(
 def setup_plan(
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent identifier (for telemetry)")] = None,
+    model: Annotated[Optional[str], typer.Option("--model", help="Model used (for telemetry)")] = None,
+    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input tokens consumed (for telemetry)")] = None,
+    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output tokens generated (for telemetry)")] = None,
+    cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Cost in USD (for telemetry)")] = None,
+    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Duration in milliseconds (for telemetry)")] = None,
 ) -> None:
     """Scaffold implementation plan template in planning repository.
 
@@ -543,6 +575,7 @@ def setup_plan(
     Examples:
         spec-kitty agent setup-plan --json
         spec-kitty agent setup-plan --feature 020-my-feature --json
+        spec-kitty agent setup-plan --agent claude --model claude-sonnet-4.5 --input-tokens 8000 --output-tokens 4000
     """
     try:
         repo_root = locate_project_root()
@@ -591,7 +624,6 @@ def setup_plan(
 
         # T014 + T016: Documentation mission wiring for plan
         mission_key = get_feature_mission_key(feature_dir)
-        gap_analysis_path = None
         generators_detected = []
 
         if mission_key == "documentation":
@@ -622,7 +654,6 @@ def setup_plan(
                             analysis = generate_gap_analysis_report(
                                 docs_dir, gap_analysis_output, project_root=repo_root
                             )
-                            gap_analysis_path = str(gap_analysis_output)
                             # Update documentation state with audit metadata
                             set_audit_metadata(
                                 meta_file,
@@ -691,6 +722,29 @@ def setup_plan(
                         console.print(
                             f"[yellow]Warning:[/yellow] Failed to save generator config: {gen_err}"
                         )
+
+        # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
+        try:
+            from specify_cli.telemetry.emit import emit_execution_event
+            emit_execution_event(
+                feature_dir=feature_dir,
+                feature_slug=feature_slug,
+                wp_id="N/A",  # No WP for plan creation
+                agent=agent or "unknown",
+                role="planner",
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=cost_usd,
+                duration_ms=duration_ms or 0,
+                success=True,
+                error=None,
+            )
+        except Exception as e:
+            # Non-blocking: log but don't fail command
+            if not json_output:
+                console.print(f"[yellow]Warning:[/yellow] Telemetry emission failed: {e}")
+
         if json_output:
             print(json.dumps({
                 "result": "success",
@@ -832,7 +886,7 @@ def accept_feature(
             no_commit=no_commit,
             allow_fail=False,  # Agent commands use strict validation
         )
-    except typer.Exit as e:
+    except typer.Exit:
         # Propagate typer.Exit cleanly
         raise
     except Exception as e:
@@ -1011,6 +1065,12 @@ def merge_feature(
 @app.command(name="finalize-tasks")
 def finalize_tasks(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent identifier (for telemetry)")] = None,
+    model: Annotated[Optional[str], typer.Option("--model", help="Model used (for telemetry)")] = None,
+    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input tokens consumed (for telemetry)")] = None,
+    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output tokens generated (for telemetry)")] = None,
+    cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Cost in USD (for telemetry)")] = None,
+    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Duration in milliseconds (for telemetry)")] = None,
 ) -> None:
     """Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.
 
@@ -1019,6 +1079,7 @@ def finalize_tasks(
 
     Examples:
         spec-kitty agent feature finalize-tasks --json
+        spec-kitty agent finalize-tasks --agent claude --model claude-sonnet-4.5 --input-tokens 10000 --output-tokens 5000
     """
     try:
         repo_root = locate_project_root()
@@ -1062,7 +1123,7 @@ def finalize_tasks(
                 if json_output:
                     print(json.dumps({"error": error_msg, "cycles": cycles}))
                 else:
-                    console.print(f"[red]Error:[/red] Circular dependencies detected:")
+                    console.print("[red]Error:[/red] Circular dependencies detected:")
                     for cycle in cycles:
                         console.print(f"  {' → '.join(cycle)}")
                 raise typer.Exit(1)
@@ -1133,10 +1194,9 @@ def finalize_tasks(
         # Prepare metadata for event emission
         feature_slug = feature_dir.name
         meta_path = feature_dir / "meta.json"
-        meta = None
         if meta_path.exists():
             try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                json.loads(meta_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError) as exc:
                 console.print(
                     f"[yellow]Warning:[/yellow] Failed to read meta.json for event emission: {exc}"
@@ -1218,7 +1278,7 @@ def finalize_tasks(
                     if json_output:
                         print(json.dumps({"error": f"Git commit failed: {error_output}"}))
                     else:
-                        console.print(f"[red]Error:[/red] Git commit failed: {error_output}")
+                        console.print("[dim]No changes to commit (tasks already up to date or git failure occured)[/dim]")
                     raise typer.Exit(1)
 
         except typer.Exit:
@@ -1259,8 +1319,27 @@ def finalize_tasks(
                 "files_committed": files_committed
             }))
 
-    except typer.Exit:
-        raise
+        # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
+        try:
+            from specify_cli.telemetry.emit import emit_execution_event
+            feature_slug = feature_dir.name
+            emit_execution_event(
+                feature_dir=feature_dir,
+                feature_slug=feature_slug,
+                wp_id="N/A",  # No specific WP for task finalization
+                agent=agent or "unknown",
+                role="planner",
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=cost_usd,
+                duration_ms=duration_ms or 0,
+                success=True,
+                error=None,
+            )
+        except typer.Exit:
+            raise
+
     except Exception as e:
         if json_output:
             print(json.dumps({"error": str(e)}))
