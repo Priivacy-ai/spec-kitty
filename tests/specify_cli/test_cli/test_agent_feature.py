@@ -357,19 +357,27 @@ class TestCheckPrerequisitesCommand:
         assert "error" in output
 
 
-@pytest.mark.skipif(IS_2X_BRANCH, reason=LEGACY_0X_ONLY_REASON)
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
+    @patch("specify_cli.cli.commands.agent.feature._resolve_planning_branch")
+    @patch("specify_cli.cli.commands.agent.feature._ensure_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_scaffolds_plan_template_json(
-        self, mock_commit: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_commit: Mock,
+        mock_ensure_branch: Mock,
+        mock_resolve_branch: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
     ):
         """Should scaffold plan template and output JSON format."""
         # Setup
         mock_locate.return_value = tmp_path
+        mock_resolve_branch.return_value = "main"
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
         mock_find.return_value = feature_dir
@@ -400,13 +408,22 @@ class TestSetupPlanCommand:
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_main")
+    @patch("specify_cli.cli.commands.agent.feature._resolve_planning_branch")
+    @patch("specify_cli.cli.commands.agent.feature._ensure_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
     def test_scaffolds_plan_template_human(
-        self, mock_commit: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_commit: Mock,
+        mock_ensure_branch: Mock,
+        mock_resolve_branch: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
     ):
         """Should scaffold plan template and output human-readable format."""
         # Setup
         mock_locate.return_value = tmp_path
+        mock_resolve_branch.return_value = "main"
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
         mock_find.return_value = feature_dir
@@ -426,13 +443,22 @@ class TestSetupPlanCommand:
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.feature._resolve_planning_branch")
+    @patch("specify_cli.cli.commands.agent.feature._ensure_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.feature.files")
     def test_errors_when_template_not_found(
-        self, mock_files: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_files: Mock,
+        mock_ensure_branch: Mock,
+        mock_resolve_branch: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
     ):
         """Should return error when plan template not found."""
         # Setup
         mock_locate.return_value = tmp_path
+        mock_resolve_branch.return_value = "main"
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
         mock_find.return_value = feature_dir
