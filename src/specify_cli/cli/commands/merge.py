@@ -167,17 +167,17 @@ def extract_feature_slug(branch_name: str) -> str:
 def validate_wp_ready_for_merge(repo_root: Path, worktree_path: Path, branch_name: str) -> tuple[bool, str]:
     """Validate WP workspace is ready to merge."""
     # Check 1: Branch exists in git (check from repo root)
-    result = subprocess.run(
+    branch_check = subprocess.run(
         ["git", "rev-parse", "--verify", branch_name],
         cwd=str(repo_root),
         capture_output=True,
         check=False
     )
-    if result.returncode != 0:
+    if branch_check.returncode != 0:
         return False, f"Branch {branch_name} does not exist"
 
     # Check 2: No uncommitted changes in worktree
-    result = subprocess.run(
+    status_check = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=str(worktree_path),
         capture_output=True,
@@ -185,7 +185,7 @@ def validate_wp_ready_for_merge(repo_root: Path, worktree_path: Path, branch_nam
         encoding="utf-8",
         errors="replace"
     )
-    if result.stdout.strip():
+    if status_check.stdout.strip():
         return False, f"Worktree {worktree_path.name} has uncommitted changes"
 
     return True, ""
@@ -431,9 +431,9 @@ def merge(
     delete_branch: bool = typer.Option(True, "--delete-branch/--keep-branch", help="Delete feature branch after merge"),
     remove_worktree: bool = typer.Option(True, "--remove-worktree/--keep-worktree", help="Remove feature worktree after merge"),
     push: bool = typer.Option(False, "--push", help="Push to origin after merge"),
-    target_branch: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected)"),
+    target_branch: str | None = typer.Option(None, "--target", help="Target branch to merge into (auto-detected)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
-    feature: str = typer.Option(None, "--feature", help="Feature slug when merging from main branch"),
+    feature: str | None = typer.Option(None, "--feature", help="Feature slug when merging from main branch"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from saved state"),
     abort: bool = typer.Option(False, "--abort", help="Abort and clear merge state"),
 ) -> None:

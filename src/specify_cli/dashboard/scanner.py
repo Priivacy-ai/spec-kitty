@@ -135,7 +135,7 @@ def format_path_for_display(path_str: Optional[str]) -> Optional[str]:
     return f"~{os.sep}{relative_str}"
 
 
-def work_package_sort_key(task: Dict[str, Any]) -> tuple:
+def work_package_sort_key(task: Dict[str, Any]) -> tuple[tuple[int, ...], str]:
     """Provide a natural sort key for work package identifiers."""
     work_id = str(task.get("id", "")).strip()
     if not work_id:
@@ -145,7 +145,7 @@ def work_package_sort_key(task: Dict[str, Any]) -> tuple:
     return (tuple(number_parts), work_id.lower())
 
 
-def _get_artifact_info(path: Path) -> Dict[str, any]:
+def _get_artifact_info(path: Path) -> Dict[str, Any]:
     """Get artifact information including existence, mtime, and size."""
     if not path.exists():
         return {"exists": False, "mtime": None, "size": None}
@@ -158,7 +158,7 @@ def _get_artifact_info(path: Path) -> Dict[str, any]:
     }
 
 
-def _get_project_constitution_info(feature_dir: Path) -> Dict[str, any]:
+def _get_project_constitution_info(feature_dir: Path) -> Dict[str, Any]:
     """Check for project-level constitution (not per-feature).
     
     Constitution is project-wide, not feature-specific. Checks:
@@ -181,7 +181,7 @@ def _get_project_constitution_info(feature_dir: Path) -> Dict[str, any]:
     return _get_artifact_info(old_path)
 
 
-def get_feature_artifacts(feature_dir: Path) -> Dict[str, Dict[str, any]]:
+def get_feature_artifacts(feature_dir: Path) -> Dict[str, Dict[str, Any]]:
     """Return which artifacts exist for a feature with modification info."""
     return {
         "constitution": _get_project_constitution_info(feature_dir),
@@ -197,7 +197,7 @@ def get_feature_artifacts(feature_dir: Path) -> Dict[str, Dict[str, any]]:
     }
 
 
-def get_workflow_status(artifacts: Dict[str, Dict[str, any]]) -> Dict[str, str]:
+def get_workflow_status(artifacts: Dict[str, Dict[str, Any]]) -> Dict[str, str]:
     """Determine workflow progression status."""
     has_spec = artifacts.get("spec", {}).get("exists", False)
     has_plan = artifacts.get("plan", {}).get("exists", False)

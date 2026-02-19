@@ -41,7 +41,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import List, Literal, Optional, TypedDict
+from typing import List, Literal, Optional, TypedDict, cast
 
 
 class GeneratorConfig(TypedDict):
@@ -246,7 +246,10 @@ def read_documentation_state(meta_file: Path) -> Optional[DocumentationState]:
         return None
 
     # Get documentation_state (may be missing for old features)
-    return meta.get("documentation_state")
+    documentation_state = meta.get("documentation_state")
+    if isinstance(documentation_state, dict):
+        return cast(DocumentationState, documentation_state)
+    return None
 
 
 def write_documentation_state(meta_file: Path, state: DocumentationState) -> None:
@@ -320,7 +323,9 @@ def initialize_documentation_state(
     return state
 
 
-def update_documentation_state(meta_file: Path, **updates) -> DocumentationState:
+def update_documentation_state(
+    meta_file: Path, **updates: object
+) -> DocumentationState:
     """Update specific fields in documentation state.
 
     Args:

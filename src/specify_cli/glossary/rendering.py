@@ -119,7 +119,7 @@ def render_conflict(
                 f"{sense.confidence:.2f}",
             )
 
-        body = table
+        body: Table | str = table
     else:
         body = "(No candidates available)"
 

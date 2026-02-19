@@ -172,9 +172,9 @@ def materialize_worktree_topology(
     # Build topology entries
     entries: list[WPTopologyEntry] = []
     for wp_id in topo_order:
-        ctx = feature_contexts.get(wp_id)
-        branch_name = ctx.branch_name if ctx else None
-        base_branch = ctx.base_branch if ctx else None
+        entry_ctx = feature_contexts.get(wp_id)
+        branch_name = entry_ctx.branch_name if entry_ctx else None
+        base_branch = entry_ctx.base_branch if entry_ctx else None
         dependencies = graph.get(wp_id, [])
         lane = wp_lanes.get(wp_id, "planned")
 
@@ -241,7 +241,7 @@ def render_topology_json(
     # Build entries list
     entries_json = []
     for entry in topology.entries:
-        entry_data: dict = {
+        entry_data: dict[str, object] = {
             "wp": entry.wp_id,
             "lane": entry.lane,
             "branch": entry.branch_name,

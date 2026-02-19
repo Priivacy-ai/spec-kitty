@@ -70,7 +70,7 @@ class TelemetryEmitTemplatesMigration(BaseMigration):
                 template_path = data_root.joinpath(
                     "missions", "software-dev", "command-templates", template_name
                 )
-                if not template_path.exists():
+                if not template_path.is_file():
                     return False, f"Template not found: missions/software-dev/command-templates/{template_name}"
             return True, ""
         except Exception as e:

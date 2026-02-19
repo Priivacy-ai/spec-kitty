@@ -25,12 +25,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 2. Create or update `src/doctrine/curation/imports/<source-id>/manifest.yaml`.
 3. Create one candidate file per concept in `src/doctrine/curation/imports/<source-id>/candidates/*.import.yaml`.
 4. Populate provenance in each candidate `source` section (`title`, `type`, `publisher`, `url`/path, `accessed_on`).
-5. Classify each candidate to doctrine targets (`tactic`, `directive`, etc.) with rationale.
-6. Add adaptation notes translating source language into Spec Kitty doctrine terms.
-7. Materialize resulting doctrine artifacts (for example `src/doctrine/tactics/*.tactic.yaml`, `src/doctrine/directives/*.directive.yaml`).
-8. Update directive links (`tactic_refs`) so curated tactics are active in governance behavior.
-9. Mark candidate status through review to `adopted` and ensure `resulting_artifacts` is complete.
-10. Run validation:
+5. Add `source_references` with local file citations (`path`, `lines`, `note`) for DRY extraction traceability.
+6. Add `external_references` for attribution-only inputs with `extraction_action: none`.
+7. Classify each candidate to doctrine targets (`tactic`, `directive`, etc.) with rationale.
+8. Add adaptation notes translating source language into Spec Kitty doctrine terms.
+9. Materialize resulting doctrine artifacts (for example `src/doctrine/tactics/*.tactic.yaml`, `src/doctrine/directives/*.directive.yaml`).
+10. Update directive links (`tactic_refs`) so curated tactics are active in governance behavior.
+11. Mark candidate status through review to `adopted` and ensure `resulting_artifacts` is complete.
+12. Run validation:
     - `pytest -q tests/unit/test_doctrine_curation.py tests/doctrine/test_schema_validation.py`
     - optionally run focused checks on newly created artifacts and candidates.
 

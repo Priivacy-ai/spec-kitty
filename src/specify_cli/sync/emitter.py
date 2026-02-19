@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import ulid
 from rich.console import Console
@@ -69,11 +69,11 @@ def _create_git_resolver() -> "GitMetadataResolver":
 
 
 # Load the contract schema once for payload-level validation
-_SCHEMA: dict | None = None
+_SCHEMA: dict[str, Any] | None = None
 _SCHEMA_PATH = Path(__file__).resolve().parent / "_events_schema.json"
 
 
-def _load_contract_schema() -> dict | None:
+def _load_contract_schema() -> dict[str, Any] | None:
     """Load the events JSON schema from the contracts directory.
 
     Falls back to the kitty-specs contract if available, otherwise returns None.
@@ -268,7 +268,7 @@ def _generate_ulid() -> str:
     when available, otherwise fall back to python-ulid's ULID().
     """
     if hasattr(ulid, "new"):
-        return ulid.new().str
+        return str(cast(Any, ulid.new()).str)
     return str(ulid.ULID())
 
 
@@ -327,8 +327,9 @@ class EventEmitter:
     def auth(self) -> AuthClient:
         """Lazy-load AuthClient to avoid circular imports."""
         if self._auth is None:
-            from .auth import AuthClient
-            self._auth = AuthClient()
+            from .auth import AuthClient as _AuthClient
+
+            self._auth = cast(type[Any], _AuthClient)()
         return self._auth
 
     def get_connection_status(self) -> str:
@@ -351,7 +352,7 @@ class EventEmitter:
         actor: str = "user",
         feature_slug: str | None = None,
         causation_id: str | None = None,
-        policy_metadata: dict | None = None,
+        policy_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """Emit WPStatusChanged event (FR-008)."""
         payload = {

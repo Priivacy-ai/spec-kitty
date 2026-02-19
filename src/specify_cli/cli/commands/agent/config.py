@@ -46,7 +46,7 @@ def _load_config_or_exit(repo_root: Path) -> AgentConfig:
 
 
 @app.command(name="list")
-def list_agents():
+def list_agents() -> None:
     """List configured agents and their status."""
     try:
         repo_root = find_repo_root()
@@ -87,7 +87,7 @@ def list_agents():
 @app.command(name="add")
 def add_agents(
     agents: List[str] = typer.Argument(..., help="Agent keys to add (e.g., claude codex)"),
-):
+) -> None:
     """Add agents to the project.
 
     Creates agent directories and updates config.yaml.
@@ -173,7 +173,7 @@ def remove_agents(
         "--keep-config",
         help="Keep in config.yaml but delete directory",
     ),
-):
+) -> None:
     """Remove agents from the project.
 
     Deletes agent directories and updates config.yaml.
@@ -237,7 +237,7 @@ def remove_agents(
 
 
 @app.command(name="status")
-def agent_status():
+def agent_status() -> None:
     """Show which agents are configured vs present on filesystem.
 
     Identifies:
@@ -315,7 +315,7 @@ def sync_agents(
         "--remove-orphaned/--keep-orphaned",
         help="Remove directories for agents not in config",
     ),
-):
+) -> None:
     """Sync filesystem with config.yaml.
 
     By default, removes orphaned directories (present but not configured).

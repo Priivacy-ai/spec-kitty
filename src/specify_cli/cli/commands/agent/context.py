@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -64,9 +63,9 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
 
 @app.command(name="update-context")
 def update_context(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     agent_type: Annotated[
-        Optional[str],
+        str,
         typer.Option(
             "--agent-type",
             "-a",
@@ -104,6 +103,13 @@ def update_context(
     try:
         # Locate repository root
         repo_root = locate_project_root()
+        if repo_root is None:
+            error_msg = "Unable to locate project root (.kittify not found)."
+            if json_output:
+                print(json.dumps({"error": error_msg, "success": False}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            sys.exit(1)
         cwd = Path.cwd()
 
         # Find feature directory using centralized detection

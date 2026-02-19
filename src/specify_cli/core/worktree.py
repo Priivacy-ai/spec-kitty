@@ -15,9 +15,18 @@ import shutil
 import subprocess
 import warnings
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TypedDict
 
 from .vcs import get_vcs
+
+
+class FeatureStructureValidation(TypedDict):
+    """Result payload for feature structure checks."""
+
+    valid: bool
+    errors: list[str]
+    warnings: list[str]
+    paths: dict[str, str]
 
 
 def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
@@ -435,7 +444,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 def validate_feature_structure(
     feature_dir: Path,
     check_tasks: bool = False
-) -> dict:
+) -> FeatureStructureValidation:
     """Validate feature directory structure and required files.
 
     Checks for:
@@ -462,9 +471,9 @@ def validate_feature_structure(
         >>> assert "valid" in result
         >>> assert "errors" in result
     """
-    errors = []
-    warnings = []
-    paths = {}
+    errors: list[str] = []
+    warnings: list[str] = []
+    paths: dict[str, str] = {}
 
     # Check if feature directory exists
     if not feature_dir.exists():

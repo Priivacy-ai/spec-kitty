@@ -16,7 +16,7 @@ from specify_cli.core.feature_detection import (
 )
 from specify_cli.core.paths import locate_project_root
 from specify_cli.mission_v1.events import emit_event
-from specify_cli.next.decision import DecisionKind, decide_next
+from specify_cli.next.decision import Decision, DecisionKind, decide_next
 
 
 _VALID_RESULTS = ("success", "failed", "blocked")
@@ -160,7 +160,7 @@ def _handle_answer(
         raise typer.Exit(1)
 
 
-def _print_human(decision) -> None:
+def _print_human(decision: Decision) -> None:
     """Print a human-readable summary."""
     kind = decision.kind.upper()
     print(f"[{kind}] {decision.mission} @ {decision.mission_state}")
@@ -182,7 +182,7 @@ def _print_human(decision) -> None:
 
     if getattr(decision, "question", None):
         print(f"  Question: {decision.question}")
-    if getattr(decision, "options", None):
+    if decision.options:
         for i, opt in enumerate(decision.options, 1):
             print(f"    {i}. {opt}")
     if decision.decision_id:

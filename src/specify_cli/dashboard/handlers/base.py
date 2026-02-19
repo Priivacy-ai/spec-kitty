@@ -58,7 +58,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         self._send_json(200, {'status': 'stopping'})
 
-        def shutdown_server(server):
+        def shutdown_server(server: Any) -> None:
             time.sleep(0.05)  # allow response to flush
             server.shutdown()
 

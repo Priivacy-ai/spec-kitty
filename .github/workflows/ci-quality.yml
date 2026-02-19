@@ -112,6 +112,9 @@ jobs:
         id: pytest
         continue-on-error: true
         run: |
+          # Policy note: target coverage should be 80-90% for CORE domains,
+          # not a universal hard gate for edge-positioned code paths.
+          # Keep the current fail-under=90 unchanged for now.
           python -m pytest \
             -v \
             -m "not e2e and not slow and not distribution and not orchestrator_smoke" \

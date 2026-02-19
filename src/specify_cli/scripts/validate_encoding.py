@@ -17,10 +17,9 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from typing import List, Tuple, Optional
 
 
-def check_utf8_encoding(file_path: Path) -> Tuple[bool, Optional[str]]:
+def check_utf8_encoding(file_path: Path) -> tuple[bool, str | None]:
     """
     Check if a file is valid UTF-8.
 
@@ -91,7 +90,7 @@ def convert_to_utf8(file_path: Path, source_encoding: str = 'windows-1252', dry_
         return False
 
 
-def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) -> List[Path]:
+def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) -> list[Path]:
     """
     Scan directory for markdown files with encoding issues.
 
@@ -140,7 +139,7 @@ def scan_directory(directory: Path, fix: bool = False, dry_run: bool = False) ->
     return problem_files
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description='Validate UTF-8 encoding in markdown files')
     parser.add_argument('path', nargs='?', default='kitty-specs', help='Path to scan (default: kitty-specs)')
     parser.add_argument('--fix', action='store_true', help='Attempt to fix encoding issues')

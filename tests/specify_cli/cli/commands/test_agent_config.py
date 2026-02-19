@@ -8,7 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.config import app
-from specify_cli.core.agent_config import AgentConfig, save_agent_config
+from specify_cli.core.agent_config import save_agent_config
 
 runner = CliRunner()
 

@@ -41,7 +41,6 @@ from specify_cli.next.decision import (
     DecisionKind,
     _build_prompt_safe,
     _compute_wp_progress,
-    _find_first_wp_by_lane,
     _state_to_action,
 )
 
@@ -64,9 +63,25 @@ def _load_feature_runs(repo_root: Path) -> dict[str, dict[str, str]]:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        parsed = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
+    if not isinstance(parsed, dict):
+        return {}
+    index: dict[str, dict[str, str]] = {}
+    for key, value in parsed.items():
+        if not isinstance(key, str) or not isinstance(value, dict):
+            continue
+        run_id = value.get("run_id")
+        run_dir = value.get("run_dir")
+        mission_key = value.get("mission_key")
+        if not isinstance(run_id, str) or not isinstance(run_dir, str):
+            continue
+        entry: dict[str, str] = {"run_id": run_id, "run_dir": run_dir}
+        if isinstance(mission_key, str):
+            entry["mission_key"] = mission_key
+        index[key] = entry
+    return index
 
 
 def _save_feature_runs(repo_root: Path, index: dict[str, dict[str, str]]) -> None:
@@ -540,8 +555,8 @@ def _build_wp_iteration_decision(
     feature_dir: Path,
     repo_root: Path,
     timestamp: str,
-    progress: dict | None,
-    origin: dict,
+    progress: dict[str, Any] | None,
+    origin: dict[str, Any],
     run_ref: MissionRunRef,
     guard_failures: list[str] | None = None,
 ) -> Decision:
@@ -597,8 +612,8 @@ def _map_runtime_decision(
     repo_root: Path,
     feature_dir: Path,
     timestamp: str,
-    progress: dict | None,
-    origin: dict,
+    progress: dict[str, Any] | None,
+    origin: dict[str, Any],
 ) -> Decision:
     """Convert runtime NextDecision to CLI Decision dataclass."""
     step_id = decision.step_id

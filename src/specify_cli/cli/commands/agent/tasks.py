@@ -9,7 +9,7 @@ import subprocess
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Tuple, List
+from typing import Any, Optional, Tuple, List
 
 import typer
 from rich.console import Console
@@ -214,7 +214,11 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
         raise typer.Exit(1)
 
 
-def _output_result(json_mode: bool, data: dict, success_message: str = None):
+def _output_result(
+    json_mode: bool,
+    data: dict[str, Any],
+    success_message: str | None = None,
+) -> None:
     """Output result in JSON or human-readable format.
 
     Args:
@@ -228,7 +232,7 @@ def _output_result(json_mode: bool, data: dict, success_message: str = None):
         console.print(success_message)
 
 
-def _output_error(json_mode: bool, error_message: str):
+def _output_error(json_mode: bool, error_message: str) -> None:
     """Output error in JSON or human-readable format.
 
     Args:
@@ -1003,7 +1007,7 @@ def move_task(
             effective_reviewer = reviewer
             if not effective_reviewer:
                 try:
-                    result = subprocess.run(
+                    git_user_result = subprocess.run(
                         ["git", "config", "user.name"],
                         capture_output=True,
                         text=True,
@@ -1011,7 +1015,7 @@ def move_task(
                         errors="replace",
                         check=True
                     )
-                    effective_reviewer = result.stdout.strip() or "unknown"
+                    effective_reviewer = git_user_result.stdout.strip() or "unknown"
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     effective_reviewer = "unknown"
             effective_approval_ref = approval_ref
@@ -1220,7 +1224,7 @@ def move_task(
             effective_reviewer = reviewer
             if not effective_reviewer:
                 try:
-                    result = subprocess.run(
+                    git_user_result = subprocess.run(
                         ["git", "config", "user.name"],
                         capture_output=True,
                         text=True,
@@ -1228,7 +1232,7 @@ def move_task(
                         errors="replace",
                         check=True
                     )
-                    effective_reviewer = result.stdout.strip() or "unknown"
+                    effective_reviewer = git_user_result.stdout.strip() or "unknown"
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     effective_reviewer = "unknown"
 
@@ -1339,7 +1343,7 @@ def move_task(
             wp.path.write_text(updated_doc, encoding="utf-8")
 
         # Output result
-        result = {
+        response_payload = {
             "result": "success",
             "task_id": task_id,
             "old_lane": old_lane,
@@ -1349,7 +1353,7 @@ def move_task(
 
         _output_result(
             json_output,
-            result,
+            response_payload,
             f"[green]✓[/green] Moved {task_id} from {old_lane} to {target_lane}"
         )
 
@@ -1784,7 +1788,7 @@ def finalize_tasks(
             frontmatter, body, padding = split_frontmatter(content)
 
             # Update dependencies field
-            updated_front = set_scalar(frontmatter, "dependencies", deps)
+            updated_front = _set_string_list(frontmatter, "dependencies", deps)
 
             # Rebuild and write
             updated_doc = build_document(updated_front, body, padding)
@@ -1930,7 +1934,7 @@ def status(
         int,
         typer.Option("--stale-threshold", help="Minutes of inactivity before a WP is considered stale")
     ] = 10,
-):
+) -> None:
     """Display kanban status board for all work packages in a feature.
 
     Shows a beautiful overview of work package statuses, progress metrics,
@@ -1977,7 +1981,7 @@ def status(
             raise typer.Exit(1)
 
         # Collect all work packages
-        work_packages = []
+        work_packages: list[dict[str, Any]] = []
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
             front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8"))
 
@@ -2018,14 +2022,14 @@ def status(
             # Add staleness info to WPs
             for wp in work_packages:
                 if wp["lane"] == "doing" and wp["id"] in stale_results:
-                    result = stale_results[wp["id"]]
-                    wp["is_stale"] = result.is_stale
-                    wp["minutes_since_commit"] = result.minutes_since_commit
-                    wp["worktree_exists"] = result.worktree_exists
+                    stale_result = stale_results[wp["id"]]
+                    wp["is_stale"] = stale_result.is_stale
+                    wp["minutes_since_commit"] = stale_result.minutes_since_commit
+                    wp["worktree_exists"] = stale_result.worktree_exists
 
             lane_counts = Counter(wp["lane"] for wp in work_packages)
             stale_count = sum(1 for wp in work_packages if wp.get("is_stale"))
-            result = {
+            status_payload = {
                 "feature": feature_slug,
                 "total_wps": len(work_packages),
                 "by_lane": dict(lane_counts),
@@ -2033,14 +2037,19 @@ def status(
                 "progress_percentage": round(lane_counts.get("done", 0) / len(work_packages) * 100, 1),
                 "stale_wps": stale_count,
             }
-            print(json.dumps(result, indent=2))
+            print(json.dumps(status_payload, indent=2))
             return
 
         # Rich table output
         # Group by lane
-        by_lane = {"planned": [], "doing": [], "for_review": [], "done": []}
+        by_lane: dict[str, list[dict[str, Any]]] = {
+            "planned": [],
+            "doing": [],
+            "for_review": [],
+            "done": [],
+        }
         for wp in work_packages:
-            lane = wp["lane"]
+            lane = str(wp.get("lane", "unknown"))
             if lane in by_lane:
                 by_lane[lane].append(wp)
             else:
@@ -2257,3 +2266,22 @@ def list_dependents(
     except Exception as e:
         _output_error(json_output, str(e))
         raise typer.Exit(1)
+def _set_string_list(frontmatter: str, key: str, values: list[str]) -> str:
+    """Set a frontmatter key to a YAML inline list while preserving comments."""
+    list_literal = "[" + ", ".join(f'"{value}"' for value in values) + "]"
+    line_pattern = re.compile(rf"^(\s*{re.escape(key)}:\s*)(.*?)(\s*(#.*)?)$", re.MULTILINE)
+    match = line_pattern.search(frontmatter)
+    if match:
+        prefix = match.group(1)
+        comment = match.group(3) or ""
+        return frontmatter[: match.start()] + f"{prefix}{list_literal}{comment}" + frontmatter[match.end() :]
+
+    insertion = f"{key}: {list_literal}\n"
+    history_match = re.search(r"^\s*history:\s*$", frontmatter, flags=re.MULTILINE)
+    if history_match:
+        idx = history_match.start()
+        return frontmatter[:idx] + insertion + frontmatter[idx:]
+    if frontmatter and not frontmatter.endswith("\n"):
+        frontmatter += "\n"
+    return frontmatter + insertion
+

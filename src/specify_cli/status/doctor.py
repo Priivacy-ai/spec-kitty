@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 from .reducer import SNAPSHOT_FILENAME, reduce
 from .store import read_events
@@ -69,7 +70,7 @@ class DoctorResult:
 def _load_or_reduce_snapshot(
     feature_dir: Path,
     feature_slug: str,
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Load snapshot from status.json or reduce from events.
 
     Returns the snapshot as a dict (work_packages keyed by WP ID),
@@ -80,7 +81,8 @@ def _load_or_reduce_snapshot(
     if status_path.exists():
         try:
             data = json.loads(status_path.read_text(encoding="utf-8"))
-            return data
+            if isinstance(data, dict):
+                return data
         except (json.JSONDecodeError, OSError):
             logger.debug("Could not read status.json, trying event log")
 
@@ -98,7 +100,7 @@ def _load_or_reduce_snapshot(
 
 def check_stale_claims(
     feature_dir: Path,
-    snapshot: dict,
+    snapshot: dict[str, Any],
     *,
     claimed_threshold_days: int = 7,
     in_progress_threshold_days: int = 14,
@@ -164,7 +166,7 @@ def check_stale_claims(
 def check_orphan_workspaces(
     repo_root: Path,
     feature_slug: str,
-    snapshot: dict,
+    snapshot: dict[str, Any],
 ) -> list[Finding]:
     """Detect orphan worktrees for completed/canceled features."""
     findings: list[Finding] = []

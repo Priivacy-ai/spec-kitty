@@ -82,14 +82,16 @@ def format_technology_stack(tech_stack: Dict[str, Optional[str]], feature_slug: 
         ["- Python 3.11+ (existing spec-kitty requirement) (008-unified-python-cli)",
          "- Filesystem only (no database) (008-unified-python-cli)"]
     """
-    entries = []
+    entries: List[str] = []
 
     # Add language + dependencies as one line
-    parts = []
-    if tech_stack.get("language"):
-        parts.append(tech_stack["language"])
-    if tech_stack.get("dependencies"):
-        parts.append(tech_stack["dependencies"])
+    parts: List[str] = []
+    language = tech_stack.get("language")
+    if language is not None:
+        parts.append(language)
+    dependencies = tech_stack.get("dependencies")
+    if dependencies is not None:
+        parts.append(dependencies)
 
     if parts:
         tech_line = " + ".join(parts)
@@ -192,13 +194,15 @@ def update_agent_context(
     new_tech_entries = format_technology_stack(tech_stack, feature_slug)
 
     # Prepare change entry for Recent Changes section
-    tech_parts = []
-    if tech_stack.get("language"):
-        tech_parts.append(tech_stack["language"])
-    if tech_stack.get("dependencies"):
-        tech_parts.append(tech_stack["dependencies"])
-
-    tech_description = " + ".join(tech_parts) if tech_parts else tech_stack.get("storage", "")
+    tech_parts: List[str] = []
+    language = tech_stack.get("language")
+    if language is not None:
+        tech_parts.append(language)
+    dependencies = tech_stack.get("dependencies")
+    if dependencies is not None:
+        tech_parts.append(dependencies)
+    storage = tech_stack.get("storage")
+    tech_description = " + ".join(tech_parts) if tech_parts else (storage or "")
     new_change_entry = f"- {feature_slug}: Added {tech_description}" if tech_description else ""
 
     # Process file line by line to update sections

@@ -24,7 +24,7 @@ import atexit
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
 
 import yaml
 
@@ -80,9 +80,9 @@ class SyncRuntime:
     _background_tasks: set[asyncio.Task[object]] = field(default_factory=set, repr=False)
     started: bool = False
 
-    def _track_task(self, task: object) -> None:
+    def _track_task(self, task: asyncio.Task[object] | None) -> None:
         """Retain task references until completion to prevent GC warnings."""
-        if task is None or not hasattr(task, "add_done_callback"):
+        if task is None:
             return
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
@@ -114,23 +114,24 @@ class SyncRuntime:
 
     def _connect_websocket_if_authenticated(self) -> None:
         """Attempt WebSocket connection if user is authenticated."""
-        from .auth import AuthClient
-        from .config import SyncConfig
+        from .auth import AuthClient as _AuthClient
+        from .config import SyncConfig as _SyncConfig
 
-        auth = AuthClient()
-        config = SyncConfig()
+        auth = cast(type[Any], _AuthClient)()
+        config = cast(type[Any], _SyncConfig)()
 
         if auth.is_authenticated():
             try:
-                from .client import WebSocketClient
-                self.ws_client = WebSocketClient(
+                from .client import WebSocketClient as _WebSocketClient
+                self.ws_client = cast(type[Any], _WebSocketClient)(
                     server_url=config.get_server_url(),
                     auth_client=auth,
                 )
                 try:
                     asyncio.get_running_loop()
                     # Running event loop available: connect non-blocking.
-                    connect_task = asyncio.ensure_future(self.ws_client.connect())
+                    connect = cast(Callable[[], Awaitable[object]], self.ws_client.connect)
+                    connect_task = cast(asyncio.Task[object], asyncio.ensure_future(connect()))
                     self._track_task(connect_task)
                 except RuntimeError:
                     # Synchronous CLI context: skip auto WebSocket connect.
@@ -176,14 +177,20 @@ class SyncRuntime:
 
         if self.ws_client:
             try:
+                disconnect = cast(
+                    Callable[[], Awaitable[object]],
+                    self.ws_client.disconnect,
+                )
                 try:
                     loop = asyncio.get_running_loop()
-                    disconnect_task = asyncio.ensure_future(self.ws_client.disconnect())
+                    disconnect_task = cast(
+                        asyncio.Task[object], asyncio.ensure_future(disconnect())
+                    )
                     self._track_task(disconnect_task)
                 except RuntimeError:
                     loop = asyncio.new_event_loop()
                     try:
-                        loop.run_until_complete(self.ws_client.disconnect())
+                        loop.run_until_complete(disconnect())
                     finally:
                         loop.close()
             except Exception:

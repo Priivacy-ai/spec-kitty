@@ -132,6 +132,7 @@ class JujutsuVCS:
         base_branch: str | None = None,
         base_commit: str | None = None,
         repo_root: Path | None = None,
+        sparse_exclude: list[str] | None = None,
     ) -> WorkspaceCreateResult:
         """
         Create a new jj workspace.
@@ -142,6 +143,7 @@ class JujutsuVCS:
             base_branch: Branch/revision to base on
             base_commit: Specific commit/change to base on
             repo_root: Root of the jj repository (auto-detected if not provided)
+            sparse_exclude: Unused for jj (present for protocol compatibility)
 
         Returns:
             WorkspaceCreateResult with workspace info or error
@@ -151,6 +153,7 @@ class JujutsuVCS:
             workspace_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Find repo root to run jj commands from
+            _ = sparse_exclude
             if repo_root is None:
                 repo_root = self.get_repo_root(workspace_path.parent)
                 if repo_root is None:
@@ -434,15 +437,15 @@ class JujutsuVCS:
 
                 # For default workspace, the path is repo_root
                 if workspace_name == "default":
-                    workspace_path = repo_root
+                    resolved_path = repo_root
                 else:
                     # For other workspaces, we need to find them
                     # jj workspace list doesn't show paths, so we check common locations
+                    workspace_path: Path | None = None
                     potential_paths = [
                         repo_root.parent / workspace_name,
                         repo_root / ".worktrees" / workspace_name,
                     ]
-                    workspace_path = None
                     for path in potential_paths:
                         if path.exists() and (path / ".jj").exists():
                             workspace_path = path
@@ -450,8 +453,9 @@ class JujutsuVCS:
 
                     if workspace_path is None:
                         continue
+                    resolved_path = workspace_path
 
-                info = self.get_workspace_info(workspace_path)
+                info = self.get_workspace_info(resolved_path)
                 if info:
                     workspaces.append(info)
 

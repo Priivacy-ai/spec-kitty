@@ -487,7 +487,7 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
     from specify_cli.sync.auth import AuthClient, AuthenticationError, CredentialStore
 
     # Step 1: Check if credentials exist at all
-    store = CredentialStore()
+    store = CredentialStore()  # type: ignore[no-untyped-call]
     if not store.exists():
         return (
             "[yellow]Not authenticated[/yellow]",
@@ -495,7 +495,7 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
         )
 
     # Step 2: Get a valid access token (with auto-refresh if expired)
-    auth = AuthClient()
+    auth = AuthClient()  # type: ignore[no-untyped-call]
     try:
         access_token = auth.get_access_token()
     except AuthenticationError:

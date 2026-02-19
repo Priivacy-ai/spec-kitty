@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Callable
@@ -340,6 +341,12 @@ def test_finalize_tasks_emits_wp_created_only(monkeypatch: pytest.MonkeyPatch, t
 
 
 def test_orchestrate_emits_wp_assigned_and_dependency_resolved(monkeypatch: pytest.MonkeyPatch) -> None:
+    if importlib.util.find_spec("specify_cli.cli.commands.orchestrate") is None:
+        pytest.skip("Bundled orchestrate command is optional and not available in this branch")
+    help_result = runner.invoke(cli_app, ["--help"])
+    if "orchestrate" not in help_result.stdout:
+        pytest.skip("orchestrate command not registered; use orchestrator-api integration")
+
     assigned = MagicMock()
     resolved = MagicMock()
     monkeypatch.setattr("specify_cli.sync.events.emit_wp_assigned", assigned)

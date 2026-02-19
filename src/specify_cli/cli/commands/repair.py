@@ -25,7 +25,7 @@ def repair(
         "--dry-run",
         help="Show what would be changed without making changes"
     )
-):
+) -> None:
     """Repair broken templates caused by v0.10.0-0.10.8 bundling bug.
 
     This command fixes templates that reference non-existent bash scripts
@@ -83,7 +83,7 @@ def repair_worktree(
         None,
         help="Specific worktree path to check (defaults to current directory if in a worktree)"
     ),
-):
+) -> None:
     """Diagnose worktree kitty-specs/ status.
 
     This command checks if worktrees have kitty-specs/ directories and explains

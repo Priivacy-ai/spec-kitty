@@ -22,6 +22,13 @@ This release is a continuation of the `2.x` development cycle, see [ADR 2026-01-
 - **Workflow telemetry emission**: Fixed missing ExecutionEvent emission from `spec-kitty implement` and `spec-kitty review` commands. These primary workflow commands now emit execution events with agent, model, tokens, cost, and duration for cost tracking. Previously only orchestrator and manual task transitions emitted events. (commit ef93d8e)
 - **Dashboard constitution detection**: Fixed dashboard showing "Constitution not created" when constitution existed at project level. Scanner was incorrectly checking per-feature path (`kitty-specs/{feature}/constitution.md`) instead of project-level paths (`.kittify/constitution/constitution.md` or `.kittify/memory/constitution.md`). Added `_get_project_constitution_info()` helper with fallback support for pre-migration projects. (commit 3b442b0)
 
+### 🧹 Maintenance
+
+- Continued strict typing hardening in small reviewable batches across core runtime, dashboard, context/worktree helpers, sync command paths, and migration helpers.
+- Removed stale or unnecessary `type: ignore` markers that became invalid after typing improvements.
+- Tightened typed return contracts in helper surfaces (including feature structure validation payloads and sync config typing).
+- Reduced strict mypy debt substantially during this pass, concentrating remaining errors into fewer modules for follow-up cleanup.
+
 ## [2.0.0a5] - 2026-02-14
 
 ### 🐛 Fixed

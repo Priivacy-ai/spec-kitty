@@ -53,7 +53,7 @@ class FrontmatterManager:
         "history",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize with ruamel.yaml configured for consistency."""
         self.yaml = YAML()
         self.yaml.default_flow_style = False

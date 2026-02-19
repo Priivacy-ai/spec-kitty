@@ -79,7 +79,7 @@ def login(
         console.print("[red]Error:[/red] Authentication module unavailable. Please upgrade spec-kitty.")
         raise typer.Exit(1)
 
-    client = AuthClient()
+    client = AuthClient()  # type: ignore[no-untyped-call]
     # Get raw URL for display (won't raise on non-HTTPS)
     raw_server_url = client.config.get_server_url()
 
@@ -115,7 +115,7 @@ def logout() -> None:
         console.print("[red]Error:[/red] Authentication module unavailable. Please upgrade spec-kitty.")
         raise typer.Exit(1)
 
-    client = AuthClient()
+    client = AuthClient()  # type: ignore[no-untyped-call]
 
     try:
         if not client.is_authenticated():
@@ -123,7 +123,7 @@ def logout() -> None:
             return
 
         username = client.credential_store.get_username() or "unknown"
-        client.clear_credentials()
+        client.clear_credentials()  # type: ignore[no-untyped-call]
         console.print("✅ Logged out successfully.")
         console.print(f"   Cleared credentials for: {username}")
     except PermissionError:
@@ -145,7 +145,7 @@ def status() -> None:
         console.print("[red]Error:[/red] Authentication module unavailable. Please upgrade spec-kitty.")
         raise typer.Exit(1)
 
-    client = AuthClient()
+    client = AuthClient()  # type: ignore[no-untyped-call]
 
     try:
         if not client.is_authenticated():

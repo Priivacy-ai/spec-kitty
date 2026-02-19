@@ -67,7 +67,7 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
         >>> graph = build_dependency_graph(feature_dir)
         >>> print(graph)  # {"WP01": [], "WP02": ["WP01"]}
     """
-    graph = {}
+    graph: dict[str, list[str]] = {}
 
     # Support both feature_dir and tasks_dir as input
     if feature_dir.name == "tasks":

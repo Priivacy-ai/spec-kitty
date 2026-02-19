@@ -253,7 +253,7 @@ def scan_all_tasks_for_mismatches(
     if not tasks_dir.exists():
         return {}
 
-    mismatches = {}
+    mismatches: dict[str, tuple[bool, Optional[str], Optional[str]]] = {}
 
     # Scan all lanes
     for lane in ["planned", "doing", "for_review", "done"]:

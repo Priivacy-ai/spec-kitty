@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.next.decision import Decision, DecisionKind
+from specify_cli.next.decision import DecisionKind
 
 
 # ---------------------------------------------------------------------------
@@ -483,7 +483,7 @@ class TestFullLoop:
 
         from specify_cli.next.runtime_bridge import decide_next_via_runtime
 
-        d1 = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+        decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
         # Don't advance — poll again (simulating re-poll)
         # Note: this will advance because each call to decide_next advances
         # The bridge always advances, which is the expected behavior.

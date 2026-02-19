@@ -25,6 +25,7 @@ Event log format: .kittify/events/glossary/{mission_id}.events.jsonl
 from __future__ import annotations
 
 import json
+import importlib
 import logging
 import re
 import uuid
@@ -50,17 +51,19 @@ _CanonicStepCheckpointed: Any = None
 _pkg_append_event: Any = None
 
 try:
-    from spec_kitty_events.glossary.events import (  # type: ignore[import-not-found]
-        GlossaryScopeActivated as _CanonicGlossaryScopeActivated,
-        TermCandidateObserved as _CanonicTermCandidateObserved,
-        SemanticCheckEvaluated as _CanonicSemanticCheckEvaluated,
-        GlossaryClarificationRequested as _CanonicGlossaryClarificationRequested,
-        GlossaryClarificationResolved as _CanonicGlossaryClarificationResolved,
-        GlossarySenseUpdated as _CanonicGlossarySenseUpdated,
-        GenerationBlockedBySemanticConflict as _CanonicGenerationBlockedBySemanticConflict,
-        StepCheckpointed as _CanonicStepCheckpointed,
-    )
-    from spec_kitty_events.persistence import append_event as _pkg_append_event  # type: ignore[import-not-found]
+    _canon_events = importlib.import_module("spec_kitty_events.glossary.events")
+    _pkg_append_event = importlib.import_module(
+        "spec_kitty_events.persistence"
+    ).append_event
+
+    _CanonicGlossaryScopeActivated = _canon_events.GlossaryScopeActivated
+    _CanonicTermCandidateObserved = _canon_events.TermCandidateObserved
+    _CanonicSemanticCheckEvaluated = _canon_events.SemanticCheckEvaluated
+    _CanonicGlossaryClarificationRequested = _canon_events.GlossaryClarificationRequested
+    _CanonicGlossaryClarificationResolved = _canon_events.GlossaryClarificationResolved
+    _CanonicGlossarySenseUpdated = _canon_events.GlossarySenseUpdated
+    _CanonicGenerationBlockedBySemanticConflict = _canon_events.GenerationBlockedBySemanticConflict
+    _CanonicStepCheckpointed = _canon_events.StepCheckpointed
 
     EVENTS_AVAILABLE = True
     logger.info("spec-kitty-events canonical glossary adapter available")

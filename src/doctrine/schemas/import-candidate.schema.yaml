@@ -112,6 +112,32 @@ oneOf:
         type: array
         items:
           type: string
+      source_references:
+        type: array
+        items:
+          type: object
+          required: [kind, path, lines, note]
+          properties:
+            kind:
+              type: string
+            path:
+              type: string
+            lines:
+              type: string
+            note:
+              type: string
+      external_references:
+        type: array
+        items:
+          type: object
+          required: [url, attribution_reason, extraction_action]
+          properties:
+            url:
+              type: string
+            attribution_reason:
+              type: string
+            extraction_action:
+              type: string
     allOf:
       - if:
           properties:

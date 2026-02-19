@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import urllib.parse
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from ..scanner import (
     format_path_for_display,
@@ -24,6 +24,9 @@ __all__ = ["FeatureHandler"]
 class FeatureHandler(DashboardHandler):
     """Serve feature lists, kanban lanes, and artifact viewers."""
 
+    def _project_path(self) -> Path:
+        return Path(self.project_dir or Path.cwd()).resolve()
+
     def handle_features_list(self) -> None:
         """Return summary data for all features."""
         self.send_response(200)
@@ -31,7 +34,7 @@ class FeatureHandler(DashboardHandler):
         self.send_header('Cache-Control', 'no-cache')
         self.end_headers()
 
-        project_path = Path(self.project_dir).resolve()
+        project_path = self._project_path()
         features = scan_all_features(project_path)
 
         # Add legacy format indicator to each feature
@@ -62,7 +65,7 @@ class FeatureHandler(DashboardHandler):
                     'version': mission.config.version,
                     'slug': mission.path.name,
                     'description': mission.config.description or '',
-                    'path': format_path_for_display(str(mission.path)),
+                    'path': format_path_for_display(str(mission.path)) or "",
                     'feature': active_feature.get('name', ''),
                 }
             except MissionError:
@@ -121,7 +124,7 @@ class FeatureHandler(DashboardHandler):
         parts = path.split('/')
         if len(parts) >= 4:
             feature_id = parts[3]
-            project_path = Path(self.project_dir).resolve()
+            project_path = self._project_path()
             kanban_data = scan_feature_kanban(project_path, feature_id)
 
             # Check if feature uses legacy format
@@ -153,11 +156,11 @@ class FeatureHandler(DashboardHandler):
             return
 
         feature_id = parts[3]
-        project_path = Path(self.project_dir)
+        project_path = self._project_path()
         feature_dir = resolve_feature_dir(project_path, feature_id)
 
         if len(parts) == 4:
-            response = {'main_file': None, 'artifacts': []}
+            response: dict[str, Any] = {'main_file': None, 'artifacts': []}
 
             if feature_dir:
                 research_md = feature_dir / 'research.md'
@@ -253,12 +256,12 @@ class FeatureHandler(DashboardHandler):
             return
 
         feature_id = parts[3]
-        project_path = Path(self.project_dir)
+        project_path = self._project_path()
         feature_dir = resolve_feature_dir(project_path, feature_id)
 
         if len(parts) == 4:
             # Return directory listing
-            response = {'files': []}
+            response: dict[str, Any] = {'files': []}
 
             if feature_dir:
                 artifact_dir = feature_dir / directory_name
@@ -340,7 +343,7 @@ class FeatureHandler(DashboardHandler):
         feature_id = parts[3]
         artifact_name = parts[4] if len(parts) > 4 else ''
 
-        project_path = Path(self.project_dir)
+        project_path = self._project_path()
         feature_dir = resolve_feature_dir(project_path, feature_id)
 
         artifact_map = {

@@ -22,11 +22,10 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 import typer
 
@@ -51,12 +50,14 @@ app = typer.Typer(
 _RUN_AFFECTING_LANES = frozenset(["claimed", "in_progress", "for_review"])
 
 
-def _emit(envelope: dict) -> None:
+def _emit(envelope: dict[str, Any]) -> None:
     """Print canonical JSON envelope to stdout."""
     print(json.dumps(envelope))
 
 
-def _fail(command: str, error_code: str, message: str, data: dict | None = None) -> None:
+def _fail(
+    command: str, error_code: str, message: str, data: dict[str, Any] | None = None
+) -> None:
     """Print failure envelope and exit non-zero."""
     envelope = make_envelope(
         command=command,
@@ -497,7 +498,7 @@ def start_review(
     prompt_path = str(wp_path)
 
     try:
-        event = emit_status_transition(
+        emit_status_transition(
             feature_dir,
             feature,
             wp,
@@ -549,7 +550,7 @@ def transition(
     to_lane = resolve_lane_alias(to)
 
     # Policy required for run-affecting lanes
-    policy_dict: dict | None = None
+    policy_dict: dict[str, Any] | None = None
     if to_lane in _RUN_AFFECTING_LANES:
         if not policy:
             _fail(
@@ -727,7 +728,7 @@ def accept_feature(
     import json as _json
 
     meta_path = feature_dir / "meta.json"
-    meta: dict = {}
+    meta: dict[str, Any] = {}
     if meta_path.exists():
         try:
             meta = _json.loads(meta_path.read_text(encoding="utf-8"))

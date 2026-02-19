@@ -6,6 +6,7 @@ import os
 import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.align import Align
@@ -23,7 +24,7 @@ TAGLINE = "Spec Kitty - Spec-Driven Development Toolkit (forked from GitHub Spec
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
 
-    def format_help(self, ctx, formatter):
+    def format_help(self, ctx: Any, formatter: Any) -> None:
         if _should_use_simple_help():
             _format_simple_help(self, ctx, formatter)
             return

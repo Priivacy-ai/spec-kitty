@@ -11,7 +11,7 @@ from importlib.resources import files
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional, cast
 
 import typer
 from rich.console import Console
@@ -45,6 +45,18 @@ app = typer.Typer(
 )
 
 console = Console()
+
+
+def _resource_is_file(resource: object) -> bool:
+    """Return True only when the traversable check yields a real bool True."""
+    checker = getattr(resource, "is_file", None)
+    if not callable(checker):
+        return False
+    try:
+        result = checker()
+    except Exception:
+        return False
+    return isinstance(result, bool) and result
 
 
 def _resolve_primary_branch(repo_root: Path) -> str:
@@ -841,7 +853,10 @@ def setup_plan(
                 files("specify_cli").joinpath("templates", "plan-template.md"),
                 files("doctrine").joinpath("templates", "plan-template.md"),
             ]
-            package_template = next((p for p in package_candidates if p.exists()), None)
+            package_template = next(
+                (p for p in package_candidates if _resource_is_file(p)),
+                None,
+            )
             if package_template is None:
                 raise FileNotFoundError("Plan template not found in repository or package")
             with package_template.open("rb") as src, open(plan_file, "wb") as dst:
@@ -853,16 +868,17 @@ def setup_plan(
 
         # T014 + T016: Documentation mission wiring for plan
         mission_key = get_feature_mission_key(feature_dir)
-        generators_detected = []
 
         if mission_key == "documentation":
             from specify_cli.doc_state import (
+                GeneratorConfig,
                 read_documentation_state,
                 set_audit_metadata,
                 set_generators_configured,
             )
             from specify_cli.gap_analysis import generate_gap_analysis_report
             from specify_cli.doc_generators import (
+                DocGenerator,
                 JSDocGenerator,
                 SphinxGenerator,
                 RustdocGenerator,
@@ -917,12 +933,22 @@ def setup_plan(
                             )
 
             # T016: Detect and configure generators
-            all_generators = [JSDocGenerator(), SphinxGenerator(), RustdocGenerator()]
+            all_generators: list[DocGenerator] = [
+                JSDocGenerator(),
+                SphinxGenerator(),
+                RustdocGenerator(),
+            ]
+            generators_detected: list[GeneratorConfig] = []
             for gen in all_generators:
                 try:
                     if gen.detect(repo_root):
+                        if gen.name not in {"jsdoc", "sphinx", "rustdoc"}:
+                            continue
+                        generator_name = cast(
+                            Literal["sphinx", "jsdoc", "rustdoc"], gen.name
+                        )
                         generators_detected.append({
-                            "name": gen.name,
+                            "name": generator_name,
                             "language": gen.languages[0],
                             "config_path": "",
                         })
@@ -1563,10 +1589,16 @@ def finalize_tasks(
 
         for wp in work_packages:
             try:
+                raw_dependencies = wp.get("dependencies", [])
+                dependencies = (
+                    [str(dep) for dep in raw_dependencies]
+                    if isinstance(raw_dependencies, list)
+                    else []
+                )
                 emit_wp_created(
                     wp_id=str(wp["id"]),
                     title=str(wp["title"]),
-                    dependencies=list(wp["dependencies"]),
+                    dependencies=dependencies,
                     feature_slug=feature_slug,
                     causation_id=causation_id,
                 )

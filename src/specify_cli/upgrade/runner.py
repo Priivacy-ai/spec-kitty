@@ -195,7 +195,7 @@ class MigrationRunner:
         target_version: str,
         migrations: List[BaseMigration],
         dry_run: bool,
-    ) -> dict:
+    ) -> dict[str, list[str]]:
         """Upgrade all worktrees in .worktrees/ directory.
 
         Args:
@@ -206,7 +206,7 @@ class MigrationRunner:
         Returns:
             Dict with warnings and errors lists
         """
-        result: dict = {"warnings": [], "errors": []}
+        result: dict[str, list[str]] = {"warnings": [], "errors": []}
 
         worktrees_dir = self.project_path / ".worktrees"
         if not worktrees_dir.exists():

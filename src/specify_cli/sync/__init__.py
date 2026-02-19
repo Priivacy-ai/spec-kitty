@@ -14,6 +14,7 @@ do not pull in optional packages.
 """
 
 from .clock import LamportClock, generate_node_id
+from typing import Any
 from .events import (
     get_emitter,
     reset_emitter,
@@ -52,7 +53,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
 }
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     if name in _LAZY_IMPORTS:
         module_path, attr = _LAZY_IMPORTS[name]
         import importlib

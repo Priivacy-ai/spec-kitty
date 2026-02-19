@@ -102,6 +102,9 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
             cwd=Path.cwd(),
             mode="strict"
         )
+        if ctx is None:
+            console.print("[red]Error:[/red] Could not determine feature context")
+            raise typer.Exit(1)
         return ctx.number, ctx.slug
     except TaskCliError:
         console.print("[red]Error:[/red] Not in a spec-kitty project")
@@ -549,8 +552,8 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
 @require_main_repo
 def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
-    base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
-    feature: str = typer.Option(None, "--feature", help="Feature slug (e.g., 001-my-feature)"),
+    base: str | None = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
+    feature: str | None = typer.Option(None, "--feature", help="Feature slug (e.g., 001-my-feature)"),
     force: bool = typer.Option(False, "--force", help="Force auto-merge even when dependencies are done"),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
 ) -> None:
@@ -826,6 +829,11 @@ def implement(
                     raise typer.Exit(1)
 
                 # Use merge base branch
+                if merge_result.branch_name is None:
+                    tracker.error("create", "merge base branch name missing")
+                    console.print(tracker.render())
+                    console.print("\n[red]Error:[/red] Merge base creation did not return a branch name")
+                    raise typer.Exit(1)
                 base_branch = merge_result.branch_name
 
         elif base is None:
@@ -934,13 +942,13 @@ def implement(
                     if base_workspace_info.current_branch:
                         base_branch = base_workspace_info.current_branch
                     # For git, verify the branch exists
-                    result = subprocess.run(
+                    verify_base_result = subprocess.run(
                         ["git", "rev-parse", "--verify", base_branch],
                         cwd=repo_root,
                         capture_output=True,
                         check=False
                     )
-                    if result.returncode != 0:
+                    if verify_base_result.returncode != 0:
                         tracker.error("create", f"base branch {base_branch} not found")
                         console.print(tracker.render())
                         console.print(f"[red]Error:[/red] Base branch {base_branch} does not exist")
@@ -978,7 +986,7 @@ def implement(
             console.print("[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
 
         # Step 3.5: Get base commit SHA for tracking
-        result = subprocess.run(
+        base_commit_result = subprocess.run(
             ["git", "rev-parse", base_branch],
             cwd=repo_root,
             capture_output=True,
@@ -987,7 +995,11 @@ def implement(
             errors="replace",
             check=False
         )
-        base_commit_sha = result.stdout.strip() if result.returncode == 0 else "unknown"
+        base_commit_sha: str = (
+            base_commit_result.stdout.strip()
+            if base_commit_result.returncode == 0
+            else "unknown"
+        )
 
         # Step 3.6: Update WP frontmatter with base tracking
         try:
