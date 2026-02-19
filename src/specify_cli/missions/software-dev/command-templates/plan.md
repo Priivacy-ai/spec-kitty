@@ -111,7 +111,7 @@ Planning requirements (scale to complexity):
 
    **Error handling**: If the command fails with "Cannot detect feature" or "Multiple features found", verify your feature detection logic in step 2 and ensure you're passing the correct feature slug.
 
-4. **Load context**: Read FEATURE_SPEC and `.kittify/memory/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
+4. **Load context**: Read FEATURE_SPEC and `.kittify/constitution/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
 
 5. **Execute plan workflow**: Follow the structure in IMPL_PLAN template, using the validated planning answers as ground truth:
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision

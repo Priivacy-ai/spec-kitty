@@ -173,12 +173,12 @@ def _prepare_project_minimal(project_path: Path) -> None:
     at runtime via the 4-tier resolver.
 
     Creates:
-        - .kittify/            (project root)
-        - .kittify/memory/     (for constitution.md -- project-specific)
+        - .kittify/                (project root)
+        - .kittify/constitution/   (for constitution.md and structured config)
     """
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    (kittify / "memory").mkdir(exist_ok=True)
+    (kittify / "constitution").mkdir(exist_ok=True)
     _logger.debug("Minimal project skeleton created at %s", kittify)
 
 

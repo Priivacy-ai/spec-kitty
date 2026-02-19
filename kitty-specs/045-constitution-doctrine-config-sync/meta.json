@@ -1,0 +1,10 @@
+{
+  "feature_number": "045",
+  "slug": "045-constitution-doctrine-config-sync",
+  "friendly_name": "Constitution Parser and Structured Config",
+  "mission": "software-dev",
+  "source_description": "Parse the constitution narrative markdown into structured YAML config files within a .kittify/constitution/ directory. Extraction is agentic (AI-driven) and triggered both by post-save hooks on CLI writes and via explicit spec-kitty constitution sync command.",
+  "created_at": "2026-02-15T22:00:00+00:00",
+  "target_branch": "develop",
+  "vcs": "git"
+}

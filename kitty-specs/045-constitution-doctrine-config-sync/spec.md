@@ -68,7 +68,7 @@ As a project owner, when I complete the `/spec-kitty.constitution` or `/spec-kit
 #### Functional Requirements
 
 - **FR-2.1**: After any spec-kitty CLI command writes to `constitution.md`, the system SHALL automatically trigger extraction.
-- **FR-2.2**: The post-save hook SHALL run asynchronously — it SHALL NOT block the CLI command that triggered the write.
+- **FR-2.2**: The post-save hook SHALL run synchronously after the CLI write completes. Deterministic extraction completes in under 500ms.
 - **FR-2.3**: If extraction fails (AI agent unavailable, parse error), the system SHALL log a warning and leave the previous YAML files intact.
 - **FR-2.4**: The post-save hook SHALL update `metadata.yaml` with the new extraction timestamp and constitution hash.
 - **FR-2.5**: The `/spec-kitty.constitution` and `/spec-kitty.bootstrap` commands SHALL both trigger the post-save extraction hook.
