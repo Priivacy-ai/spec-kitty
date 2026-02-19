@@ -47,6 +47,7 @@ which captures:
 | [Project Onboarding & Bootstrap](001-project-onboarding-bootstrap.md) | DRAFT | New project setup: init → bootstrap (vision + constitution) → first feature |
 | [System Architecture Design](002-system-architecture-design.md) | DRAFT | Architectural structure and boundary design after bootstrap |
 | [System Design & Shared Understanding](003-system-design-and-shared-understanding.md) | DRAFT | Design mission flow for glossary, journeys, and ADR alignment |
+| [Curating External Practice into Governance](004-curating-external-practice-into-governance.md) | DRAFT | Pull-based adoption flow for external practices (e.g., ZOMBIES TDD) via curation + constitution activation |
 
 ## Relationship to Other Architecture Artifacts
 

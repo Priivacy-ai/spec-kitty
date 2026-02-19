@@ -1,0 +1,29 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://spec-kitty.dev/schemas/doctrine/tactic.schema.yaml"
+title: Tactic
+description: Minimal schema for reusable behavior tactics.
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - id
+  - name
+  - steps
+properties:
+  schema_version:
+    type: string
+    pattern: '^1\.0$'
+  id:
+    type: string
+    pattern: '^[a-z][a-z0-9-]*$'
+  name:
+    type: string
+    minLength: 1
+  purpose:
+    type: string
+  steps:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      minLength: 1

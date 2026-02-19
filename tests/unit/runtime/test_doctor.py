@@ -325,14 +325,20 @@ class TestRunGlobalChecks:
     def test_includes_legacy_check_with_project(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """With project_dir, returns 4 checks including stale_legacy."""
+        """With project_dir, returns checks including stale_legacy/governance."""
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "kittify"))
         project = tmp_path / "project"
         project.mkdir()
+        constitution_dir = project / ".kittify" / "constitution"
+        constitution_dir.mkdir(parents=True)
+        (constitution_dir / "governance.yaml").write_text("{}")
+        (constitution_dir / "agents.yaml").write_text("{}")
+        (constitution_dir / "directives.yaml").write_text("{}")
         checks = run_global_checks(project_dir=project)
-        assert len(checks) == 4
+        assert len(checks) == 5
         names = {c.name for c in checks}
         assert "stale_legacy" in names
+        assert "governance_resolution" in names
 
     def test_all_pass_with_healthy_setup(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -349,6 +355,11 @@ class TestRunGlobalChecks:
 
         project = tmp_path / "project"
         project.mkdir()
+        constitution_dir = project / ".kittify" / "constitution"
+        constitution_dir.mkdir(parents=True)
+        (constitution_dir / "governance.yaml").write_text("{}")
+        (constitution_dir / "agents.yaml").write_text("{}")
+        (constitution_dir / "directives.yaml").write_text("{}")
 
         checks = run_global_checks(project_dir=project)
         assert all(c.passed for c in checks)

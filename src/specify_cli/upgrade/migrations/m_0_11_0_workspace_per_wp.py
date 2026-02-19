@@ -90,8 +90,8 @@ def _resolve_template_sources() -> Optional[Dict[str, str]]:
                 if contents:
                     return contents
 
-    # 011: Templates packaged in src/specify_cli/missions/
-    data_root = files("specify_cli")
+    # 011: Templates packaged in src/doctrine/missions/
+    data_root = files("doctrine")
     candidate = data_root.joinpath("missions", MISSION_NAME, "command-templates")
     if candidate.exists():
         contents = _load_template_sources(candidate)

@@ -174,10 +174,12 @@ def _prepare_project_minimal(project_path: Path) -> None:
 
     Creates:
         - .kittify/                (project root)
+        - .kittify/memory/         (project-local memory/context files)
         - .kittify/constitution/   (for constitution.md and structured config)
     """
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "memory").mkdir(exist_ok=True)
     (kittify / "constitution").mkdir(exist_ok=True)
     _logger.debug("Minimal project skeleton created at %s", kittify)
 
@@ -185,13 +187,13 @@ def _prepare_project_minimal(project_path: Path) -> None:
 def _get_package_templates_root() -> Path | None:
     """Return the package-bundled templates directory (read-only).
 
-    This is the ``src/specify_cli/templates/`` directory which contains
+    This is the ``src/doctrine/templates/`` directory which contains
     ``command-templates/``, ``git-hooks/``, ``AGENTS.md``, etc.
 
     Returns None if the templates directory cannot be located.
     """
     try:
-        pkg_root = get_package_asset_root()  # .../specify_cli/missions/
+        pkg_root = get_package_asset_root()  # .../doctrine/missions/
         templates_dir = pkg_root.parent / "templates"
         if templates_dir.is_dir():
             return templates_dir

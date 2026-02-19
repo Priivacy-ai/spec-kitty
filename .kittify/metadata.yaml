@@ -5,7 +5,7 @@
 spec_kitty:
   version: 2.0.0a5
   initialized_at: '2026-02-03T17:59:23.703791'
-  last_upgraded_at: '2026-02-16T14:32:36.147872'
+  last_upgraded_at: '2026-02-17T16:28:13.549284'
 environment:
   python_version: 3.14.0
   platform: darwin

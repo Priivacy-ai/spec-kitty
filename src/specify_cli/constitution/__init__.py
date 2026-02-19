@@ -20,6 +20,7 @@ from .schemas import (
     AgentSelectionConfig,
     BranchStrategyConfig,
     CommitConfig,
+    DoctrineSelectionConfig,
     Directive,
     DirectivesConfig,
     ExtractionMetadata,
@@ -33,9 +34,16 @@ from .schemas import (
 from .sync import (
     SyncResult,
     load_agents_config,
+    load_directives_config,
     load_governance_config,
     post_save_hook,
     sync,
+)
+from .resolver import (
+    GovernanceResolution,
+    GovernanceResolutionError,
+    collect_governance_diagnostics,
+    resolve_governance,
 )
 
 __all__ = [
@@ -46,6 +54,7 @@ __all__ = [
     "AgentSelectionConfig",
     "BranchStrategyConfig",
     "CommitConfig",
+    "DoctrineSelectionConfig",
     "Directive",
     "DirectivesConfig",
     "ExtractionMetadata",
@@ -57,7 +66,12 @@ __all__ = [
     "emit_yaml",
     "SyncResult",
     "load_agents_config",
+    "load_directives_config",
     "load_governance_config",
     "post_save_hook",
     "sync",
+    "GovernanceResolution",
+    "GovernanceResolutionError",
+    "resolve_governance",
+    "collect_governance_diagnostics",
 ]

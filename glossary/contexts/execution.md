@@ -24,25 +24,25 @@ Terms describing the CLI tooling that executes LLM interactions.
 
 ### Tool Invoker
 
-|                   |                                                                                                               |
-|-------------------|---------------------------------------------------------------------------------------------------------------|
-| **Definition**    | The Protocol (interface) that defines how a tool is invoked: check installation, build command, parse output. |
-| **Context**       | Execution                                                                                                     |
-| **Status**        | candidate                                                                                                     |
-| **In code**       | Planned canonical interface; current code still uses legacy invoker naming in parts of the runtime.           |
-| **Related terms** | [Tool](#tool)                                                                                                 |
-| **Legacy name**   | `AgentInvoker`                                                                                                |
+|                   |                                                                                                                                                      |
+|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | The Protocol (interface) that defines how a tool is invoked: check installation, build command, parse output.                                        |
+| **Context**       | Execution                                                                                                                                            |
+| **Status**        | candidate                                                                                                                                            |
+| **In code**       | Planned canonical interface; current code still uses legacy invoker naming in parts of the runtime. See: `ToolInvoker` (Protocol, runtime_checkable) |
+| **Related terms** | [Tool](#tool)                                                                                                                                        |
+| **Legacy name**   | `AgentInvoker`                                                                                                                                       |
 
 ---
 
 ### Invocation Result
 
-|                   |                                                                                                                                               |
-|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | Structured output of a tool execution — captures success status, stdout/stderr, duration, files modified, commits made, errors, and warnings. |
-| **Context**       | Execution                                                                                                                                     |
-| **Status**        | candidate                                                                                                                                     |
-| **In code**       | Target runtime contract; implementation details are still being consolidated during mission/runtime convergence.                              |
-| **Related terms** | [Tool Invoker](#tool-invoker), [Execution Event](#execution-event)                                                                            |
+|                   |                                                                                                                                                      |
+|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | Structured output of a tool execution — captures success status, stdout/stderr, duration, files modified, commits made, errors, and warnings.        |
+| **Context**       | Execution                                                                                                                                            |
+| **Status**        | candidate                                                                                                                                            |
+| **In code**       | Target runtime contract; implementation details are still being consolidated during mission/runtime convergence. See: `InvocationResult` (dataclass) |
+| **Related terms** | [Tool Invoker](#tool-invoker), [Execution Event](#execution-event)                                                                                   |
 
 ---

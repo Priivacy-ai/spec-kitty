@@ -15,7 +15,7 @@ class InstallDocumentationMission(BaseMigration):
     """Install the documentation mission to user projects.
 
     This migration copies the documentation mission from the spec-kitty
-    installation (src/specify_cli/missions/documentation/) to the user's
+    installation (src/doctrine/missions/documentation/) to the user's
     project (.kittify/missions/documentation/).
 
     The documentation mission enables users to create and maintain software

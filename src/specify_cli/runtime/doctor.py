@@ -12,6 +12,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from specify_cli.constitution.resolver import (
+    GovernanceResolutionError,
+    resolve_governance,
+)
 from specify_cli.runtime.home import get_kittify_home
 
 # Managed mission directories expected under ~/.kittify/missions/.
@@ -129,6 +133,47 @@ def check_stale_legacy_assets(project_dir: Path) -> DoctorCheck:
     )
 
 
+def check_governance_resolution(project_dir: Path) -> DoctorCheck:
+    """Validate constitution-centric governance resolution for this project."""
+    try:
+        resolution = resolve_governance(project_dir)
+    except GovernanceResolutionError as exc:
+        return DoctorCheck(
+            "governance_resolution",
+            False,
+            str(exc),
+            "error",
+        )
+    except Exception as exc:
+        return DoctorCheck(
+            "governance_resolution",
+            False,
+            f"Could not resolve governance: {exc}",
+            "warning",
+        )
+
+    if resolution.metadata.get("template_set_source") == "fallback":
+        return DoctorCheck(
+            "governance_resolution",
+            True,
+            (
+                f"Resolved governance with template fallback '{resolution.template_set}'. "
+                "Set doctrine.template_set in constitution to make this explicit."
+            ),
+            "warning",
+        )
+
+    return DoctorCheck(
+        "governance_resolution",
+        True,
+        (
+            f"Resolved governance: {len(resolution.agent_profiles)} profile(s), "
+            f"{len(resolution.tools)} tool(s), template_set={resolution.template_set}"
+        ),
+        "info",
+    )
+
+
 def run_global_checks(
     project_dir: Path | None = None,
 ) -> list[DoctorCheck]:
@@ -147,4 +192,5 @@ def run_global_checks(
     ]
     if project_dir:
         checks.append(check_stale_legacy_assets(project_dir))
+        checks.append(check_governance_resolution(project_dir))
     return checks

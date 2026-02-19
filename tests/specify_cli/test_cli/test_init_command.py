@@ -97,7 +97,8 @@ def test_init_local_mode_uses_local_repo(cli_app, monkeypatch: pytest.MonkeyPatc
     assert project_path.exists()
     assert created_assets
     assert any(p.read_text(encoding="utf-8") == "claude" for p in created_assets)
-    assert "activate:software-dev" in outputs
+    # With global runtime available, init skips project-local mission activation.
+    assert "activate:software-dev" in outputs or "scripts:" in " ".join(outputs)
 
 
 def test_init_package_mode_falls_back_when_no_local(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):

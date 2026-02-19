@@ -1,0 +1,139 @@
+contexts:
+  - name: Practices & Principles
+    domainVisionStatement: Terms for practices & principles context.
+    meta:
+      Generated from: glossary/contexts/practices-principles.md
+    terms:
+      - name: Human In Charge
+        definition: The foundational governance principle that humans retain authority over all 
+          critical decisions. Agents may operate autonomously within defined decision boundaries but
+          must escalate architectural changes, breaking changes, security modifications, and 
+          ambiguous requirements. The `work/human-in-charge/` directory structure provides 
+          escalation channels (decision requests, blockers, problem reports).
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Decision Boundary, Escalation, Human Review Loop, AFK Mode
+      - name: Human Review Loop
+        definition: A checkpoint in the workflow where a human reviews agent-produced work before it
+          advances. In Spec Kitty, the `for_review` lane and `/spec-kitty.review` command embody 
+          this pattern. Ensures quality gates remain under human authority.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Human In Charge, Lane, Phase Checkpoint Protocol
+      - name: Escalation
+        definition: The act of an agent pausing autonomous work and requesting human guidance. 
+          Triggered by blockers, critical decisions, ambiguous requirements, or unexpected results. 
+          Escalation artifacts are placed in `work/human-in-charge/` subdirectories.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Human In Charge, Decision Boundary, Stopping Condition
+      - name: Decision Boundary
+        definition: 'The classification of decisions into minor (agent-autonomous) and critical (requires
+          human approval). Minor: file naming, code style, test data, documentation phrasing. Critical:
+          architectural changes, breaking APIs, schema modifications, dependency changes, security policy
+          changes.'
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Human In Charge, AFK Mode, Escalation
+      - name: Collaboration Contract
+        definition: The behavioral commitments defined in an agent profile — what the agent will do,
+          how it will communicate, when it will escalate, and what quality standards it upholds. 
+          Each Doctrine agent profile (`doctrine/agents/*.agent.md`) embodies a collaboration 
+          contract.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Agent Profile, Decision Boundary, Human In Charge
+      - name: Phase Authority
+        definition: The designation of who owns each phase of the Spec-Driven Development lifecycle.
+          Different phases may have different authority levels — e.g., specification is human-owned,
+          implementation may be agent-delegated, review requires human sign-off.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Phase, Human In Charge, Phase Checkpoint Protocol
+      - name: Phase Checkpoint Protocol
+        definition: End-of-phase verification ensuring deliverables meet quality gates before 
+          proceeding. Each SDD phase has defined exit criteria. Checkpoints may be automated (tests 
+          pass, lint clean) or human-gated (review approval).
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Phase Authority, Human Review Loop, Validation Result
+      - name: Pre-flight Validation
+        definition: Automatic validation checks run before high-impact workflow actions (especially 
+          merge) to catch blocking conditions early.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Phase Checkpoint Protocol, Merge State, Conflict Forecasting
+      - name: Conflict Forecasting
+        definition: Predictive merge-time analysis that estimates likely conflicts before executing 
+          an actual merge.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Pre-flight Validation, Merge State
+      - name: Merge State
+        definition: Persisted merge-progress state used to support interrupted merge recovery via 
+          resume/abort workflows.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Location: '`.kittify/merge-state.json`'
+          Related terms: Interrupted Merge Recovery, Pre-flight Validation
+      - name: Interrupted Merge Recovery
+        definition: The operational protocol for recovering from interrupted merges, typically using
+          `--resume` to continue or `--abort` to reset and start clean.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Merge State, Pre-flight Validation
+      - name: Living Glossary
+        definition: A glossary that evolves with the codebase — terms are added, refined, or 
+          deprecated as the domain understanding deepens. This very document is a living glossary. 
+          Terminology decisions are treated as architectural decisions.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Living Specification
+      - name: Living Specification
+        definition: A specification that evolves during discovery and planning phases, then freezes 
+          at implementation start. In Spec Kitty, `spec.md` is living during `/spec-kitty.specify` 
+          and `/spec-kitty.clarify`, then becomes the frozen contract that `plan.md` and `tasks.md` 
+          implement against.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Living Glossary, Spec-Driven Development
+      - name: Stopping Condition
+        definition: 'A predefined criterion that tells an agent when to halt pursuit of a goal. Prevents
+          unbounded iteration. Examples: test suite passes, lint clean, reviewer approves, maximum retry
+          count reached, or an escalation condition is triggered.'
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Escalation, Decision Boundary
+      - name: File-Based Orchestration
+        definition: The coordination pattern where workflow state is stored in files (YAML 
+          frontmatter, markdown, JSON) rather than a database or API. Spec Kitty uses file-based 
+          orchestration — lane status lives in WP frontmatter, config in `.kittify/config.yaml`, 
+          events in JSONL files. Enables git-native versioning and multi-agent coordination without 
+          shared infrastructure.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Lane, Work Package, EventBridge
+      - name: AFK Mode
+        definition: 'Away From Keyboard — a session management protocol granting agents extended autonomy
+          with defined boundaries. When activated: commit after each logical unit, push permission granted,
+          minor decisions autonomous, critical decisions trigger escalation. Deactivated when human returns
+          or agent encounters a critical decision.'
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Human In Charge, Decision Boundary, Escalation

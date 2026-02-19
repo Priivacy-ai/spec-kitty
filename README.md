@@ -11,6 +11,7 @@ It helps teams turn product intent into implementation with a repeatable path:
 ### Why teams use it
 
 AI coding workflows often break down on larger features:
+
 - Requirements and design decisions drift over long agent sessions
 - Parallel work is hard to coordinate across branches
 - Review and acceptance criteria become inconsistent from one feature to the next
@@ -29,14 +30,14 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 ## 🚀 What You Get in 0.15.x
 
-| Capability | What Spec Kitty provides |
-|------------|--------------------------|
-| **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, and `tasks.md` in `kitty-specs/<feature>/` |
-| **Work package execution** | Uses lane-based work package prompts (`planned`, `doing`, `for_review`, `done`) |
-| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/` for work package execution |
-| **Live project visibility** | Local dashboard for kanban and feature progress (`spec-kitty dashboard`) |
-| **Acceptance + merge workflow** | Built-in acceptance checks and merge helpers (`spec-kitty accept`, `spec-kitty merge`) |
-| **Multi-agent support** | Template and command generation for 12 AI agent integrations |
+| Capability                        | What Spec Kitty provides                                                                 |
+|-----------------------------------|------------------------------------------------------------------------------------------|
+| **Spec-driven artifacts**         | Generates and maintains `spec.md`, `plan.md`, and `tasks.md` in `kitty-specs/<feature>/` |
+| **Work package execution**        | Uses lane-based work package prompts (`planned`, `doing`, `for_review`, `done`)          |
+| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/` for work package execution            |
+| **Live project visibility**       | Local dashboard for kanban and feature progress (`spec-kitty dashboard`)                 |
+| **Acceptance + merge workflow**   | Built-in acceptance checks and merge helpers (`spec-kitty accept`, `spec-kitty merge`)   |
+| **Multi-agent support**           | Template and command generation for 12 AI agent integrations                             |
 
 <p align="center">
     <a href="#-getting-started-complete-workflow">Quick Start</a> •
@@ -85,6 +86,7 @@ graph LR
 **Recent stable release:** `v0.15.1` (2026-02-12)
 
 **0.15.x highlights:**
+
 - Primary branch detection now works with `main`, `master`, `develop`, and custom defaults
 - Branch routing and merge-base calculation are centralized for more predictable behavior
 - Worktree isolation and lane transitions have stronger guardrails and test coverage
@@ -103,8 +105,8 @@ graph LR
 
 Spec Kitty is currently published on a stable `0.15.x` track from the `main` branch.
 
-| Branch | Version | Status | Install |
-|--------|---------|--------|---------|
+| Branch   | Version    | Status                 | Install                      |
+|----------|------------|------------------------|------------------------------|
 | **main** | **0.15.x** | Active stable releases | `pip install spec-kitty-cli` |
 
 **For users:** install from PyPI (`pip install spec-kitty-cli`).
@@ -141,6 +143,7 @@ sequenceDiagram
 ```
 
 **Key Benefits:**
+
 - 🔀 **Parallel execution** - Multiple WPs simultaneously
 - 🌳 **Worktree isolation** - One workspace per WP to reduce branch contention
 - 👀 **Full visibility** - Dashboard shows who's doing what
@@ -150,7 +153,8 @@ sequenceDiagram
 
 ## 📊 Real-Time Dashboard
 
-Spec Kitty includes a **live dashboard** that automatically tracks your feature development progress. View your kanban board, monitor work package status, and see which agents are working on what—all updating in real-time as you work.
+Spec Kitty includes a **live dashboard
+** that automatically tracks your feature development progress. View your kanban board, monitor work package status, and see which agents are working on what—all updating in real-time as you work.
 
 <div align="center">
   <img src="https://github.com/Priivacy-ai/spec-kitty/raw/main/media/dashboard-kanban.png" alt="Spec Kitty Dashboard - Kanban Board View" width="800"/>
@@ -162,9 +166,13 @@ Spec Kitty includes a **live dashboard** that automatically tracks your feature 
   <p><em>Feature overview with completion metrics and available artifacts</em></p>
 </div>
 
-The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn't already running, let you request a specific port with `--port`, or stop it cleanly with `--kill`.
+The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the
+`/spec-kitty.dashboard` command or
+`spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn't already running, let you request a specific port with
+`--port`, or stop it cleanly with `--kill`.
 
 **Key Features:**
+
 - 📋 **Kanban Board**: Visual workflow across planned → doing → for review → done lanes
 - 📈 **Progress Tracking**: Real-time completion percentages and task counts
 - 👥 **Multi-Agent Support**: See which AI agents are working on which tasks
@@ -231,6 +239,7 @@ spec-kitty dashboard  # Opens http://localhost:3000-5000
 ```
 
 **What just happened:**
+
 - ✅ Created `.claude/commands/` (or `.gemini/`, `.cursor/`, etc.) with 13 slash commands
 - ✅ Created `.kittify/` directory with scripts, templates, and mission configuration
 - ✅ Started real-time kanban dashboard (runs in background)
@@ -254,22 +263,22 @@ spec-kitty upgrade              # Upgrade to current version
 
 The upgrade command automatically migrates your project structure across versions:
 
-| Version | Migration                                                           |
-|---------|---------------------------------------------------------------------|
+| Version    | Migration                                                           |
+|------------|---------------------------------------------------------------------|
 | **0.10.9** | Repair broken templates with bash script references (#62, #63, #64) |
 | **0.10.8** | Move memory/ and AGENTS.md to .kittify/                             |
 | **0.10.6** | Simplify implement/review templates to use workflow commands        |
 | **0.10.2** | Update slash commands to Python CLI and flat structure              |
 | **0.10.0** | **Remove bash scripts, migrate to Python CLI**                      |
-| **0.9.1** | Complete lane migration + normalize frontmatter                     |
-| **0.9.0** | Flatten task lanes to frontmatter-only (no directory-based lanes)   |
-| **0.8.0** | Remove active-mission (missions now per-feature)                    |
-| **0.7.3** | Update scripts for worktree feature numbering                       |
-| **0.6.7** | Ensure software-dev and research missions present                   |
-| **0.6.5** | Rename commands/ → command-templates/                               |
-| **0.5.0** | Install encoding validation git hooks                               |
-| **0.4.8** | Add all 12 AI agent tooling directories to .gitignore               |
-| **0.2.0** | Rename .specify/ → .kittify/ and /specs/ → /kitty-specs/            |
+| **0.9.1**  | Complete lane migration + normalize frontmatter                     |
+| **0.9.0**  | Flatten task lanes to frontmatter-only (no directory-based lanes)   |
+| **0.8.0**  | Remove active-mission (missions now per-feature)                    |
+| **0.7.3**  | Update scripts for worktree feature numbering                       |
+| **0.6.7**  | Ensure software-dev and research missions present                   |
+| **0.6.5**  | Rename commands/ → command-templates/                               |
+| **0.5.0**  | Install encoding validation git hooks                               |
+| **0.4.8**  | Add all 12 AI agent tooling directories to .gitignore               |
+| **0.2.0**  | Rename .specify/ → .kittify/ and /specs/ → /kitty-specs/            |
 
 > Run `spec-kitty upgrade --verbose` to see which migrations apply to your project.
 
@@ -295,11 +304,13 @@ spec-kitty upgrade --json
 ### When to Upgrade
 
 Run `spec-kitty upgrade` after:
+
 - Installing a new version of `spec-kitty-cli`
 - Cloning a project that was created with an older version
 - Seeing "Unknown mission" or missing slash commands
 
-The upgrade command is **idempotent** - safe to run multiple times. It automatically detects your project's version and applies only the necessary migrations.
+The upgrade command is **idempotent
+** - safe to run multiple times. It automatically detects your project's version and applies only the necessary migrations.
 
 </details>
 
@@ -331,6 +342,7 @@ user experience consistency, and performance requirements.
 ```
 
 **What this creates:**
+
 - `.kittify/memory/constitution.md` - Your project's architectural DNA
 - These principles will guide all subsequent development
 - Missions do not have separate constitutions; the project constitution is the single source of truth
@@ -350,6 +362,7 @@ register, login, logout, and recover forgotten passwords.
 ```
 
 **What this does:**
+
 - Creates `kitty-specs/001-auth-system/spec.md` with user stories
 - **Enters discovery interview** - Answer questions before continuing!
 - All planning happens in the main repo (worktrees created later during implementation)
@@ -367,6 +380,7 @@ SendGrid for email delivery.
 ```
 
 **What this creates:**
+
 - `kitty-specs/001-auth-system/plan.md` - Technical architecture
 - `kitty-specs/001-auth-system/data-model.md` - Database schema
 - `kitty-specs/001-auth-system/contracts/` - API specifications
@@ -382,6 +396,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ```
 
 **What this creates:**
+
 - `kitty-specs/001-auth-system/research.md` - Research findings
 - Evidence logs for decisions made
 
@@ -392,6 +407,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ```
 
 **What this creates:**
+
 - `kitty-specs/001-auth-system/tasks.md` - Kanban checklist
 - `kitty-specs/001-auth-system/tasks/WP01.md` - Work package prompts (flat structure)
 - Up to 10 work packages ready for implementation
@@ -407,6 +423,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ```
 
 **What this does:**
+
 - Auto-detects first WP with `lane: "planned"` (or specify WP ID)
 - Automatically moves to `lane: "doing"` and displays the prompt
 - Shows clear "WHEN YOU'RE DONE" instructions
@@ -421,6 +438,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ```
 
 **What this does:**
+
 - Auto-detects first WP with `lane: "for_review"` (or specify WP ID)
 - Automatically moves to `lane: "doing"` and displays the prompt
 - Agent reviews code and provides feedback or approval
@@ -435,6 +453,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ```
 
 **What this does:**
+
 - Verifies all WPs have `lane: "done"`
 - Checks metadata and activity logs
 - Confirms no `NEEDS CLARIFICATION` markers remain
@@ -447,6 +466,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ```
 
 **What this does:**
+
 - Switches to main branch
 - Merges feature branch
 - Pushes to remote (if `--push` specified)
@@ -460,11 +480,13 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ## 📋 Quick Reference: Command Order
 
 ### Required Workflow (Once per project)
+
 ```
 1️⃣  /spec-kitty.constitution     → In main repo (sets project principles)
 ```
 
 ### Required Workflow (Each feature)
+
 ```
 2️⃣  /spec-kitty.specify          → Create spec (in main repo)
 3️⃣  /spec-kitty.plan             → Define technical approach (in main repo)
@@ -477,6 +499,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ```
 
 ### Optional Enhancement Commands
+
 ```
 /spec-kitty.clarify    → Before /plan: Ask structured questions about spec
 /spec-kitty.research   → After /plan: Investigate technical decisions
@@ -494,6 +517,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 ### Why?
 
 These directories may contain:
+
 - Authentication tokens and API keys
 - User-specific credentials (auth.json)
 - Session data and conversation history
@@ -503,6 +527,7 @@ These directories may contain:
 Spec Kitty automatically protects you with multiple layers:
 
 **During `spec-kitty init`:**
+
 - ✅ Adds all 12 agent directories to `.gitignore`
 - ✅ Installs pre-commit hooks that block commits containing agent files
 - ✅ Creates `.claudeignore` to optimize AI scanning (excludes `.kittify/` templates)
@@ -516,20 +541,24 @@ If you need to bypass the hook (not recommended): `git commit --no-verify`
 
 **Worktree Constitution Sharing:**
 When creating WP workspaces, Spec Kitty uses symlinks to share the constitution:
+
 ```
 .worktrees/001-feature-WP01/.kittify/memory -> ../../../../.kittify/memory
 ```
+
 This ensures all work packages follow the same project principles.
 
 ### What Gets Committed?
 
 ✅ **DO commit:**
+
 - `.kittify/templates/` - Command templates (source)
 - `.kittify/missions/` - Mission workflows
 - `.kittify/memory/constitution.md` - Project principles
 - `.gitignore` - Protection rules
 
 ❌ **NEVER commit:**
+
 - `.claude/`, `.gemini/`, `.cursor/`, etc. - Agent runtime directories
 - Any `auth.json` or credentials files
 
@@ -540,17 +569,21 @@ See [AGENTS.md](.kittify/AGENTS.md) for complete guidelines.
 <details>
 <summary><h2>📚 Terminology</h2></summary>
 
-Spec Kitty differentiates between the **project** that holds your entire codebase, the **features** you build within that project, and the **mission** that defines your workflow. Use these definitions whenever you write docs, prompts, or help text.
+Spec Kitty differentiates between the **project** that holds your entire codebase, the **features** you build within that project, and the **mission
+** that defines your workflow. Use these definitions whenever you write docs, prompts, or help text.
 
 ### Project
+
 **Definition**: The entire codebase (one Git repository) that contains all missions, features, and `.kittify/` automation.
 
 **Examples**:
+
 - "spec-kitty project" (this repository)
 - "priivacy_rust project"
 - "my-agency-portal project"
 
 **Usage**: Projects are initialized once with `spec-kitty init`. A project contains:
+
 - One active mission at a time
 - Multiple features (each with its own spec/plan/tasks)
 - Shared automation under `.kittify/`
@@ -560,20 +593,24 @@ Spec Kitty differentiates between the **project** that holds your entire codebas
 ---
 
 ### Feature
+
 **Definition**: A single unit of work tracked by Spec Kitty. Every feature has its own spec, plan, tasks, and implementation worktree.
 
 **Examples**:
+
 - "001-auth-system feature"
 - "005-refactor-mission-system feature" (this document)
 - "042-dashboard-refresh feature"
 
 **Structure**:
+
 - Specification: `/kitty-specs/###-feature-name/spec.md`
 - Plan: `/kitty-specs/###-feature-name/plan.md`
 - Tasks: `/kitty-specs/###-feature-name/tasks.md`
 - Implementation: `.worktrees/###-feature-name/`
 
 **Lifecycle**:
+
 1. `/spec-kitty.specify` – Create the feature and its branch
 2. `/spec-kitty.plan` – Document the technical design
 3. `/spec-kitty.tasks` – Break work into packages
@@ -587,14 +624,18 @@ Spec Kitty differentiates between the **project** that holds your entire codebas
 ---
 
 ### Mission
-**Definition**: A domain adapter that configures Spec Kitty (workflows, templates, validation). Missions are project-wide; all features in a project share the same active mission.
+
+**Definition
+**: A domain adapter that configures Spec Kitty (workflows, templates, validation). Missions are project-wide; all features in a project share the same active mission.
 
 **Examples**:
+
 - "software-dev mission" (ship software with TDD)
 - "research mission" (conduct systematic investigations)
 - "writing mission" (future workflow)
 
 **What missions define**:
+
 - Workflow phases (e.g., design → implement vs. question → gather findings)
 - Templates (spec, plan, tasks, prompts)
 - Validation rules (tests pass vs. citations documented)
@@ -603,6 +644,7 @@ Spec Kitty differentiates between the **project** that holds your entire codebas
 **Scope**: Entire project. Switch missions before starting a new feature if you need a different workflow.
 
 **Commands**:
+
 - Select at init: `spec-kitty init my-project --mission research`
 - Switch later: `spec-kitty mission switch research`
 - Inspect: `spec-kitty mission current` / `spec-kitty mission list`
@@ -611,11 +653,11 @@ Spec Kitty differentiates between the **project** that holds your entire codebas
 
 ### Quick Reference
 
-| Term | Scope | Example | Key Command |
-|------|-------|---------|-------------|
-| **Project** | Entire codebase | "spec-kitty project" | `spec-kitty init my-project` |
-| **Feature** | Unit of work | "001-auth-system feature" | `/spec-kitty.specify "auth system"` |
-| **Mission** | Workflow adapter | "research mission" | `spec-kitty mission switch research` |
+| Term        | Scope            | Example                   | Key Command                          |
+|-------------|------------------|---------------------------|--------------------------------------|
+| **Project** | Entire codebase  | "spec-kitty project"      | `spec-kitty init my-project`         |
+| **Feature** | Unit of work     | "001-auth-system feature" | `/spec-kitty.specify "auth system"`  |
+| **Mission** | Workflow adapter | "research mission"        | `spec-kitty mission switch research` |
 
 ### Common Questions
 
@@ -656,6 +698,7 @@ Learn from real-world workflows used by teams building production software with 
 ### More Examples
 
 Browse our [examples directory](https://github.com/Priivacy-ai/spec-kitty/tree/main/examples) for additional workflows including:
+
 - Agency client transparency workflows
 - Solo developer productivity patterns
 - Enterprise parallel development
@@ -663,57 +706,58 @@ Browse our [examples directory](https://github.com/Priivacy-ai/spec-kitty/tree/m
 
 ## 🤖 Supported AI Tools
 
-| Tool                                                      | Support | Notes                                             |
-|-----------------------------------------------------------|---------|---------------------------------------------------|
-| [Claude Code](https://www.anthropic.com/claude-code)      | ✅ |                                                   |
-| [GitHub Copilot](https://code.visualstudio.com/)          | ✅ |                                                   |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ |                                                   |
-| [Cursor](https://cursor.sh/)                              | ✅ |                                                   |
-| [Qwen Code](https://github.com/QwenLM/qwen-code)          | ✅ |                                                   |
-| [opencode](https://opencode.ai/)                          | ✅ |                                                   |
-| [Windsurf](https://windsurf.com/)                         | ✅ |                                                   |
-| [Kilo Code](https://github.com/Kilo-Org/kilocode)         | ✅ |                                                   |
-| [Auggie CLI](https://docs.augmentcode.com/cli/overview)   | ✅ |                                                   |
-| [Roo Code](https://roocode.com/)                          | ✅ |                                                   |
-| [Codex CLI](https://github.com/openai/codex)              | ✅ |                                                   |
-| [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️ | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
+| Tool                                                                                | Support | Notes                                                                                                                                     |
+|--------------------------------------------------------------------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| [Claude Code](https://www.anthropic.com/claude-code)                                 | ✅       |                                                                                                                                           |
+| [GitHub Copilot](https://code.visualstudio.com/)                                     | ✅       |                                                                                                                                           |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli)                            | ✅       |                                                                                                                                           |
+| [Cursor](https://cursor.sh/)                                                         | ✅       |                                                                                                                                           |
+| [Qwen Code](https://github.com/QwenLM/qwen-code)                                     | ✅       |                                                                                                                                           |
+| [opencode](https://opencode.ai/)                                                     | ✅       |                                                                                                                                           |
+| [Windsurf](https://windsurf.com/)                                                    | ✅       |                                                                                                                                           |
+| [Kilo Code](https://github.com/Kilo-Org/kilocode)                                    | ✅       |                                                                                                                                           |
+| [Auggie CLI](https://docs.augmentcode.com/cli/overview)                              | ✅       |                                                                                                                                           |
+| [Roo Code](https://roocode.com/)                                                     | ✅       |                                                                                                                                           |
+| [Codex CLI](https://github.com/openai/codex)                                         | ✅       |                                                                                                                                           |
+| [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️      | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
 
 <details>
 <summary><h2>🔧 Spec Kitty CLI Reference</h2></summary>
 
-The `spec-kitty` command supports the following options. Every run begins with a discovery interview, so be prepared to answer follow-up questions before files are touched.
+The
+`spec-kitty` command supports the following options. Every run begins with a discovery interview, so be prepared to answer follow-up questions before files are touched.
 
 ### Commands
 
-| Command     | Description                                                    |
-|-------------|----------------------------------------------------------------|
-| `init`      | Initialize a new Spec Kitty project from templates |
-| `upgrade`   | **Upgrade project structure to current version** (run after updating spec-kitty-cli) |
-| `repair`    | **Repair broken template installations** (fixes bash script references from v0.10.0-0.10.8) |
-| `accept`    | Validate feature readiness before merging to main |
-| `check`     | Check that required tooling is available |
-| `dashboard` | Open or stop the Spec Kitty dashboard |
-| `diagnostics` | Show project health and diagnostics information |
-| `merge`     | Merge a completed feature branch into main and clean up resources |
-| `research`  | Execute Phase 0 research workflow to scaffold artifacts |
-| `verify-setup` | Verify that the current environment matches Spec Kitty expectations |
+| Command        | Description                                                                                 |
+|----------------|---------------------------------------------------------------------------------------------|
+| `init`         | Initialize a new Spec Kitty project from templates                                          |
+| `upgrade`      | **Upgrade project structure to current version** (run after updating spec-kitty-cli)        |
+| `repair`       | **Repair broken template installations** (fixes bash script references from v0.10.0-0.10.8) |
+| `accept`       | Validate feature readiness before merging to main                                           |
+| `check`        | Check that required tooling is available                                                    |
+| `dashboard`    | Open or stop the Spec Kitty dashboard                                                       |
+| `diagnostics`  | Show project health and diagnostics information                                             |
+| `merge`        | Merge a completed feature branch into main and clean up resources                           |
+| `research`     | Execute Phase 0 research workflow to scaffold artifacts                                     |
+| `verify-setup` | Verify that the current environment matches Spec Kitty expectations                         |
 
 ### `spec-kitty init` Arguments & Options
 
-| Argument/Option        | Type     | Description                                                                  |
-|------------------------|----------|------------------------------------------------------------------------------|
-| `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
+| Argument/Option        | Type     | Description                                                                                                                                |
+|------------------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory)                                         |
 | `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, or `q` |
-| `--script`             | Option   | (Deprecated in v0.10.0) Script variant - all commands now use Python CLI     |
-| `--mission`            | Option   | Mission key to seed templates (`software-dev`, `research`, ...)             |
-| `--template-root`      | Option   | Override template location (useful for development mode or custom sources)   |
-| `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                             |
-| `--no-git`             | Flag     | Skip git repository initialization                                          |
-| `--here`               | Flag     | Initialize project in the current directory instead of creating a new one   |
-| `--force`              | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation) |
-| `--skip-tls`           | Flag     | Skip SSL/TLS verification (not recommended)                                 |
-| `--debug`              | Flag     | Enable detailed debug output for troubleshooting                            |
-| `--github-token`       | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)  |
+| `--script`             | Option   | (Deprecated in v0.10.0) Script variant - all commands now use Python CLI                                                                   |
+| `--mission`            | Option   | Mission key to seed templates (`software-dev`, `research`, ...)                                                                            |
+| `--template-root`      | Option   | Override template location (useful for development mode or custom sources)                                                                 |
+| `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                                                                                            |
+| `--no-git`             | Flag     | Skip git repository initialization                                                                                                         |
+| `--here`               | Flag     | Initialize project in the current directory instead of creating a new one                                                                  |
+| `--force`              | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation)                                                           |
+| `--skip-tls`           | Flag     | Skip SSL/TLS verification (not recommended)                                                                                                |
+| `--debug`              | Flag     | Enable detailed debug output for troubleshooting                                                                                           |
+| `--github-token`       | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)                                                                  |
 
 If you omit `--mission`, the CLI will prompt you to pick one during `spec-kitty init`.
 
@@ -766,16 +810,17 @@ spec-kitty check
 
 ### `spec-kitty upgrade` Options
 
-| Option | Description |
-|--------|-------------|
-| `--dry-run` | Preview changes without applying them |
-| `--force` | Skip confirmation prompts |
+| Option               | Description                                                    |
+|----------------------|----------------------------------------------------------------|
+| `--dry-run`          | Preview changes without applying them                          |
+| `--force`            | Skip confirmation prompts                                      |
 | `--target <version>` | Target version to upgrade to (defaults to current CLI version) |
-| `--json` | Output results as JSON (for CI/CD integration) |
-| `--verbose`, `-v` | Show detailed migration information |
-| `--no-worktrees` | Skip upgrading worktrees (main project only) |
+| `--json`             | Output results as JSON (for CI/CD integration)                 |
+| `--verbose`, `-v`    | Show detailed migration information                            |
+| `--no-worktrees`     | Skip upgrading worktrees (main project only)                   |
 
 **Examples:**
+
 ```bash
 # Upgrade to current version
 spec-kitty upgrade
@@ -798,9 +843,11 @@ spec-kitty upgrade --no-worktrees
 
 ### `spec-kitty agent` Commands
 
-The `spec-kitty agent` namespace provides programmatic access to all workflow automation commands. All commands support `--json` output for agent consumption.
+The `spec-kitty agent` namespace provides programmatic access to all workflow automation commands. All commands support
+`--json` output for agent consumption.
 
 **Feature Management:**
+
 - `spec-kitty agent feature create-feature <name>` – Create new feature with worktree
 - `spec-kitty agent feature check-prerequisites` – Validate project setup and feature context
 - `spec-kitty agent feature setup-plan` – Initialize plan template for feature
@@ -809,6 +856,7 @@ The `spec-kitty agent` namespace provides programmatic access to all workflow au
 - `spec-kitty agent feature merge` – Merge feature branch and cleanup
 
 **Task Workflow:**
+
 - `spec-kitty agent workflow implement <id> --agent __AGENT__` – Move planned → doing → for_review automatically
 - `spec-kitty agent workflow review <id> --agent __AGENT__` – Move for_review → doing → planned/done automatically
 - `spec-kitty agent tasks list-tasks` – List all tasks grouped by lane
@@ -817,12 +865,15 @@ The `spec-kitty agent` namespace provides programmatic access to all workflow au
 - `spec-kitty agent tasks validate-workflow <id>` – Validate task metadata
 
 **Workflow Commands:**
+
 - `spec-kitty agent workflow implement [WP_ID] --agent __AGENT__` – Display WP prompt and auto-move to "doing" lane
 - `spec-kitty agent workflow review [WP_ID] --agent __AGENT__` – Display WP prompt for review and auto-move to "doing" lane
 
-**Note:** In generated agent command files, `__AGENT__` is replaced at init time with the agent key (e.g., `codex`, `claude`). If you run commands manually, replace `__AGENT__` with your agent name.
+**Note:** In generated agent command files, `__AGENT__` is replaced at init time with the agent key (e.g., `codex`,
+`claude`). If you run commands manually, replace `__AGENT__` with your agent name.
 
 **Example Usage:**
+
 ```bash
 # Create feature (agent-friendly)
 spec-kitty agent feature create-feature "Payment Flow" --json
@@ -842,12 +893,13 @@ spec-kitty agent feature accept --json
 
 ### `spec-kitty dashboard` Options
 
-| Option | Description |
-|--------|-------------|
+| Option            | Description                                                           |
+|-------------------|-----------------------------------------------------------------------|
 | `--port <number>` | Preferred port for the dashboard (falls back to first available port) |
-| `--kill` | Stop the running dashboard for this project and clear its metadata |
+| `--kill`          | Stop the running dashboard for this project and clear its metadata    |
 
 **Examples:**
+
 ```bash
 # Open dashboard (auto-detects port)
 spec-kitty dashboard
@@ -861,18 +913,19 @@ spec-kitty dashboard --kill
 
 ### `spec-kitty accept` Options
 
-| Option | Description |
-|--------|-------------|
-| `--feature <slug>` | Feature slug to accept (auto-detected by default) |
-| `--mode <mode>` | Acceptance mode: `auto`, `pr`, `local`, or `checklist` (default: `auto`) |
-| `--actor <name>` | Name to record as the acceptance actor |
-| `--test <command>` | Validation command to execute (repeatable) |
-| `--json` | Emit JSON instead of formatted text |
-| `--lenient` | Skip strict metadata validation |
-| `--no-commit` | Skip auto-commit; report only |
-| `--allow-fail` | Return checklist even when issues remain |
+| Option             | Description                                                              |
+|--------------------|--------------------------------------------------------------------------|
+| `--feature <slug>` | Feature slug to accept (auto-detected by default)                        |
+| `--mode <mode>`    | Acceptance mode: `auto`, `pr`, `local`, or `checklist` (default: `auto`) |
+| `--actor <name>`   | Name to record as the acceptance actor                                   |
+| `--test <command>` | Validation command to execute (repeatable)                               |
+| `--json`           | Emit JSON instead of formatted text                                      |
+| `--lenient`        | Skip strict metadata validation                                          |
+| `--no-commit`      | Skip auto-commit; report only                                            |
+| `--allow-fail`     | Return checklist even when issues remain                                 |
 
 **Examples:**
+
 ```bash
 # Validate feature (auto-detect)
 spec-kitty accept
@@ -892,16 +945,17 @@ spec-kitty accept --json
 
 ### `spec-kitty merge` Options
 
-| Option | Description |
-|--------|-------------|
-| `--strategy <type>` | Merge strategy: `merge`, `squash`, or `rebase` (default: `merge`) |
-| `--delete-branch` / `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
-| `--remove-worktree` / `--keep-worktree` | Remove or keep feature worktree after merge (default: remove) |
-| `--push` | Push to origin after merge |
-| `--target <branch>` | Target branch to merge into (default: `main`) |
-| `--dry-run` | Show what would be done without executing |
+| Option                                  | Description                                                       |
+|-----------------------------------------|-------------------------------------------------------------------|
+| `--strategy <type>`                     | Merge strategy: `merge`, `squash`, or `rebase` (default: `merge`) |
+| `--delete-branch` / `--keep-branch`     | Delete or keep feature branch after merge (default: delete)       |
+| `--remove-worktree` / `--keep-worktree` | Remove or keep feature worktree after merge (default: remove)     |
+| `--push`                                | Push to origin after merge                                        |
+| `--target <branch>`                     | Target branch to merge into (default: `main`)                     |
+| `--dry-run`                             | Show what would be done without executing                         |
 
 **Examples:**
+
 ```bash
 # Standard merge and push
 spec-kitty merge --push
@@ -922,12 +976,14 @@ spec-kitty merge --target develop --push
 ### `spec-kitty verify-setup`
 
 Verifies that the current environment matches Spec Kitty expectations:
+
 - Checks for `.kittify/` directory structure
 - Validates agent command files exist
 - Confirms dashboard can start
 - Reports any configuration issues
 
 **Example:**
+
 ```bash
 cd my-project
 spec-kitty verify-setup
@@ -936,6 +992,7 @@ spec-kitty verify-setup
 ### `spec-kitty diagnostics`
 
 Shows project health and diagnostics information:
+
 - Active mission
 - Available features
 - Dashboard status
@@ -943,6 +1000,7 @@ Shows project health and diagnostics information:
 - Agent command availability
 
 **Example:**
+
 ```bash
 spec-kitty diagnostics
 ```
@@ -957,27 +1015,27 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 
 **Workflow sequence for spec-driven development:**
 
-| # | Command                  | Description                                                           |
-|---|--------------------------|-----------------------------------------------------------------------|
-| 1 | `/spec-kitty.constitution`  | (**First in main repo**) Create or update project governing principles and development guidelines |
-| 2 | `/spec-kitty.specify`       | Define what you want to build (requirements and user stories; creates worktree) |
-| 3 | `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
-| 4 | `/spec-kitty.research`      | Run Phase 0 research scaffolding to populate research.md, data-model.md, and evidence logs |
-| 5 | `/spec-kitty.tasks`         | Generate actionable task lists and work package prompts in flat tasks/ directory |
-| 6 | `/spec-kitty.implement`     | Display WP prompt, auto-move to "doing" lane, show completion instructions |
-| 7 | `/spec-kitty.review`        | Display WP prompt for review, auto-move to "doing" lane, show next steps |
-| 8 | `/spec-kitty.accept`        | Run final acceptance checks, record metadata, and verify feature complete |
-| 9 | `/spec-kitty.merge`         | Merge feature into main branch and clean up worktree                  |
+| # | Command                    | Description                                                                                       |
+|---|----------------------------|---------------------------------------------------------------------------------------------------|
+| 1 | `/spec-kitty.constitution` | (**First in main repo**) Create or update project governing principles and development guidelines |
+| 2 | `/spec-kitty.specify`      | Define what you want to build (requirements and user stories; creates worktree)                   |
+| 3 | `/spec-kitty.plan`         | Create technical implementation plans with your chosen tech stack                                 |
+| 4 | `/spec-kitty.research`     | Run Phase 0 research scaffolding to populate research.md, data-model.md, and evidence logs        |
+| 5 | `/spec-kitty.tasks`        | Generate actionable task lists and work package prompts in flat tasks/ directory                  |
+| 6 | `/spec-kitty.implement`    | Display WP prompt, auto-move to "doing" lane, show completion instructions                        |
+| 7 | `/spec-kitty.review`       | Display WP prompt for review, auto-move to "doing" lane, show next steps                          |
+| 8 | `/spec-kitty.accept`       | Run final acceptance checks, record metadata, and verify feature complete                         |
+| 9 | `/spec-kitty.merge`        | Merge feature into main branch and clean up worktree                                              |
 
 #### Quality Gates & Development Tools
 
 **Optional commands for enhanced quality and development:**
 
-| Command              | When to Use                                                           |
-|----------------------|-----------------------------------------------------------------------|
-| `/spec-kitty.clarify`   | **Optional, before `/spec-kitty.plan`**: Clarify underspecified areas in your specification to reduce downstream rework |
-| `/spec-kitty.analyze`   | **Optional, after `/spec-kitty.tasks`, before `/spec-kitty.implement`**: Cross-artifact consistency & coverage analysis |
-| `/spec-kitty.checklist` | **Optional, anytime after `/spec-kitty.plan`**: Generate custom quality checklists that validate requirements completeness, clarity, and consistency |
+| Command                 | When to Use                                                                                                                                                 |
+|-------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `/spec-kitty.clarify`   | **Optional, before `/spec-kitty.plan`**: Clarify underspecified areas in your specification to reduce downstream rework                                     |
+| `/spec-kitty.analyze`   | **Optional, after `/spec-kitty.tasks`, before `/spec-kitty.implement`**: Cross-artifact consistency & coverage analysis                                     |
+| `/spec-kitty.checklist` | **Optional, anytime after `/spec-kitty.plan`**: Generate custom quality checklists that validate requirements completeness, clarity, and consistency        |
 | `/spec-kitty.dashboard` | **Anytime (runs in background)**: Open the real-time kanban dashboard in your browser. Automatically starts with `spec-kitty init` and updates as you work. |
 
 </details>
@@ -1011,12 +1069,14 @@ graph TD
 ```
 
 **Why this works:**
+
 - Each WP gets its own directory + branch
 - Work on Feature 001 WP01 while another agent handles Feature 002 WP01
 - Main branch stays clean - no `git checkout` juggling
 - Merge conflicts detected early with pre-flight validation
 
 ### The Pattern
+
 ```
 my-project/                    # Main repo (main branch)
 ├── .worktrees/
@@ -1029,6 +1089,7 @@ my-project/                    # Main repo (main branch)
 ```
 
 ### The Rules
+
 1. **Main branch** stays in the primary repo root
 2. **Feature branches** live in `.worktrees/<feature-slug>/`
 3. **Work on features** happens in their worktrees (complete isolation)
@@ -1099,17 +1160,17 @@ ls -l .kittify/active-mission
 cat .kittify/active-mission/mission.yaml
 ```
 
-**Note:** Mission switching commands (`spec-kitty mission switch`, etc.) are planned for a future release. Currently, missions are selected during `spec-kitty init` and remain active for the project lifecycle.
+**Note:** Mission switching commands (`spec-kitty mission switch`, etc.) are planned for a future release. Currently, missions are selected during
+`spec-kitty init` and remain active for the project lifecycle.
 
 ### Environment Variables
 
-| Variable         | Description                                                                                    |
-|------------------|------------------------------------------------------------------------------------------------|
-| `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>**Must be set in the context of the agent you're working with prior to using `/spec-kitty.plan` or follow-up commands. |
-| `SPEC_KITTY_TEMPLATE_ROOT` | Optional. Point to a local checkout whose `templates/`, `scripts/`, and `memory/` directories should seed new projects (handy while developing Spec Kitty itself). |
-| `SPECIFY_TEMPLATE_REPO` | Optional. Override the GitHub repository slug (`owner/name`) to fetch templates from when you explicitly want a remote source. |
-| `CODEX_HOME` | Required when using the Codex CLI so it loads project-specific prompts. Point it to your project’s `.codex/` directory—set it manually with `export CODEX_HOME=\"$(pwd)/.codex\"` or automate it via [`direnv`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/index.md#codex-cli-automatically-load-project-prompts-linux-macos-wsl) on Linux/macOS/WSL. |
-
+| Variable                   | Description                                                                                                                                                                                                                                                                                                                                                         |
+|----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SPECIFY_FEATURE`          | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>**Must be set in the context of the agent you're working with prior to using `/spec-kitty.plan` or follow-up commands.                                                             |
+| `SPEC_KITTY_TEMPLATE_ROOT` | Optional. Point to a local checkout whose `templates/`, `scripts/`, and `memory/` directories should seed new projects (handy while developing Spec Kitty itself).                                                                                                                                                                                                  |
+| `SPECIFY_TEMPLATE_REPO`    | Optional. Override the GitHub repository slug (`owner/name`) to fetch templates from when you explicitly want a remote source.                                                                                                                                                                                                                                      |
+| `CODEX_HOME`               | Required when using the Codex CLI so it loads project-specific prompts. Point it to your project’s `.codex/` directory—set it manually with `export CODEX_HOME=\"$(pwd)/.codex\"` or automate it via [`direnv`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/index.md#codex-cli-automatically-load-project-prompts-linux-macos-wsl) on Linux/macOS/WSL. |
 
 ## 🔧 Prerequisites
 
@@ -1129,11 +1190,13 @@ Spec Kitty CLI uses an automated release workflow to publish to PyPI. Releases a
 ### For Users
 
 Install or upgrade from PyPI:
+
 ```bash
 pip install --upgrade spec-kitty-cli
 ```
 
 Check your version:
+
 ```bash
 spec-kitty --version
 ```
@@ -1204,15 +1267,17 @@ git push origin v0.2.4
 1. Go to **Actions** tab in GitHub
 2. Watch **"Publish Release"** workflow
 3. Workflow will:
-   - ✅ Run full test suite
-   - ✅ Validate version/changelog alignment
-   - ✅ Build distributions (wheel + sdist)
-   - ✅ Run twine check
-   - ✅ Generate checksums
-   - ✅ Create GitHub Release with changelog
-   - ✅ Publish to PyPI (via trusted publishing)
+    - ✅ Run full test suite
+    - ✅ Validate version/changelog alignment
+    - ✅ Build distributions (wheel + sdist)
+    - ✅ Run twine check
+    - ✅ Generate checksums
+    - ✅ Create GitHub Release with changelog
+    - ✅ Publish to PyPI (via trusted publishing)
 
-> **Note:** The release workflow uses [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/) via GitHub Actions OIDC. This means the workflow obtains a short-lived token automatically without needing stored API keys. However, `PYPI_API_TOKEN` is still required as a fallback. The workflow will show "This environment is not supported for trusted publishing" if running outside of GitHub Actions or if trusted publishing isn't configured for the package.
+> **Note:
+** The release workflow uses [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/) via GitHub Actions OIDC. This means the workflow obtains a short-lived token automatically without needing stored API keys. However,
+`PYPI_API_TOKEN` is still required as a fallback. The workflow will show "This environment is not supported for trusted publishing" if running outside of GitHub Actions or if trusted publishing isn't configured for the package.
 
 #### 6. Verify Release
 
@@ -1240,11 +1305,11 @@ The release workflow requires `PYPI_API_TOKEN` to be configured as a GitHub repo
 5. Scope: "Project: spec-kitty-cli"
 6. Copy the token (starts with `pypi-`)
 7. Add to GitHub:
-   - Go to repository **Settings > Secrets and variables > Actions**
-   - Click **"New repository secret"**
-   - Name: `PYPI_API_TOKEN`
-   - Value: Paste the PyPI token
-   - Click **"Add secret"**
+    - Go to repository **Settings > Secrets and variables > Actions**
+    - Click **"New repository secret"**
+    - Name: `PYPI_API_TOKEN`
+    - Value: Paste the PyPI token
+    - Click **"Add secret"**
 
 **Rotation schedule**: Every 6 months or after any security incident
 
@@ -1257,9 +1322,9 @@ Enable branch protection rules for `main`:
 1. Go to **Settings > Branches**
 2. Add rule for `main` branch
 3. Enable:
-   - ✅ "Require pull request reviews before merging"
-   - ✅ "Require status checks to pass before merging"
-   - ✅ Select required check: `release-readiness / check-readiness`
+    - ✅ "Require pull request reviews before merging"
+    - ✅ "Require status checks to pass before merging"
+    - ✅ Select required check: `release-readiness / check-readiness`
 4. This prevents direct pushes and ensures all changes go through PR review
 
 ### Automated Guardrails
@@ -1267,33 +1332,37 @@ Enable branch protection rules for `main`:
 Three workflows protect release quality:
 
 1. **release-readiness.yml** - Runs on PRs targeting `main`
-   - Validates version bump, changelog, tests
-   - Blocks merge if validation fails
-   - Provides actionable job summary
+    - Validates version bump, changelog, tests
+    - Blocks merge if validation fails
+    - Provides actionable job summary
 
 2. **protect-main.yml** - Runs on pushes to `main`
-   - Detects direct pushes (blocks)
-   - Allows PR merges (passes)
-   - Provides remediation guidance
+    - Detects direct pushes (blocks)
+    - Allows PR merges (passes)
+    - Provides remediation guidance
 
 3. **release.yml** - Runs on `v*.*.*` tags
-   - Full release pipeline
-   - Publishes to PyPI
-   - Creates GitHub Release
+    - Full release pipeline
+    - Publishes to PyPI
+    - Creates GitHub Release
 
 ### Troubleshooting
 
 **Validation fails**: "Version does not advance beyond latest tag"
+
 - Check latest tag: `git tag --list 'v*' --sort=-version:refname | head -1`
 - Bump version in `pyproject.toml` to be higher
 
 **Validation fails**: "CHANGELOG.md lacks a populated section"
+
 - Add entry with format `## [X.Y.Z]` and release notes below
 
 **Workflow fails**: "PYPI_API_TOKEN secret is not configured"
+
 - Add token to repository secrets (see Secret Management above)
 
 **Tag already exists**:
+
 ```bash
 # Delete and recreate tag
 git tag -d v0.2.4
@@ -1313,7 +1382,8 @@ git push origin v0.2.4
 
 ## 📖 Learn more
 
-- **[Complete Spec-Driven Development Methodology](https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md)** - Deep dive into the full process
+- **[Complete Spec-Driven Development Methodology](https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md)
+  ** - Deep dive into the full process
 - **[Getting Started Guide](#-getting-started-complete-workflow)** - Step-by-step walkthrough from installation to feature completion
 
 ---
@@ -1340,15 +1410,57 @@ spec-kitty init <PROJECT_NAME> --ai=claude
 spec-kitty init <PROJECT_NAME> --ai=claude --template-root=/path/to/spec-kitty
 ```
 
+### Poetry Workflow (Optional, Recommended for Maintainers)
+
+Poetry is configured for dependency management while keeping Hatch as the build backend.
+
+```bash
+# Install Poetry (one-time, if missing)
+pipx install poetry
+
+# Install project with development tooling
+poetry install --with dev
+
+# Run CLI and tests inside Poetry env
+poetry run spec-kitty --help
+poetry run pytest -v --cov=src --cov-report=term-missing
+poetry run mypy --strict src/specify_cli/
+poetry run ruff check src/ tests/
+
+# Compile Contextive glossary from markdown contexts
+poetry run python scripts/chores/glossary-compilation.py
+```
+
+For releases, continue using the repo release workflow (version bump + tag + GitHub Actions publish). Poetry can be used locally for validation/build steps:
+
+```bash
+poetry check
+poetry build
+```
+
+### CI Coverage + SonarCloud
+
+The repository includes `ci-quality.yml` to run pytest with coverage and publish `coverage.xml`/
+`pytest.xml` artifacts. SonarCloud analysis runs automatically when `SONAR_TOKEN` is configured.
+
+Required repository secrets:
+
+- `SPEC_KITTY_EVENTS_DEPLOY_KEY` for private dependency checkout in CI
+- `SONAR_TOKEN` for SonarCloud analysis
+
+Sonar project settings live in `sonar-project.properties`.
+
 ### Template Discovery Priority
 
 The CLI searches for templates in this order:
+
 1. **Command-line override**: `--template-root` flag (highest priority)
 2. **Environment variable**: `SPEC_KITTY_TEMPLATE_ROOT` (local checkout)
 3. **Packaged resources**: Built-in templates from PyPI installation
 4. **Remote repository**: `SPECIFY_TEMPLATE_REPO` environment variable
 
-This means development installs automatically find templates when running from the cloned repository, but you may need to set `SPEC_KITTY_TEMPLATE_ROOT` if you move the directory.
+This means development installs automatically find templates when running from the cloned repository, but you may need to set
+`SPEC_KITTY_TEMPLATE_ROOT` if you move the directory.
 
 ---
 
@@ -1362,6 +1474,7 @@ This means development installs automatically find templates when running from t
 This error occurs when `spec-kitty init` cannot locate the template files. Here's how to diagnose and fix it:
 
 **For PyPI installations:**
+
 ```bash
 # Reinstall the package
 pip install --upgrade spec-kitty-cli
@@ -1371,6 +1484,7 @@ python -c "from importlib.resources import files; print(files('specify_cli').joi
 ```
 
 **For development installations:**
+
 ```bash
 # Make sure you installed in editable mode from the repo root
 cd /path/to/spec-kitty
@@ -1389,12 +1503,14 @@ ls -la ./templates/commands
 
 **For moved repositories:**
 If you cloned the spec-kitty repo and moved the directory, update the environment variable:
+
 ```bash
 export SPEC_KITTY_TEMPLATE_ROOT=/new/path/to/spec-kitty
 spec-kitty init my-project --ai=claude
 ```
 
 **Debugging with verbose output:**
+
 ```bash
 # Use --debug flag to see which paths were checked
 spec-kitty init my-project --ai=claude --debug --template-root=/path/to/spec-kitty

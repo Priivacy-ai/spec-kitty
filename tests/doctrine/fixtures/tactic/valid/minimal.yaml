@@ -1,0 +1,7 @@
+schema_version: "1.0"
+id: schema-validation
+name: Schema Validation
+purpose: Validate artifacts before runtime.
+steps:
+  - load schema
+  - validate fixture

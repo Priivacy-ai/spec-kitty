@@ -1,13 +1,11 @@
 """Tests for constitution extraction pipeline."""
 
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from specify_cli.constitution.extractor import (
-    SECTION_MAPPING,
     ExtractionResult,
     Extractor,
     extract_with_ai,
@@ -197,6 +195,26 @@ We require 90% test coverage.
         result = extractor.extract(content)
         # Both sections map to testing - last one wins
         assert result.governance.testing.min_coverage == 90
+
+    def test_extract_doctrine_selection_from_yaml_block(self, extractor):
+        """Extract doctrine selection from yaml block data."""
+        content = """## Governance Activation
+
+```yaml
+selected_paradigms: [test-first]
+selected_directives: [DIR-001]
+selected_agent_profiles: [codex]
+available_tools: [git, pytest]
+template_set: strict-doctrine
+```
+"""
+        result = extractor.extract(content)
+        doctrine = result.governance.doctrine
+        assert doctrine.selected_paradigms == ["test-first"]
+        assert doctrine.selected_directives == ["DIR-001"]
+        assert doctrine.selected_agent_profiles == ["codex"]
+        assert doctrine.available_tools == ["git", "pytest"]
+        assert doctrine.template_set == "strict-doctrine"
 
 
 class TestAgentsExtraction:
