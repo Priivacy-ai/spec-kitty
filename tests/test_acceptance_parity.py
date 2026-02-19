@@ -303,6 +303,47 @@ class TestPerformAcceptanceParity:
                 script_summary, mode="pr", actor="Tester", auto_commit=False
             )
 
+    def test_local_mode_uses_feature_branch_when_summary_branch_is_main(
+        self, tmp_path: Path
+    ) -> None:
+        """Acceptance guidance must never suggest deleting main/master."""
+        feature_slug = "001-demo-feature"
+        summary = CoreAcceptanceSummary(
+            feature=feature_slug,
+            repo_root=tmp_path,
+            feature_dir=tmp_path / "kitty-specs" / feature_slug,
+            tasks_dir=tmp_path / "kitty-specs" / feature_slug / "tasks",
+            branch="main",
+            worktree_root=tmp_path,
+            primary_repo_root=tmp_path,
+            lanes={"planned": [], "doing": [], "for_review": [], "done": ["WP01"]},
+            work_packages=[],
+            metadata_issues=[],
+            activity_issues=[],
+            unchecked_tasks=[],
+            needs_clarification=[],
+            missing_artifacts=[],
+            optional_missing=[],
+            git_dirty=[],
+        )
+
+        result = core_perform_acceptance(
+            summary, mode="local", actor="Tester", auto_commit=False
+        )
+
+        assert any(
+            instruction.endswith(f"`git merge {feature_slug}`")
+            for instruction in result.instructions
+        )
+        assert any(
+            instruction.endswith(f"`git branch -d {feature_slug}`")
+            for instruction in result.cleanup_instructions
+        )
+        assert all(
+            "`git branch -d main`" not in instruction
+            for instruction in result.cleanup_instructions
+        )
+
 
 # ---------------------------------------------------------------------------
 # Parity: detect_feature_slug

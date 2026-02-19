@@ -45,7 +45,7 @@ class TestDetectFeatureContext:
         feature_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
         feature_dir.mkdir(parents=True)
 
-        with patch("specify_cli.tasks_support.find_repo_root") as mock_find_root:
+        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_find_root:
             mock_find_root.return_value = tmp_path
 
             with patch("specify_cli.core.feature_detection._get_main_repo_root") as mock_main_root:
@@ -66,7 +66,7 @@ class TestDetectFeatureContext:
         feature_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
         feature_dir.mkdir(parents=True)
 
-        with patch("specify_cli.tasks_support.find_repo_root") as mock_find_root:
+        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_find_root:
             mock_find_root.return_value = tmp_path
 
             with patch("specify_cli.core.feature_detection._get_main_repo_root") as mock_main_root:
@@ -91,7 +91,7 @@ class TestDetectFeatureContext:
         feature_dir = tmp_path / "kitty-specs" / "010-test-feature" / "tasks"
         feature_dir.mkdir(parents=True)
 
-        with patch("specify_cli.tasks_support.find_repo_root") as mock_find_root:
+        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_find_root:
             mock_find_root.return_value = tmp_path
 
             with patch("subprocess.run") as mock_run:
@@ -236,6 +236,72 @@ class TestImplementCommand:
                         assert call_kwargs["workspace_name"] == "010-feature-WP01"
                         assert "sparse_exclude" in call_kwargs
                         assert "kitty-specs/" in call_kwargs["sparse_exclude"]
+
+    def test_implement_json_output_is_clean(self, tmp_path, capsys):
+        """--json output should be pure JSON with no progress/log prefixes."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir)
+        wp_file = feature_dir / "tasks" / "WP01-setup.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text(
+            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
+        )
+
+        workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
+
+        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
+            mock_repo_root.return_value = tmp_path
+
+            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
+                mock_detect.return_value = ("010", "010-feature")
+
+                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
+                    mock_vcs = MagicMock()
+                    mock_vcs.backend = VCSBackend.GIT
+                    mock_vcs.get_workspace_info.return_value = None
+                    mock_vcs.create_workspace.return_value = MagicMock(
+                        success=True,
+                        workspace=MagicMock(name="010-feature-WP01", path=workspace_path),
+                        error=None,
+                    )
+                    mock_get_vcs.return_value = mock_vcs
+
+                    with patch("subprocess.run") as mock_run:
+                        mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
+                        implement("WP01", base=None, json_output=True)
+
+        output = capsys.readouterr().out.strip()
+        assert output.startswith("{")
+        payload = json.loads(output)
+        assert payload["status"] == "created"
+        assert payload["wp_id"] == "WP01"
+
+    def test_implement_json_error_output_is_clean(self, tmp_path, capsys):
+        """--json failures should still emit a single machine-parseable object."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        feature_dir.mkdir(parents=True)
+        wp_file = feature_dir / "tasks" / "WP01-setup.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text(
+            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
+        )
+
+        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
+            mock_repo_root.return_value = tmp_path
+
+            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
+                mock_detect.return_value = ("010", "010-feature")
+
+                with patch("subprocess.run") as mock_run:
+                    mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
+
+                    with pytest.raises(typer.Exit):
+                        implement("WP01", base=None, json_output=True)
+
+        output = capsys.readouterr().out.strip()
+        payload = json.loads(output)
+        assert payload["status"] == "error"
+        assert payload["wp_id"] == "WP01"
 
     def test_implement_with_base(self, tmp_path):
         """Test implement WP02 --base WP01 creates workspace from WP01 branch."""

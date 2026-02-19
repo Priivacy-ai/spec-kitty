@@ -16,7 +16,7 @@ import typer
 
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
-from specify_cli.core.git_ops import run_command
+from specify_cli.core.git_ops import has_remote, has_tracking_branch, run_command
 from specify_cli.core.vcs import VCSBackend, get_vcs
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.merge.executor import execute_legacy_merge, execute_merge
@@ -285,8 +285,15 @@ def merge_workspace_per_wp(
 
     tracker.start("pull")
     try:
-        run_command(["git", "pull", "--ff-only"])
-        tracker.complete("pull")
+        if not has_remote(merge_root):
+            tracker.skip("pull", "no remote configured")
+            console.print("[dim]Skipping pull (no remote)[/dim]")
+        elif not has_tracking_branch(merge_root):
+            tracker.skip("pull", "no upstream tracking")
+            console.print("[dim]Skipping pull (main branch not tracking remote)[/dim]")
+        else:
+            run_command(["git", "pull", "--ff-only"])
+            tracker.complete("pull")
     except Exception as exc:
         tracker.error("pull", str(exc))
         console.print(tracker.render())
@@ -690,8 +697,15 @@ def merge(
 
     tracker.start("pull")
     try:
-        run_command(["git", "pull", "--ff-only"])
-        tracker.complete("pull")
+        if not has_remote(merge_root):
+            tracker.skip("pull", "no remote configured")
+            console.print("[dim]Skipping pull (no remote)[/dim]")
+        elif not has_tracking_branch(merge_root):
+            tracker.skip("pull", "no upstream tracking")
+            console.print("[dim]Skipping pull (main branch not tracking remote)[/dim]")
+        else:
+            run_command(["git", "pull", "--ff-only"])
+            tracker.complete("pull")
     except Exception as exc:
         tracker.error("pull", str(exc))
         console.print(tracker.render())

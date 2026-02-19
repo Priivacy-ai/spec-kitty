@@ -53,6 +53,16 @@ class TestCreateFeatureCommand:
         assert feature_dir.exists()
         assert (feature_dir / "spec.md").exists()
 
+        # meta.json should exist for all missions (not only documentation)
+        meta_path = feature_dir / "meta.json"
+        assert meta_path.exists()
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        assert meta["feature_number"] == "001"
+        assert meta["slug"] == "001-test-feature"
+        assert meta["feature_slug"] == "001-test-feature"
+        assert meta["mission"] == "software-dev"
+        assert meta["target_branch"] == "main"
+
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")

@@ -110,6 +110,27 @@ def test_invalid_version_type_is_reported(tmp_path: Path) -> None:
     assert "valid string" in message
 
 
+def test_hybrid_config_ignores_v1_compatibility_fields(tmp_path: Path) -> None:
+    """Hybrid mission configs should ignore known v1 compatibility root keys."""
+    config = build_valid_config()
+    config.update(
+        {
+            "mission": "software-dev",
+            "initial": "draft",
+            "states": {},
+            "transitions": [],
+            "guards": {},
+            "inputs": [],
+            "outputs": [],
+        }
+    )
+    mission_dir = _write_mission(tmp_path, config)
+
+    mission = Mission(mission_dir)
+    assert mission.name == "Test Mission"
+    assert mission.domain == "software"
+
+
 # =============================================================================
 # Per-Feature Mission Tests (T004, T005)
 # =============================================================================

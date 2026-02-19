@@ -93,69 +93,82 @@ def accept(
 ) -> None:
     """Validate feature readiness before merging to main."""
 
-    show_banner()
+    if not json_output:
+        show_banner()
 
     try:
         repo_root = find_repo_root()
     except TaskCliError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+        if json_output:
+            print(json.dumps({"error": str(exc)}))
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    check_version_compatibility(repo_root, "accept")
+    if not json_output:
+        check_version_compatibility(repo_root, "accept")
 
     tracker = StepTracker("Feature Acceptance")
-    tracker.add("detect", "Identify feature slug")
-    tracker.add("verify", "Run readiness checks")
-    console.print()
-
-    tracker.start("detect")
+    if not json_output:
+        tracker.add("detect", "Identify feature slug")
+        tracker.add("verify", "Run readiness checks")
+        console.print()
+        tracker.start("detect")
     try:
         feature_slug = (feature or detect_feature_slug(repo_root)).strip()
     except AcceptanceError as exc:
-        tracker.error("detect", str(exc))
-        console.print(tracker.render())
-        console.print(f"[red]Error:[/red] {exc}")
+        if json_output:
+            print(json.dumps({"error": str(exc)}))
+        else:
+            tracker.error("detect", str(exc))
+            console.print(tracker.render())
+            console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
-    tracker.complete("detect", feature_slug)
+    if not json_output:
+        tracker.complete("detect", feature_slug)
 
     requested_mode = (mode or "auto").lower()
     actual_mode = choose_mode(requested_mode, repo_root)
     commit_required = actual_mode != "checklist" and not no_commit
-    if commit_required:
+    if commit_required and not json_output:
         tracker.add("commit", "Record acceptance metadata")
-    tracker.add("guide", "Share next steps")
+    if not json_output:
+        tracker.add("guide", "Share next steps")
 
-    tracker.start("verify")
+    if not json_output:
+        tracker.start("verify")
     summary = collect_feature_summary(
         repo_root,
         feature_slug,
         strict_metadata=not lenient,
     )
-    tracker.complete("verify", "ready" if summary.ok else "issues found")
+    if not json_output:
+        tracker.complete("verify", "ready" if summary.ok else "issues found")
 
     if actual_mode == "checklist":
         if json_output:
-            console.print(json.dumps(summary.to_dict(), indent=2))
+            print(json.dumps(summary.to_dict(), indent=2))
         else:
             _print_acceptance_summary(summary)
         raise typer.Exit(0 if summary.ok else 1)
 
     if not summary.ok:
         if json_output:
-            console.print(json.dumps(summary.to_dict(), indent=2))
+            print(json.dumps(summary.to_dict(), indent=2))
         else:
             _print_acceptance_summary(summary)
         if not allow_fail:
-            console.print(
-                "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"
-            )
+            if not json_output:
+                console.print(
+                    "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"
+                )
             raise typer.Exit(1)
         raise typer.Exit(1)
 
     acceptance_tests = list(test)
 
     try:
-        if commit_required:
+        if commit_required and not json_output:
             tracker.start("commit")
         result = perform_acceptance(
             summary,
@@ -164,23 +177,26 @@ def accept(
             tests=acceptance_tests,
             auto_commit=commit_required,
         )
-        if commit_required:
+        if commit_required and not json_output:
             detail = "commit created" if result.commit_created else "no changes"
             tracker.complete("commit", detail)
     except AcceptanceError as exc:
-        if commit_required:
-            tracker.error("commit", str(exc))
-            console.print(tracker.render())
-        console.print(f"[red]Error:[/red] {exc}")
+        if json_output:
+            print(json.dumps({"error": str(exc)}))
+        else:
+            if commit_required:
+                tracker.error("commit", str(exc))
+                console.print(tracker.render())
+            console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
+
+    if json_output:
+        print(json.dumps(result.to_dict(), indent=2))
+        return
 
     tracker.start("guide")
     tracker.complete("guide", "instructions ready")
     console.print(tracker.render())
-
-    if json_output:
-        console.print(json.dumps(result.to_dict(), indent=2))
-        return
 
     _print_acceptance_summary(result.summary)
     _print_acceptance_result(result)

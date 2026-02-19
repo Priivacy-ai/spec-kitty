@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+from datetime import datetime, timezone
 from importlib.resources import files
 import subprocess
 import sys
@@ -388,16 +389,41 @@ spec-kitty agent tasks move-task WP01 --to doing
         # Commit spec.md to planning branch
         _commit_to_branch(spec_file, feature_slug_formatted, "spec", repo_root, planning_branch, json_output)
 
+        # Ensure baseline feature metadata exists for downstream commands
+        # (implement/merge/mission detection rely on meta.json in every mission).
+        meta_file = feature_dir / "meta.json"
+        meta: dict[str, object] = {}
+        if meta_file.exists():
+            try:
+                meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                meta = {}
+
+        meta.setdefault("feature_number", f"{feature_number:03d}")
+        meta.setdefault("slug", feature_slug_formatted)
+        meta.setdefault("feature_slug", feature_slug_formatted)
+        meta.setdefault("friendly_name", feature_slug.replace("-", " ").strip())
+        meta.setdefault("mission", mission or "software-dev")
+        meta.setdefault("target_branch", planning_branch)
+        meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())
+
+        meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        try:
+            _commit_to_branch(
+                meta_file,
+                feature_slug_formatted,
+                "meta",
+                repo_root,
+                planning_branch,
+                json_output,
+            )
+        except Exception:
+            # Non-fatal: file is still present for local workflows.
+            pass
+
         # T013: Initialize documentation state if mission is documentation
         if mission == "documentation":
-            meta_file = feature_dir / "meta.json"
             # Create or update meta.json with documentation_state
-            meta = {}
-            if meta_file.exists():
-                try:
-                    meta = json.loads(meta_file.read_text(encoding="utf-8"))
-                except (json.JSONDecodeError, OSError):
-                    meta = {}
             meta.setdefault("mission", "documentation")
             if "documentation_state" not in meta:
                 meta["documentation_state"] = {
