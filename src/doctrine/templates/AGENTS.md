@@ -150,7 +150,7 @@ Agent directories like `.claude/`, `.codex/`, `.gemini/` contain:
 
 Spec Kitty automatically:
 1. Adds all agent directories to `.gitignore` during `spec-kitty init`
-2. Installs pre-commit hook to block accidental commits
+2. Installs deterministic git quality hooks (`pre-commit-encoding-check`, `pre-commit-markdown-check`, `pre-commit-agent-check`, and `commit-msg`).
 3. Creates `.claudeignore` to optimize AI scanning
 
 ### Manual Verification

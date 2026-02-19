@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tempfile
 import tomllib
 from pathlib import Path
 from typing import Callable
@@ -10,7 +11,7 @@ from typing import Callable
 import pytest
 import yaml
 
-from tests.test_isolation_helpers import get_installed_version, get_venv_python
+from tests.test_isolation_helpers import get_venv_python
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -38,16 +39,25 @@ def isolated_env() -> dict[str, str]:
 
     # Isolation settings
     src_path = REPO_ROOT / "src"
+    runtime_home = Path(tempfile.gettempdir()) / "spec-kitty-runtime-home"
+    runtime_home.mkdir(parents=True, exist_ok=True)
     env["PYTHONPATH"] = str(src_path)  # Source only, no existing PYTHONPATH
     env["SPEC_KITTY_CLI_VERSION"] = source_version  # Override version detection
     env["SPEC_KITTY_TEST_MODE"] = "1"  # Signal test mode (fail-fast on fixture bugs)
-    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT)  # Find bundled templates
+    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(
+        REPO_ROOT / "src" / "doctrine" / "missions"
+    )  # Find bundled mission assets
+    env["SPEC_KITTY_HOME"] = str(
+        runtime_home
+    )  # Writable runtime home for sandboxed tests
 
     return env
 
 
 @pytest.fixture()
-def run_cli(isolated_env: dict[str, str]) -> Callable[[Path, str], subprocess.CompletedProcess[str]]:
+def run_cli(
+    isolated_env: dict[str, str],
+) -> Callable[[Path, str], subprocess.CompletedProcess[str]]:
     """Return a helper that executes the Spec Kitty CLI within a project.
 
     Uses isolated_env to guarantee tests run against source code, not
@@ -88,8 +98,12 @@ def test_project(tmp_path: Path) -> Path:
     (project / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
 
     subprocess.run(["git", "init", "-b", "main"], cwd=project, check=True)
-    subprocess.run(["git", "config", "user.email", "ci@example.com"], cwd=project, check=True)
-    subprocess.run(["git", "config", "user.name", "Spec Kitty CI"], cwd=project, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "ci@example.com"], cwd=project, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Spec Kitty CI"], cwd=project, check=True
+    )
     subprocess.run(["git", "add", "."], cwd=project, check=True)
     subprocess.run(["git", "commit", "-m", "Initial project"], cwd=project, check=True)
 
@@ -99,12 +113,10 @@ def test_project(tmp_path: Path) -> Path:
         with open(metadata_file, "r", encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
-        # Align project version with the CLI version used by tests.
-        current_version = get_installed_version()
-        if current_version is None:
-            with open(REPO_ROOT / "pyproject.toml", "rb") as f:
-                pyproject = tomllib.load(f)
-            current_version = pyproject["project"]["version"] or "unknown"
+        # Align project version with source CLI version under isolated test mode.
+        with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+            pyproject = tomllib.load(f)
+        current_version = pyproject["project"]["version"] or "unknown"
 
         # Update version in nested spec_kitty.version structure
         if "spec_kitty" not in metadata:
@@ -167,7 +179,9 @@ def dual_branch_repo(tmp_path: Path) -> Path:
         shutil.copytree(missions_src, missions_dest)
 
     # Initialize git with main branch
-    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True
+    )
     subprocess.run(
         ["git", "config", "user.name", "Test User"],
         cwd=repo,
@@ -201,12 +215,9 @@ def dual_branch_repo(tmp_path: Path) -> Path:
         with open(metadata_file, "r", encoding="utf-8") as f:
             metadata = yaml.safe_load(f) or {}
 
-        from tests.test_isolation_helpers import get_installed_version
-        current_version = get_installed_version()
-        if current_version is None:
-            with open(REPO_ROOT / "pyproject.toml", "rb") as f:
-                pyproject = tomllib.load(f)
-            current_version = pyproject["project"]["version"] or "unknown"
+        with open(REPO_ROOT / "pyproject.toml", "rb") as f:
+            pyproject = tomllib.load(f)
+        current_version = pyproject["project"]["version"] or "unknown"
 
         if "spec_kitty" not in metadata:
             metadata["spec_kitty"] = {}

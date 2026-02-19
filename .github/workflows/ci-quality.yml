@@ -42,6 +42,11 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -52,6 +57,56 @@ jobs:
           mkdir -p out/reports/xunit-reports
           mkdir -p out/reports/coverage
           mkdir -p out/reports/static-analysis
+
+      - name: Determine commit range
+        id: commit_range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "from=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "to=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            echo "from=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "to=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run commit message linting
+        id: commitlint
+        if: always()
+        continue-on-error: true
+        run: |
+          FROM_SHA="${{ steps.commit_range.outputs.from }}"
+          TO_SHA="${{ steps.commit_range.outputs.to }}"
+          if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
+            echo "No commit range available for this trigger. Skipping commitlint."
+            exit 0
+          fi
+          npx --yes @commitlint/cli@19.8.1 \
+            --config commitlint.config.cjs \
+            --from "$FROM_SHA" \
+            --to "$TO_SHA" \
+            --verbose
+
+      - name: Run markdown style linting on changed files
+        id: markdownlint
+        if: always()
+        continue-on-error: true
+        run: |
+          FROM_SHA="${{ steps.commit_range.outputs.from }}"
+          TO_SHA="${{ steps.commit_range.outputs.to }}"
+          if [ -z "$FROM_SHA" ] || [ -z "$TO_SHA" ]; then
+            echo "No commit range available for this trigger. Skipping markdownlint."
+            exit 0
+          fi
+
+          mapfile -d '' CHANGED_MD_FILES < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" -- '*.md' '*.mdx')
+          if [ "${#CHANGED_MD_FILES[@]}" -eq 0 ]; then
+            echo "No changed markdown files in commit range."
+            exit 0
+          fi
+
+          npx --yes markdownlint-cli2@0.18.1 \
+            --config .markdownlint-cli2.jsonc \
+            "${CHANGED_MD_FILES[@]}"
 
       - name: Run unit-focused pytest with coverage
         id: pytest
@@ -91,10 +146,14 @@ jobs:
       - name: Fail job if required checks failed
         if: always()
         run: |
+          echo "commitlint outcome: ${{ steps.commitlint.outcome }}"
+          echo "markdownlint outcome: ${{ steps.markdownlint.outcome }}"
           echo "pytest outcome: ${{ steps.pytest.outcome }}"
           echo "mypy outcome: ${{ steps.mypy.outcome }}"
           echo "ruff outcome: ${{ steps.ruff.outcome }}"
-          if [ "${{ steps.pytest.outcome }}" != "success" ] || \
+          if [ "${{ steps.commitlint.outcome }}" = "failure" ] || \
+             [ "${{ steps.markdownlint.outcome }}" = "failure" ] || \
+             [ "${{ steps.pytest.outcome }}" != "success" ] || \
              [ "${{ steps.mypy.outcome }}" != "success" ] || \
              [ "${{ steps.ruff.outcome }}" != "success" ]; then
             echo "One or more required quality checks failed."

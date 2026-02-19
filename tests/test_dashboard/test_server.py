@@ -1,9 +1,17 @@
 import socket
 
+import pytest
+
 from specify_cli.dashboard import server
 
 
 def test_find_free_port_returns_available_port():
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM):
+            pass
+    except OSError:
+        pytest.skip("Socket operations are not permitted in this environment")
+
     port = server.find_free_port(start_port=15000, max_attempts=50)
     assert isinstance(port, int)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:

@@ -14,6 +14,11 @@ if [ -x "$HOOKS_DIR/pre-commit-encoding-check" ]; then
     "$HOOKS_DIR/pre-commit-encoding-check" || exit 1
 fi
 
+# Run markdown style check if it exists
+if [ -x "$HOOKS_DIR/pre-commit-markdown-check" ]; then
+    "$HOOKS_DIR/pre-commit-markdown-check" || exit 1
+fi
+
 # Run agent directory check if it exists
 if [ -x "$HOOKS_DIR/pre-commit-agent-check" ]; then
     "$HOOKS_DIR/pre-commit-agent-check" || exit 1

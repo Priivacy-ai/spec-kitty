@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "lint:commits:pr": "npx --yes @commitlint/cli@19.8.1 --config commitlint.config.cjs --from \"$BASE_SHA\" --to \"$HEAD_SHA\" --verbose",
+    "lint:markdown:changed": "npx --yes markdownlint-cli2@0.18.1 --config .markdownlint-cli2.jsonc"
+  },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
     "playwright": "^1.56.1"

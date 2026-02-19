@@ -23,6 +23,8 @@ Status rules:
 5. Ongoing implementation baseline:
 - `src/specify_cli/constitution/`
 - `src/specify_cli/glossary/`
+6. Quality-gate architecture baseline:
+- `architecture/adrs/2026-02-18-1-standardized-automated-quality-gates-for-agentic-development.md`
 
 ## Initiative Outcomes
 
@@ -36,6 +38,7 @@ Status rules:
 8. Missions keep dedicated templates minimal and reference shared doctrine templates through mission YAML configuration wherever possible.
 9. Agent behavior resolves doctrine guidance lazily: load only the minimum role/task-relevant artifacts required for execution and compliance.
 10. Doctrine guidance reads are routed through a single command-wrapper entry point integrated with `EventStore`, enabling observability for debugging and optimization.
+11. Deterministic quality gates (pre-commit, commit-msg, CI changed-file checks) are standardized and reusable so agents can comply at the lowest-cost checkpoint.
 
 ## Tracked Issues
 
@@ -48,3 +51,4 @@ Status rules:
 | [`Issue 05`](issue-05-schema-and-validation-expansion.md)    | Expand schema and cross-artifact validation coverage for governance assets.                         | OPEN   |
 | [`Issue 06`](issue-06-stable-terminology-and-role-lookup.md) | Stabilize terminology and improve fast role-based concept lookup via glossary artifacts.            | OPEN   |
 | [`Issue 07`](issue-07-rich-agent-profiles.md)                | Define and operationalize rich agent profiles for role-specific doctrine stack behavior.            | OPEN   |
+| [`Issue 08`](issue-08-deterministic-quality-gates-for-agentic-workflows.md) | Standardize reusable quality gates that catch compliance issues at file-change, commit, and CI time. | OPEN   |
