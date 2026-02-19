@@ -1,0 +1,10 @@
+schema_version: "1.0"
+key: 123
+name: Software Development
+orchestration:
+  states: [planned]
+  transitions:
+    - from: planned
+      to: doing
+  guards: []
+  required_artifacts: [spec.md]

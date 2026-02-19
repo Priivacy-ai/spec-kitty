@@ -1,0 +1,21 @@
+id: "imp-zombies-tdd-001"
+source:
+  title: "ZOMBIES TDD"
+  type: "book"
+  publisher: "example"
+  url: "https://example.org/zombies-tdd"
+  accessed_on: "2026-02-17"
+classification:
+  target_concepts:
+    - "tactic"
+    - "directive"
+  rationale: "Defines practical behavioral steps and guardrails for implementation flow."
+adaptation:
+  summary: "Adopt ZOMBIES as a tactic set for implementation agents."
+  notes:
+    - "Map to Spec Kitty doctrine naming."
+    - "Keep constitution as activation authority."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/tactics/zombies-tdd.tactic.yaml"
+  - "src/doctrine/directives/test-first.directive.yaml"

@@ -346,7 +346,7 @@ class TestMigrationEdgeCases:
         )
 
         result = migrate_feature(feature_dir)
-        assert result.status == "migrated"
+        assert result.status == "skipped"
 
         # No events because no transitions occurred (all at planned)
         events_path = feature_dir / EVENTS_FILENAME

@@ -22,7 +22,8 @@ from specify_cli.telemetry.query import (
 app = typer.Typer(
     name="telemetry",
     help="Telemetry and cost tracking commands.",
-    no_args_is_help=True,
+    no_args_is_help=False,
+    invoke_without_command=True,
 )
 
 console = Console()
@@ -35,6 +36,37 @@ def _resolve_feature_dirs(repo_root: Path, feature: str) -> list[Path]:
         return []
     matches = sorted(kitty_specs.glob(f"{feature}*/"))
     return [m for m in matches if m.is_dir()]
+
+
+@app.callback()
+def telemetry_callback(
+    ctx: typer.Context,
+    feature: str | None = typer.Option(
+        None, "--feature", "-f", help="Filter by feature slug or glob pattern"
+    ),
+    since: str | None = typer.Option(
+        None, "--since", help="Start date (ISO 8601)"
+    ),
+    until: str | None = typer.Option(
+        None, "--until", help="End date (ISO 8601)"
+    ),
+    group_by: str = typer.Option(
+        "agent", "--group-by", "-g", help="Group by: agent, model, feature, role",
+        click_type=click.Choice(["agent", "model", "feature", "role"]),
+    ),
+    json_output: bool = typer.Option(
+        False, "--json", help="Output as JSON"
+    ),
+) -> None:
+    """Backward-compatible default behavior: `telemetry` maps to `telemetry cost`."""
+    if ctx.invoked_subcommand is None:
+        cost_cmd(
+            feature=feature,
+            since=since,
+            until=until,
+            group_by=group_by,
+            json_output=json_output,
+        )
 
 
 @app.command("cost")

@@ -20,6 +20,27 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
+@pytest.fixture(scope="session", autouse=True)
+def git_test_defaults(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Force git test repos to use non-signing defaults for local commits."""
+    cfg_dir = tmp_path_factory.mktemp("git-test-config")
+    cfg_file = cfg_dir / "gitconfig"
+    cfg_file.write_text(
+        "[commit]\n"
+        "\tgpgsign = false\n"
+        "[tag]\n"
+        "\tgpgSign = false\n"
+        "[init]\n"
+        "\tdefaultBranch = main\n"
+        "[user]\n"
+        "\tname = Spec Kitty Test\n"
+        "\temail = spec-kitty-test@example.com\n",
+        encoding="utf-8",
+    )
+    os.environ["GIT_CONFIG_GLOBAL"] = str(cfg_file)
+    os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
+
+
 def _venv_python(venv_dir: Path) -> Path:
     candidate = venv_dir / "bin" / "python"
     if candidate.exists():
@@ -100,6 +121,33 @@ def test_venv() -> Path:
 
     os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)
     return venv_dir
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ensure_spec_kitty_executable(test_venv: Path) -> None:
+    """Provide a local spec-kitty shim when editable install is unavailable."""
+    bin_dir = test_venv / "bin"
+    if not bin_dir.exists():
+        bin_dir = test_venv / "Scripts"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+
+    shim_path = bin_dir / ("spec-kitty.exe" if os.name == "nt" else "spec-kitty")
+    if os.name == "nt":
+        shim_path.write_text(
+            "@echo off\r\n"
+            f"\"{_venv_python(test_venv)}\" -m specify_cli.__init__ %*\r\n",
+            encoding="utf-8",
+        )
+    else:
+        shim_path.write_text(
+            "#!/usr/bin/env sh\n"
+            f"\"{_venv_python(test_venv)}\" -m specify_cli.__init__ \"$@\"\n",
+            encoding="utf-8",
+        )
+        shim_path.chmod(0o755)
+
+    current_path = os.environ.get("PATH", "")
+    os.environ["PATH"] = f"{bin_dir}{os.pathsep}{current_path}" if current_path else str(bin_dir)
 
 
 @pytest.fixture()

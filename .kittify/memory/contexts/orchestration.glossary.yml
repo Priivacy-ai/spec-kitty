@@ -1,0 +1,139 @@
+contexts:
+  - name: Orchestration
+    domainVisionStatement: Terms describing Workflow & Lifecycle.
+    meta:
+      Generated from: glossary/contexts/orchestration.md
+    terms:
+      - name: Orchestration Assignment
+        definition: The complete binding of agent, role, and tool for a single workflow step. The 
+          orchestrator constructs an assignment when dispatching work.
+        meta:
+          Context: Orchestration
+          Status: canonical
+          Related terms: Agent, Role, Tool
+      - name: Feature
+        definition: A bounded unit of product change tracked by spec-kitty. Contains a spec, plan, 
+          tasks, and one or more work packages. Goes through the full SDD lifecycle.
+        meta:
+          Context: Orchestration
+          Status: canonical
+          In code: Feature directory at `kitty-specs/<number>-<slug>/`
+          Related terms: Work Package, Phase, Spec-Driven Development
+          Note: Specs are change deltas — they describe what to change, not the final state
+      - name: Research
+        definition: Phase-0 discovery and evidence artifacts associated with a feature. Captures 
+          unresolved questions, source references, trade-off analysis, and rationale that inform 
+          specification and planning decisions.
+        meta:
+          Context: Orchestration
+          Status: canonical
+          Location: '`kitty-specs/<feature>/research.md` and/or `kitty-specs/<feature>/research/`'
+          Related terms: Feature, Spec-Driven Development (SDD), Contracts
+          Distinction: Research explains *why and based on what evidence* decisions are made; 
+            Specification defines *what change is requested*.
+      - name: Contracts
+        definition: Formal boundary definitions for a feature, typically API/event/schema/interface 
+          contracts that implementation must satisfy. Used to make cross-component expectations 
+          explicit before and during implementation.
+        meta:
+          Context: Orchestration
+          Status: canonical
+          Location: '`kitty-specs/<feature>/contracts/`'
+          Related terms: Feature, Research, Work Package (WP)
+          Distinction: Contracts define *shape and compatibility constraints* at boundaries; Plan 
+            and tasks define *execution sequencing*.
+      - name: Work Package (WP)
+        definition: An independently implementable unit of work within a feature. Each WP gets its 
+          own git worktree and branch. Tracked with frontmatter YAML including status lane, 
+          dependencies, and assigned tool.
+        meta:
+          Context: Orchestration
+          Status: canonical
+          In code: '`work_package_id`, `WPExecution` (dataclass), WP frontmatter in `tasks/*.md`'
+          Related terms: Feature, Lane, Worktree, Dependency Graph
+          Identifiers: '`WP01`, `WP02`, etc.'
+      - name: Phase
+        definition: A stage in the spec-driven development lifecycle. Phases are sequential within a
+          feature but WPs within a phase can run in parallel.
+        meta:
+          Context: Orchestration
+          Status: canonical
+          Related terms: Feature, Lane, Spec-Driven Development
+          Values: '`specify` → `plan` → `tasks` → `implement` → `review` → `accept` → `merge`'
+      - name: Lane
+        definition: The status state of a work package in the canonical lifecycle model. Lane 
+          transitions are recorded as immutable status events.
+        aliases:
+          - '`doing` maps to `in_progress` for compatibility'
+        meta:
+          Context: Orchestration
+          Status: canonical
+          In code: Canonical model in `src/specify_cli/status/transitions.py`; compatibility view in
+            WP frontmatter `lane`
+          Related terms: Work Package, Lane Transition Event
+          Authority: ADR `2026-02-09-2` (latest lifecycle ADR) supersedes older 4-lane documentation
+          Canonical lanes: '`planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`'
+      - name: Worktree
+        definition: An isolated git working directory created per work package via `git worktree`. 
+          Provides isolation between parallel agent work.
+        aliases:
+          - Run Container (ADR-048)
+        meta:
+          Context: Orchestration
+          Status: canonical
+          In code: Located at `.worktrees/<feature>-<WP>/`
+          Related terms: Work Package
+      - name: Dependency Graph
+        definition: A directed acyclic graph (DAG) of WP dependencies within a feature. Used to 
+          enforce ordering and plan parallelization waves.
+        meta:
+          Context: Orchestration
+          Status: canonical
+          In code: '`DependencyGraph` class in `src/specify_cli/core/dependency_graph.py`'
+          Related terms: Work Package
+      - name: Spec-Driven Development (SDD)
+        definition: "Spec Kitty's core methodology. The prescribed phase sequence: spec → plan → tasks
+          → implement → review → accept → merge. Code is the source of truth; specs are change requests
+          (deltas)."
+        meta:
+          Context: Orchestration
+          Status: canonical
+          Related terms: Phase, Feature
+          Directive: Directive 034
+      - name: Mission
+        definition: A versioned orchestration recipe for a domain. A mission defines workflow 
+          states, transitions, guards, and required artifacts.
+        meta:
+          Context: Orchestration
+          Status: canonical
+          In code: '`src/doctrine/missions/*/mission.yaml` (v2); compatibility assets still exist under
+            `src/specify_cli/missions/`'
+          Related terms: Phase, Slash Command, Constitution, Tool
+          Distinction: Mission defines orchestration (*what runs and when*). Constitution selects 
+            and narrows active governance assets for the project.
+      - name: Slash Command
+        definition: An agent-facing shorthand command that triggers a spec-kitty workflow step 
+          (e.g., `/spec-kitty.specify`, `/spec-kitty.plan`). Implemented as markdown prompt 
+          templates deployed to tool-specific directories.
+        meta:
+          Context: Orchestration
+          Status: canonical
+          In code: Source templates at `src/specify_cli/missions/*/command-templates/*.md`
+          Related terms: Mission, Phase, Tool
+          Distinction: Slash commands trigger lifecycle phases; Tactics provide step-by-step 
+            execution within a phase
+      - name: User Journey
+        definition: A structured, end-to-end description of how actors (human, AI, system) interact 
+          with spec-kitty across phases, system boundaries, and coordination concerns. Unlike a User
+          Story (single slice of value in `spec.md`), a User Journey maps the full flow including 
+          actors, events, coordination rules, and acceptance scenarios. User Journeys are 
+          architectural design artifacts that drive system evolution.
+        meta:
+          Context: Orchestration
+          Status: canonical
+          Location: '`architecture/journeys/*.md`'
+          Related terms: Feature, Phase, Mission
+          Template: '`src/specify_cli/missions/design/templates/user-journey-template.md`'
+          Distinction: User Stories live in `spec.md` and describe *what value to deliver*. User 
+            Journeys live in `architecture/journeys/` and describe *how actors interact with the 
+            system end-to-end*.

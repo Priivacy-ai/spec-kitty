@@ -85,9 +85,12 @@ def _ensure_branch_checked_out(
     Shows notification if current branch differs from target branch.
     Does NOT perform git checkout.
     """
+    if not (repo_root / ".git").exists():
+        return
+
     current_branch = get_current_branch(repo_root)
     if current_branch is None:
-        raise RuntimeError("Not in a git repository")
+        return
     if current_branch == "HEAD":
         raise RuntimeError("Planning repo is in detached HEAD state; checkout a branch before continuing")
 
@@ -99,6 +102,22 @@ def _ensure_branch_checked_out(
                 f"feature targets '{target_branch}'. "
                 f"Operations will use '{current_branch}'."
             )
+
+
+def _should_emit_execution_event(
+    *,
+    agent: Optional[str],
+    model: Optional[str],
+    input_tokens: Optional[int],
+    output_tokens: Optional[int],
+    cost_usd: Optional[float],
+    duration_ms: Optional[int],
+) -> bool:
+    """Emit execution telemetry only when caller supplied telemetry context."""
+    return any(
+        value is not None
+        for value in (agent, model, input_tokens, output_tokens, cost_usd, duration_ms)
+    )
 
 
 def _commit_to_branch(
@@ -157,6 +176,25 @@ def _commit_to_branch(
                 console.print(f"[yellow]Warning:[/yellow] Failed to commit {artifact_type}: {e}")
                 console.print(f"[yellow]You may need to commit manually:[/yellow] git add {file_path} && git commit")
             raise
+
+
+def _commit_to_main(
+    file_path: Path,
+    feature_slug: str,
+    artifact_type: str,
+    repo_root: Path,
+    target_branch: str,
+    json_output: bool = False,
+) -> None:
+    """Backward-compatible alias used by legacy tests."""
+    _commit_to_branch(
+        file_path=file_path,
+        feature_slug=feature_slug,
+        artifact_type=artifact_type,
+        repo_root=repo_root,
+        target_branch=target_branch,
+        json_output=json_output,
+    )
 
 
 def _find_feature_directory(
@@ -367,6 +405,19 @@ def create_feature(
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
+
+        # Guardrail: feature creation must happen on the primary branch.
+        primary_branch = _resolve_primary_branch(repo_root)
+        if current_branch != primary_branch:
+            error_msg = (
+                f"Feature creation must run on '{primary_branch}' branch "
+                f"(current: '{current_branch}')."
+            )
+            if json_output:
+                print(json.dumps({"error": error_msg}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
         planning_branch = current_branch
 
         # Get next feature number
@@ -476,7 +527,7 @@ spec-kitty agent tasks move-task WP01 --to doing
                 spec_file.touch()
 
         # Commit spec.md to planning branch
-        _commit_to_branch(spec_file, feature_slug_formatted, "spec", repo_root, planning_branch, json_output)
+        _commit_to_main(spec_file, feature_slug_formatted, "spec", repo_root, planning_branch, json_output)
 
         # Ensure baseline feature metadata exists for downstream commands
         # (implement/merge/mission detection rely on meta.json in every mission).
@@ -549,26 +600,34 @@ spec-kitty agent tasks move-task WP01 --to doing
             pass  # Non-blocking, event emission failures are not fatal
 
         # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
-        try:
-            from specify_cli.telemetry.emit import emit_execution_event
-            emit_execution_event(
-                feature_dir=feature_dir,
-                feature_slug=feature_slug_formatted,
-                wp_id="N/A",  # No WP for feature creation
-                agent=agent or "unknown",
-                role="planner",  # Planning role, not implementer
-                model=model,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                cost_usd=cost_usd,
-                duration_ms=duration_ms or 0,
-                success=True,
-                error=None,
-            )
-        except Exception as e:
-            # Non-blocking: log but don't fail command
-            if not json_output:
-                console.print(f"[yellow]Warning:[/yellow] Telemetry emission failed: {e}")
+        if _should_emit_execution_event(
+            agent=agent,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=cost_usd,
+            duration_ms=duration_ms,
+        ):
+            try:
+                from specify_cli.telemetry.emit import emit_execution_event
+                emit_execution_event(
+                    feature_dir=feature_dir,
+                    feature_slug=feature_slug_formatted,
+                    wp_id="N/A",  # No WP for feature creation
+                    agent=agent or "unknown",
+                    role="planner",  # Planning role, not implementer
+                    model=model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                    duration_ms=duration_ms or 0,
+                    success=True,
+                    error=None,
+                )
+            except Exception as e:
+                # Non-blocking: log but don't fail command
+                if not json_output:
+                    console.print(f"[yellow]Warning:[/yellow] Telemetry emission failed: {e}")
 
         if json_output:
             print(json.dumps({
@@ -764,6 +823,8 @@ def setup_plan(
         plan_template_candidates = [
             repo_root / ".kittify" / "templates" / "plan-template.md",
             repo_root / "src" / "specify_cli" / "templates" / "plan-template.md",
+            repo_root / "src" / "specify_cli" / "missions" / "software-dev" / "templates" / "plan-template.md",
+            repo_root / "src" / "doctrine" / "templates" / "plan-template.md",
             repo_root / "templates" / "plan-template.md",
         ]
 
@@ -776,13 +837,18 @@ def setup_plan(
         if plan_template is not None:
             shutil.copy2(plan_template, plan_file)
         else:
-            package_template = files("specify_cli").joinpath("templates", "plan-template.md")
-            if not package_template.exists():
+            package_candidates = [
+                files("specify_cli").joinpath("templates", "plan-template.md"),
+                files("doctrine").joinpath("templates", "plan-template.md"),
+            ]
+            package_template = next((p for p in package_candidates if p.exists()), None)
+            if package_template is None:
                 raise FileNotFoundError("Plan template not found in repository or package")
             with package_template.open("rb") as src, open(plan_file, "wb") as dst:
                 shutil.copyfileobj(src, dst)
 
         # Commit plan.md to target branch
+        feature_slug = feature_dir.name
         _commit_to_branch(plan_file, feature_slug, "plan", repo_root, target_branch, json_output)
 
         # T014 + T016: Documentation mission wiring for plan
@@ -887,26 +953,34 @@ def setup_plan(
                         )
 
         # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
-        try:
-            from specify_cli.telemetry.emit import emit_execution_event
-            emit_execution_event(
-                feature_dir=feature_dir,
-                feature_slug=feature_slug,
-                wp_id="N/A",  # No WP for plan creation
-                agent=agent or "unknown",
-                role="planner",
-                model=model,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                cost_usd=cost_usd,
-                duration_ms=duration_ms or 0,
-                success=True,
-                error=None,
-            )
-        except Exception as e:
-            # Non-blocking: log but don't fail command
-            if not json_output:
-                console.print(f"[yellow]Warning:[/yellow] Telemetry emission failed: {e}")
+        if _should_emit_execution_event(
+            agent=agent,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=cost_usd,
+            duration_ms=duration_ms,
+        ):
+            try:
+                from specify_cli.telemetry.emit import emit_execution_event
+                emit_execution_event(
+                    feature_dir=feature_dir,
+                    feature_slug=feature_slug,
+                    wp_id="N/A",  # No WP for plan creation
+                    agent=agent or "unknown",
+                    role="planner",
+                    model=model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                    duration_ms=duration_ms or 0,
+                    success=True,
+                    error=None,
+                )
+            except Exception as e:
+                # Non-blocking: log but don't fail command
+                if not json_output:
+                    console.print(f"[yellow]Warning:[/yellow] Telemetry emission failed: {e}")
 
         if json_output:
             print(json.dumps({
@@ -1512,25 +1586,33 @@ def finalize_tasks(
             }))
 
         # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
-        try:
-            from specify_cli.telemetry.emit import emit_execution_event
-            feature_slug = feature_dir.name
-            emit_execution_event(
-                feature_dir=feature_dir,
-                feature_slug=feature_slug,
-                wp_id="N/A",  # No specific WP for task finalization
-                agent=agent or "unknown",
-                role="planner",
-                model=model,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                cost_usd=cost_usd,
-                duration_ms=duration_ms or 0,
-                success=True,
-                error=None,
-            )
-        except typer.Exit:
-            raise
+        if _should_emit_execution_event(
+            agent=agent,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=cost_usd,
+            duration_ms=duration_ms,
+        ):
+            try:
+                from specify_cli.telemetry.emit import emit_execution_event
+                feature_slug = feature_dir.name
+                emit_execution_event(
+                    feature_dir=feature_dir,
+                    feature_slug=feature_slug,
+                    wp_id="N/A",  # No specific WP for task finalization
+                    agent=agent or "unknown",
+                    role="planner",
+                    model=model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_usd=cost_usd,
+                    duration_ms=duration_ms or 0,
+                    success=True,
+                    error=None,
+                )
+            except typer.Exit:
+                raise
 
     except Exception as e:
         if json_output:

@@ -32,7 +32,7 @@ from specify_cli.merge.state import (
     load_state,
 )
 from specify_cli.tasks_support import TaskCliError, find_repo_root
-from specify_cli.sync.events import emit_wp_status_changed
+from specify_cli.sync import events as sync_events
 
 
 def _safe_emit_wp_status_changed(
@@ -42,7 +42,7 @@ def _safe_emit_wp_status_changed(
     feature_slug: str | None,
 ) -> None:
     try:
-        emit_wp_status_changed(
+        sync_events.emit_wp_status_changed(
             wp_id=wp_id,
             from_lane=from_lane,
             to_lane=to_lane,

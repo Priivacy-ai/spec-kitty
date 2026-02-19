@@ -191,10 +191,15 @@ class TestWorkspaceOperations:
         assert not (workspace_path / "kitty-specs").exists()
         # But README.md should still exist
         assert (workspace_path / "README.md").exists()
-        # .gitignore should contain kitty-specs/
-        gitignore = workspace_path / ".gitignore"
-        assert gitignore.exists()
-        assert "kitty-specs/" in gitignore.read_text()
+        # Exclusions are stored in git metadata, not in tracked .gitignore.
+        worktree_git = workspace_path / ".git"
+        assert worktree_git.exists()
+        gitdir_line = worktree_git.read_text(encoding="utf-8").strip()
+        assert gitdir_line.startswith("gitdir:")
+        git_dir = Path(gitdir_line.split(":", 1)[1].strip())
+        exclude_file = git_dir / "info" / "exclude"
+        assert exclude_file.exists()
+        assert "kitty-specs/" in exclude_file.read_text(encoding="utf-8")
 
     def test_create_workspace_with_base_branch(self, git_repo, git_vcs):
         """create_workspace should support branching from a base branch."""

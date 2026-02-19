@@ -1,0 +1,218 @@
+# v1 State Machine Definition
+mission:
+  name: research
+  version: "2.0.0"
+  description: "Systematic research with evidence-gated state machine"
+
+initial: scoping
+
+states:
+  - name: scoping
+    display_name: "Research Scoping"
+    on_enter: [on_enter_state]
+  - name: methodology
+    display_name: "Methodology Design"
+    on_enter: [on_enter_state]
+  - name: gathering
+    display_name: "Data Gathering"
+    on_enter: [on_enter_state]
+  - name: synthesis
+    display_name: "Analysis & Synthesis"
+    on_enter: [on_enter_state]
+  - name: output
+    display_name: "Output & Publication"
+    on_enter: [on_enter_state]
+  - name: done
+    display_name: "Complete"
+    on_enter: [on_enter_state]
+
+transitions:
+  - trigger: advance
+    source: scoping
+    dest: methodology
+    conditions:
+      - 'artifact_exists("spec.md")'
+  - trigger: advance
+    source: methodology
+    dest: gathering
+    conditions:
+      - 'artifact_exists("plan.md")'
+  - trigger: advance
+    source: gathering
+    dest: synthesis
+    conditions:
+      - 'event_count("source_documented", 3)'
+  - trigger: advance
+    source: synthesis
+    dest: output
+    conditions:
+      - 'artifact_exists("findings.md")'
+  - trigger: advance
+    source: output
+    dest: done
+    conditions:
+      - 'gate_passed("publication_approved")'
+  - trigger: gather_more
+    source: synthesis
+    dest: gathering
+
+guards:
+  has_scope:
+    description: "Research scope must be defined"
+    check: 'artifact_exists("spec.md")'
+  has_methodology:
+    description: "Methodology must be documented"
+    check: 'artifact_exists("plan.md")'
+  minimum_sources:
+    description: "At least 3 sources must be documented"
+    check: 'event_count("source_documented", 3)'
+  has_findings:
+    description: "Findings document must exist"
+    check: 'artifact_exists("findings.md")'
+  publication_approved:
+    description: "Publication must be approved"
+    check: 'gate_passed("publication_approved")'
+
+inputs:
+  - name: research_question
+    type: string
+    required: true
+    description: "Primary research question"
+  - name: project_root
+    type: path
+    required: true
+    description: "Path to the project root"
+  - name: min_sources
+    type: integer
+    required: false
+    description: "Minimum number of sources required"
+
+outputs:
+  - name: findings
+    type: report
+    path: "findings.md"
+    phase: synthesis
+    description: "Research findings and analysis"
+  - name: source_register
+    type: data
+    path: "source-register.csv"
+    phase: gathering
+    description: "Documented research sources"
+
+# --- v0 compatibility fields below ---
+
+name: "Deep Research Kitty"
+description: "Conduct systematic research with structured methodology and evidence synthesis"
+version: "1.0.0"
+domain: "research"
+
+# Workflow customization
+workflow:
+  phases:
+    - name: "question"
+      description: "Define research question and scope"
+    - name: "methodology"
+      description: "Design research methodology"
+    - name: "gather"
+      description: "Collect data and sources"
+    - name: "analyze"
+      description: "Analyze findings"
+    - name: "synthesize"
+      description: "Synthesize results and draw conclusions"
+    - name: "publish"
+      description: "Prepare findings for publication"
+
+# Expected artifacts
+artifacts:
+  required:
+    - spec.md              # Research question and scope
+    - plan.md              # Methodology plan
+    - tasks.md             # Research work packages
+    - findings.md          # Synthesized findings
+  optional:
+    - sources/             # Source documents
+    - data/                # Raw data
+    - analysis/            # Analysis outputs
+    - literature-review.md # Optional extended literature review
+    - methodology.md       # Detailed methodology appendix
+    - synthesis.md         # Synthesis notes or drafts
+
+# Path conventions for this mission
+paths:
+  workspace: "research/"
+  data: "data/"
+  deliverables: "findings/"
+  documentation: "reports/"
+
+# Validation rules
+validation:
+  checks:
+    - all_sources_documented
+    - methodology_clear
+    - findings_synthesized
+    - no_unresolved_questions
+  custom_validators: true  # Use validators.py
+
+# MCP tools recommended for this mission
+mcp_tools:
+  required:
+    - filesystem
+    - git
+  recommended:
+    - web-search
+    - pdf-reader
+    - citation-manager
+    - arxiv-search
+  optional:
+    - data-analysis
+    - statistics
+    - pubmed-search
+
+# Agent personality/instructions
+agent_context: |
+  You are a research agent conducting systematic literature reviews and empirical research.
+  Your mission is to maintain research integrity and methodological rigor throughout every phase.
+
+  Key Practices:
+  - Document ALL sources in research/source-register.csv with proper citations, URLs, and access dates.
+  - Extract findings to research/evidence-log.csv with confidence levels (high/medium/low) and contextual notes.
+  - Clearly articulate methodology decisions for reproducibility and peer review.
+  - Distinguish raw evidence from interpretation; cite every claim.
+  - Identify limitations, threats to validity, and alternative explanations.
+  - Synthesize findings so that each conclusion traces back to documented evidence rows.
+
+  Citation Standards:
+  - Use BibTeX or APA format (include DOI or URL when available).
+  - Track access dates for all online sources.
+  - Assign confidence levels commensurate with source quality.
+
+  Workflow Phases: question -> methodology -> gather -> analyze -> synthesize -> publish.
+
+# Task metadata fields
+task_metadata:
+  required:
+    - task_id
+    - lane
+    - phase
+    - agent
+  optional:
+    - shell_pid
+    - assignee
+    - estimated_hours
+    - experiment_id
+    - data_collection_round
+
+# Command customization
+commands:
+  specify:
+    prompt: "Define research question, scope, and expected outcomes"
+  plan:
+    prompt: "Design research methodology and data collection strategy"
+  tasks:
+    prompt: "Break into research work packages (literature review, data collection, analysis)"
+  implement:
+    prompt: "Execute research plan and collect findings"
+  review:
+    prompt: "Review findings for validity, completeness, and proper documentation"
+  accept:
+    prompt: "Validate research completeness and readiness for publication"

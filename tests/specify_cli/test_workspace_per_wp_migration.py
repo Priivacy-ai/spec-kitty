@@ -20,7 +20,10 @@ import pytest
 
 
 # Template source directory (committed to repo)
-TEMPLATE_DIR = Path("src/specify_cli/missions/software-dev/command-templates")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+TEMPLATE_DIR = (
+    REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
+)
 
 
 # T009: Test template directory exists

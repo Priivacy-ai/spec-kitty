@@ -96,8 +96,19 @@ build-backend = "hatchling.build"
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.poetry]
+requires-poetry = ">=1.8.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.4"
+pytest-asyncio = ">=0.21.0"
+pytest-cov = ">=4.0"
+build = ">=1.0.0"
+mypy = ">=1.0"
+ruff = ">=0.1.0"
+
 [tool.hatch.build.targets.wheel]
-packages = ["src/specify_cli"]
+packages = ["src/specify_cli", "src/doctrine"]
 # Include all non-Python files (templates, configs, etc.)
 artifacts = [
     "src/specify_cli/**/*.md",
@@ -106,6 +117,11 @@ artifacts = [
     "src/specify_cli/**/*.json",
     "src/specify_cli/**/*.csv",
     "src/specify_cli/**/*.template",
+    "src/doctrine/**/*.md",
+    "src/doctrine/**/*.yaml",
+    "src/doctrine/**/*.yml",
+    "src/doctrine/**/*.json",
+    "src/doctrine/**/*.toml",
 ]
 
 [tool.hatch.build.targets.sdist]

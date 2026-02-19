@@ -157,8 +157,9 @@ class TestOfflineQueue:
 class TestOfflineQueueSizeLimit:
     """Test queue size limit enforcement"""
 
-    def test_queue_size_limit_enforced(self, temp_queue):
+    def test_queue_size_limit_enforced(self, temp_queue, monkeypatch):
         """Test queue rejects events when at capacity"""
+        monkeypatch.setattr(OfflineQueue, "MAX_QUEUE_SIZE", 100)
         # Queue up to the limit
         for i in range(OfflineQueue.MAX_QUEUE_SIZE):
             event = {
@@ -182,8 +183,9 @@ class TestOfflineQueueSizeLimit:
         assert result is False
         assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE
 
-    def test_queue_accepts_after_drain_and_sync(self, temp_queue):
+    def test_queue_accepts_after_drain_and_sync(self, temp_queue, monkeypatch):
         """Test queue accepts events after making room"""
+        monkeypatch.setattr(OfflineQueue, "MAX_QUEUE_SIZE", 100)
         # Fill to limit
         for i in range(OfflineQueue.MAX_QUEUE_SIZE):
             temp_queue.queue_event({
@@ -301,23 +303,21 @@ class TestOfflineQueueRetry:
 class TestOfflineQueueDefaultPath:
     """Test default path behavior"""
 
-    def test_default_path_uses_home_directory(self):
+    def test_default_path_uses_home_directory(self, monkeypatch):
         """Test that default path is ~/.spec-kitty/queue.db"""
         # Don't actually create file, just check path logic
         queue = OfflineQueue.__new__(OfflineQueue)
         queue.db_path = None
 
-        expected_path = Path.home() / '.spec-kitty' / 'queue.db'
-
         # Verify the default path logic (without fully initializing)
         with tempfile.TemporaryDirectory() as tmpdir:
+            monkeypatch.setenv("HOME", tmpdir)
+            expected_path = Path(tmpdir) / ".spec-kitty" / "queue.db"
             test_queue = OfflineQueue(Path(tmpdir) / 'test.db')
             # The real default path check
             default_queue = OfflineQueue()
             assert default_queue.db_path == expected_path
-            # Clean up
-            if default_queue.db_path.exists():
-                default_queue.clear()
+            default_queue.clear()
 
 
 class TestQueueStats:

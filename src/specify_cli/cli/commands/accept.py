@@ -20,7 +20,7 @@ from specify_cli.acceptance import (
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.tasks_support import LANES, TaskCliError, find_repo_root
-from specify_cli.sync.events import emit_wp_status_changed
+from specify_cli.sync import events as sync_events
 
 
 def _safe_emit_error_logged(message: str) -> None:
@@ -97,7 +97,7 @@ def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
         return
     for wp_id in wp_ids:
         try:
-            emit_wp_status_changed(
+            sync_events.emit_wp_status_changed(
                 wp_id=wp_id,
                 from_lane="for_review",
                 to_lane="done",

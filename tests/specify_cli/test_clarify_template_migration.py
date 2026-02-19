@@ -340,8 +340,15 @@ class TestTemplateContent:
 
     def test_template_source_exists(self):
         """Test that clarify template source file exists."""
-        template_path = Path(
-            "src/specify_cli/missions/software-dev/command-templates/clarify.md"
+        repo_root = Path(__file__).resolve().parents[2]
+        template_path = (
+            repo_root
+            / "src"
+            / "specify_cli"
+            / "missions"
+            / "software-dev"
+            / "command-templates"
+            / "clarify.md"
         )
         assert template_path.exists()
 
@@ -358,10 +365,25 @@ class TestTemplateContent:
 
     def test_template_matches_tasks_pattern(self):
         """Test clarify template uses same pattern as tasks.md for consistency."""
-        clarify_path = Path(
-            "src/specify_cli/missions/software-dev/command-templates/clarify.md"
+        repo_root = Path(__file__).resolve().parents[2]
+        clarify_path = (
+            repo_root
+            / "src"
+            / "specify_cli"
+            / "missions"
+            / "software-dev"
+            / "command-templates"
+            / "clarify.md"
         )
-        tasks_path = Path("src/specify_cli/missions/software-dev/command-templates/tasks.md")
+        tasks_path = (
+            repo_root
+            / "src"
+            / "specify_cli"
+            / "missions"
+            / "software-dev"
+            / "command-templates"
+            / "tasks.md"
+        )
 
         clarify_content = clarify_path.read_text()
         tasks_content = tasks_path.read_text()

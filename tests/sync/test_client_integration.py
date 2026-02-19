@@ -3,7 +3,7 @@ import pytest
 from specify_cli.sync.client import WebSocketClient, ConnectionStatus
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connect_to_server():
     """
     Test connecting to development server.
@@ -29,7 +29,7 @@ async def test_connect_to_server():
     assert client.get_status() == ConnectionStatus.OFFLINE
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_client_initialization():
     """Test WebSocket client can be initialized"""
     client = WebSocketClient(
@@ -43,7 +43,7 @@ async def test_client_initialization():
     assert client.get_status() == ConnectionStatus.OFFLINE
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_send_event_when_not_connected():
     """Test sending event when not connected raises error"""
     client = WebSocketClient(

@@ -12,6 +12,7 @@ from rich.panel import Panel
 from specify_cli.acceptance import AcceptanceError, detect_feature_slug
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
+from specify_cli.constitution.resolver import collect_governance_diagnostics
 from specify_cli.core import MISSION_CHOICES
 from specify_cli.core.project_resolver import resolve_template_path, resolve_worktree_aware_feature_dir
 from specify_cli.mission import get_feature_mission_key
@@ -80,6 +81,17 @@ def research(
         console.print("  3. Remove [REMOVE IF UNUSED] sections and choose your project structure")
         console.print("  4. Then run [cyan]/spec-kitty.research[/cyan] again")
         raise typer.Exit(1)
+
+    governance_diagnostics = collect_governance_diagnostics(repo_root)
+    if governance_diagnostics:
+        console.print(
+            Panel(
+                "\n".join(f"- {line}" for line in governance_diagnostics),
+                title="Governance Diagnostics",
+                border_style="yellow",
+                padding=(1, 2),
+            )
+        )
 
     created_paths: list[Path] = []
 

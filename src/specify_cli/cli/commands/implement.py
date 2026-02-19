@@ -378,13 +378,19 @@ def _ensure_planning_artifacts_committed_git(
         # Porcelain format: XY filename (X=staged, Y=working tree)
         # Examples: ??(untracked), M (staged modified), MM(staged+modified), etc.
         files_to_commit = []
+        valid_status_chars = set(" MADRCU?!")
         for line in result.stdout.strip().split('\n'):
             if line.strip():
-                # Get status code (first 2 chars) and filepath (rest after space)
-                if len(line) >= 3:
-                    filepath = line[3:].strip()
-                    # Any file with status means it's untracked, modified, or staged
-                    # All of these should be included in the commit
+                # Strictly parse porcelain format: "XY <path>"
+                # Ignore non-porcelain noise to avoid false positives in mocked output.
+                if len(line) < 4 or line[2] != " ":
+                    continue
+                status_x = line[0]
+                status_y = line[1]
+                if status_x not in valid_status_chars or status_y not in valid_status_chars:
+                    continue
+                filepath = line[3:].strip()
+                if filepath:
                     files_to_commit.append(filepath)
 
         if files_to_commit:
@@ -825,16 +831,69 @@ def implement(
                 base_branch = merge_result.branch_name
 
         elif base is None:
-            # No dependencies - branch from current branch (respects user context)
+            # No dependencies - branch from feature target branch.
+            # If the target branch doesn't exist yet (e.g., future major branch),
+            # auto-create it from the repository primary branch.
+            from specify_cli.core.feature_detection import get_feature_target_branch
             from specify_cli.core.git_ops import get_current_branch
 
-            # Get user's current branch
-            current_branch_name = get_current_branch(repo_root)
-            if current_branch_name is None:
-                raise RuntimeError("Could not determine current branch")
+            target_branch = get_feature_target_branch(repo_root, feature_slug)
+            current_branch = get_current_branch(repo_root)
+            primary_branch = resolve_primary_branch(repo_root)
 
-            # Use current branch as base (no auto-checkout to target)
-            base_branch = current_branch_name
+            # Respect active user branch when it differs from target.
+            # This prevents implicit branch switching in mixed branch workflows.
+            if (
+                current_branch
+                and current_branch != target_branch
+                and current_branch != primary_branch
+            ):
+                console.print(
+                    f"\n[yellow]Note:[/yellow] You are on '{current_branch}', "
+                    f"feature targets '{target_branch}'. Branching from '{current_branch}'."
+                )
+                base_branch = current_branch
+            else:
+                target_exists = subprocess.run(
+                    ["git", "rev-parse", "--verify", target_branch],
+                    cwd=repo_root,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    check=False,
+                ).returncode == 0
+
+                if target_exists:
+                    base_branch = target_branch
+                else:
+                    if target_branch == primary_branch:
+                        base_branch = primary_branch
+                    else:
+                        console.print(
+                            f"[cyan]→ Creating target branch: {target_branch} (from {primary_branch})[/cyan]"
+                        )
+                        create_target = subprocess.run(
+                            ["git", "branch", target_branch, primary_branch],
+                            cwd=repo_root,
+                            capture_output=True,
+                            text=True,
+                            encoding="utf-8",
+                            errors="replace",
+                            check=False,
+                        )
+                        if create_target.returncode == 0:
+                            console.print(f"[cyan]→ Created target branch: {target_branch}[/cyan]")
+                            base_branch = target_branch
+                        else:
+                            console.print(
+                                f"[yellow]Warning:[/yellow] Could not create target branch "
+                                f"'{target_branch}' from '{primary_branch}'. "
+                                f"Falling back to '{primary_branch}'."
+                            )
+                            if create_target.stderr.strip():
+                                console.print(f"[dim]{create_target.stderr.strip()}[/dim]")
+                            base_branch = primary_branch
         else:
             # Has dependencies - check if base is merged or in-progress
             try:

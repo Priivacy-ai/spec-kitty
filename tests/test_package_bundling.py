@@ -57,9 +57,9 @@ def test_sdist_bundles_templates():
     with tarfile.open(latest, "r:gz") as tar:
         members = tar.getnames()
 
-        # Should have templates under src/specify_cli/
-        templates = [m for m in members if "/src/specify_cli/templates/" in m]
-        assert len(templates) > 0, "specify_cli/templates/ not found in sdist"
+        # Should have templates under src/doctrine/
+        templates = [m for m in members if "/src/doctrine/templates/" in m]
+        assert len(templates) > 0, "doctrine/templates/ not found in sdist"
 
         # Should have command templates
         cmd_templates = [

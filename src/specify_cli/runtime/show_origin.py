@@ -160,7 +160,7 @@ def _discover_agents_md(project_dir: Path) -> OriginEntry:
     """Discover AGENTS.md from project or package defaults.
 
     Checks project-local .kittify/AGENTS.md first, then the package
-    default at src/specify_cli/templates/AGENTS.md.
+    default at src/doctrine/templates/AGENTS.md.
     """
     # Project-local
     project_agents = project_dir / ".kittify" / "AGENTS.md"
@@ -170,7 +170,7 @@ def _discover_agents_md(project_dir: Path) -> OriginEntry:
     # Package default
     try:
         import specify_cli
-        pkg_agents = Path(specify_cli.__file__).parent / "templates" / "AGENTS.md"
+        pkg_agents = Path(specify_cli.__file__).parent.parent / "doctrine" / "templates" / "AGENTS.md"
         if pkg_agents.is_file():
             return OriginEntry("file", "AGENTS.md", pkg_agents, "package_default", None)
     except (ImportError, OSError):

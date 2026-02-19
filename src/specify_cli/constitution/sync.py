@@ -16,7 +16,11 @@ from ruamel.yaml import YAML
 
 from specify_cli.constitution.extractor import Extractor, write_extraction_result
 from specify_cli.constitution.hasher import is_stale
-from specify_cli.constitution.schemas import AgentsConfig, GovernanceConfig
+from specify_cli.constitution.schemas import (
+    AgentsConfig,
+    DirectivesConfig,
+    GovernanceConfig,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -207,3 +211,39 @@ def load_agents_config(repo_root: Path) -> AgentsConfig:
     yaml = YAML()
     data = yaml.load(agents_path)
     return AgentsConfig.model_validate(data)
+
+
+def load_directives_config(repo_root: Path) -> DirectivesConfig:
+    """Load directives config from .kittify/constitution/directives.yaml.
+
+    Falls back to empty DirectivesConfig if file missing.
+    Checks staleness and logs warning if stale.
+
+    Args:
+        repo_root: Repository root directory
+
+    Returns:
+        DirectivesConfig instance (empty if file missing)
+    """
+    constitution_dir = repo_root / ".kittify" / "constitution"
+    directives_path = constitution_dir / "directives.yaml"
+
+    if not directives_path.exists():
+        logger.warning(
+            "directives.yaml not found. Run 'spec-kitty constitution sync'."
+        )
+        return DirectivesConfig()
+
+    constitution_path = constitution_dir / "constitution.md"
+    metadata_path = constitution_dir / "metadata.yaml"
+    if constitution_path.exists() and metadata_path.exists():
+        stale, _, _ = is_stale(constitution_path, metadata_path)
+        if stale:
+            logger.warning(
+                "Constitution changed since last sync. "
+                "Run 'spec-kitty constitution sync' to update."
+            )
+
+    yaml = YAML()
+    data = yaml.load(directives_path)
+    return DirectivesConfig.model_validate(data)

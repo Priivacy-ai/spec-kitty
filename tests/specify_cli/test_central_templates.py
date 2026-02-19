@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 
-TEMPLATE_DIR = Path("src/specify_cli/templates/command-templates")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+TEMPLATE_DIR = REPO_ROOT / "src" / "doctrine" / "templates" / "command-templates"
 EXPECTED_TEMPLATES = {
     "accept.md",
     "analyze.md",

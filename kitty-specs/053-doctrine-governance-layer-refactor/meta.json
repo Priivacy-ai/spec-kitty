@@ -1,0 +1,24 @@
+{
+  "accept_commit": null,
+  "acceptance_history": [
+    {
+      "accepted_at": "2026-02-17T15:55:45Z",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "bb2d8857bc7bccd77bd7f4c13e8c0ce4b4effac2",
+      "branch": "develop",
+      "mode": "pr"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-02-17T15:55:45Z",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "bb2d8857bc7bccd77bd7f4c13e8c0ce4b4effac2",
+  "created_at": "2026-02-17T09:35:00+00:00",
+  "feature_number": "053",
+  "friendly_name": "Explicit Governance Layer Refactor",
+  "mission": "software-dev",
+  "slug": "053-doctrine-governance-layer-refactor",
+  "source_description": "Refactor Spec Kitty doctrine/governance model to be constitution-centric, with explicit doctrine concepts, curation flow, and schema validation.",
+  "target_branch": "develop",
+  "vcs": "git"
+}
