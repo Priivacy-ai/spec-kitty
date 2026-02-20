@@ -71,6 +71,7 @@ AGENT_DIRECTORIES = [
 # Runtime/generated artifacts that should never be tracked.
 RUNTIME_PROTECTED_ENTRIES = [
     ".kittify/.dashboard",
+    ".kittify/workspaces/",
     ".kittify/missions/__pycache__/",
 ]
 
