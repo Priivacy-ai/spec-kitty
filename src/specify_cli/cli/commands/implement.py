@@ -484,7 +484,12 @@ def _ensure_planning_artifacts_committed_jj(
     console.print(f"[green]✓[/green] Planning artifacts ready (on {current_bookmark or '@'})")
 
 
-def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
+def _ensure_vcs_in_meta(
+    feature_dir: Path,
+    repo_root: Path,
+    *,
+    persist_lock: bool = True,
+) -> tuple[VCSBackend, bool]:
     """Ensure VCS is selected and locked in meta.json.
 
     Always locks to git (jj support removed due to sparse checkout incompatibility).
@@ -495,14 +500,18 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
     Args:
         feature_dir: Path to the feature directory (kitty-specs/###-feature/)
         repo_root: Repository root path (not used, but kept for compatibility)
+        persist_lock: If False, do not mutate meta.json when lock is missing/legacy.
 
     Returns:
-        VCSBackend.GIT (always)
+        Tuple of (backend, meta_updated)
+        - backend: VCSBackend.GIT (always)
+        - meta_updated: True if meta.json was modified
 
     Raises:
         typer.Exit: If meta.json is missing or malformed
     """
     meta_path = feature_dir / "meta.json"
+    meta_updated = False
 
     if not meta_path.exists():
         console.print(f"[red]Error:[/red] meta.json not found in {feature_dir}")
@@ -520,24 +529,32 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
         backend_str = meta["vcs"]
         if backend_str == "jj":
             console.print("[yellow]Warning:[/yellow] Feature was created with jj, but jj is no longer supported.")
-            console.print("[yellow]Converting to git...[/yellow]")
-            # Override to git
-            meta["vcs"] = "git"
-            meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
-            meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
-            return VCSBackend.GIT
+            if persist_lock:
+                console.print("[yellow]Converting to git...[/yellow]")
+                # Override to git
+                meta["vcs"] = "git"
+                meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
+                meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+                meta_updated = True
+            else:
+                console.print("[yellow]Using git for this run without mutating meta.json[/yellow]")
+            return VCSBackend.GIT, meta_updated
         # Already git
-        return VCSBackend.GIT
+        return VCSBackend.GIT, meta_updated
 
     # VCS not yet locked - lock to git (only supported VCS)
-    meta["vcs"] = "git"
-    meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
+    if persist_lock:
+        meta["vcs"] = "git"
+        meta["vcs_locked_at"] = datetime.now(timezone.utc).isoformat()
 
-    # Write updated meta.json
-    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+        # Write updated meta.json
+        meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+        meta_updated = True
+        console.print("[cyan]→ VCS locked to git in meta.json[/cyan]")
+    elif not console.quiet:
+        console.print("[dim]Note: meta.json has no VCS lock; using git without mutating planning repo[/dim]")
 
-    console.print("[cyan]→ VCS locked to git in meta.json[/cyan]")
-    return VCSBackend.GIT
+    return VCSBackend.GIT, meta_updated
 
 
 @_json_safe_output
@@ -748,7 +765,30 @@ def implement(
         # Ensure VCS is locked in meta.json and get the backend to use
         # (do this early so we can use VCS for all operations)
         feature_dir = repo_root / "kitty-specs" / feature_slug
-        vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
+        persist_vcs_lock = base is None
+        vcs_backend, meta_updated = _ensure_vcs_in_meta(
+            feature_dir,
+            repo_root,
+            persist_lock=persist_vcs_lock,
+        )
+
+        if meta_updated:
+            meta_path = (feature_dir / "meta.json").resolve()
+            commit_success = safe_commit(
+                repo_path=repo_root,
+                files_to_commit=[meta_path],
+                commit_message=f"chore({feature_slug}): lock VCS backend to git",
+                allow_empty=False,
+            )
+            if not commit_success:
+                tracker.error("create", "failed to commit VCS lock update")
+                console.print(tracker.render())
+                console.print("\n[red]Error:[/red] Failed to commit meta.json VCS lock update")
+                console.print("To continue safely:")
+                console.print(f"  cd {repo_root}")
+                console.print(f"  git add kitty-specs/{feature_slug}/meta.json")
+                console.print(f"  git commit -m \"chore({feature_slug}): lock VCS backend to git\"")
+                raise typer.Exit(1)
 
         # Get VCS implementation
         vcs = get_vcs(repo_root, backend=vcs_backend)
@@ -1050,6 +1090,7 @@ def implement(
         # JSON output for scripting
         import json
         print(json.dumps({
+            "workspace": str(workspace_path.relative_to(repo_root)),
             "workspace_path": str(workspace_path.relative_to(repo_root)),
             "branch": branch_name,
             "feature": feature_slug,

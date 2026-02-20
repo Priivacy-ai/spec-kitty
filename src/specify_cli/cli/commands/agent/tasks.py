@@ -281,7 +281,8 @@ def _validate_ready_for_review(
     repo_root: Path,
     feature_slug: str,
     wp_id: str,
-    force: bool
+    force: bool,
+    target_lane: str = "for_review",
 ) -> Tuple[bool, List[str]]:
     """Validate that WP is ready for review by checking for uncommitted changes.
 
@@ -346,7 +347,7 @@ def _validate_ready_for_review(
             if len(research_files) > 5:
                 guidance.append(f"  ... and {len(research_files) - 5} more")
             guidance.append("")
-            guidance.append("You must commit these before moving to for_review:")
+            guidance.append(f"You must commit these before moving to {target_lane}:")
             guidance.append(f"  cd {main_repo_root}")
             guidance.append(f"  git add kitty-specs/{feature_slug}/")
             if mission_key == "research":
@@ -354,7 +355,7 @@ def _validate_ready_for_review(
             else:
                 guidance.append(f"  git commit -m \"docs({wp_id}): <describe your changes>\"")
             guidance.append("")
-            guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+            guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
             return False, guidance
 
     # Check 2: For software-dev missions, check worktree for implementation commits
@@ -372,7 +373,7 @@ def _validate_ready_for_review(
                 guidance.append(f"  cd {worktree_path}")
                 guidance.append("  git checkout <your-branch>")
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
             # Check for in-progress git operations (merge/rebase/cherry-pick)
@@ -407,7 +408,7 @@ def _validate_ready_for_review(
                 guidance.append("  git rebase --abort  # if rebase")
                 guidance.append("  git cherry-pick --abort  # if cherry-pick")
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
             # Check if worktree branch is behind its base branch
@@ -437,7 +438,7 @@ def _validate_ready_for_review(
                 except ValueError:
                     behind_count = 0
 
-            if behind_count > 0:
+            if behind_count > 0 and target_lane == "for_review":
                 guidance.append(f"{check_branch} branch has new commits not in this worktree!")
                 guidance.append("")
                 guidance.append(f"Your branch is behind {check_branch} by {behind_count} commit(s).")
@@ -445,7 +446,7 @@ def _validate_ready_for_review(
                 guidance.append(f"  cd {worktree_path}")
                 guidance.append(f"  git rebase {check_branch}")
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
             # Check for uncommitted changes in worktree
@@ -491,7 +492,7 @@ def _validate_ready_for_review(
                 guidance.append("  git add -A")
                 guidance.append(f"  git commit -m \"feat({wp_id}): <describe implementation>\"")
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
             # Check if branch has commits beyond base (use actual base, not target)
@@ -523,7 +524,7 @@ def _validate_ready_for_review(
                 guidance.append("  git add -A")
                 guidance.append(f"  git commit -m \"feat({wp_id}): <describe implementation>\"")
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
     return True, []
@@ -633,7 +634,13 @@ def move_task(
         # Validate uncommitted changes when moving to for_review OR done
         # This catches the bug where agents edit artifacts but forget to commit
         if target_lane in ("for_review", "done"):
-            is_valid, guidance = _validate_ready_for_review(repo_root, feature_slug, task_id, force)
+            is_valid, guidance = _validate_ready_for_review(
+                repo_root,
+                feature_slug,
+                task_id,
+                force,
+                target_lane=target_lane,
+            )
             if not is_valid:
                 error_msg = f"Cannot move {task_id} to {target_lane}\n\n"
                 error_msg += "\n".join(guidance)

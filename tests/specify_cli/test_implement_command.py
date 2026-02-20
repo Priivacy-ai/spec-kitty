@@ -275,6 +275,7 @@ class TestImplementCommand:
         payload = json.loads(output)
         assert payload["status"] == "created"
         assert payload["wp_id"] == "WP01"
+        assert payload["workspace"] == payload["workspace_path"]
 
     def test_implement_json_error_output_is_clean(self, tmp_path, capsys):
         """--json failures should still emit a single machine-parseable object."""
@@ -584,10 +585,11 @@ class TestVCSAbstraction:
             mock_get_vcs.return_value = mock_vcs
 
             # Call helper function
-            backend = _ensure_vcs_in_meta(feature_dir, tmp_path)
+            backend, meta_updated = _ensure_vcs_in_meta(feature_dir, tmp_path)
 
             # Verify VCS was locked
             assert backend == VCSBackend.GIT
+            assert meta_updated is True
 
             # Verify meta.json was updated
             updated_meta = json.loads(meta_path.read_text())
@@ -601,10 +603,35 @@ class TestVCSAbstraction:
         create_meta_json(feature_dir, vcs="jj")
 
         # Call helper function
-        backend = _ensure_vcs_in_meta(feature_dir, tmp_path)
+        backend, meta_updated = _ensure_vcs_in_meta(feature_dir, tmp_path)
 
         # Verify jj is converted to git
         assert backend == VCSBackend.GIT
+        assert meta_updated is True
+
+    def test_vcs_lock_can_be_skipped_without_meta_mutation(self, tmp_path):
+        """When persist_lock=False, helper should not modify legacy meta.json."""
+        feature_dir = tmp_path / "kitty-specs" / "015-feature"
+        feature_dir.mkdir(parents=True)
+        meta_path = feature_dir / "meta.json"
+        meta_path.write_text(
+            json.dumps(
+                {
+                    "feature_number": "015",
+                    "feature_slug": "015-feature",
+                    "created_at": "2026-01-17T00:00:00Z",
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        backend, meta_updated = _ensure_vcs_in_meta(feature_dir, tmp_path, persist_lock=False)
+
+        assert backend == VCSBackend.GIT
+        assert meta_updated is False
+        reloaded = json.loads(meta_path.read_text(encoding="utf-8"))
+        assert "vcs" not in reloaded
 
     @pytest.mark.parametrize("backend", [
         "git",
