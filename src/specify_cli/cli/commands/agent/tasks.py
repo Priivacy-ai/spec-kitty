@@ -277,6 +277,179 @@ def _check_dependent_warnings(
         console.print()
 
 
+def _behind_commits_touch_only_planning_artifacts(
+    worktree_path: Path,
+    check_branch: str,
+    feature_slug: str,
+) -> bool:
+    """Return True when upstream commits only touch planning/status files.
+
+    This prevents lane transitions from being blocked by commits that update
+    task metadata on the planning branch (for example mark-status/move-task).
+    """
+    merge_base_result = subprocess.run(
+        ["git", "merge-base", "HEAD", check_branch],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if merge_base_result.returncode != 0:
+        return False
+
+    merge_base = merge_base_result.stdout.strip()
+    if not merge_base:
+        return False
+
+    # Compare merge-base..base to inspect only commits that HEAD is behind on.
+    result = subprocess.run(
+        ["git", "diff", "--name-only", f"{merge_base}..{check_branch}"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return False
+
+    changed_files = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if not changed_files:
+        return True
+
+    allowed_prefixes = (
+        f"kitty-specs/{feature_slug}/",
+        ".kittify/workspaces/",
+    )
+    return all(path.startswith(allowed_prefixes) for path in changed_files)
+
+
+def _maybe_mirror_move_commit_to_wp_branch(
+    cwd: Path,
+    main_repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+    main_wp_path: Path,
+    updated_doc: str,
+    commit_message: str,
+) -> bool:
+    """Mirror lane transition commit into active WP branch when in its worktree.
+
+    Move-task updates planning artifacts on the planning branch by design.
+    When agents run from a WP worktree, mirror the same status change commit
+    into the active WP branch to keep branch history aligned with lane changes.
+    """
+    from specify_cli.core.git_ops import get_current_branch
+
+    if not is_worktree_context(cwd):
+        return False
+
+    # Resolve enclosing worktree root from current directory.
+    worktree_root: Path | None = None
+    for candidate in [cwd, *cwd.parents]:
+        if candidate == main_repo_root:
+            break
+        if (candidate / ".git").is_file():
+            worktree_root = candidate
+            break
+    if worktree_root is None:
+        return False
+
+    expected_branch = f"{feature_slug}-{wp_id}"
+    current_branch = get_current_branch(worktree_root)
+    if current_branch != expected_branch:
+        return False
+
+    try:
+        rel_wp_path = main_wp_path.resolve().relative_to(main_repo_root.resolve())
+    except ValueError:
+        return False
+
+    checkout_result = subprocess.run(
+        [
+            "git",
+            "checkout",
+            "--ignore-skip-worktree-bits",
+            "HEAD",
+            "--",
+            str(rel_wp_path),
+        ],
+        cwd=worktree_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if checkout_result.returncode != 0:
+        return False
+
+    wp_branch_path = worktree_root / rel_wp_path
+    wp_branch_path.parent.mkdir(parents=True, exist_ok=True)
+    wp_branch_path.write_text(updated_doc, encoding="utf-8")
+
+    add_result = subprocess.run(
+        ["git", "add", "--sparse", str(rel_wp_path)],
+        cwd=worktree_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if add_result.returncode != 0:
+        # Fallback for older Git versions without --sparse support.
+        if "unknown option" in (add_result.stderr or "").lower():
+            add_result = subprocess.run(
+                ["git", "add", str(rel_wp_path)],
+                cwd=worktree_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+    if add_result.returncode != 0:
+        subprocess.run(
+            ["git", "restore", "--worktree", "--staged", str(rel_wp_path)],
+            cwd=worktree_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        return False
+
+    commit_result = subprocess.run(
+        ["git", "commit", "-m", commit_message],
+        cwd=worktree_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if commit_result.returncode == 0:
+        return True
+    if "nothing to commit" in (commit_result.stdout or "") or "nothing to commit" in (commit_result.stderr or ""):
+        return True
+
+    subprocess.run(
+        ["git", "restore", "--worktree", "--staged", str(rel_wp_path)],
+        cwd=worktree_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return False
+
+
 def _validate_ready_for_review(
     repo_root: Path,
     feature_slug: str,
@@ -438,15 +611,21 @@ def _validate_ready_for_review(
                     behind_count = 0
 
             if behind_count > 0:
-                guidance.append(f"{check_branch} branch has new commits not in this worktree!")
-                guidance.append("")
-                guidance.append(f"Your branch is behind {check_branch} by {behind_count} commit(s).")
-                guidance.append("Rebase before review:")
-                guidance.append(f"  cd {worktree_path}")
-                guidance.append(f"  git rebase {check_branch}")
-                guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
-                return False, guidance
+                # Allow status/planning-only commits to avoid repeated rebase friction.
+                if not _behind_commits_touch_only_planning_artifacts(
+                    worktree_path,
+                    check_branch,
+                    feature_slug,
+                ):
+                    guidance.append(f"{check_branch} branch has new commits not in this worktree!")
+                    guidance.append("")
+                    guidance.append(f"Your branch is behind {check_branch} by {behind_count} commit(s).")
+                    guidance.append("Rebase before review:")
+                    guidance.append(f"  cd {worktree_path}")
+                    guidance.append(f"  git rebase {check_branch}")
+                    guidance.append("")
+                    guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                    return False, guidance
 
             # Check for uncommitted changes in worktree
             result = subprocess.run(
@@ -766,8 +945,25 @@ def move_task(
                 )
 
                 if commit_success:
+                    # Mirror review/done lane transitions into active WP branch when
+                    # command is run from its worktree context.
+                    mirrored = False
+                    if target_lane in ("for_review", "done"):
+                        mirrored = _maybe_mirror_move_commit_to_wp_branch(
+                            cwd=cwd,
+                            main_repo_root=main_repo_root,
+                            feature_slug=feature_slug,
+                            wp_id=task_id,
+                            main_wp_path=actual_file_path,
+                            updated_doc=updated_doc,
+                            commit_message=commit_msg,
+                        )
                     if not json_output:
                         console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
+                        if mirrored:
+                            console.print(
+                                "[cyan]→ Mirrored status change to active WP branch[/cyan]"
+                            )
                 else:
                     # Commit failed (safe_commit returned False)
                     if not json_output:

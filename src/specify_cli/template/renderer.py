@@ -11,7 +11,9 @@ import yaml
 
 DEFAULT_PATH_PATTERNS: dict[str, str] = {
     r"(?<!\.kittify/)scripts/": ".kittify/scripts/",
-    r"(?<!\.kittify/)templates/": ".kittify/templates/",
+    # Rewrite plain template references (e.g., `templates/foo.md`) but do not
+    # rewrite embedded source paths like `src/.../templates/foo.md`.
+    r"(?<![\w.-]/)templates/": ".kittify/templates/",
     r"(?<!\.kittify/)memory/": ".kittify/memory/",
 }
 

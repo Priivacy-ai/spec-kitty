@@ -275,6 +275,8 @@ class TestImplementCommand:
         payload = json.loads(output)
         assert payload["status"] == "created"
         assert payload["wp_id"] == "WP01"
+        assert payload["workspace"] == ".worktrees/010-feature-WP01"
+        assert payload["workspace_path"] == payload["workspace"]
 
     def test_implement_json_error_output_is_clean(self, tmp_path, capsys):
         """--json failures should still emit a single machine-parseable object."""

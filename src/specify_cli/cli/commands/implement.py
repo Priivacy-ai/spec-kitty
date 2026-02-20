@@ -1028,9 +1028,14 @@ def implement(
             wp.path.write_text(updated_doc, encoding="utf-8")
 
             # Commit only the WP file (safe_commit preserves staging area)
+            meta_file = feature_dir / "meta.json"
+            files_to_commit = [wp.path.resolve()]
+            if meta_file.exists():
+                files_to_commit.append(meta_file.resolve())
+
             commit_success = safe_commit(
                 repo_path=repo_root,
-                files_to_commit=[wp.path.resolve()],
+                files_to_commit=files_to_commit,
                 commit_message=commit_msg,
                 allow_empty=True,  # OK if nothing changed
             )
@@ -1049,8 +1054,12 @@ def implement(
     if json_output:
         # JSON output for scripting
         import json
+        workspace_rel = str(workspace_path.relative_to(repo_root))
         print(json.dumps({
-            "workspace_path": str(workspace_path.relative_to(repo_root)),
+            # Canonical key for consumers.
+            "workspace": workspace_rel,
+            # Backward compatibility for existing integrations.
+            "workspace_path": workspace_rel,
             "branch": branch_name,
             "feature": feature_slug,
             "wp_id": wp_id,

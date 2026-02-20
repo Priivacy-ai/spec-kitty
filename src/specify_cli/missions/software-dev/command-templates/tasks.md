@@ -123,7 +123,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Name with succinct goal (e.g., "User Story 1 – Real-time chat happy path")
    - Record metadata: priority, success criteria, risks, dependencies, included subtasks
 
-5. **Write `tasks.md`** using the bundled tasks template (`src/specify_cli/missions/software-dev/templates/tasks-template.md`):
+5. **Write `tasks.md`** using the bundled tasks template (`.kittify/missions/software-dev/templates/tasks-template.md`):
    - **Location**: Write to `FEATURE_DIR/tasks.md` (use the absolute FEATURE_DIR path from step 1)
    - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries
    - Under each work package include:
@@ -142,7 +142,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `FEATURE_DIR/tasks/WP01-create-html-page.md` (use ABSOLUTE path from FEATURE_DIR variable)
-     - Use the bundled task prompt template (`src/specify_cli/missions/software-dev/templates/task-prompt-template.md`) to capture:
+     - Use the bundled task prompt template (`.kittify/missions/software-dev/templates/task-prompt-template.md`) to capture:
      - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
        - Objective, context, detailed guidance per subtask
        - Test strategy (only if requested)

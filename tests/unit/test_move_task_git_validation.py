@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.cli.commands.agent.tasks import app, _validate_ready_for_review
 
 runner = CliRunner()
 
@@ -237,3 +237,73 @@ class TestMoveTaskGitValidation:
         output = json.loads(first_line)
         assert "error" in output
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
+
+    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="software-dev")
+    def test_review_validation_allows_behind_status_only_commits(
+        self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]
+    ):
+        """Status-only commits on planning branch should not force rebases."""
+        repo_root, worktree = git_repo_with_worktree
+        feature_slug = "017-test-feature"
+
+        # Add a status/planning-only commit on main so the worktree is behind.
+        wp_file = repo_root / "kitty-specs" / feature_slug / "tasks" / "WP01-test-task.md"
+        content = wp_file.read_text(encoding="utf-8")
+        wp_file.write_text(content + "\n<!-- status update -->\n", encoding="utf-8")
+        subprocess.run(["git", "add", str(wp_file)], cwd=repo_root, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "chore: status-only planning update"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+
+        is_valid, guidance = _validate_ready_for_review(
+            repo_root=worktree,
+            feature_slug=feature_slug,
+            wp_id="WP01",
+            force=False,
+        )
+
+        assert is_valid is True
+        assert guidance == []
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_for_review_from_worktree_mirrors_commit_to_wp_branch(
+        self,
+        mock_slug: Mock,
+        mock_root: Mock,
+        git_repo_with_worktree: tuple[Path, Path],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Moving from a WP worktree should mirror lane commit to WP branch."""
+        repo_root, worktree = git_repo_with_worktree
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "017-test-feature"
+        monkeypatch.chdir(worktree)
+
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
+
+        assert result.exit_code == 0
+        payload = json.loads(result.stdout)
+        assert payload["result"] == "success"
+        assert payload["new_lane"] == "for_review"
+
+        main_head_msg = subprocess.run(
+            ["git", "log", "-1", "--pretty=%s"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        wp_head_msg = subprocess.run(
+            ["git", "log", "-1", "--pretty=%s"],
+            cwd=worktree,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+        assert "Move WP01 to for_review" in main_head_msg
+        assert "Move WP01 to for_review" in wp_head_msg

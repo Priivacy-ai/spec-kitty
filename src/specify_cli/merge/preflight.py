@@ -9,6 +9,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
 
 from rich.console import Console
 from rich.table import Table
@@ -138,6 +139,26 @@ def check_target_divergence(target_branch: str, repo_root: Path) -> tuple[bool, 
         return False, None  # Assume OK if check fails
 
 
+def _wp_lane_from_feature(repo_root: Path, feature_slug: str, wp_id: str) -> str | None:
+    """Read lane value for a WP prompt file from kitty-specs."""
+    tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+    if not tasks_dir.exists():
+        return None
+
+    candidates = sorted(tasks_dir.glob(f"{wp_id}*.md"))
+    if not candidates:
+        return None
+
+    content = candidates[0].read_text(encoding="utf-8", errors="replace")
+    if not content.startswith("---"):
+        return None
+
+    match = re.search(r"^lane:\s*['\"]?([^'\"\n]+)['\"]?\s*$", content, re.MULTILINE)
+    if not match:
+        return None
+    return match.group(1).strip().lower()
+
+
 def run_preflight(
     feature_slug: str,
     target_branch: str,
@@ -163,8 +184,15 @@ def run_preflight(
     discovered_wps = {wp_id for _, wp_id, _ in wp_workspaces}
     missing_wps = sorted(expected_wps - discovered_wps)
     if missing_wps:
-        result.passed = False
         for wp_id in missing_wps:
+            lane = _wp_lane_from_feature(repo_root, feature_slug, wp_id)
+            if lane == "done":
+                result.warnings.append(
+                    f"Skipping missing worktree check for {wp_id} (lane=done)."
+                )
+                continue
+
+            result.passed = False
             expected_path = repo_root / ".worktrees" / f"{feature_slug}-{wp_id}"
             error = f"Missing worktree for {wp_id}. Expected at {expected_path.name}. Run: spec-kitty agent workflow implement {wp_id}"
             result.wp_statuses.append(
@@ -231,4 +259,8 @@ def display_preflight_result(result: PreflightResult, console: Console) -> None:
             console.print(f"  {i}. {error}")
         console.print()
     else:
+        if result.warnings:
+            console.print()
+            for warning in result.warnings:
+                console.print(f"[yellow]Warning:[/yellow] {warning}")
         console.print("\n[green]Pre-flight passed.[/green] Ready to merge.\n")

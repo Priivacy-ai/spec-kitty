@@ -115,7 +115,13 @@ def accept(
         console.print()
         tracker.start("detect")
     try:
-        feature_slug = (feature or detect_feature_slug(repo_root)).strip()
+        feature_slug = (
+            feature
+            or detect_feature_slug(
+                repo_root,
+                announce_fallback=not json_output,
+            )
+        ).strip()
     except AcceptanceError as exc:
         if json_output:
             print(json.dumps({"error": str(exc)}))

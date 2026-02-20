@@ -147,7 +147,7 @@ Given that feature description, do this:
    **IMPORTANT**: You must only ever run this command once. The JSON is provided in the terminal output - always refer to it to get the actual paths you're looking for.
 3. **Stay in the main repository**: No worktree is created during specify.
 
-4. The spec template is bundled with spec-kitty at `src/specify_cli/missions/software-dev/templates/spec-template.md`. The template defines required sections for software development features.
+4. The spec template is bundled in this project at `.kittify/missions/software-dev/templates/spec-template.md`. The template defines required sections for software development features.
 
 5. Create meta.json in the feature directory with:
    ```json
