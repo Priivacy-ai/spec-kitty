@@ -6,7 +6,6 @@ Supports both git and jujutsu backends through the VCS abstraction layer.
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 import warnings
@@ -340,11 +339,14 @@ def merge_workspace_per_wp(
     tracker.start("checkout")
     try:
         console.print(f"[cyan]Operating from {merge_root}[/cyan]")
-        os.chdir(merge_root)
-        _, target_status, _ = run_command(["git", "status", "--porcelain"], capture=True)
+        _, target_status, _ = run_command(
+            ["git", "status", "--porcelain"],
+            capture=True,
+            cwd=merge_root,
+        )
         if target_status.strip():
             raise RuntimeError(f"Target repository at {merge_root} has uncommitted changes.")
-        run_command(["git", "checkout", target_branch])
+        run_command(["git", "checkout", target_branch], cwd=merge_root)
         tracker.complete("checkout", f"using {merge_root}")
     except Exception as exc:
         tracker.error("checkout", str(exc))
@@ -360,7 +362,7 @@ def merge_workspace_per_wp(
             tracker.skip("pull", "no upstream tracking")
             console.print("[dim]Skipping pull (main branch not tracking remote)[/dim]")
         else:
-            run_command(["git", "pull", "--ff-only"])
+            run_command(["git", "pull", "--ff-only"], cwd=merge_root)
             tracker.complete("pull")
     except Exception as exc:
         tracker.error("pull", str(exc))
@@ -376,8 +378,11 @@ def merge_workspace_per_wp(
             console.print(f"[cyan]Merging {wp_id} ({branch})...[/cyan]")
 
             if strategy == "squash":
-                run_command(["git", "merge", "--squash", branch])
-                run_command(["git", "commit", "-m", f"Merge {wp_id} from {feature_slug}"])
+                run_command(["git", "merge", "--squash", branch], cwd=merge_root)
+                run_command(
+                    ["git", "commit", "-m", f"Merge {wp_id} from {feature_slug}"],
+                    cwd=merge_root,
+                )
             elif strategy == "rebase":
                 console.print("\n[yellow]Note:[/yellow] Rebase strategy not supported for workspace-per-WP.")
                 console.print("Use 'merge' or 'squash' strategy instead.")
@@ -385,7 +390,10 @@ def merge_workspace_per_wp(
                 console.print(tracker.render())
                 raise typer.Exit(1)
             else:  # merge (default)
-                run_command(["git", "merge", "--no-ff", branch, "-m", f"Merge {wp_id} from {feature_slug}"])
+                run_command(
+                    ["git", "merge", "--no-ff", branch, "-m", f"Merge {wp_id} from {feature_slug}"],
+                    cwd=merge_root,
+                )
 
             console.print(f"[green]✓[/green] {wp_id} merged")
 
@@ -400,7 +408,7 @@ def merge_workspace_per_wp(
     if push:
         tracker.start("push")
         try:
-            run_command(["git", "push", "origin", target_branch])
+            run_command(["git", "push", "origin", target_branch], cwd=merge_root)
             tracker.complete("push")
         except Exception as exc:
             tracker.error("push", str(exc))
@@ -417,7 +425,10 @@ def merge_workspace_per_wp(
                 console.print(f"[dim]Skipping missing worktree cleanup for {wp_id}[/dim]")
                 continue
             try:
-                run_command(["git", "worktree", "remove", str(wt_path), "--force"])
+                run_command(
+                    ["git", "worktree", "remove", str(wt_path), "--force"],
+                    cwd=merge_root,
+                )
                 console.print(f"[green]✓[/green] Removed worktree: {wp_id}")
             except Exception as exc:
                 failed_removals.append((wp_id, wt_path))
@@ -437,12 +448,12 @@ def merge_workspace_per_wp(
         failed_deletions = []
         for wt_path, wp_id, branch in wp_workspaces:
             try:
-                run_command(["git", "branch", "-d", branch])
+                run_command(["git", "branch", "-d", branch], cwd=merge_root)
                 console.print(f"[green]✓[/green] Deleted branch: {branch}")
             except Exception:
                 # Try force delete
                 try:
-                    run_command(["git", "branch", "-D", branch])
+                    run_command(["git", "branch", "-D", branch], cwd=merge_root)
                     console.print(f"[green]✓[/green] Force deleted branch: {branch}")
                 except Exception:
                     failed_deletions.append((wp_id, branch))
@@ -776,11 +787,14 @@ def merge(
     try:
         if in_worktree:
             console.print(f"[cyan]Detected worktree. Merge operations will run from {merge_root}[/cyan]")
-        os.chdir(merge_root)
-        _, target_status, _ = run_command(["git", "status", "--porcelain"], capture=True)
+        _, target_status, _ = run_command(
+            ["git", "status", "--porcelain"],
+            capture=True,
+            cwd=merge_root,
+        )
         if target_status.strip():
             raise RuntimeError(f"Target repository at {merge_root} has uncommitted changes.")
-        run_command(["git", "checkout", target_branch])
+        run_command(["git", "checkout", target_branch], cwd=merge_root)
         tracker.complete("checkout", f"using {merge_root}")
     except Exception as exc:
         tracker.error("checkout", str(exc))
@@ -796,7 +810,7 @@ def merge(
             tracker.skip("pull", "no upstream tracking")
             console.print("[dim]Skipping pull (main branch not tracking remote)[/dim]")
         else:
-            run_command(["git", "pull", "--ff-only"])
+            run_command(["git", "pull", "--ff-only"], cwd=merge_root)
             tracker.complete("pull")
     except Exception as exc:
         tracker.error("pull", str(exc))
@@ -808,8 +822,11 @@ def merge(
     tracker.start("merge")
     try:
         if strategy == "squash":
-            run_command(["git", "merge", "--squash", current_branch])
-            run_command(["git", "commit", "-m", f"Merge feature {current_branch}"])
+            run_command(["git", "merge", "--squash", current_branch], cwd=merge_root)
+            run_command(
+                ["git", "commit", "-m", f"Merge feature {current_branch}"],
+                cwd=merge_root,
+            )
             tracker.complete("merge", "squashed")
         elif strategy == "rebase":
             console.print("\n[yellow]Note:[/yellow] Rebase strategy requires manual intervention.")
@@ -818,7 +835,10 @@ def merge(
             console.print(tracker.render())
             raise typer.Exit(0)
         else:
-            run_command(["git", "merge", "--no-ff", current_branch, "-m", f"Merge feature {current_branch}"])
+            run_command(
+                ["git", "merge", "--no-ff", current_branch, "-m", f"Merge feature {current_branch}"],
+                cwd=merge_root,
+            )
             tracker.complete("merge", "merged with merge commit")
     except Exception as exc:
         tracker.error("merge", str(exc))
@@ -829,7 +849,7 @@ def merge(
     if push:
         tracker.start("push")
         try:
-            run_command(["git", "push", "origin", target_branch])
+            run_command(["git", "push", "origin", target_branch], cwd=merge_root)
             tracker.complete("push")
         except Exception as exc:
             tracker.error("push", str(exc))
@@ -840,7 +860,10 @@ def merge(
     if in_worktree and remove_worktree:
         tracker.start("worktree")
         try:
-            run_command(["git", "worktree", "remove", str(feature_worktree_path), "--force"])
+            run_command(
+                ["git", "worktree", "remove", str(feature_worktree_path), "--force"],
+                cwd=merge_root,
+            )
             tracker.complete("worktree", f"removed {feature_worktree_path}")
         except Exception as exc:
             tracker.error("worktree", str(exc))
@@ -851,11 +874,11 @@ def merge(
     if delete_branch:
         tracker.start("branch")
         try:
-            run_command(["git", "branch", "-d", current_branch])
+            run_command(["git", "branch", "-d", current_branch], cwd=merge_root)
             tracker.complete("branch", f"deleted {current_branch}")
         except Exception as exc:
             try:
-                run_command(["git", "branch", "-D", current_branch])
+                run_command(["git", "branch", "-D", current_branch], cwd=merge_root)
                 tracker.complete("branch", f"force deleted {current_branch}")
             except Exception:
                 tracker.error("branch", str(exc))

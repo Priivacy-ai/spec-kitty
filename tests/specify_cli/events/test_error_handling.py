@@ -4,7 +4,7 @@ import pytest
 from pathlib import Path
 from datetime import datetime
 from unittest.mock import patch, mock_open, MagicMock
-from specify_cli.events.store import append_event
+from specify_cli.events.store import append_event, get_queue_path
 from specify_cli.spec_kitty_events.models import Event
 
 
@@ -108,6 +108,6 @@ def test_append_event_continues_on_chmod_error(tmp_path, monkeypatch, sample_eve
             pytest.fail("append_event should not fail on chmod error")
 
     # Verify event was written despite chmod failure
-    queue_path = queue_dir / "queue.db"
+    queue_path = get_queue_path("test-mission")
     assert queue_path.exists()
     assert queue_path.read_text().strip() != ""

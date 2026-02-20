@@ -62,7 +62,6 @@ class EventStore:
 def get_queue_path(mission_id: str) -> Path:
     """Get path to mission-specific queue file."""
     queue_dir = Path.home() / ".spec-kitty" / "queues"
-    queue_dir.mkdir(parents=True, exist_ok=True)
     return queue_dir / f"{mission_id}.jsonl"
 
 

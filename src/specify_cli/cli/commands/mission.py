@@ -33,6 +33,10 @@ from specify_cli.collaboration.service import (
     set_drive,
     acknowledge_warning,
 )
+from specify_cli.collaboration.identifiers import (
+    resolve_correlation_id,
+    resolve_project_uuid,
+)
 from specify_cli.collaboration.session import resolve_mission_id, ensure_joined
 from specify_cli.collaboration.state import get_mission_roster
 from specify_cli.events.ulid_utils import generate_event_id
@@ -518,7 +522,6 @@ def comment_command(text: str | None = None, mission_id: str | None = None) -> N
 
         # Emit CommentPosted event
         clock = LamportClock("cli-local")
-        import uuid
         event = Event(
             event_id=comment_id,
             event_type="CommentPosted",
@@ -533,9 +536,12 @@ def comment_command(text: str | None = None, mission_id: str | None = None) -> N
             timestamp=datetime.now().isoformat(),
             node_id="cli-local",
             lamport_clock=clock.increment(),
-            correlation_id=state.mission_run_id,
+            correlation_id=resolve_correlation_id(state.mission_run_id),
             causation_id=None,
-            project_uuid=uuid.UUID(state.mission_run_id) if state.mission_run_id else uuid.uuid4(),
+            project_uuid=resolve_project_uuid(
+                mission_id=resolved_mission_id,
+                mission_run_id=state.mission_run_id,
+            ),
             project_slug=resolved_mission_id,
             schema_version="1.0.0",
             data_tier=0,
@@ -575,7 +581,6 @@ def decide_command(text: str | None = None, mission_id: str | None = None) -> No
 
         # Emit DecisionCaptured event
         clock = LamportClock("cli-local")
-        import uuid
         event = Event(
             event_id=decision_id,
             event_type="DecisionCaptured",
@@ -592,9 +597,12 @@ def decide_command(text: str | None = None, mission_id: str | None = None) -> No
             timestamp=datetime.now().isoformat(),
             node_id="cli-local",
             lamport_clock=clock.increment(),
-            correlation_id=state.mission_run_id,
+            correlation_id=resolve_correlation_id(state.mission_run_id),
             causation_id=None,
-            project_uuid=uuid.UUID(state.mission_run_id) if state.mission_run_id else uuid.uuid4(),
+            project_uuid=resolve_project_uuid(
+                mission_id=resolved_mission_id,
+                mission_run_id=state.mission_run_id,
+            ),
             project_slug=resolved_mission_id,
             schema_version="1.0.0",
             data_tier=0,

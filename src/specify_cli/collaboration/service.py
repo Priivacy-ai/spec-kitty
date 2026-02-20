@@ -2,6 +2,10 @@
 
 import httpx
 from datetime import datetime
+from specify_cli.collaboration.identifiers import (
+    resolve_correlation_id,
+    resolve_project_uuid,
+)
 from specify_cli.collaboration.session import (
     save_session_state,
     set_active_mission,
@@ -92,7 +96,6 @@ def join_mission(
 
     # Emit ParticipantJoined event
     clock = LamportClock(node_id)
-    import uuid
     event = Event(
         event_id=generate_event_id(),
         event_type="ParticipantJoined",
@@ -113,9 +116,13 @@ def join_mission(
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=None,
-        project_uuid=uuid.UUID(data.get("project_uuid", str(uuid.uuid4()))),
+        project_uuid=resolve_project_uuid(
+            mission_id=mission_id,
+            mission_run_id=data.get("mission_run_id"),
+            explicit_project_uuid=data.get("project_uuid"),
+        ),
         project_slug=data.get("project_slug", mission_id),
-        correlation_id=data.get("mission_run_id", generate_event_id()),
+        correlation_id=resolve_correlation_id(data.get("mission_run_id")),
         schema_version="1.0.0",
         data_tier=0,
     )
@@ -153,7 +160,6 @@ def set_focus(mission_id: str, focus: str, node_id: str = "cli-local") -> None:
 
     # Emit FocusChanged event
     clock = LamportClock(node_id)
-    import uuid
     event = Event(
         event_id=generate_event_id(),
         event_type="FocusChanged",
@@ -168,9 +174,12 @@ def set_focus(mission_id: str, focus: str, node_id: str = "cli-local") -> None:
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=None,
-        project_uuid=uuid.UUID(state.mission_run_id) if state.mission_run_id else uuid.uuid4(),
+        project_uuid=resolve_project_uuid(
+            mission_id=mission_id,
+            mission_run_id=state.mission_run_id,
+        ),
         project_slug=mission_id,
-        correlation_id=state.mission_run_id or generate_event_id(),
+        correlation_id=resolve_correlation_id(state.mission_run_id),
         schema_version="1.0.0",
         data_tier=0,
     )
@@ -219,7 +228,6 @@ def set_drive(mission_id: str, intent: str, node_id: str = "cli-local", bypass_c
 
     # Emit DriveIntentSet event
     clock = LamportClock(node_id)
-    import uuid
     event = Event(
         event_id=generate_event_id(),
         event_type="DriveIntentSet",
@@ -233,9 +241,12 @@ def set_drive(mission_id: str, intent: str, node_id: str = "cli-local", bypass_c
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=None,
-        project_uuid=uuid.UUID(state.mission_run_id) if state.mission_run_id else uuid.uuid4(),
+        project_uuid=resolve_project_uuid(
+            mission_id=mission_id,
+            mission_run_id=state.mission_run_id,
+        ),
         project_slug=mission_id,
-        correlation_id=state.mission_run_id or generate_event_id(),
+        correlation_id=resolve_correlation_id(state.mission_run_id),
         schema_version="1.0.0",
         data_tier=0,
     )
@@ -273,7 +284,6 @@ def acknowledge_warning(
 
     # Emit WarningAcknowledged event
     clock = LamportClock(node_id)
-    import uuid
     event = Event(
         event_id=generate_event_id(),
         event_type="WarningAcknowledged",
@@ -288,9 +298,12 @@ def acknowledge_warning(
         node_id=node_id,
         lamport_clock=clock.increment(),
         causation_id=warning_id,
-        project_uuid=uuid.UUID(state.mission_run_id) if state.mission_run_id else uuid.uuid4(),
+        project_uuid=resolve_project_uuid(
+            mission_id=mission_id,
+            mission_run_id=state.mission_run_id,
+        ),
         project_slug=mission_id,
-        correlation_id=state.mission_run_id or generate_event_id(),
+        correlation_id=resolve_correlation_id(state.mission_run_id),
         schema_version="1.0.0",
         data_tier=0,
     )
