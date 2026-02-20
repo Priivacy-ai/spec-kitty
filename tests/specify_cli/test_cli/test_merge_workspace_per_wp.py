@@ -137,6 +137,28 @@ class TestDetectWorktreeStructure:
         structure = detect_worktree_structure(git_repo, "999-nonexistent")
         assert structure == "none"
 
+    def test_detects_workspace_per_wp_from_branches_without_worktree_dirs(self, workspace_per_wp_repo: Path):
+        """Detect workspace-per-WP even when worktree directories were removed."""
+        for wp_num in [1, 2, 3]:
+            branch_name = f"010-test-feature-WP{wp_num:02d}"
+            worktree_path = workspace_per_wp_repo / ".worktrees" / branch_name
+            subprocess.run(
+                ["git", "worktree", "remove", str(worktree_path), "--force"],
+                cwd=workspace_per_wp_repo,
+                check=True,
+                capture_output=True,
+            )
+
+        subprocess.run(
+            ["git", "worktree", "prune"],
+            cwd=workspace_per_wp_repo,
+            check=True,
+            capture_output=True,
+        )
+
+        structure = detect_worktree_structure(workspace_per_wp_repo, "010-test-feature")
+        assert structure == "workspace-per-wp"
+
 
 class TestFindWpWorktrees:
     """Tests for find_wp_worktrees function."""
@@ -161,6 +183,35 @@ class TestFindWpWorktrees:
         """Test returns empty list when no worktrees found."""
         wp_workspaces = find_wp_worktrees(git_repo, "999-nonexistent")
         assert wp_workspaces == []
+
+    def test_falls_back_to_wp_branches_when_worktrees_removed(self, workspace_per_wp_repo: Path):
+        """Fallback to branch discovery when worktree directories are gone."""
+        for wp_num in [1, 2, 3]:
+            branch_name = f"010-test-feature-WP{wp_num:02d}"
+            worktree_path = workspace_per_wp_repo / ".worktrees" / branch_name
+            subprocess.run(
+                ["git", "worktree", "remove", str(worktree_path), "--force"],
+                cwd=workspace_per_wp_repo,
+                check=True,
+                capture_output=True,
+            )
+        subprocess.run(
+            ["git", "worktree", "prune"],
+            cwd=workspace_per_wp_repo,
+            check=True,
+            capture_output=True,
+        )
+
+        wp_workspaces = find_wp_worktrees(workspace_per_wp_repo, "010-test-feature")
+        assert len(wp_workspaces) == 3
+        assert [wp for _, wp, _ in wp_workspaces] == ["WP01", "WP02", "WP03"]
+        assert [branch for _, _, branch in wp_workspaces] == [
+            "010-test-feature-WP01",
+            "010-test-feature-WP02",
+            "010-test-feature-WP03",
+        ]
+        # Fallback entries use expected .worktrees paths even when directories are missing.
+        assert all(not path.exists() for path, _, _ in wp_workspaces)
 
 
 class TestValidateWpReadyForMerge:

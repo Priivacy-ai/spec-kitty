@@ -668,6 +668,61 @@ dependencies: []
         assert result.wp_statuses == []
         assert any("Skipping missing worktree check for WP01" in w for w in result.warnings)
 
+    def test_branch_only_wp_skips_cleanliness_check(self, tmp_path: Path):
+        """Provided WP branch with missing worktree path should be treated as branch-only merge."""
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+        (repo / "README.md").write_text("test")
+        subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+
+        feature_dir = repo / "kitty-specs" / "001-test-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (tasks_dir / "WP01.md").write_text(
+            """---
+work_package_id: WP01
+title: Test WP
+lane: done
+dependencies: []
+---
+""",
+            encoding="utf-8",
+        )
+
+        missing_path = repo / ".worktrees" / "001-test-feature-WP01"
+        result = run_preflight(
+            feature_slug="001-test-feature",
+            target_branch="master",
+            repo_root=repo,
+            wp_workspaces=[(missing_path, "WP01", "001-test-feature-WP01")],
+        )
+
+        assert result.passed is True
+        assert len(result.errors) == 0
+        assert len(result.wp_statuses) == 1
+        assert result.wp_statuses[0].wp_id == "WP01"
+        assert result.wp_statuses[0].is_clean is True
+        assert any("Skipping cleanliness check for WP01" in w for w in result.warnings)
+
     def test_detects_uncommitted_changes(self, tmp_path: Path):
         """Test preflight detects uncommitted changes."""
         repo = tmp_path / "repo"

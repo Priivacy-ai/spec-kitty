@@ -35,6 +35,58 @@ from specify_cli.merge.state import (
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
+def _list_wp_branches(repo_root: Path, feature_slug: str) -> list[tuple[str, str]]:
+    """List local WP branches for a feature, returning (wp_id, branch_name)."""
+    main_repo = get_main_repo_root(repo_root)
+    pattern = re.compile(rf"^{re.escape(feature_slug)}-(WP\d{{2}})$")
+    result = subprocess.run(
+        ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"],
+        cwd=str(main_repo),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+
+    branches: list[tuple[str, str]] = []
+    for raw in result.stdout.splitlines():
+        branch = raw.strip()
+        if not branch:
+            continue
+        match = pattern.match(branch)
+        if match:
+            branches.append((match.group(1), branch))
+    branches.sort(key=lambda item: item[0])
+    return branches
+
+
+def _all_feature_wps_done(repo_root: Path, feature_slug: str) -> bool:
+    """Return True when every WP in the feature is in lane done."""
+    tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+    if not tasks_dir.exists():
+        return False
+
+    wp_files = sorted(tasks_dir.glob("WP*.md"))
+    if not wp_files:
+        return False
+
+    for wp_file in wp_files:
+        content = wp_file.read_text(encoding="utf-8-sig")
+        lane_match = re.search(
+            r"^lane:\s*['\"]?([^'\"\n]+)['\"]?\s*$",
+            content,
+            re.MULTILINE,
+        )
+        if not lane_match:
+            return False
+        if lane_match.group(1).strip().lower() != "done":
+            return False
+    return True
+
+
 def get_main_repo_root(repo_root: Path) -> Path:
     """Get the main repository root, even if called from a worktree.
 
@@ -91,6 +143,10 @@ def detect_worktree_structure(repo_root: Path, feature_slug: str) -> str:
     if wp_pattern:
         return "workspace-per-wp"
 
+    # Fallback: worktree directories may be missing/pruned while branches still exist.
+    if _list_wp_branches(main_repo, feature_slug):
+        return "workspace-per-wp"
+
     # Look for legacy pattern: .worktrees/###-feature/
     legacy_pattern = worktrees_dir / feature_slug
     if legacy_pattern.exists() and legacy_pattern.is_dir():
@@ -124,15 +180,21 @@ def find_wp_worktrees(repo_root: Path, feature_slug: str) -> list[tuple[Path, st
     pattern = f"{feature_slug}-WP*"
 
     wp_worktrees = sorted(worktrees_dir.glob(pattern))
-
-    wp_workspaces = []
+    workspace_map: dict[str, tuple[Path, str, str]] = {}
     for wt_path in wp_worktrees:
         wp_id = extract_wp_id(wt_path)
         if wp_id:
             branch_name = wt_path.name  # Directory name = branch name
-            wp_workspaces.append((wt_path, wp_id, branch_name))
+            workspace_map[wp_id] = (wt_path, wp_id, branch_name)
 
-    return wp_workspaces
+    # Branch fallback: merge should still work when worktree directories are gone.
+    for wp_id, branch_name in _list_wp_branches(main_repo, feature_slug):
+        if wp_id in workspace_map:
+            continue
+        expected_path = worktrees_dir / branch_name
+        workspace_map[wp_id] = (expected_path, wp_id, branch_name)
+
+    return sorted(workspace_map.values(), key=lambda item: item[1])
 
 
 def extract_feature_slug(branch_name: str) -> str:
@@ -158,7 +220,10 @@ def validate_wp_ready_for_merge(repo_root: Path, worktree_path: Path, branch_nam
     if result.returncode != 0:
         return False, f"Branch {branch_name} does not exist"
 
-    # Check 2: No uncommitted changes in worktree
+    # Check 2: No uncommitted changes in worktree (if present)
+    if not worktree_path.exists():
+        return True, ""
+
     result = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=str(worktree_path),
@@ -258,7 +323,10 @@ def merge_workspace_per_wp(
 
         if remove_worktree:
             for wt_path, wp_id, branch in wp_workspaces:
-                steps.append(f"git worktree remove {wt_path}")
+                if wt_path.exists():
+                    steps.append(f"git worktree remove {wt_path}")
+                else:
+                    steps.append(f"# skip worktree removal for {wp_id} (path not present)")
 
         if delete_branch:
             for wt_path, wp_id, branch in wp_workspaces:
@@ -345,6 +413,9 @@ def merge_workspace_per_wp(
         tracker.start("worktree")
         failed_removals = []
         for wt_path, wp_id, branch in wp_workspaces:
+            if not wt_path.exists():
+                console.print(f"[dim]Skipping missing worktree cleanup for {wp_id}[/dim]")
+                continue
             try:
                 run_command(["git", "worktree", "remove", str(wt_path), "--force"])
                 console.print(f"[green]✓[/green] Removed worktree: {wp_id}")
@@ -391,6 +462,7 @@ def merge_workspace_per_wp(
 
 @require_main_repo
 def merge(
+    feature_arg: str = typer.Argument(None, help="Feature slug (deprecated positional form; prefer --feature)"),
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     delete_branch: bool = typer.Option(True, "--delete-branch/--keep-branch", help="Delete feature branch after merge"),
     remove_worktree: bool = typer.Option(True, "--remove-worktree/--keep-worktree", help="Remove feature worktree after merge"),
@@ -498,6 +570,15 @@ def merge(
 
     check_version_compatibility(repo_root, "merge")
 
+    # Backward compatibility for older slash-command templates.
+    if feature is None and feature_arg:
+        feature = feature_arg
+    elif feature is not None and feature_arg and feature != feature_arg:
+        console.print("[red]Error:[/red] Conflicting feature values provided.")
+        console.print(f"Positional: {feature_arg}")
+        console.print(f"--feature:  {feature}")
+        raise typer.Exit(1)
+
     # Detect VCS backend
     try:
         vcs = get_vcs(repo_root)
@@ -516,16 +597,25 @@ def merge(
         if current_branch == target_branch:
             # Check if --feature flag was provided
             if feature:
-                # Validate feature exists by checking for worktrees
+                # Validate feature exists by checking for worktree/branch sources
                 main_repo = get_main_repo_root(repo_root)
-                worktrees_dir = main_repo / ".worktrees"
-                wp_pattern = list(worktrees_dir.glob(f"{feature}-WP*")) if worktrees_dir.exists() else []
+                wp_sources = find_wp_worktrees(main_repo, feature)
 
-                if not wp_pattern:
-                    tracker.error("detect", f"no WP worktrees found for {feature}")
+                if not wp_sources:
+                    if _all_feature_wps_done(main_repo, feature):
+                        tracker.complete("detect", f"{feature} already merged (no WP branches/worktrees remain)")
+                        console.print(tracker.render())
+                        console.print(
+                            f"\n[yellow]Nothing to merge:[/yellow] Feature '{feature}' appears already merged "
+                            "(all WPs are done and no WP branches/worktrees remain)."
+                        )
+                        raise typer.Exit(0)
+                    tracker.error("detect", f"no WP branches/worktrees found for {feature}")
                     console.print(tracker.render())
-                    console.print(f"\n[red]Error:[/red] No WP worktrees found for feature '{feature}'.")
-                    console.print("Check the feature slug or create workspaces first.")
+                    console.print(
+                        f"\n[red]Error:[/red] No WP branches/worktrees found for feature '{feature}'."
+                    )
+                    console.print("Check the feature slug or run implement for unfinished WPs.")
                     raise typer.Exit(1)
 
                 # Use the provided feature slug and continue
@@ -586,6 +676,8 @@ def merge(
             "detect",
             f"on {current_branch}" + (f" (worktree → operating from {merge_root})" if in_worktree else ""),
         )
+    except typer.Exit:
+        raise
     except Exception as exc:
         tracker.error("detect", str(exc))
         console.print(tracker.render())

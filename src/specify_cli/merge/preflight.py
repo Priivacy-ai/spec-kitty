@@ -208,6 +208,21 @@ def run_preflight(
 
     # Check all worktrees
     for wt_path, wp_id, branch in wp_workspaces:
+        if not wt_path.exists():
+            result.warnings.append(
+                f"Skipping cleanliness check for {wp_id} (worktree missing; merging from branch {branch})."
+            )
+            result.wp_statuses.append(
+                WPStatus(
+                    wp_id=wp_id,
+                    worktree_path=wt_path,
+                    branch_name=branch,
+                    is_clean=True,
+                    error=None,
+                )
+            )
+            continue
+
         status = check_worktree_status(wt_path, wp_id, branch)
         result.wp_statuses.append(status)
         if not status.is_clean:

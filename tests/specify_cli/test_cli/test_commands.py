@@ -271,6 +271,72 @@ def test_merge_skips_pull_when_target_has_no_tracking(monkeypatch, tmp_path: Pat
     assert "Skipping pull (main branch not tracking remote)" in result.stdout
 
 
+def test_merge_accepts_positional_feature_slug(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    captured: dict[str, object] = {}
+
+    def fake_run_command(cmd, capture=False, **_kwargs):
+        if cmd[:3] == ["git", "rev-parse", "--abbrev-ref"]:
+            return 0, "main", ""
+        if cmd[:3] == ["git", "rev-parse", "--git-dir"]:
+            return 0, str(repo_root / ".git"), ""
+        return 0, "", ""
+
+    monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+    monkeypatch.setattr(merge_module, "check_version_compatibility", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(merge_module, "show_banner", lambda: None)
+    monkeypatch.setattr(
+        merge_module,
+        "find_wp_worktrees",
+        lambda *_args, **_kwargs: [(repo_root / ".worktrees" / "001-demo-WP01", "WP01", "001-demo-WP01")],
+    )
+    monkeypatch.setattr(
+        merge_module,
+        "run_preflight",
+        lambda **_kwargs: type(
+            "Preflight",
+            (),
+            {"passed": True, "wp_statuses": [], "target_diverged": False, "target_divergence_msg": None, "errors": [], "warnings": []},
+        )(),
+    )
+    monkeypatch.setattr(merge_module, "display_preflight_result", lambda *_args, **_kwargs: None)
+
+    def fake_merge_workspace_per_wp(**kwargs):
+        captured["feature_slug"] = kwargs["feature_slug"]
+
+    monkeypatch.setattr(merge_module, "merge_workspace_per_wp", fake_merge_workspace_per_wp)
+
+    result = runner.invoke(cli_app, ["merge", "001-demo-feature", "--dry-run"])
+    assert result.exit_code == 0
+    assert captured["feature_slug"] == "001-demo-feature"
+
+
+def test_merge_feature_on_main_reports_already_merged_when_no_sources(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    def fake_run_command(cmd, capture=False, **_kwargs):
+        if cmd[:3] == ["git", "rev-parse", "--abbrev-ref"]:
+            return 0, "main", ""
+        if cmd[:3] == ["git", "rev-parse", "--git-dir"]:
+            return 0, str(repo_root / ".git"), ""
+        return 0, "", ""
+
+    monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+    monkeypatch.setattr(merge_module, "check_version_compatibility", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(merge_module, "show_banner", lambda: None)
+    monkeypatch.setattr(merge_module, "find_wp_worktrees", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(merge_module, "_all_feature_wps_done", lambda *_args, **_kwargs: True)
+
+    result = runner.invoke(cli_app, ["merge", "--feature", "001-demo-feature"])
+    assert result.exit_code == 0
+    assert "Nothing to merge" in result.stdout
+    assert "already merged" in result.stdout
+
+
 def test_verify_setup_json_output(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "workspace"
     repo_root.mkdir()

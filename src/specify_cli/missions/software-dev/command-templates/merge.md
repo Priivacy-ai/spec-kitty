@@ -91,13 +91,13 @@ Before running this command:
 ## Command Syntax
 
 ```bash
-spec-kitty merge ###-feature-slug [OPTIONS]
+spec-kitty merge --feature ###-feature-slug [OPTIONS]
 ```
 
 **Example**:
 ```bash
 cd /tmp/spec-kitty-test/test-project  # Main repo root
-spec-kitty merge 001-cli-hello-world
+spec-kitty merge --feature 001-cli-hello-world
 ```
 
 ## What This Command Does
