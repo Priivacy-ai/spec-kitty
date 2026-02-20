@@ -126,8 +126,8 @@ def test_protect_all_agents_adds_all_directories():
         assert result.success
         assert result.modified
 
-        # Check that all 14 entries were added (12 agents + 2 runtime paths)
-        assert len(result.entries_added) == 14
+        # Check that all 15 entries were added (12 agents + 3 runtime paths)
+        assert len(result.entries_added) == 15
 
         # Check that .gitignore was updated
         gitignore_path = project_path / ".gitignore"
@@ -143,6 +143,7 @@ def test_protect_all_agents_adds_all_directories():
         for dir_name in expected_dirs:
             assert dir_name in content
         assert ".kittify/.dashboard" in content
+        assert ".kittify/workspaces/" in content
         assert ".kittify/missions/__pycache__/" in content
 
 
@@ -168,8 +169,8 @@ def test_protect_all_agents_with_existing_directory():
         assert ".codex/" in result.entries_skipped
         assert ".claude/" in result.entries_skipped
 
-        # Check that new entries were added (14 total - 2 existing = 12)
-        assert len(result.entries_added) == 12
+        # Check that new entries were added (15 total - 2 existing = 13)
+        assert len(result.entries_added) == 13
 
 
 def test_protect_selected_agents():

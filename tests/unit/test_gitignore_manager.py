@@ -73,7 +73,7 @@ class TestGitignoreManager:
 
         assert result.success
         assert result.modified
-        assert len(result.entries_added) == 14  # All 12 agent directories + runtime entries
+        assert len(result.entries_added) == 15  # All 12 agent directories + runtime entries
         assert len(result.entries_skipped) == 0
         assert manager.gitignore_path.exists()
 
@@ -85,7 +85,7 @@ class TestGitignoreManager:
 
         assert result.success
         assert result.modified
-        assert len(result.entries_added) == 14
+        assert len(result.entries_added) == 15
 
         content = manager.gitignore_path.read_text()
         assert manager.marker in content
@@ -173,12 +173,12 @@ class TestGitignoreManager:
         # First run
         result1 = manager.protect_all_agents()
         assert result1.modified
-        assert len(result1.entries_added) == 14
+        assert len(result1.entries_added) == 15
 
         # Second run
         result2 = manager.protect_all_agents()
         assert not result2.modified
-        assert len(result2.entries_skipped) == 14
+        assert len(result2.entries_skipped) == 15
         assert len(result2.entries_added) == 0
 
     def test_duplicate_detection_with_manual_entries(self, manager):
@@ -192,7 +192,7 @@ class TestGitignoreManager:
         assert result.modified  # Still modified because we add the other 12
         assert ".claude/" in result.entries_skipped
         assert ".codex/" in result.entries_skipped
-        assert len(result.entries_added) == 12
+        assert len(result.entries_added) == 13
 
     def test_duplicate_detection_marker_comment(self, manager):
         """Test that marker comment is not duplicated."""
