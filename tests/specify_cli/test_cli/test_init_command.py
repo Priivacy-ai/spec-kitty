@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -470,7 +471,8 @@ def test_init_rejects_removed_agent_strategy_option(cli_app, monkeypatch: pytest
         ],
     )
     assert result.exit_code == 2
-    assert "No such option: --agent-strategy" in result.output
+    plain_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+    assert re.search(r"No such option:\s+-{1,2}agent-strategy", plain_output)
 
 
 def test_init_non_interactive_preferred_agent_not_selected(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
