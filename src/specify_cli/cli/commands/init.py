@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Callable
@@ -454,6 +455,7 @@ def init(
     # Check git only if we might need it (not --no-git)
     # Only set to True if the user wants it and the tool is available
     should_init_git = False
+    initialized_git_repo = False
     if not no_git:
         should_init_git = check_tool("git", "https://git-scm.com/downloads")
         if not should_init_git:
@@ -864,6 +866,7 @@ def init(
                     tracker.complete("git", "existing repo detected")
                 elif should_init_git:
                     if init_git_repo(project_path, quiet=True):
+                        initialized_git_repo = True
                         tracker.complete("git", "initialized")
                     else:
                         tracker.error("git", "init failed")
@@ -1111,6 +1114,32 @@ def init(
                     shutil.rmtree(scratch)
                 except Exception:
                     pass  # best-effort cleanup
+
+    # Keep freshly initialized repos clean after post-init file updates and template cleanup.
+    if initialized_git_repo and is_git_repo(project_path):
+        try:
+            subprocess.run(
+                ["git", "add", "-A"],
+                cwd=project_path,
+                check=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            subprocess.run(
+                ["git", "commit", "--amend", "--no-edit"],
+                cwd=project_path,
+                check=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except subprocess.CalledProcessError as e:
+            _console.print(
+                f"[dim]Note: Could not finalize clean init commit: {e.stderr.strip() if e.stderr else e}[/dim]"
+            )
 
 
 def register_init_command(

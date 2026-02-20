@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
@@ -400,6 +400,57 @@ def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, 
         ],
     )
     assert result.exit_code == 0, result.output
+
+
+def test_init_amends_initial_commit_after_cleanup(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    """Fresh git init should end in a clean amended initial commit."""
+    app, _, _ = cli_app
+    monkeypatch.chdir(tmp_path)
+
+    def fake_local_repo(override_path=None):
+        return tmp_path / "templates"
+
+    def fake_copy(local_repo: Path, project_path: Path, script: str):
+        (project_path / ".kittify" / "templates").mkdir(parents=True, exist_ok=True)
+        commands_dir = project_path / ".templates"
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        return commands_dir
+
+    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
+        (project_path / f".{agent_key}" / f"run.{script}").parent.mkdir(parents=True, exist_ok=True)
+
+    def fake_init_git_repo(project_path: Path, quiet: bool = False, console=None):
+        (project_path / ".git").mkdir(parents=True, exist_ok=True)
+        return True
+
+    git_calls: list[list[str]] = []
+
+    def fake_subprocess_run(cmd, **kwargs):
+        git_calls.append(list(cmd))
+        return MagicMock(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
+    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+    monkeypatch.setattr(init_module, "init_git_repo", fake_init_git_repo)
+    monkeypatch.setattr(init_module, "is_git_repo", lambda path: (path / ".git").exists())
+    monkeypatch.setattr(init_module.subprocess, "run", fake_subprocess_run)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "git-clean-demo",
+            "--ai",
+            "codex",
+            "--script",
+            "sh",
+            "--non-interactive",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert any(call[:4] == ["git", "commit", "--amend", "--no-edit"] for call in git_calls)
 
 
 def test_init_non_interactive_invalid_agent_strategy(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):

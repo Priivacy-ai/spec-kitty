@@ -505,7 +505,7 @@ class TestRunPreflight:
             """---
 work_package_id: WP01
 title: Test WP
-lane: done
+lane: planned
 dependencies: []
 ---
 
@@ -588,7 +588,7 @@ dependencies: []
             """---
 work_package_id: WP01
 title: Test WP
-lane: done
+lane: planned
 dependencies: []
 ---
 
@@ -612,6 +612,61 @@ dependencies: []
         assert result.wp_statuses[0].is_clean is False
         assert "Missing worktree" in result.wp_statuses[0].error
         assert len(result.errors) >= 1
+
+    def test_missing_worktree_for_done_wp_is_warning_only(self, tmp_path: Path):
+        """A done WP without worktree should not block merge preflight."""
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+        (repo / "README.md").write_text("test")
+        subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+
+        feature_dir = repo / "kitty-specs" / "001-test-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        wp_file = tasks_dir / "WP01.md"
+        wp_file.write_text(
+            """---
+work_package_id: WP01
+title: Test WP
+lane: done
+dependencies: []
+---
+
+# WP01 Content
+"""
+        )
+
+        result = run_preflight(
+            feature_slug="001-test-feature",
+            target_branch="master",
+            repo_root=repo,
+            wp_workspaces=[],
+        )
+
+        assert result.passed is True
+        assert result.errors == []
+        assert result.wp_statuses == []
+        assert any("Skipping missing worktree check for WP01" in w for w in result.warnings)
 
     def test_detects_uncommitted_changes(self, tmp_path: Path):
         """Test preflight detects uncommitted changes."""
@@ -842,13 +897,14 @@ dependencies: []
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
+        wp_lanes = {1: "done", 2: "planned"}
         for wp_num in [1, 2]:
             wp_file = tasks_dir / f"WP0{wp_num}.md"
             wp_file.write_text(
                 f"""---
 work_package_id: WP0{wp_num}
 title: Test WP {wp_num}
-lane: done
+lane: {wp_lanes[wp_num]}
 dependencies: []
 ---
 

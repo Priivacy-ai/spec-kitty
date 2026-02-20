@@ -44,6 +44,15 @@ def test_cli_help_lists_extracted_commands() -> None:
         assert name in result.stdout
 
 
+def test_cli_help_simple_mode_avoids_rich_tables(monkeypatch) -> None:
+    monkeypatch.setenv("SPEC_KITTY_SIMPLE_HELP", "1")
+    result = runner.invoke(cli_app, ["--help"])
+    assert result.exit_code == 0
+    assert "Usage:" in result.stdout
+    assert "Commands:" in result.stdout
+    assert "╭" not in result.stdout
+
+
 def test_verify_setup_command_runs() -> None:
     """Test that verify-setup command works (replaces deprecated check command)."""
     # verify-setup requires being in a project or exits with code 1
@@ -160,6 +169,47 @@ def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:
     assert result.stdout.lstrip().startswith("{")
     data = _load_json_from_output(result.stdout)
     assert data["feature"] == "001-demo-feature"
+
+
+def test_accept_json_suppresses_fallback_announcement(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    class DummySummary:
+        ok = True
+        lanes = {"done": ["WP01"]}
+        optional_missing: list[str] = []
+        feature = "002-auto-feature"
+
+        def outstanding(self) -> dict[str, list[str]]:
+            return {}
+
+        def to_dict(self) -> dict[str, object]:
+            return {"feature": self.feature, "lanes": self.lanes}
+
+    captured: dict[str, object] = {}
+
+    def fake_detect(_repo_root, *, announce_fallback=True):
+        captured["announce_fallback"] = announce_fallback
+        if announce_fallback:
+            print("ℹ️  Auto-selected latest incomplete: 002-auto-feature")
+        return "002-auto-feature"
+
+    monkeypatch.setattr(accept_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(accept_module, "detect_feature_slug", fake_detect)
+    monkeypatch.setattr(accept_module, "choose_mode", lambda mode, _repo_root: mode)
+    monkeypatch.setattr(accept_module, "collect_feature_summary", lambda *args, **kwargs: DummySummary())
+
+    result = runner.invoke(
+        cli_app,
+        ["accept", "--mode", "checklist", "--json", "--allow-fail"],
+    )
+
+    assert result.exit_code == 0
+    assert captured["announce_fallback"] is False
+    assert result.stdout.lstrip().startswith("{")
+    data = json.loads(result.stdout)
+    assert data["feature"] == "002-auto-feature"
 
 
 def test_merge_dry_run_outputs_steps(monkeypatch, tmp_path: Path) -> None:

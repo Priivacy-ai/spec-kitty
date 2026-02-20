@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -23,8 +24,49 @@ class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
 
     def format_help(self, ctx, formatter):
+        if _should_use_simple_help():
+            _format_simple_help(self, ctx, formatter)
+            return
         show_banner()
         super().format_help(ctx, formatter)
+
+
+def _should_use_simple_help() -> bool:
+    """Choose a plain help renderer for narrow terminals or explicit opt-in."""
+    raw = os.environ.get("SPEC_KITTY_SIMPLE_HELP", "").strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return console.width < 100
+
+
+def _format_simple_help(group: TyperGroup, ctx, formatter) -> None:
+    """Render machine-friendly help without Rich tables/banner noise."""
+    formatter.write_usage(ctx.command_path, "[OPTIONS] COMMAND [ARGS]...")
+
+    if group.help:
+        formatter.write_paragraph()
+        formatter.write_text(group.help)
+
+    options = []
+    for param in group.get_params(ctx):
+        record = param.get_help_record(ctx)
+        if record is not None:
+            options.append(record)
+    if options:
+        with formatter.section("Options"):
+            formatter.write_dl(options)
+
+    commands = []
+    for name in group.list_commands(ctx):
+        cmd = group.get_command(ctx, name)
+        if cmd is None or cmd.hidden:
+            continue
+        commands.append((name, cmd.get_short_help_str()))
+    if commands:
+        with formatter.section("Commands"):
+            formatter.write_dl(commands)
 
 
 def show_banner() -> None:
