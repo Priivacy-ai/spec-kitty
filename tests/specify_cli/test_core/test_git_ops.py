@@ -116,6 +116,15 @@ def test_init_git_repo_excludes_transient_kittify_artifacts(tmp_path):
     templates_file.parent.mkdir(parents=True, exist_ok=True)
     templates_file.write_text("template\n", encoding="utf-8")
 
+    resolved_template = (
+        project
+        / ".kittify"
+        / ".resolved-software-dev-cmd-templates"
+        / "implement.md"
+    )
+    resolved_template.parent.mkdir(parents=True, exist_ok=True)
+    resolved_template.write_text("resolved template\n", encoding="utf-8")
+
     pycache_file = project / ".kittify" / "missions" / "__pycache__" / "mission.cpython-313.pyc"
     pycache_file.parent.mkdir(parents=True, exist_ok=True)
     pycache_file.write_bytes(b"\x00\x01")
@@ -127,6 +136,7 @@ def test_init_git_repo_excludes_transient_kittify_artifacts(tmp_path):
 
     assert "README.md" in tracked_files
     assert ".kittify/templates/command-templates/specify.md" not in tracked_files
+    assert ".kittify/.resolved-software-dev-cmd-templates/implement.md" not in tracked_files
     assert ".kittify/missions/__pycache__/mission.cpython-313.pyc" not in tracked_files
 
 

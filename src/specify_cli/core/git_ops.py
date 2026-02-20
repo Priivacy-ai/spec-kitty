@@ -111,7 +111,15 @@ def init_git_repo(project_path: Path, quiet: bool = False, console: ConsoleType 
         subprocess.run(["git", "add", "."], check=True, capture_output=True)
         # Avoid tracking transient initialization artifacts that are removed/generated later.
         subprocess.run(
-            ["git", "reset", "-q", "--", ".kittify/templates/", ".kittify/missions/__pycache__/"],
+            [
+                "git",
+                "reset",
+                "-q",
+                "--",
+                ".kittify/templates/",
+                ":(glob).kittify/.resolved-*-cmd-templates/**",
+                ".kittify/missions/__pycache__/",
+            ],
             check=True,
             capture_output=True,
         )

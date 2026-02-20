@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Callable
@@ -315,6 +316,7 @@ def init(
     # Check git only if we might need it (not --no-git)
     # Only set to True if the user wants it and the tool is available
     should_init_git = False
+    git_initialized_by_spec_kitty = False
     if not no_git:
         should_init_git = check_tool("git", "https://git-scm.com/downloads")
         if not should_init_git:
@@ -677,6 +679,7 @@ def init(
                     tracker.complete("git", "existing repo detected")
                 elif should_init_git:
                     if init_git_repo(project_path, quiet=True):
+                        git_initialized_by_spec_kitty = True
                         tracker.complete("git", "initialized")
                     else:
                         tracker.error("git", "init failed")
@@ -910,6 +913,37 @@ def init(
         except Exception as e:
             # Log but don't fail init if cleanup fails
             _console.print(f"[dim]Note: Could not remove .kittify/templates/: {e}[/dim]")
+
+    # Finalize initial commit after all post-init generation/cleanup.
+    # This keeps freshly initialized repos clean without adding extra commits.
+    if git_initialized_by_spec_kitty and is_git_repo(project_path):
+        try:
+            status_result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=project_path,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            if status_result.returncode == 0 and status_result.stdout.strip():
+                subprocess.run(
+                    ["git", "add", "-A"],
+                    cwd=project_path,
+                    capture_output=True,
+                    check=True,
+                )
+                subprocess.run(
+                    ["git", "commit", "--amend", "--no-edit"],
+                    cwd=project_path,
+                    capture_output=True,
+                    check=True,
+                )
+                _console.print("[dim]Finalized initial git commit with generated project files[/dim]")
+        except Exception as e:
+            # Keep init non-fatal if finalization fails.
+            _console.print(f"[dim]Note: Could not finalize initial git commit: {e}[/dim]")
 
 
 def register_init_command(
