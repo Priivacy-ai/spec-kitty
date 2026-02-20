@@ -14,7 +14,11 @@ import typer
 from typing_extensions import Annotated
 
 from specify_cli.cli.commands.implement import implement as top_level_implement
-from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
+from specify_cli.core.dependency_graph import (
+    build_dependency_graph,
+    get_dependents,
+    parse_wp_dependencies,
+)
 from specify_cli.core.implement_validation import (
     validate_and_resolve_base,
     validate_base_workspace_exists,
@@ -246,39 +250,28 @@ def _ensure_sparse_checkout(worktree_path: Path) -> bool:
     return True
 
 
-def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
-    """Find the first WP file with lane: "planned".
+def _find_first_actionable_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
+    """Find the first actionable WP when no WP ID is provided.
+
+    Priority order:
+    1. First WP in lane "planned"
+    2. First WP in lane "blocked" (fallback)
 
     Args:
         repo_root: Repository root path
         feature_slug: Feature slug
 
     Returns:
-        WP ID of first planned task, or None if not found
+        WP ID of first actionable task, or None if not found
     """
-    from specify_cli.core.paths import is_worktree_context
+    # Always prefer planning repo tasks to avoid stale/orphan worktree copies.
+    tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
 
-    cwd = Path.cwd().resolve()
-
-    # Check if we're in a worktree - if so, use worktree's kitty-specs
-    if is_worktree_context(cwd):
-        # We're in a worktree, look for kitty-specs relative to cwd
+    # Legacy fallback: if planning repo tasks are missing, try current tree.
+    if not tasks_dir.exists():
+        cwd = Path.cwd().resolve()
         if (cwd / "kitty-specs" / feature_slug).exists():
             tasks_dir = cwd / "kitty-specs" / feature_slug / "tasks"
-        else:
-            # Walk up to find kitty-specs
-            current = cwd
-            while current != current.parent:
-                if (current / "kitty-specs" / feature_slug).exists():
-                    tasks_dir = current / "kitty-specs" / feature_slug / "tasks"
-                    break
-                current = current.parent
-            else:
-                # Fallback to repo_root
-                tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
-    else:
-        # We're in main repo
-        tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
 
     if not tasks_dir.exists():
         return None
@@ -286,22 +279,32 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
     # Find all WP files
     wp_files = sorted(tasks_dir.glob("WP*.md"))
 
+    blocked_candidates: list[str] = []
+
     for wp_file in wp_files:
         content = wp_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = split_frontmatter(content)
         lane = extract_scalar(frontmatter, "lane")
+        wp_id = extract_scalar(frontmatter, "work_package_id")
+
+        if not wp_id:
+            continue
 
         if lane == "planned":
-            wp_id = extract_scalar(frontmatter, "work_package_id")
-            if wp_id:
-                return wp_id
+            return wp_id
+
+        if lane == "blocked":
+            blocked_candidates.append(wp_id)
+
+    if blocked_candidates:
+        return blocked_candidates[0]
 
     return None
 
 
 @app.command(name="implement")
 def implement(
-    wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
+    wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first actionable WP if omitted")] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
     base: Annotated[Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
@@ -319,7 +322,7 @@ def implement(
         spec-kitty agent workflow implement WP01 --agent claude
         spec-kitty agent workflow implement WP02 --agent claude --base WP01  # Create worktree from WP01
         spec-kitty agent workflow implement wp01 --agent codex
-        spec-kitty agent workflow implement --agent gemini  # auto-detects first planned WP
+        spec-kitty agent workflow implement --agent gemini  # auto-detects first actionable WP
     """
     try:
         # Get repo root and feature slug
@@ -338,10 +341,10 @@ def implement(
         if wp_id:
             normalized_wp_id = _normalize_wp_id(wp_id)
         else:
-            # Auto-detect first planned WP
-            normalized_wp_id = _find_first_planned_wp(repo_root, feature_slug)
+            # Auto-detect first actionable WP (planned, then blocked fallback)
+            normalized_wp_id = _find_first_actionable_wp(repo_root, feature_slug)
             if not normalized_wp_id:
-                print("Error: No planned work packages found. Specify a WP ID explicitly.")
+                print("Error: No actionable work packages found. Specify a WP ID explicitly.")
                 raise typer.Exit(1)
 
         # ALWAYS validate dependencies before creating workspace or displaying prompts
@@ -354,15 +357,19 @@ def implement(
             print(f"Error locating work package: {e}")
             raise typer.Exit(1)
 
+        # Auto-detect single-parent dependency base (parity with top-level implement)
+        resolved_base_input = base
+        declared_deps = parse_wp_dependencies(wp.path)
+        if resolved_base_input is None and len(declared_deps) == 1:
+            resolved_base_input = declared_deps[0]
+            print(f"Auto-detected base: {normalized_wp_id} depends on {resolved_base_input}")
+
         # Validate dependencies and resolve base workspace
-        # This will error if:
-        # - WP has single dependency but --base not provided
-        # - Provided base doesn't match declared dependencies (warning only)
         try:
             resolved_base, auto_merge = validate_and_resolve_base(
                 wp_id=normalized_wp_id,
                 wp_file=wp.path,
-                base=base,  # May be None
+                base=resolved_base_input,
                 feature_slug=feature_slug,
                 repo_root=repo_root
             )
@@ -370,9 +377,18 @@ def implement(
             # Validation failed (e.g., missing --base for single dependency)
             raise
 
-        # If validation resolved a base (or auto-merge mode), validate base workspace exists
+        # If validation resolved a base, validate base workspace exists when still in progress.
+        # Done base WPs are already merged and should branch from feature target branch.
         if resolved_base:
-            validate_base_workspace_exists(resolved_base, feature_slug, repo_root)
+            try:
+                base_wp = locate_work_package(repo_root, feature_slug, resolved_base)
+                base_lane = extract_scalar(base_wp.frontmatter, "lane") or "planned"
+            except Exception as e:
+                print(f"Error locating base work package {resolved_base}: {e}")
+                raise typer.Exit(1)
+
+            if base_lane != "done":
+                validate_base_workspace_exists(resolved_base, feature_slug, repo_root)
 
         # Calculate workspace path
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
@@ -380,18 +396,21 @@ def implement(
 
         # Ensure workspace exists (delegate to top-level implement for creation)
         if not workspace_path.exists():
-            cwd = Path.cwd().resolve()
-            if is_worktree_context(cwd):
-                print("Error: Workspace does not exist and cannot be created from a worktree.")
-                print("Run this command from the main repository:")
-                print(f"  spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
-                raise typer.Exit(1)
-
             if not _is_git_repo(repo_root):
                 print("Warning: No git repository detected. Skipping workspace creation.")
             else:
                 print(f"Creating workspace for {normalized_wp_id}...")
+                original_cwd = Path.cwd().resolve()
+                run_cwd = repo_root if is_worktree_context(original_cwd) else original_cwd
+                changed_directory = run_cwd != original_cwd
+                if changed_directory:
+                    print(f"Running workspace creation from main repository: {repo_root}")
+
                 try:
+                    if changed_directory:
+                        import os
+
+                        os.chdir(run_cwd)
                     top_level_implement(
                         wp_id=normalized_wp_id,
                         base=resolved_base,  # None for auto-merge or no deps
@@ -404,6 +423,11 @@ def implement(
                 except Exception as e:
                     print(f"Error creating worktree: {e}")
                     raise typer.Exit(1)
+                finally:
+                    if changed_directory:
+                        import os
+
+                        os.chdir(original_cwd)
 
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)

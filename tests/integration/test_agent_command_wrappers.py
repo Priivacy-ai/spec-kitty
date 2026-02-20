@@ -13,7 +13,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
-from specify_cli.cli.commands.agent.workflow import implement as agent_implement
+from specify_cli.cli.commands.agent.workflow import (
+    _find_first_actionable_wp,
+    implement as agent_implement,
+)
 
 
 class TestAgentWorkflowImplement:
@@ -43,8 +46,8 @@ class TestAgentWorkflowImplement:
 
         return repo_root
 
-    def test_single_dependency_no_base_errors(self, mock_repo, capsys):
-        """Agent implement should error when WP has dependency but no --base."""
+    def test_single_dependency_no_base_auto_detects_base(self, mock_repo, capsys):
+        """Agent implement should auto-detect base for single dependency."""
         # Create WP02 with dependency on WP01
         wp_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP02-build-api.md"
         wp_file.write_text(
@@ -69,35 +72,61 @@ class TestAgentWorkflowImplement:
         # Mock locate_project_root and locate_work_package
         with patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root, \
              patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp, \
-             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug:
+             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug, \
+             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level:
 
             mock_locate_root.return_value = mock_repo
             mock_find_slug.return_value = "001-test-feature"
 
-            # Mock WP object
-            mock_wp = MagicMock()
-            mock_wp.path = wp_file
-            mock_wp.frontmatter = {
-                "work_package_id": "WP02",
-                "dependencies": ["WP01"],
-                "lane": "planned"
-            }
-            mock_wp.body = "# Build API\nTask description\n"
-            mock_locate_wp.return_value = mock_wp
+            # Mock WP objects
+            mock_wp02 = MagicMock()
+            mock_wp02.path = wp_file
+            mock_wp02.frontmatter = (
+                "work_package_id: WP02\n"
+                "dependencies: [WP01]\n"
+                "lane: \"planned\"\n"
+                "agent: \"\"\n"
+            )
+            mock_wp02.body = "# Build API\nTask description\n"
 
-            # Try to run agent implement without --base
-            with pytest.raises(typer.Exit):
+            mock_wp01 = MagicMock()
+            mock_wp01.path = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-setup.md"
+            mock_wp01.frontmatter = (
+                "work_package_id: WP01\n"
+                "dependencies: []\n"
+                "lane: \"done\"\n"
+            )
+            mock_wp01.body = "Setup task\n"
+
+            def locate_side_effect(_repo_root, _feature_slug, target_wp_id):
+                if target_wp_id == "WP01":
+                    return mock_wp01
+                return mock_wp02
+
+            mock_locate_wp.side_effect = locate_side_effect
+            mock_top_level.side_effect = typer.Exit(0)
+
+            # Run agent implement without --base (auto-detects WP01)
+            try:
                 agent_implement(
                     wp_id="WP02",
                     feature="001-test-feature",
                     agent="test-agent",
-                    base=None  # Missing!
+                    base=None
                 )
+            except Exception:
+                # Prompt rendering/IO may fail in this mocked setup; creation call is what we verify
+                pass
 
-            # Verify error message suggests --base WP01
+            # Verify auto-detection and delegated creation
             captured = capsys.readouterr()
-            assert "WP02 depends on WP01" in captured.out
-            assert "--base WP01" in captured.out
+            assert "Auto-detected base: WP02 depends on WP01" in captured.out
+            mock_top_level.assert_called_once_with(
+                wp_id="WP02",
+                base="WP01",
+                feature="001-test-feature",
+                json_output=False
+            )
 
     def test_single_dependency_with_base_calls_toplevel(self, mock_repo):
         """Agent implement with valid --base should call top-level implement."""
@@ -153,13 +182,29 @@ class TestAgentWorkflowImplement:
             # Mock WP02 object
             mock_wp = MagicMock()
             mock_wp.path = wp02_file
-            mock_wp.frontmatter = {
-                "work_package_id": "WP02",
-                "dependencies": ["WP01"],
-                "lane": "planned"
-            }
+            mock_wp.frontmatter = (
+                "work_package_id: WP02\n"
+                "dependencies: [WP01]\n"
+                "lane: \"planned\"\n"
+                "agent: \"\"\n"
+            )
             mock_wp.body = "Build API task\n"
-            mock_locate_wp.return_value = mock_wp
+            mock_wp01 = MagicMock()
+            mock_wp01.path = wp01_file
+            mock_wp01.frontmatter = (
+                "work_package_id: WP01\n"
+                "dependencies: []\n"
+                "lane: \"done\"\n"
+            )
+            mock_wp01.body = "Setup task\n"
+
+            def locate_side_effect(_repo_root, _feature_slug, target_wp_id):
+                if target_wp_id == "WP01":
+                    return mock_wp01
+                return mock_wp
+
+            mock_locate_wp.side_effect = locate_side_effect
+            mock_top_level.side_effect = typer.Exit(0)
 
             # Run agent implement with --base WP01
             # This should call top-level implement (mocked to avoid full execution)
@@ -238,8 +283,8 @@ class TestAgentWorkflowImplement:
             assert call_args[1]["base"] is None  # Auto-merge uses None
             assert call_args[1]["feature"] == "001-test-feature"
 
-    def test_validation_error_prevents_workspace_creation(self, mock_repo):
-        """Validation errors should prevent workspace creation."""
+    def test_missing_auto_detected_base_prevents_workspace_creation(self, mock_repo):
+        """Missing auto-detected base WP should prevent workspace creation."""
         # Create WP02 with dependency on WP01
         wp_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP02-build-api.md"
         wp_file.write_text(
@@ -266,11 +311,21 @@ class TestAgentWorkflowImplement:
 
             mock_wp = MagicMock()
             mock_wp.path = wp_file
-            mock_wp.frontmatter = {"work_package_id": "WP02", "dependencies": ["WP01"], "lane": "planned"}
+            mock_wp.frontmatter = (
+                "work_package_id: WP02\n"
+                "dependencies: [WP01]\n"
+                "lane: \"planned\"\n"
+            )
             mock_wp.body = "Task\n"
-            mock_locate_wp.return_value = mock_wp
 
-            # Should error during validation (before calling top-level)
+            def locate_side_effect(_repo_root, _feature_slug, target_wp_id):
+                if target_wp_id == "WP01":
+                    raise FileNotFoundError("base WP missing")
+                return mock_wp
+
+            mock_locate_wp.side_effect = locate_side_effect
+
+            # Should error during base validation (before calling top-level)
             with pytest.raises(typer.Exit):
                 agent_implement(
                     wp_id="WP02",
@@ -281,6 +336,135 @@ class TestAgentWorkflowImplement:
 
             # Verify top-level implement was NOT called
             mock_top_level.assert_not_called()
+
+    def test_workspace_creation_from_worktree_switches_to_main_repo(self, mock_repo, monkeypatch):
+        """Agent implement should create missing workspace even when launched from a worktree."""
+        wp01_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-setup.md"
+        wp01_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "title: Setup\n"
+            "dependencies: []\n"
+            "lane: done\n"
+            "---\n"
+            "Setup task\n",
+            encoding="utf-8"
+        )
+
+        wp02_file = mock_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP02-build-api.md"
+        wp02_file.write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "title: Build API\n"
+            "dependencies: [WP01]\n"
+            "lane: planned\n"
+            "---\n"
+            "Build API task\n",
+            encoding="utf-8"
+        )
+        subprocess.run(["git", "add", "-f", str(wp01_file), str(wp02_file)], cwd=mock_repo, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add WPs"], cwd=mock_repo, check=True, capture_output=True)
+        subprocess.run(["git", "checkout", "-b", "001-test-feature"], cwd=mock_repo, check=True, capture_output=True)
+
+        worktree_cwd = mock_repo / ".worktrees" / "001-test-feature-WP01"
+        worktree_cwd.mkdir(parents=True, exist_ok=True)
+        monkeypatch.chdir(worktree_cwd)
+
+        workspace_path = mock_repo / ".worktrees" / "001-test-feature-WP02"
+        observed = {}
+
+        def fake_top_level(**kwargs):
+            observed["cwd"] = Path.cwd()
+            workspace_path.mkdir(parents=True, exist_ok=True)
+
+        with patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root, \
+             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp, \
+             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug, \
+             patch("specify_cli.cli.commands.agent.workflow.top_level_implement", side_effect=fake_top_level), \
+             patch("specify_cli.cli.commands.agent.workflow.safe_commit"), \
+             patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", side_effect=lambda path: ".worktrees" in path.parts):
+            mock_locate_root.return_value = mock_repo
+            mock_find_slug.return_value = "001-test-feature"
+
+            mock_wp02 = MagicMock()
+            mock_wp02.path = wp02_file
+            mock_wp02.frontmatter = (
+                "work_package_id: WP02\n"
+                "dependencies: [WP01]\n"
+                "lane: \"doing\"\n"
+                "agent: \"test-agent\"\n"
+            )
+            mock_wp02.body = "Build API task\n"
+
+            mock_wp01 = MagicMock()
+            mock_wp01.path = wp01_file
+            mock_wp01.frontmatter = (
+                "work_package_id: WP01\n"
+                "dependencies: []\n"
+                "lane: \"done\"\n"
+            )
+            mock_wp01.body = "Setup task\n"
+
+            def locate_side_effect(_repo_root, _feature_slug, target_wp_id):
+                if target_wp_id == "WP01":
+                    return mock_wp01
+                return mock_wp02
+
+            mock_locate_wp.side_effect = locate_side_effect
+
+            try:
+                agent_implement(
+                    wp_id="WP02",
+                    feature="001-test-feature",
+                    agent="test-agent",
+                    base=None
+                )
+            except Exception:
+                pass
+
+        assert observed["cwd"] == mock_repo
+
+    def test_no_arg_selection_prefers_planning_repo_over_stale_worktree_tasks(self, mock_repo, monkeypatch):
+        """No-arg WP selection should ignore stale kitty-specs copied into worktrees."""
+        feature_slug = "001-test-feature"
+        tasks_dir = mock_repo / "kitty-specs" / feature_slug / "tasks"
+
+        wp01 = tasks_dir / "WP01-setup.md"
+        wp01.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "dependencies: []\n"
+            "lane: done\n"
+            "---\n"
+            "WP01\n",
+            encoding="utf-8",
+        )
+        wp02 = tasks_dir / "WP02-build.md"
+        wp02.write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "dependencies: [WP01]\n"
+            "lane: planned\n"
+            "---\n"
+            "WP02\n",
+            encoding="utf-8",
+        )
+
+        stale_tasks = (
+            mock_repo
+            / ".worktrees"
+            / f"{feature_slug}-WP01"
+            / "kitty-specs"
+            / feature_slug
+            / "tasks"
+        )
+        stale_tasks.mkdir(parents=True, exist_ok=True)
+        (stale_tasks / wp01.name).write_text(wp01.read_text(encoding="utf-8"), encoding="utf-8")
+
+        monkeypatch.chdir(stale_tasks.parent.parent.parent)
+
+        selected = _find_first_actionable_wp(mock_repo, feature_slug)
+        assert selected == "WP02"
 
 
 class TestAgentFeatureAccept:
