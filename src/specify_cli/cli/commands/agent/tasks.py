@@ -742,17 +742,24 @@ def move_task(
                     return forward[current_idx + 1: target_idx + 1]
             return [target]
 
-        transition_targets = [canonical_lane]
-        if not emit_force:
-            transition_targets = _lane_targets_for_emit(old_lane, canonical_lane)
-
-        event = None
         current_canonical_lane = resolve_lane_alias(old_lane)
         current_event_lane = None
         for existing_event in reversed(read_events(feature_dir)):
             if existing_event.wp_id == task_id:
                 current_event_lane = str(existing_event.to_lane)
                 break
+
+        transition_targets = [canonical_lane]
+        if not emit_force:
+            # Prefer canonical event lane over frontmatter lane to avoid
+            # no-op hops when frontmatter lags behind status.events.jsonl.
+            transition_start_lane = current_event_lane or old_lane
+            transition_targets = _lane_targets_for_emit(
+                transition_start_lane,
+                canonical_lane,
+            )
+
+        event = None
         if (
             current_event_lane is None
             and current_canonical_lane != "planned"

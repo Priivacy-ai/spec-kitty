@@ -265,3 +265,37 @@ class TestMoveTaskGitValidation:
         output = json.loads(result.stdout)
         assert output["result"] == "success"
         assert output["new_lane"] == "done"
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_to_done_uses_event_lane_when_frontmatter_lags(
+        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
+    ):
+        """Done transition should not emit a no-op for_review->for_review hop."""
+        repo_root, _worktree = git_repo_with_worktree
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "017-test-feature"
+
+        # First move to for_review to establish canonical status events.
+        first = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
+        assert first.exit_code == 0
+
+        # Simulate review workflow updating frontmatter lane to doing while
+        # canonical status remains for_review.
+        wp_file = repo_root / "kitty-specs" / "017-test-feature" / "tasks" / "WP01-test-task.md"
+        content = wp_file.read_text(encoding="utf-8")
+        content = content.replace('lane: "for_review"', 'lane: "doing"', 1)
+        wp_file.write_text(content, encoding="utf-8")
+        subprocess.run(["git", "add", str(wp_file)], cwd=repo_root, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Simulate review claim lane update"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "done", "--json"])
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["result"] == "success"
+        assert output["new_lane"] == "done"
