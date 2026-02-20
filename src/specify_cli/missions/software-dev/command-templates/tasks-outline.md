@@ -91,7 +91,7 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 
 ### 5. Write `tasks.md`
 
-Write to `FEATURE_DIR/tasks.md` using the bundled tasks template (`src/specify_cli/missions/software-dev/templates/tasks-template.md`):
+Write to `FEATURE_DIR/tasks.md` using the bundled tasks template (`.kittify/missions/software-dev/templates/tasks-template.md`):
 - Populate Work Package sections (setup, foundational, per-story, polish) with `WPxx` entries
 - Under each work package include:
   - Summary (goal, priority, independent test)

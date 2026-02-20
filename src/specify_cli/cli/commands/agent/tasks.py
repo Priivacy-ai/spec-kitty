@@ -338,7 +338,14 @@ def _behind_commits_touch_only_planning_artifacts(
         f"kitty-specs/{feature_slug}/",
         ".kittify/workspaces/",
     )
-    return all(path.startswith(allowed_prefixes) for path in changed_files)
+    allowed_exact_paths = {
+        ".kittify/config.yaml",
+        ".kittify/config.yml",
+    }
+    return all(
+        path.startswith(allowed_prefixes) or path in allowed_exact_paths
+        for path in changed_files
+    )
 
 
 def _maybe_mirror_move_commit_to_wp_branch(

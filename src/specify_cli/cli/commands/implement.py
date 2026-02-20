@@ -38,6 +38,7 @@ from specify_cli.core.feature_detection import (
     detect_feature,
     FeatureDetectionError,
 )
+from specify_cli.git import safe_commit
 from specify_cli.sync.events import emit_wp_status_changed
 
 console = Console()
@@ -1019,9 +1020,12 @@ def implement(
 
             # Commit only the WP file (safe_commit preserves staging area)
             meta_file = feature_dir / "meta.json"
+            config_file = repo_root / ".kittify" / "config.yaml"
             files_to_commit = [wp.path.resolve()]
             if meta_file.exists():
                 files_to_commit.append(meta_file.resolve())
+            if config_file.exists():
+                files_to_commit.append(config_file.resolve())
 
             commit_success = safe_commit(
                 repo_path=repo_root,

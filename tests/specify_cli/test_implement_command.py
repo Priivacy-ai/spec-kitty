@@ -278,6 +278,49 @@ class TestImplementCommand:
         assert payload["workspace"] == ".worktrees/010-feature-WP01"
         assert payload["workspace_path"] == payload["workspace"]
 
+    def test_implement_claim_commit_includes_meta_and_config(self, tmp_path):
+        """Claim commit should include side-effect metadata/config files."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir)
+        wp_file = feature_dir / "tasks" / "WP01-setup.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text(
+            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
+        )
+        config_path = tmp_path / ".kittify" / "config.yaml"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text("config: true\n", encoding="utf-8")
+
+        workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
+
+        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
+            mock_repo_root.return_value = tmp_path
+
+            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
+                mock_detect.return_value = ("010", "010-feature")
+
+                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
+                    mock_vcs = MagicMock()
+                    mock_vcs.backend = VCSBackend.GIT
+                    mock_vcs.get_workspace_info.return_value = None
+                    mock_vcs.create_workspace.return_value = MagicMock(
+                        success=True,
+                        workspace=MagicMock(name="010-feature-WP01", path=workspace_path),
+                        error=None,
+                    )
+                    mock_get_vcs.return_value = mock_vcs
+
+                    with patch("specify_cli.cli.commands.implement.safe_commit") as mock_safe_commit:
+                        mock_safe_commit.return_value = True
+                        with patch("subprocess.run") as mock_run:
+                            mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
+                            implement("WP01", base=None, json_output=True)
+
+        assert mock_safe_commit.call_count >= 1
+        files_to_commit = mock_safe_commit.call_args.kwargs["files_to_commit"]
+        assert (feature_dir / "meta.json").resolve() in files_to_commit
+        assert config_path.resolve() in files_to_commit
+
     def test_implement_json_error_output_is_clean(self, tmp_path, capsys):
         """--json failures should still emit a single machine-parseable object."""
         feature_dir = tmp_path / "kitty-specs" / "010-feature"

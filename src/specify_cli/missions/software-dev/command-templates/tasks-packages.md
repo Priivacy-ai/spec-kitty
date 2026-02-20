@@ -47,7 +47,7 @@ For each work package defined in `tasks.md`:
 1. Derive a kebab-case slug from the title
 2. Filename: `WPxx-slug.md` (e.g., `WP01-create-html-page.md`)
 3. Full path: `FEATURE_DIR/tasks/WP01-create-html-page.md`
-4. Use the bundled task prompt template (`src/specify_cli/missions/software-dev/templates/task-prompt-template.md`)
+4. Use the bundled task prompt template (`.kittify/missions/software-dev/templates/task-prompt-template.md`)
 5. Include frontmatter with:
    - `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
 6. Include in body:

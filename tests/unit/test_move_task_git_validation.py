@@ -268,6 +268,43 @@ class TestMoveTaskGitValidation:
         assert is_valid is True
         assert guidance == []
 
+    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="software-dev")
+    def test_review_validation_allows_behind_config_and_status_commits(
+        self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]
+    ):
+        """Config/status-only commits on planning branch should not force rebase."""
+        repo_root, worktree = git_repo_with_worktree
+        feature_slug = "017-test-feature"
+
+        wp_file = repo_root / "kitty-specs" / feature_slug / "tasks" / "WP01-test-task.md"
+        config_file = repo_root / ".kittify" / "config.yaml"
+
+        wp_file.write_text(wp_file.read_text(encoding="utf-8") + "\n<!-- status update -->\n", encoding="utf-8")
+        config_file.write_text(config_file.read_text(encoding="utf-8") + "sync: true\n", encoding="utf-8")
+
+        subprocess.run(
+            ["git", "add", str(wp_file), str(config_file)],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "chore: status + config planning update"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+
+        is_valid, guidance = _validate_ready_for_review(
+            repo_root=worktree,
+            feature_slug=feature_slug,
+            wp_id="WP01",
+            force=False,
+        )
+
+        assert is_valid is True
+        assert guidance == []
+
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
     def test_move_for_review_from_worktree_mirrors_commit_to_wp_branch(
