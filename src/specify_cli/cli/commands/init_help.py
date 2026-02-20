@@ -5,12 +5,12 @@ Initialize a new Spec Kitty project from templates.
 
 Interactive Mode (default):
 - Prompts you to select AI assistants
-- Choose agent selection strategy + preferred implementer/reviewer
+- Optionally choose preferred implementer/reviewer when multiple agents are selected
 
 Non-Interactive Mode:
 - Enabled with --non-interactive/--yes, SPEC_KITTY_NON_INTERACTIVE=1, or non-TTY
 - Skips all prompts
-- Uses provided options or defaults (auto-selects preferred strategy if not specified)
+- Uses provided options or defaults
 - Perfect for CI/CD and automation
 
 What Gets Created:

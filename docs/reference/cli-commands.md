@@ -57,9 +57,8 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 | `--template-root TEXT` | Override default template location (useful for development mode) |
 | `--ai TEXT` | Comma-separated AI assistants (claude,codex,gemini,...) |
 | `--script TEXT` | Script type to use: `sh` or `ps` |
-| `--agent-strategy TEXT` | Agent selection strategy: `preferred` or `random` |
-| `--preferred-implementer TEXT` | Preferred agent for implementation (preferred strategy only) |
-| `--preferred-reviewer TEXT` | Preferred agent for review (preferred strategy only) |
+| `--preferred-implementer TEXT` | Preferred agent for implementation |
+| `--preferred-reviewer TEXT` | Preferred agent for review |
 | `--non-interactive` / `--yes` | Disable prompts (CI/CD) |
 | `--help` | Show this message and exit |
 
@@ -70,7 +69,7 @@ spec-kitty init my-project --ai codex
 spec-kitty init my-project --ai codex,claude --script sh
 spec-kitty init . --ai codex --force
 spec-kitty init --here --ai claude
-spec-kitty init my-project --ai codex --agent-strategy random --non-interactive
+spec-kitty init my-project --ai codex --non-interactive
 ```
 
 **See Also**: `docs/non-interactive-init.md`

@@ -6,7 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.orchestrator.agent_config import AgentConfigError, load_agent_config
+from specify_cli.orchestrator.agent_config import (
+    AgentConfig,
+    AgentConfigError,
+    AgentSelectionConfig,
+    load_agent_config,
+    save_agent_config,
+)
 
 
 def _write_config(tmp_path: Path, content: str) -> Path:
@@ -40,3 +46,22 @@ class TestUnknownAgentKey:
         message = str(exc_info.value)
         assert "unknown_agent_xyz" in message
         assert "Valid agents" in message
+
+
+class TestStrategyRemoval:
+    def test_save_agent_config_does_not_persist_selection_strategy(self, tmp_path: Path) -> None:
+        """Persisted agent config should not include a selection.strategy field."""
+        config = AgentConfig(
+            available=["claude", "codex"],
+            selection=AgentSelectionConfig(
+                preferred_implementer="claude",
+                preferred_reviewer="codex",
+            ),
+        )
+
+        save_agent_config(tmp_path, config)
+        content = (tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8")
+
+        assert "strategy:" not in content
+        assert "preferred_implementer: claude" in content
+        assert "preferred_reviewer: codex" in content

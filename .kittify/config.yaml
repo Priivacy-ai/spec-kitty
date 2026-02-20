@@ -6,6 +6,5 @@ agents:
   - claude
   - codex
   selection:
-    strategy: preferred
     preferred_implementer: claude
     preferred_reviewer: codex
