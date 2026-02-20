@@ -7,6 +7,14 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.1] - 2026-02-20
+
+### 🐛 Fixed
+
+- **Merge command CWD side effects**: `spec-kitty merge` and merge executor flows now run git operations with explicit `cwd` instead of mutating global process working directory, preventing downstream command/test failures in shared sessions.
+- **Collaboration event identifier normalization**: mission collaboration events now safely normalize non-UUID mission IDs and run IDs into valid `project_uuid` and `correlation_id` values for local/offline flows.
+- **Event queue and CLI test stability**: queue path handling and release-facing tests were updated for mission-scoped queue files, ANSI-safe option error matching, and current create-feature commit ordering.
+
 ## [0.16.0] - 2026-02-20
 
 ### 🐛 Fixed
