@@ -7,6 +7,19 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-02-20
+
+### 🐛 Fixed
+
+- **Workflow implement auto-resolution**: `spec-kitty agent workflow implement` now reliably resolves the next planned WP and required base workspace across main-repo and worktree contexts, reducing manual `--base` retries and context errors.
+- **Merge preflight and no-op behavior**: `spec-kitty merge` now handles branch-only WP detection and reports already-merged/no-op scenarios cleanly instead of hard-failing.
+- **Init orchestration config cleanup**: Removed agent strategy selection from `spec-kitty init` and stopped persisting `agents.selection.strategy` in config. Preferred implementer/reviewer roles remain supported.
+
+### 🔧 Changed
+
+- **Config compatibility**: Legacy configs that still include `agents.selection.strategy` remain readable; the field is now ignored and not written back.
+- **Init UX simplification**: Init documentation and CLI help now describe preferred role selection only (no random/preferred strategy mode).
+
 ## [0.15.3] - 2026-02-14
 
 ### 🐛 Fixed
