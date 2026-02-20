@@ -180,6 +180,23 @@ class TestMainDivergence:
         assert "main" in guidance_text
         assert "behind" in guidance_text or "rebase" in guidance_text
 
+    def test_main_divergence_allowed_when_moving_to_done(
+        self, diverged_main_repo: tuple[Path, Path]
+    ) -> None:
+        from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
+
+        _, worktree = diverged_main_repo
+        is_valid, guidance = _validate_ready_for_review(
+            worktree,
+            FEATURE_SLUG,
+            WP_ID,
+            force=False,
+            target_lane="done",
+        )
+
+        assert is_valid is True
+        assert guidance == []
+
 
 class TestNoCommitsOnBranch:
     def test_no_commits_on_branch_detected(self, tmp_path: Path) -> None:

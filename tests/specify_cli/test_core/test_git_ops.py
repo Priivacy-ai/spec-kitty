@@ -104,6 +104,31 @@ def test_git_repo_lifecycle(tmp_path, monkeypatch):
     assert branch
 
 
+@pytest.mark.usefixtures("_git_identity")
+def test_init_git_repo_excludes_transient_kittify_artifacts(tmp_path):
+    """Initial commit should not track transient .kittify runtime/template artifacts."""
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "README.md").write_text("hello", encoding="utf-8")
+
+    templates_file = project / ".kittify" / "templates" / "command-templates" / "specify.md"
+    templates_file.parent.mkdir(parents=True, exist_ok=True)
+    templates_file.write_text("template\n", encoding="utf-8")
+
+    pycache_file = project / ".kittify" / "missions" / "__pycache__" / "mission.cpython-313.pyc"
+    pycache_file.parent.mkdir(parents=True, exist_ok=True)
+    pycache_file.write_bytes(b"\x00\x01")
+
+    assert init_git_repo(project, quiet=True) is True
+
+    _, tracked, _ = run_command(["git", "ls-files"], cwd=project, capture=True)
+    tracked_files = set(line.strip() for line in tracked.splitlines() if line.strip())
+
+    assert "README.md" in tracked_files
+    assert ".kittify/templates/command-templates/specify.md" not in tracked_files
+    assert ".kittify/missions/__pycache__/mission.cpython-313.pyc" not in tracked_files
+
+
 @pytest.fixture(name="_git_identity")
 def git_identity_fixture(monkeypatch):
     """Ensure git commands can commit even if the user has no global config."""

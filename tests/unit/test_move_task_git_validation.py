@@ -237,3 +237,31 @@ class TestMoveTaskGitValidation:
         output = json.loads(first_line)
         assert "error" in output
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_to_done_allows_branch_behind_base(
+        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
+    ):
+        """Moving to done should not force a rebase when main advanced."""
+        repo_root, _worktree = git_repo_with_worktree
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "017-test-feature"
+
+        # Advance main after worktree branch diverges.
+        subprocess.run(["git", "checkout", "main"], cwd=repo_root, check=True, capture_output=True)
+        (repo_root / "main-update.txt").write_text("Main changed\n")
+        subprocess.run(["git", "add", "main-update.txt"], cwd=repo_root, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Main update"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "done", "--json"])
+
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["result"] == "success"
+        assert output["new_lane"] == "done"
