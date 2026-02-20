@@ -8,9 +8,7 @@ The configuration is stored in .kittify/config.yaml under the `agents` key.
 
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -27,24 +25,15 @@ class AgentConfigError(RuntimeError):
     """Raised when .kittify/config.yaml cannot be parsed or validated."""
 
 
-class SelectionStrategy(str, Enum):
-    """Strategy for selecting agents."""
-
-    PREFERRED = "preferred"  # Use user-specified preferred agents
-    RANDOM = "random"  # Randomly select from available agents
-
-
 @dataclass
 class AgentSelectionConfig:
-    """Configuration for agent selection.
+    """Configuration for preferred role assignment.
 
     Attributes:
-        strategy: How to select agents (preferred or random)
-        preferred_implementer: Agent ID for implementation (if strategy=preferred)
-        preferred_reviewer: Agent ID for review (if strategy=preferred)
+        preferred_implementer: Agent ID to prefer for implementation tasks.
+        preferred_reviewer: Agent ID to prefer for review tasks.
     """
 
-    strategy: SelectionStrategy = SelectionStrategy.PREFERRED
     preferred_implementer: str | None = None
     preferred_reviewer: str | None = None
 
@@ -74,13 +63,10 @@ class AgentConfig:
         if not candidates:
             return None
 
-        if self.selection.strategy == SelectionStrategy.PREFERRED:
-            if self.selection.preferred_implementer in candidates:
-                return self.selection.preferred_implementer
-            # Fall back to first available
-            return candidates[0]
-        else:  # RANDOM
-            return random.choice(candidates)
+        if self.selection.preferred_implementer in candidates:
+            return self.selection.preferred_implementer
+        # Fall back to first available
+        return candidates[0]
 
     def select_reviewer(self, implementer: str | None = None) -> str | None:
         """Select an agent for review.
@@ -103,13 +89,10 @@ class AgentConfig:
         if not candidates:
             return None
 
-        if self.selection.strategy == SelectionStrategy.PREFERRED:
-            if self.selection.preferred_reviewer in candidates:
-                return self.selection.preferred_reviewer
-            # Fall back to first available that's not the implementer
-            return candidates[0]
-        else:  # RANDOM
-            return random.choice(candidates)
+        if self.selection.preferred_reviewer in candidates:
+            return self.selection.preferred_reviewer
+        # Fall back to first available that's not the implementer
+        return candidates[0]
 
 
 def load_agent_config(repo_root: Path) -> AgentConfig:
@@ -162,17 +145,12 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
             f"Valid agents: {valid_agents}"
         )
 
-    # Parse selection config
+    # Parse selection config (legacy strategy field ignored)
     selection_data = agents_data.get("selection", {})
-    strategy_str = selection_data.get("strategy", "preferred")
-    try:
-        strategy = SelectionStrategy(strategy_str)
-    except ValueError:
-        logger.warning(f"Invalid strategy '{strategy_str}', defaulting to 'preferred'")
-        strategy = SelectionStrategy.PREFERRED
+    if not isinstance(selection_data, dict):
+        selection_data = {}
 
     selection = AgentSelectionConfig(
-        strategy=strategy,
         preferred_implementer=selection_data.get("preferred_implementer"),
         preferred_reviewer=selection_data.get("preferred_reviewer"),
     )
@@ -207,7 +185,6 @@ def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
     data["agents"] = {
         "available": config.available,
         "selection": {
-            "strategy": config.selection.strategy.value,
             "preferred_implementer": config.selection.preferred_implementer,
             "preferred_reviewer": config.selection.preferred_reviewer,
         },
@@ -236,7 +213,6 @@ def get_configured_agents(repo_root: Path) -> list[str]:
 
 
 __all__ = [
-    "SelectionStrategy",
     "AgentSelectionConfig",
     "AgentConfig",
     "AgentConfigError",

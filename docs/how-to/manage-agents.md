@@ -615,7 +615,7 @@ For more information on agent management and related topics:
 
 ### Configuration
 
-- [Configuration Reference](../reference/configuration.md) - Complete `.kittify/config.yaml` schema including agent selection strategies (preferred vs random)
+- [Configuration Reference](../reference/configuration.md) - Complete `.kittify/config.yaml` schema for agent availability and preferred roles
 
 ### Architecture
 
@@ -628,4 +628,3 @@ For more information on agent management and related topics:
 ### Initial Setup
 
 - [Installing spec-kitty](install-spec-kitty.md) - Initial agent selection during `spec-kitty init`
-

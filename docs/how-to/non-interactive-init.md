@@ -10,7 +10,6 @@
 spec-kitty init <project-name> \
   --ai <agents> \
   [--script <type>] \
-  [--agent-strategy <preferred|random>] \
   [--preferred-implementer <agent>] \
   [--preferred-reviewer <agent>] \
   [--non-interactive] \
@@ -77,20 +76,7 @@ spec-kitty init --here
 - Windows → `ps`
 - Mac/Linux → `sh`
 
-### 4. Agent Selection Strategy (`--agent-strategy`)
-
-**Valid values**: `preferred` or `random`
-
-```bash
---agent-strategy preferred   # Explicit preferred implementer/reviewer
---agent-strategy random      # Randomly select each time
-```
-
-If omitted, defaults to `preferred`.
-
-### 5. Preferred Implementer/Reviewer
-
-Only valid with `--agent-strategy preferred`.
+### 4. Preferred Implementer/Reviewer
 
 ```bash
 --preferred-implementer codex
@@ -124,7 +110,6 @@ spec-kitty init my-project \
 spec-kitty init . \
   --ai claude,codex,cursor \
   --script sh \
-  --agent-strategy preferred \
   --preferred-implementer claude \
   --preferred-reviewer codex \
   --force \
@@ -144,7 +129,7 @@ spec-kitty init --here \
 ```bash
 # In non-interactive environment (CI/CD):
 spec-kitty init my-project --ai codex --non-interactive
-# Auto-selects: --script sh (or ps on Windows), preferred strategy defaults
+# Auto-selects: --script sh (or ps on Windows), preferred role defaults
 ```
 
 ### Example 5: CI/CD friendly
@@ -176,7 +161,7 @@ Triggered when:
 
 Presents:
 - Multi-select menu for AI assistants (space to select, enter to confirm)
-- Arrow selection for agent strategy and preferred implementer/reviewer
+- Arrow selection for preferred implementer/reviewer
 - Confirmation prompt if directory not empty (unless `--force`)
 
 ### Non-Interactive Mode
@@ -350,17 +335,6 @@ spec-kitty init proj --script sh
 
 Valid values: `sh` or `ps`
 
-### "Invalid agent strategy"
-```bash
-# ERROR
-spec-kitty init proj --agent-strategy fastest
-
-# CORRECT
-spec-kitty init proj --agent-strategy preferred
-```
-
-Valid values: `preferred` or `random`
-
 ### "Do you want to continue?" prompt appears
 
 This happens when initializing in non-empty directory without `--force`:
@@ -382,7 +356,6 @@ spec-kitty init my-project --ai codex --non-interactive
 spec-kitty init my-project \
   --ai codex,claude,cursor \
   --script sh \
-  --agent-strategy preferred \
   --preferred-implementer codex \
   --preferred-reviewer claude \
   --force \

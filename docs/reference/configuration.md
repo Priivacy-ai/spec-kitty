@@ -297,7 +297,6 @@ agents:
     - opencode
     - claude
   selection:
-    strategy: preferred
     preferred_implementer: opencode
     preferred_reviewer: claude
 ```
@@ -305,7 +304,6 @@ agents:
 | Field | Type | Description |
 |-------|------|-------------|
 | `agents.available` | list | Agents enabled for this project |
-| `selection.strategy` | string | `"preferred"` or `"random"` |
 | `selection.preferred_implementer` | string | Agent for implementation tasks |
 | `selection.preferred_reviewer` | string | Agent for review tasks |
 
@@ -326,14 +324,12 @@ agents:
     - codex
     - opencode
   selection:
-    strategy: preferred  # or "random"
     preferred_implementer: claude
     preferred_reviewer: codex
 ```
 
 **Fields**:
 - `available` (list): Agent keys currently active in project
-- `selection.strategy` (string): Agent selection strategy (`preferred` or `random`)
 - `selection.preferred_implementer` (string): Preferred agent for implementation tasks
 - `selection.preferred_reviewer` (string): Preferred agent for review tasks
 

@@ -39,7 +39,6 @@ from specify_cli.gitignore_manager import GitignoreManager, ProtectionResult
 from specify_cli.core.agent_config import (
     AgentConfig,
     AgentSelectionConfig,
-    SelectionStrategy,
     save_agent_config,
 )
 from .init_help import INIT_COMMAND_DOC
@@ -226,23 +225,13 @@ def _is_non_interactive_mode(flag: bool) -> bool:
     return not sys.stdin.isatty()
 
 
-def _resolve_non_interactive_strategy(
+def _resolve_preferred_agents(
     selected_agents: list[str],
-    agent_strategy: str | None,
     preferred_implementer: str | None,
     preferred_reviewer: str | None,
-) -> tuple[str, str | None, str | None]:
+) -> tuple[str, str]:
     if not selected_agents:
         raise ValueError("At least one agent must be selected")
-
-    resolved_strategy = (agent_strategy or "preferred").strip().lower()
-    if resolved_strategy not in ("preferred", "random"):
-        raise ValueError("Invalid agent strategy. Choose from: preferred, random")
-
-    if resolved_strategy == "random":
-        if preferred_implementer or preferred_reviewer:
-            raise ValueError("--preferred-implementer/--preferred-reviewer require --agent-strategy preferred")
-        return resolved_strategy, None, None
 
     if preferred_implementer and preferred_implementer not in selected_agents:
         raise ValueError("Preferred implementer must be one of the selected agents")
@@ -259,7 +248,7 @@ def _resolve_non_interactive_strategy(
         else:
             preferred_reviewer = preferred_implementer
 
-    return resolved_strategy, preferred_implementer, preferred_reviewer
+    return preferred_implementer, preferred_reviewer
 
 
 def _detect_default_vcs() -> VCSBackend:
@@ -362,7 +351,6 @@ def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
     ai_assistant: str = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps", rich_help_panel="Selection"),
-    agent_strategy: str = typer.Option(None, "--agent-strategy", help="Agent selection strategy: preferred or random", rich_help_panel="Selection"),
     preferred_implementer: str = typer.Option(None, "--preferred-implementer", help="Preferred agent for implementation", rich_help_panel="Selection"),
     preferred_reviewer: str = typer.Option(None, "--preferred-reviewer", help="Preferred agent for review", rich_help_panel="Selection"),
     mission_key: str = typer.Option(None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"),
@@ -535,41 +523,23 @@ def init(
             _console.print(warning_panel)
             # Continue with init instead of blocking
 
-    # ==========================================================================
-    # Agent Selection Strategy (for orchestrator)
-    # ==========================================================================
-    _console.print()
-    _console.print("[cyan]Agent Selection Strategy[/cyan]")
-    _console.print("[dim]This determines how agents are chosen for implementation and review tasks.[/dim]")
-    _console.print()
-
-    strategy_choices = {
-        "preferred": "Preferred Agents - You choose which agent implements and which reviews",
-        "random": "Random - Randomly select from available agents each time",
-    }
-    selected_strategy: str
-    if agent_strategy:
-        selected_strategy = agent_strategy.strip().lower()
-        if selected_strategy not in strategy_choices:
-            _console.print("[red]Error:[/red] Invalid --agent-strategy. Choose from: preferred, random")
-            raise typer.Exit(1)
-    elif preferred_implementer or preferred_reviewer:
-        selected_strategy = "preferred"
-    elif non_interactive:
-        selected_strategy = "preferred"
-    else:
-        selected_strategy = select_with_arrows(
-            strategy_choices,
-            "How should agents be selected for tasks?",
-            default_key="preferred",
-        )
-
+    # Agent role preferences
     preferred_implementer_value: str | None = preferred_implementer
     preferred_reviewer_value: str | None = preferred_reviewer
     preferred_implementer: str | None = None
     preferred_reviewer: str | None = None
 
-    if selected_strategy == "preferred":
+    if non_interactive:
+        try:
+            preferred_implementer, preferred_reviewer = _resolve_preferred_agents(
+                selected_agents,
+                preferred_implementer_value,
+                preferred_reviewer_value,
+            )
+        except ValueError as exc:
+            _console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1)
+    else:
         # Ask for preferred implementer
         agent_display_map = {key: AI_CHOICES[key] for key in selected_agents}
 
@@ -579,8 +549,6 @@ def init(
                 _console.print("[red]Error:[/red] --preferred-implementer must be one of the selected agents")
                 raise typer.Exit(1)
             preferred_implementer = preferred_implementer_value
-        elif non_interactive:
-            preferred_implementer = selected_agents[0]
         else:
             preferred_implementer = select_with_arrows(
                 agent_display_map,
@@ -598,8 +566,6 @@ def init(
                     _console.print("[red]Error:[/red] --preferred-reviewer must be one of the selected agents")
                     raise typer.Exit(1)
                 preferred_reviewer = preferred_reviewer_value
-            elif non_interactive:
-                preferred_reviewer = default_reviewer
             else:
                 preferred_reviewer = select_with_arrows(
                     agent_display_map,
@@ -612,32 +578,11 @@ def init(
             # Only one agent - same for both
             preferred_reviewer = preferred_implementer
             _console.print(f"[dim]Single agent mode: {AI_CHOICES[preferred_implementer]} will do both implementation and review[/dim]")
-    else:
-        if preferred_implementer_value or preferred_reviewer_value:
-            _console.print("[red]Error:[/red] --preferred-implementer/--preferred-reviewer require --agent-strategy preferred")
-            raise typer.Exit(1)
-
-    if non_interactive:
-        try:
-            resolved_strategy, resolved_impl, resolved_rev = _resolve_non_interactive_strategy(
-                selected_agents,
-                selected_strategy,
-                preferred_implementer_value,
-                preferred_reviewer_value,
-            )
-        except ValueError as exc:
-            _console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1)
-        selected_strategy = resolved_strategy
-        if selected_strategy == "preferred":
-            preferred_implementer = resolved_impl
-            preferred_reviewer = resolved_rev
 
     # Build agent config to save later
     agent_config = AgentConfig(
         available=selected_agents,
         selection=AgentSelectionConfig(
-            strategy=SelectionStrategy(selected_strategy),
             preferred_implementer=preferred_implementer,
             preferred_reviewer=preferred_reviewer,
         ),
@@ -1086,7 +1031,7 @@ def init(
     # Save agent configuration to config.yaml
     try:
         save_agent_config(project_path, agent_config)
-        _console.print(f"[dim]Saved agent configuration ({selected_strategy} strategy)[/dim]")
+        _console.print("[dim]Saved agent configuration[/dim]")
     except Exception as e:
         # Don't fail init if agent config creation fails
         _console.print(f"[dim]Note: Could not save agent config: {e}[/dim]")

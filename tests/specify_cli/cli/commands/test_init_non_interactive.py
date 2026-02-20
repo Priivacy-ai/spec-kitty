@@ -29,45 +29,39 @@ def test_non_interactive_non_tty(monkeypatch: pytest.MonkeyPatch):
     assert init_module._is_non_interactive_mode(False) is True
 
 
-def test_resolve_non_interactive_defaults_multi_agent():
-    strategy, implementer, reviewer = init_module._resolve_non_interactive_strategy(
+def test_resolve_preferred_agents_defaults_multi_agent():
+    implementer, reviewer = init_module._resolve_preferred_agents(
         ["codex", "claude"],
         None,
         None,
-        None,
     )
-    assert strategy == "preferred"
     assert implementer == "codex"
     assert reviewer == "claude"
 
 
-def test_resolve_non_interactive_defaults_single_agent():
-    strategy, implementer, reviewer = init_module._resolve_non_interactive_strategy(
+def test_resolve_preferred_agents_defaults_single_agent():
+    implementer, reviewer = init_module._resolve_preferred_agents(
         ["codex"],
         None,
         None,
-        None,
     )
-    assert strategy == "preferred"
     assert implementer == "codex"
     assert reviewer == "codex"
 
 
-def test_resolve_non_interactive_random_rejects_preferred():
+def test_resolve_preferred_agents_invalid_preferred_agent():
     with pytest.raises(ValueError):
-        init_module._resolve_non_interactive_strategy(
+        init_module._resolve_preferred_agents(
             ["codex", "claude"],
-            "random",
-            "codex",
+            "gemini",
             None,
         )
 
 
-def test_resolve_non_interactive_invalid_preferred_agent():
+def test_resolve_preferred_agents_invalid_reviewer_agent():
     with pytest.raises(ValueError):
-        init_module._resolve_non_interactive_strategy(
+        init_module._resolve_preferred_agents(
             ["codex", "claude"],
-            "preferred",
+            "codex",
             "gemini",
-            None,
         )

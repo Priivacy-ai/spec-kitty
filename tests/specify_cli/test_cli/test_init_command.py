@@ -453,48 +453,24 @@ def test_init_amends_initial_commit_after_cleanup(cli_app, monkeypatch: pytest.M
     assert any(call[:4] == ["git", "commit", "--amend", "--no-edit"] for call in git_calls)
 
 
-def test_init_non_interactive_invalid_agent_strategy(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    app, console, _ = cli_app
+def test_init_rejects_removed_agent_strategy_option(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    app, _, _ = cli_app
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     result = runner.invoke(
         app,
         [
             "init",
-            "bad-strategy",
+            "bad-strategy-option",
             "--ai",
             "codex",
-            "--agent-strategy",
-            "fastest",
-            "--non-interactive",
-        ],
-    )
-    assert result.exit_code == 1
-    console_output = console.file.getvalue()
-    assert "Invalid --agent-strategy" in console_output
-
-
-def test_init_non_interactive_random_rejects_preferred_flags(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    app, console, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "init",
-            "random-pref",
-            "--ai",
-            "codex,claude",
             "--agent-strategy",
             "random",
-            "--preferred-implementer",
-            "codex",
             "--non-interactive",
         ],
     )
-    assert result.exit_code == 1
-    console_output = console.file.getvalue()
-    assert "require --agent-strategy" in console_output
+    assert result.exit_code == 2
+    assert "No such option: --agent-strategy" in result.output
 
 
 def test_init_non_interactive_preferred_agent_not_selected(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
@@ -515,4 +491,4 @@ def test_init_non_interactive_preferred_agent_not_selected(cli_app, monkeypatch:
     )
     assert result.exit_code == 1
     console_output = console.file.getvalue()
-    assert "--preferred-implementer must be one of the selected agents" in console_output
+    assert "Preferred implementer must be one of the selected agents" in console_output
