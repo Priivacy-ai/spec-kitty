@@ -1152,44 +1152,36 @@ def finalize_tasks(
         try:
             # Build list of all files to commit via safe_commit
             files_to_commit = []
+            files_to_commit_rel = []
 
             # Include tasks.md (if present)
             if tasks_md.exists():
                 files_to_commit.append(tasks_md)
-                files_committed.append(str(tasks_md.relative_to(repo_root)))
+                rel_path = str(tasks_md.relative_to(repo_root))
+                files_to_commit_rel.append(rel_path)
+                files_committed.append(rel_path)
 
             # Include all files in tasks_dir
             for f in tasks_dir.iterdir():
                 if f.is_file():
                     files_to_commit.append(f)
-                    files_committed.append(str(f.relative_to(repo_root)))
+                    rel_path = str(f.relative_to(repo_root))
+                    files_to_commit_rel.append(rel_path)
+                    files_committed.append(rel_path)
 
-            # Commit with descriptive message (safe_commit preserves staging area)
-            commit_msg = f"Add tasks for feature {feature_slug}"
-            commit_success = safe_commit(
-                repo_path=repo_root,
-                files_to_commit=files_to_commit,
-                commit_message=commit_msg,
-                allow_empty=False,
-            )
-
-            if commit_success:
-                # Commit succeeded - get hash
-                returncode, stdout, stderr = run_command(
-                    ["git", "rev-parse", "HEAD"],
+            # Detect changes only within finalize-tasks outputs.
+            # This avoids treating unrelated dirty files as commit failures.
+            has_relevant_changes = False
+            if files_to_commit_rel:
+                _rc, status_out, _status_err = run_command(
+                    ["git", "status", "--porcelain", "--", *files_to_commit_rel],
                     check_return=True,
                     capture=True,
-                    cwd=repo_root
+                    cwd=repo_root,
                 )
-                commit_hash = stdout.strip()
-                commit_created = True
+                has_relevant_changes = bool(status_out.strip())
 
-                if not json_output:
-                    console.print(f"[green]✓[/green] Tasks committed to {target_branch}")
-                    console.print(f"[dim]Commit: {commit_hash[:7]}[/dim]")
-                    console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
-            elif "nothing to commit" in stdout_commit or "nothing to commit" in stderr_commit or \
-                 "nothing added to commit" in stdout_commit or "nothing added to commit" in stderr_commit:
+            if not has_relevant_changes:
                 # Nothing to commit (already committed)
                 commit_created = False
                 commit_hash = None
@@ -1197,14 +1189,40 @@ def finalize_tasks(
                 if not json_output:
                     console.print(f"[dim]Tasks unchanged, no commit needed[/dim]")
             else:
-                # Real error
-                error_output = stderr_commit if stderr_commit else stdout_commit
-                if json_output:
-                    print(json.dumps({"error": f"Git commit failed: {error_output}"}))
-                else:
-                    console.print(f"[red]Error:[/red] Git commit failed: {error_output}")
-                raise typer.Exit(1)
+                # Commit with descriptive message (safe_commit preserves staging area)
+                commit_msg = f"Add tasks for feature {feature_slug}"
+                commit_success = safe_commit(
+                    repo_path=repo_root,
+                    files_to_commit=files_to_commit,
+                    commit_message=commit_msg,
+                    allow_empty=False,
+                )
 
+                if commit_success:
+                    # Commit succeeded - get hash
+                    _rc, stdout, _stderr = run_command(
+                        ["git", "rev-parse", "HEAD"],
+                        check_return=True,
+                        capture=True,
+                        cwd=repo_root
+                    )
+                    commit_hash = stdout.strip()
+                    commit_created = True
+
+                    if not json_output:
+                        console.print(f"[green]✓[/green] Tasks committed to {target_branch}")
+                        console.print(f"[dim]Commit: {commit_hash[:7]}[/dim]")
+                        console.print(f"[dim]Updated {updated_count} WP files with dependencies[/dim]")
+                else:
+                    error_output = "Failed to commit tasks updates"
+                    if json_output:
+                        print(json.dumps({"error": f"Git commit failed: {error_output}"}))
+                    else:
+                        console.print(f"[red]Error:[/red] Git commit failed: {error_output}")
+                    raise typer.Exit(1)
+
+        except typer.Exit:
+            raise
         except Exception as e:
             # Unexpected error
             if json_output:
@@ -1241,6 +1259,8 @@ def finalize_tasks(
                 "files_committed": files_committed
             }))
 
+    except typer.Exit:
+        raise
     except Exception as e:
         if json_output:
             print(json.dumps({"error": str(e)}))
