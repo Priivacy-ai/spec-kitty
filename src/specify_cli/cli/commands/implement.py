@@ -24,6 +24,7 @@ from specify_cli.core.vcs import (
     VCSLockError,
 )
 from specify_cli.frontmatter import read_frontmatter, update_fields
+from specify_cli.git import safe_commit
 from specify_cli.tasks_support import (
     TaskCliError,
     find_repo_root,
