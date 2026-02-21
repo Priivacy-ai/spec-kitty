@@ -134,11 +134,11 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T018-T022 (5 subtasks)
-- [ ] T018: Define 4 dossier event schemas (ArtifactIndexed, ArtifactMissing, SnapshotComputed, ParityDriftDetected)
-- [ ] T019: Add schemas to spec-kitty-events contracts (JSON Schema)
-- [ ] T020: Event emitters (async, integrate with OfflineQueue)
-- [ ] T021: Payload validation (Pydantic models, fail on invalid data)
-- [ ] T022: Event routing to sync infrastructure (enqueue, webhook dispatch)
+- [x] T018: Define 4 dossier event schemas (ArtifactIndexed, ArtifactMissing, SnapshotComputed, ParityDriftDetected)
+- [x] T019: Add schemas to spec-kitty-events contracts (JSON Schema)
+- [x] T020: Event emitters (async, integrate with OfflineQueue)
+- [x] T021: Payload validation (Pydantic models, fail on invalid data)
+- [x] T022: Event routing to sync infrastructure (enqueue, webhook dispatch)
 
 **Implementation Notes**:
 - Event types: See data-model.md for complete payload schemas
