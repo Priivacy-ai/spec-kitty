@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Snapshot Computation & Parity Hash
-lane: "for_review"
+lane: "done"
 dependencies:
 - WP01
 - WP03
@@ -17,6 +17,8 @@ subtasks:
 feature_slug: 042-local-mission-dossier-authority-parity-export
 shell_pid: "93614"
 agent: "coordinator"
+reviewed_by: "Robert Douglass"
+review_status: "approved"
 ---
 
 # WP05: Snapshot Computation & Parity Hash
@@ -391,3 +393,4 @@ When reviewing WP05:
 
 - 2026-02-21T15:56:21Z – coordinator – shell_pid=93614 – lane=doing – Assigned agent via workflow command
 - 2026-02-21T15:59:03Z – coordinator – shell_pid=93614 – lane=for_review – Ready for review: Snapshot computation and parity hash implemented with 28 comprehensive tests covering deterministic computation, order-independent parity hash, persistence, reproducibility validation, and equality comparison. All 5 subtasks (T023-T027) completed.
+- 2026-02-21T15:59:32Z – coordinator – shell_pid=93614 – lane=done – Code review passed: 28 tests, snapshot determinism verified, parity hash order-independent
