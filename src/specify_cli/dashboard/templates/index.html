@@ -85,6 +85,12 @@
             <div class="sidebar-item" data-page="diagnostics" onclick="switchPage('diagnostics')">
                 🔍 Diagnostics
             </div>
+            <div style="padding: 15px 30px; margin-top: 20px; font-size: 0.75em; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                Dossier
+            </div>
+            <div class="sidebar-item" data-page="dossier" onclick="switchPage('dossier')">
+                📦 Dossier
+            </div>
         </div>
 
         <div class="main-content">
@@ -209,6 +215,24 @@
                 </div>
             </div>
 
+            <div id="page-dossier" class="page">
+                <div class="content-card">
+                    <h2>📦 Dossier</h2>
+                    <div class="dossier-panel-container">
+                        <div class="dossier-overview"></div>
+                        <div class="dossier-filters"></div>
+                        <div class="dossier-artifact-list"></div>
+                    </div>
+                    <div id="dossier-detail-modal" class="modal" style="display: none;">
+                        <div class="modal-overlay"></div>
+                        <div class="modal-content dossier-modal">
+                            <button class="modal-close">&times;</button>
+                            <div class="artifact-detail"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="page-welcome" class="page">
                 <div class="content-card">
                     <h2>Welcome to Spec Kitty!</h2>
@@ -253,6 +277,7 @@
         </div>
     </div>
 
+    <script src="/static/js/dossier-panel.js"></script>
     <script src="/static/dashboard/dashboard.js"></script>
 </body>
 </html>

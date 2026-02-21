@@ -257,8 +257,8 @@ function updateSidebarState() {
 
     document.querySelectorAll('.sidebar-item').forEach(item => {
         const page = item.dataset.page;
-        // System pages (constitution, diagnostics) should never be disabled
-        if (!page || page === 'constitution' || page === 'diagnostics') {
+        // System pages (constitution, diagnostics, dossier) should never be disabled
+        if (!page || page === 'constitution' || page === 'diagnostics' || page === 'dossier') {
             item.classList.remove('disabled');
             return;
         }
@@ -289,6 +289,8 @@ function loadCurrentPage() {
         loadChecklists();
     } else if (currentPage === 'research') {
         loadResearch();
+    } else if (currentPage === 'dossier') {
+        loadDossier();
     } else {
         loadArtifact(currentPage);
     }
@@ -332,12 +334,16 @@ return `
         {name: 'Data Model', key: 'data_model', icon: '💾'},
         {name: 'Contracts', key: 'contracts', icon: '📜'},
         {name: 'Checklists', key: 'checklists', icon: '✅'},
-    ].map(a => `
-        <div style="padding: 10px; background: ${artifacts[a.key]?.exists ? '#ecfdf5' : '#fef2f2'};
-             border-radius: 6px; border-left: 3px solid ${artifacts[a.key]?.exists ? '#10b981' : '#ef4444'};">
-            ${a.icon} ${a.name}: ${artifacts[a.key]?.exists ? '✅ Available' : '❌ Not created'}
+        {name: 'Dossier', key: 'dossier', icon: '📦'},
+    ].map(a => {
+        // Dossier is always available (system page)
+        const isAvailable = a.key === 'dossier' || artifacts[a.key]?.exists;
+        return `
+        <div style="padding: 10px; background: ${isAvailable ? '#ecfdf5' : '#fef2f2'};
+             border-radius: 6px; border-left: 3px solid ${isAvailable ? '#10b981' : '#ef4444'};">
+            ${a.icon} ${a.name}: ${isAvailable ? '✅ Available' : '❌ Not created'}
         </div>
-    `).join('');
+    `}).join('');
 
     document.getElementById('overview-content').innerHTML = `
 <div style="margin-bottom: 30px;">
@@ -1255,6 +1261,31 @@ function showDiagnostics() {
     }
 
     loadDiagnostics();
+}
+
+function loadDossier() {
+    if (!currentFeature) return;
+
+    // Initialize and render dossier panel
+    const container = document.getElementById('dossier-panel-container');
+    if (!container) {
+        console.error('Dossier panel container not found');
+        return;
+    }
+
+    // Create panel instance if it doesn't exist
+    if (!window.dossierPanel) {
+        window.dossierPanel = new DossierPanel('dossier-panel-container');
+    }
+
+    // Initialize with current feature
+    window.dossierPanel.init(currentFeature).catch(error => {
+        console.error('Error loading dossier:', error);
+        const container = document.getElementById('dossier-panel-container');
+        if (container) {
+            container.innerHTML = `<div class="dossier-error"><p>Error loading dossier: ${error.message}</p></div>`;
+        }
+    });
 }
 
 function loadDiagnostics() {
