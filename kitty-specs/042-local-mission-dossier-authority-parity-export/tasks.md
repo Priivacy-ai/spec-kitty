@@ -316,11 +316,11 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T046-T050 (5 subtasks)
-- [ ] T046: Hash reproducibility (same file → same hash, tested 10 runs)
-- [ ] T047: Order independence (artifact order irrelevant to parity hash)
-- [ ] T048: UTF-8 handling (special chars, BOM, CJK, surrogates)
-- [ ] T049: CRLF vs LF consistency (Windows/Unix line endings)
-- [ ] T050: Parity hash stability (machines, timezones, different Python versions)
+- [x] T046: Hash reproducibility (same file → same hash, tested 10 runs)
+- [x] T047: Order independence (artifact order irrelevant to parity hash)
+- [x] T048: UTF-8 handling (special chars, BOM, CJK, surrogates)
+- [x] T049: CRLF vs LF consistency (Windows/Unix line endings)
+- [x] T050: Parity hash stability (machines, timezones, different Python versions)
 
 **Implementation Notes**:
 - Reproducibility: Hash same file multiple times, verify identical SHA256
