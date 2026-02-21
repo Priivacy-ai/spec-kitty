@@ -172,10 +172,54 @@ Terms describing cross-cutting development practices and principles aligned with
 
 |                   |                                                                                                                                                                                                                                                                                                                                   |
 |-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | Away From Keyboard — a session management protocol granting agents extended autonomy with defined boundaries. When activated: commit after each logical unit, push permission granted, minor decisions autonomous, critical decisions trigger escalation. Deactivated when human returns or agent encounters a critical decision. |
+| **Definition**    | Away From Keyboard -- a session management protocol granting agents extended autonomy with defined boundaries. When activated: commit after each logical unit, push permission granted, minor decisions autonomous, critical decisions trigger escalation. Deactivated when human returns or agent encounters a critical decision. |
 | **Context**       | Practices & Principles                                                                                                                                                                                                                                                                                                            |
 | **Status**        | canonical                                                                                                                                                                                                                                                                                                                         |
 | **Related terms** | [Human In Charge](#human-in-charge), [Decision Boundary](#decision-boundary), [Escalation](#escalation)                                                                                                                                                                                                                           |
+
+---
+
+### Domain Classification
+
+|                   |                                                                                                                                                                                                                                                                                                                                   |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | The practice of assigning each source code package to one of three tiers -- core, supporting, or glue -- based on its criticality and testability. The tier determines the coverage threshold enforced in CI, the level of static analysis applied, and the scope of quality gate checks. Declared in `pyproject.toml` under `[tool.coverage_tiers]` as the single source of truth. |
+| **Context**       | Practices & Principles                                                                                                                                                                                                                                                                                                            |
+| **Status**        | canonical                                                                                                                                                                                                                                                                                                                         |
+| **Related terms** | [Core Domain](#core-domain), [Supporting Domain](#supporting-domain), [Glue Domain](#glue-domain), [Phase Checkpoint Protocol](#phase-checkpoint-protocol)                                                                                                                                                                        |
+
+---
+
+### Core Domain
+
+|                   |                                                                                                                                                                                                                                                                                                                                   |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | Packages containing the canonical business logic of the system -- state machines, domain models, VCS abstractions, event infrastructure. Subject to the highest coverage threshold (currently 80%) and full static analysis including quality and security rules. Changes here carry the highest risk and require the most scrutiny. |
+| **Context**       | Practices & Principles                                                                                                                                                                                                                                                                                                            |
+| **Status**        | canonical                                                                                                                                                                                                                                                                                                                         |
+| **Related terms** | [Domain Classification](#domain-classification), [Supporting Domain](#supporting-domain), [Glue Domain](#glue-domain)                                                                                                                                                                                                            |
+
+---
+
+### Supporting Domain
+
+|                   |                                                                                                                                                                                                                                                                                                                                   |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | Packages providing important but inherently harder-to-unit-test functionality -- CLI command bindings, I/O-heavy adapters, format parsers. Subject to a reduced but enforced coverage threshold (currently 55%) and full static analysis. Best-effort coverage is acceptable; gaps must be justified, not ignored.                  |
+| **Context**       | Practices & Principles                                                                                                                                                                                                                                                                                                            |
+| **Status**        | canonical                                                                                                                                                                                                                                                                                                                         |
+| **Related terms** | [Domain Classification](#domain-classification), [Core Domain](#core-domain), [Glue Domain](#glue-domain)                                                                                                                                                                                                                        |
+
+---
+
+### Glue Domain
+
+|                   |                                                                                                                                                                                                                                                                                                                                   |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | Packages acting as thin wiring between subsystems -- orchestration entry points, web UI handlers, utility scripts. Coverage is tracked but not enforced (threshold: 0%). Quality issues are suppressed in SonarCloud to avoid noise. Security scanning (Bandit, pip-audit) continues to apply without exception; glue code is not exempt from OWASP or CVE checks. |
+| **Context**       | Practices & Principles                                                                                                                                                                                                                                                                                                            |
+| **Status**        | canonical                                                                                                                                                                                                                                                                                                                         |
+| **Related terms** | [Domain Classification](#domain-classification), [Core Domain](#core-domain), [Supporting Domain](#supporting-domain)                                                                                                                                                                                                            |
 
 ---
 

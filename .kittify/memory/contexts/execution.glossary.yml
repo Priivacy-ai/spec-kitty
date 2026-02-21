@@ -22,8 +22,9 @@ contexts:
           - GitHub Copilot
         meta:
           Context: Execution
-          Status: canonical
-          In code: '`ToolInvoker` (Protocol), `ToolConfig`, `tool_id`, `select_tool()`'
+          Status: candidate
+          In code: Canonical naming migration in progress. Runtime still includes legacy `agent` 
+            identifiers in several surfaces.
           Related terms: Agent, Orchestration Assignment
           Decision history: '2026-02-15: Canonical term renamed from "agent" to "tool" to resolve collision
             with Doctrine agent profiles. See `glossary/naming-decision-tool-vs-agent.md`.'
@@ -36,14 +37,16 @@ contexts:
           - '`AgentInvoker`'
         meta:
           Context: Execution
-          Status: canonical
-          In code: '`ToolInvoker` (Protocol, runtime_checkable)'
+          Status: candidate
+          In code: 'Planned canonical interface; current code still uses legacy invoker naming in parts
+            of the runtime. See: `ToolInvoker` (Protocol, runtime_checkable)'
           Related terms: Tool
       - name: Invocation Result
         definition: Structured output of a tool execution — captures success status, stdout/stderr, 
           duration, files modified, commits made, errors, and warnings.
         meta:
           Context: Execution
-          Status: canonical
-          In code: '`InvocationResult` (dataclass)'
+          Status: candidate
+          In code: 'Target runtime contract; implementation details are still being consolidated during
+            mission/runtime convergence. See: `InvocationResult` (dataclass)'
           Related terms: Tool Invoker, Execution Event

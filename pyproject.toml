@@ -84,6 +84,8 @@ test = [
     "build>=1.0.0",  # Required for distribution tests (wheel building)
     "mypy>=1.0",  # Static type checking (constitution: mypy --strict)
     "ruff>=0.1.0",  # Linting (constitution: ruff check)
+    "bandit>=1.7",  # Python SAST -- OWASP security scanning (all tiers)
+    "pip-audit>=2.6",  # CVE scanning of installed dependencies
 ]
 
 [project.scripts]
@@ -106,6 +108,8 @@ pytest-cov = ">=4.0"
 build = ">=1.0.0"
 mypy = ">=1.0"
 ruff = ">=0.1.0"
+bandit = ">=1.7"
+pip-audit = ">=2.6"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/specify_cli", "src/doctrine"]
@@ -159,6 +163,71 @@ line-ending = "auto"
 [tool.mypy]
 # Keep strict mode as the default quality bar for actively maintained code.
 strict = true
+
+[tool.coverage.run]
+source = ["src/specify_cli", "src/doctrine"]
+
+[tool.coverage.report]
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@(abc\\.)?abstractmethod",
+]
+
+# ---------------------------------------------------------------------------
+# Tiered coverage thresholds
+#
+# This is the SINGLE SOURCE OF TRUTH for domain classification.
+# Keep in sync with: sonar-project.properties (sonar.exclusions)
+#                    docs/development/tiered-quality-enforcement.md
+#
+# Thresholds are enforced by scripts/check_coverage.py (CI + local).
+# The global --cov-fail-under flag is NOT used; all checks run here.
+# ---------------------------------------------------------------------------
+
+[tool.coverage_tiers.core]
+# Critical domain logic -- state machines, VCS abstractions, event infrastructure.
+# Highest coverage bar; full SonarCloud analysis applies.
+include = [
+    "src/specify_cli/status/*",
+    "src/specify_cli/core/*",
+    "src/specify_cli/merge/*",
+    "src/specify_cli/constitution/*",
+    "src/specify_cli/git/*",
+    "src/specify_cli/events/*",
+    "src/specify_cli/next/*",
+    "src/specify_cli/spec_kitty_events/*",
+    "src/doctrine/*",
+]
+min_coverage = 80
+
+[tool.coverage_tiers.supporting]
+# I/O-heavy and CLI-bound code -- important but harder to unit-test.
+# Reduced but enforced threshold; full SonarCloud analysis applies.
+include = [
+    "src/specify_cli/cli/*",
+    "src/specify_cli/glossary/*",
+    "src/specify_cli/sync/*",
+    "src/specify_cli/frontmatter.py",
+]
+min_coverage = 55
+
+[tool.coverage_tiers.glue]
+# Thin orchestration wiring, UI handlers, utility scripts.
+# Coverage tracked but not enforced. Excluded from SonarCloud (quality noise).
+# Security scanning via Bandit and pip-audit still applies to all tiers.
+include = [
+    "src/specify_cli/orchestrator/*",
+    "src/specify_cli/orchestrator_api/*",
+    "src/specify_cli/dashboard/*",
+    "src/specify_cli/scripts/*",
+    "src/specify_cli/missions/*",
+]
+min_coverage = 0
 
 [[tool.mypy.overrides]]
 # Transitional quarantine for legacy modules that are still being migrated to strict typing.
