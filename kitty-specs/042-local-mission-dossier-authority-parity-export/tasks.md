@@ -350,14 +350,14 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T051-T058 (8 subtasks)
-- [ ] T051: Missing required artifact detection (edge case: multiple missing, blocking)
-- [ ] T052: Optional artifact handling (edge case: optional missing, non-blocking)
-- [ ] T053: Unreadable artifact handling (permission denied, disk I/O errors)
-- [ ] T054: Large artifact handling (>5MB, dashboard truncation, no memory issues)
-- [ ] T055: Full scan workflow integration test (specify → plan → tasks → index → snapshot → events)
-- [ ] T056: SaaS webhook simulator (mock endpoint receives all 4 event types)
-- [ ] T057: Concurrent file modification edge case (file changed during scan)
-- [ ] T058: Manifest version mismatch edge case (manifest updated, baseline key mismatch)
+- [x] T051: Missing required artifact detection (edge case: multiple missing, blocking)
+- [x] T052: Optional artifact handling (edge case: optional missing, non-blocking)
+- [x] T053: Unreadable artifact handling (permission denied, disk I/O errors)
+- [x] T054: Large artifact handling (>5MB, dashboard truncation, no memory issues)
+- [x] T055: Full scan workflow integration test (specify → plan → tasks → index → snapshot → events)
+- [x] T056: SaaS webhook simulator (mock endpoint receives all 4 event types)
+- [x] T057: Concurrent file modification edge case (file changed during scan)
+- [x] T058: Manifest version mismatch edge case (manifest updated, baseline key mismatch)
 
 **Implementation Notes**:
 - Missing detection: Create feature with spec.md missing, plan.md present; verify MissionDossierArtifactMissing event
