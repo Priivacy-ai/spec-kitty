@@ -206,12 +206,12 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T028-T033 (6 subtasks)
-- [ ] T028: Implement GET /api/dossier/overview endpoint (returns DossierOverviewResponse)
-- [ ] T029: Implement GET /api/dossier/artifacts endpoint (list, filtering by class/wp_id/step_id)
-- [ ] T030: Implement GET /api/dossier/artifacts/{artifact_key} endpoint (detail, full text)
-- [ ] T031: Implement GET /api/dossier/snapshots/export endpoint (returns snapshot JSON for SaaS import)
-- [ ] T032: Router dispatch rules (add dossier routes to dashboard handler)
-- [ ] T033: Define adapter interface for future FastAPI migration (handler protocol spec)
+- [x] T028: Implement GET /api/dossier/overview endpoint (returns DossierOverviewResponse)
+- [x] T029: Implement GET /api/dossier/artifacts endpoint (list, filtering by class/wp_id/step_id)
+- [x] T030: Implement GET /api/dossier/artifacts/{artifact_key} endpoint (detail, full text)
+- [x] T031: Implement GET /api/dossier/snapshots/export endpoint (returns snapshot JSON for SaaS import)
+- [x] T032: Router dispatch rules (add dossier routes to dashboard handler)
+- [x] T033: Define adapter interface for future FastAPI migration (handler protocol spec)
 
 **Implementation Notes**:
 - Overview: Returns completeness_status, parity_hash, artifact counts, last_scanned_at
