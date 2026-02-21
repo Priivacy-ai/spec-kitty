@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Dashboard API Endpoints
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP04
 - WP05
@@ -522,3 +522,4 @@ When reviewing WP06:
 ## Activity Log
 
 - 2026-02-21T15:59:41Z – coordinator – shell_pid=98799 – lane=doing – Assigned agent via workflow command
+- 2026-02-21T16:02:26Z – coordinator – shell_pid=98799 – lane=for_review – Ready for review: Dashboard API endpoints (overview, artifacts list, artifact detail, snapshot export) with adapter pattern for FastAPI migration. All 33 tests passing.
