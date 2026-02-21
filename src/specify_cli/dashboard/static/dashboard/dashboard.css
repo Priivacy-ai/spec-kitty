@@ -708,6 +708,559 @@ body.modal-open {
     margin: 1em 0;
 }
 
+/* ========================================
+   Dossier Panel Styles
+   ======================================== */
+
+.dossier-panel-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.dossier-overview {
+    background: var(--creamy-white);
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid var(--grassy-green);
+}
+
+.overview-header {
+    margin-bottom: 20px;
+}
+
+.overview-header h2 {
+    font-size: 1.3em;
+    color: var(--dark-text);
+    margin: 0 0 15px 0;
+}
+
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 15px;
+    background: var(--light-gray);
+    border-radius: 6px;
+    text-align: center;
+}
+
+.stat .label {
+    font-size: 0.85em;
+    color: var(--medium-text);
+    font-weight: 500;
+}
+
+.stat .value {
+    font-size: 1.5em;
+    font-weight: 700;
+    color: var(--dark-text);
+}
+
+.stat .value.status-complete {
+    color: var(--grassy-green);
+}
+
+.stat .value.status-incomplete {
+    color: #f59e0b;
+}
+
+.stat .value.status-unknown {
+    color: var(--medium-text);
+}
+
+.stat .value.warn {
+    color: #ef4444;
+}
+
+.parity-hash {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: var(--light-gray);
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+.parity-hash .label {
+    color: var(--medium-text);
+    font-weight: 500;
+}
+
+.parity-hash code {
+    background: var(--creamy-white);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+/* Filter UI */
+.dossier-filters {
+    background: var(--creamy-white);
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid var(--lavender);
+}
+
+.filters h3 {
+    font-size: 1.1em;
+    color: var(--dark-text);
+    margin: 0 0 15px 0;
+}
+
+.filter-group {
+    margin-bottom: 15px;
+}
+
+.filter-group-label {
+    display: block;
+    font-weight: 600;
+    color: var(--dark-text);
+    margin-bottom: 8px;
+    font-size: 0.9em;
+}
+
+.filter-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.95em;
+    user-select: none;
+}
+
+.filter-checkbox input {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+}
+
+.filter-checkbox span {
+    color: var(--dark-text);
+}
+
+.filter-reset-btn {
+    background: var(--grassy-green);
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9em;
+    transition: opacity 0.2s;
+}
+
+.filter-reset-btn:hover {
+    opacity: 0.9;
+}
+
+.filter-reset-btn:active {
+    transform: scale(0.98);
+}
+
+/* Artifact List Table */
+.dossier-artifact-list {
+    background: var(--creamy-white);
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid var(--sunny-yellow);
+    overflow-x: auto;
+}
+
+.no-artifacts {
+    text-align: center;
+    color: var(--medium-text);
+    padding: 40px 20px;
+}
+
+.artifact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+.artifact-table thead {
+    background: var(--light-gray);
+    border-bottom: 2px solid var(--dark-text);
+}
+
+.artifact-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--dark-text);
+}
+
+.artifact-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.artifact-row {
+    transition: background-color 0.2s;
+}
+
+.artifact-row:hover {
+    background: var(--baby-blue);
+}
+
+.artifact-key {
+    font-family: monospace;
+    font-size: 0.85em;
+}
+
+.artifact-link {
+    color: var(--grassy-green);
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.artifact-link:hover {
+    text-decoration: underline;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.badge-input {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.badge-workflow {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-output {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-evidence {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+.badge-policy {
+    background: #fce7f3;
+    color: #be185d;
+}
+
+.badge-runtime {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.artifact-path {
+    font-family: monospace;
+    font-size: 0.85em;
+    color: var(--medium-text);
+}
+
+.artifact-status {
+    text-align: center;
+    font-weight: 500;
+}
+
+.status-present {
+    color: var(--grassy-green);
+}
+
+.status-missing {
+    color: #ef4444;
+}
+
+/* Media Type Hints */
+.artifact-row.media-markdown {
+    border-left: 3px solid #0366d6;
+}
+
+.artifact-row.media-json {
+    border-left: 3px solid #f97316;
+}
+
+.artifact-row.media-yaml {
+    border-left: 3px solid #8b5cf6;
+}
+
+/* Detail Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: -1;
+}
+
+.dossier-modal .modal-content {
+    background: var(--creamy-white);
+    max-width: 90%;
+    max-height: 90vh;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.dossier-modal .modal-content {
+    max-width: 800px;
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: var(--light-gray);
+    border: none;
+    border-radius: 4px;
+    width: 36px;
+    height: 36px;
+    font-size: 1.5em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: background 0.2s;
+}
+
+.modal-close:hover {
+    background: var(--light-gray);
+    opacity: 0.8;
+}
+
+.artifact-detail {
+    padding: 30px;
+    overflow-y: auto;
+    max-height: calc(90vh - 60px);
+}
+
+.artifact-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--light-gray);
+    padding-bottom: 15px;
+}
+
+.artifact-header h2 {
+    margin: 0;
+    color: var(--dark-text);
+    flex: 1;
+    font-size: 1.3em;
+    word-break: break-all;
+}
+
+.artifact-metadata {
+    margin-bottom: 25px;
+    background: var(--light-gray);
+    padding: 15px;
+    border-radius: 6px;
+}
+
+.artifact-metadata dl {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 10px 15px;
+}
+
+.artifact-metadata dt {
+    font-weight: 600;
+    color: var(--dark-text);
+}
+
+.artifact-metadata dd {
+    color: var(--medium-text);
+    margin: 0;
+    font-family: monospace;
+    font-size: 0.9em;
+    word-break: break-all;
+}
+
+.artifact-content-wrapper {
+    margin-top: 20px;
+}
+
+.artifact-content {
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 6px;
+    border-left: 4px solid var(--light-gray);
+    overflow-x: auto;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.85em;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.artifact-content.media-markdown {
+    border-left-color: #0366d6;
+    background: #f6f8fa;
+}
+
+.artifact-content.media-json {
+    border-left-color: #f97316;
+    background: #fef3c7;
+}
+
+.artifact-content.media-yaml {
+    border-left-color: #8b5cf6;
+    background: #f3e8ff;
+}
+
+.artifact-truncated {
+    background: #fef3c7;
+    border: 2px solid #f59e0b;
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+}
+
+.artifact-truncated h4 {
+    color: #92400e;
+    margin: 0 0 10px 0;
+}
+
+.artifact-truncated p {
+    color: var(--medium-text);
+    margin: 5px 0;
+}
+
+.file-size {
+    font-weight: 600;
+    margin: 15px 0 !important;
+}
+
+.artifact-missing {
+    background: #fef2f2;
+    border: 2px solid #ef4444;
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+}
+
+.artifact-missing p {
+    color: var(--medium-text);
+    margin: 5px 0;
+}
+
+.error-reason {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.artifact-empty {
+    background: var(--light-gray);
+    border-radius: 6px;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--medium-text);
+}
+
+.artifact-error {
+    padding: 30px;
+}
+
+.artifact-error h2 {
+    color: #ef4444;
+    margin-bottom: 20px;
+}
+
+.error-message {
+    background: #fef2f2;
+    border: 2px solid #ef4444;
+    border-radius: 6px;
+    padding: 15px;
+    color: var(--medium-text);
+}
+
+.error-message p {
+    margin: 5px 0;
+}
+
+.dossier-error {
+    background: #fef2f2;
+    border-left: 4px solid #ef4444;
+    padding: 20px;
+    border-radius: 6px;
+    color: #ef4444;
+}
+
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: 500;
+    border: none;
+    transition: opacity 0.2s;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.btn-secondary {
+    background: var(--light-gray);
+    color: var(--dark-text);
+}
+
+.btn-secondary:hover {
+    background: #d8d8d8;
+}
+
 /* Media Queries */
 @media (max-width: 768px) {
     .container {
@@ -718,5 +1271,21 @@ body.modal-open {
     }
     .kanban-board {
         grid-template-columns: 1fr;
+    }
+
+    .dossier-modal .modal-content {
+        max-width: 95%;
+    }
+
+    .artifact-detail {
+        padding: 20px;
+    }
+
+    .artifact-metadata dl {
+        grid-template-columns: 80px 1fr;
+    }
+
+    .artifact-content {
+        font-size: 0.75em;
     }
 }
