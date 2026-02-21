@@ -111,13 +111,18 @@ class ExpectedArtifactSpec(BaseModel):
     blocking: bool = Field(default=False, description="True if missing blocks completeness")
 
 class ExpectedArtifactManifest(BaseModel):
-    """Registry for a mission type."""
+    """Registry for a mission type, step-aware."""
     schema_version: str = "1.0"
     mission_type: str = Field(..., description="e.g., 'software-dev', 'research', 'documentation'")
+    manifest_version: str = Field(default="1", description="Manifest version for compatibility/evolution")
 
-    required_by_phase: Dict[str, List[ExpectedArtifactSpec]] = Field(
+    required_always: List[ExpectedArtifactSpec] = Field(
+        default_factory=list,
+        description="Artifacts required regardless of workflow step"
+    )
+    required_by_step: Dict[str, List[ExpectedArtifactSpec]] = Field(
         default_factory=dict,
-        description="Phase → list of required specs (phases: spec_complete, planning_complete, tasks_complete, implementation_complete)"
+        description="Step ID (from mission.yaml states) → list of required specs for that step"
     )
     optional_always: List[ExpectedArtifactSpec] = Field(
         default_factory=list,
@@ -151,9 +156,14 @@ class ManifestRegistry:
         # Check missions/*/expected-artifacts.yaml
 
     @staticmethod
-    def get_required_artifacts(manifest: ExpectedArtifactManifest, phase: str) -> List[ExpectedArtifactSpec]:
-        """Get required specs for phase (spec_complete, planning_complete, tasks_complete, etc.)."""
-        return manifest.required_by_phase.get(phase, [])
+    def get_required_artifacts(manifest: ExpectedArtifactManifest, step_id: str) -> List[ExpectedArtifactSpec]:
+        """Get required specs for mission step (from mission.yaml state machine).
+
+        Returns: required_always + required_by_step[step_id]
+        """
+        base = manifest.required_always
+        step_specific = manifest.required_by_step.get(step_id, [])
+        return base + step_specific
 ```
 
 ---
@@ -480,20 +490,42 @@ Contains serialized MissionDossierSnapshot (immutable point-in-time projection).
 }
 ```
 
-### Parity Baseline Cache
+### Parity Baseline Cache (Robustly Namespaced)
 
 **File**: `.kittify/dossiers/{feature_slug}/parity-baseline.json`
 
-Stores last-known SaaS parity hash for drift detection:
+Stores point-in-time parity hash with identity tuple for robust drift detection (prevents false positives):
 
 ```json
 {
-  "feature_slug": "042-local-mission-dossier",
-  "baseline_parity_hash": "abc456def789...",
-  "cached_from_saas_at": "2026-02-21T09:00:00Z",
-  "local_parity_hash_at_cache": "abc456def789..."
+  "baseline_key": {
+    "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+    "node_id": "abcdef123456",
+    "feature_slug": "042-local-mission-dossier",
+    "target_branch": "2.x",
+    "mission_key": "software-dev",
+    "manifest_version": "1"
+  },
+  "baseline_key_hash": "baseline_key_sha256_hash",
+  "parity_hash_sha256": "abc456def789...",
+  "captured_at": "2026-02-21T09:00:00Z",
+  "captured_by": "node_id_at_capture"
 }
 ```
+
+**Baseline Key Components** (prevent false positives):
+- `project_uuid`: Local project identity (from sync/project_identity.py)
+- `node_id`: Stable machine identifier (from sync/project_identity.py)
+- `feature_slug`: Feature identifier
+- `target_branch`: Git branch where feature is based (main, 2.x, etc.)
+- `mission_key`: Mission type (software-dev, research, documentation)
+- `manifest_version`: Manifest schema version
+
+**Acceptance Logic**:
+- On parity detection, compute current key
+- Compare current key vs baseline key (via hash)
+- Accept baseline only if keys match; else treat as "no baseline" (informational drift event)
+- This prevents false positives from branch switches, manifest updates, multi-user/multi-machine scenarios
 
 ---
 

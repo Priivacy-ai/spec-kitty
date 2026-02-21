@@ -207,44 +207,41 @@ WP02 and WP01 are **truly parallel** (no code coupling).
 
 ---
 
-## Manifest Design Decision
+## Manifest Design Decision: Step-Aware (Not Phase-Locked)
 
 ### Expected Artifacts YAML Schema
 
-Per mission type, define completeness requirements by workflow phase:
+Per mission type, define completeness requirements by **mission step** (from mission.yaml state machine), not hardcoded phases:
 
 ```yaml
 # src/specify_cli/missions/software-dev/expected-artifacts.yaml
 schema_version: "1.0"
 mission_type: "software-dev"
+manifest_version: "1"
 
-required_by_phase:
-  spec_complete:
-    # After /spec-kitty.specify
-    - artifact_key: "input.spec.main"
-      artifact_class: "input"
-      path_pattern: "spec.md"
+# Artifacts required at any workflow step
+required_always:
+  - artifact_key: "input.spec.main"
+    artifact_class: "input"
+    path_pattern: "spec.md"
 
-  planning_complete:
-    # After /spec-kitty.plan
-    - artifact_key: "input.spec.main"
-      artifact_class: "input"
-      path_pattern: "spec.md"
+# Artifacts required at specific mission steps
+# Step names from mission.yaml states: discover, specify, plan, implement, review, done
+required_by_step:
+  discover:
+    # No additional requirements beyond required_always
 
+  specify:
+    # Staying in specify step requires spec.md (already in required_always)
+
+  plan:
+    # Advancing to plan step requires plan.md
     - artifact_key: "output.plan.main"
       artifact_class: "output"
       path_pattern: "plan.md"
 
-  tasks_complete:
-    # After /spec-kitty.tasks
-    - artifact_key: "input.spec.main"
-      artifact_class: "input"
-      path_pattern: "spec.md"
-
-    - artifact_key: "output.plan.main"
-      artifact_class: "output"
-      path_pattern: "plan.md"
-
+  implement:
+    # Advancing to implement requires plan + tasks
     - artifact_key: "output.tasks.main"
       artifact_class: "output"
       path_pattern: "tasks.md"
@@ -253,8 +250,11 @@ required_by_phase:
       artifact_class: "output"
       path_pattern: "tasks/*.md"
 
+  review:
+    # Advancing to review (post-implementation) requires all above
+
+# Artifacts checked if present, but never block completeness
 optional_always:
-  # Always checked if present, never block completeness
   - artifact_key: "evidence.research"
     artifact_class: "evidence"
     path_pattern: "research.md"
@@ -268,6 +268,16 @@ optional_always:
     path_pattern: "contracts/*"
 ```
 
+**Why Step-Aware (Not Phase-Locked)?**
+- Manifests use **mission-defined states** (from mission.yaml), not generic phases
+- Supports diverse workflows:
+  - software-dev: discover → specify → plan → implement → review → done
+  - research: scoping → methodology → gathering → synthesis → output → done
+  - documentation: (mission-specific)
+- Decoupled from hardcoded workflow assumptions
+- Git-friendly (version control friendly)
+- YAML → pydantic model (type-safe runtime)
+
 **Artifact Classes** (6 total, deterministic):
 - `input`: Requirements, specs, PRDs (user-provided)
 - `workflow`: Plan, roadmap, design docs
@@ -275,13 +285,6 @@ optional_always:
 - `evidence`: Research, analysis, proofs, test results
 - `policy`: Standards, guidelines, templates
 - `runtime`: Configuration, deployment, operational artifacts
-
-**Why YAML + Phase-Based Design?**
-- Already used for mission configs in spec-kitty
-- Human-readable, easy to extend
-- Phase-based allows checking completeness at any workflow stage
-- Git-friendly (version control friendly)
-- YAML → pydantic model (type-safe runtime)
 
 ---
 

@@ -20,13 +20,15 @@ Deterministic design ensures identical artifact content always produces identica
 
 **Language/Version**: Python 3.11+ (existing spec-kitty codebase requirement)
 **Primary Dependencies**:
-  - `hashlib` (SHA256, stdlib)
-  - `pydantic` (data validation, existing spec-kitty dependency)
-  - `rich` (console output, existing)
-  - `ruamel.yaml` (YAML parsing for mission manifests)
-  - `spec_kitty_events` (sync infrastructure, existing)
-  - `http.server.HTTPServer` (stdlib, existing dashboard server)
-  - Static JavaScript (dashboard UI, existing)
+  - `hashlib` (SHA256, stdlib) – deterministic content hashing
+  - `pydantic` (data validation, existing spec-kitty dependency) – type-safe models
+  - `rich` (console output, existing) – console UI
+  - `ruamel.yaml` (YAML parsing for mission manifests) – manifest loading + mission.yaml reading
+  - `spec_kitty_events` (sync infrastructure, existing) – event emission + OfflineQueue
+  - `http.server.HTTPServer` (stdlib, existing dashboard server) – HTTP request dispatch
+  - `src/specify_cli/dashboard/handlers/` (existing handler pattern) – dossier API handlers
+  - `src/specify_cli/sync/project_identity.py` (existing) – baseline key identity/scoping
+  - Static JavaScript (existing) – dashboard UI updates (fetch + DOM manipulation, no Vue/SPA framework)
 
 **Storage**: Filesystem only (YAML configs, JSON event logs, markdown artifacts)
 **Testing**: `pytest` + `pytest-asyncio` (for async API tests)
@@ -48,6 +50,152 @@ Deterministic design ensures identical artifact content always produces identica
   - 3 mission types with manifests in v1 (software-dev, research, documentation)
   - 6 artifact classes (input, workflow, output, evidence, policy, runtime) – deterministic, no fallback
   - 4 dossier event types (Indexed, Missing, Computed, ParityDrift) – anomaly events conditional
+
+## Decision Analysis: Architectural Hardening
+
+This section documents the key design decisions for O42 with explicit trade-offs and chosen paths.
+
+### Decision 1: Dashboard Stack Path
+
+**Context**: Current dashboard uses `http.server.HTTPServer` + handler routing + static JS. Question: Should O42 migrate to FastAPI/Vue?
+
+**Options**:
+
+**Option A: Migrate to FastAPI + Vue (In This Feature)**
+- Pros: Modern stack, cleaner REST patterns, component reuse
+- Cons: Scope explosion, breaks O42 single-feature boundary, risk of regression
+- Risk: Estimated 15-20 WP-days additional work, migration testing burden
+- Mitigation: Defer to post-O42 feature (e.g., "044-dashboard-modernization")
+
+**Option B: Keep HTTPServer + Handlers, Add Adapter Layer for Future Migration**
+- Pros: Minimal scope (O42 stays focused), clear migration path, backward-compatible
+- Cons: Some handler code may need refactoring, not "modern" by today's standards
+- Risk: Adapter layer may not fully decouple in practice; requires discipline
+- Mitigation: Define adapter interface now (in WP06), test with mock FastAPI implementation in unit tests
+
+**Option C: Keep HTTPServer + Handlers, No Adapter (Status Quo)**
+- Pros: Simplest, zero refactoring, O42 is purely additive
+- Cons: Migration burden pushed entirely to future team; accumulated technical debt
+- Risk: Future migration becomes larger, more complex
+- Mitigation: Document migration roadmap explicitly (see "Deferred Decisions")
+
+**→ CHOSEN: Option B (Keep Current, Define Adapter Path)**
+- Rationale: Balance scope containment with forward-looking design. O42 adds dossier handlers following current patterns; adapter interface in WP06 makes future migration mechanical, not architectural.
+- Implementation: Add dossier handlers to `src/specify_cli/dashboard/handlers/api.py`, follow router dispatch pattern, define handler interface spec in contracts/.
+
+---
+
+### Decision 2: Parity Baseline Identity & Scoping
+
+**Context**: Baseline is point-in-time hash snapshot for drift detection. Question: What is the minimal key to prevent false positives across features/branches/machines/manifest versions?
+
+**Options**:
+
+**Option A: Global Single File (`.kittify/dossier-baseline.json`)**
+- Pros: Simplest to implement, single source of truth
+- Cons: **False positives**: feature A scan overwrites feature B baseline; branch switches collide; manifest version conflicts cause incorrect "drift"
+- Risk: Curator sees spurious ParityDriftDetected after switching branches (confusing)
+- Mitigation: None without adding scoping
+
+**Option B: Feature-Scoped Only (`.kittify/dossiers/{feature_slug}/parity-baseline.json`)**
+- Pros: Handles multi-feature workflows, feauture isolation
+- Cons: Doesn't handle branch switches, manifest version changes, different machines/users in same project
+- Risk: User switches from main→2.x, same feature has different manifest version, baseline mismatch looks like drift
+- Mitigation: Document branch isolation (baseline doesn't cross branches); manifest versioning strategy TBD
+
+**Option C: Fully Namespaced Key (Robust Identity Set)**
+- Pros: Handles multi-feature, multi-branch, multi-user, multi-manifest-version scenarios
+- Cons: More complex to compute and persist, larger storage footprint
+- Risk: Namespace collision discovery is deferred; complexity may hide bugs
+- Mitigation: Use reversible serialization (JSON), validate uniqueness constraints in tests
+
+**→ CHOSEN: Option C (Fully Namespaced)**
+- Rationale: Local-first workflows (multi-feature, multi-branch, multi-user) are already happening; don't defer baseline stability to post-O42. Namespacing is mechanical, complexity is manageable.
+- Implementation:
+  ```
+  Baseline Key = {
+    project_identity.project_uuid,
+    project_identity.node_id,
+    feature_slug,
+    target_branch,
+    mission_key,
+    manifest_version
+  }
+  Storage: .kittify/dossiers/{feature_slug}/parity-baseline.json
+  File contains: {baseline_key_hash, parity_hash_sha256, captured_at, captured_by}
+  ```
+- Validation: Baseline acceptance only if key matches current project/branch/mission/manifest (else treat as "no baseline", emit info-level drift event)
+
+---
+
+### Decision 3: Manifest Design (Step-Aware vs Phase-Locked)
+
+**Context**: Dossier needs to know which artifacts are required at any given point in workflow. Question: Should manifest use hardcoded phases (spec_complete, planning_complete, tasks_complete) or mission-step-aware?
+
+**Options**:
+
+**Option A: Hardcoded Phases in Manifest**
+- Pros: Simple schema (plan for 3 workflow stages), familiar to software-dev mindset
+- Cons: **Locks in linearity**, breaks for research (scoping→methodology→gathering→synthesis→output) and documentation missions; phase names don't align with mission states
+- Risk: Non-software-dev missions can't express completeness properly (example: research needs findings.md at "synthesis" state, not "planning_complete")
+- Mitigation: Add mission-specific overrides (ugly, defeats purpose)
+
+**Option B: Mission-Step-Aware (Read from Mission YAML State Machine)**
+- Pros: Flexible, honors mission definition, supports any workflow shape
+- Cons: Coupling to mission.yaml state definitions; manifest schema is more complex
+- Risk: Manifest schema depends on mission.yaml structure; breaking changes to states affect dossier
+- Mitigation: Version manifest independently; states are stable (rare changes); dossier validates state existence
+
+**Option C: Minimal Schema (No Phase/Step Lock)**
+- Pros: Completely decoupled from workflow, artifacts just have required/optional
+- Cons: Can't check completeness for workflow stage (only all-or-nothing)
+- Risk: Curator can't verify "have I done enough for planning phase?" without manual inspection
+- Mitigation: Dossier only tracks presence/absence; completeness gates are workflow's responsibility
+
+**→ CHOSEN: Option B (Mission-Step-Aware)**
+- Rationale: Dossier is audit tool for workflow; it needs to speak the mission's language (states). Phase lock-in is anti-pattern; step-awareness is flexible and fits the software-dev, research, documentation, and future missions.
+- Implementation:
+  ```yaml
+  # Expected artifact manifest (per mission type)
+  schema_version: "1.0"
+  mission_type: "software-dev"  # or "research", "documentation"
+  manifest_version: "1"
+
+  required_always:  # Independent of any state
+    - artifact_key: "..."
+      artifact_class: "..."
+      path_pattern: "..."
+
+  required_by_step:  # Step names from mission.yaml states
+    specify:
+      - artifact_key: "input.spec.main"
+        artifact_class: "input"
+        path_pattern: "spec.md"
+    plan:
+      - artifact_key: "output.plan.main"
+        artifact_class: "output"
+        path_pattern: "plan.md"
+    # More steps as mission defines...
+
+  optional_always:  # Always checked, never blocking
+    - artifact_key: "..."
+      artifact_class: "..."
+      path_pattern: "..."
+  ```
+- Validation: Dossier reads mission YAML to get current state; fetches manifest for that mission type; checks only required_always + required_by_step[current_state] + optional_always (if present).
+- Deferred: Manifest versioning strategy and backward compatibility (see "Deferred Decisions").
+
+---
+
+### Summary: Design Decisions
+
+| Decision | Chosen Path | Key Trade-off | Implementation Load |
+|----------|-------------|----------------|---------------------|
+| **Stack** | Keep HTTPServer, define adapter interface for future migration | Scope containment vs modern stack | WP06: handler interface spec |
+| **Baseline** | Feature-namespaced + project identity + branch + mission + manifest version | Robustness vs storage/complexity | WP08: baseline key computation |
+| **Manifest** | Mission-step-aware, read from mission.yaml states | Flexibility vs coupling to mission definition | WP02: manifest loader + state validation |
+
+---
 
 ## Constitution Check
 
@@ -101,18 +249,24 @@ src/specify_cli/
 │
 ├── dashboard/
 │   ├── handlers/
-│   │   ├── api.py                    # MODIFY: Add dossier API handler methods
-│   │   │   ├── handle_dossier_overview()
-│   │   │   ├── handle_dossier_artifacts()
-│   │   │   ├── handle_dossier_artifact_detail()
-│   │   │   └── handle_dossier_snapshot_export()
-│   │   └── router.py                 # MODIFY: Add routing for /api/dossier/*
+│   │   ├── api.py                    # MODIFY: Add DossierHandler mixin with methods:
+│   │   │   ├── handle_dossier_overview()  # GET /api/dossier/overview
+│   │   │   ├── handle_dossier_artifacts()  # GET /api/dossier/artifacts
+│   │   │   ├── handle_dossier_artifact_detail()  # GET /api/dossier/artifacts/{key}
+│   │   │   └── handle_dossier_snapshot_export()  # GET /api/dossier/snapshots/export
+│   │   │
+│   │   └── router.py                 # MODIFY: Add routes in do_GET():
+│   │       - if path.startswith('/api/dossier/'): self.handle_dossier(path)
 │   │
 │   ├── static/
 │   │   └── js/
-│   │       └── dossier-panel.js      # NEW: Dossier UI (fetch + DOM updates)
+│   │       ├── dashboard.js          # MODIFY: Add fetch wrappers for dossier endpoints
+│   │       └── dossier-panel.js      # NEW: Dossier UI component (vanilla JS, no Vue)
 │   │
-│   └── scanner.py                    # MODIFY: Integrate dossier scanner callback
+│   ├── templates/
+│   │   └── dashboard.html            # MODIFY: Add dossier panel tab/section
+│   │
+│   └── scanner.py                    # MODIFY: Call dossier.indexer.index_feature() on scan
 │
 ├── missions/
 │   ├── software-dev/
@@ -203,12 +357,15 @@ tests/
 - Routed via OfflineQueue (async, retry-safe)
 - Each event immutable, timestamped, includes envelope metadata
 
-### 5. **Local Parity Detection**
-- Baseline: locally cached last-known parity hash per feature (stored in .kittify/dossiers/{feature_slug}/parity-baseline.json)
-- **Feature Namespacing**: Each feature has its own baseline directory to prevent cross-feature contamination
-- Compare current snapshot hash vs cached baseline for that feature
-- Emit MissionDossierParityDriftDetected only if hash differs
+### 5. **Local Parity Detection (Robust Namespacing)**
+- Baseline: locally cached point-in-time parity hash with identity tuple (stored in `.kittify/dossiers/{feature_slug}/parity-baseline.json`)
+- **Baseline Key**: Hash of identity tuple = `{project_uuid, node_id, feature_slug, target_branch, mission_key, manifest_version}`
+  - Prevents false positives: branch switch, manifest version change, multi-user/multi-machine scenarios, manifest updates
+  - Uses local ProjectIdentity (from sync infrastructure) as authority
+- **Acceptance Logic**: Accept baseline only if key matches current project/branch/mission/manifest; else treat as "no baseline"
+- **Drift Detection**: Compare current snapshot hash vs cached baseline (if accepted); emit ParityDriftDetected only if hash differs and baseline accepted
 - Works offline: no SaaS call required
+- **Deferred**: Cross-org/global baseline reconciliation (see "Deferred Decisions")
 
 ### 6. **Dashboard API Design**
 - Stateless endpoints, no session required
@@ -216,12 +373,17 @@ tests/
 - Detail endpoint returns full text (with truncation notice for >5MB)
 - Export endpoint returns snapshot JSON (importable by SaaS)
 
-### 7. **Completeness Phases & Manifest Scoping**
-- **Phase 1 (Spec Phase - Immediate)**: Requires `spec.md` only (after /spec-kitty.specify)
-- **Phase 2 (Planning Phase - After /spec-kitty.plan)**: Requires `spec.md`, `plan.md` (optional: research.md, data-model.md, contracts/)
-- **Phase 3 (Tasks Phase - After /spec-kitty.tasks)**: Requires all Phase 2 artifacts + `tasks.md`, `tasks/*.md`
-- **Manifest Design**: `required_by_step` keys are phase identifiers (spec_complete, planning_complete, tasks_complete) so completeness can be checked at any point in the workflow
-- Optional artifacts (research.md, etc.): indexed if present, ignored if absent, never block completeness
+### 7. **Mission-Step-Aware Completeness & Manifest Scoping**
+- **No Hardcoded Phases**: Manifest uses mission-defined step names (from mission.yaml state machine), not generic phases
+  - software-dev: discover → specify → plan → implement → review → done
+  - research: scoping → methodology → gathering → synthesis → output → done
+  - documentation: (mission-specific states)
+- **Manifest Schema**: Per mission type, define:
+  - `required_always`: Artifacts needed regardless of workflow step
+  - `required_by_step`: Dict mapping step_id → list of required artifacts (e.g., step "specify" → ["spec.md"])
+  - `optional_always`: Artifacts checked if present, never block completeness
+- **Completeness Check**: Given current mission state, check `required_always` + `required_by_step[current_state]`
+- **Deferred**: Manifest versioning strategy (see "Deferred Decisions")
 
 ### 8. **Error Handling**
 - No silent failures: all anomalies explicit in events and API
@@ -230,10 +392,55 @@ tests/
 - Missing required artifacts for current phase: blocking anomaly (completeness_status="incomplete")
 - Missing optional artifacts: non-blocking, recorded, not counted as missing
 
-## Out-of-Scope (Defer to Future Features)
+## Deferred Decisions (Post-O42)
 
-1. SaaS dashboard UI (local dashboard only in Phase 1)
-2. Event replay/theater workflows (emit-only this phase)
-3. Full-text search indexing (basic filtering only)
-4. Real-time artifact sync (batch scan-based)
-5. Artifact versioning or delta tracking (snapshot-based)
+Explicitly deferred to preserve O42 scope and maintain KISS principle:
+
+### 1. Dashboard Stack Migration
+- **Decision**: HTTPServer + handler pattern stays. Future migration path documented in WP06 adapter interface.
+- **Defer Reason**: Scope containment; migration is orthogonal to dossier functionality
+- **Future Feature**: "044-dashboard-modernization" (FastAPI + Vue SPA, global event store, WebSocket subscriptions)
+- **Impact on O42**: None; O42 handlers follow current pattern, adapter interface allows mechanical migration without breaking dossier logic
+
+### 2. Manifest Versioning & Backward Compatibility
+- **Decision**: V1 ships single manifest_version per mission type. No version negotiation or evolution strategy.
+- **Defer Reason**: Single mission type per project (typical use case); complex versioning requires ADR, not O42 scope
+- **Future Feature**: "045-manifest-versioning" (explicit version negotiation, migration strategies, deprecation paths)
+- **Impact on O42**: Manifest key includes manifest_version; future feature adds version resolution logic
+
+### 3. Cross-Org & Global Canonical Feature Naming
+- **Decision**: O42 uses local project_uuid + feature_slug. No global uniqueness strategy or federation protocol.
+- **Defer Reason**: SaaS integration (auth, org boundaries, cross-repo features) is out of scope; local workflows are v1 requirement
+- **Future Feature**: "046-saas-project-federation" (org identifiers, canonical feature naming, cross-project references)
+- **Impact on O42**: Project identity is local-first (from sync/project_identity.py). Global uniqueness is SaaS's responsibility.
+
+### 4. SaaS Parity Reconciliation & Event Replay
+- **Decision**: O42 emits events to offline queue. SaaS receives and validates in separate feature.
+- **Defer Reason**: Parity reconciliation (detecting SaaS misalignment, replay workflows) is SaaS concern, not local sync
+- **Future Feature**: "047-saas-parity-reconciliation" (SaaS parity validation, event replay, conflict resolution)
+- **Impact on O42**: Events are append-only, immutable. SaaS feature will add reconciliation logic.
+
+### 5. Artifact Content Caching & Full-Text Search
+- **Decision**: O42 indexes artifacts but does not cache content (read-on-demand) or enable search.
+- **Defer Reason**: Caching adds complexity; search requires indexing overhead; filtering by class/step is sufficient for v1
+- **Future Feature**: "048-artifact-search" (full-text search, content caching, analytics)
+- **Impact on O42**: API detail endpoints read artifact content on-demand; no caching layer in O42
+
+### 6. Manifest Evolution & Custom Missions
+- **Decision**: V1 ships strict manifests for 3 missions (software-dev, research, documentation). Other missions degrade gracefully (no completeness check).
+- **Defer Reason**: Manifest schema is frozen in O42; custom/extension missions require template system evolution
+- **Future Feature**: "049-custom-mission-manifests" (mission plugins, manifest schema extensibility, dynamic artifact definitions)
+- **Impact on O42**: Manifest loader skips unknown missions; no blocking behavior
+
+---
+
+## Out-of-Scope (Non-Goals)
+
+1. Building SaaS dashboard UI in this feature (local dashboard UI is in scope)
+2. Implementing event replay/theater workflows (emit-only this phase)
+3. Replacing git/filesystem as source of truth for artifacts
+4. Full-text search indexing (basic filtering only)
+5. Real-time artifact sync (batch scan-based)
+6. Artifact versioning or delta tracking (snapshot-based, not incremental)
+7. Dashboard framework migration (future feature, separate from dossier logic)
+8. Cross-org project federation or global canonical naming (future SaaS feature)

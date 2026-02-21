@@ -270,37 +270,37 @@ assert computed_parity == local_parity_hash, "Parity mismatch!"
 
 **File**: `src/specify_cli/missions/software-dev/expected-artifacts.yaml`
 
+Uses states from mission.yaml: discover → specify → plan → implement → review → done
+
 ```yaml
 schema_version: "1.0"
 mission_type: "software-dev"
+manifest_version: "1"
 
-required_by_phase:
-  spec_complete:
-    - artifact_key: "input.spec.main"
-      artifact_class: "input"
-      path_pattern: "spec.md"
+required_always:
+  - artifact_key: "input.spec.main"
+    artifact_class: "input"
+    path_pattern: "spec.md"
 
-  planning_complete:
-    - artifact_key: "input.spec.main"
-      artifact_class: "input"
-      path_pattern: "spec.md"
+required_by_step:
+  discover: {}    # No additional requirements
+
+  specify: {}     # Spec already in required_always
+
+  plan:           # Adding plan phase
     - artifact_key: "output.plan.main"
       artifact_class: "output"
       path_pattern: "plan.md"
 
-  tasks_complete:
-    - artifact_key: "input.spec.main"
-      artifact_class: "input"
-      path_pattern: "spec.md"
-    - artifact_key: "output.plan.main"
-      artifact_class: "output"
-      path_pattern: "plan.md"
+  implement:      # Adding implementation artifacts
     - artifact_key: "output.tasks.main"
       artifact_class: "output"
       path_pattern: "tasks.md"
     - artifact_key: "output.tasks.per_wp"
       artifact_class: "output"
       path_pattern: "tasks/*.md"
+
+  review: {}      # Review phase (no new requirements, previous steps must be complete)
 
 optional_always:
   - artifact_key: "evidence.research"
@@ -318,20 +318,39 @@ optional_always:
 
 **File**: `src/specify_cli/missions/research/expected-artifacts.yaml`
 
+Uses states from mission.yaml: scoping → methodology → gathering → synthesis → output → done
+
 ```yaml
 schema_version: "1.0"
 mission_type: "research"
+manifest_version: "1"
 
-required_by_phase:
-  spec_complete:
-    - artifact_key: "input.spec.main"
-      artifact_class: "input"
-      path_pattern: "spec.md"
+required_always:
+  - artifact_key: "input.spec.main"
+    artifact_class: "input"
+    path_pattern: "spec.md"
+
+required_by_step:
+  scoping: {}     # Spec in required_always
+
+  methodology:
+    - artifact_key: "output.plan.main"
+      artifact_class: "output"
+      path_pattern: "plan.md"
+
+  gathering: {}   # No new hard requirements
+
+  synthesis:
+    - artifact_key: "output.findings.main"
+      artifact_class: "output"
+      path_pattern: "findings.md"
+
+  output: {}
 
 optional_always:
-  - artifact_key: "evidence.research_notes"
+  - artifact_key: "evidence.sources"
     artifact_class: "evidence"
-    path_pattern: "research.md"
+    path_pattern: "sources.csv"
 ```
 
 ### Documentation Mission
@@ -341,12 +360,20 @@ optional_always:
 ```yaml
 schema_version: "1.0"
 mission_type: "documentation"
+manifest_version: "1"
 
-required_by_phase:
-  spec_complete:
-    - artifact_key: "input.spec.main"
-      artifact_class: "input"
-      path_pattern: "spec.md"
+required_always:
+  - artifact_key: "input.spec.main"
+    artifact_class: "input"
+    path_pattern: "spec.md"
+
+required_by_step:
+  planning: {}
+
+  authoring:
+    - artifact_key: "output.docs.main"
+      artifact_class: "output"
+      path_pattern: "docs/*.md"
 
 optional_always:
   - artifact_key: "evidence.generated_api_docs"

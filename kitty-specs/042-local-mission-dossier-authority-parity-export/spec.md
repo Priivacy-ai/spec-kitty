@@ -99,7 +99,7 @@ Curator wants to query "show me all output artifacts from Phase 2" or "all evide
 
 - **FR-001**: System MUST index all artifact files in a feature directory and compute deterministic content_hash_sha256 for each
 - **FR-002**: System MUST support 6 artifact classes (input, workflow, output, evidence, policy, runtime) with stable, extensible encoding (no "other" fallback; classification must be deterministic per artifact)
-- **FR-003**: System MUST define expected-artifact manifests per mission type and mission step for `software-dev`, `research`, and `documentation` in v1 (extensible for other missions later)
+- **FR-003**: System MUST define expected-artifact manifests per mission type, step-aware (using mission.yaml state machine), for `software-dev`, `research`, and `documentation` in v1 (extensible for other missions later); manifest schema includes required_always, required_by_step, optional_always
 - **FR-004**: System MUST detect missing required artifacts and emit MissionDossierArtifactMissing events with reason codes (not_found, unreadable, invalid_format, not_produced_yet)
 - **FR-005**: System MUST compute deterministic parity_hash_sha256 from all indexed artifacts' content hashes, such that identical artifact content always produces identical parity hash
 - **FR-006**: System MUST support 4 canonical dossier event types in the sync pipeline: MissionDossierArtifactIndexed (one per artifact found), MissionDossierSnapshotComputed (always after scan), plus anomaly events (MissionDossierArtifactMissing only if required artifacts missing, MissionDossierParityDriftDetected only if local hash differs from baseline)
