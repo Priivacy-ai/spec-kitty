@@ -1,9 +1,12 @@
 ---
 work_package_id: WP04
 title: Dossier Event Types & Emission
-lane: planned
+lane: "doing"
 dependencies:
 - WP03
+base_branch: 042-local-mission-dossier-authority-parity-export-WP03
+base_commit: 7b9158fad4f122121329f384f8e51bad82f70814
+created_at: '2026-02-21T15:52:00.554158+00:00'
 subtasks:
 - T018
 - T019
@@ -11,6 +14,7 @@ subtasks:
 - T021
 - T022
 feature_slug: 042-local-mission-dossier-authority-parity-export
+shell_pid: "90295"
 ---
 
 # WP04: Dossier Event Types & Emission
