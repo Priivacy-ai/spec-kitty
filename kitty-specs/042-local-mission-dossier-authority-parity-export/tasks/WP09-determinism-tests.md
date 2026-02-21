@@ -1,10 +1,13 @@
 ---
 work_package_id: WP09
 title: Determinism Test Suite
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
 - WP05
+base_branch: 042-local-mission-dossier-authority-parity-export-WP09-merge-base
+base_commit: 1bf5196379830703d153f67da65abff9469ed59d
+created_at: '2026-02-21T15:59:53.146188+00:00'
 subtasks:
 - T046
 - T047
@@ -12,6 +15,7 @@ subtasks:
 - T049
 - T050
 feature_slug: 042-local-mission-dossier-authority-parity-export
+shell_pid: "99215"
 ---
 
 # WP09: Determinism Test Suite
