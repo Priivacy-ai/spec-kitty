@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Dashboard UI Integration
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP06
 base_branch: 042-local-mission-dossier-authority-parity-export-WP06
@@ -593,3 +593,4 @@ When reviewing WP07:
 ## Activity Log
 
 - 2026-02-21T16:02:48Z – coordinator – shell_pid=3863 – lane=doing – Assigned agent via workflow command
+- 2026-02-21T16:05:55Z – coordinator – shell_pid=3863 – lane=for_review – Ready for review: Dashboard UI integration complete - dossier panel with vanilla JS, filtering, detail views, truncation handling, and media type hints. All 6 subtasks done, comprehensive tests passing.
