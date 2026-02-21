@@ -178,11 +178,10 @@ Create a hello module.
         )
 
         # === Step 4: Finalize tasks ===
-        # Note: finalize-tasks does not accept --feature; it auto-detects
-        # from the kitty-specs/ directory in the cwd.
+        # Use explicit feature binding to keep fresh sessions deterministic.
         result = run_cli(
             repo,
-            "agent", "feature", "finalize-tasks", "--json",
+            "agent", "feature", "finalize-tasks", "--feature", feature_slug, "--json",
         )
         assert result.returncode == 0, (
             f"finalize-tasks failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"

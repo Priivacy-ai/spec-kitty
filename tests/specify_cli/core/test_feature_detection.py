@@ -752,6 +752,38 @@ def test_detect_fallback_to_latest_incomplete(tmp_path: Path):
         assert ctx.detection_method == "fallback_latest_incomplete"
 
 
+def test_detect_can_disable_latest_incomplete_fallback(tmp_path: Path):
+    """Test multiple-feature fallback can be disabled for strict workflows."""
+    repo_root = tmp_path / "repo"
+    kitty_specs = repo_root / "kitty-specs"
+    kitty_specs.mkdir(parents=True)
+
+    feature_020 = kitty_specs / "020-feature-a"
+    tasks_020 = feature_020 / "tasks"
+    tasks_020.mkdir(parents=True)
+    (tasks_020 / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test\nlane: done\n---\n"
+    )
+
+    feature_025 = kitty_specs / "025-feature-b"
+    tasks_025 = feature_025 / "tasks"
+    tasks_025.mkdir(parents=True)
+    (tasks_025 / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: Test\nlane: doing\n---\n"
+    )
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = subprocess.CalledProcessError(1, "git")
+
+        with pytest.raises(MultipleFeaturesError):
+            detect_feature(
+                repo_root,
+                cwd=repo_root,
+                mode="strict",
+                allow_latest_incomplete_fallback=False,
+            )
+
+
 def test_detect_fallback_respects_explicit_feature(tmp_path: Path):
     """Test fallback does NOT activate when explicit feature is provided."""
     repo_root = tmp_path / "repo"

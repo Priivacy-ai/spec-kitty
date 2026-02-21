@@ -162,7 +162,13 @@ def _commit_to_branch(
             raise
 
 
-def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | None = None) -> Path:
+def _find_feature_directory(
+    repo_root: Path,
+    cwd: Path,
+    explicit_feature: str | None = None,
+    *,
+    allow_latest_incomplete_fallback: bool = True,
+) -> Path:
     """Find the current feature directory using centralized detection.
 
     This function now uses the centralized feature detection module
@@ -185,11 +191,95 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
             repo_root,
             explicit_feature=explicit_feature,
             cwd=cwd,
-            mode="strict"  # Raise error if ambiguous
+            mode="strict",  # Raise error if ambiguous
+            allow_latest_incomplete_fallback=allow_latest_incomplete_fallback,
         )
     except FeatureDetectionError as e:
         # Convert to ValueError for backward compatibility
         raise ValueError(str(e)) from e
+
+
+def _get_main_repo_root(repo_root: Path) -> Path:
+    """Resolve the main repository root when running from worktree context."""
+    git_marker = repo_root / ".git"
+    if git_marker.is_file():
+        git_dir_content = git_marker.read_text(encoding="utf-8", errors="replace").strip()
+        if git_dir_content.startswith("gitdir: "):
+            git_dir = Path(git_dir_content[8:])
+            if len(git_dir.parents) >= 2:
+                main_git_dir = git_dir.parent.parent
+                return main_git_dir.parent
+    return repo_root
+
+
+def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
+    """List candidate features with absolute spec.md paths for remediation output."""
+    main_repo_root = _get_main_repo_root(repo_root)
+    kitty_specs_dir = main_repo_root / "kitty-specs"
+    if not kitty_specs_dir.is_dir():
+        return []
+
+    candidates: list[dict[str, object]] = []
+    for feature_dir in sorted(kitty_specs_dir.iterdir()):
+        if not feature_dir.is_dir() or not re.match(r"^\d{3}-.+$", feature_dir.name):
+            continue
+        spec_file = feature_dir / "spec.md"
+        candidates.append(
+            {
+                "feature_slug": feature_dir.name,
+                "feature_dir": str(feature_dir.resolve()),
+                "spec_file": str(spec_file.resolve()),
+                "spec_exists": spec_file.exists(),
+            }
+        )
+    return candidates
+
+
+def _build_setup_plan_detection_error(
+    repo_root: Path,
+    base_error: str,
+    feature_flag: str | None,
+    *,
+    error_code: str = "PLAN_CONTEXT_UNRESOLVED",
+    command_name: str = "setup-plan",
+    command_args: list[str] | None = None,
+) -> dict[str, object]:
+    """Build structured feature-context detection error payload."""
+    candidates = _list_feature_spec_candidates(repo_root)
+    command_args = command_args if command_args is not None else ["--json"]
+    payload: dict[str, object] = {
+        "error_code": error_code,
+        "error": base_error,
+        "feature_flag": feature_flag,
+    }
+
+    if not candidates:
+        payload["remediation"] = [
+            "Run /spec-kitty.specify first to create a feature and spec.md",
+            "Or run: spec-kitty agent feature create-feature <feature-name> --json",
+        ]
+        return payload
+
+    candidate_lines = []
+    suggested_commands = []
+    for candidate in candidates[:10]:
+        status = "present" if candidate["spec_exists"] else "missing"
+        candidate_lines.append(
+            f"{candidate['feature_slug']} -> {candidate['spec_file']} [{status}]"
+        )
+        suggested = f"spec-kitty agent feature {command_name} --feature {candidate['feature_slug']}"
+        if command_args:
+            suggested = f"{suggested} {' '.join(command_args)}"
+        suggested_commands.append(suggested)
+
+    payload["candidate_features"] = candidates
+    payload["remediation"] = [
+        f"Run {command_name} with an explicit feature slug.",
+        "Use one of the suggested commands.",
+    ]
+    payload["candidate_summary"] = candidate_lines
+    payload["suggested_commands"] = suggested_commands
+    return payload
 
 
 @app.command(name="create-feature")
@@ -475,6 +565,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 @app.command(name="check-prerequisites")
 def check_prerequisites(
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     paths_only: Annotated[bool, typer.Option("--paths-only", help="Only output path variables")] = False,
     include_tasks: Annotated[bool, typer.Option("--include-tasks", help="Include tasks.md in validation")] = False,
@@ -485,7 +576,7 @@ def check_prerequisites(
 
     Examples:
         spec-kitty agent check-prerequisites --json
-        spec-kitty agent check-prerequisites --paths-only --json
+        spec-kitty agent check-prerequisites --feature 020-my-feature --paths-only --json
     """
     try:
         repo_root = locate_project_root()
@@ -499,7 +590,39 @@ def check_prerequisites(
 
         # Determine feature directory (main repo or worktree)
         cwd = Path.cwd().resolve()
-        feature_dir = _find_feature_directory(repo_root, cwd)
+        try:
+            feature_dir = _find_feature_directory(
+                repo_root,
+                cwd,
+                explicit_feature=feature,
+                allow_latest_incomplete_fallback=False,
+            )
+        except ValueError as detection_error:
+            command_args: list[str] = []
+            if json_output:
+                command_args.append("--json")
+            if paths_only:
+                command_args.append("--paths-only")
+            if include_tasks:
+                command_args.append("--include-tasks")
+
+            payload = _build_setup_plan_detection_error(
+                repo_root,
+                str(detection_error),
+                feature,
+                error_code="FEATURE_CONTEXT_UNRESOLVED",
+                command_name="check-prerequisites",
+                command_args=command_args,
+            )
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print(f"[red]Error:[/red] {payload['error']}")
+                for line in payload.get("candidate_summary", []):
+                    console.print(f"  - {line}")
+                for cmd in payload.get("suggested_commands", [])[:3]:
+                    console.print(f"  {cmd}")
+            raise typer.Exit(1)
 
         validation_result = validate_feature_structure(feature_dir, check_tasks=include_tasks)
 
@@ -554,14 +677,55 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        # Determine feature directory using centralized detection
+        # Determine feature directory using centralized detection.
+        # For planning bootstrap, disallow latest-incomplete fallback so the agent
+        # cannot silently bind to the wrong feature in fresh sessions.
         cwd = Path.cwd().resolve()
-        feature_dir = _find_feature_directory(repo_root, cwd, explicit_feature=feature)
+        try:
+            feature_dir = _find_feature_directory(
+                repo_root,
+                cwd,
+                explicit_feature=feature,
+                allow_latest_incomplete_fallback=False,
+            )
+        except ValueError as detection_error:
+            payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print(f"[red]Error:[/red] {payload['error']}")
+                for line in payload.get("candidate_summary", []):
+                    console.print(f"  - {line}")
+                for cmd in payload.get("suggested_commands", [])[:3]:
+                    console.print(f"  {cmd}")
+            raise typer.Exit(1)
 
         target_branch = _resolve_planning_branch(repo_root, feature_dir)
         _ensure_branch_checked_out(repo_root, target_branch, json_output)
 
+        feature_slug = feature_dir.name
+        spec_file = feature_dir / "spec.md"
         plan_file = feature_dir / "plan.md"
+
+        if not spec_file.exists():
+            payload = {
+                "error_code": "SPEC_FILE_MISSING",
+                "error": f"Required spec not found for feature '{feature_slug}': {spec_file.resolve()}",
+                "feature_slug": feature_slug,
+                "feature_dir": str(feature_dir.resolve()),
+                "spec_file": str(spec_file.resolve()),
+                "remediation": [
+                    f"Restore the missing spec file at {spec_file.resolve()}",
+                    f"Or select another feature explicitly: spec-kitty agent feature setup-plan --feature <feature-slug> --json",
+                ],
+            }
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print(f"[red]Error:[/red] {payload['error']}")
+                for step in payload["remediation"]:
+                    console.print(f"  - {step}")
+            raise typer.Exit(1)
 
         # Find plan template
         plan_template_candidates = [
@@ -586,7 +750,6 @@ def setup_plan(
                 shutil.copyfileobj(src, dst)
 
         # Commit plan.md to target branch
-        feature_slug = feature_dir.name
         _commit_to_branch(plan_file, feature_slug, "plan", repo_root, target_branch, json_output)
 
         # T014 + T016: Documentation mission wiring for plan
@@ -694,8 +857,10 @@ def setup_plan(
         if json_output:
             print(json.dumps({
                 "result": "success",
+                "feature_slug": feature_slug,
                 "plan_file": str(plan_file),
-                "feature_dir": str(feature_dir)
+                "feature_dir": str(feature_dir),
+                "spec_file": str(spec_file),
             }))
         else:
             console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
@@ -1010,6 +1175,7 @@ def merge_feature(
 
 @app.command(name="finalize-tasks")
 def finalize_tasks(
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.
@@ -1019,6 +1185,7 @@ def finalize_tasks(
 
     Examples:
         spec-kitty agent feature finalize-tasks --json
+        spec-kitty agent feature finalize-tasks --feature 020-my-feature --json
     """
     try:
         repo_root = locate_project_root()
@@ -1032,7 +1199,32 @@ def finalize_tasks(
 
         # Determine feature directory
         cwd = Path.cwd().resolve()
-        feature_dir = _find_feature_directory(repo_root, cwd)
+        try:
+            feature_dir = _find_feature_directory(
+                repo_root,
+                cwd,
+                explicit_feature=feature,
+                allow_latest_incomplete_fallback=False,
+            )
+        except ValueError as detection_error:
+            payload = _build_setup_plan_detection_error(
+                repo_root,
+                str(detection_error),
+                feature,
+                error_code="FEATURE_CONTEXT_UNRESOLVED",
+                command_name="finalize-tasks",
+                command_args=["--json"] if json_output else [],
+            )
+            if json_output:
+                print(json.dumps(payload))
+            else:
+                console.print(f"[red]Error:[/red] {payload['error']}")
+                for line in payload.get("candidate_summary", []):
+                    console.print(f"  - {line}")
+                for cmd in payload.get("suggested_commands", [])[:3]:
+                    console.print(f"  {cmd}")
+            raise typer.Exit(1)
+
         target_branch = _resolve_planning_branch(repo_root, feature_dir)
         _ensure_branch_checked_out(repo_root, target_branch, json_output)
 

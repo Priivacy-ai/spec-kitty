@@ -353,6 +353,7 @@ def detect_feature(
     env: Mapping[str, str] | None = None,
     mode: Literal["strict", "lenient"] = "strict",
     allow_single_auto: bool = True,
+    allow_latest_incomplete_fallback: bool = True,
     announce_fallback: bool = True,
 ) -> FeatureContext | None:
     """
@@ -364,7 +365,7 @@ def detect_feature(
     3. Git branch name (strips -WP## suffix)
     4. Current directory path (walks up to find ###-feature-name)
     5. Single feature auto-detect (if allow_single_auto=True)
-    6. Fallback to latest incomplete feature (if explicit_feature is None)
+    6. Fallback to latest incomplete feature (if allow_latest_incomplete_fallback=True)
     7. Error (strict mode) or None (lenient mode)
 
     Args:
@@ -374,6 +375,8 @@ def detect_feature(
         env: Environment variables (defaults to os.environ)
         mode: "strict" raises error if ambiguous, "lenient" returns None
         allow_single_auto: Auto-detect if exactly one feature exists
+        allow_latest_incomplete_fallback: Auto-select latest incomplete feature
+            when multiple features exist and no explicit context is provided
         announce_fallback: Emit console notice when fallback_latest_incomplete is selected
 
     Returns:
@@ -435,7 +438,7 @@ def detect_feature(
         elif len(all_features) > 1:
             # Priority 6: Fallback to latest incomplete feature
             # Only activate if no explicit feature requested (respect explicit choices)
-            if explicit_feature is None:
+            if explicit_feature is None and allow_latest_incomplete_fallback:
                 latest = find_latest_incomplete_feature(repo_root)
                 if latest:
                     # Import console only if needed (avoid circular imports at module level)

@@ -341,6 +341,74 @@ class TestCheckPrerequisitesCommand:
         assert "Missing required file: tasks.md" in output["errors"]
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
+    def test_passes_explicit_feature_to_detection(
+        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+    ):
+        """Should pass --feature to detection with strict context fallback disabled."""
+        mock_locate.return_value = tmp_path
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mock_find.return_value = feature_dir
+        mock_validate.return_value = {
+            "valid": True,
+            "errors": [],
+            "warnings": [],
+            "paths": {"feature_dir": str(feature_dir)},
+        }
+
+        result = runner.invoke(
+            app,
+            [
+                "check-prerequisites",
+                "--feature",
+                "001-test",
+                "--json",
+                "--paths-only",
+                "--include-tasks",
+            ],
+        )
+
+        assert result.exit_code == 0
+        mock_find.assert_called_once()
+        args, kwargs = mock_find.call_args
+        assert args[0] == tmp_path
+        assert isinstance(args[1], Path)
+        assert kwargs["explicit_feature"] == "001-test"
+        assert kwargs["allow_latest_incomplete_fallback"] is False
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    def test_returns_context_remediation_payload_when_ambiguous(
+        self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+    ):
+        """Should return deterministic remediation payload on ambiguous context."""
+        mock_locate.return_value = tmp_path
+        mock_find.side_effect = ValueError("Multiple features found")
+
+        feature_a = tmp_path / "kitty-specs" / "001-alpha"
+        feature_b = tmp_path / "kitty-specs" / "002-beta"
+        feature_a.mkdir(parents=True)
+        feature_b.mkdir(parents=True)
+        (feature_a / "spec.md").write_text("# Alpha", encoding="utf-8")
+        (feature_b / "spec.md").write_text("# Beta", encoding="utf-8")
+
+        result = runner.invoke(
+            app,
+            ["check-prerequisites", "--json", "--paths-only", "--include-tasks"],
+        )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip().split("\n")[0])
+        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+        assert len(payload["candidate_features"]) == 2
+        assert all(entry["spec_file"].startswith("/") for entry in payload["candidate_features"])
+        assert any(
+            "check-prerequisites --feature" in command
+            for command in payload["suggested_commands"]
+        )
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     def test_errors_when_project_root_not_found(self, mock_locate: Mock):
         """Should return error when project root not found."""
         # Setup
@@ -355,6 +423,67 @@ class TestCheckPrerequisitesCommand:
         first_line = result.stdout.strip().split('\n')[0]
         output = json.loads(first_line)
         assert "error" in output
+
+
+class TestFinalizeTasksCommand:
+    """Tests for finalize-tasks command."""
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.feature._resolve_planning_branch")
+    @patch("specify_cli.cli.commands.agent.feature._ensure_branch_checked_out")
+    def test_passes_explicit_feature_to_detection(
+        self,
+        mock_ensure_branch: Mock,
+        mock_resolve_branch: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """Should pass --feature to detection with strict context fallback disabled."""
+        mock_locate.return_value = tmp_path
+        mock_resolve_branch.return_value = "main"
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        mock_find.return_value = feature_dir
+
+        result = runner.invoke(app, ["finalize-tasks", "--feature", "001-test", "--json"])
+
+        # Command exits because tasks/ is missing, but detection should be explicit and strict.
+        assert result.exit_code == 1
+        mock_find.assert_called_once()
+        args, kwargs = mock_find.call_args
+        assert args[0] == tmp_path
+        assert isinstance(args[1], Path)
+        assert kwargs["explicit_feature"] == "001-test"
+        assert kwargs["allow_latest_incomplete_fallback"] is False
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    def test_returns_context_remediation_payload_when_ambiguous(
+        self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+    ):
+        """Should return deterministic remediation payload on ambiguous context."""
+        mock_locate.return_value = tmp_path
+        mock_find.side_effect = ValueError("Multiple features found")
+
+        feature_a = tmp_path / "kitty-specs" / "001-alpha"
+        feature_b = tmp_path / "kitty-specs" / "002-beta"
+        feature_a.mkdir(parents=True)
+        feature_b.mkdir(parents=True)
+        (feature_a / "spec.md").write_text("# Alpha", encoding="utf-8")
+        (feature_b / "spec.md").write_text("# Beta", encoding="utf-8")
+
+        result = runner.invoke(app, ["finalize-tasks", "--json"])
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip().split("\n")[0])
+        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+        assert len(payload["candidate_features"]) == 2
+        assert all(entry["spec_file"].startswith("/") for entry in payload["candidate_features"])
+        assert any(
+            "finalize-tasks --feature" in command
+            for command in payload["suggested_commands"]
+        )
 
 
 class TestSetupPlanCommand:
@@ -380,6 +509,7 @@ class TestSetupPlanCommand:
         mock_resolve_branch.return_value = "main"
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
+        (feature_dir / "spec.md").write_text("# Spec")
         mock_find.return_value = feature_dir
 
         # Create template
@@ -395,8 +525,10 @@ class TestSetupPlanCommand:
         assert result.exit_code == 0
         output = json.loads(result.stdout)
         assert output["result"] == "success"
+        assert output["feature_slug"] == "001-test"
         assert "plan_file" in output
         assert "feature_dir" in output
+        assert output["spec_file"] == str(feature_dir / "spec.md")
 
         # Verify plan file was created
         plan_file = feature_dir / "plan.md"
@@ -426,6 +558,7 @@ class TestSetupPlanCommand:
         mock_resolve_branch.return_value = "main"
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
+        (feature_dir / "spec.md").write_text("# Spec")
         mock_find.return_value = feature_dir
 
         # Create template
@@ -461,6 +594,7 @@ class TestSetupPlanCommand:
         mock_resolve_branch.return_value = "main"
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
+        (feature_dir / "spec.md").write_text("# Spec")
         mock_find.return_value = feature_dir
 
         # No template created and package template unavailable
@@ -478,6 +612,38 @@ class TestSetupPlanCommand:
         output = json.loads(result.stdout)
         assert "error" in output
         assert "Plan template not found" in output["error"]
+
+    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.feature._resolve_planning_branch")
+    @patch("specify_cli.cli.commands.agent.feature._ensure_branch_checked_out")
+    def test_errors_when_spec_missing(
+        self,
+        mock_ensure_branch: Mock,
+        mock_resolve_branch: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """Should return structured error when feature spec.md is missing."""
+        # Setup
+        mock_locate.return_value = tmp_path
+        mock_resolve_branch.return_value = "main"
+        feature_dir = tmp_path / "kitty-specs" / "001-test"
+        feature_dir.mkdir(parents=True)
+        mock_find.return_value = feature_dir
+
+        # Execute
+        result = runner.invoke(app, ["setup-plan", "--feature", "001-test", "--json"])
+
+        # Verify
+        assert result.exit_code == 1
+        first_line = result.stdout.strip().split('\n')[0]
+        output = json.loads(first_line)
+        assert output["error_code"] == "SPEC_FILE_MISSING"
+        assert output["feature_slug"] == "001-test"
+        assert output["spec_file"] == str((feature_dir / "spec.md").resolve())
+        assert "Restore the missing spec file" in "\n".join(output["remediation"])
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     def test_errors_when_project_root_not_found(self, mock_locate: Mock):

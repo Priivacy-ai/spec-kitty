@@ -53,7 +53,11 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `FEATURE_DIR` plus `AVAILABLE_DOCS`. All paths must be absolute.
+1. **Detect feature context** (mandatory in new sessions):
+   - Resolve the feature slug from explicit user direction, current branch, or current directory path.
+   - If context is ambiguous, run `check-prerequisites` once without `--feature`, parse the JSON candidate list, and pick one explicit feature slug before continuing.
+
+2. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks --feature <feature-slug>` from the repository root and capture `FEATURE_DIR` plus `AVAILABLE_DOCS`. All paths must be absolute.
 
    **CRITICAL**: The command returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/new_specify/kitty-specs/001-feature-name`).
 
@@ -70,23 +74,23 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - ❌ `FEATURE_DIR/tasks/planned/WP01-slug.md` (WRONG - no subdirectories!)
    - ❌ `WP01-slug.md` (wrong directory)
 
-2. **Load design documents** from `FEATURE_DIR` (only those present):
+3. **Load design documents** from `FEATURE_DIR` (only those present):
    - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
    - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
    - Scale your effort to the feature: simple UI tweaks deserve lighter coverage, multi-system releases require deeper decomposition.
 
-3. **Derive fine-grained subtasks** (IDs `T001`, `T002`, ...):
+4. **Derive fine-grained subtasks** (IDs `T001`, `T002`, ...):
    - Parse plan/spec to enumerate concrete implementation steps, tests (only if explicitly requested), migrations, and operational work.
    - Capture prerequisites, dependencies, and parallelizability markers (`[P]` means safe to parallelize per file/concern).
    - Maintain the subtask list internally; it feeds the work-package roll-up and the prompts.
 
-4. **Roll subtasks into work packages** (IDs `WP01`, `WP02`, ...):
+5. **Roll subtasks into work packages** (IDs `WP01`, `WP02`, ...):
    - Target 4–10 work packages. Each should be independently implementable, rooted in a single user story or cohesive subsystem.
    - Ensure every subtask appears in exactly one work package.
    - Name each work package with a succinct goal (e.g., “User Story 1 – Real-time chat happy path”).
    - Record per-package metadata: priority, success criteria, risks, dependencies, and list of included subtasks.
 
-5. **Write `tasks.md`** using `.kittify/templates/tasks-template.md`:
+6. **Write `tasks.md`** using `.kittify/templates/tasks-template.md`:
    - **Location**: Write to `FEATURE_DIR/tasks.md` (use the absolute FEATURE_DIR path from step 1)
    - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries
    - Under each work package include:
@@ -96,7 +100,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
      - Parallel opportunities, dependencies, and risks
    - Preserve the checklist style so implementers can mark progress
 
-6. **Generate prompt files (one per work package)**:
+7. **Generate prompt files (one per work package)**:
    - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `FEATURE_DIR/tasks/` directory, NOT in subdirectories!
    - Correct structure: `FEATURE_DIR/tasks/WPxx-slug.md` (flat, no subdirectories)
    - WRONG (do not create): `FEATURE_DIR/tasks/planned/`, `FEATURE_DIR/tasks/doing/`, or ANY lane subdirectories
@@ -115,7 +119,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
 
    **IMPORTANT**: All WP files live in flat `tasks/` directory. Lane status is tracked ONLY in the `lane:` frontmatter field, NOT by directory location. Agents can change lanes by editing the `lane:` field directly or using `spec-kitty agent tasks move-task`.
 
-7. **Finalize tasks with dependency parsing and commit**:
+8. **Finalize tasks with dependency parsing and commit**:
    After generating all WP prompt files, run the finalization command to:
    - Parse dependencies from tasks.md
    - Update WP frontmatter with dependencies field
@@ -124,7 +128,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
 
    **CRITICAL**: Run this command from repo root:
    ```bash
-   spec-kitty agent feature finalize-tasks --json
+   spec-kitty agent feature finalize-tasks --json --feature <feature-slug>
    ```
 
    This step is MANDATORY for workspace-per-WP features. Without it:
@@ -132,7 +136,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Agents won't know which --base flag to use
    - Tasks won't be committed to target branch
 
-8. **Report**: Provide a concise outcome summary:
+9. **Report**: Provide a concise outcome summary:
    - Path to `tasks.md`
    - Work package count and per-package subtask tallies
    - Parallelization highlights

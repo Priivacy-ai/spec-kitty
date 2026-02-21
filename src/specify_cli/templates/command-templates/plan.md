@@ -73,14 +73,23 @@ Planning requirements (scale to complexity):
    - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user's response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run the setup command yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Setup**: Run `spec-kitty agent feature setup-plan --json` from the repository root and parse JSON for:
+2. **Detect feature context** (mandatory in new sessions):
+   - Determine feature slug from one of:
+     - explicit user direction
+     - current branch (`git rev-parse --abbrev-ref HEAD`)
+     - current directory path (`kitty-specs/<feature-slug>/...`)
+   - If context is still ambiguous, run setup-plan once without `--feature`, parse the candidate list from JSON error, and pick one explicit feature slug before continuing.
+
+3. **Setup**: Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
-   - `plan_file`: Absolute path to the created plan.md
-   - `feature_dir`: Absolute path to the feature directory
+   - `feature_slug`: resolved feature slug
+   - `spec_file`: absolute path to resolved spec.md
+   - `plan_file`: absolute path to created plan.md
+   - `feature_dir`: absolute path to feature directory
 
-3. **Load context**: Read FEATURE_SPEC and `.kittify/memory/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
+4. **Load context**: Read `spec_file` from setup-plan JSON output and `.kittify/memory/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
 
-4. **Execute plan workflow**: Follow the structure in IMPL_PLAN template, using the validated planning answers as ground truth:
+5. **Execute plan workflow**: Follow the structure in IMPL_PLAN template, using the validated planning answers as ground truth:
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
    - If a constitution exists, fill Constitution Check section from it and challenge any conflicts directly with the user. If no constitution exists, mark the section as skipped.
    - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
@@ -89,7 +98,7 @@ Planning requirements (scale to complexity):
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design, asking the user to resolve new gaps before proceeding
 
-5. **STOP and report**: This command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+6. **STOP and report**: This command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
 
    **⚠️ CRITICAL: DO NOT proceed to task generation!** The user must explicitly run `/spec-kitty.tasks` to generate work packages. Your job is COMPLETE after reporting the planning artifacts.
 
