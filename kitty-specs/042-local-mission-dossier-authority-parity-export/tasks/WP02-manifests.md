@@ -1,17 +1,24 @@
 ---
-work_package_id: "WP02"
-title: "Expected Artifact Manifests"
-feature_slug: 042-local-mission-dossier-authority-parity-export
-lane: planned
+work_package_id: WP02
+title: Expected Artifact Manifests
+lane: "done"
 dependencies:
-  - WP01
+- WP01
+base_branch: 042-local-mission-dossier-authority-parity-export-WP01
+base_commit: f94e0836c96318c1bc9d7179e351fc38d02e6152
+created_at: '2026-02-21T15:45:35.188944+00:00'
 subtasks:
-  - T006
-  - T007
-  - T008
-  - T009
-  - T010
-  - T011
+- T006
+- T007
+- T008
+- T009
+- T010
+- T011
+feature_slug: 042-local-mission-dossier-authority-parity-export
+shell_pid: "83547"
+agent: "coordinator"
+reviewed_by: "Robert Douglass"
+review_status: "approved"
 ---
 
 # WP02: Expected Artifact Manifests
@@ -438,3 +445,9 @@ When reviewing WP02:
 - **Estimated Lines**: ~400 (manifest.py ~150, 3 YAML files ~250)
 - **Integration Point**: WP03 (indexing) will use ManifestRegistry
 - **Deferred**: Manifest versioning strategy, custom mission support (post-042)
+
+## Activity Log
+
+- 2026-02-21T15:45:35Z – coordinator – shell_pid=83547 – lane=doing – Assigned agent via workflow command
+- 2026-02-21T15:47:54Z – coordinator – shell_pid=83547 – lane=for_review – Ready for review: Expected artifact manifests implemented with full test coverage (41 tests passing)
+- 2026-02-21T15:48:22Z – coordinator – shell_pid=83547 – lane=done – Code review passed: 41 tests, manifest schemas verified, registry implemented
