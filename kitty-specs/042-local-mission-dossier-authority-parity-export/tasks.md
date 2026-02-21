@@ -242,12 +242,12 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T034-T039 (6 subtasks)
-- [ ] T034: Create dossier-panel.js (vanilla JS, fetch wrappers, no Vue framework)
-- [ ] T035: Add dossier tab to dashboard HTML (tabs: overview, artifacts, detail)
-- [ ] T036: Render artifact list with filtering UI (checkboxes for class, wp_id, step_id)
-- [ ] T037: Implement artifact detail view (full-text display, syntax highlighting hints)
-- [ ] T038: Add truncation notice for large artifacts (>5MB, with download link if needed)
-- [ ] T039: Media type hints (markdown badge, json icon, yaml label)
+- [x] T034: Create dossier-panel.js (vanilla JS, fetch wrappers, no Vue framework)
+- [x] T035: Add dossier tab to dashboard HTML (tabs: overview, artifacts, detail)
+- [x] T036: Render artifact list with filtering UI (checkboxes for class, wp_id, step_id)
+- [x] T037: Implement artifact detail view (full-text display, syntax highlighting hints)
+- [x] T038: Add truncation notice for large artifacts (>5MB, with download link if needed)
+- [x] T039: Media type hints (markdown badge, json icon, yaml label)
 
 **Implementation Notes**:
 - Vanilla JS: No Vue/SPA framework; fetch API + DOM manipulation
