@@ -17,25 +17,25 @@ from specify_cli.constitution.schemas import (
     PerformanceConfig,
     QualityConfig,
     SectionsParsed,
-    TestingConfig,
+    ConstitutionTestingConfig,
     emit_yaml,
 )
 
 
-class TestTestingConfig:
-    """Tests for TestingConfig schema."""
+class TestConstitutionTestingConfig:
+    """Tests for ConstitutionTestingConfig schema."""
 
     def test_default_values(self):
-        """T027: TestingConfig has correct defaults."""
-        config = TestingConfig()
+        """T027: ConstitutionTestingConfig has correct defaults."""
+        config = ConstitutionTestingConfig()
         assert config.min_coverage == 0
         assert config.tdd_required is False
         assert config.framework == ""
         assert config.type_checking == ""
 
     def test_custom_values(self):
-        """T028: TestingConfig accepts custom values."""
-        config = TestingConfig(
+        """T028: ConstitutionTestingConfig accepts custom values."""
+        config = ConstitutionTestingConfig(
             min_coverage=90,
             tdd_required=True,
             framework="pytest",
@@ -106,7 +106,7 @@ class TestGovernanceConfig:
     def test_default_values(self):
         """T035: GovernanceConfig has correct nested defaults."""
         config = GovernanceConfig()
-        assert isinstance(config.testing, TestingConfig)
+        assert isinstance(config.testing, ConstitutionTestingConfig)
         assert isinstance(config.quality, QualityConfig)
         assert isinstance(config.performance, PerformanceConfig)
         assert config.enforcement == {}
@@ -114,7 +114,7 @@ class TestGovernanceConfig:
     def test_custom_nested_values(self):
         """T036: GovernanceConfig accepts custom nested configs."""
         config = GovernanceConfig(
-            testing=TestingConfig(min_coverage=90, tdd_required=True),
+            testing=ConstitutionTestingConfig(min_coverage=90, tdd_required=True),
             quality=QualityConfig(linting="ruff"),
         )
         assert config.testing.min_coverage == 90
@@ -123,7 +123,7 @@ class TestGovernanceConfig:
     def test_full_config(self):
         """T037: GovernanceConfig can be fully populated."""
         config = GovernanceConfig(
-            testing=TestingConfig(min_coverage=90, framework="pytest"),
+            testing=ConstitutionTestingConfig(min_coverage=90, framework="pytest"),
             quality=QualityConfig(pr_approvals=2),
             commits=CommitConfig(convention="conventional"),
             performance=PerformanceConfig(cli_timeout_seconds=3.0),
@@ -247,7 +247,7 @@ class TestEmitYAML:
         """T048: emit_yaml creates YAML file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "test.yaml"
-            config = TestingConfig(min_coverage=90, tdd_required=True)
+            config = ConstitutionTestingConfig(min_coverage=90, tdd_required=True)
 
             emit_yaml(config, output_path)
 
@@ -257,7 +257,7 @@ class TestEmitYAML:
         """T049: emit_yaml includes auto-generated header comment."""
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "test.yaml"
-            config = TestingConfig(min_coverage=90)
+            config = ConstitutionTestingConfig(min_coverage=90)
 
             emit_yaml(config, output_path)
 
@@ -269,7 +269,7 @@ class TestEmitYAML:
         """T050: emit_yaml produces valid YAML with correct values."""
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "test.yaml"
-            config = TestingConfig(
+            config = ConstitutionTestingConfig(
                 min_coverage=90,
                 tdd_required=True,
                 framework="pytest",
@@ -287,7 +287,7 @@ class TestEmitYAML:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "governance.yaml"
             config = GovernanceConfig(
-                testing=TestingConfig(min_coverage=90),
+                testing=ConstitutionTestingConfig(min_coverage=90),
                 quality=QualityConfig(linting="ruff"),
             )
 

@@ -19,7 +19,7 @@ YAML_HEADER = (
 )
 
 
-class TestingConfig(BaseModel):
+class ConstitutionTestingConfig(BaseModel):
     """Testing requirements extracted from constitution."""
 
     min_coverage: int = 0
@@ -70,7 +70,7 @@ class DoctrineSelectionConfig(BaseModel):
 class GovernanceConfig(BaseModel):
     """Top-level governance configuration."""
 
-    testing: TestingConfig = Field(default_factory=TestingConfig)
+    testing: ConstitutionTestingConfig = Field(default_factory=ConstitutionTestingConfig)
     quality: QualityConfig = Field(default_factory=QualityConfig)
     commits: CommitConfig = Field(default_factory=CommitConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
