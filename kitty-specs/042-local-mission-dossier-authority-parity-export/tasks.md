@@ -65,12 +65,12 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T006-T011 (6 subtasks)
-- [ ] T006: Design manifest schema (required_always, required_by_step, optional_always)
-- [ ] T007: Implement ManifestRegistry loader (reads mission.yaml states, loads YAML manifests)
-- [ ] T008: Create software-dev expected-artifacts.yaml (step-aware, using existing mission artifacts)
-- [ ] T009: Create research expected-artifacts.yaml (step-aware)
-- [ ] T010: Create documentation expected-artifacts.yaml (step-aware)
-- [ ] T011: Manifest validation (verify steps exist in mission.yaml, path patterns valid)
+- [x] T006: Design manifest schema (required_always, required_by_step, optional_always)
+- [x] T007: Implement ManifestRegistry loader (reads mission.yaml states, loads YAML manifests)
+- [x] T008: Create software-dev expected-artifacts.yaml (step-aware, using existing mission artifacts)
+- [x] T009: Create research expected-artifacts.yaml (step-aware)
+- [x] T010: Create documentation expected-artifacts.yaml (step-aware)
+- [x] T011: Manifest validation (verify steps exist in mission.yaml, path patterns valid)
 
 **Implementation Notes**:
 - Manifest schema: YAML per mission, with schema_version, mission_type, manifest_version fields
