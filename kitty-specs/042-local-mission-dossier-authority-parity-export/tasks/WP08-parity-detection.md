@@ -2,7 +2,9 @@
 work_package_id: WP08
 title: Local Parity-Drift Detector
 lane: planned
-dependencies: []
+dependencies:
+- WP04
+- WP05
 subtasks:
 - T040
 - T041

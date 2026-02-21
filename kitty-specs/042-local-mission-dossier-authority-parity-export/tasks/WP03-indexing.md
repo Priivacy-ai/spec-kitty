@@ -2,7 +2,9 @@
 work_package_id: WP03
 title: Indexing & Missing Detection
 lane: planned
-dependencies: []
+dependencies:
+- WP01
+- WP02
 subtasks:
 - T012
 - T013
@@ -142,7 +144,12 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
 **How**:
 1. Add classification logic to Indexer._index_file():
    ```python
-   def _classify_artifact(self, file_path: Path, manifest: Optional[ExpectedArtifactManifest]) -> str:
+   def _classify_artifact(
+       self,
+       file_path: Path,
+       manifest: Optional[ExpectedArtifactManifest],
+       feature_dir: Optional[Path] = None,
+   ) -> str:
        """Deterministically classify artifact into one of 6 classes.
 
        Classes: input, workflow, output, evidence, policy, runtime
@@ -153,7 +160,7 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
        # Strategy 1: Check manifest definitions (if manifest exists)
        if manifest:
            for specs in (manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always):
-               if self._matches_pattern(file_path, specs.path_pattern):
+               if self._matches_pattern(file_path, specs.path_pattern, feature_dir=feature_dir):
                    return specs.artifact_class
 
        # Strategy 2: Filename-based patterns (fallback)
@@ -174,11 +181,11 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
        # Strategy 3: Fail explicitly if can't classify (no "other" fallback)
        raise ValueError(f"Cannot classify artifact: {file_path} (not in manifest, no pattern match)")
 
-   def _matches_pattern(self, file_path: Path, pattern: str) -> bool:
-       """Check if file_path matches glob pattern."""
+   def _matches_pattern(self, file_path: Path, pattern: str, feature_dir: Optional[Path] = None) -> bool:
+       """Check if file_path matches feature-relative glob pattern."""
        import fnmatch
-       relative = file_path.name  # Simple match on filename
-       return fnmatch.fnmatch(relative, pattern) or fnmatch.fnmatch(str(file_path), pattern)
+       relative = str(file_path.relative_to(feature_dir)) if feature_dir else file_path.name
+       return fnmatch.fnmatch(relative, pattern)
    ```
 2. Ensure classification is deterministic (same file, always same class)
 3. Never return "other" or unknown class (fail explicitly if can't classify)
@@ -219,9 +226,9 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
            return []  # No manifest, can't detect missing
 
        # Get required artifacts for current step
-       required_specs = dossier.manifest.required_always
+       required_specs = list(dossier.manifest.required_always)
        if step_id:
-           required_specs += dossier.manifest.required_by_step.get(step_id, [])
+           required_specs.extend(dossier.manifest.required_by_step.get(step_id, []))
 
        # Check each required spec
        missing = []
@@ -278,6 +285,7 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
        """Index single file, handle read errors gracefully."""
        relative_path = str(file_path.relative_to(feature_dir))
        artifact_key = self._derive_artifact_key(file_path, mission_type)
+       manifest = self.manifest_registry.load_manifest(mission_type)
 
        try:
            # Try to read and hash
@@ -286,7 +294,7 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
                # UTF-8 validation failed
                return ArtifactRef(
                    artifact_key=artifact_key,
-                   artifact_class=self._classify_artifact(file_path),
+                   artifact_class=self._classify_artifact(file_path, manifest, feature_dir=feature_dir),
                    relative_path=relative_path,
                    content_hash_sha256=None,
                    size_bytes=file_path.stat().st_size,
@@ -298,7 +306,7 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
            # Successfully hashed
            return ArtifactRef(
                artifact_key=artifact_key,
-               artifact_class=self._classify_artifact(file_path),
+               artifact_class=self._classify_artifact(file_path, manifest, feature_dir=feature_dir),
                relative_path=relative_path,
                content_hash_sha256=file_hash,
                size_bytes=file_path.stat().st_size,
@@ -394,9 +402,9 @@ After WP01 defines the ArtifactRef model and WP02 defines manifests, WP03 brings
        if not self.manifest:
            return []
 
-       required_specs = self.manifest.required_always
+       required_specs = list(self.manifest.required_always)
        if step_id:
-           required_specs += self.manifest.required_by_step.get(step_id, [])
+           required_specs.extend(self.manifest.required_by_step.get(step_id, []))
 
        # Match specs against indexed artifacts
        required_artifacts = []

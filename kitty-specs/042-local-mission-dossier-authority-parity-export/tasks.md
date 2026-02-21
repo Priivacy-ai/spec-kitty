@@ -386,31 +386,29 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 
 ```
 WP01 (ArtifactRef, Hasher)
+  ├─→ WP02 (Manifests)
   ├─→ WP03 (Indexing)
   ├─→ WP05 (Snapshot, Parity)
   └─→ WP09 (Determinism Tests)
 
 WP02 (Manifests)
-  ├─→ WP03 (Indexing)
-  └─→ WP09 (Tests)
+  └─→ WP03 (Indexing)
 
 WP03 (Indexing)
   ├─→ WP04 (Events)
   └─→ WP05 (Snapshot)
 
 WP04 (Events)
-  ├─→ WP05 (Snapshot)
+  ├─→ WP06 (API Endpoints)
   └─→ WP08 (Drift Detection)
 
 WP05 (Snapshot, Parity)
   ├─→ WP06 (API Endpoints)
-  ├─→ WP07 (Dashboard UI)
   ├─→ WP08 (Drift Detection)
   └─→ WP09 (Determinism Tests)
 
 WP06 (API Endpoints)
   ├─→ WP07 (Dashboard UI)
-  ├─→ WP08 (Drift Detection)
   └─→ WP10 (Integration Tests)
 
 WP07 (Dashboard UI)
@@ -423,12 +421,12 @@ WP09 (Determinism Tests)
   └─→ WP10 (Integration Tests)
 ```
 
-**Critical Path**: WP01 → WP02 → WP03 → WP04 → WP05 → (WP06, WP07, WP08 in parallel) → WP10
+**Critical Path**: WP01 → WP02 → WP03 → (WP04 + WP05) → WP06 → WP07 → WP10
 
 **Parallelizable Groups**:
-- Phase 1: WP01-WP02 (no deps), then WP03 (both), then WP04 (WP03), then WP05 (WP04)
-- Phase 2: WP06, WP07, WP08 (all depend on WP05, can parallelize)
-- Phase 3: WP09 (all Phase 1), WP10 (all other WPs)
+- Phase 1: WP01, then WP02, then WP03, then WP04 + WP05 in parallel
+- Phase 2: WP06 (after WP04 + WP05), then WP07 (after WP06), and WP08 in parallel (after WP04 + WP05)
+- Phase 3: WP09 (after WP01 + WP05), WP10 (after WP06 + WP07 + WP08 + WP09)
 
 ---
 
@@ -450,7 +448,7 @@ All work packages collectively deliver complete feature 042 specification.
 
 ## Notes
 
-- **No finalize-tasks yet**: This is the initial task breakdown. Finalize-tasks will be run after phase 2 review to validate dependencies and update frontmatter.
+- **Dependencies finalized**: WP frontmatter dependency lists are now aligned with this graph for deterministic `implement` validation.
 - **Test-driven**: Each WP includes unit tests + integration tests (WP10 comprehensive)
 - **Scope containment**: No FastAPI migration, no manifest versioning, no cross-org federation (deferred to post-042)
 - **Quality bar**: Zero silent failures, explicit error handling, deterministic hashing, full spec compliance

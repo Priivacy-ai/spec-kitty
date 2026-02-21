@@ -3,9 +3,9 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 0.15.3
+  version: 0.16.1
   initialized_at: '2026-02-03T17:59:23.703791'
-  last_upgraded_at: '2026-02-16T14:32:36.147872'
+  last_upgraded_at: '2026-02-21T10:48:44.439985'
 environment:
   python_version: 3.14.0
   platform: darwin

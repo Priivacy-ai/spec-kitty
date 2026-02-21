@@ -2,7 +2,8 @@
 work_package_id: WP07
 title: Dashboard UI Integration
 lane: planned
-dependencies: []
+dependencies:
+- WP06
 subtasks:
 - T034
 - T035

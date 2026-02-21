@@ -3,7 +3,8 @@ work_package_id: "WP02"
 title: "Expected Artifact Manifests"
 feature_slug: 042-local-mission-dossier-authority-parity-export
 lane: planned
-dependencies: []
+dependencies:
+  - WP01
 subtasks:
   - T006
   - T007
@@ -45,7 +46,7 @@ Feature 042's dossier system needs to know which artifacts are required at any g
 - **Assumption 1**: Expected artifact manifests are defined in mission templates (not hard-coded)
 
 **Mission Context**:
-- software-dev: States include "discover", "specify", "plan", "implement", "review", "done"
+- software-dev: States include "discovery", "specify", "plan", "implement", "review", "done"
 - research: States include "scoping", "methodology", "gathering", "synthesis", "output", "done"
 - documentation: Mission-specific states
 
@@ -71,7 +72,7 @@ Feature 042's dossier system needs to know which artifacts are required at any g
        blocking: true/false
 
    required_by_step:
-     discover:
+     discovery:
        - artifact_key: "..."
          artifact_class: "..."
          path_pattern: "..."
@@ -236,9 +237,9 @@ optional_always:
 
 **How**:
 1. Analyze existing software-dev mission template in `src/specify_cli/missions/software-dev/`
-2. Review mission.yaml to identify state machine (states: discover, specify, plan, implement, review, done)
+2. Review mission.yaml to identify state machine (states: discovery, specify, plan, implement, review, done)
 3. Identify all artifacts expected at each state:
-   - **discover** (none expected)
+   - **discovery** (none expected)
    - **specify**: spec.md (required, input)
    - **plan**: plan.md, tasks.md (required, output)
    - **implement**: code changes (tracked via git, not filesystem artifacts)
@@ -433,7 +434,7 @@ When reviewing WP02:
 ## Implementation Notes
 
 - **Storage**: manifest.py (registry, models), missions/*/expected-artifacts.yaml (data)
-- **Dependencies**: pydantic, ruamel.yaml (both existing)
+- **Dependencies**: WP01 (artifact context), pydantic, ruamel.yaml (both existing)
 - **Estimated Lines**: ~400 (manifest.py ~150, 3 YAML files ~250)
 - **Integration Point**: WP03 (indexing) will use ManifestRegistry
 - **Deferred**: Manifest versioning strategy, custom mission support (post-042)

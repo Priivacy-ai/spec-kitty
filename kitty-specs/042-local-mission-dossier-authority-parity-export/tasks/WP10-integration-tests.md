@@ -2,7 +2,16 @@
 work_package_id: WP10
 title: Integration & Edge Cases
 lane: planned
-dependencies: []
+dependencies:
+- WP01
+- WP02
+- WP03
+- WP04
+- WP05
+- WP06
+- WP07
+- WP08
+- WP09
 subtasks:
 - T051
 - T052
@@ -692,7 +701,7 @@ When reviewing WP10:
 ## Implementation Notes
 
 - **Storage**: test_integration.py, test_encoding.py, fixtures
-- **Dependencies**: pytest, pydantic, pathlib
+- **Dependencies**: WP01-WP09, pytest
 - **Estimated Lines**: ~450 (test suite + fixtures)
 - **Integration Point**: CI/CD pipeline, final validation gate
 - **Performance**: Large file tests marked @pytest.mark.slow

@@ -2,7 +2,9 @@
 work_package_id: WP05
 title: Snapshot Computation & Parity Hash
 lane: planned
-dependencies: []
+dependencies:
+- WP01
+- WP03
 subtasks:
 - T023
 - T024
@@ -375,7 +377,7 @@ When reviewing WP05:
 ## Implementation Notes
 
 - **Storage**: store.py (snapshot persistence, parity hash)
-- **Dependencies**: WP01 (hasher), WP04 (models)
+- **Dependencies**: WP01 (hasher), WP03 (MissionDossier/indexing output)
 - **Estimated Lines**: ~350 (store.py + tests)
 - **Integration Point**: WP06 (API) will return snapshots; WP08 (drift detection) compares hashes
 - **Performance**: Snapshot computation <1s for 30 artifacts (SC-001)

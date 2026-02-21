@@ -2,7 +2,9 @@
 work_package_id: WP06
 title: Dashboard API Endpoints
 lane: planned
-dependencies: []
+dependencies:
+- WP04
+- WP05
 subtasks:
 - T028
 - T029
@@ -507,7 +509,7 @@ When reviewing WP06:
 ## Implementation Notes
 
 - **Storage**: api.py (handlers, models, adapter)
-- **Dependencies**: WP05 (snapshot), pydantic
+- **Dependencies**: WP04 (event payload contracts), WP05 (snapshot), pydantic
 - **Estimated Lines**: ~400 (api.py + adapter + tests)
 - **Integration Point**: WP07 (UI) fetches from these endpoints; WP10 integration tests
 - **Deferred**: FastAPI migration (feature 044)

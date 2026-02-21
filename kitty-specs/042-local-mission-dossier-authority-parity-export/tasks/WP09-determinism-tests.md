@@ -2,7 +2,9 @@
 work_package_id: WP09
 title: Determinism Test Suite
 lane: planned
-dependencies: []
+dependencies:
+- WP01
+- WP05
 subtasks:
 - T046
 - T047
@@ -458,7 +460,7 @@ When reviewing WP09:
 ## Implementation Notes
 
 - **Storage**: test_determinism.py (pytest test suite)
-- **Dependencies**: pytest, pydantic, pathlib
+- **Dependencies**: WP01 (hasher), WP05 (snapshot), pytest
 - **Estimated Lines**: ~300 (test_determinism.py)
 - **Integration Point**: CI/CD pipeline, required for merge
 - **Non-Negotiable**: All tests must pass (determinism is critical)
