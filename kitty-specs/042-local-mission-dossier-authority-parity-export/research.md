@@ -211,52 +211,75 @@ WP02 and WP01 are **truly parallel** (no code coupling).
 
 ### Expected Artifacts YAML Schema
 
-Per mission type, define:
+Per mission type, define completeness requirements by workflow phase:
 
 ```yaml
 # src/specify_cli/missions/software-dev/expected-artifacts.yaml
 schema_version: "1.0"
 mission_type: "software-dev"
 
-required_by_step:
-  planning:
+required_by_phase:
+  spec_complete:
+    # After /spec-kitty.specify
     - artifact_key: "input.spec.main"
-      class: "input"
+      artifact_class: "input"
       path_pattern: "spec.md"
-      blocking: true
+
+  planning_complete:
+    # After /spec-kitty.plan
+    - artifact_key: "input.spec.main"
+      artifact_class: "input"
+      path_pattern: "spec.md"
 
     - artifact_key: "output.plan.main"
-      class: "output"
+      artifact_class: "output"
       path_pattern: "plan.md"
-      blocking: true
+
+  tasks_complete:
+    # After /spec-kitty.tasks
+    - artifact_key: "input.spec.main"
+      artifact_class: "input"
+      path_pattern: "spec.md"
+
+    - artifact_key: "output.plan.main"
+      artifact_class: "output"
+      path_pattern: "plan.md"
 
     - artifact_key: "output.tasks.main"
-      class: "output"
+      artifact_class: "output"
       path_pattern: "tasks.md"
-      blocking: true
 
     - artifact_key: "output.tasks.per_wp"
-      class: "output"
+      artifact_class: "output"
       path_pattern: "tasks/*.md"
-      blocking: true
 
 optional_always:
+  # Always checked if present, never block completeness
   - artifact_key: "evidence.research"
-    class: "evidence"
+    artifact_class: "evidence"
     path_pattern: "research.md"
 
   - artifact_key: "evidence.data_model"
-    class: "evidence"
+    artifact_class: "evidence"
     path_pattern: "data-model.md"
 
   - artifact_key: "evidence.contracts"
-    class: "evidence"
+    artifact_class: "evidence"
     path_pattern: "contracts/*"
 ```
 
-**Why YAML?**
+**Artifact Classes** (6 total, deterministic):
+- `input`: Requirements, specs, PRDs (user-provided)
+- `workflow`: Plan, roadmap, design docs
+- `output`: Generated artifacts (tasks, code, docs)
+- `evidence`: Research, analysis, proofs, test results
+- `policy`: Standards, guidelines, templates
+- `runtime`: Configuration, deployment, operational artifacts
+
+**Why YAML + Phase-Based Design?**
 - Already used for mission configs in spec-kitty
 - Human-readable, easy to extend
+- Phase-based allows checking completeness at any workflow stage
 - Git-friendly (version control friendly)
 - YAML → pydantic model (type-safe runtime)
 

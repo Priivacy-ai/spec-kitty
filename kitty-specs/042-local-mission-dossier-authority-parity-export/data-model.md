@@ -95,13 +95,13 @@ from typing import List, Dict
 from enum import Enum
 
 class ArtifactClassEnum(str, Enum):
+    """6 artifact classes (deterministic, no fallback)."""
     INPUT = "input"
     WORKFLOW = "workflow"
     OUTPUT = "output"
     EVIDENCE = "evidence"
     POLICY = "policy"
     RUNTIME = "runtime"
-    OTHER = "other"
 
 class ExpectedArtifactSpec(BaseModel):
     """Single expected artifact definition."""
@@ -115,9 +115,9 @@ class ExpectedArtifactManifest(BaseModel):
     schema_version: str = "1.0"
     mission_type: str = Field(..., description="e.g., 'software-dev', 'research', 'documentation'")
 
-    required_by_step: Dict[str, List[ExpectedArtifactSpec]] = Field(
+    required_by_phase: Dict[str, List[ExpectedArtifactSpec]] = Field(
         default_factory=dict,
-        description="Step ID → list of required specs for that step"
+        description="Phase → list of required specs (phases: spec_complete, planning_complete, tasks_complete, implementation_complete)"
     )
     optional_always: List[ExpectedArtifactSpec] = Field(
         default_factory=list,
@@ -151,9 +151,9 @@ class ManifestRegistry:
         # Check missions/*/expected-artifacts.yaml
 
     @staticmethod
-    def get_required_artifacts(manifest: ExpectedArtifactManifest, step_id: str) -> List[ExpectedArtifactSpec]:
-        """Get required specs for step."""
-        return manifest.required_by_step.get(step_id, [])
+    def get_required_artifacts(manifest: ExpectedArtifactManifest, phase: str) -> List[ExpectedArtifactSpec]:
+        """Get required specs for phase (spec_complete, planning_complete, tasks_complete, etc.)."""
+        return manifest.required_by_phase.get(phase, [])
 ```
 
 ---

@@ -25,8 +25,8 @@ Deterministic design ensures identical artifact content always produces identica
   - `rich` (console output, existing)
   - `ruamel.yaml` (YAML parsing for mission manifests)
   - `spec_kitty_events` (sync infrastructure, existing)
-  - FastAPI + Starlette (dashboard API, existing)
-  - Vue 3 (dashboard UI, existing)
+  - `http.server.HTTPServer` (stdlib, existing dashboard server)
+  - Static JavaScript (dashboard UI, existing)
 
 **Storage**: Filesystem only (YAML configs, JSON event logs, markdown artifacts)
 **Testing**: `pytest` + `pytest-asyncio` (for async API tests)
@@ -46,8 +46,8 @@ Deterministic design ensures identical artifact content always produces identica
 **Scale/Scope**:
   - Support >1000 artifacts per feature (SC-005)
   - 3 mission types with manifests in v1 (software-dev, research, documentation)
-  - 7 artifact classes (input, workflow, output, evidence, policy, runtime, plus extensible)
-  - 4 dossier event types (Indexed, Missing, Computed, ParityDrift)
+  - 6 artifact classes (input, workflow, output, evidence, policy, runtime) – deterministic, no fallback
+  - 4 dossier event types (Indexed, Missing, Computed, ParityDrift) – anomaly events conditional
 
 ## Constitution Check
 
@@ -100,18 +100,17 @@ src/specify_cli/
 │   └── test_fixtures.py              # Shared test helpers
 │
 ├── dashboard/
-│   ├── api.py                        # MODIFY: Add dossier API endpoints
-│   │   ├── /api/dossier/overview
-│   │   ├── /api/dossier/artifacts
-│   │   ├── /api/dossier/artifacts/{artifact_key}
-│   │   └── /api/dossier/snapshots/export
+│   ├── handlers/
+│   │   ├── api.py                    # MODIFY: Add dossier API handler methods
+│   │   │   ├── handle_dossier_overview()
+│   │   │   ├── handle_dossier_artifacts()
+│   │   │   ├── handle_dossier_artifact_detail()
+│   │   │   └── handle_dossier_snapshot_export()
+│   │   └── router.py                 # MODIFY: Add routing for /api/dossier/*
 │   │
-│   ├── ui/
-│   │   ├── components/
-│   │   │   └── DossierPanel.vue      # NEW: Dossier overview + list/filter + detail
-│   │   └── views/
-│   │       └── artifacts/
-│   │           └── ArtifactDetail.vue # NEW: Full-text artifact view
+│   ├── static/
+│   │   └── js/
+│   │       └── dossier-panel.js      # NEW: Dossier UI (fetch + DOM updates)
 │   │
 │   └── scanner.py                    # MODIFY: Integrate dossier scanner callback
 │
@@ -197,15 +196,17 @@ tests/
 - Derived from filename patterns or explicit frontmatter (if added to mission templates)
 - Used for filtering in dashboard
 
-### 4. **Event Emission**
+### 4. **Event Emission (Conditional & Deterministic)**
 - Integrated with spec_kitty_events contracts
-- 4 types: MissionDossierArtifactIndexed, MissionDossierArtifactMissing, MissionDossierSnapshotComputed, MissionDossierParityDriftDetected
+- **Always Emitted**: MissionDossierArtifactIndexed (one per artifact), MissionDossierSnapshotComputed (after scan completes)
+- **Conditionally Emitted**: MissionDossierArtifactMissing (only if required artifacts missing), MissionDossierParityDriftDetected (only if local hash differs from baseline)
 - Routed via OfflineQueue (async, retry-safe)
 - Each event immutable, timestamped, includes envelope metadata
 
 ### 5. **Local Parity Detection**
-- Baseline: locally cached last-known parity hash (stored in .kittify/dossier-baseline.json)
-- Compare current snapshot hash vs cached baseline
+- Baseline: locally cached last-known parity hash per feature (stored in .kittify/dossiers/{feature_slug}/parity-baseline.json)
+- **Feature Namespacing**: Each feature has its own baseline directory to prevent cross-feature contamination
+- Compare current snapshot hash vs cached baseline for that feature
 - Emit MissionDossierParityDriftDetected only if hash differs
 - Works offline: no SaaS call required
 
@@ -215,11 +216,18 @@ tests/
 - Detail endpoint returns full text (with truncation notice for >5MB)
 - Export endpoint returns snapshot JSON (importable by SaaS)
 
-### 7. **Error Handling**
+### 7. **Completeness Phases & Manifest Scoping**
+- **Phase 1 (Spec Phase - Immediate)**: Requires `spec.md` only (after /spec-kitty.specify)
+- **Phase 2 (Planning Phase - After /spec-kitty.plan)**: Requires `spec.md`, `plan.md` (optional: research.md, data-model.md, contracts/)
+- **Phase 3 (Tasks Phase - After /spec-kitty.tasks)**: Requires all Phase 2 artifacts + `tasks.md`, `tasks/*.md`
+- **Manifest Design**: `required_by_step` keys are phase identifiers (spec_complete, planning_complete, tasks_complete) so completeness can be checked at any point in the workflow
+- Optional artifacts (research.md, etc.): indexed if present, ignored if absent, never block completeness
+
+### 8. **Error Handling**
 - No silent failures: all anomalies explicit in events and API
 - Unreadable artifacts: emit MissionDossierArtifactMissing with reason_code="unreadable"
 - UTF-8 errors: record hash error, include in anomaly event, continue scan
-- Missing required artifacts: blocking anomaly (completeness_status="incomplete")
+- Missing required artifacts for current phase: blocking anomaly (completeness_status="incomplete")
 - Missing optional artifacts: non-blocking, recorded, not counted as missing
 
 ## Out-of-Scope (Defer to Future Features)

@@ -37,8 +37,8 @@
         },
         "artifact_class": {
           "type": "string",
-          "enum": ["input", "workflow", "output", "evidence", "policy", "runtime", "other"],
-          "description": "Classification of artifact"
+          "enum": ["input", "workflow", "output", "evidence", "policy", "runtime"],
+          "description": "Classification of artifact (deterministic, 6 classes)"
         },
         "relative_path": {
           "type": "string",

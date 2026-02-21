@@ -37,8 +37,8 @@
         },
         "artifact_class": {
           "type": "string",
-          "enum": ["input", "workflow", "output", "evidence", "policy", "runtime", "other"],
-          "description": "Classification of missing artifact"
+          "enum": ["input", "workflow", "output", "evidence", "policy", "runtime"],
+          "description": "Classification of missing artifact (6 classes)"
         },
         "expected_path_pattern": {
           "type": "string",

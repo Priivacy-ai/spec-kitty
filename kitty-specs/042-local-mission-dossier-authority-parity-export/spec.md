@@ -98,11 +98,11 @@ Curator wants to query "show me all output artifacts from Phase 2" or "all evide
 ### Functional Requirements
 
 - **FR-001**: System MUST index all artifact files in a feature directory and compute deterministic content_hash_sha256 for each
-- **FR-002**: System MUST support 6 artifact classes (input, workflow, output, evidence, policy, runtime) with stable, extensible encoding
+- **FR-002**: System MUST support 6 artifact classes (input, workflow, output, evidence, policy, runtime) with stable, extensible encoding (no "other" fallback; classification must be deterministic per artifact)
 - **FR-003**: System MUST define expected-artifact manifests per mission type and mission step for `software-dev`, `research`, and `documentation` in v1 (extensible for other missions later)
 - **FR-004**: System MUST detect missing required artifacts and emit MissionDossierArtifactMissing events with reason codes (not_found, unreadable, invalid_format, not_produced_yet)
 - **FR-005**: System MUST compute deterministic parity_hash_sha256 from all indexed artifacts' content hashes, such that identical artifact content always produces identical parity hash
-- **FR-006**: System MUST support 4 canonical dossier event types in the sync pipeline: MissionDossierArtifactIndexed, MissionDossierArtifactMissing, MissionDossierSnapshotComputed, MissionDossierParityDriftDetected (anomaly events are emitted only when conditions occur)
+- **FR-006**: System MUST support 4 canonical dossier event types in the sync pipeline: MissionDossierArtifactIndexed (one per artifact found), MissionDossierSnapshotComputed (always after scan), plus anomaly events (MissionDossierArtifactMissing only if required artifacts missing, MissionDossierParityDriftDetected only if local hash differs from baseline)
 - **FR-007**: System MUST expose dashboard API endpoints: `/api/dossier/overview`, `/api/dossier/artifacts`, `/api/dossier/artifacts/{artifact_key}`, `/api/dossier/snapshots/export`
 - **FR-008**: System MUST support artifact filtering by class, wp_id, step_id with stable, repeatable ordering
 - **FR-009**: System MUST never silently omit artifacts; all anomalies (missing, unreadable, invalid format) MUST be explicit in dossier events and API responses
@@ -126,7 +126,7 @@ Curator wants to query "show me all output artifacts from Phase 2" or "all evide
 
 - **SC-001**: Local dashboard can retrieve and render complete artifact catalog (>30 artifacts tested) with full-text detail in under 500ms
 - **SC-002**: Dossier projection is deterministic—running scan twice on unchanged content produces identical parity_hash_sha256 and identical canonical dossier payload fields (excluding volatile envelope fields such as event_id/timestamp/lamport_clock)
-- **SC-003**: All 4 canonical dossier event types (Indexed, Missing, Computed, ParityDrift) are emitted and consumable by offline queue (testable via mock SaaS webhook endpoint)
+- **SC-003**: Dossier event types are emitted and consumable by offline queue (MissionDossierArtifactIndexed and MissionDossierSnapshotComputed always; anomaly events only when conditions occur; testable via mock SaaS webhook endpoint)
 - **SC-004**: Missing required artifacts are always surfaced—zero silent omissions in 100 test missions across the 3 v1 manifest-backed mission types (`software-dev`, `research`, `documentation`)
 - **SC-005**: API response times for artifact filtering queries (e.g., "all output artifacts") scale linearly with artifact count, supporting up to 1000 artifacts per feature
 - **SC-006**: Parity hash computation is reproducible—identical artifact content on different machines/timezones produces identical hash

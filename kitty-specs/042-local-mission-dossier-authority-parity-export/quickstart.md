@@ -274,41 +274,41 @@ assert computed_parity == local_parity_hash, "Parity mismatch!"
 schema_version: "1.0"
 mission_type: "software-dev"
 
-required_by_step:
-  planning:
+required_by_phase:
+  spec_complete:
     - artifact_key: "input.spec.main"
       artifact_class: "input"
       path_pattern: "spec.md"
-      blocking: true
 
+  planning_complete:
+    - artifact_key: "input.spec.main"
+      artifact_class: "input"
+      path_pattern: "spec.md"
     - artifact_key: "output.plan.main"
       artifact_class: "output"
       path_pattern: "plan.md"
-      blocking: true
 
+  tasks_complete:
+    - artifact_key: "input.spec.main"
+      artifact_class: "input"
+      path_pattern: "spec.md"
+    - artifact_key: "output.plan.main"
+      artifact_class: "output"
+      path_pattern: "plan.md"
     - artifact_key: "output.tasks.main"
       artifact_class: "output"
       path_pattern: "tasks.md"
-      blocking: true
-
     - artifact_key: "output.tasks.per_wp"
       artifact_class: "output"
       path_pattern: "tasks/*.md"
-      blocking: true
 
 optional_always:
   - artifact_key: "evidence.research"
     artifact_class: "evidence"
     path_pattern: "research.md"
-
   - artifact_key: "evidence.data_model"
     artifact_class: "evidence"
     path_pattern: "data-model.md"
-
-  - artifact_key: "evidence.quickstart"
-    artifact_class: "evidence"
-    path_pattern: "quickstart.md"
-
   - artifact_key: "evidence.contracts"
     artifact_class: "evidence"
     path_pattern: "contracts/*"
@@ -322,12 +322,11 @@ optional_always:
 schema_version: "1.0"
 mission_type: "research"
 
-required_by_step:
-  discovery:
+required_by_phase:
+  spec_complete:
     - artifact_key: "input.spec.main"
       artifact_class: "input"
       path_pattern: "spec.md"
-      blocking: true
 
 optional_always:
   - artifact_key: "evidence.research_notes"
@@ -343,12 +342,11 @@ optional_always:
 schema_version: "1.0"
 mission_type: "documentation"
 
-required_by_step:
-  planning:
+required_by_phase:
+  spec_complete:
     - artifact_key: "input.spec.main"
       artifact_class: "input"
       path_pattern: "spec.md"
-      blocking: true
 
 optional_always:
   - artifact_key: "evidence.generated_api_docs"
