@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
 title: Integration & Edge Cases
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
 - WP02
@@ -12,6 +12,9 @@ dependencies:
 - WP07
 - WP08
 - WP09
+base_branch: 042-local-mission-dossier-authority-parity-export-WP10-merge-base
+base_commit: 03b1be71d370c689fed79532d4aa3e4984e57795
+created_at: '2026-02-21T16:03:33.164278+00:00'
 subtasks:
 - T051
 - T052
@@ -22,6 +25,7 @@ subtasks:
 - T057
 - T058
 feature_slug: 042-local-mission-dossier-authority-parity-export
+shell_pid: "4443"
 ---
 
 # WP10: Integration & Edge Cases
