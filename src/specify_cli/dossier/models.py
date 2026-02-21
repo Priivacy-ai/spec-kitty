@@ -8,8 +8,9 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, validator
+import uuid
 
 
 class ArtifactRef(BaseModel):
@@ -267,6 +268,166 @@ class MissionDossier(BaseModel):
             return "unknown"  # No manifest, can't judge completeness
         missing = self.get_missing_required_artifacts()
         return "complete" if not missing else "incomplete"
+
+    class Config:
+        """Pydantic configuration for JSON serialization."""
+
+        json_encoders = {datetime: lambda v: v.isoformat()}
+
+
+class MissionDossierSnapshot(BaseModel):
+    """Point-in-time projection of a mission dossier's completeness and artifacts.
+
+    A snapshot captures the state of a dossier at a moment in time, including
+    artifact counts, completeness status, and a reproducible parity hash for
+    detecting changes and validating consistency across systems.
+
+    Attributes:
+        feature_slug: Feature identifier
+        snapshot_id: Unique snapshot ID (UUID)
+        total_artifacts: Total number of indexed artifacts
+        required_artifacts: Count of required artifacts
+        required_present: Count of present required artifacts
+        required_missing: Count of missing required artifacts
+        optional_artifacts: Count of optional artifacts
+        optional_present: Count of present optional artifacts
+        completeness_status: 'complete', 'incomplete', or 'unknown'
+        parity_hash_sha256: SHA256 hash of sorted artifact hashes
+        parity_hash_components: Sorted list of artifact hashes (audit trail)
+        artifact_summaries: List of artifact metadata summaries
+        computed_at: When snapshot was computed (UTC)
+    """
+
+    # Identity
+    feature_slug: str = Field(
+        ...,
+        description="Feature identifier (e.g., '042-local-mission-dossier')",
+    )
+    snapshot_id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique snapshot ID (UUID)",
+    )
+
+    # Artifact counts
+    total_artifacts: int = Field(
+        default=0,
+        ge=0,
+        description="Total number of indexed artifacts",
+    )
+    required_artifacts: int = Field(
+        default=0,
+        ge=0,
+        description="Count of required artifacts",
+    )
+    required_present: int = Field(
+        default=0,
+        ge=0,
+        description="Count of present required artifacts",
+    )
+    required_missing: int = Field(
+        default=0,
+        ge=0,
+        description="Count of missing required artifacts",
+    )
+    optional_artifacts: int = Field(
+        default=0,
+        ge=0,
+        description="Count of optional artifacts",
+    )
+    optional_present: int = Field(
+        default=0,
+        ge=0,
+        description="Count of present optional artifacts",
+    )
+
+    # Completeness & Parity
+    completeness_status: str = Field(
+        default="unknown",
+        description="'complete', 'incomplete', or 'unknown'",
+    )
+    parity_hash_sha256: str = Field(
+        ...,
+        description="SHA256 hash of sorted artifact content hashes (order-independent)",
+    )
+    parity_hash_components: List[str] = Field(
+        default_factory=list,
+        description="Sorted list of artifact hashes (audit trail)",
+    )
+
+    # Artifact details
+    artifact_summaries: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="List of artifact metadata summaries for audit",
+    )
+
+    # Timestamp
+    computed_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When snapshot was computed (UTC)",
+    )
+
+    @validator("completeness_status")
+    def validate_completeness_status(cls, v):
+        """Validate completeness_status is one of the allowed values."""
+        allowed_values = {"complete", "incomplete", "unknown"}
+        if v not in allowed_values:
+            raise ValueError(
+                f"completeness_status must be one of {allowed_values}; got '{v}'"
+            )
+        return v
+
+    @validator("parity_hash_sha256")
+    def validate_parity_hash_sha256(cls, v):
+        """Validate parity_hash_sha256 is a 64-character hex string (SHA256)."""
+        if v is not None and v != "":
+            if len(v) != 64:
+                raise ValueError(
+                    f"parity_hash_sha256 must be 64 hex characters (SHA256); got {len(v)} characters"
+                )
+            try:
+                int(v, 16)
+            except ValueError:
+                raise ValueError(
+                    f"parity_hash_sha256 must be valid hexadecimal; got '{v}'"
+                )
+        return v
+
+    def has_parity_diff(self, other: "MissionDossierSnapshot") -> bool:
+        """Check if parity hashes differ.
+
+        Args:
+            other: Another snapshot to compare
+
+        Returns:
+            True if parity hashes are different
+        """
+        return self.parity_hash_sha256 != other.parity_hash_sha256
+
+    def __eq__(self, other) -> bool:
+        """Equality based on parity hash and completeness status.
+
+        Source of truth is parity hash (not snapshot_id or computed_at).
+
+        Args:
+            other: Object to compare with
+
+        Returns:
+            True if both parity hash and completeness status match
+        """
+        if not isinstance(other, MissionDossierSnapshot):
+            return False
+        return (
+            self.parity_hash_sha256 == other.parity_hash_sha256
+            and self.completeness_status == other.completeness_status
+        )
+
+    def __hash__(self) -> int:
+        """Hash based on parity hash (for set/dict usage).
+
+        Returns:
+            Hash of parity_hash_sha256
+        """
+        return hash(self.parity_hash_sha256)
 
     class Config:
         """Pydantic configuration for JSON serialization."""
