@@ -278,12 +278,12 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T040-T045 (6 subtasks)
-- [ ] T040: Baseline key computation (identity tuple: project_uuid, node_id, feature_slug, target_branch, mission_key, manifest_version)
-- [ ] T041: Baseline persistence (JSON file: `.kittify/dossiers/{feature_slug}/parity-baseline.json`)
-- [ ] T042: Baseline acceptance logic (key match validation, prevent false positives)
-- [ ] T043: Drift detection (compare current parity_hash_sha256 vs cached baseline)
-- [ ] T044: ParityDriftDetected event emission (severity, missing_in_local, missing_in_saas)
-- [ ] T045: Baseline update logic (capture new baseline when accepted)
+- [x] T040: Baseline key computation (identity tuple: project_uuid, node_id, feature_slug, target_branch, mission_key, manifest_version)
+- [x] T041: Baseline persistence (JSON file: `.kittify/dossiers/{feature_slug}/parity-baseline.json`)
+- [x] T042: Baseline acceptance logic (key match validation, prevent false positives)
+- [x] T043: Drift detection (compare current parity_hash_sha256 vs cached baseline)
+- [x] T044: ParityDriftDetected event emission (severity, missing_in_local, missing_in_saas)
+- [x] T045: Baseline update logic (capture new baseline when accepted)
 
 **Implementation Notes**:
 - Baseline key: Fully namespaced to prevent false positives (branch switches, manifest updates, multi-user/machine)
