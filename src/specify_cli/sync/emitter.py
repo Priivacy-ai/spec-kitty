@@ -195,10 +195,58 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "resolution_type": lambda v: v in {"completed", "skipped", "merged"},
         },
     },
+    # WP04: Dossier events
+    "MissionDossierArtifactIndexed": {
+        "required": {"feature_slug", "artifact_key", "artifact_class", "relative_path", "content_hash_sha256", "size_bytes", "required_status"},
+        "validators": {
+            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "artifact_key": lambda v: isinstance(v, str) and len(v) >= 1,
+            "artifact_class": lambda v: v in {"input", "workflow", "output", "evidence", "policy", "runtime", "other"},
+            "relative_path": lambda v: isinstance(v, str) and len(v) >= 1,
+            "content_hash_sha256": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
+            "size_bytes": lambda v: isinstance(v, int) and v >= 0,
+            "wp_id": _is_nullable_string,
+            "step_id": _is_nullable_string,
+            "required_status": lambda v: v in {"required", "optional"},
+        },
+    },
+    "MissionDossierArtifactMissing": {
+        "required": {"feature_slug", "artifact_key", "artifact_class", "expected_path_pattern", "reason_code", "blocking"},
+        "validators": {
+            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "artifact_key": lambda v: isinstance(v, str) and len(v) >= 1,
+            "artifact_class": lambda v: v in {"input", "workflow", "output", "evidence", "policy", "runtime", "other"},
+            "expected_path_pattern": lambda v: isinstance(v, str) and len(v) >= 1,
+            "reason_code": lambda v: v in {"not_found", "unreadable", "invalid_format", "deleted_after_scan"},
+            "reason_detail": _is_nullable_string,
+            "blocking": lambda v: isinstance(v, bool),
+        },
+    },
+    "MissionDossierSnapshotComputed": {
+        "required": {"feature_slug", "parity_hash_sha256", "artifact_counts", "completeness_status", "snapshot_id"},
+        "validators": {
+            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "parity_hash_sha256": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
+            "artifact_counts": lambda v: isinstance(v, dict),
+            "completeness_status": lambda v: v in {"complete", "incomplete", "unknown"},
+            "snapshot_id": lambda v: isinstance(v, str) and len(v) >= 1,
+        },
+    },
+    "MissionDossierParityDriftDetected": {
+        "required": {"feature_slug", "local_parity_hash", "baseline_parity_hash", "severity"},
+        "validators": {
+            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "local_parity_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
+            "baseline_parity_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
+            "missing_in_local": lambda v: isinstance(v, list),
+            "missing_in_baseline": lambda v: isinstance(v, list),
+            "severity": lambda v: v in {"info", "warning", "error"},
+        },
+    },
 }
 
 VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())
-VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Feature"})
+VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Feature", "MissionDossier"})
 
 
 class ConnectionStatus:
