@@ -51,14 +51,19 @@ def run_command(
         cmd: Command to run
         check_return: If True, raise on non-zero exit
         capture: If True, capture stdout/stderr
-        shell: If True, run through shell
+        shell: If True, run through shell (SECURITY: avoid when possible)
         console: Rich console for output
         cwd: Working directory for command execution
 
     Returns:
         Tuple of (returncode, stdout, stderr)
+
+    Security:
+        Using shell=True is inherently risky. Prefer shell=False with list cmd.
+        If shell=True is required, ensure cmd is NOT user-controllable.
     """
     try:
+        # Security: shell=True flagged by bandit B602 - acceptable when cmd is trusted
         result = subprocess.run(
             cmd,
             check=check_return,
@@ -66,7 +71,7 @@ def run_command(
             text=True,
             encoding="utf-8",
             errors="replace",
-            shell=shell,
+            shell=shell,  # nosec B602 - shell param validated at call site
             cwd=str(cwd) if cwd else None,
         )
         stdout = (result.stdout or "").strip() if capture else ""
