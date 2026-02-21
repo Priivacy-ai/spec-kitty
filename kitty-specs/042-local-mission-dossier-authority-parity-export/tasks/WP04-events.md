@@ -15,6 +15,7 @@ subtasks:
 - T022
 feature_slug: 042-local-mission-dossier-authority-parity-export
 shell_pid: "90295"
+agent: "coordinator"
 ---
 
 # WP04: Dossier Event Types & Emission
@@ -372,3 +373,7 @@ When reviewing WP04:
 - **Estimated Lines**: ~350 (events.py + emitter wiring + tests)
 - **Integration Point**: WP05 (snapshot) and WP08 (drift detection) will emit events
 - **Deferred**: Event replay/theater workflows (post-042)
+
+## Activity Log
+
+- 2026-02-21T15:52:01Z – coordinator – shell_pid=90295 – lane=doing – Assigned agent via workflow command
