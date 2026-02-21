@@ -16,6 +16,7 @@ subtasks:
 - T050
 feature_slug: 042-local-mission-dossier-authority-parity-export
 shell_pid: "99215"
+agent: "coordinator"
 ---
 
 # WP09: Determinism Test Suite
@@ -468,3 +469,7 @@ When reviewing WP09:
 - **Estimated Lines**: ~300 (test_determinism.py)
 - **Integration Point**: CI/CD pipeline, required for merge
 - **Non-Negotiable**: All tests must pass (determinism is critical)
+
+## Activity Log
+
+- 2026-02-21T15:59:53Z – coordinator – shell_pid=99215 – lane=doing – Assigned agent via workflow command
