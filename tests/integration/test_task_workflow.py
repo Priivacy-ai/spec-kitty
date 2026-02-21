@@ -17,6 +17,17 @@ from specify_cli.cli.commands.agent.tasks import app
 runner = CliRunner()
 
 
+def _parse_json_output(stdout: str) -> dict:
+    """Parse the first JSON object emitted in CLI output."""
+    for line in stdout.splitlines():
+        candidate = line.strip()
+        if not candidate:
+            continue
+        if candidate.startswith("{") and candidate.endswith("}"):
+            return json.loads(candidate)
+    return json.loads(stdout)
+
+
 @pytest.fixture
 def task_repo(tmp_path: Path) -> Path:
     """Create a temporary repository with task structure."""

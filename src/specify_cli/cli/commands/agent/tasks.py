@@ -327,6 +327,158 @@ def _behind_commits_touch_only_planning_artifacts(
     return all(path.startswith(allowed_prefixes) for path in changed_files)
 
 
+def _auto_rebase_worktree_if_needed(
+    repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+) -> Tuple[bool, List[str], bool]:
+    """Auto-rebase WP worktree when behind non-planning commits.
+
+    Returns:
+        (is_valid, guidance, rebased)
+    """
+    guidance: List[str] = []
+    main_repo_root = get_main_repo_root(repo_root)
+    feature_dir = main_repo_root / "kitty-specs" / feature_slug
+
+    if get_feature_mission_key(feature_dir) != "software-dev":
+        return True, [], False
+
+    worktree_path = main_repo_root / ".worktrees" / f"{feature_slug}-{wp_id}"
+    if not worktree_path.exists():
+        return True, [], False
+
+    from specify_cli.workspace_context import load_context
+    from specify_cli.core.git_ops import get_current_branch
+
+    target_branch = get_feature_target_branch(repo_root, feature_slug)
+    workspace_name = f"{feature_slug}-{wp_id}"
+    ws_context = load_context(main_repo_root, workspace_name)
+    check_branch = ws_context.base_branch if ws_context else target_branch
+
+    # If not behind base, nothing to do.
+    result = subprocess.run(
+        ["git", "rev-list", "--count", f"HEAD..{check_branch}"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return True, [], False
+    try:
+        behind_count = int(result.stdout.strip() or "0")
+    except ValueError:
+        behind_count = 0
+    if behind_count <= 0:
+        return True, [], False
+
+    # Status/planning-only deltas are already safe to ignore.
+    if _behind_commits_touch_only_planning_artifacts(worktree_path, check_branch, feature_slug):
+        return True, [], False
+
+    # Don't attempt rebase in invalid git states.
+    wt_branch = get_current_branch(worktree_path)
+    if wt_branch is None:
+        guidance.append("Detached HEAD detected in worktree!")
+        guidance.append("")
+        guidance.append("Please reattach to a branch before review:")
+        guidance.append(f"  cd {worktree_path}")
+        guidance.append("  git checkout <your-branch>")
+        return False, guidance, False
+
+    state_checks = ("MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD")
+    active_ops: List[str] = []
+    for ref in state_checks:
+        state_result = subprocess.run(
+            ["git", "rev-parse", "-q", "--verify", ref],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if state_result.returncode == 0:
+            active_ops.append(ref.replace("_HEAD", "").lower())
+    if active_ops:
+        guidance.append("In-progress git operation detected in worktree!")
+        guidance.append("")
+        guidance.append(f"Active operation(s): {', '.join(active_ops)}")
+        guidance.append("")
+        guidance.append("Resolve or abort before review:")
+        guidance.append(f"  cd {worktree_path}")
+        guidance.append("  git status")
+        guidance.append("  git merge --abort   # if merge")
+        guidance.append("  git rebase --abort  # if rebase")
+        guidance.append("  git cherry-pick --abort  # if cherry-pick")
+        return False, guidance, False
+
+    status_result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if status_result.returncode == 0 and status_result.stdout.strip():
+        guidance.append(f"{check_branch} branch has new commits not in this worktree!")
+        guidance.append("")
+        guidance.append(
+            "Cannot auto-rebase because the worktree has uncommitted changes."
+        )
+        guidance.append("Commit or stash worktree changes first, then retry:")
+        guidance.append(f"  cd {worktree_path}")
+        guidance.append("  git status")
+        guidance.append("  git add -A && git commit -m \"feat: <describe implementation>\"")
+        guidance.append("  # or: git stash push -u")
+        return False, guidance, False
+
+    rebase_result = subprocess.run(
+        ["git", "rebase", check_branch],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if rebase_result.returncode == 0:
+        return True, [], True
+
+    # Cleanly abort any in-progress rebase so the operator isn't left in limbo.
+    subprocess.run(
+        ["git", "rebase", "--abort"],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+
+    guidance.append(f"{check_branch} branch has new commits not in this worktree!")
+    guidance.append("")
+    guidance.append("Automatic rebase before review failed (likely conflicts).")
+    guidance.append("Resolve manually:")
+    guidance.append(f"  cd {worktree_path}")
+    guidance.append(f"  git rebase {check_branch}")
+    guidance.append("  # resolve conflicts, then: git add <files> && git rebase --continue")
+    guidance.append("")
+    guidance.append("Then retry move-task.")
+    stderr = (rebase_result.stderr or "").strip()
+    if stderr:
+        guidance.append("")
+        guidance.append("Rebase error (excerpt):")
+        for line in stderr.splitlines()[:3]:
+            guidance.append(f"  {line}")
+    return False, guidance, False
+
+
 def _maybe_mirror_move_commit_to_wp_branch(
     cwd: Path,
     main_repo_root: Path,
@@ -870,6 +1022,24 @@ def move_task(
         # Validate uncommitted changes when moving to for_review OR done
         # This catches the bug where agents edit artifacts but forget to commit
         if target_lane in ("for_review", "done"):
+            auto_sync_ok, auto_sync_guidance, auto_rebased = _auto_rebase_worktree_if_needed(
+                repo_root=repo_root,
+                feature_slug=feature_slug,
+                wp_id=task_id,
+            )
+            if not auto_sync_ok:
+                error_msg = f"Cannot move {task_id} to {target_lane}\n\n"
+                error_msg += "\n".join(auto_sync_guidance)
+                if not force:
+                    error_msg += "\n\nOr use --force to override (not recommended)"
+                _output_error(json_output, error_msg)
+                raise typer.Exit(1)
+
+            if auto_rebased and not json_output:
+                console.print(
+                    "[cyan]→ Auto-rebased WP worktree onto latest base branch before review[/cyan]"
+                )
+
             is_valid, guidance = _validate_ready_for_review(repo_root, feature_slug, task_id, force)
             if not is_valid:
                 error_msg = f"Cannot move {task_id} to {target_lane}\n\n"

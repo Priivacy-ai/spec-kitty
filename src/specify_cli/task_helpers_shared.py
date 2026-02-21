@@ -28,6 +28,11 @@ from typing import Dict, List, Optional, Tuple
 LANES: Tuple[str, ...] = ("planned", "doing", "for_review", "done")
 """Valid work-package lane names."""
 
+LEGACY_LANE_ALIASES: Dict[str, str] = {
+    "in_progress": "doing",
+}
+"""Backward-compatible lane aliases mapped to canonical lane names."""
+
 TIMESTAMP_FORMAT: str = "%Y-%m-%dT%H:%M:%SZ"
 """ISO-8601 timestamp format used in activity logs."""
 
@@ -194,6 +199,7 @@ def ensure_lane(value: str) -> str:
         TaskCliError: If the lane is invalid.
     """
     lane = value.strip().lower()
+    lane = LEGACY_LANE_ALIASES.get(lane, lane)
     if lane not in LANES:
         raise TaskCliError(
             f"Invalid lane '{value}'. Expected one of {', '.join(LANES)}."
@@ -718,13 +724,16 @@ def get_lane_from_frontmatter(
                 )
         return "planned"
 
-    if lane not in LANES:
+    normalized_lane = lane.strip().lower()
+    normalized_lane = LEGACY_LANE_ALIASES.get(normalized_lane, normalized_lane)
+
+    if normalized_lane not in LANES:
         raise ValueError(
             f"Invalid lane '{lane}' in {wp_path.name}. "
             f"Valid lanes: {', '.join(LANES)}"
         )
 
-    return lane
+    return normalized_lane
 
 
 # ---------------------------------------------------------------------------

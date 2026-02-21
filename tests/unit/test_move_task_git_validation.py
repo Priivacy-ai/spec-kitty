@@ -238,6 +238,69 @@ class TestMoveTaskGitValidation:
         assert "error" in output
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
 
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="software-dev")
+    def test_move_to_for_review_auto_rebases_when_behind_non_planning_commits(
+        self,
+        _mock_mission: Mock,
+        mock_slug: Mock,
+        mock_root: Mock,
+        git_repo_with_worktree: tuple[Path, Path],
+    ):
+        """Should auto-rebase behind worktree when upstream has code/docs commits."""
+        repo_root, worktree = git_repo_with_worktree
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "017-test-feature"
+
+        # Create non-planning commit on main branch (outside kitty-specs/)
+        readme = repo_root / "README.md"
+        readme.write_text("Main branch update\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo_root, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "docs: update readme"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+
+        behind_before = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD..main"],
+            cwd=worktree,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        assert int(behind_before) > 0
+
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
+        assert result.exit_code == 0
+        payload = json.loads(result.stdout)
+        assert payload["result"] == "success"
+        assert payload["new_lane"] == "for_review"
+
+        # One planning/status commit can be added on main during move-task.
+        # Verify remaining behind delta (if any) is planning-only.
+        merge_base = subprocess.run(
+            ["git", "merge-base", "HEAD", "main"],
+            cwd=worktree,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        behind_paths = subprocess.run(
+            ["git", "diff", "--name-only", f"{merge_base}..main"],
+            cwd=worktree,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        assert all(
+            p.startswith("kitty-specs/017-test-feature/")
+            or p.startswith(".kittify/workspaces/")
+            for p in behind_paths
+        )
+
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="software-dev")
     def test_review_validation_allows_behind_status_only_commits(
         self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]

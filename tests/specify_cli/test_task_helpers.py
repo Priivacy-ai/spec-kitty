@@ -349,6 +349,9 @@ class TestEnsureLane:
         with pytest.raises(TaskCliError, match="Invalid lane"):
             ensure_lane("invalid")
 
+    def test_legacy_lane_alias_maps_to_doing(self) -> None:
+        assert ensure_lane("in_progress") == "doing"
+
 
 # ---------------------------------------------------------------------------
 # Git helpers
@@ -493,6 +496,11 @@ class TestGetLaneFromFrontmatter:
         wp.write_text('---\nlane: "invalid"\n---\nBody\n')
         with pytest.raises(ValueError, match="Invalid lane"):
             get_lane_from_frontmatter(wp)
+
+    def test_legacy_lane_alias_maps_to_doing(self, tmp_path: Path) -> None:
+        wp = tmp_path / "WP01.md"
+        wp.write_text('---\nlane: "in_progress"\n---\nBody\n')
+        assert get_lane_from_frontmatter(wp) == "doing"
 
 
 # ---------------------------------------------------------------------------
