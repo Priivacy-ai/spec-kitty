@@ -22,6 +22,11 @@ def dashboard(
         "--kill",
         help="Stop the running dashboard for this project and clear its metadata.",
     ),
+    open_browser: bool = typer.Option(
+        False,
+        "--open",
+        help="Open dashboard URL in your default browser (disabled by default).",
+    ),
 ) -> None:
     """Open or stop the Spec Kitty dashboard."""
     project_root = get_project_root_or_exit()
@@ -99,13 +104,18 @@ def dashboard(
     console.print("[cyan]" + "=" * 60 + "[/cyan]")
     console.print()
 
-    try:
-        webbrowser.open(dashboard_url)
-        console.print("[green]✅ Opening dashboard in your browser...[/green]")
-        console.print()
-    except Exception:
-        console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
-        console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
+    if open_browser:
+        try:
+            webbrowser.open(dashboard_url)
+            console.print("[green]✅ Opening dashboard in your browser...[/green]")
+            console.print()
+        except Exception:
+            console.print("[yellow]⚠️  Could not automatically open browser[/yellow]")
+            console.print(f"   Please open this URL manually: [cyan]{dashboard_url}[/cyan]")
+            console.print()
+    else:
+        console.print("[dim]Browser auto-open is disabled by default.[/dim]")
+        console.print(f"[dim]Open manually: [cyan]{dashboard_url}[/cyan] (or use --open)[/dim]")
         console.print()
 
 

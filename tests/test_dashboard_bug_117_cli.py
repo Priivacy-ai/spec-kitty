@@ -167,21 +167,53 @@ class TestCLISuccessMessages:
             # Simulate successful start
             mock_ensure.return_value = (mock_url, mock_port, True)
 
-            app = typer.Typer()
-            app.command()(dashboard)
-            result = runner.invoke(app, ["--port", str(mock_port)])
+            with patch("specify_cli.cli.commands.dashboard.webbrowser.open") as mock_open:
+                app = typer.Typer()
+                app.command()(dashboard)
+                result = runner.invoke(app, ["--port", str(mock_port)])
 
-            # Should succeed
-            assert result.exit_code == 0
+                # Should succeed
+                assert result.exit_code == 0
 
-            output = result.stdout
+                output = result.stdout
 
-            # Should show success indicator
-            assert "✅" in output or "Status" in output
+                # Should show success indicator
+                assert "✅" in output or "Status" in output
 
-            # Should show URL and port
-            assert mock_url in output
-            assert str(mock_port) in output
+                # Should show URL and port
+                assert mock_url in output
+                assert str(mock_port) in output
 
-            # Should indicate new dashboard started
-            assert "Started" in output or "new dashboard" in output.lower()
+                # Should indicate new dashboard started
+                assert "Started" in output or "new dashboard" in output.lower()
+
+                # Browser should NOT auto-open unless --open is provided
+                mock_open.assert_not_called()
+
+    def test_open_flag_opens_browser(self, tmp_path: Path, monkeypatch):
+        """Test that --open explicitly launches browser."""
+        project_dir = tmp_path
+        (project_dir / ".kittify").mkdir()
+
+        mock_port = 9238
+        mock_url = f"http://127.0.0.1:{mock_port}"
+
+        monkeypatch.setattr(
+            "specify_cli.cli.commands.dashboard.get_project_root_or_exit",
+            lambda: project_dir,
+        )
+        monkeypatch.setattr(
+            "specify_cli.cli.commands.dashboard.check_version_compatibility",
+            lambda *args: None,
+        )
+
+        with patch("specify_cli.cli.commands.dashboard.ensure_dashboard_running") as mock_ensure:
+            mock_ensure.return_value = (mock_url, mock_port, True)
+
+            with patch("specify_cli.cli.commands.dashboard.webbrowser.open") as mock_open:
+                app = typer.Typer()
+                app.command()(dashboard)
+                result = runner.invoke(app, ["--port", str(mock_port), "--open"])
+
+                assert result.exit_code == 0
+                mock_open.assert_called_once_with(mock_url)
