@@ -82,12 +82,12 @@ graph LR
 
 </div>
 
-**Recent stable release:** `v0.15.1` (2026-02-12)
+**Recent stable release:** `v0.16.2` (2026-02-21)
 
-**0.15.x highlights:**
-- Primary branch detection now works with `main`, `master`, `develop`, and custom defaults
-- Branch routing and merge-base calculation are centralized for more predictable behavior
-- Worktree isolation and lane transitions have stronger guardrails and test coverage
+**0.16.x highlights:**
+- Deterministic review feedback enforcement with persisted feedback file paths
+- Safer review transitions with automatic WP worktree rebase handling
+- Dashboard browser launch is now opt-in via `--open`
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •
@@ -101,11 +101,11 @@ graph LR
 
 ## 📌 Release Track
 
-Spec Kitty is currently published on a stable `0.15.x` track from the `main` branch.
+Spec Kitty is currently published on a stable `0.16.x` track from the `main` branch.
 
 | Branch | Version | Status | Install |
 |--------|---------|--------|---------|
-| **main** | **0.15.x** | Active stable releases | `pip install spec-kitty-cli` |
+| **main** | **0.16.x** | Active stable releases | `pip install spec-kitty-cli` |
 
 **For users:** install from PyPI (`pip install spec-kitty-cli`).
 **For contributors:** target `main` unless maintainers specify otherwise in an issue or PR discussion.

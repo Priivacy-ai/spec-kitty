@@ -7,6 +7,18 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.2] - 2026-02-21
+
+### 🐛 Fixed
+
+- **Deterministic review feedback capture**: `spec-kitty agent tasks move-task <WP> --to planned` now strictly requires `--review-feedback-file` (unless `--force`) and persists the absolute feedback path and content into WP metadata/prompt context.
+- **Dashboard browser side effects**: `spec-kitty dashboard` no longer auto-opens desktop browsers by default. Browser launch is now explicit via `--open`.
+- **Drift/rebase trap on review transitions**: `move-task --to for_review` now auto-rebases eligible WP worktrees onto their base branch when behind non-planning commits, removing the normal manual rebase loop while preserving safe blocking on conflicts/dirty states.
+
+### 🔧 Changed
+
+- **Lane compatibility for rework cycles**: legacy `in_progress` lane values are now accepted as aliases for `doing` in shared task helpers, preventing rollback/review flows from failing on mixed-lane metadata.
+
 ## [0.16.1] - 2026-02-20
 
 ### 🐛 Fixed
