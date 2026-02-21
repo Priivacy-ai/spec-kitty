@@ -8,11 +8,20 @@ from __future__ import annotations
 
 import multiprocessing
 import os
-import shutil
-import tempfile
 from pathlib import Path
 
 import pytest
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _require_multiprocessing_semlock() -> None:
+    """Skip module when OS-level semaphores are unavailable."""
+    try:
+        sem = multiprocessing.Semaphore(1)
+        sem.acquire()
+        sem.release()
+    except (PermissionError, OSError):
+        pytest.skip("multiprocessing semaphores unavailable in this environment")
 
 
 def _setup_fake_assets(asset_dir: str) -> None:
@@ -46,7 +55,7 @@ def _run_ensure(args: tuple[str, str]) -> bool:
 
         ensure_runtime()
         return True
-    except Exception as exc:
+    except Exception:
         import traceback
 
         traceback.print_exc()

@@ -1,0 +1,13 @@
+schema_version: "1.0"
+id: zombies-tdd
+name: ZOMBIES TDD
+steps:
+  - title: define zero case
+    description: Prove simple defaults for a freshly created object.
+    examples:
+      - "A new cart has total 0."
+  - title: add one case
+    description: Validate behavior for the first non-zero transition.
+    examples:
+      - "Adding one item updates total and count."
+  - title: generalize to many

@@ -31,15 +31,9 @@ console = Console()
 
 
 def migrate(
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Show what would change without modifying the filesystem"
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show file-by-file detail"
-    ),
-    force: bool = typer.Option(
-        False, "--force", help="Skip confirmation prompt"
-    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would change without modifying the filesystem"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show file-by-file detail"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Migrate project .kittify/ to centralized model.
 
@@ -57,10 +51,7 @@ def migrate(
     """
     project_dir = locate_project_root()
     if project_dir is None:
-        console.print(
-            "[red]Could not locate project root. "
-            "No .kittify/ directory found in any parent directory.[/red]"
-        )
+        console.print("[red]Could not locate project root. No .kittify/ directory found in any parent directory.[/red]")
         raise typer.Exit(1)
 
     if not (project_dir / ".kittify").exists():
@@ -92,18 +83,12 @@ def migrate(
     action_removed = "would remove" if dry_run else "removed"
     action_moved = "would move" if dry_run else "moved"
 
-    console.print(
-        f"  {len(report.removed)} files identical to global -- {action_removed}"
-    )
-    console.print(
-        f"  {len(report.moved)} files customized -- {action_moved} to overrides/"
-    )
+    console.print(f"  {len(report.removed)} files identical to global -- {action_removed}")
+    console.print(f"  {len(report.moved)} files customized -- {action_moved} to overrides/")
     console.print(f"  {len(report.kept)} files project-specific -- kept")
 
     if report.unknown:
-        console.print(
-            f"  [yellow]{len(report.unknown)} files unknown -- kept with warning[/yellow]"
-        )
+        console.print(f"  [yellow]{len(report.unknown)} files unknown -- kept with warning[/yellow]")
 
     if verbose:
         for path in report.removed:

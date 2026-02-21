@@ -22,11 +22,10 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 import typer
 
@@ -51,12 +50,12 @@ app = typer.Typer(
 _RUN_AFFECTING_LANES = frozenset(["claimed", "in_progress", "for_review"])
 
 
-def _emit(envelope: dict) -> None:
+def _emit(envelope: dict[str, Any]) -> None:
     """Print canonical JSON envelope to stdout."""
     print(json.dumps(envelope))
 
 
-def _fail(command: str, error_code: str, message: str, data: dict | None = None) -> None:
+def _fail(command: str, error_code: str, message: str, data: dict[str, Any] | None = None) -> None:
     """Print failure envelope and exit non-zero."""
     envelope = make_envelope(
         command=command,
@@ -278,10 +277,7 @@ def list_ready(
             continue
 
         # Check all dependencies are done
-        all_deps_done = all(
-            wp_states.get(dep, {}).get("lane") == "done"
-            for dep in deps
-        )
+        all_deps_done = all(wp_states.get(dep, {}).get("lane") == "done" for dep in deps)
 
         recommended_base = deps[-1] if deps else None
 
@@ -497,7 +493,7 @@ def start_review(
     prompt_path = str(wp_path)
 
     try:
-        event = emit_status_transition(
+        emit_status_transition(
             feature_dir,
             feature,
             wp,
@@ -549,7 +545,7 @@ def transition(
     to_lane = resolve_lane_alias(to)
 
     # Policy required for run-affecting lanes
-    policy_dict: dict | None = None
+    policy_dict: dict[str, Any] | None = None
     if to_lane in _RUN_AFFECTING_LANES:
         if not policy:
             _fail(
@@ -709,11 +705,7 @@ def accept_feature(
 
     # Check all WPs (from dep_graph) are done — include WPs with no events (implicitly planned)
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
-    incomplete = [
-        wp_id
-        for wp_id in sorted(all_wp_ids)
-        if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"
-    ]
+    incomplete = [wp_id for wp_id in sorted(all_wp_ids) if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"]
     if incomplete:
         _fail(
             cmd,
@@ -727,7 +719,7 @@ def accept_feature(
     import json as _json
 
     meta_path = feature_dir / "meta.json"
-    meta: dict = {}
+    meta: dict[str, Any] = {}
     if meta_path.exists():
         try:
             meta = _json.loads(meta_path.read_text(encoding="utf-8"))
@@ -789,7 +781,7 @@ def merge_feature(
         for wt_path in sorted(worktrees_root.iterdir()):
             if wt_path.name.startswith(f"{feature}-") and wt_path.is_dir():
                 # Extract WP ID from directory name: e.g. "034-feature-WP01" → "WP01"
-                suffix = wt_path.name[len(feature) + 1:]
+                suffix = wt_path.name[len(feature) + 1 :]
                 if suffix.startswith("WP"):
                     wp_id = suffix
                     branch_name = wt_path.name
@@ -834,8 +826,12 @@ def merge_feature(
                 # squash leaves staged changes; commit them
                 subprocess.run(
                     [
-                        "git", "-C", str(main_repo_root), "commit",
-                        "-m", f"squash merge: {feature}/{wp_id} into {target}",
+                        "git",
+                        "-C",
+                        str(main_repo_root),
+                        "commit",
+                        "-m",
+                        f"squash merge: {feature}/{wp_id} into {target}",
                     ],
                     check=True,
                     capture_output=True,
@@ -866,9 +862,14 @@ def merge_feature(
                 # Default: --no-ff merge
                 subprocess.run(
                     [
-                        "git", "-C", str(main_repo_root), "merge",
-                        "--no-ff", branch_name,
-                        "-m", f"merge: {feature}/{wp_id} into {target}",
+                        "git",
+                        "-C",
+                        str(main_repo_root),
+                        "merge",
+                        "--no-ff",
+                        branch_name,
+                        "-m",
+                        f"merge: {feature}/{wp_id} into {target}",
                     ],
                     check=True,
                     capture_output=True,

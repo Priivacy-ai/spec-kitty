@@ -117,7 +117,8 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - Write tests for new functionality.
 - Update documentation (`README.md`, `spec-driven.md`) if your changes affect user-facing features.
 - Keep your change as focused as possible. If there are multiple changes you would like to make that are not dependent upon each other, consider submitting them as separate pull requests.
-- Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
+- Use conventional commit messages (`type(scope): summary`), for example `feat(doctrine): add glossary synchronization checks`.
+- Ensure local git hooks pass before pushing (encoding, markdown style, agent-directory guard, commit message linting).
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
 
 ## Development workflow

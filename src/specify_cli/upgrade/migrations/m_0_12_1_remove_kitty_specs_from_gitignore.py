@@ -27,14 +27,14 @@ MIGRATION_DESCRIPTION = "Remove kitty-specs/ from main repo .gitignore to allow 
 
 # Patterns to REMOVE (block entire kitty-specs directory)
 PATTERNS_TO_REMOVE = [
-    r"^kitty-specs/?$",          # kitty-specs or kitty-specs/
-    r"^/kitty-specs/?$",         # /kitty-specs or /kitty-specs/
+    r"^kitty-specs/?$",  # kitty-specs or kitty-specs/
+    r"^/kitty-specs/?$",  # /kitty-specs or /kitty-specs/
 ]
 
 # Patterns to KEEP (worktree-specific, prevent merge conflicts)
 PATTERNS_TO_KEEP = [
     r"kitty-specs/\*\*/tasks/",  # kitty-specs/**/tasks/*.md
-    r"kitty-specs/.*/tasks/",    # kitty-specs/*/tasks/*.md
+    r"kitty-specs/.*/tasks/",  # kitty-specs/*/tasks/*.md
 ]
 
 

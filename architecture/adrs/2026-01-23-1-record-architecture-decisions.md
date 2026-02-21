@@ -136,7 +136,7 @@ We'll know this decision is successful if:
 
 ### Template and Guidelines
 
-- See `architecture/adr-template.md` for the standard ADR template
+- See `src/doctrine/templates/architecture/adr-template.md` for the standard ADR template
 - See `architecture/README.md` for naming conventions and process
 
 ### External References

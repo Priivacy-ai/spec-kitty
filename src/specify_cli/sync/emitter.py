@@ -2,22 +2,25 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-logger = logging.getLogger(__name__)
+from typing import TYPE_CHECKING, Any, cast
 
 import ulid
 from rich.console import Console
 
+from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
+
 from .clock import LamportClock
 from .config import SyncConfig
 from .queue import OfflineQueue
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .auth import AuthClient
@@ -66,11 +69,11 @@ def _create_git_resolver() -> "GitMetadataResolver":
 
 
 # Load the contract schema once for payload-level validation
-_SCHEMA: dict | None = None
+_SCHEMA: dict[str, Any] | None = None
 _SCHEMA_PATH = Path(__file__).resolve().parent / "_events_schema.json"
 
 
-def _load_contract_schema() -> dict | None:
+def _load_contract_schema() -> dict[str, Any] | None:
     """Load the events JSON schema from the contracts directory.
 
     Falls back to the kitty-specs contract if available, otherwise returns None.
@@ -97,7 +100,6 @@ def _load_contract_schema() -> dict | None:
 _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")  # kept for test compat
 
 # Broader ID validation via normalize_event_id (accepts ULID + UUID)
-from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
 _WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
 _FEATURE_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
 _FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")
@@ -123,8 +125,12 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "required": {"wp_id", "from_lane", "to_lane"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
-            "from_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"},
-            "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"},
+            "from_lane": lambda v: (
+                v in {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"}
+            ),
+            "to_lane": lambda v: (
+                v in {"planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled"}
+            ),
             "actor": lambda v: isinstance(v, str) if v is not None else True,
             "feature_slug": lambda v: _is_nullable_string(v),
             "policy_metadata": lambda v: v is None or isinstance(v, dict),
@@ -136,8 +142,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "title": lambda v: isinstance(v, str) and len(v) >= 1,
             "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
-            "dependencies": lambda v: isinstance(v, list)
-            and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v),
+            "dependencies": lambda v: (
+                isinstance(v, list) and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v)
+            ),
         },
     },
     "WPAssigned": {
@@ -218,7 +225,7 @@ def _generate_ulid() -> str:
     when available, otherwise fall back to python-ulid's ULID().
     """
     if hasattr(ulid, "new"):
-        return ulid.new().str
+        return str(cast(Any, ulid.new()).str)
     return str(ulid.ULID())
 
 
@@ -240,6 +247,14 @@ class EventEmitter:
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     _identity: "ProjectIdentity | None" = field(default=None, repr=False)
     _git_resolver: "GitMetadataResolver | None" = field(default=None, repr=False)
+    _background_tasks: set[asyncio.Task[Any]] = field(default_factory=set, repr=False)
+
+    def _track_task(self, task: Any) -> None:
+        """Retain background task references until completion."""
+        if task is None or not hasattr(task, "add_done_callback"):
+            return
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     def _get_identity(self) -> "ProjectIdentity":
         """Get cached project identity, lazily loading on first access.
@@ -269,8 +284,9 @@ class EventEmitter:
     def auth(self) -> AuthClient:
         """Lazy-load AuthClient to avoid circular imports."""
         if self._auth is None:
-            from .auth import AuthClient
-            self._auth = AuthClient()
+            from .auth import AuthClient as _AuthClient
+
+            self._auth = cast(type[Any], _AuthClient)()
         return self._auth
 
     def get_connection_status(self) -> str:
@@ -293,7 +309,7 @@ class EventEmitter:
         actor: str = "user",
         feature_slug: str | None = None,
         causation_id: str | None = None,
-        policy_metadata: dict | None = None,
+        policy_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """Emit WPStatusChanged event (FR-008)."""
         payload = {
@@ -500,7 +516,8 @@ class EventEmitter:
             clock_value = self.clock.tick()
             logger.debug(
                 "Emitting %s event with Lamport clock: %d",
-                event_type, clock_value,
+                event_type,
+                clock_value,
             )
 
             # Resolve identity and team_slug
@@ -536,9 +553,7 @@ class EventEmitter:
 
             # Check project_uuid: if missing, queue only (no WebSocket send)
             if not event.get("project_uuid"):
-                _console.print(
-                    "[yellow]Warning: Event missing project_uuid; queued locally only[/yellow]"
-                )
+                _console.print("[yellow]Warning: Event missing project_uuid; queued locally only[/yellow]")
                 self.queue.queue_event(event)
                 return event
 
@@ -590,18 +605,13 @@ class EventEmitter:
                 return False
 
             if event.get("aggregate_type") not in VALID_AGGREGATE_TYPES:
-                _console.print(
-                    f"[yellow]Warning: Invalid aggregate_type: "
-                    f"{event.get('aggregate_type')}[/yellow]"
-                )
+                _console.print(f"[yellow]Warning: Invalid aggregate_type: {event.get('aggregate_type')}[/yellow]")
                 return False
 
             # 3. Validate event_type is one of the 8 known types
             event_type = event["event_type"]
             if event_type not in VALID_EVENT_TYPES:
-                _console.print(
-                    f"[yellow]Warning: Unknown event_type: {event_type}[/yellow]"
-                )
+                _console.print(f"[yellow]Warning: Unknown event_type: {event_type}[/yellow]")
                 return False
 
             # 3b. Normalize + validate envelope IDs (ULID or UUID accepted)
@@ -650,10 +660,7 @@ class EventEmitter:
         # Check required fields
         missing = rules["required"] - set(payload.keys())
         if missing:
-            _console.print(
-                f"[yellow]Warning: {event_type} payload missing required "
-                f"fields: {missing}[/yellow]"
-            )
+            _console.print(f"[yellow]Warning: {event_type} payload missing required fields: {missing}[/yellow]")
             return False
 
         # Run field-level validators
@@ -686,25 +693,20 @@ class EventEmitter:
             # If authenticated and WebSocket connected, send directly
             if authenticated and self.ws_client is not None and self.ws_client.connected:
                 try:
-                    import asyncio
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
-                        asyncio.ensure_future(self.ws_client.send_event(event))
+                        send_task = asyncio.ensure_future(self.ws_client.send_event(event))
+                        self._track_task(send_task)
                     else:
                         loop.run_until_complete(self.ws_client.send_event(event))
                     return True
                 except Exception as e:
-                    _console.print(
-                        f"[yellow]Warning: WebSocket send failed, "
-                        f"queueing: {e}[/yellow]"
-                    )
+                    _console.print(f"[yellow]Warning: WebSocket send failed, queueing: {e}[/yellow]")
                     # Fall through to queue
 
             # Queue event for later sync
             return self.queue.queue_event(event)
 
         except Exception as e:
-            _console.print(
-                f"[yellow]Warning: Event routing failed: {e}[/yellow]"
-            )
+            _console.print(f"[yellow]Warning: Event routing failed: {e}[/yellow]")
             return False

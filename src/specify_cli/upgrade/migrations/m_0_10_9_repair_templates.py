@@ -92,18 +92,14 @@ class RepairTemplatesMigration(BaseMigration):
             if local_repo:
                 # For local dev, get templates from .kittify/templates/
                 if not dry_run:
-                    command_templates_dir = copy_specify_base_from_local(
-                        local_repo, project_path, "sh"
-                    )
+                    command_templates_dir = copy_specify_base_from_local(local_repo, project_path, "sh")
                     changes.append("Copied correct templates from local repo")
                 else:
                     changes.append("Would copy correct templates from local repo")
             else:
                 # For package install, use bundled templates (now fixed)
                 if not dry_run:
-                    command_templates_dir = copy_specify_base_from_package(
-                        project_path, "sh"
-                    )
+                    command_templates_dir = copy_specify_base_from_package(project_path, "sh")
                     changes.append("Copied correct templates from package")
                 else:
                     changes.append("Would copy correct templates from package")
@@ -111,7 +107,7 @@ class RepairTemplatesMigration(BaseMigration):
             # Step 3: Regenerate all agent slash commands
             if not dry_run and command_templates_dir:
                 # Import here to avoid circular dependencies
-                from specify_cli.cli.commands.init import generate_agent_assets
+                from specify_cli.template import generate_agent_assets
                 import yaml
 
                 # Get AI configuration from metadata
@@ -132,7 +128,7 @@ class RepairTemplatesMigration(BaseMigration):
                         command_templates_dir=command_templates_dir,
                         project_path=project_path,
                         agent_key=ai_config,
-                        script_type="sh"
+                        script_type="sh",
                     )
                     changes.append("Regenerated all agent slash commands")
                 except Exception as e:

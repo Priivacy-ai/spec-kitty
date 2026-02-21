@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "2.0.0a5"
+version = "2.0.1a1"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -80,7 +80,10 @@ Changelog = "https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md"
 test = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21.0",  # Required for async tests
+    "pytest-cov>=4.0",  # Coverage reporting
     "build>=1.0.0",  # Required for distribution tests (wheel building)
+    "mypy>=1.0",  # Static type checking (constitution: mypy --strict)
+    "ruff>=0.1.0",  # Linting (constitution: ruff check)
 ]
 
 [project.scripts]
@@ -93,8 +96,19 @@ build-backend = "hatchling.build"
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.poetry]
+requires-poetry = ">=1.8.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.4"
+pytest-asyncio = ">=0.21.0"
+pytest-cov = ">=4.0"
+build = ">=1.0.0"
+mypy = ">=1.0"
+ruff = ">=0.1.0"
+
 [tool.hatch.build.targets.wheel]
-packages = ["src/specify_cli"]
+packages = ["src/specify_cli", "src/doctrine"]
 # Include all non-Python files (templates, configs, etc.)
 artifacts = [
     "src/specify_cli/**/*.md",
@@ -103,6 +117,11 @@ artifacts = [
     "src/specify_cli/**/*.json",
     "src/specify_cli/**/*.csv",
     "src/specify_cli/**/*.template",
+    "src/doctrine/**/*.md",
+    "src/doctrine/**/*.yaml",
+    "src/doctrine/**/*.yml",
+    "src/doctrine/**/*.json",
+    "src/doctrine/**/*.toml",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -127,3 +146,41 @@ markers = [
     "platform_linux: Linux-specific tests",
     "requires_symlinks: Tests that need symlink support",
 ]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+# Black-compatible defaults (ruff's default, made explicit)
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.mypy]
+# Keep strict mode as the default quality bar for actively maintained code.
+strict = true
+
+[[tool.mypy.overrides]]
+# Transitional quarantine for legacy modules that are still being migrated to strict typing.
+module = [
+    "specify_cli.agent_utils.status",
+    "specify_cli.cli.commands.glossary",
+    "specify_cli.cli.ui",
+    "specify_cli.core.feature_detection",
+    "specify_cli.events.adapter",
+    "specify_cli.manifest",
+    "specify_cli.mission_v1.compat",
+    "specify_cli.mission_v1.events",
+    "specify_cli.mission_v1.runner",
+    "specify_cli.scripts.tasks.acceptance_support",
+    "specify_cli.scripts.tasks.task_helpers",
+    "specify_cli.scripts.tasks.tasks_cli",
+    "specify_cli.status.validate",
+    "specify_cli.sync.auth",
+    "specify_cli.sync.background",
+    "specify_cli.sync.batch",
+    "specify_cli.sync.client",
+    "specify_cli.tasks_support",
+    "specify_cli.verify_enhanced",
+]
+ignore_errors = true

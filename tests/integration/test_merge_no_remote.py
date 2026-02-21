@@ -1,7 +1,6 @@
 """Integration tests for merge operations without remote repositories."""
 
 import subprocess
-from pathlib import Path
 
 import pytest
 
@@ -10,7 +9,7 @@ from specify_cli.core.git_ops import (
     has_tracking_branch,
     run_command,
 )
-from specify_cli.merge.executor import execute_merge, execute_legacy_merge, MergeResult
+from specify_cli.merge.executor import execute_merge, execute_legacy_merge
 from specify_cli.cli import StepTracker
 
 
@@ -111,6 +110,7 @@ def test_execute_legacy_merge_succeeds_without_remote(tmp_path):
 
     # Change to repo directory before merge
     import os
+
     original_cwd = os.getcwd()
     os.chdir(repo)
 
@@ -227,12 +227,15 @@ def test_execute_merge_skips_pull_with_untracked_branch(tmp_path):
     run_command(["git", "commit", "-m", "Initial"], cwd=repo)
 
     # Verify: remote exists but no tracking
-    assert subprocess.run(
-        ["git", "remote", "get-url", "origin"],
-        cwd=repo,
-        capture_output=True,
-        check=False,
-    ).returncode == 0
+    assert (
+        subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=repo,
+            capture_output=True,
+            check=False,
+        ).returncode
+        == 0
+    )
 
     assert not has_tracking_branch(repo)
 

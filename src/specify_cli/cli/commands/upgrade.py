@@ -15,20 +15,12 @@ from specify_cli.cli.helpers import console, show_banner
 
 
 def upgrade(
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Preview changes without applying"
-    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without applying"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
-    target: Optional[str] = typer.Option(
-        None, "--target", help="Target version (defaults to current CLI version)"
-    ),
+    target: Optional[str] = typer.Option(None, "--target", help="Target version (defaults to current CLI version)"),
     json_output: bool = typer.Option(False, "--json", help="Output results as JSON"),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show detailed migration information"
-    ),
-    no_worktrees: bool = typer.Option(
-        False, "--no-worktrees", help="Skip upgrading worktrees"
-    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed migration information"),
+    no_worktrees: bool = typer.Option(False, "--no-worktrees", help="Skip upgrading worktrees"),
 ) -> None:
     """Upgrade a Spec Kitty project to the current version.
 
@@ -53,9 +45,7 @@ def upgrade(
             console.print(json.dumps({"error": "Not a Spec Kitty project"}))
         else:
             console.print("[red]Error:[/red] Not a Spec Kitty project.")
-            console.print(
-                "[dim]Run 'spec-kitty init' to initialize a project.[/dim]"
-            )
+            console.print("[dim]Run 'spec-kitty init' to initialize a project.[/dim]")
         raise typer.Exit(1)
 
     # Import upgrade system (lazy to avoid circular imports)
@@ -86,7 +76,9 @@ def upgrade(
     # Get needed migrations
     # Handle "unknown" version by treating it as very old (0.0.0)
     version_for_migration = "0.0.0" if current_version == "unknown" else current_version
-    migrations_needed = MigrationRegistry.get_applicable(version_for_migration, target_version, project_path=project_path)
+    migrations_needed = MigrationRegistry.get_applicable(
+        version_for_migration, target_version, project_path=project_path
+    )
 
     if not migrations_needed:
         # Still stamp the version even when no migrations are needed
@@ -114,9 +106,7 @@ def upgrade(
 
     # Show migration plan
     if not json_output:
-        table = Table(
-            title="Migration Plan", show_lines=False, header_style="bold cyan"
-        )
+        table = Table(title="Migration Plan", show_lines=False, header_style="bold cyan")
         table.add_column("Migration", style="bright_white")
         table.add_column("Description", style="dim")
         table.add_column("Target", style="cyan")
@@ -166,15 +156,19 @@ def upgrade(
         # Build detailed migrations array
         migrations_detail = []
         for migration in migrations_needed:
-            status = "applied" if migration.migration_id in result.migrations_applied else (
-                "skipped" if migration.migration_id in result.migrations_skipped else "pending"
+            status = (
+                "applied"
+                if migration.migration_id in result.migrations_applied
+                else ("skipped" if migration.migration_id in result.migrations_skipped else "pending")
             )
-            migrations_detail.append({
-                "id": migration.migration_id,
-                "description": migration.description,
-                "target_version": migration.target_version,
-                "status": status,
-            })
+            migrations_detail.append(
+                {
+                    "id": migration.migration_id,
+                    "description": migration.description,
+                    "target_version": migration.target_version,
+                    "status": status,
+                }
+            )
 
         output = {
             "status": "success" if result.success else "failed",
@@ -224,9 +218,7 @@ def upgrade(
 
     console.print()
     if result.success:
-        console.print(
-            f"[bold green]Upgrade complete![/bold green] {result.from_version} -> {result.to_version}"
-        )
+        console.print(f"[bold green]Upgrade complete![/bold green] {result.from_version} -> {result.to_version}")
     else:
         console.print("[bold red]Upgrade failed.[/bold red]")
         raise typer.Exit(1)

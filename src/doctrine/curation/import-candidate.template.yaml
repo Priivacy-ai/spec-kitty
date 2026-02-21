@@ -1,0 +1,26 @@
+# Template for imports/<source-id>/candidates/*.import.yaml
+id: "imp-<source-id>-<topic>-001"
+source:
+  title: "<source title>"
+  type: "<doc-type>"
+  publisher: "<publisher>"
+  url: "<path-or-url>"
+  accessed_on: "YYYY-MM-DD"
+classification:
+  target_concepts:
+    - "directive"
+  rationale: "<why this belongs in doctrine>"
+adaptation:
+  summary: "<problem statement or adaptation summary>"
+  notes:
+    - "<how to adapt this into doctrine wording>"
+source_references:
+  - kind: "local"
+    path: "<repo-relative-path>"
+    lines: "<line-or-range>"
+    note: "<what this reference contributes>"
+external_references:
+  - url: "<external-url>"
+    attribution_reason: "<why this external source is acknowledged>"
+    extraction_action: "none"
+status: "proposed"

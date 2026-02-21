@@ -119,9 +119,7 @@ class VersionDetector:
         git_hooks = self.project_path / ".git" / "hooks"
         if git_hooks.exists() and (git_hooks / "pre-commit").exists():
             try:
-                hook_content = (git_hooks / "pre-commit").read_text(
-                    encoding="utf-8", errors="ignore"
-                )
+                hook_content = (git_hooks / "pre-commit").read_text(encoding="utf-8", errors="ignore")
                 if "spec-kitty" in hook_content.lower() or "encoding" in hook_content.lower():
                     return "0.5.0"
             except OSError:

@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import os
 import shutil
+import site
 import subprocess
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 from typing import Iterator
 
 import pytest
 
-from tests.utils import REPO_ROOT, run, run_tasks_cli, write_wp
+from tests.utils import REPO_ROOT, run, write_wp
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -18,6 +20,27 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "adversarial: adversarial scenarios for merge and dependency handling",
     )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def git_test_defaults(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Force git test repos to use non-signing defaults for local commits."""
+    cfg_dir = tmp_path_factory.mktemp("git-test-config")
+    cfg_file = cfg_dir / "gitconfig"
+    cfg_file.write_text(
+        "[commit]\n"
+        "\tgpgsign = false\n"
+        "[tag]\n"
+        "\tgpgSign = false\n"
+        "[init]\n"
+        "\tdefaultBranch = main\n"
+        "[user]\n"
+        "\tname = Spec Kitty Test\n"
+        "\temail = spec-kitty-test@example.com\n",
+        encoding="utf-8",
+    )
+    os.environ["GIT_CONFIG_GLOBAL"] = str(cfg_file)
+    os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
 
 
 def _venv_python(venv_dir: Path) -> Path:
@@ -34,6 +57,30 @@ def _venv_pip(venv_dir: Path) -> Path:
     return venv_dir / "Scripts" / "pip.exe"
 
 
+def _venv_site_packages_dir(venv_dir: Path) -> Path:
+    """Return the site-packages directory for a virtual environment."""
+    if os.name == "nt":
+        return venv_dir / "Lib" / "site-packages"
+    return venv_dir / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
+
+
+def _link_current_site_packages(venv_dir: Path) -> None:
+    """Expose current interpreter site-packages to the fallback test venv."""
+    venv_site = _venv_site_packages_dir(venv_dir)
+    venv_site.mkdir(parents=True, exist_ok=True)
+
+    current_paths: list[str] = []
+    for path in site.getsitepackages():
+        if path and os.path.isdir(path):
+            current_paths.append(path)
+
+    # Ensure local sources remain importable when editable install is unavailable.
+    current_paths.append(str(REPO_ROOT / "src"))
+
+    pth_path = venv_site / "_spec_kitty_offline_fallback.pth"
+    pth_path.write_text("\n".join(current_paths) + "\n", encoding="utf-8")
+
+
 def _venv_has_required_runtime(venv_dir: Path) -> bool:
     """Return True when the cached venv can run the CLI runtime deps."""
     python = _venv_python(venv_dir)
@@ -41,7 +88,7 @@ def _venv_has_required_runtime(venv_dir: Path) -> bool:
         return False
     probe = (
         "import importlib.util,sys;"
-        "mods=['typer','rich','httpx','yaml'];"
+        "mods=['typer','rich','httpx','yaml','specify_cli'];"
         "missing=[m for m in mods if importlib.util.find_spec(m) is None];"
         "sys.exit(1 if missing else 0)"
     )
@@ -56,6 +103,9 @@ def _venv_has_required_runtime(venv_dir: Path) -> bool:
 
 def _create_test_venv(venv_dir: Path) -> None:
     """Create the test venv, with an offline-safe fallback."""
+    offline_fallback_marker = venv_dir / ".offline-fallback"
+    offline_fallback_marker.unlink(missing_ok=True)
+
     subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
     pip = _venv_pip(venv_dir)
     try:
@@ -67,11 +117,11 @@ def _create_test_venv(venv_dir: Path) -> None:
             [sys.executable, "-m", "venv", "--system-site-packages", str(venv_dir)],
             check=True,
         )
+        _link_current_site_packages(venv_dir)
+        offline_fallback_marker.write_text("1\n", encoding="utf-8")
 
     if not _venv_has_required_runtime(venv_dir):
-        raise RuntimeError(
-            "Test venv is missing runtime dependencies (typer/rich/httpx/yaml)."
-        )
+        raise RuntimeError("Test venv is missing runtime dependencies (typer/rich/httpx/yaml).")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -79,6 +129,8 @@ def test_venv() -> Path:
     """Create and cache a test venv for isolated CLI execution."""
     venv_dir = REPO_ROOT / ".pytest_cache" / "spec-kitty-test-venv"
     venv_marker = venv_dir / "VERSION"
+    runtime_home = Path(tempfile.gettempdir()) / "spec-kitty-runtime-home"
+    runtime_home.mkdir(parents=True, exist_ok=True)
 
     with open(REPO_ROOT / "pyproject.toml", "rb") as f:
         source_version = tomllib.load(f)["project"]["version"]
@@ -99,7 +151,38 @@ def test_venv() -> Path:
         venv_marker.write_text(source_version, encoding="utf-8")
 
     os.environ["SPEC_KITTY_TEST_VENV"] = str(venv_dir)
+    os.environ["SPEC_KITTY_HOME"] = str(runtime_home)
     return venv_dir
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ensure_spec_kitty_executable(test_venv: Path) -> None:
+    """Provide a local spec-kitty shim when editable install is unavailable."""
+    bin_dir = test_venv / "bin"
+    if not bin_dir.exists():
+        bin_dir = test_venv / "Scripts"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+
+    shim_path = bin_dir / ("spec-kitty.exe" if os.name == "nt" else "spec-kitty")
+    source_path = REPO_ROOT / "src"
+    if os.name == "nt":
+        shim_path.write_text(
+            "@echo off\r\n"
+            f"set PYTHONPATH={source_path};%PYTHONPATH%\r\n"
+            f'"{_venv_python(test_venv)}" -m specify_cli.__init__ %*\r\n',
+            encoding="utf-8",
+        )
+    else:
+        shim_path.write_text(
+            "#!/usr/bin/env sh\n"
+            f'export PYTHONPATH="{source_path}:$PYTHONPATH"\n'
+            f'"{_venv_python(test_venv)}" -m specify_cli.__init__ "$@"\n',
+            encoding="utf-8",
+        )
+        shim_path.chmod(0o755)
+
+    current_path = os.environ.get("PATH", "")
+    os.environ["PATH"] = f"{bin_dir}{os.pathsep}{current_path}" if current_path else str(bin_dir)
 
 
 @pytest.fixture()
@@ -195,7 +278,7 @@ def mock_worktree(tmp_path: Path) -> dict[str, Path]:
     return {
         "repo_root": repo_root,
         "worktree_path": worktree,
-        "feature_dir": feature_dir
+        "feature_dir": feature_dir,
     }
 
 

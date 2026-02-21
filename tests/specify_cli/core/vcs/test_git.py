@@ -17,7 +17,6 @@ from specify_cli.core.vcs.git import (
     git_stash_pop,
 )
 from specify_cli.core.vcs.types import (
-    ConflictType,
     SyncStatus,
 )
 
@@ -191,10 +190,15 @@ class TestWorkspaceOperations:
         assert not (workspace_path / "kitty-specs").exists()
         # But README.md should still exist
         assert (workspace_path / "README.md").exists()
-        # .gitignore should contain kitty-specs/
-        gitignore = workspace_path / ".gitignore"
-        assert gitignore.exists()
-        assert "kitty-specs/" in gitignore.read_text()
+        # Exclusions are stored in git metadata, not in tracked .gitignore.
+        worktree_git = workspace_path / ".git"
+        assert worktree_git.exists()
+        gitdir_line = worktree_git.read_text(encoding="utf-8").strip()
+        assert gitdir_line.startswith("gitdir:")
+        git_dir = Path(gitdir_line.split(":", 1)[1].strip())
+        exclude_file = git_dir / "info" / "exclude"
+        assert exclude_file.exists()
+        assert "kitty-specs/" in exclude_file.read_text(encoding="utf-8")
 
     def test_create_workspace_with_base_branch(self, git_repo, git_vcs):
         """create_workspace should support branching from a base branch."""
@@ -631,9 +635,7 @@ class TestRebaseStats:
         )
 
         # Get the stats
-        updated, added, deleted = git_vcs._parse_rebase_stats(
-            git_repo, initial_commit, "HEAD"
-        )
+        updated, added, deleted = git_vcs._parse_rebase_stats(git_repo, initial_commit, "HEAD")
 
         # Should have 1 add, 1 modify, 0 deletes
         assert added == 1
@@ -651,9 +653,7 @@ class TestRebaseStats:
         current_commit = result.stdout.strip()
 
         # Compare HEAD with itself - no changes
-        updated, added, deleted = git_vcs._parse_rebase_stats(
-            git_repo, current_commit, current_commit
-        )
+        updated, added, deleted = git_vcs._parse_rebase_stats(git_repo, current_commit, current_commit)
 
         assert updated == 0
         assert added == 0

@@ -1,0 +1,35 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://spec-kitty.dev/schemas/doctrine/directive.schema.yaml"
+title: Directive
+description: Minimal schema for governance directives.
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - id
+  - title
+  - intent
+  - enforcement
+properties:
+  schema_version:
+    type: string
+    pattern: '^1\.0$'
+  id:
+    type: string
+    pattern: '^[A-Z][A-Z0-9_-]*$'
+  title:
+    type: string
+    minLength: 1
+  intent:
+    type: string
+    minLength: 1
+  tactic_refs:
+    type: array
+    items:
+      type: string
+      pattern: '^[a-z][a-z0-9-]*$'
+  enforcement:
+    type: string
+    enum:
+      - required
+      - advisory

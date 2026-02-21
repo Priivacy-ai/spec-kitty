@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
+from typing import Callable, TypedDict
+
 from rich.tree import Tree
+
+
+class _StepEntry(TypedDict):
+    key: str
+    label: str
+    status: str
+    detail: str
 
 
 class StepTracker:
@@ -10,31 +19,31 @@ class StepTracker:
 
     def __init__(self, title: str):
         self.title = title
-        self.steps = []  # list of dicts: {key, label, status, detail}
+        self.steps: list[_StepEntry] = []
         self.status_order = {"pending": 0, "running": 1, "done": 2, "error": 3, "skipped": 4}
-        self._refresh_cb = None  # callable to trigger UI refresh
+        self._refresh_cb: Callable[[], None] | None = None
 
-    def attach_refresh(self, cb):
+    def attach_refresh(self, cb: Callable[[], None]) -> None:
         self._refresh_cb = cb
 
-    def add(self, key: str, label: str):
+    def add(self, key: str, label: str) -> None:
         if key not in [s["key"] for s in self.steps]:
             self.steps.append({"key": key, "label": label, "status": "pending", "detail": ""})
             self._maybe_refresh()
 
-    def start(self, key: str, detail: str = ""):
+    def start(self, key: str, detail: str = "") -> None:
         self._update(key, status="running", detail=detail)
 
-    def complete(self, key: str, detail: str = ""):
+    def complete(self, key: str, detail: str = "") -> None:
         self._update(key, status="done", detail=detail)
 
-    def error(self, key: str, detail: str = ""):
+    def error(self, key: str, detail: str = "") -> None:
         self._update(key, status="error", detail=detail)
 
-    def skip(self, key: str, detail: str = ""):
+    def skip(self, key: str, detail: str = "") -> None:
         self._update(key, status="skipped", detail=detail)
 
-    def _update(self, key: str, status: str, detail: str):
+    def _update(self, key: str, status: str, detail: str) -> None:
         for s in self.steps:
             if s["key"] == key:
                 s["status"] = status
@@ -46,7 +55,7 @@ class StepTracker:
         self.steps.append({"key": key, "label": key, "status": status, "detail": detail})
         self._maybe_refresh()
 
-    def _maybe_refresh(self):
+    def _maybe_refresh(self) -> None:
         if self._refresh_cb:
             try:
                 self._refresh_cb()

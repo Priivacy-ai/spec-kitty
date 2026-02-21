@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+from datetime import timedelta
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -37,7 +38,6 @@ def humanize_timedelta(td: "timedelta") -> str:
 
     Examples: '2s', '45s', '3m 12s', '2h 5m', '1d 4h', '3d'
     """
-    from datetime import timedelta  # noqa: F811 - local re-import for type narrowing
 
     total_seconds = int(td.total_seconds())
     if total_seconds < 0:
@@ -381,7 +381,7 @@ def sync_workspace(
         console.print(f"[red]Error:[/red] Failed to detect VCS: {e}")
         raise typer.Exit(1)
 
-    console.print(f"[cyan]Backend:[/cyan] git")
+    console.print("[cyan]Backend:[/cyan] git")
     console.print()
 
     # Handle repair mode
@@ -461,7 +461,7 @@ def sync_workspace(
             _display_changes_integrated(result.changes_integrated)
 
     elif result.status == SyncStatus.FAILED:
-        console.print(f"\n[red]✗ Sync failed[/red]")
+        console.print("\n[red]✗ Sync failed[/red]")
         if result.message:
             console.print(f"[dim]{result.message}[/dim]")
 
@@ -487,7 +487,7 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
     from specify_cli.sync.auth import AuthClient, AuthenticationError, CredentialStore
 
     # Step 1: Check if credentials exist at all
-    store = CredentialStore()
+    store = CredentialStore()  # type: ignore[no-untyped-call]
     if not store.exists():
         return (
             "[yellow]Not authenticated[/yellow]",
@@ -495,7 +495,7 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
         )
 
     # Step 2: Get a valid access token (with auto-refresh if expired)
-    auth = AuthClient()
+    auth = AuthClient()  # type: ignore[no-untyped-call]
     try:
         access_token = auth.get_access_token()
     except AuthenticationError:
@@ -587,16 +587,14 @@ def sync_server(
     parsed = urlparse(normalized_url)
     if parsed.scheme != "https" or not parsed.netloc:
         console.print(
-            "[red]Error:[/red] Invalid server URL. Use a full HTTPS URL, "
-            "for example: https://spec-kitty-dev.fly.dev"
+            "[red]Error:[/red] Invalid server URL. Use a full HTTPS URL, for example: https://spec-kitty-dev.fly.dev"
         )
         raise typer.Exit(1)
 
     config.set_server_url(normalized_url)
     console.print(f"[green]✓[/green] Sync server set to [cyan]{normalized_url}[/cyan]")
     console.print(
-        "[dim]If you switched environments, run "
-        "'spec-kitty auth login --force' to refresh credentials.[/dim]"
+        "[dim]If you switched environments, run 'spec-kitty auth login --force' to refresh credentials.[/dim]"
     )
 
 
@@ -845,9 +843,7 @@ def diagnose(
     for r in results:
         if not r.valid:
             category_label = f" [{r.error_category}]" if r.error_category else ""
-            console.print(
-                f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}"
-            )
+            console.print(f"\n  [red]INVALID[/red] {r.event_id} ({r.event_type}){category_label}")
             for err in r.errors:
                 console.print(f"    - {err}")
 

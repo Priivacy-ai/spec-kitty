@@ -2,9 +2,7 @@
 
 from pathlib import Path
 
-import pytest
 
-from specify_cli.agent_utils.status import show_kanban_status
 from specify_cli.dashboard.scanner import scan_feature_kanban
 
 
@@ -52,13 +50,12 @@ This WP has an explicit lane.
     # For CLI status, we can't call show_kanban_status directly (needs full setup)
     # Instead, let's verify the default lane value by checking the code path
     # This is tested by the integration - here we just verify the constants match
-    from specify_cli.agent_utils.status import show_kanban_status
     from specify_cli.dashboard.scanner import _count_wps_by_lane_frontmatter
 
     # Test dashboard counts
     counts = _count_wps_by_lane_frontmatter(tasks_dir)
     assert counts["planned"] == 1  # WP01 should default to planned
-    assert counts["doing"] == 1    # WP02 explicitly set
+    assert counts["doing"] == 1  # WP02 explicitly set
 
     # Test dashboard scanner
     assert len(dashboard_lanes["planned"]) == 1

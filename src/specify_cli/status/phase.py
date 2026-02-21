@@ -79,9 +79,7 @@ def _read_config_phase(repo_root: Path) -> int | None:
             return None
         phase = int(raw)
         if phase not in VALID_PHASES:
-            logger.warning(
-                "Invalid status.phase %d in %s, ignoring", phase, config_path
-            )
+            logger.warning("Invalid status.phase %d in %s, ignoring", phase, config_path)
             return None
         return phase
     except Exception as exc:

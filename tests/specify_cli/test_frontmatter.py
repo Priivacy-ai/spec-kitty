@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 from specify_cli.frontmatter import (
     FrontmatterManager,
-    FrontmatterError,
     read_frontmatter,
     write_frontmatter,
     validate_frontmatter,
@@ -14,10 +13,12 @@ from specify_cli.frontmatter import (
 @pytest.fixture
 def temp_wp_file(tmp_path):
     """Create a temporary work package file."""
+
     def _create_file(content: str, filename: str = "WP01.md") -> Path:
         file_path = tmp_path / filename
         file_path.write_text(content)
         return file_path
+
     return _create_file
 
 

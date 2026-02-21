@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from importlib.resources.abc import Traversable
 from importlib.resources import files
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -67,11 +68,17 @@ def validate_upgrade(project_root: Path) -> Tuple[bool, List[str]]:
     return False, errors
 
 
-def _load_template_sources(base) -> Optional[Dict[str, str]]:
+def _resource_exists(resource: Path | Traversable) -> bool:
+    if isinstance(resource, Path):
+        return resource.exists()
+    return resource.is_file() or resource.is_dir()
+
+
+def _load_template_sources(base: Path | Traversable) -> Optional[Dict[str, str]]:
     contents: Dict[str, str] = {}
     for name in TEMPLATE_FILES:
         resource = base.joinpath(name)
-        if not resource.exists():
+        if not _resource_exists(resource):
             return None
         contents[name] = resource.read_text(encoding="utf-8")
     return contents
@@ -90,11 +97,11 @@ def _resolve_template_sources() -> Optional[Dict[str, str]]:
                 if contents:
                     return contents
 
-    # 011: Templates packaged in src/specify_cli/missions/
-    data_root = files("specify_cli")
-    candidate = data_root.joinpath("missions", MISSION_NAME, "command-templates")
-    if candidate.exists():
-        contents = _load_template_sources(candidate)
+    # 011: Templates packaged in src/doctrine/missions/
+    data_root = files("doctrine")
+    package_candidate = data_root.joinpath("missions", MISSION_NAME, "command-templates")
+    if _resource_exists(package_candidate):
+        contents = _load_template_sources(package_candidate)
         if contents:
             return contents
 

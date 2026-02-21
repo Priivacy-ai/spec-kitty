@@ -7,7 +7,10 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.1a1] - 2026-02-18
+
+**ACTIVE DEVELOPEMENT: Work in progress.**  
+This release is a continuation of the `2.x` development cycle, see [ADR 2026-01-27](./architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md). The release focusses on improving the Event-based backbone of the Spec Kitty application, and extending the Governance layer to include the [Doctrine Stack](glossary/contexts/doctrine.md) approach. This includes setting up rich Agent Profiles, a repository of behavioural patterns, and new lifecycle commands.
 
 ### 🐛 Fixed
 
@@ -15,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Runtime mission template selection for `next` now follows deterministic precedence tiers (`explicit`, `env`, `project override`, `project legacy`, `user global`, `project config`, `builtin`) when resolving `mission-runtime.yaml`.
 - `--answer --json` integration coverage now exercises a real pending-decision success path (runtime `requires_inputs`) instead of fake decision IDs.
 - Added replay-parity integration coverage in `spec-kitty` against `spec-kitty-events` canonical fixture stream (`mission-next-replay-full-lifecycle`).
+- **Planning command telemetry emission**: Fixed missing ExecutionEvent emission from planning commands (`create-feature`, `setup-plan`, `finalize-tasks`). Planning phase now emits execution events with role='planner' to track token consumption during specification, planning, and task generation. User reported planning consumes bulk of tokens and needed telemetry. (commit 647481e5)
+- **Workflow telemetry emission**: Fixed missing ExecutionEvent emission from `spec-kitty implement` and `spec-kitty review` commands. These primary workflow commands now emit execution events with agent, model, tokens, cost, and duration for cost tracking. Previously only orchestrator and manual task transitions emitted events. (commit ef93d8e)
+- **Dashboard constitution detection**: Fixed dashboard showing "Constitution not created" when constitution existed at project level. Scanner was incorrectly checking per-feature path (`kitty-specs/{feature}/constitution.md`) instead of project-level paths (`.kittify/constitution/constitution.md` or `.kittify/memory/constitution.md`). Added `_get_project_constitution_info()` helper with fallback support for pre-migration projects. (commit 3b442b0)
+
+### 🧹 Maintenance
+
+- Continued strict typing hardening in small reviewable batches across core runtime, dashboard, context/worktree helpers, sync command paths, and migration helpers.
+- Removed stale or unnecessary `type: ignore` markers that became invalid after typing improvements.
+- Tightened typed return contracts in helper surfaces (including feature structure validation payloads and sync config typing).
+- Reduced strict mypy debt substantially during this pass, concentrating remaining errors into fewer modules for follow-up cleanup.
 
 ## [2.0.0a5] - 2026-02-14
 
@@ -357,7 +370,6 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
   - Documents `unset GITHUB_TOKEN` technique for organization repos
 
 **Issues Closed**: #96, #97, #101, #102, #105, #106, #108, #103 (not a bug), #107 (not a bug)
->>>>>>> origin/main
 
 ## [0.13.1] - 2026-01-25
 

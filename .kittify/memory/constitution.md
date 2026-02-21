@@ -1,4 +1,4 @@
-# Spec Kitty Constitution
+# Constitution
 
 > Created: 2026-01-27
 > Version: 1.0.0
@@ -16,6 +16,7 @@ This constitution captures the technical standards, architectural principles, an
 **Python 3.11+** is required for all CLI and library code.
 
 **Key dependencies:**
+
 - **typer** - CLI framework
 - **rich** - Console output
 - **ruamel.yaml** - YAML parsing (frontmatter)
@@ -51,12 +52,14 @@ This constitution captures the technical standards, architectural principles, an
 **Repository:** https://github.com/Priivacy-ai/spec-kitty-events (PRIVATE)
 
 **Purpose:** Shared event sourcing library providing:
+
 - Lamport clocks for causal ordering
 - CRDT merge rules for conflict resolution
 - Event storage adapters (JSONL, SQLite)
 - Deterministic conflict detection
 
 **Used by:**
+
 - spec-kitty CLI (current)
 - spec-kitty Django backend (future SaaS platform)
 
@@ -75,10 +78,12 @@ This constitution captures the technical standards, architectural principles, an
 6. Test integration, commit spec-kitty changes
 
 **Local rapid iteration (use sparingly):**
+
 - Temporary only: `pip install -e ../spec-kitty-events`
 - **Must revert to Git dependency before committing**
 
 **Forbidden practices:**
+
 - ❌ Never commit spec-kitty with local `pip -e` path dependency
 - ❌ Never use `rev = "main"` (breaks determinism, causes CI flakiness)
 - ❌ Never assume spec-kitty-events is available locally
@@ -86,11 +91,13 @@ This constitution captures the technical standards, architectural principles, an
 ### CI/CD Authentication
 
 **GitHub Actions** uses a **deploy key** to access the private spec-kitty-events repository:
+
 - Secret name: `SPEC_KITTY_EVENTS_DEPLOY_KEY`
 - Access: Read-only to spec-kitty-events
 - Key rotation: Every 12 months or when compromised
 
 **SSH setup in CI:**
+
 ```yaml
 - name: Setup SSH for private repo
   run: |
@@ -103,11 +110,13 @@ This constitution captures the technical standards, architectural principles, an
 ### PyPI Release Process
 
 **Current strategy (until spec-kitty-events goes public):**
+
 1. Vendor events library into `src/specify_cli/_vendored/events/`
 2. Run release script: `python scripts/vendor_and_release.py`
 3. Publish to PyPI (users don't need GitHub access)
 
 **Future strategy (when events is open source):**
+
 1. Remove vendoring
 2. Use standard Git dependency in published wheel
 3. Update release documentation
@@ -125,6 +134,7 @@ This constitution captures the technical standards, architectural principles, an
 7. Merge spec-kitty feature
 
 **Why commit pinning:**
+
 - Deterministic CI builds (exact same behavior every time)
 - Explicit integration points (you control when updates happen)
 - Prevents silent breakage from upstream changes
@@ -138,6 +148,7 @@ This constitution captures the technical standards, architectural principles, an
 ### 1.x vs 2.x Branch Strategy
 
 **Branch Purpose:**
+
 - **1.x branch** - Stable local-only CLI tool (maintenance mode)
 - **2.x branch** - SaaS transformation with event sourcing and sync protocol (active development)
 
@@ -146,17 +157,20 @@ This constitution captures the technical standards, architectural principles, an
 **Status:** Maintenance-only after initial v1.0.0 release
 
 **Characteristics:**
+
 - YAML activity logs (existing system)
 - No event sourcing or sync protocol
 - No spec-kitty-events dependency
 - Local-only operation
 
 **Allowed changes:**
+
 - Security fixes
 - Critical bug fixes
 - Documentation updates
 
 **Forbidden changes:**
+
 - ❌ New features
 - ❌ Architectural changes
 - ❌ Breaking changes to stable APIs
@@ -166,6 +180,7 @@ This constitution captures the technical standards, architectural principles, an
 **Status:** Active SaaS development (no releases until substantially complete)
 
 **Characteristics:**
+
 - Event sourcing with Lamport clocks
 - spec-kitty-events library integration (Git dependency per ADR-11)
 - Sync protocol for CLI ↔ Django communication
@@ -173,6 +188,7 @@ This constitution captures the technical standards, architectural principles, an
 - Greenfield architecture (no 1.x backward compatibility)
 
 **Development principles:**
+
 - ✅ No 1.x compatibility constraints
 - ✅ Greenfield architectural freedom
 - ✅ Breaking changes allowed (pre-release)
@@ -181,11 +197,13 @@ This constitution captures the technical standards, architectural principles, an
 ### Migration Strategy
 
 **Deferred until 2.x nears completion:**
+
 - No progressive migration from 1.x → 2.x during development
 - No dual state systems (YAML + events) to maintain
 - Migration tool built when 2.x is proven stable
 
 **When 2.x approaches beta:**
+
 1. Build migration tool: `spec-kitty migrate-to-2x`
 2. Convert YAML activity logs → event log
 3. User-initiated migration (not automatic)
@@ -195,16 +213,82 @@ This constitution captures the technical standards, architectural principles, an
 ### Communication
 
 **Users:**
+
 - README badges: "1.x (Maintenance)" vs "2.x (Active Development)"
 - Clear documentation separation
 - GitHub issue tags: `1.x` and `2.x`
 
 **Contributors:**
+
 - All new features target 2.x branch
 - 1.x PRs limited to security/critical fixes
 - ADRs indicate target branch if applicable
 
-**Details:** See [ADR-12: Two-Branch Strategy for SaaS Transformation](../../architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md)
+**Details:
+** See [ADR-12: Two-Branch Strategy for SaaS Transformation](../../architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md)
+
+---
+
+## Development Workflow: Python Implementation Standards
+
+### Test-First Development (Mandatory)
+
+All Python implementation work MUST follow a test-first approach combining ATDD and TDD.
+
+#### Acceptance Test Driven Development (ATDD)
+
+Before implementing any feature or work package:
+
+1. **Extract acceptance criteria** from the specification (user stories, functional requirements)
+2. **Write acceptance tests first** — high-level tests that verify user-visible behavior (CLI output, API responses, file artifacts)
+3. **Acceptance tests MUST fail** before implementation begins (RED state)
+4. Use acceptance tests to guide the implementation — they define "done"
+
+Acceptance tests should be black-box where possible: test the public API, not internal implementation details.
+
+#### Test Driven Development (TDD)
+
+For each unit of implementation within a work package, apply the RED-GREEN-REFACTOR cycle:
+
+1. **RED**: Write the smallest failing test that expresses the required behavior. Structure every test with **Arrange-Act-Assert**.
+2. **GREEN**: Write only enough production code to make the test pass.
+3. **REFACTOR**: Improve code structure while keeping all tests green. During refactoring, never modify test logic or assertions — only production code.
+4. **Repeat**: Each cycle should take minutes, not hours.
+
+**This is not optional.** Tests MUST be written before production code.
+
+#### Self-Review Protocol
+
+Before marking any work package complete, verify:
+
+1. `pytest -v --cov=src --cov-report=term-missing` — all tests pass, coverage >=90%
+2. `mypy --strict` on modified packages — no type errors
+3. `ruff check src/ tests/` — no linting errors
+4. Each requirement from spec has a corresponding passing test
+5. Implementation aligns with relevant ADRs
+
+### Python Code Style
+
+- **PEP 8** compliance for all code
+- **Type hints required** on all function signatures and complex variables (Python 3.11+ syntax: `list[str]`, `str | None`)
+- **Google-style docstrings** on public APIs (modules, classes, public methods/functions)
+- **Modern Python 3.11+** features preferred (match statements, `StrEnum`, `ExceptionGroup` where appropriate)
+- **pytest fixtures** for reusable test setup; `@pytest.mark.parametrize` for test variations
+- **Descriptive test names** including task/requirement IDs for traceability
+
+### Quality Tools
+
+| Tool   | Purpose                          | Command                                         |
+|--------|----------------------------------|-------------------------------------------------|
+| pytest | Test runner + coverage           | `pytest -v --cov=src --cov-report=term-missing` |
+| mypy   | Static type checking             | `mypy --strict src/specify_cli/`                |
+| ruff   | Linting (replaces flake8, isort) | `ruff check src/ tests/`                        |
+
+### Locality of Change
+
+- Only modify files directly related to the current task
+- No "drive-by" refactoring unrelated to the work package
+- Minimal API surface changes — extend, don't restructure
 
 ---
 
@@ -247,6 +331,7 @@ This constitution captures the technical standards, architectural principles, an
 Any maintainer can propose amendments via pull request. Changes are discussed and merged following standard PR review process.
 
 **For major architectural changes:**
+
 1. Write ADR (Architecture Decision Record)
 2. Open PR with ADR + implementation
 3. Discuss trade-offs and alternatives
@@ -266,6 +351,7 @@ Exceptions discussed case-by-case. Strong justification required.
 
 ## Attribution
 
-**Spec Kitty** is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
+**Spec Kitty
+** is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit). We retain the original attribution per the Spec Kit license while evolving the toolkit under the Spec Kitty banner.
 
 **License:** MIT (All Rights Reserved for Priivacy AI code)

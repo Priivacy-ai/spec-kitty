@@ -15,10 +15,18 @@ import shutil
 import subprocess
 import warnings
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TypedDict
 
-from .paths import locate_project_root
-from .vcs import VCSBackend, get_vcs
+from .vcs import get_vcs
+
+
+class FeatureStructureValidation(TypedDict):
+    """Result payload for feature structure checks."""
+
+    valid: bool
+    errors: list[str]
+    warnings: list[str]
+    paths: dict[str, str]
 
 
 def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
@@ -127,9 +135,7 @@ def get_next_feature_number(repo_root: Path) -> int:
 
 
 def create_feature_worktree(
-    repo_root: Path,
-    feature_slug: str,
-    feature_number: Optional[int] = None
+    repo_root: Path, feature_slug: str, feature_number: Optional[int] = None
 ) -> Tuple[Path, Path]:
     """Create workspace (git worktree or jj workspace) for feature development.
 
@@ -207,7 +213,7 @@ def create_feature_worktree(
         if not result.success:
             raise RuntimeError(f"Failed to create workspace: {result.error}")
 
-    except Exception as e:
+    except Exception:
         # If VCS abstraction fails, fall back to direct git command with warning
         warnings.warn(
             "VCS abstraction failed, falling back to direct git commands. "
@@ -223,12 +229,10 @@ def create_feature_worktree(
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
-                errors="replace"
+                errors="replace",
             )
         except subprocess.CalledProcessError as git_error:
-            raise RuntimeError(
-                f"Failed to create workspace: {git_error.stderr}"
-            ) from git_error
+            raise RuntimeError(f"Failed to create workspace: {git_error.stderr}") from git_error
 
     # Create feature directory structure
     feature_dir = worktree_path / "kitty-specs" / branch_name
@@ -241,17 +245,14 @@ def create_feature_worktree(
 
 
 def setup_feature_directory(
-    feature_dir: Path,
-    worktree_path: Path,
-    repo_root: Path,
-    create_symlinks: bool = True
+    feature_dir: Path, worktree_path: Path, repo_root: Path, create_symlinks: bool = True
 ) -> None:
     """Setup standard feature directory structure.
 
     Creates:
     - kitty-specs/###-name/ directory
     - Subdirectories: checklists/, research/, tasks/
-    - Symlinks to .kittify/memory/ (or file copies on Windows)
+    - Symlinks to .kittify/constitution/ (or file copies on Windows)
     - spec.md from template
     - tasks/README.md
 
@@ -279,7 +280,7 @@ def setup_feature_directory(
     (tasks_dir / ".gitkeep").touch()
 
     # Create tasks/README.md with frontmatter format reference
-    tasks_readme_content = '''# Tasks Directory
+    tasks_readme_content = """# Tasks Directory
 
 This directory contains work package (WP) prompt files with lane status in frontmatter.
 
@@ -348,8 +349,8 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 - Format: `WP01-kebab-case-slug.md`
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
-'''
-    (tasks_dir / "README.md").write_text(tasks_readme_content, encoding='utf-8')
+"""
+    (tasks_dir / "README.md").write_text(tasks_readme_content, encoding="utf-8")
 
     # Create worktree .kittify directory if it doesn't exist
     worktree_kittify = worktree_path / ".kittify"
@@ -357,41 +358,45 @@ spec-kitty agent tasks move-task WP01 --to doing
 
     # Setup shared constitution and AGENTS.md via symlink (or copy on Windows)
     # Calculate relative path from worktree to main repo
-    # Worktree: .worktrees/001-feature/.kittify/memory
-    # Main:     .kittify/memory
-    # Relative: ../../../.kittify/memory
-    relative_memory_path = Path("../../../.kittify/memory")
+    # Worktree: .worktrees/001-feature/.kittify/constitution
+    # Main:     .kittify/constitution
+    # Relative: ../../../.kittify/constitution
+    relative_constitution_path = Path("../../../.kittify/constitution")
     relative_agents_path = Path("../../../.kittify/AGENTS.md")
 
-    worktree_memory = worktree_kittify / "memory"
+    worktree_constitution = worktree_kittify / "constitution"
     worktree_agents = worktree_kittify / "AGENTS.md"
 
     # Detect if we're on Windows or symlinks are not supported
     is_windows = platform.system() == "Windows"
     use_copy = is_windows or not create_symlinks
 
-    # Setup memory/ symlink or copy
-    if worktree_memory.is_symlink():
+    # Setup constitution/ symlink or copy
+    if worktree_constitution.is_symlink():
         # Remove existing symlink first (can't use rmtree on symlinks)
-        worktree_memory.unlink()
-    elif worktree_memory.exists() and worktree_memory.is_dir():
+        worktree_constitution.unlink()
+    elif worktree_constitution.exists() and worktree_constitution.is_dir():
         # Remove existing directory (from git worktree add)
-        shutil.rmtree(worktree_memory)
+        shutil.rmtree(worktree_constitution)
 
     if use_copy:
-        # Copy memory directory
-        main_memory = repo_root / ".kittify" / "memory"
-        if main_memory.exists() and main_memory.is_dir():
-            shutil.copytree(main_memory, worktree_memory)
+        # Copy constitution directory (try new path, fallback to old)
+        main_constitution = repo_root / ".kittify" / "constitution"
+        if not main_constitution.exists():
+            main_constitution = repo_root / ".kittify" / "memory"
+        if main_constitution.exists() and main_constitution.is_dir():
+            shutil.copytree(main_constitution, worktree_constitution)
     else:
         # Create relative symlink
         try:
-            worktree_memory.symlink_to(relative_memory_path, target_is_directory=True)
+            worktree_constitution.symlink_to(relative_constitution_path, target_is_directory=True)
         except (OSError, NotImplementedError):
             # Symlink failed, fall back to copy
-            main_memory = repo_root / ".kittify" / "memory"
-            if main_memory.exists() and main_memory.is_dir():
-                shutil.copytree(main_memory, worktree_memory)
+            main_constitution = repo_root / ".kittify" / "constitution"
+            if not main_constitution.exists():
+                main_constitution = repo_root / ".kittify" / "memory"
+            if main_constitution.exists() and main_constitution.is_dir():
+                shutil.copytree(main_constitution, worktree_constitution)
 
     # Setup AGENTS.md symlink or copy
     if worktree_agents.exists():
@@ -429,10 +434,7 @@ spec-kitty agent tasks move-task WP01 --to doing
             spec_file.touch()
 
 
-def validate_feature_structure(
-    feature_dir: Path,
-    check_tasks: bool = False
-) -> dict:
+def validate_feature_structure(feature_dir: Path, check_tasks: bool = False) -> FeatureStructureValidation:
     """Validate feature directory structure and required files.
 
     Checks for:
@@ -459,19 +461,14 @@ def validate_feature_structure(
         >>> assert "valid" in result
         >>> assert "errors" in result
     """
-    errors = []
-    warnings = []
-    paths = {}
+    errors: list[str] = []
+    warnings: list[str] = []
+    paths: dict[str, str] = {}
 
     # Check if feature directory exists
     if not feature_dir.exists():
         errors.append(f"Feature directory not found: {feature_dir}")
-        return {
-            "valid": False,
-            "errors": errors,
-            "warnings": warnings,
-            "paths": paths
-        }
+        return {"valid": False, "errors": errors, "warnings": warnings, "paths": paths}
 
     # Check required files exist
     spec_file = feature_dir / "spec.md"
@@ -500,9 +497,4 @@ def validate_feature_structure(
     # Always include feature_dir in paths
     paths["feature_dir"] = str(feature_dir)
 
-    return {
-        "valid": len(errors) == 0,
-        "errors": errors,
-        "warnings": warnings,
-        "paths": paths
-    }
+    return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings, "paths": paths}

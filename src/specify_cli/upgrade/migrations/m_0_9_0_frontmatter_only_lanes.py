@@ -36,14 +36,16 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
     # System files to ignore when determining if a directory is empty
     # These files are created automatically by operating systems and should not
     # prevent lane directory cleanup
-    IGNORE_FILES = frozenset({
-        ".gitkeep",      # Git placeholder
-        ".DS_Store",     # macOS Finder metadata
-        "Thumbs.db",     # Windows thumbnail cache
-        "desktop.ini",   # Windows folder settings
-        ".directory",    # KDE folder settings
-        "._*",           # macOS resource fork prefix (pattern)
-    })
+    IGNORE_FILES = frozenset(
+        {
+            ".gitkeep",  # Git placeholder
+            ".DS_Store",  # macOS Finder metadata
+            "Thumbs.db",  # Windows thumbnail cache
+            "desktop.ini",  # Windows folder settings
+            ".directory",  # KDE folder settings
+            "._*",  # macOS resource fork prefix (pattern)
+        }
+    )
 
     @classmethod
     def _should_ignore_file(cls, filename: str) -> bool:
@@ -79,11 +81,7 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
         if not directory.exists() or not directory.is_dir():
             return []
 
-        return [
-            item
-            for item in directory.iterdir()
-            if not cls._should_ignore_file(item.name)
-        ]
+        return [item for item in directory.iterdir() if not cls._should_ignore_file(item.name)]
 
     def detect(self, project_path: Path) -> bool:
         """Check if any feature uses legacy directory-based lanes."""
@@ -155,8 +153,8 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
         total_skipped = 0
 
         for feature_dir, location_label in features_found:
-            feature_changes, feature_warnings, feature_errors, migrated, skipped = (
-                self._migrate_feature(feature_dir, location_label, dry_run)
+            feature_changes, feature_warnings, feature_errors, migrated, skipped = self._migrate_feature(
+                feature_dir, location_label, dry_run
             )
             changes.extend(feature_changes)
             warnings.extend(feature_warnings)
@@ -312,10 +310,10 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
             return f'---\nlane: "{expected_lane}"\n---\n{content}'
 
         frontmatter_lines = lines[1:closing_idx]
-        body_lines = lines[closing_idx + 1:]
+        body_lines = lines[closing_idx + 1 :]
 
         # Check if lane field exists
-        lane_pattern = re.compile(r'^lane:\s*(.*)$')
+        lane_pattern = re.compile(r"^lane:\s*(.*)$")
         lane_found = False
         updated_lines = []
 
@@ -323,7 +321,7 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
             match = lane_pattern.match(line)
             if match:
                 lane_found = True
-                current_value = match.group(1).strip().strip('"\'')
+                current_value = match.group(1).strip().strip("\"'")
                 if current_value != expected_lane:
                     # Replace with expected lane from directory
                     updated_lines.append(f'lane: "{expected_lane}"')

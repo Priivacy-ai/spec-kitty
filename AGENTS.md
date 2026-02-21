@@ -48,7 +48,7 @@ The workflow commands:
 ### Workflow Commands (Recommended for Agents)
 
 **For implementation:**
-```bash
+```bash[spec-kitty-doctrine-integration-ideation.md](../../../../Downloads/spec-kitty-doctrine-integration-ideation.md)
 spec-kitty agent workflow implement [WP01]
 ```
 - Auto-detects first WP with `lane: "planned"` if no ID provided

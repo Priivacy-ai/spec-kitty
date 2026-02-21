@@ -81,7 +81,7 @@
 
 **For an architectural decision:**
 
-**→ Use [`adr-template.md`](adr-template.md)**
+**→ Use [`src/doctrine/templates/architecture/adr-template.md`](../src/doctrine/templates/architecture/adr-template.md)**
 
 ```bash
 # 1. Find next ADR number
@@ -89,7 +89,7 @@ ls architecture/adrs/ | sort | tail -1
 # If last today is 2026-01-23-5, next is 2026-01-23-6 (or start with 1 for new date)
 
 # 2. Copy template
-cp architecture/adr-template.md architecture/adrs/2026-02-15-1-your-decision.md
+cp src/doctrine/templates/architecture/adr-template.md architecture/adrs/2026-02-15-1-your-decision.md
 
 # 3. Fill it out (focus on why, not how)
 # 4. Follow the process in README.md
@@ -115,7 +115,7 @@ Do you need to document something?
 │  (Choosing between significant alternatives)
 │  │
 │  YES → Create ADR
-│  │     - Use adr-template.md
+│  │     - Use src/doctrine/templates/architecture/adr-template.md
 │  │     - Focus on why, not how
 │  │     - Include alternatives
 │  │     - 1-2 pages max
@@ -240,7 +240,7 @@ Do you need to document something?
 
 - [Main README](README.md) - Start here
 - [Complete Guide](ARCHITECTURE_DOCS_GUIDE.md) - Comprehensive ADR guide
-- [ADR Template](adr-template.md) - Template for new ADRs
+- [ADR Template](../src/doctrine/templates/architecture/adr-template.md) - Template for new ADRs
 - [All ADRs](adrs/) - Browse all architectural decisions
 
 ---

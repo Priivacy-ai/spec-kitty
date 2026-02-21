@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -23,11 +22,7 @@ from specify_cli.core.feature_detection import (
     FeatureDetectionError,
 )
 
-app = typer.Typer(
-    name="context",
-    help="Agent context management commands",
-    no_args_is_help=True
-)
+app = typer.Typer(name="context", help="Agent context management commands", no_args_is_help=True)
 
 console = Console()
 
@@ -55,7 +50,7 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
             repo_root,
             explicit_feature=explicit_feature,
             cwd=cwd,
-            mode="strict"  # Raise error if ambiguous
+            mode="strict",  # Raise error if ambiguous
         )
     except FeatureDetectionError as e:
         # Convert to ValueError for backward compatibility
@@ -64,22 +59,16 @@ def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | 
 
 @app.command(name="update-context")
 def update_context(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     agent_type: Annotated[
-        Optional[str],
+        str,
         typer.Option(
             "--agent-type",
             "-a",
-            help=f"Agent type to update. Supported: {', '.join(get_supported_agent_types())}. Defaults to 'claude'."
-        )
+            help=f"Agent type to update. Supported: {', '.join(get_supported_agent_types())}. Defaults to 'claude'.",
+        ),
     ] = "claude",
-    json_output: Annotated[
-        bool,
-        typer.Option(
-            "--json",
-            help="Output results as JSON for agent parsing"
-        )
-    ] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON for agent parsing")] = False,
 ) -> None:
     """Update agent context file with tech stack from plan.md.
 
@@ -104,6 +93,13 @@ def update_context(
     try:
         # Locate repository root
         repo_root = locate_project_root()
+        if repo_root is None:
+            error_msg = "Unable to locate project root (.kittify not found)."
+            if json_output:
+                print(json.dumps({"error": error_msg, "success": False}))
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            sys.exit(1)
         cwd = Path.cwd()
 
         # Find feature directory using centralized detection
@@ -124,7 +120,7 @@ def update_context(
                 print(json.dumps({"error": error_msg, "success": False}))
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-                console.print(f"[yellow]Hint:[/yellow] Run /spec-kitty.plan to create plan.md first")
+                console.print("[yellow]Hint:[/yellow] Run /spec-kitty.plan to create plan.md first")
             sys.exit(1)
 
         # Verify agent file exists

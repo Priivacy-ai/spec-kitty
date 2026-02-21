@@ -1,0 +1,9 @@
+schema_version: "1.0"
+id: powershell-syntax
+tool: powershell
+title: PowerShell Syntax Guide
+guide_path: src/doctrine/toolguides/POWERSHELL_SYNTAX.md
+summary: PowerShell-specific command, parameter, and path conventions for agents.
+commands:
+  - spec-kitty
+  - git

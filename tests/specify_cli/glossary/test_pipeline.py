@@ -93,6 +93,7 @@ class TestPipelineExecution:
             def side_effect(ctx):
                 call_order.append(name)
                 return ctx
+
             return side_effect
 
         mw1 = _MockMiddleware("mw1", side_effect=make_side_effect("mw1"))
@@ -199,10 +200,8 @@ class TestPipelineExceptionPropagation:
             severity=Severity.HIGH,
             confidence=0.9,
             candidate_senses=[
-                MagicMock(surface="workspace", scope="team_domain",
-                          definition="def1", confidence=0.9),
-                MagicMock(surface="workspace", scope="team_domain",
-                          definition="def2", confidence=0.7),
+                MagicMock(surface="workspace", scope="team_domain", definition="def1", confidence=0.9),
+                MagicMock(surface="workspace", scope="team_domain", definition="def2", confidence=0.7),
             ],
         )
 
@@ -329,9 +328,7 @@ class TestCreateStandardPipeline:
 
     def test_runtime_strictness_passed_to_gate(self, tmp_path):
         (tmp_path / ".kittify").mkdir()
-        pipeline = create_standard_pipeline(
-            tmp_path, runtime_strictness=Strictness.OFF
-        )
+        pipeline = create_standard_pipeline(tmp_path, runtime_strictness=Strictness.OFF)
 
         # Gate is at index 3 (after clarification at index 2)
         gate = pipeline.middleware[3]
@@ -350,20 +347,14 @@ class TestCreateStandardPipeline:
         glossaries = tmp_path / ".kittify" / "glossaries"
         glossaries.mkdir()
         (glossaries / "team_domain.yaml").write_text(
-            "terms:\n"
-            "  - surface: workspace\n"
-            "    definition: A git worktree\n"
-            "    confidence: 1.0\n"
-            "    status: active\n"
+            "terms:\n  - surface: workspace\n    definition: A git worktree\n    confidence: 1.0\n    status: active\n"
         )
 
         pipeline = create_standard_pipeline(tmp_path)
 
         # The SemanticCheckMiddleware should have a store with the loaded term
         check_mw = pipeline.middleware[1]
-        results = check_mw.glossary_store.lookup(
-            "workspace", ("team_domain",)
-        )
+        results = check_mw.glossary_store.lookup("workspace", ("team_domain",))
         assert len(results) >= 1
         assert results[0].definition == "A git worktree"
 
@@ -372,9 +363,7 @@ class TestCreateStandardPipeline:
         from specify_cli.glossary.clarification import ClarificationMiddleware
 
         (tmp_path / ".kittify").mkdir()
-        pipeline = create_standard_pipeline(
-            tmp_path, interaction_mode="interactive"
-        )
+        pipeline = create_standard_pipeline(tmp_path, interaction_mode="interactive")
         # Clarification is at index 2 (before gate at index 3)
         clarification = pipeline.middleware[2]
         assert isinstance(clarification, ClarificationMiddleware)
@@ -385,9 +374,7 @@ class TestCreateStandardPipeline:
         from specify_cli.glossary.clarification import ClarificationMiddleware
 
         (tmp_path / ".kittify").mkdir()
-        pipeline = create_standard_pipeline(
-            tmp_path, interaction_mode="non-interactive"
-        )
+        pipeline = create_standard_pipeline(tmp_path, interaction_mode="non-interactive")
         # Clarification is at index 2 (before gate at index 3)
         clarification = pipeline.middleware[2]
         assert isinstance(clarification, ClarificationMiddleware)
@@ -447,10 +434,7 @@ class TestInteractiveClarificationResolves:
         assert resolved[0].term.surface_text == "workspace"
 
         # The remaining conflicts should not include the resolved one
-        remaining_workspace = [
-            c for c in result.conflicts
-            if c.term.surface_text == "workspace"
-        ]
+        remaining_workspace = [c for c in result.conflicts if c.term.surface_text == "workspace"]
         assert len(remaining_workspace) == 0
 
 
@@ -474,9 +458,7 @@ class TestMutableContextDocumentation:
                 context.extracted_terms.append("tracked")
                 return context
 
-        pipeline = GlossaryMiddlewarePipeline(
-            middleware=[TrackingMiddleware(), TrackingMiddleware()]
-        )
+        pipeline = GlossaryMiddlewarePipeline(middleware=[TrackingMiddleware(), TrackingMiddleware()])
         ctx = _make_context()
         original_id = id(ctx)
         result = pipeline.process(ctx)

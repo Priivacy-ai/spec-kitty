@@ -94,10 +94,7 @@ def render_conflict(
     severity_icon = _get_severity_icon(conflict.severity)
 
     # Create title with severity
-    title = (
-        f"[{severity_color}]{severity_icon}[/{severity_color}] "
-        f'conflict: "{conflict.term.surface_text}"'
-    )
+    title = f'[{severity_color}]{severity_icon}[/{severity_color}] conflict: "{conflict.term.surface_text}"'
 
     # Sort candidates by scope precedence then descending confidence
     ranked_candidates = sort_candidates(conflict.candidate_senses)
@@ -119,7 +116,7 @@ def render_conflict(
                 f"{sense.confidence:.2f}",
             )
 
-        body = table
+        body: Table | str = table
     else:
         body = "(No candidates available)"
 

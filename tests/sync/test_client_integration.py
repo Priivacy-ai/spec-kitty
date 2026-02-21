@@ -1,9 +1,10 @@
 """Integration tests for WebSocket client"""
+
 import pytest
 from specify_cli.sync.client import WebSocketClient, ConnectionStatus
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connect_to_server():
     """
     Test connecting to development server.
@@ -17,7 +18,7 @@ async def test_connect_to_server():
     # This would be used for manual testing with a real server
     client = WebSocketClient(
         server_url="ws://localhost:8000",
-        token="test-token"  # Would need real token from server
+        token="test-token",  # Would need real token from server
     )
 
     await client.connect()
@@ -29,13 +30,10 @@ async def test_connect_to_server():
     assert client.get_status() == ConnectionStatus.OFFLINE
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_client_initialization():
     """Test WebSocket client can be initialized"""
-    client = WebSocketClient(
-        server_url="ws://localhost:8000",
-        token="test-token"
-    )
+    client = WebSocketClient(server_url="ws://localhost:8000", token="test-token")
 
     assert client.server_url == "ws://localhost:8000"
     assert client._direct_token == "test-token"
@@ -43,13 +41,10 @@ async def test_client_initialization():
     assert client.get_status() == ConnectionStatus.OFFLINE
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_send_event_when_not_connected():
     """Test sending event when not connected raises error"""
-    client = WebSocketClient(
-        server_url="ws://localhost:8000",
-        token="test-token"
-    )
+    client = WebSocketClient(server_url="ws://localhost:8000", token="test-token")
 
     with pytest.raises(ConnectionError, match="Not connected to server"):
         await client.send_event({"type": "test"})

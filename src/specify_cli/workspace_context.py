@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
@@ -100,10 +99,7 @@ def save_context(repo_root: Path, context: WorkspaceContext) -> Path:
     context_path = get_context_path(repo_root, workspace_name)
 
     # Write JSON with pretty formatting
-    context_path.write_text(
-        json.dumps(context.to_dict(), indent=2) + "\n",
-        encoding="utf-8"
-    )
+    context_path.write_text(json.dumps(context.to_dict(), indent=2) + "\n", encoding="utf-8")
 
     return context_path
 

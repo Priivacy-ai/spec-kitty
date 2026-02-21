@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from dataclasses import dataclass, field
 from typing import List, Dict, Any
 
@@ -449,7 +449,7 @@ class TestEventEmission:
         gate = GenerationGateMiddleware(runtime_override=Strictness.MEDIUM)
         mock_context.conflicts = [low_severity_conflict]
 
-        result = gate.process(mock_context)
+        gate.process(mock_context)
 
         # No event should be emitted
         assert emission_count[0] == 0
@@ -601,9 +601,7 @@ class TestEdgeCases:
         assert exc_info.value.strictness == Strictness.MEDIUM
         assert len(exc_info.value.conflicts) == 1
 
-    def test_event_emission_error_is_logged(
-        self, mock_context, high_severity_conflict, monkeypatch, caplog
-    ):
+    def test_event_emission_error_is_logged(self, mock_context, high_severity_conflict, monkeypatch, caplog):
         """When event emission fails, the error is logged."""
         import logging
         from specify_cli.glossary import events

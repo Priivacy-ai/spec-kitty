@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 
-TEMPLATE_DIR = Path("src/specify_cli/templates/command-templates")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+TEMPLATE_DIR = REPO_ROOT / "src" / "doctrine" / "templates" / "command-templates"
 EXPECTED_TEMPLATES = {
     "accept.md",
     "analyze.md",
@@ -67,8 +68,9 @@ def test_central_implement_template_workspace_creation() -> None:
     content_lower = content.lower()
     assert "spec-kitty implement" in content, "implement.md should mention spec-kitty implement"
     assert "--base" in content, "implement.md should mention --base"
-    assert "worktree" in content_lower or "workspace" in content_lower, \
+    assert "worktree" in content_lower or "workspace" in content_lower, (
         "implement.md should mention worktree/workspace creation"
+    )
 
 
 def test_central_review_template_dependency_checks() -> None:

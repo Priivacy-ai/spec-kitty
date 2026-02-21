@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from rich.console import Console
+
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,
     detect_cycles,
@@ -76,8 +78,7 @@ def get_merge_order(
     if not has_dependency_info(graph):
         # No dependency info - fall back to numerical order with warning
         logger.warning(
-            "No dependency information found in WP frontmatter. "
-            "Falling back to numerical order (WP01, WP02, ...)."
+            "No dependency information found in WP frontmatter. Falling back to numerical order (WP01, WP02, ...)."
         )
         return sorted(wp_workspaces, key=lambda x: x[1])  # Sort by wp_id
 
@@ -109,7 +110,7 @@ def get_merge_order(
 
 def display_merge_order(
     ordered_workspaces: list[tuple[Path, str, str]],
-    console,
+    console: Console,
 ) -> None:
     """Display the merge order to the user.
 

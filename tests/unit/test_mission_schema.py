@@ -246,9 +246,7 @@ class TestGetFeatureMissionKey:
         """Should extract research mission key."""
         assert get_feature_mission_key(feature_with_research_mission) == "research"
 
-    def test_defaults_to_software_dev_when_no_mission_field(
-        self, legacy_feature: Path
-    ) -> None:
+    def test_defaults_to_software_dev_when_no_mission_field(self, legacy_feature: Path) -> None:
         """Should default to software-dev when mission field is missing."""
         assert get_feature_mission_key(legacy_feature) == "software-dev"
 
@@ -269,34 +267,22 @@ class TestGetFeatureMissionKey:
 class TestGetMissionForFeature:
     """Tests for get_mission_for_feature() function (T004)."""
 
-    def test_returns_correct_mission(
-        self, feature_with_mission: Path, sample_kittify_dir: Path
-    ) -> None:
+    def test_returns_correct_mission(self, feature_with_mission: Path, sample_kittify_dir: Path) -> None:
         """Should return the mission specified in meta.json."""
-        mission = get_mission_for_feature(
-            feature_with_mission, sample_kittify_dir.parent
-        )
+        mission = get_mission_for_feature(feature_with_mission, sample_kittify_dir.parent)
         assert mission.name == "Software Dev Kitty"
         assert mission.domain == "software"
 
-    def test_returns_research_mission(
-        self, feature_with_research_mission: Path, sample_kittify_dir: Path
-    ) -> None:
+    def test_returns_research_mission(self, feature_with_research_mission: Path, sample_kittify_dir: Path) -> None:
         """Should return research mission when specified."""
-        mission = get_mission_for_feature(
-            feature_with_research_mission, sample_kittify_dir.parent
-        )
+        mission = get_mission_for_feature(feature_with_research_mission, sample_kittify_dir.parent)
         assert mission.name == "Deep Research Kitty"
         assert mission.domain == "research"
 
-    def test_falls_back_on_invalid_mission(
-        self, feature_with_invalid_mission: Path, sample_kittify_dir: Path
-    ) -> None:
+    def test_falls_back_on_invalid_mission(self, feature_with_invalid_mission: Path, sample_kittify_dir: Path) -> None:
         """Should fall back to software-dev when mission doesn't exist."""
         with pytest.warns(UserWarning, match="not found"):
-            mission = get_mission_for_feature(
-                feature_with_invalid_mission, sample_kittify_dir.parent
-            )
+            mission = get_mission_for_feature(feature_with_invalid_mission, sample_kittify_dir.parent)
         assert mission.domain == "software"
 
     def test_raises_when_no_kittify_dir(self, tmp_path: Path) -> None:
@@ -313,17 +299,13 @@ class TestGetMissionForFeature:
 class TestGetMissionForFeatureLegacy:
     """Tests for backward compatibility with legacy features (T005)."""
 
-    def test_legacy_feature_defaults_to_software_dev(
-        self, legacy_feature: Path, sample_kittify_dir: Path
-    ) -> None:
+    def test_legacy_feature_defaults_to_software_dev(self, legacy_feature: Path, sample_kittify_dir: Path) -> None:
         """Features without mission field should use software-dev."""
         mission = get_mission_for_feature(legacy_feature, sample_kittify_dir.parent)
         assert mission.domain == "software"
         assert "software" in mission.name.lower()
 
-    def test_legacy_feature_no_warning(
-        self, legacy_feature: Path, sample_kittify_dir: Path
-    ) -> None:
+    def test_legacy_feature_no_warning(self, legacy_feature: Path, sample_kittify_dir: Path) -> None:
         """Legacy features should not produce warning (default is intentional)."""
         import warnings as w
 
@@ -331,9 +313,7 @@ class TestGetMissionForFeatureLegacy:
             w.simplefilter("always")
             get_mission_for_feature(legacy_feature, sample_kittify_dir.parent)
             # Should not warn since software-dev exists and is the default
-            mission_warnings = [
-                c for c in caught if "mission" in str(c.message).lower()
-            ]
+            mission_warnings = [c for c in caught if "mission" in str(c.message).lower()]
             assert len(mission_warnings) == 0
 
 
@@ -377,9 +357,7 @@ class TestDiscoverMissions:
         assert "broken" not in missions
         assert "software-dev" in missions
 
-    def test_skips_directories_without_mission_yaml(
-        self, sample_kittify_dir: Path
-    ) -> None:
+    def test_skips_directories_without_mission_yaml(self, sample_kittify_dir: Path) -> None:
         """Should skip directories that don't have mission.yaml."""
         # Create directory without mission.yaml
         empty_dir = sample_kittify_dir / "missions" / "empty-dir"

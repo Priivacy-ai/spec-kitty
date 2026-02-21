@@ -1,4 +1,5 @@
 """Error logging system for tracking failed actions (Manus pattern)."""
+
 from typing import List
 from .storage import ErrorStorage
 from .models import ErrorEntry

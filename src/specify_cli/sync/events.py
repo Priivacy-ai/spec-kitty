@@ -39,14 +39,17 @@ def get_emitter() -> EventEmitter:
             if _emitter is None:
                 # Start runtime before creating emitter (lazy singleton)
                 from .runtime import get_runtime
+
                 runtime = get_runtime()  # Auto-starts BackgroundSyncService + optional WS
 
                 # Ensure identity exists before creating emitter
                 import logging
+
                 logger = logging.getLogger(__name__)
                 try:
                     from .project_identity import ensure_identity
                     from specify_cli.tasks_support import find_repo_root, TaskCliError
+
                     try:
                         repo_root = find_repo_root()
                         ensure_identity(repo_root)
@@ -56,6 +59,7 @@ def get_emitter() -> EventEmitter:
                     logger.warning(f"Could not ensure identity: {e}")
 
                 from .emitter import EventEmitter
+
                 _emitter = EventEmitter()
 
                 # Wire emitter to runtime for WebSocket injection
@@ -80,7 +84,7 @@ def emit_wp_status_changed(
     actor: str = "user",
     feature_slug: str | None = None,
     causation_id: str | None = None,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Emit WPStatusChanged event via singleton."""
     return get_emitter().emit_wp_status_changed(

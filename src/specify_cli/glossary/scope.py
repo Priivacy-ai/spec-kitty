@@ -14,6 +14,7 @@ from .models import Provenance, SenseStatus, TermSense, TermSurface
 
 class GlossaryScope(Enum):
     """Glossary scope levels in the hierarchy."""
+
     MISSION_LOCAL = "mission_local"
     TEAM_DOMAIN = "team_domain"
     AUDIENCE_DOMAIN = "audience_domain"

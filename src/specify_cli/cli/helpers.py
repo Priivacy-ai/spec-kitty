@@ -6,6 +6,7 @@ import os
 import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.align import Align
@@ -23,7 +24,7 @@ TAGLINE = "Spec Kitty - Spec-Driven Development Toolkit (forked from GitHub Spec
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
 
-    def format_help(self, ctx, formatter):
+    def format_help(self, ctx: Any, formatter: Any) -> None:
         if _should_use_simple_help():
             _format_simple_help(self, ctx, formatter)
             return
@@ -106,7 +107,9 @@ def get_project_root_or_exit(start: Path | None = None) -> Path:
     project_root = locate_project_root(start)
     if project_root is None:
         console.print("[red]Error:[/red] Unable to locate the Spec Kitty project root (.kittify directory not found).")
-        console.print("[dim]Run this command from the project root or from a feature worktree under .worktrees/<feature>/.[/dim]")
+        console.print(
+            "[dim]Run this command from the project root or from a feature worktree under .worktrees/<feature>/.[/dim]"
+        )
         console.print("[dim]Tip: Initialize a project with 'spec-kitty init <name>' if one does not exist.[/dim]")
         raise typer.Exit(1)
     return project_root
@@ -162,4 +165,11 @@ def check_version_compatibility(project_root: Path, command_name: str) -> None:
         raise typer.Exit(1)
 
 
-__all__ = ["BannerGroup", "callback", "check_version_compatibility", "console", "get_project_root_or_exit", "show_banner"]
+__all__ = [
+    "BannerGroup",
+    "callback",
+    "check_version_compatibility",
+    "console",
+    "get_project_root_or_exit",
+    "show_banner",
+]

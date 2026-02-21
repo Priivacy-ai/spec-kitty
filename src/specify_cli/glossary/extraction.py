@@ -14,30 +14,121 @@ from typing import Any, Dict, List, Set
 
 # Compiled regex patterns for performance
 QUOTED_PHRASE_PATTERN = re.compile(r'"([^"]+)"')
-ACRONYM_PATTERN = re.compile(r'\b[A-Z]{2,5}\b')
-SNAKE_CASE_PATTERN = re.compile(r'\b[a-z]+_[a-z_]+\b')
-CAMEL_CASE_PATTERN = re.compile(r'\b[a-z]+[A-Z][a-zA-Z]+\b')
+ACRONYM_PATTERN = re.compile(r"\b[A-Z]{2,5}\b")
+SNAKE_CASE_PATTERN = re.compile(r"\b[a-z]+_[a-z_]+\b")
+CAMEL_CASE_PATTERN = re.compile(r"\b[a-z]+[A-Z][a-zA-Z]+\b")
 # Simple word pattern for validation
-WORD_PATTERN = re.compile(r'^[a-z][a-z]*$')
+WORD_PATTERN = re.compile(r"^[a-z][a-z]*$")
 
 # Common English words to exclude (top 100 most common)
 COMMON_WORDS = {
-    "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
-    "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-    "this", "but", "his", "by", "from", "they", "we", "say", "her", "she",
-    "or", "an", "will", "my", "one", "all", "would", "there", "their", "what",
-    "so", "up", "out", "if", "about", "who", "get", "which", "go", "me",
-    "when", "make", "can", "like", "time", "no", "just", "him", "know", "take",
-    "people", "into", "year", "your", "good", "some", "could", "them", "see", "other",
-    "than", "then", "now", "look", "only", "come", "its", "over", "think", "also",
-    "back", "after", "use", "two", "how", "our", "work", "first", "well", "way",
-    "even", "new", "want", "because", "any", "these", "give", "day", "most", "us"
+    "the",
+    "be",
+    "to",
+    "of",
+    "and",
+    "a",
+    "in",
+    "that",
+    "have",
+    "i",
+    "it",
+    "for",
+    "not",
+    "on",
+    "with",
+    "he",
+    "as",
+    "you",
+    "do",
+    "at",
+    "this",
+    "but",
+    "his",
+    "by",
+    "from",
+    "they",
+    "we",
+    "say",
+    "her",
+    "she",
+    "or",
+    "an",
+    "will",
+    "my",
+    "one",
+    "all",
+    "would",
+    "there",
+    "their",
+    "what",
+    "so",
+    "up",
+    "out",
+    "if",
+    "about",
+    "who",
+    "get",
+    "which",
+    "go",
+    "me",
+    "when",
+    "make",
+    "can",
+    "like",
+    "time",
+    "no",
+    "just",
+    "him",
+    "know",
+    "take",
+    "people",
+    "into",
+    "year",
+    "your",
+    "good",
+    "some",
+    "could",
+    "them",
+    "see",
+    "other",
+    "than",
+    "then",
+    "now",
+    "look",
+    "only",
+    "come",
+    "its",
+    "over",
+    "think",
+    "also",
+    "back",
+    "after",
+    "use",
+    "two",
+    "how",
+    "our",
+    "work",
+    "first",
+    "well",
+    "way",
+    "even",
+    "new",
+    "want",
+    "because",
+    "any",
+    "these",
+    "give",
+    "day",
+    "most",
+    "us",
 }
 
 
 @dataclass(frozen=True)
 class ExtractedTerm:
     """A term extracted from input text."""
+
     surface: str  # Normalized surface form
     source: str  # Source of extraction (metadata_hint, quoted_phrase, etc.)
     confidence: float  # Confidence score (0.0-1.0)
@@ -94,13 +185,7 @@ def extract_metadata_hints(metadata: Dict[str, Any]) -> List[ExtractedTerm]:
                         terms.add(normalized_canonical)
 
     return [
-        ExtractedTerm(
-            surface=term,
-            source="metadata_hint",
-            confidence=1.0,
-            original=term
-        )
-        for term in sorted(terms)
+        ExtractedTerm(surface=term, source="metadata_hint", confidence=1.0, original=term) for term in sorted(terms)
     ]
 
 
@@ -123,13 +208,7 @@ def extract_quoted_phrases(text: str) -> List[ExtractedTerm]:
             terms.add(normalized)
 
     return [
-        ExtractedTerm(
-            surface=term,
-            source="quoted_phrase",
-            confidence=0.8,
-            original=term
-        )
-        for term in sorted(terms)
+        ExtractedTerm(surface=term, source="quoted_phrase", confidence=0.8, original=term) for term in sorted(terms)
     ]
 
 
@@ -155,13 +234,7 @@ def extract_acronyms(text: str) -> List[ExtractedTerm]:
         terms.add(normalized)
 
     return [
-        ExtractedTerm(
-            surface=term,
-            source="acronym",
-            confidence=0.8,
-            original=term.upper()
-        )
-        for term in sorted(terms)
+        ExtractedTerm(surface=term, source="acronym", confidence=0.8, original=term.upper()) for term in sorted(terms)
     ]
 
 
@@ -191,13 +264,7 @@ def extract_casing_patterns(text: str) -> List[ExtractedTerm]:
             terms.add(normalized)
 
     return [
-        ExtractedTerm(
-            surface=term,
-            source="casing_pattern",
-            confidence=0.8,
-            original=term
-        )
-        for term in sorted(terms)
+        ExtractedTerm(surface=term, source="casing_pattern", confidence=0.8, original=term) for term in sorted(terms)
     ]
 
 
@@ -214,7 +281,7 @@ def extract_repeated_nouns(text: str, min_occurrences: int = 3) -> List[Extracte
     Note: This is a simple word-counting heuristic. Production might use NLP.
     """
     # Extract words (lowercase)
-    words = re.findall(r'\b[a-z]{3,}\b', text.lower())
+    words = re.findall(r"\b[a-z]{3,}\b", text.lower())
 
     # Count occurrences
     word_counts: Dict[str, int] = {}
@@ -223,19 +290,10 @@ def extract_repeated_nouns(text: str, min_occurrences: int = 3) -> List[Extracte
             word_counts[word] = word_counts.get(word, 0) + 1
 
     # Filter by min occurrences
-    repeated = {
-        word for word, count in word_counts.items()
-        if count >= min_occurrences
-    }
+    repeated = {word for word, count in word_counts.items() if count >= min_occurrences}
 
     return [
-        ExtractedTerm(
-            surface=word,
-            source="repeated_noun",
-            confidence=0.5,
-            original=word
-        )
-        for word in sorted(repeated)
+        ExtractedTerm(surface=word, source="repeated_noun", confidence=0.5, original=word) for word in sorted(repeated)
     ]
 
 
@@ -257,7 +315,7 @@ def normalize_term(surface: str) -> str:
     normalized = surface.lower().strip()
 
     # Stem-light: simple plural removal
-    if normalized.endswith('s') and len(normalized) > 3:
+    if normalized.endswith("s") and len(normalized) > 3:
         # workspaces -> workspace
         singular = normalized[:-1]
         if is_likely_word(singular):
@@ -289,36 +347,36 @@ def is_likely_word(text: str) -> bool:
         return False
 
     # Must have at least one vowel
-    if not any(c in text for c in 'aeiouy'):
+    if not any(c in text for c in "aeiouy"):
         return False
 
     # The original word (before stemming) is text + 's'
     # Check if original ends with patterns indicating it's already singular
-    original = text + 's'
+    original = text + "s"
 
     # Double-s words: class, glass, mass, pass, address, process, etc.
     # These are already singular - don't stem
-    if original.endswith('ss'):
+    if original.endswith("ss"):
         return False
 
     # -us endings: status, bonus, campus, etc.
     # These are already singular (or irregular Latin) - don't stem
-    if original.endswith('us'):
+    if original.endswith("us"):
         return False
 
     # -as endings: atlas, canvas, etc.
     # These are already singular - don't stem
-    if original.endswith('as') and len(original) > 3:
+    if original.endswith("as") and len(original) > 3:
         return False
 
     # -is endings: analysis, basis, crisis, etc.
     # These are already singular (Greek origin) - don't stem
-    if original.endswith('is'):
+    if original.endswith("is"):
         return False
 
     # -os endings: chaos, pathos, etc.
     # These are already singular (Greek origin) - don't stem
-    if original.endswith('os'):
+    if original.endswith("os"):
         return False
 
     return True
@@ -351,9 +409,7 @@ def score_confidence(term: str, source: str) -> float:
 
 
 def extract_all_terms(
-    text: str,
-    metadata: Dict[str, Any] | None = None,
-    limit_words: int = 1000
+    text: str, metadata: Dict[str, Any] | None = None, limit_words: int = 1000
 ) -> List[ExtractedTerm]:
     """Extract all terms from text using metadata hints and heuristics.
 
@@ -370,7 +426,7 @@ def extract_all_terms(
     # Limit input size for performance
     words = text.split()
     if len(words) > limit_words:
-        text = ' '.join(words[:limit_words])
+        text = " ".join(words[:limit_words])
 
     terms_by_surface: Dict[str, ExtractedTerm] = {}
 
@@ -397,7 +453,4 @@ def extract_all_terms(
             terms_by_surface[term.surface] = term
 
     # Sort by confidence (descending), then surface (alphabetical)
-    return sorted(
-        terms_by_surface.values(),
-        key=lambda t: (-t.confidence, t.surface)
-    )
+    return sorted(terms_by_surface.values(), key=lambda t: (-t.confidence, t.surface))

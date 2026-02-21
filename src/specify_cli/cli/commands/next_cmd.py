@@ -16,7 +16,7 @@ from specify_cli.core.feature_detection import (
 )
 from specify_cli.core.paths import locate_project_root
 from specify_cli.mission_v1.events import emit_event
-from specify_cli.next.decision import DecisionKind, decide_next
+from specify_cli.next.decision import Decision, DecisionKind, decide_next
 
 
 _VALID_RESULTS = ("success", "failed", "blocked")
@@ -25,11 +25,15 @@ _VALID_RESULTS = ("success", "failed", "blocked")
 @require_main_repo
 def next_step(
     agent: Annotated[str, typer.Option("--agent", help="Agent name (required)")],
-    result: Annotated[str, typer.Option("--result", help="Result of previous step: success|failed|blocked")] = "success",
+    result: Annotated[
+        str, typer.Option("--result", help="Result of previous step: success|failed|blocked")
+    ] = "success",
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[Optional[str], typer.Option("--answer", help="Answer to a pending decision")] = None,
-    decision_id: Annotated[Optional[str], typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
+    decision_id: Annotated[
+        Optional[str], typer.Option("--decision-id", help="Decision ID (required if multiple pending)")
+    ] = None,
 ) -> None:
     """Decide and emit the next agent action for the current mission.
 
@@ -148,7 +152,11 @@ def _handle_answer(
                 raise typer.Exit(1)
 
         answer_decision_via_runtime(
-            feature_slug, decision_id, answer, agent, repo_root_path,
+            feature_slug,
+            decision_id,
+            answer,
+            agent,
+            repo_root_path,
         )
 
         return decision_id
@@ -160,7 +168,7 @@ def _handle_answer(
         raise typer.Exit(1)
 
 
-def _print_human(decision) -> None:
+def _print_human(decision: Decision) -> None:
     """Print a human-readable summary."""
     kind = decision.kind.upper()
     print(f"[{kind}] {decision.mission} @ {decision.mission_state}")
@@ -182,7 +190,7 @@ def _print_human(decision) -> None:
 
     if getattr(decision, "question", None):
         print(f"  Question: {decision.question}")
-    if getattr(decision, "options", None):
+    if decision.options:
         for i, opt in enumerate(decision.options, 1):
             print(f"    {i}. {opt}")
     if decision.decision_id:
@@ -201,5 +209,5 @@ def _print_human(decision) -> None:
 
     if decision.prompt_file:
         print()
-        print(f"  Next step: read the prompt file:")
+        print("  Next step: read the prompt file:")
         print(f"    cat {decision.prompt_file}")

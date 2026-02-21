@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 class GlossaryError(Exception):
     """Base exception for glossary errors."""
+
     pass
 
 

@@ -131,7 +131,10 @@ def check_target_divergence(target_branch: str, repo_root: Path) -> tuple[bool, 
         ahead, behind = map(int, parts)
 
         if behind > 0:
-            return True, f"{target_branch} is {behind} commit(s) behind origin. Run: git checkout {target_branch} && git pull"
+            return (
+                True,
+                f"{target_branch} is {behind} commit(s) behind origin. Run: git checkout {target_branch} && git pull",
+            )
 
         return False, None
 
@@ -187,9 +190,7 @@ def run_preflight(
         for wp_id in missing_wps:
             lane = _wp_lane_from_feature(repo_root, feature_slug, wp_id)
             if lane == "done":
-                result.warnings.append(
-                    f"Skipping missing worktree check for {wp_id} (lane=done)."
-                )
+                result.warnings.append(f"Skipping missing worktree check for {wp_id} (lane=done).")
                 continue
 
             result.passed = False

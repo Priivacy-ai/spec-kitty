@@ -1,0 +1,70 @@
+contexts:
+  - name: Configuration & Project Structure
+    domainVisionStatement: Terms for configuration & project structure context.
+    meta:
+      Generated from: glossary/contexts/configuration-project-structure.md
+    terms:
+      - name: Vision
+        definition: A project-level intent document capturing the repository's purpose, desired 
+          outcomes, scope boundaries, and stakeholder overview. Created during Bootstrap as the 
+          first interactive step. Provides persistent context for all subsequent 
+          `/spec-kitty.specify` discovery interviews — agents reference it to align feature 
+          proposals with project intent. Deliberately purpose-first (not problem-first) to 
+          accommodate non-solution repositories (creative writing, exploration, research).
+        meta:
+          Context: Configuration
+          Status: candidate
+          Location: '`.kittify/memory/vision.md`'
+          Related terms: Bootstrap, Constitution, Feature
+          Distinction: Vision captures *what/why* (project intent). Constitution captures *how* 
+            (technical standards and governance). Different lifecycles, different audiences.
+      - name: Bootstrap
+        definition: The interactive onboarding command (`/spec-kitty.bootstrap`) proposed in 
+          architecture journeys to capture project-level intent and governance in a guided flow. It 
+          complements the current standalone `/spec-kitty.constitution` command. Intended outputs 
+          are `vision.md` (purpose, outcomes, scope) and `constitution.md` (technical standards, 
+          quality gates, governance), with optional paradigm customization for specialist agent 
+          profiles.
+        meta:
+          Context: Configuration
+          Status: candidate
+          Location: Proposed journey artifact; not yet the canonical live command path
+          Related terms: Vision, Constitution, Paradigm, Agent Profile
+          Journey: 001-project-onboarding-bootstrap
+          Phases: 1. Vision (required) → 2. Agent Customization (recommended) → 3. Technical 
+            Standards → 4. Code Quality (optional) → 5. Tribal Knowledge (optional) → 6. Governance 
+            (optional)
+      - name: '`.kittify/`'
+        definition: Spec Kitty's project-local configuration directory. Contains `config.yaml` 
+          (current source of truth for configured tool/agent routing), `merge-state.json` (merge 
+          progress), and `memory/constitution.md`. Distinct from `doctrine/` — `.kittify/` is 
+          SK-specific; `doctrine/` is the governance framework.
+        meta:
+          Context: Configuration
+          Status: canonical
+      - name: '`kitty-specs/`'
+        definition: Directory where all feature specifications, plans, tasks, and work package files
+          are stored. Follows naming pattern `<number>-<slug>/`. All planning artifacts are 
+          committed to the main branch here before implementation begins.
+        meta:
+          Context: Configuration
+          Status: canonical
+          Related terms: Feature
+      - name: VCS Lock
+        definition: The feature-level rule that VCS backend selection is persisted in `meta.json` at
+          creation time and remains fixed for that feature's lifecycle to keep WP execution 
+          consistent.
+        meta:
+          Context: Configuration
+          Status: canonical
+          In code: '`kitty-specs/<feature>/meta.json` (`vcs` field)'
+          Related terms: Feature, `kitty-specs/`
+      - name: '`doctrine/`'
+        definition: Directory (usually at project root) where Doctrine Stack artifacts live, 
+          distributed as a git subtree. Its root-level placement signals cross-cutting authority. 
+          Contains guidelines, directives, paradigms (or legacy approaches during migration), 
+          tactics, templates, and agent profiles.
+        meta:
+          Context: Configuration
+          Status: canonical
+          Related terms: Doctrine

@@ -22,7 +22,6 @@ from specify_cli.mission import (
 )
 from specify_cli.core.feature_detection import (
     detect_feature,
-    FeatureDetectionError,
 )
 
 app = typer.Typer(
@@ -148,7 +147,9 @@ def list_cmd() -> None:
     kittify_dir = project_root / ".kittify"
     if not kittify_dir.exists():
         console.print(f"[red]Spec Kitty project not initialized at:[/red] {project_root}")
-        console.print("[dim]Run 'spec-kitty init <project-name>' or execute this command from a feature worktree created under .worktrees/<feature>/.[/dim]")
+        console.print(
+            "[dim]Run 'spec-kitty init <project-name>' or execute this command from a feature worktree created under .worktrees/<feature>/.[/dim]"
+        )
         raise typer.Exit(1)
 
     try:
@@ -175,7 +176,7 @@ def _detect_current_feature(project_root: Path) -> Optional[str]:
         ctx = detect_feature(
             project_root,
             cwd=Path.cwd(),
-            mode="lenient"  # Return None instead of raising error
+            mode="lenient",  # Return None instead of raising error
         )
         return ctx.slug if ctx else None
     except Exception:
@@ -190,7 +191,7 @@ def current_cmd(
         "--feature",
         "-f",
         help="Feature slug (auto-detects from current directory if omitted)",
-    )
+    ),
 ) -> None:
     """Show currently active mission for a feature (auto-detects feature from cwd)."""
     project_root = get_project_root_or_exit()
@@ -266,9 +267,7 @@ def _print_active_worktrees(active_worktrees: Iterable[str]) -> None:
     console.print("\n[yellow]Active worktrees:[/yellow]")
     for wt in active_worktrees:
         console.print(f"  • {wt}")
-    console.print(
-        "\n[cyan]Suggestion:[/cyan] Complete, merge, or remove these worktrees before switching missions."
-    )
+    console.print("\n[cyan]Suggestion:[/cyan] Complete, merge, or remove these worktrees before switching missions.")
 
 
 @app.command("switch", deprecated=True)

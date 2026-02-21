@@ -1,4 +1,5 @@
 """Migration Robustness Tests."""
+
 from __future__ import annotations
 
 import multiprocessing
@@ -245,10 +246,7 @@ class TestMigrationRegistryCompleteness:
         Bug prevented: 0.13.2 release blocker (4 migrations missing from registry)
         """
         # Find all migration files (m_*.py, excluding __init__.py)
-        migration_files = sorted([
-            f.stem for f in MIGRATIONS_DIR.glob("m_*.py")
-            if f.stem != "__init__"
-        ])
+        migration_files = sorted([f.stem for f in MIGRATIONS_DIR.glob("m_*.py") if f.stem != "__init__"])
 
         # Get all registered migrations
         registered_migrations = MigrationRegistry.get_all()

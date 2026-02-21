@@ -62,14 +62,16 @@ class CompleteLaneMigration(BaseMigration):
     # System files to ignore when determining if a directory is empty
     # These files are created automatically by operating systems and should not
     # prevent lane directory cleanup
-    IGNORE_FILES = frozenset({
-        ".gitkeep",      # Git placeholder
-        ".DS_Store",     # macOS Finder metadata
-        "Thumbs.db",     # Windows thumbnail cache
-        "desktop.ini",   # Windows folder settings
-        ".directory",    # KDE folder settings
-        "._*",           # macOS resource fork prefix (pattern)
-    })
+    IGNORE_FILES = frozenset(
+        {
+            ".gitkeep",  # Git placeholder
+            ".DS_Store",  # macOS Finder metadata
+            "Thumbs.db",  # Windows thumbnail cache
+            "desktop.ini",  # Windows folder settings
+            ".directory",  # KDE folder settings
+            "._*",  # macOS resource fork prefix (pattern)
+        }
+    )
 
     @classmethod
     def _should_ignore_file(cls, filename: str) -> bool:
@@ -105,11 +107,7 @@ class CompleteLaneMigration(BaseMigration):
         if not directory.exists() or not directory.is_dir():
             return []
 
-        return [
-            item
-            for item in directory.iterdir()
-            if not cls._should_ignore_file(item.name)
-        ]
+        return [item for item in directory.iterdir() if not cls._should_ignore_file(item.name)]
 
     def detect(self, project_path: Path) -> bool:
         """Check if lane subdirectories exist OR worktrees have agent dirs/scripts."""
@@ -195,13 +193,9 @@ class CompleteLaneMigration(BaseMigration):
                 total_dirs_removed += dirs_removed
 
             if dry_run:
-                changes.append(
-                    f"Would migrate {total_migrated} files and remove {total_dirs_removed} lane directories"
-                )
+                changes.append(f"Would migrate {total_migrated} files and remove {total_dirs_removed} lane directories")
             else:
-                changes.append(
-                    f"Migrated {total_migrated} files and removed {total_dirs_removed} lane directories"
-                )
+                changes.append(f"Migrated {total_migrated} files and removed {total_dirs_removed} lane directories")
         else:
             changes.append("No lane subdirectories found")
 
@@ -316,9 +310,7 @@ class CompleteLaneMigration(BaseMigration):
 
                 elif item.is_dir():
                     # Handle nested directories (shouldn't exist but might)
-                    warnings.append(
-                        f"  Warning: Nested directory {lane}/{item.name}/ found - please check manually"
-                    )
+                    warnings.append(f"  Warning: Nested directory {lane}/{item.name}/ found - please check manually")
 
             # Clean up empty lane directory
             if not dry_run:
@@ -364,10 +356,10 @@ class CompleteLaneMigration(BaseMigration):
             return f'---\nlane: "{expected_lane}"\n---\n{content}'
 
         frontmatter_lines = lines[1:closing_idx]
-        body_lines = lines[closing_idx + 1:]
+        body_lines = lines[closing_idx + 1 :]
 
         # Check if lane field exists
-        lane_pattern = re.compile(r'^lane:\s*(.*)$')
+        lane_pattern = re.compile(r"^lane:\s*(.*)$")
         lane_found = False
         updated_lines = []
 
@@ -375,7 +367,7 @@ class CompleteLaneMigration(BaseMigration):
             match = lane_pattern.match(line)
             if match:
                 lane_found = True
-                current_value = match.group(1).strip().strip('"\'')
+                current_value = match.group(1).strip().strip("\"'")
                 if current_value != expected_lane:
                     # Replace with expected lane from directory
                     updated_lines.append(f'lane: "{expected_lane}"')
@@ -423,9 +415,7 @@ class CompleteLaneMigration(BaseMigration):
                     if dry_run:
                         is_symlink = commands_dir.is_symlink()
                         type_str = "symlink" if is_symlink else "directory"
-                        changes.append(
-                            f"[{worktree_name}] Would remove {agent_dir}/{subdir}/ ({type_str})"
-                        )
+                        changes.append(f"[{worktree_name}] Would remove {agent_dir}/{subdir}/ ({type_str})")
                     else:
                         try:
                             # Check if it's a symlink - handle differently
@@ -436,9 +426,7 @@ class CompleteLaneMigration(BaseMigration):
                                 )
                             elif commands_dir.is_dir():
                                 shutil.rmtree(commands_dir)
-                                changes.append(
-                                    f"[{worktree_name}] Removed {agent_dir}/{subdir}/ (inherits from main)"
-                                )
+                                changes.append(f"[{worktree_name}] Removed {agent_dir}/{subdir}/ (inherits from main)")
 
                             # Clean up parent directory if now empty
                             parent = commands_dir.parent
@@ -448,9 +436,7 @@ class CompleteLaneMigration(BaseMigration):
                             cleaned_this_worktree = True
 
                         except OSError as e:
-                            errors.append(
-                                f"[{worktree_name}] Failed to remove {agent_dir}/{subdir}/: {e}"
-                            )
+                            errors.append(f"[{worktree_name}] Failed to remove {agent_dir}/{subdir}/: {e}")
 
             # Remove .kittify/scripts/
             scripts_dir = worktree / ".kittify" / "scripts"
@@ -459,27 +445,19 @@ class CompleteLaneMigration(BaseMigration):
                 if dry_run:
                     is_symlink = scripts_dir.is_symlink()
                     type_str = "symlink" if is_symlink else "directory"
-                    changes.append(
-                        f"[{worktree_name}] Would remove .kittify/scripts/ ({type_str})"
-                    )
+                    changes.append(f"[{worktree_name}] Would remove .kittify/scripts/ ({type_str})")
                 else:
                     try:
                         # Check if it's a symlink - handle differently
                         if scripts_dir.is_symlink():
                             scripts_dir.unlink()
-                            changes.append(
-                                f"[{worktree_name}] Removed .kittify/scripts/ symlink (inherits from main)"
-                            )
+                            changes.append(f"[{worktree_name}] Removed .kittify/scripts/ symlink (inherits from main)")
                         elif scripts_dir.is_dir():
                             shutil.rmtree(scripts_dir)
-                            changes.append(
-                                f"[{worktree_name}] Removed .kittify/scripts/ (inherits from main)"
-                            )
+                            changes.append(f"[{worktree_name}] Removed .kittify/scripts/ (inherits from main)")
                         cleaned_this_worktree = True
                     except OSError as e:
-                        errors.append(
-                            f"[{worktree_name}] Failed to remove .kittify/scripts/: {e}"
-                        )
+                        errors.append(f"[{worktree_name}] Failed to remove .kittify/scripts/: {e}")
 
             if cleaned_this_worktree:
                 worktrees_cleaned += 1
@@ -494,9 +472,7 @@ class CompleteLaneMigration(BaseMigration):
 
         return changes, errors
 
-    def _normalize_all_frontmatter(
-        self, project_path: Path, dry_run: bool
-    ) -> Tuple[List[str], List[str], List[str]]:
+    def _normalize_all_frontmatter(self, project_path: Path, dry_run: bool) -> Tuple[List[str], List[str], List[str]]:
         """Normalize frontmatter in all markdown files for consistency.
 
         This ensures:
@@ -543,12 +519,14 @@ class CompleteLaneMigration(BaseMigration):
                     # Just check if it would change
                     try:
                         from specify_cli.frontmatter import FrontmatterManager
+
                         manager = FrontmatterManager()
                         original = md_file.read_text(encoding="utf-8-sig")
                         frontmatter, body = manager.read(md_file)
 
                         # Write to temp buffer
                         import io
+
                         buffer = io.StringIO()
                         buffer.write("---\n")
                         manager.yaml.dump(manager._normalize_frontmatter(frontmatter), buffer)
