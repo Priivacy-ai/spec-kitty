@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Local Parity-Drift Detector
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP04
 - WP05
@@ -559,3 +559,4 @@ When reviewing WP08:
 ## Activity Log
 
 - 2026-02-21T15:59:47Z – coordinator – shell_pid=99003 – lane=doing – Assigned agent via workflow command
+- 2026-02-21T16:02:16Z – coordinator – shell_pid=99003 – lane=for_review – Ready for review: Implemented complete parity-drift detector with 30 comprehensive tests, all passing
