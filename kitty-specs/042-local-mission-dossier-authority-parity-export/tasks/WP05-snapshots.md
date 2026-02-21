@@ -1,10 +1,13 @@
 ---
 work_package_id: WP05
 title: Snapshot Computation & Parity Hash
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
 - WP03
+base_branch: 042-local-mission-dossier-authority-parity-export-WP05-merge-base
+base_commit: 7b9158fad4f122121329f384f8e51bad82f70814
+created_at: '2026-02-21T15:56:20.857584+00:00'
 subtasks:
 - T023
 - T024
@@ -12,6 +15,7 @@ subtasks:
 - T026
 - T027
 feature_slug: 042-local-mission-dossier-authority-parity-export
+shell_pid: "93614"
 ---
 
 # WP05: Snapshot Computation & Parity Hash
