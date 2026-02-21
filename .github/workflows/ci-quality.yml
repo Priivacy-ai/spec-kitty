@@ -27,7 +27,7 @@ permissions:
   pull-requests: read
 
 jobs:
-  unit-quality:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
@@ -47,16 +47,16 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
 
+      - name: Install Node dependencies
+        run: npm ci
+
       - name: Prepare report directories
-        run: |
-          mkdir -p out/reports/xunit-reports
-          mkdir -p out/reports/coverage
-          mkdir -p out/reports/static-analysis
+        run: mkdir -p out/reports/static-analysis
 
       - name: Determine commit range
         id: commit_range
@@ -108,22 +108,12 @@ jobs:
             --config .markdownlint-cli2.jsonc \
             "${CHANGED_MD_FILES[@]}"
 
-      - name: Run unit-focused pytest with coverage
-        id: pytest
+      - name: Run ruff report
+        id: ruff
+        if: always()
         continue-on-error: true
         run: |
-          # Policy note: target coverage should be 80-90% for CORE domains,
-          # not a universal hard gate for edge-positioned code paths.
-          # Keep the current fail-under=90 unchanged for now.
-          python -m pytest \
-            -v \
-            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
-            --cov=src/specify_cli \
-            --cov=src/doctrine \
-            --cov-fail-under=90 \
-            --cov-report=term-missing \
-            --cov-report=xml:out/reports/coverage/coverage.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-unit-${{ github.run_id }}.xml
+          python -m ruff check src tests | tee out/reports/static-analysis/ruff-report.txt
 
       - name: Run mypy report
         id: mypy
@@ -132,18 +122,11 @@ jobs:
         run: |
           python -m mypy --strict src/specify_cli src/doctrine | tee out/reports/static-analysis/mypy-report.txt
 
-      - name: Run ruff report
-        id: ruff
-        if: always()
-        continue-on-error: true
-        run: |
-          python -m ruff check src tests | tee out/reports/static-analysis/ruff-report.txt
-
-      - name: Upload test artifacts
+      - name: Upload lint artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-quality-reports
+          name: lint-reports
           path: out/reports/
 
       - name: Fail job if required checks failed
@@ -151,21 +134,143 @@ jobs:
         run: |
           echo "commitlint outcome: ${{ steps.commitlint.outcome }}"
           echo "markdownlint outcome: ${{ steps.markdownlint.outcome }}"
-          echo "pytest outcome: ${{ steps.pytest.outcome }}"
-          echo "mypy outcome: ${{ steps.mypy.outcome }}"
           echo "ruff outcome: ${{ steps.ruff.outcome }}"
+          echo "mypy outcome: ${{ steps.mypy.outcome }}"
           if [ "${{ steps.commitlint.outcome }}" = "failure" ] || \
              [ "${{ steps.markdownlint.outcome }}" = "failure" ] || \
-             [ "${{ steps.pytest.outcome }}" != "success" ] || \
-             [ "${{ steps.mypy.outcome }}" != "success" ] || \
-             [ "${{ steps.ruff.outcome }}" != "success" ]; then
-            echo "One or more required quality checks failed."
+             [ "${{ steps.ruff.outcome }}" != "success" ] || \
+             [ "${{ steps.mypy.outcome }}" != "success" ]; then
+            echo "One or more lint checks failed."
             exit 1
           fi
 
+  unit-tests:
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Prepare report directories
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
+
+      - name: Run unit tests with coverage
+        run: |
+          python -m pytest \
+            -v \
+            tests/unit/ tests/doctrine/ tests/contract/ \
+            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --cov=src/specify_cli \
+            --cov=src/doctrine \
+            --cov-fail-under=90 \
+            --cov-report=term-missing \
+            --cov-report=xml:out/reports/coverage/coverage.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result-unit-${{ github.run_id }}.xml
+
+      - name: Upload unit test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: out/reports/
+
+  cli-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Prepare report directories
+        run: mkdir -p out/reports/xunit-reports
+
+      - name: Run CLI tests
+        run: |
+          python -m pytest \
+            -v \
+            tests/specify_cli/ tests/adversarial/ tests/test_template/ \
+            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --junitxml=out/reports/xunit-reports/xunit-result-cli-${{ github.run_id }}.xml
+
+      - name: Upload CLI test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-test-reports
+          path: out/reports/
+
+  sync-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Prepare report directories
+        run: mkdir -p out/reports/xunit-reports
+
+      - name: Run sync tests
+        run: |
+          python -m pytest \
+            -v \
+            tests/sync/ \
+            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --junitxml=out/reports/xunit-reports/xunit-result-sync-${{ github.run_id }}.xml
+
+      - name: Upload sync test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-test-reports
+          path: out/reports/
+
   integration-smoke:
     runs-on: ubuntu-latest
-    needs: unit-quality
+    needs: unit-tests
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended)
     timeout-minutes: 45
 
@@ -208,9 +313,59 @@ jobs:
           name: integration-smoke-reports
           path: out/reports/
 
+  dashboard-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended)
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare report directories
+        run: mkdir -p out/reports/xunit-reports
+
+      - name: Run dashboard tests
+        env:
+          PWHEADLESS: '1'
+        run: |
+          python -m pytest \
+            -v \
+            tests/test_dashboard/ \
+            -m "not e2e and not slow and not distribution and not orchestrator_smoke" \
+            --junitxml=out/reports/xunit-reports/xunit-result-dashboard-${{ github.run_id }}.xml
+
+      - name: Upload dashboard test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-test-reports
+          path: out/reports/
+
   sonarcloud:
     runs-on: ubuntu-latest
-    needs: unit-quality
+    needs: unit-tests
     if: always()
 
     steps:
@@ -234,7 +389,7 @@ jobs:
         if: steps.sonar_token.outputs.enabled == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: unit-quality-reports
+          name: unit-test-reports
           path: out/reports
 
       - name: Normalize xUnit path for SonarCloud

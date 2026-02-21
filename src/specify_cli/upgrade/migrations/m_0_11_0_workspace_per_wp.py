@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from importlib.abc import Traversable
+from importlib.resources.abc import Traversable
 from importlib.resources import files
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple

@@ -346,6 +346,9 @@ def execute_merge(
         else:
             tracker.complete("worktree", f"removed {len(ordered_workspaces)} worktrees")
 
+        # Clean up orphaned sparse-checkout config left by worktree operations
+        _cleanup_sparse_checkout_config(merge_root)
+
     # Step 9: Delete branches
     if delete_branch:
         tracker.start("branch")
@@ -547,6 +550,8 @@ def execute_legacy_merge(
                 cwd=merge_root,
             )
             tracker.complete("worktree", f"removed {feature_worktree_path}")
+            # Clean up orphaned sparse-checkout config left by worktree operations
+            _cleanup_sparse_checkout_config(merge_root)
         except Exception as exc:
             tracker.error("worktree", str(exc))
             console.print(
@@ -684,3 +689,43 @@ def _resolve_merge_conflicts(repo_root: Path, wp_id: str) -> str | None:
 
     files = "\n".join(f"  - {path.relative_to(repo_root)}" for path in remaining)
     return f"Merge for {wp_id} has unresolved conflicts:\n{files}"
+
+
+def _cleanup_sparse_checkout_config(repo_root: Path) -> None:
+    """Remove orphaned sparse-checkout git config after worktree removal.
+
+    Worktree operations enable core.sparseCheckout and core.sparseCheckoutCone
+    in the main repo's git config. After all worktrees are removed, these
+    config entries become orphaned and can cause unexpected behavior.
+    This function unsets them if no sparse-checkout file exists.
+    """
+    sparse_checkout_file = repo_root / ".git" / "info" / "sparse-checkout"
+    if sparse_checkout_file.exists():
+        return
+
+    # Check if any worktrees remain that might need sparse-checkout
+    try:
+        result = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        # Count worktrees (each has a "worktree <path>" line)
+        worktree_count = sum(
+            1 for line in result.stdout.splitlines() if line.startswith("worktree ")
+        )
+        # The main repo itself counts as one worktree
+        if worktree_count > 1:
+            return
+    except (subprocess.TimeoutExpired, OSError):
+        return
+
+    for config_key in ("core.sparseCheckout", "core.sparseCheckoutCone"):
+        subprocess.run(
+            ["git", "config", "--unset", config_key],
+            cwd=repo_root,
+            capture_output=True,
+            timeout=10,
+        )
