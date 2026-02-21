@@ -29,12 +29,7 @@ from specify_cli.mission_v1.schema import (
 # ---------------------------------------------------------------------------
 
 MISSION_YAML_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "specify_cli"
-    / "missions"
-    / "software-dev"
-    / "mission.yaml"
+    Path(__file__).resolve().parents[2] / "src" / "specify_cli" / "missions" / "software-dev" / "mission.yaml"
 )
 
 
@@ -98,15 +93,11 @@ class TestStateMachineStructure:
         assert len(transitions) == 6
 
     def test_advance_transitions_count(self, software_dev_config: dict) -> None:
-        advance_transitions = [
-            t for t in software_dev_config["transitions"] if t["trigger"] == "advance"
-        ]
+        advance_transitions = [t for t in software_dev_config["transitions"] if t["trigger"] == "advance"]
         assert len(advance_transitions) == 5
 
     def test_rework_transition_exists(self, software_dev_config: dict) -> None:
-        rework_transitions = [
-            t for t in software_dev_config["transitions"] if t["trigger"] == "rework"
-        ]
+        rework_transitions = [t for t in software_dev_config["transitions"] if t["trigger"] == "rework"]
         assert len(rework_transitions) == 1
         rework = rework_transitions[0]
         assert rework["source"] == "review"
@@ -172,23 +163,17 @@ class TestGuardConditions:
         t = self._get_transition(software_dev_config, "specify", "advance")
         assert 'artifact_exists("spec.md")' in t["conditions"]
 
-    def test_plan_to_implement_requires_plan_and_tasks(
-        self, software_dev_config: dict
-    ) -> None:
+    def test_plan_to_implement_requires_plan_and_tasks(self, software_dev_config: dict) -> None:
         t = self._get_transition(software_dev_config, "plan", "advance")
         conditions = t["conditions"]
         assert 'artifact_exists("plan.md")' in conditions
         assert 'artifact_exists("tasks.md")' in conditions
 
-    def test_implement_to_review_requires_all_wp_done(
-        self, software_dev_config: dict
-    ) -> None:
+    def test_implement_to_review_requires_all_wp_done(self, software_dev_config: dict) -> None:
         t = self._get_transition(software_dev_config, "implement", "advance")
         assert 'all_wp_status("done")' in t["conditions"]
 
-    def test_review_to_done_requires_review_approved(
-        self, software_dev_config: dict
-    ) -> None:
+    def test_review_to_done_requires_review_approved(self, software_dev_config: dict) -> None:
         t = self._get_transition(software_dev_config, "review", "advance")
         assert 'gate_passed("review_approved")' in t["conditions"]
 
@@ -217,9 +202,7 @@ class TestGuardsSection:
         expected = {"has_spec", "has_plan", "has_tasks", "all_wps_done", "review_passed"}
         assert set(software_dev_config["guards"].keys()) == expected
 
-    def test_each_guard_has_description_and_check(
-        self, software_dev_config: dict
-    ) -> None:
+    def test_each_guard_has_description_and_check(self, software_dev_config: dict) -> None:
         for name, guard in software_dev_config["guards"].items():
             assert "description" in guard, f"Guard '{name}' missing description"
             assert "check" in guard, f"Guard '{name}' missing check"
@@ -330,9 +313,7 @@ class TestMissionBlock:
 class TestStateReachability:
     """Every state is reachable from the initial state via transitions."""
 
-    def test_all_states_reachable_from_initial(
-        self, software_dev_config: dict
-    ) -> None:
+    def test_all_states_reachable_from_initial(self, software_dev_config: dict) -> None:
         initial = software_dev_config["initial"]
         state_names = {s["name"] for s in software_dev_config["states"]}
         transitions = software_dev_config["transitions"]
@@ -360,13 +341,9 @@ class TestStateReachability:
                 if neighbor not in visited:
                     queue.append(neighbor)
 
-        assert visited == state_names, (
-            f"Unreachable states: {state_names - visited}"
-        )
+        assert visited == state_names, f"Unreachable states: {state_names - visited}"
 
-    def test_triggers_available_from_review(
-        self, software_dev_config: dict
-    ) -> None:
+    def test_triggers_available_from_review(self, software_dev_config: dict) -> None:
         """Review state should have both 'advance' and 'rework' triggers."""
         triggers = set()
         for t in software_dev_config["transitions"]:

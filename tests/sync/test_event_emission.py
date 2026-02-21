@@ -131,7 +131,7 @@ class TestFinalizeTasksEmitsBatch:
                 wp_id=f"WP{i:02d}",
                 title=f"Work Package {i}",
                 feature_slug="028-cli-event-emission-sync",
-                dependencies=([f"WP{i-1:02d}"] if i > 1 else []),
+                dependencies=([f"WP{i - 1:02d}"] if i > 1 else []),
                 causation_id=causation_id,
             )
             assert wp is not None
@@ -252,8 +252,11 @@ class TestEmissionFailureNonBlocking:
         auth.is_authenticated.return_value = False
 
         em = EventEmitter(
-            clock=temp_clock, config=mock_config, queue=broken_queue,
-            _auth=auth, ws_client=None,
+            clock=temp_clock,
+            config=mock_config,
+            queue=broken_queue,
+            _auth=auth,
+            ws_client=None,
         )
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None  # Event still created, just not queued
@@ -330,9 +333,7 @@ class TestDependencyResolvedEmission:
 class TestIdentityInjection:
     """Tests for project_uuid and project_slug injection in events."""
 
-    def test_wp_status_changed_includes_identity(
-        self, emitter: EventEmitter, temp_queue: OfflineQueue
-    ):
+    def test_wp_status_changed_includes_identity(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """WPStatusChanged event includes project_uuid."""
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
@@ -345,9 +346,7 @@ class TestIdentityInjection:
         assert "project_slug" in event
         assert event["project_slug"] == "test-project"
 
-    def test_feature_created_includes_identity(
-        self, emitter: EventEmitter, temp_queue: OfflineQueue
-    ):
+    def test_feature_created_includes_identity(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """FeatureCreated event includes project_uuid."""
         event = emitter.emit_feature_created(
             feature_slug="032-identity-aware",
@@ -359,9 +358,7 @@ class TestIdentityInjection:
         assert "project_uuid" in event
         assert event["project_uuid"] is not None
 
-    def test_wp_created_includes_identity(
-        self, emitter: EventEmitter, temp_queue: OfflineQueue
-    ):
+    def test_wp_created_includes_identity(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """WPCreated event includes project_uuid."""
         event = emitter.emit_wp_created(
             wp_id="WP01",
@@ -372,9 +369,7 @@ class TestIdentityInjection:
         assert "project_uuid" in event
         assert event["project_uuid"] is not None
 
-    def test_identity_is_cached(
-        self, emitter: EventEmitter, temp_queue: OfflineQueue, mock_identity: ProjectIdentity
-    ):
+    def test_identity_is_cached(self, emitter: EventEmitter, temp_queue: OfflineQueue, mock_identity: ProjectIdentity):
         """Identity is resolved once and cached for subsequent events."""
         # Emit multiple events
         emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
@@ -390,9 +385,7 @@ class TestIdentityInjection:
 class TestMissingIdentityQueuesOnly:
     """Tests for events without identity being queued locally only."""
 
-    def test_missing_identity_queues_only(
-        self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue
-    ):
+    def test_missing_identity_queues_only(self, emitter_without_identity: EventEmitter, temp_queue: OfflineQueue):
         """Events without project_uuid are queued but not sent via WebSocket."""
         event = emitter_without_identity.emit_wp_status_changed(
             wp_id="WP01",
@@ -505,9 +498,7 @@ class TestNoDuplicateEmissions:
 class TestPolicyMetadataPassthrough:
     """Verify policy_metadata flows from sync.events wrapper through emitter to payload."""
 
-    def test_policy_metadata_included_in_payload(
-        self, emitter: EventEmitter, temp_queue: OfflineQueue
-    ):
+    def test_policy_metadata_included_in_payload(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """policy_metadata passed to emit_wp_status_changed() appears in event payload."""
         policy = {
             "orchestrator_id": "test-orch",
@@ -529,9 +520,7 @@ class TestPolicyMetadataPassthrough:
         assert event is not None
         assert event["payload"]["policy_metadata"] == policy
 
-    def test_policy_metadata_none_included_in_payload(
-        self, emitter: EventEmitter, temp_queue: OfflineQueue
-    ):
+    def test_policy_metadata_none_included_in_payload(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """policy_metadata=None is valid and included in payload."""
         event = emitter.emit_wp_status_changed(
             wp_id="WP01",
@@ -543,16 +532,12 @@ class TestPolicyMetadataPassthrough:
         assert event is not None
         assert event["payload"]["policy_metadata"] is None
 
-    def test_sync_events_wrapper_passes_policy_metadata(
-        self, emitter: EventEmitter, temp_queue: OfflineQueue
-    ):
+    def test_sync_events_wrapper_passes_policy_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """sync.events.emit_wp_status_changed() passes policy_metadata through to emitter."""
         from unittest.mock import patch
 
         policy = {"orchestrator_id": "orch-1", "orchestrator_version": "0.1.0"}
-        with patch(
-            "specify_cli.sync.events.get_emitter", return_value=emitter
-        ):
+        with patch("specify_cli.sync.events.get_emitter", return_value=emitter):
             from specify_cli.sync.events import emit_wp_status_changed as wrapper_emit
 
             event = wrapper_emit(

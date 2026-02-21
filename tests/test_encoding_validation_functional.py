@@ -61,21 +61,21 @@ class TestCharacterDetection:
         issue_map = {char: repl for _, _, char, repl in issues}
 
         # Smart quotes
-        assert '\u2019' in issue_map and issue_map['\u2019'] == "'", "RIGHT SINGLE QUOTE should map to '"
-        assert '\u201c' in issue_map and issue_map['\u201c'] == '"', "LEFT DOUBLE QUOTE should map to \""
-        assert '\u201d' in issue_map and issue_map['\u201d'] == '"', "RIGHT DOUBLE QUOTE should map to \""
+        assert "\u2019" in issue_map and issue_map["\u2019"] == "'", "RIGHT SINGLE QUOTE should map to '"
+        assert "\u201c" in issue_map and issue_map["\u201c"] == '"', 'LEFT DOUBLE QUOTE should map to "'
+        assert "\u201d" in issue_map and issue_map["\u201d"] == '"', 'RIGHT DOUBLE QUOTE should map to "'
 
         # Mathematical symbols
-        assert '\u00b1' in issue_map and issue_map['\u00b1'] == "+/-", "PLUS-MINUS should map to '+/-'"
-        assert '\u00b0' in issue_map and issue_map['\u00b0'] == " degrees", "DEGREE should map to ' degrees'"
-        assert '\u00d7' in issue_map and issue_map['\u00d7'] == "x", "MULTIPLICATION should map to 'x'"
+        assert "\u00b1" in issue_map and issue_map["\u00b1"] == "+/-", "PLUS-MINUS should map to '+/-'"
+        assert "\u00b0" in issue_map and issue_map["\u00b0"] == " degrees", "DEGREE should map to ' degrees'"
+        assert "\u00d7" in issue_map and issue_map["\u00d7"] == "x", "MULTIPLICATION should map to 'x'"
 
         # Other symbols
-        assert '\u2026' in issue_map and issue_map['\u2026'] == "...", "ELLIPSIS should map to '...'"
-        assert '\u2022' in issue_map and issue_map['\u2022'] == "*", "BULLET should map to '*'"
-        assert '\u00a9' in issue_map and issue_map['\u00a9'] == "(C)", "COPYRIGHT should map to '(C)'"
-        assert '\u2122' in issue_map and issue_map['\u2122'] == "(TM)", "TRADEMARK should map to '(TM)'"
-        assert '\u00ae' in issue_map and issue_map['\u00ae'] == "(R)", "REGISTERED should map to '(R)'"
+        assert "\u2026" in issue_map and issue_map["\u2026"] == "...", "ELLIPSIS should map to '...'"
+        assert "\u2022" in issue_map and issue_map["\u2022"] == "*", "BULLET should map to '*'"
+        assert "\u00a9" in issue_map and issue_map["\u00a9"] == "(C)", "COPYRIGHT should map to '(C)'"
+        assert "\u2122" in issue_map and issue_map["\u2122"] == "(TM)", "TRADEMARK should map to '(TM)'"
+        assert "\u00ae" in issue_map and issue_map["\u00ae"] == "(R)", "REGISTERED should map to '(R)'"
 
 
 class TestTextSanitization:
@@ -84,7 +84,9 @@ class TestTextSanitization:
     def test_sanitize_text_replaces_characters_correctly(self):
         """Verify sanitization replaces characters without corrupting text."""
         original = "User\u2019s \u201cfavorite\u201d feature costs $100 \u00b1 $10 at 72\u00b0F"
-        expected = 'User\'s "favorite" feature costs $100 +/- $10 at 72 degreesF'  # Note: " degrees" added, so "72 degreesF"
+        expected = (
+            'User\'s "favorite" feature costs $100 +/- $10 at 72 degreesF'  # Note: " degrees" added, so "72 degreesF"
+        )
 
         result = sanitize_markdown_text(original)
 
@@ -92,7 +94,7 @@ class TestTextSanitization:
         assert result == expected, f"Expected: {expected!r}\nGot: {result!r}"
 
         # No extra whitespace added
-        assert result.count(' ') == expected.count(' '), "Whitespace count should match"
+        assert result.count(" ") == expected.count(" "), "Whitespace count should match"
 
         # No content lost (all words preserved)
         original_words = original.split()
@@ -117,7 +119,7 @@ class TestFileSanitization:
         """Verify file sanitization creates .bak file before modifying."""
         with TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "test.md"
-            test_file.write_text("User\u2019s test", encoding='utf-8')
+            test_file.write_text("User\u2019s test", encoding="utf-8")
 
             # Sanitize with backup
             was_modified, error = sanitize_file(test_file, backup=True, dry_run=False)
@@ -127,7 +129,7 @@ class TestFileSanitization:
             assert error is None, f"Should not have error, got: {error}"
 
             # Backup file should exist
-            backup = test_file.with_suffix(test_file.suffix + '.bak')
+            backup = test_file.with_suffix(test_file.suffix + ".bak")
             assert backup.exists(), "Backup file should exist"
 
             # Backup should contain original content
@@ -147,11 +149,11 @@ class TestCp1252Encoding:
 
             # Write file with Windows-1252 encoding
             bad_content = "User\u2019s \u201ctest\u201d"
-            test_file.write_bytes(bad_content.encode('cp1252'))
+            test_file.write_bytes(bad_content.encode("cp1252"))
 
             # Verify it's broken for UTF-8
             with pytest.raises(UnicodeDecodeError):
-                test_file.read_text(encoding='utf-8')
+                test_file.read_text(encoding="utf-8")
 
             # Sanitize the file
             was_modified, error = sanitize_file(test_file, backup=True, dry_run=False)
@@ -160,11 +162,11 @@ class TestCp1252Encoding:
             assert error is None, f"Should not have error, got: {error}"
 
             # File should now be valid UTF-8
-            fixed_content = test_file.read_text(encoding='utf-8')
+            fixed_content = test_file.read_text(encoding="utf-8")
             assert fixed_content == 'User\'s "test"', f"Content should be fixed, got: {fixed_content!r}"
 
             # Backup should exist
-            backup = test_file.with_suffix('.md.bak')
+            backup = test_file.with_suffix(".md.bak")
             assert backup.exists(), "Backup should exist"
 
 
@@ -199,8 +201,7 @@ class TestDirectorySanitization:
             assert len(results) == 3, f"Expected 3 files, got {len(results)}: {list(results.keys())}"
 
             # All files should be modified
-            assert all(was_modified for was_modified, _ in results.values()), \
-                "All files should be marked as modified"
+            assert all(was_modified for was_modified, _ in results.values()), "All files should be marked as modified"
 
             # Verify all files are fixed
             for f in files:
@@ -208,8 +209,7 @@ class TestDirectorySanitization:
                 assert content == "User's test", f"File {f} should be fixed, got: {content!r}"
 
             # Verify .txt file was not modified
-            assert (base / "ignore.txt").read_text() == "User\u2019s test", \
-                ".txt file should not be sanitized"
+            assert (base / "ignore.txt").read_text() == "User\u2019s test", ".txt file should not be sanitized"
 
 
 class TestDryRunMode:
@@ -236,7 +236,7 @@ class TestDryRunMode:
             assert test_file.stat().st_mtime == original_mtime, "File mtime should not change"
 
             # No backup should be created
-            backup = test_file.with_suffix('.md.bak')
+            backup = test_file.with_suffix(".md.bak")
             assert not backup.exists(), "Backup should not be created in dry-run mode"
 
 
@@ -290,15 +290,16 @@ class TestEdgeCases:
         """Verify sanitizer handles binary files gracefully."""
         with TemporaryDirectory() as tmpdir:
             binary_file = Path(tmpdir) / "image.md"  # .md extension but binary content
-            binary_file.write_bytes(b'\x00\x01\x02\xff\xfe\xfd')
+            binary_file.write_bytes(b"\x00\x01\x02\xff\xfe\xfd")
 
             # Should not crash
             was_modified, error = sanitize_file(binary_file, backup=False, dry_run=False)
 
             # Should either handle gracefully or report error
             if error:
-                assert "encoding" in error.lower() or "decode" in error.lower(), \
+                assert "encoding" in error.lower() or "decode" in error.lower(), (
                     f"Error should mention encoding issue: {error}"
+                )
             else:
                 # If no error, file should still exist
                 assert binary_file.exists()
@@ -345,8 +346,9 @@ class TestEdgeCases:
 
                 # Should report error
                 assert error is not None, "Should report permission error"
-                assert "permission" in error.lower() or "denied" in error.lower() or "read-only" in error.lower(), \
+                assert "permission" in error.lower() or "denied" in error.lower() or "read-only" in error.lower(), (
                     f"Error should mention permission issue: {error}"
+                )
             finally:
                 # Restore permissions for cleanup
                 try:
@@ -382,7 +384,7 @@ class TestRegressions:
             test_file = Path(tmpdir) / "test.md"
             test_file.write_text("User\u2019s test")
 
-            backup_file = test_file.with_suffix('.md.bak')
+            backup_file = test_file.with_suffix(".md.bak")
             existing_backup_content = "EXISTING BACKUP CONTENT"
             backup_file.write_text(existing_backup_content)
 

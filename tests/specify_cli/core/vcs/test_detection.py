@@ -138,14 +138,10 @@ class TestJJDetection:
 
     def test_get_jj_version_returns_none_when_not_installed(self):
         """Should return None if jj is not available."""
-        with patch(
-            "specify_cli.core.vcs.detection.is_jj_available", return_value=False
-        ):
+        with patch("specify_cli.core.vcs.detection.is_jj_available", return_value=False):
             _clear_detection_cache()
             # Need to also patch is_jj_available check inside get_jj_version
-            with patch(
-                "specify_cli.core.vcs.detection.shutil.which", return_value=None
-            ):
+            with patch("specify_cli.core.vcs.detection.shutil.which", return_value=None):
                 _clear_detection_cache()
                 result = get_jj_version()
                 # Either None or the cached result
@@ -180,12 +176,8 @@ class TestDetectAvailableBackends:
 
     def test_empty_when_nothing_available(self):
         """Should return empty list when no VCS tools available."""
-        with patch(
-            "specify_cli.core.vcs.detection.is_jj_available", return_value=False
-        ):
-            with patch(
-                "specify_cli.core.vcs.detection.is_git_available", return_value=False
-            ):
+        with patch("specify_cli.core.vcs.detection.is_jj_available", return_value=False):
+            with patch("specify_cli.core.vcs.detection.is_git_available", return_value=False):
                 backends = detect_available_backends()
                 assert backends == []
 
@@ -233,28 +225,20 @@ class TestGetVCS:
 
     def test_falls_back_to_git(self):
         """Should fall back to git when jj not available."""
-        with patch(
-            "specify_cli.core.vcs.detection.is_jj_available", return_value=False
-        ):
+        with patch("specify_cli.core.vcs.detection.is_jj_available", return_value=False):
             vcs = get_vcs(Path("."), prefer_jj=True)
             assert vcs.backend == VCSBackend.GIT
 
     def test_raises_when_nothing_available(self):
         """Should raise VCSNotFoundError when no VCS available."""
-        with patch(
-            "specify_cli.core.vcs.detection.is_jj_available", return_value=False
-        ):
-            with patch(
-                "specify_cli.core.vcs.detection.is_git_available", return_value=False
-            ):
+        with patch("specify_cli.core.vcs.detection.is_jj_available", return_value=False):
+            with patch("specify_cli.core.vcs.detection.is_git_available", return_value=False):
                 with pytest.raises(VCSNotFoundError):
                     get_vcs(Path("."))
 
     def test_raises_when_requested_backend_not_available(self):
         """Should raise VCSNotFoundError if requested backend not available."""
-        with patch(
-            "specify_cli.core.vcs.detection.is_jj_available", return_value=False
-        ):
+        with patch("specify_cli.core.vcs.detection.is_jj_available", return_value=False):
             with pytest.raises(VCSNotFoundError):
                 get_vcs(Path("."), backend=VCSBackend.JUJUTSU)
 

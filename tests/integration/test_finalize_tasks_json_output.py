@@ -22,9 +22,7 @@ def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
 
     env = os.environ.copy()
     src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(
-        os.pathsep
-    )
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
     env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
     return subprocess.run(
@@ -44,15 +42,10 @@ def create_test_feature(repo: Path) -> Path:
     kittify = repo / ".kittify"
     kittify.mkdir(exist_ok=True)
 
-    config = {
-        "vcs": {"type": "git"},
-        "agents": {"available": ["claude"]}
-    }
+    config = {"vcs": {"type": "git"}, "agents": {"available": ["claude"]}}
     (kittify / "config.yaml").write_text(yaml.dump(config))
 
-    metadata = {
-        "spec_kitty": {"version": "0.13.8"}
-    }
+    metadata = {"spec_kitty": {"version": "0.13.8"}}
     (kittify / "metadata.yaml").write_text(yaml.dump(metadata))
 
     # Create feature
@@ -71,20 +64,12 @@ def create_test_feature(repo: Path) -> Path:
     (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
 
     # Create tasks.md
-    (feature_dir / "tasks.md").write_text(
-        "# Tasks\n\n## WP01\n\nSetup\n\n## WP02\n\nDepends on WP01\n"
-    )
+    (feature_dir / "tasks.md").write_text("# Tasks\n\n## WP01\n\nSetup\n\n## WP02\n\nDepends on WP01\n")
 
     # Create WP files
     for wp_id in ["WP01", "WP02"]:
         wp_file = tasks_dir / f"{wp_id}-test.md"
-        wp_file.write_text(
-            f"---\n"
-            f"work_package_id: {wp_id}\n"
-            f"lane: planned\n"
-            f"---\n\n"
-            f"# {wp_id}\n"
-        )
+        wp_file.write_text(f"---\nwork_package_id: {wp_id}\nlane: planned\n---\n\n# {wp_id}\n")
 
     # Commit base state
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)

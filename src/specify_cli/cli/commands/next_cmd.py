@@ -25,11 +25,15 @@ _VALID_RESULTS = ("success", "failed", "blocked")
 @require_main_repo
 def next_step(
     agent: Annotated[str, typer.Option("--agent", help="Agent name (required)")],
-    result: Annotated[str, typer.Option("--result", help="Result of previous step: success|failed|blocked")] = "success",
+    result: Annotated[
+        str, typer.Option("--result", help="Result of previous step: success|failed|blocked")
+    ] = "success",
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[Optional[str], typer.Option("--answer", help="Answer to a pending decision")] = None,
-    decision_id: Annotated[Optional[str], typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
+    decision_id: Annotated[
+        Optional[str], typer.Option("--decision-id", help="Decision ID (required if multiple pending)")
+    ] = None,
 ) -> None:
     """Decide and emit the next agent action for the current mission.
 
@@ -148,7 +152,11 @@ def _handle_answer(
                 raise typer.Exit(1)
 
         answer_decision_via_runtime(
-            feature_slug, decision_id, answer, agent, repo_root_path,
+            feature_slug,
+            decision_id,
+            answer,
+            agent,
+            repo_root_path,
         )
 
         return decision_id

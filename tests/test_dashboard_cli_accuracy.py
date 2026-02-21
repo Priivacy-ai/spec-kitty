@@ -66,14 +66,9 @@ def kill_dashboard_process(port: int):
     """Kill any dashboard process running on the given port."""
     try:
         # Find process using the port
-        result = subprocess.run(
-            ["lsof", "-ti", f":{port}"],
-            capture_output=True,
-            text=True,
-            check=False
-        )
+        result = subprocess.run(["lsof", "-ti", f":{port}"], capture_output=True, text=True, check=False)
         if result.stdout.strip():
-            pids = result.stdout.strip().split('\n')
+            pids = result.stdout.strip().split("\n")
             for pid in pids:
                 try:
                     os.kill(int(pid), signal.SIGTERM)
@@ -88,14 +83,9 @@ def kill_all_spec_kitty_dashboards():
     """Kill all spec-kitty dashboard processes (test cleanup)."""
     try:
         # Find all Python processes running run_dashboard_server
-        result = subprocess.run(
-            ["pgrep", "-f", "run_dashboard_server"],
-            capture_output=True,
-            text=True,
-            check=False
-        )
+        result = subprocess.run(["pgrep", "-f", "run_dashboard_server"], capture_output=True, text=True, check=False)
         if result.stdout.strip():
-            pids = result.stdout.strip().split('\n')
+            pids = result.stdout.strip().split("\n")
             for pid in pids:
                 try:
                     os.kill(int(pid), signal.SIGKILL)
@@ -159,29 +149,31 @@ class TestDashboardCLIStatusReporting:
             try:
                 if dashboard_running:
                     # BUG DETECTION: If dashboard is running, CLI should have reported success
-                    assert result.returncode == 0, \
-                        f"CLI should report success (exit 0) when dashboard starts, " \
-                        f"got exit code {result.returncode}.\n" \
-                        f"Dashboard IS accessible on port {test_port}.\n" \
-                        f"CLI output: {result.stdout}\n" \
+                    assert result.returncode == 0, (
+                        f"CLI should report success (exit 0) when dashboard starts, "
+                        f"got exit code {result.returncode}.\n"
+                        f"Dashboard IS accessible on port {test_port}.\n"
+                        f"CLI output: {result.stdout}\n"
                         f"CLI stderr: {result.stderr}"
+                    )
 
                     # Should show success message
                     output = result.stdout + result.stderr
-                    assert "✅" in output or "success" in output.lower() or "running" in output.lower(), \
-                        f"CLI should show success message when dashboard starts.\n" \
-                        f"Dashboard IS accessible on port {test_port}.\n" \
+                    assert "✅" in output or "success" in output.lower() or "running" in output.lower(), (
+                        f"CLI should show success message when dashboard starts.\n"
+                        f"Dashboard IS accessible on port {test_port}.\n"
                         f"Got: {output}"
+                    )
 
                     # Should NOT show error message
-                    assert "❌" not in output and "Unable to start" not in output, \
-                        f"CLI should NOT show error when dashboard is running.\n" \
-                        f"Dashboard IS accessible on port {test_port}.\n" \
+                    assert "❌" not in output and "Unable to start" not in output, (
+                        f"CLI should NOT show error when dashboard is running.\n"
+                        f"Dashboard IS accessible on port {test_port}.\n"
                         f"Got: {output}"
+                    )
                 else:
                     # Dashboard not running - CLI should report error
-                    assert result.returncode != 0, \
-                        "CLI should report error when dashboard doesn't start"
+                    assert result.returncode != 0, "CLI should report error when dashboard doesn't start"
 
             finally:
                 # Cleanup: Kill the dashboard
@@ -202,14 +194,14 @@ class TestDashboardCLIStatusReporting:
             )
 
             # Should report error
-            assert result.returncode != 0, \
-                "CLI should exit with error when project not initialized"
+            assert result.returncode != 0, "CLI should exit with error when project not initialized"
 
             output = result.stdout + result.stderr
 
             # Should show error message
-            assert "❌" in output or "error" in output.lower() or "Unable" in output, \
+            assert "❌" in output or "error" in output.lower() or "Unable" in output, (
                 f"CLI should show error message when dashboard fails. Got: {output}"
+            )
 
     def test_dashboard_accessibility_matches_cli_status(self):
         """Verify CLI status matches whether dashboard is actually accessible."""
@@ -244,12 +236,13 @@ class TestDashboardCLIStatusReporting:
 
             try:
                 # This is the key assertion - they should match
-                assert is_accessible == cli_reported_success, \
-                    f"CLI status (exit {result.returncode}) should match dashboard accessibility ({is_accessible}).\n" \
-                    f"Dashboard accessible: {is_accessible}\n" \
-                    f"CLI reported success: {cli_reported_success}\n" \
-                    f"CLI output: {result.stdout}\n" \
+                assert is_accessible == cli_reported_success, (
+                    f"CLI status (exit {result.returncode}) should match dashboard accessibility ({is_accessible}).\n"
+                    f"Dashboard accessible: {is_accessible}\n"
+                    f"CLI reported success: {cli_reported_success}\n"
+                    f"CLI output: {result.stdout}\n"
                     f"CLI stderr: {result.stderr}"
+                )
             finally:
                 kill_dashboard_process(test_port)
 
@@ -285,21 +278,15 @@ class TestDashboardProcessLifecycle:
             time.sleep(2)
 
             # Check if process exists
-            ps_result = subprocess.run(
-                ["lsof", "-ti", f":{test_port}"],
-                capture_output=True,
-                text=True
-            )
+            ps_result = subprocess.run(["lsof", "-ti", f":{test_port}"], capture_output=True, text=True)
 
             try:
                 has_process = bool(ps_result.stdout.strip())
 
-                assert has_process, \
-                    f"Dashboard process should exist on port {test_port} after command runs"
+                assert has_process, f"Dashboard process should exist on port {test_port} after command runs"
 
                 # Verify it's accessible
-                assert is_dashboard_accessible(test_port), \
-                    f"Dashboard should be accessible on port {test_port}"
+                assert is_dashboard_accessible(test_port), f"Dashboard should be accessible on port {test_port}"
             finally:
                 kill_dashboard_process(test_port)
 
@@ -342,13 +329,15 @@ class TestDashboardProcessLifecycle:
 
                 # Should not be accessible anymore
                 still_accessible = is_dashboard_accessible(test_port, timeout=1.0)
-                assert not still_accessible, \
+                assert not still_accessible, (
                     f"Dashboard should be stopped after --kill, but still accessible on {test_port}"
+                )
 
                 # Kill command should report success
                 output = kill_result.stdout + kill_result.stderr
-                assert "✅" in output or "stopped" in output.lower() or "killed" in output.lower(), \
+                assert "✅" in output or "stopped" in output.lower() or "killed" in output.lower(), (
                     f"--kill should report success. Got: {output}"
+                )
 
 
 class TestDashboardErrorMessages:
@@ -372,12 +361,14 @@ class TestDashboardErrorMessages:
             output = result.stdout + result.stderr
 
             # Should mention init or project setup
-            assert "init" in output.lower() or "project" in output.lower() or ".kittify" in output.lower(), \
+            assert "init" in output.lower() or "project" in output.lower() or ".kittify" in output.lower(), (
                 f"Error should suggest initialization or mention project. Got: {output}"
+            )
 
             # Should mention project or worktree
-            assert "project" in output.lower() or "worktree" in output.lower(), \
+            assert "project" in output.lower() or "worktree" in output.lower(), (
                 f"Error should mention project or worktree. Got: {output}"
+            )
 
 
 class TestDashboardAPIVerification:
@@ -419,16 +410,13 @@ class TestDashboardAPIVerification:
                 # Test API endpoint
                 if is_dashboard_accessible(test_port):
                     with urlopen(f"http://127.0.0.1:{test_port}/api/features", timeout=3.0) as response:
-                        assert response.status == 200, \
-                            "API should return 200 when dashboard running"
+                        assert response.status == 200, "API should return 200 when dashboard running"
 
                         data = json.loads(response.read().decode())
-                        assert "features" in data, \
-                            f"API should return features list. Got: {data}"
+                        assert "features" in data, f"API should return features list. Got: {data}"
 
                         # Should have features array
-                        assert len(data["features"]) >= 0, \
-                            "Should return features array (may be empty)"
+                        assert len(data["features"]) >= 0, "Should return features array (may be empty)"
             finally:
                 kill_dashboard_process(test_port)
 
@@ -519,11 +507,12 @@ class TestDashboardRaceConditions:
 
                     # This test will catch race conditions where dashboard starts
                     # but CLI reports error due to timing
-                    assert result.returncode == 0 or "running" in output.lower(), \
-                        f"CLI should indicate success if dashboard is accessible.\n" \
-                        f"Dashboard IS running on port {test_port}.\n" \
-                        f"CLI exit code: {result.returncode}\n" \
+                    assert result.returncode == 0 or "running" in output.lower(), (
+                        f"CLI should indicate success if dashboard is accessible.\n"
+                        f"Dashboard IS running on port {test_port}.\n"
+                        f"CLI exit code: {result.returncode}\n"
                         f"CLI output: {output}"
+                    )
             finally:
                 kill_dashboard_process(test_port)
 
@@ -558,11 +547,7 @@ class TestDashboardCleanup:
             time.sleep(2)
 
             # Get process ID
-            ps_before = subprocess.run(
-                ["lsof", "-ti", f":{test_port}"],
-                capture_output=True,
-                text=True
-            )
+            ps_before = subprocess.run(["lsof", "-ti", f":{test_port}"], capture_output=True, text=True)
 
             if ps_before.stdout.strip():
                 # Kill dashboard
@@ -575,19 +560,16 @@ class TestDashboardCleanup:
                 time.sleep(2)
 
                 # Check process is gone
-                ps_after = subprocess.run(
-                    ["lsof", "-ti", f":{test_port}"],
-                    capture_output=True,
-                    text=True
+                ps_after = subprocess.run(["lsof", "-ti", f":{test_port}"], capture_output=True, text=True)
+
+                assert not ps_after.stdout.strip(), (
+                    f"Dashboard process should be terminated after --kill.\nProcess still running: {ps_after.stdout}"
                 )
 
-                assert not ps_after.stdout.strip(), \
-                    f"Dashboard process should be terminated after --kill.\n" \
-                    f"Process still running: {ps_after.stdout}"
-
                 # Verify not accessible
-                assert not is_dashboard_accessible(test_port, timeout=1.0), \
+                assert not is_dashboard_accessible(test_port, timeout=1.0), (
                     "Dashboard should not be accessible after --kill"
+                )
 
 
 # Module-level cleanup: Kill ALL orphaned dashboards before and after entire test module
@@ -633,17 +615,9 @@ def test_dashboard_with_symlinked_kitty_specs():
         # Initialize git repo (required by dashboard)
         subprocess.run(["git", "init"], cwd=test_project, check=True, capture_output=True)
         subprocess.run(
-            ["git", "config", "user.email", "test@example.com"],
-            cwd=test_project,
-            check=True,
-            capture_output=True
+            ["git", "config", "user.email", "test@example.com"], cwd=test_project, check=True, capture_output=True
         )
-        subprocess.run(
-            ["git", "config", "user.name", "Test User"],
-            cwd=test_project,
-            check=True,
-            capture_output=True
-        )
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=test_project, check=True, capture_output=True)
 
         # Create a worktree structure
         worktrees_dir = test_project / ".worktrees"
@@ -667,8 +641,7 @@ def test_dashboard_with_symlinked_kitty_specs():
 
         # Verify symlink structure
         assert kitty_specs.is_symlink(), "kitty-specs should be a symlink"
-        assert (kitty_specs / "001-test-feature" / "spec.md").exists(), \
-            "Should access spec.md through symlink"
+        assert (kitty_specs / "001-test-feature" / "spec.md").exists(), "Should access spec.md through symlink"
 
         try:
             # Run dashboard command
@@ -686,19 +659,19 @@ def test_dashboard_with_symlinked_kitty_specs():
 
             # Dashboard should start successfully
             if is_dashboard_accessible(test_port):
-                assert result.returncode == 0, \
-                    f"CLI should report success when dashboard accessible.\n" \
-                    f"Exit code: {result.returncode}\n" \
-                    f"Stdout: {result.stdout}\n" \
+                assert result.returncode == 0, (
+                    f"CLI should report success when dashboard accessible.\n"
+                    f"Exit code: {result.returncode}\n"
+                    f"Stdout: {result.stdout}\n"
                     f"Stderr: {result.stderr}"
+                )
 
-                assert "✅" in result.stdout or "started" in result.stdout.lower(), \
-                    f"CLI should show success message when dashboard running.\n" \
-                    f"Stdout: {result.stdout}"
+                assert "✅" in result.stdout or "started" in result.stdout.lower(), (
+                    f"CLI should show success message when dashboard running.\nStdout: {result.stdout}"
+                )
             else:
                 # If dashboard not accessible, error is acceptable
-                assert result.returncode != 0, \
-                    "CLI should report error when dashboard not accessible"
+                assert result.returncode != 0, "CLI should report error when dashboard not accessible"
 
         finally:
             # Cleanup

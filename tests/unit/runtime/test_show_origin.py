@@ -21,6 +21,7 @@ from specify_cli.runtime.show_origin import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _create_file(path: Path, content: str = "placeholder") -> Path:
     """Create a file (and any missing parent dirs), return its path."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -118,9 +119,7 @@ class TestCollectOriginsBasic:
         ):
             entries = collect_origins(project)
 
-        resolver_entries = [
-            e for e in entries if e.asset_type in ("template", "command", "mission")
-        ]
+        resolver_entries = [e for e in entries if e.asset_type in ("template", "command", "mission")]
         assert len(resolver_entries) > 0
         for entry in resolver_entries:
             assert entry.resolved_path is None
@@ -335,12 +334,8 @@ class TestShowOriginTierLabels:
         ):
             entries = collect_origins(project)
 
-        specify_cmd = next(
-            e for e in entries if e.asset_type == "command" and e.name == "specify.md"
-        )
-        plan_cmd = next(
-            e for e in entries if e.asset_type == "command" and e.name == "plan.md"
-        )
+        specify_cmd = next(e for e in entries if e.asset_type == "command" and e.name == "specify.md")
+        plan_cmd = next(e for e in entries if e.asset_type == "command" and e.name == "plan.md")
 
         assert specify_cmd.tier == "override"
         assert plan_cmd.tier == "package_default"
@@ -375,12 +370,8 @@ class TestShowOriginTierLabels:
         ):
             entries = collect_origins(project)
 
-        sw_entry = next(
-            e for e in entries if e.asset_type == "mission" and e.name == "software-dev"
-        )
-        res_entry = next(
-            e for e in entries if e.asset_type == "mission" and e.name == "research"
-        )
+        sw_entry = next(e for e in entries if e.asset_type == "mission" and e.name == "software-dev")
+        res_entry = next(e for e in entries if e.asset_type == "mission" and e.name == "research")
 
         assert sw_entry.tier == "override"
         assert res_entry.tier == "package_default"

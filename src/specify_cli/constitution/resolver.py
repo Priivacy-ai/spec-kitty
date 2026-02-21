@@ -17,9 +17,7 @@ from specify_cli.constitution.sync import (
 )
 
 DEFAULT_TEMPLATE_SET = "software-dev-default"
-DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset(
-    {"spec-kitty", "git", "python", "pytest", "ruff", "mypy", "poetry"}
-)
+DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git", "python", "pytest", "ruff", "mypy", "poetry"})
 
 
 class GovernanceResolutionError(ValueError):
@@ -62,16 +60,12 @@ def resolve_governance(
     diagnostics: list[str] = []
 
     if selected_profiles:
-        missing_profiles = sorted(
-            profile for profile in selected_profiles if profile not in catalog
-        )
+        missing_profiles = sorted(profile for profile in selected_profiles if profile not in catalog)
         if missing_profiles:
             raise GovernanceResolutionError(
                 [
-                    "Selected agent profiles are not available: "
-                    + ", ".join(missing_profiles),
-                    "Update constitution selected_agent_profiles or add matching "
-                    "profiles to agents.yaml.",
+                    "Selected agent profiles are not available: " + ", ".join(missing_profiles),
+                    "Update constitution selected_agent_profiles or add matching profiles to agents.yaml.",
                 ]
             )
         resolved_profiles = [catalog[profile] for profile in selected_profiles]
@@ -79,23 +73,17 @@ def resolve_governance(
     else:
         resolved_profiles = list(catalog.values())
         profile_source = "catalog_fallback"
-        diagnostics.append(
-            "No selected_agent_profiles provided; using full profile catalog fallback."
-        )
+        diagnostics.append("No selected_agent_profiles provided; using full profile catalog fallback.")
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     selected_tools = doctrine.available_tools
     if selected_tools:
-        missing_tools = sorted(
-            tool for tool in selected_tools if tool not in available_tools
-        )
+        missing_tools = sorted(tool for tool in selected_tools if tool not in available_tools)
         if missing_tools:
             raise GovernanceResolutionError(
                 [
-                    "Constitution selected unavailable tools: "
-                    + ", ".join(missing_tools),
-                    "Update constitution available_tools or register those tools in "
-                    "the runtime tool registry.",
+                    "Constitution selected unavailable tools: " + ", ".join(missing_tools),
+                    "Update constitution available_tools or register those tools in the runtime tool registry.",
                 ]
             )
         resolved_tools = list(selected_tools)
@@ -103,9 +91,7 @@ def resolve_governance(
     else:
         resolved_tools = sorted(available_tools)
         tools_source = "registry_fallback"
-        diagnostics.append(
-            "No available_tools selection provided; using runtime tool registry fallback."
-        )
+        diagnostics.append("No available_tools selection provided; using runtime tool registry fallback.")
 
     if doctrine.selected_directives:
         resolved_directives = list(doctrine.selected_directives)
@@ -120,9 +106,7 @@ def resolve_governance(
     else:
         template_set = fallback_template_set
         template_set_source = "fallback"
-        diagnostics.append(
-            f"Template set not selected in constitution; fallback '{template_set}' applied."
-        )
+        diagnostics.append(f"Template set not selected in constitution; fallback '{template_set}' applied.")
 
     return GovernanceResolution(
         paradigms=list(doctrine.selected_paradigms),

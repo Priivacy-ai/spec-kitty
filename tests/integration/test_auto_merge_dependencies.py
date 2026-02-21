@@ -59,13 +59,7 @@ def test_detect_all_dependencies_done():
         # Create WP files
         for wp_id, lane in [("WP01", "done"), ("WP02", "done"), ("WP03", "done")]:
             wp_file = tmp_path / f"{wp_id}.md"
-            wp_file.write_text(
-                f"---\n"
-                f"work_package_id: {wp_id}\n"
-                f"lane: {lane}\n"
-                f"---\n\n"
-                f"# {wp_id}\n"
-            )
+            wp_file.write_text(f"---\nwork_package_id: {wp_id}\nlane: {lane}\n---\n\n# {wp_id}\n")
 
         # Check if all done
         all_done = True
@@ -94,13 +88,7 @@ def test_detect_partial_dependencies_done():
         # Create WP files with mixed status
         for wp_id, lane in [("WP01", "done"), ("WP02", "for_review"), ("WP03", "done")]:
             wp_file = tmp_path / f"{wp_id}.md"
-            wp_file.write_text(
-                f"---\n"
-                f"work_package_id: {wp_id}\n"
-                f"lane: {lane}\n"
-                f"---\n\n"
-                f"# {wp_id}\n"
-            )
+            wp_file.write_text(f"---\nwork_package_id: {wp_id}\nlane: {lane}\n---\n\n# {wp_id}\n")
 
         # Check if all done
         all_done = True

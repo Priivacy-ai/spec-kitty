@@ -197,9 +197,7 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
 
         # Workspace path that will be "created"
         workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
@@ -242,9 +240,7 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
 
         workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
 
@@ -283,9 +279,7 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
         config_path = tmp_path / ".kittify" / "config.yaml"
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text("config: true\n", encoding="utf-8")
@@ -326,9 +320,7 @@ class TestImplementCommand:
         feature_dir.mkdir(parents=True)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
 
         with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
             mock_repo_root.return_value = tmp_path
@@ -355,13 +347,9 @@ class TestImplementCommand:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         # Create WP01 file (base dependency)
-        (tasks_dir / "WP01-setup.md").write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
+        (tasks_dir / "WP01-setup.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
         wp_file = tasks_dir / "WP02-feature.md"
-        wp_file.write_text(
-            '---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02'
-        )
+        wp_file.write_text('---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02')
 
         # Create base workspace
         base_workspace = tmp_path / ".worktrees" / "010-feature-WP01"
@@ -419,9 +407,7 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP02-feature.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            '---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02'
-        )
+        wp_file.write_text('---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02')
 
         with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
             mock_repo_root.return_value = tmp_path
@@ -446,9 +432,7 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP02-feature.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            '---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02'
-        )
+        wp_file.write_text('---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02')
 
         with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
             mock_repo_root.return_value = tmp_path
@@ -466,9 +450,7 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
 
         # Create existing workspace
         workspace = tmp_path / ".worktrees" / "010-feature-WP01"
@@ -510,9 +492,7 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
 
         # Workspace path that will be "created"
         workspace_path = tmp_path / ".worktrees" / "010-workspace-per-wp-WP01"
@@ -554,10 +534,13 @@ class TestImplementCommand:
 class TestVCSAbstraction:
     """Tests for VCS abstraction in implement command."""
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
+    @pytest.mark.parametrize(
+        "backend",
+        [
+            "git",
+            pytest.param("jj", marks=pytest.mark.jj),
+        ],
+    )
     def test_implement_creates_workspace(self, tmp_path, backend):
         """Test implement creates workspace correctly for both VCS backends."""
         # Setup
@@ -565,9 +548,7 @@ class TestVCSAbstraction:
         create_meta_json(feature_dir, vcs=backend)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
 
         workspace_path = tmp_path / ".worktrees" / "015-feature-WP01"
 
@@ -647,10 +628,13 @@ class TestVCSAbstraction:
         # Verify jj is converted to git
         assert backend == VCSBackend.GIT
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
+    @pytest.mark.parametrize(
+        "backend",
+        [
+            "git",
+            pytest.param("jj", marks=pytest.mark.jj),
+        ],
+    )
     def test_stale_workspace_detection(self, tmp_path, backend):
         """Test stale workspace detection works for both backends."""
         # Setup
@@ -658,9 +642,7 @@ class TestVCSAbstraction:
         create_meta_json(feature_dir, vcs=backend)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
 
         workspace_path = tmp_path / ".worktrees" / "015-feature-WP01"
         workspace_path.mkdir(parents=True)
@@ -693,10 +675,13 @@ class TestVCSAbstraction:
                         mock_vcs.create_workspace.assert_not_called()
                         # Stale detection was triggered via workspace_info.is_stale
 
-    @pytest.mark.parametrize("backend", [
-        "git",
-        pytest.param("jj", marks=pytest.mark.jj),
-    ])
+    @pytest.mark.parametrize(
+        "backend",
+        [
+            "git",
+            pytest.param("jj", marks=pytest.mark.jj),
+        ],
+    )
     def test_implement_with_base_flag(self, tmp_path, backend):
         """Test --base flag works for both backends."""
         # Setup
@@ -705,13 +690,9 @@ class TestVCSAbstraction:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         # Create WP01 file (base dependency)
-        (tasks_dir / "WP01-setup.md").write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
+        (tasks_dir / "WP01-setup.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
         wp_file = tasks_dir / "WP02-setup.md"
-        wp_file.write_text(
-            '---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02'
-        )
+        wp_file.write_text('---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02')
 
         # Create base workspace
         base_workspace = tmp_path / ".worktrees" / "015-feature-WP01"

@@ -278,6 +278,7 @@ def glossary_enabled(
             # context has already been processed by the glossary pipeline
             return {"result": context.effective_strictness}
     """
+
     def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(fn)
         def wrapper(context: Any, *args: Any, **kwargs: Any) -> Any:
@@ -288,5 +289,7 @@ def glossary_enabled(
                 interaction_mode=interaction_mode,
             )
             return fn(processed, *args, **kwargs)
+
         return wrapper
+
     return decorator

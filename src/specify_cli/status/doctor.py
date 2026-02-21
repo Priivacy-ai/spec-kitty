@@ -177,9 +177,7 @@ def check_orphan_workspaces(
         return findings
 
     terminal_lanes = {"done", "canceled"}
-    all_terminal = all(
-        wp.get("lane") in terminal_lanes for wp in work_packages.values()
-    )
+    all_terminal = all(wp.get("lane") in terminal_lanes for wp in work_packages.values())
 
     if not all_terminal:
         return findings  # Feature still has active WPs, worktrees are legitimate
@@ -205,10 +203,7 @@ def check_orphan_workspaces(
                         f"({', '.join(sorted(terminal_lanes))}). "
                         f"Path: {orphan_dir}"
                     ),
-                    recommended_action=(
-                        f"Remove the orphan worktree: "
-                        f"git worktree remove {orphan_dir.name}"
-                    ),
+                    recommended_action=(f"Remove the orphan worktree: git worktree remove {orphan_dir.name}"),
                 )
             )
 
@@ -241,8 +236,7 @@ def check_drift(feature_dir: Path) -> list[Finding]:
                 wp_id=None,
                 message=msg,
                 recommended_action=(
-                    "Run 'spec-kitty agent status materialize' to regenerate "
-                    "status.json from the canonical event log."
+                    "Run 'spec-kitty agent status materialize' to regenerate status.json from the canonical event log."
                 ),
             )
         )
@@ -268,8 +262,7 @@ def check_drift(feature_dir: Path) -> list[Finding]:
                         wp_id=None,
                         message=msg,
                         recommended_action=(
-                            "Run 'spec-kitty agent status materialize' to "
-                            "regenerate derived views from status.json."
+                            "Run 'spec-kitty agent status materialize' to regenerate derived views from status.json."
                         ),
                     )
                 )
@@ -306,9 +299,7 @@ def run_doctor(
         FileNotFoundError: If feature_dir does not exist.
     """
     if not feature_dir.exists():
-        raise FileNotFoundError(
-            f"Feature directory does not exist: {feature_dir}"
-        )
+        raise FileNotFoundError(f"Feature directory does not exist: {feature_dir}")
 
     result = DoctorResult(feature_slug=feature_slug)
 
@@ -324,9 +315,7 @@ def run_doctor(
                 in_progress_threshold_days=stale_in_progress_days,
             )
         )
-        result.findings.extend(
-            check_orphan_workspaces(repo_root, feature_slug, snapshot)
-        )
+        result.findings.extend(check_orphan_workspaces(repo_root, feature_slug, snapshot))
         result.findings.extend(check_drift(feature_dir))
 
     return result

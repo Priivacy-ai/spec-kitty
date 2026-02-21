@@ -10,6 +10,7 @@ Tests for validate_deliverables_path() to ensure:
 
 Target: src/specify_cli/mission.py:608-637
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -24,14 +25,17 @@ pytestmark = [pytest.mark.adversarial]
 class TestDirectoryTraversal:
     """Test directory traversal attack prevention."""
 
-    @pytest.mark.parametrize("malicious_path,description", [
-        ("../kitty-specs/", "Parent directory to kitty-specs"),
-        ("../../../etc/passwd", "Deep traversal to system files"),
-        ("./kitty-specs/", "Dot-slash to kitty-specs"),
-        ("docs/../../kitty-specs/", "Nested traversal"),
-        ("docs/../../../", "Traversal to root"),
-        ("a/b/c/../../../../kitty-specs/", "Deep nested traversal"),
-    ])
+    @pytest.mark.parametrize(
+        "malicious_path,description",
+        [
+            ("../kitty-specs/", "Parent directory to kitty-specs"),
+            ("../../../etc/passwd", "Deep traversal to system files"),
+            ("./kitty-specs/", "Dot-slash to kitty-specs"),
+            ("docs/../../kitty-specs/", "Nested traversal"),
+            ("docs/../../../", "Traversal to root"),
+            ("a/b/c/../../../../kitty-specs/", "Deep nested traversal"),
+        ],
+    )
     def test_traversal_rejected(self, malicious_path: str, description: str):
         """Directory traversal paths must be rejected."""
         is_valid, error = validate_deliverables_path(malicious_path)
@@ -41,8 +45,9 @@ class TestDirectoryTraversal:
         assert not is_valid, f"Path '{malicious_path}' should be rejected ({description})"
         assert error, f"Should provide error message for: {description}"
         # Error should mention traversal or invalid path
-        assert any(keyword in error.lower() for keyword in ["traversal", "invalid", "not allowed", "kitty-specs"]), \
+        assert any(keyword in error.lower() for keyword in ["traversal", "invalid", "not allowed", "kitty-specs"]), (
             f"Error message should explain rejection: {error}"
+        )
 
     def test_valid_nested_path_allowed(self):
         """Valid nested paths without traversal should be allowed."""
@@ -55,13 +60,16 @@ class TestDirectoryTraversal:
 class TestCaseSensitivityBypass:
     """Test case-sensitivity bypass prevention (macOS/Windows)."""
 
-    @pytest.mark.parametrize("case_variant", [
-        "KITTY-SPECS/test/",
-        "Kitty-Specs/test/",
-        "KiTtY-SpEcS/test/",
-        "kitty-SPECS/test/",
-        "KITTY-specs/test/",
-    ])
+    @pytest.mark.parametrize(
+        "case_variant",
+        [
+            "KITTY-SPECS/test/",
+            "Kitty-Specs/test/",
+            "KiTtY-SpEcS/test/",
+            "kitty-SPECS/test/",
+            "KITTY-specs/test/",
+        ],
+    )
     def test_case_variants_rejected(self, case_variant: str, case_insensitive_fs: bool):
         """Case variants of kitty-specs should be rejected on case-insensitive FS."""
         if not case_insensitive_fs:
@@ -88,14 +96,17 @@ class TestCaseSensitivityBypass:
 class TestEmptyPaths:
     """Test empty and whitespace path handling."""
 
-    @pytest.mark.parametrize("empty_path,description", [
-        ("", "Empty string"),
-        ("   ", "Whitespace only"),
-        ("\t\t", "Tabs only"),
-        ("\n", "Newline only"),
-        ("///", "Slashes that normalize to empty"),
-        ("/", "Single slash (root)"),
-    ])
+    @pytest.mark.parametrize(
+        "empty_path,description",
+        [
+            ("", "Empty string"),
+            ("   ", "Whitespace only"),
+            ("\t\t", "Tabs only"),
+            ("\n", "Newline only"),
+            ("///", "Slashes that normalize to empty"),
+            ("/", "Single slash (root)"),
+        ],
+    )
     def test_empty_rejected(self, empty_path: str, description: str):
         """Empty/whitespace paths must be rejected with clear error."""
         is_valid, error = validate_deliverables_path(empty_path)

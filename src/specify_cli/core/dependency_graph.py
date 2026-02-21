@@ -95,8 +95,7 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
             # Verify filename matches frontmatter (catch misnamed files)
             if frontmatter_wp_id and frontmatter_wp_id != filename_wp_id:
                 raise ValueError(
-                    f"WP ID mismatch: filename {filename_wp_id} vs frontmatter {frontmatter_wp_id} "
-                    f"in {wp_file}"
+                    f"WP ID mismatch: filename {filename_wp_id} vs frontmatter {frontmatter_wp_id} in {wp_file}"
                 )
 
             wp_id = frontmatter_wp_id or filename_wp_id
@@ -186,11 +185,7 @@ def detect_cycles(graph: dict[str, list[str]]) -> list[list[str]] | None:
     return cycles if cycles else None
 
 
-def validate_dependencies(
-    wp_id: str,
-    declared_deps: list[str],
-    graph: dict[str, list[str]]
-) -> tuple[bool, list[str]]:
+def validate_dependencies(wp_id: str, declared_deps: list[str], graph: dict[str, list[str]]) -> tuple[bool, list[str]]:
     """Validate that WP's dependencies are valid.
 
     Checks:

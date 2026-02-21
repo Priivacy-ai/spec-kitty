@@ -30,6 +30,7 @@ if os.environ.get("SPEC_KITTY_TEST_MODE") == "1":
     __version__ = os.environ.get("SPEC_KITTY_CLI_VERSION", "0.5.0-dev")
 else:
     from specify_cli.version_utils import get_version
+
     __version__ = get_version()
 
 from specify_cli.mission import MissionNotFoundError
@@ -43,6 +44,7 @@ from specify_cli.cli.helpers import (
 from specify_cli.cli.commands import register_commands
 from specify_cli.cli.commands.init import register_init_command
 from specify_cli.core.project_resolver import locate_project_root
+
 
 def activate_mission(project_path: Path, mission_key: str, mission_display: str, console: Console) -> str:
     """
@@ -82,10 +84,13 @@ app = typer.Typer(
     cls=BannerGroup,
 )
 
+
 @app.callback()
 def main_callback(
     ctx: typer.Context,
-    version: bool = typer.Option(None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit")
+    version: bool = typer.Option(
+        None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit"
+    ),
 ) -> None:
     """Main callback for root CLI setup."""
     root_callback(ctx)
@@ -162,25 +167,29 @@ register_init_command(
 
 register_commands(app)
 
+
 def main() -> None:
     import sys
+
     # Ensure UTF-8 encoding on Windows to handle Unicode characters in git output
     # Fixes: https://github.com/Priivacy-ai/spec-kitty/issues/66
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         try:
-            sys.stdout.reconfigure(encoding='utf-8')
-            sys.stderr.reconfigure(encoding='utf-8')
+            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stderr.reconfigure(encoding="utf-8")
         except (AttributeError, OSError):
             # Python < 3.7 or reconfigure not available
             pass
 
     # Check for spec-kitty-events library availability (required for 2.x branch)
     from specify_cli.events.adapter import EventAdapter
+
     if not EventAdapter.check_library_available():
         console.print(f"[red]{EventAdapter.get_missing_library_error()}[/red]")
         raise typer.Exit(1)
 
     app()
+
 
 __all__ = ["main", "app", "__version__", "MissionNotFoundError"]
 

@@ -163,8 +163,12 @@ def test_apply_legacy_no_config_falls_back_to_all(tmp_path, migration):
 
     # Both should be updated
     for template_name in TEMPLATES_TO_UPDATE:
-        assert TELEMETRY_MARKER in (tmp_path / ".claude" / "commands" / f"spec-kitty.{template_name}").read_text(encoding="utf-8")
-        assert TELEMETRY_MARKER in (tmp_path / ".codex" / "prompts" / f"spec-kitty.{template_name}").read_text(encoding="utf-8")
+        assert TELEMETRY_MARKER in (tmp_path / ".claude" / "commands" / f"spec-kitty.{template_name}").read_text(
+            encoding="utf-8"
+        )
+        assert TELEMETRY_MARKER in (tmp_path / ".codex" / "prompts" / f"spec-kitty.{template_name}").read_text(
+            encoding="utf-8"
+        )
 
 
 def test_apply_dry_run_no_changes(tmp_path, migration):
@@ -211,13 +215,16 @@ def test_apply_idempotent(tmp_path, migration):
         assert content == contents_after_first[template_name]
 
 
-@pytest.mark.parametrize("template_name,expected_role", [
-    ("specify.md", "specifier"),
-    ("plan.md", "planner"),
-    ("tasks.md", "planner"),
-    ("review.md", "reviewer"),
-    ("merge.md", "merger"),
-])
+@pytest.mark.parametrize(
+    "template_name,expected_role",
+    [
+        ("specify.md", "specifier"),
+        ("plan.md", "planner"),
+        ("tasks.md", "planner"),
+        ("review.md", "reviewer"),
+        ("merge.md", "merger"),
+    ],
+)
 def test_templates_contain_correct_role(tmp_path, migration, template_name, expected_role):
     """Each template instructs the agent to use the correct --role value."""
     _create_agent_template(tmp_path, ".claude", "commands", template_name, OLD_TEMPLATE_CONTENT)

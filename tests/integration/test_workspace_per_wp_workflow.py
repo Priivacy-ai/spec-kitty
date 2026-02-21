@@ -35,9 +35,7 @@ def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
 
     env = os.environ.copy()
     src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(
-        os.pathsep
-    )
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
     env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
     return subprocess.run(
@@ -100,9 +98,7 @@ def create_feature_in_main(repo: Path, feature_slug: str) -> Path:
     (feature_dir / "tasks").mkdir(exist_ok=True)
 
     # Commit to main
-    subprocess.run(
-        ["git", "add", str(feature_dir)], cwd=repo, check=True, capture_output=True
-    )
+    subprocess.run(["git", "add", str(feature_dir)], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", f"Add spec for {feature_slug}"],
         cwd=repo,
@@ -134,9 +130,7 @@ This is a test work package.
     return wp_file
 
 
-def implement_wp(
-    repo: Path, feature_slug: str, wp_id: str, base: str | None = None
-) -> Path:
+def implement_wp(repo: Path, feature_slug: str, wp_id: str, base: str | None = None) -> Path:
     """Create workspace for WP using spec-kitty implement command.
 
     Uses the actual spec-kitty implement command to test real command behavior.
@@ -150,29 +144,14 @@ def implement_wp(
 
     # Ensure we're on the feature branch for context detection
     # Check if feature branch exists
-    result = subprocess.run(
-        ["git", "rev-parse", "--verify", feature_slug],
-        cwd=repo,
-        capture_output=True,
-        check=False
-    )
+    result = subprocess.run(["git", "rev-parse", "--verify", feature_slug], cwd=repo, capture_output=True, check=False)
 
     if result.returncode != 0:
         # Feature branch doesn't exist, create it
-        subprocess.run(
-            ["git", "checkout", "-b", feature_slug],
-            cwd=repo,
-            check=True,
-            capture_output=True
-        )
+        subprocess.run(["git", "checkout", "-b", feature_slug], cwd=repo, check=True, capture_output=True)
     else:
         # Feature branch exists, check it out
-        subprocess.run(
-            ["git", "checkout", feature_slug],
-            cwd=repo,
-            check=True,
-            capture_output=True
-        )
+        subprocess.run(["git", "checkout", feature_slug], cwd=repo, check=True, capture_output=True)
 
     # Build spec-kitty implement command arguments
     args = ["implement", wp_id]
@@ -232,9 +211,7 @@ def test_planning_in_main_no_worktrees(tmp_path):
     # Simulate /spec-kitty.plan
     plan_file = feature_dir / "plan.md"
     plan_file.write_text("# Plan")
-    subprocess.run(
-        ["git", "add", str(plan_file)], cwd=repo, check=True, capture_output=True
-    )
+    subprocess.run(["git", "add", str(plan_file)], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Add plan"],
         cwd=repo,
@@ -274,8 +251,6 @@ def test_planning_in_main_no_worktrees(tmp_path):
     assert "Add spec" in result.stdout
     assert "Add plan" in result.stdout
     assert "Add tasks" in result.stdout
-
-
 
 
 # ============================================================================
@@ -340,8 +315,7 @@ def test_implement_wp_no_dependencies(tmp_path):
 
     # Verify sparse-checkout excludes kitty-specs from worktree
     # (kitty-specs status is tracked in main repo only, preventing state divergence)
-    assert not (workspace / "kitty-specs").exists(), \
-        "kitty-specs should be excluded from worktree via sparse-checkout"
+    assert not (workspace / "kitty-specs").exists(), "kitty-specs should be excluded from worktree via sparse-checkout"
 
 
 # ============================================================================
@@ -383,9 +357,7 @@ def test_implement_wp_with_dependencies(tmp_path):
     # Make commit in WP01 workspace
     test_file = wp01_workspace / "test.txt"
     test_file.write_text("WP01 changes")
-    subprocess.run(
-        ["git", "add", "test.txt"], cwd=wp01_workspace, check=True, capture_output=True
-    )
+    subprocess.run(["git", "add", "test.txt"], cwd=wp01_workspace, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "WP01 work"],
         cwd=wp01_workspace,
@@ -416,9 +388,7 @@ def test_implement_wp_with_dependencies(tmp_path):
     assert "WP01 work" in result.stdout, f"WP02 should have WP01 work in history, got: {result.stdout}"
 
     # Verify both branches exist
-    result = subprocess.run(
-        ["git", "branch", "--list"], cwd=repo, capture_output=True, text=True, check=True
-    )
+    result = subprocess.run(["git", "branch", "--list"], cwd=repo, capture_output=True, text=True, check=True)
     assert "011-test-WP01" in result.stdout
     assert "011-test-WP02" in result.stdout
 
@@ -502,9 +472,7 @@ def test_parallel_wp_implementation(tmp_path):
     assert not (wp03_workspace / "file_a.txt").exists()
 
     # Verify both branches exist independently
-    result = subprocess.run(
-        ["git", "branch"], cwd=repo, capture_output=True, text=True, check=True
-    )
+    result = subprocess.run(["git", "branch"], cwd=repo, capture_output=True, text=True, check=True)
     assert "011-test-WP01" in result.stdout
     assert "011-test-WP03" in result.stdout
 
@@ -739,9 +707,7 @@ def test_merge_workspace_per_wp_preparation(tmp_path):
         ("WP03", wp03_workspace),
     ]:
         (workspace / f"{wp_id}.txt").write_text(f"{wp_id} work")
-        subprocess.run(
-            ["git", "add", "."], cwd=workspace, check=True, capture_output=True
-        )
+        subprocess.run(["git", "add", "."], cwd=workspace, check=True, capture_output=True)
         subprocess.run(
             ["git", "commit", "-m", f"{wp_id} work"],
             cwd=workspace,
@@ -750,9 +716,7 @@ def test_merge_workspace_per_wp_preparation(tmp_path):
         )
 
     # Verify all branches exist
-    result = subprocess.run(
-        ["git", "branch"], cwd=repo, capture_output=True, text=True, check=True
-    )
+    result = subprocess.run(["git", "branch"], cwd=repo, capture_output=True, text=True, check=True)
     assert "011-test-WP01" in result.stdout
     assert "011-test-WP02" in result.stdout
     assert "011-test-WP03" in result.stdout
@@ -760,14 +724,11 @@ def test_merge_workspace_per_wp_preparation(tmp_path):
     # Test merge feasibility: merge WP01 to default branch (no conflicts expected)
     # Get the default branch name (could be 'main' or 'master')
     branch_result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        cwd=repo, capture_output=True, text=True, check=True
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo, capture_output=True, text=True, check=True
     )
     default_branch = branch_result.stdout.strip()
 
-    subprocess.run(
-        ["git", "checkout", default_branch], cwd=repo, check=True, capture_output=True
-    )
+    subprocess.run(["git", "checkout", default_branch], cwd=repo, check=True, capture_output=True)
     result = subprocess.run(
         ["git", "merge", "--no-ff", "011-test-WP01", "-m", "Merge WP01"],
         cwd=repo,

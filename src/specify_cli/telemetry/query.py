@@ -88,9 +88,7 @@ class EventFilter:
         return True
 
 
-def query_execution_events(
-    feature_dir: Path, filters: EventFilter | None = None
-) -> list[Event]:
+def query_execution_events(feature_dir: Path, filters: EventFilter | None = None) -> list[Event]:
     """Query execution events for a single feature.
 
     Loads events from the feature's execution.events.jsonl file,
@@ -112,9 +110,7 @@ def query_execution_events(
     return [e for e in events if filters.matches(e)]
 
 
-def query_project_events(
-    repo_root: Path, filters: EventFilter | None = None
-) -> list[Event]:
+def query_project_events(repo_root: Path, filters: EventFilter | None = None) -> list[Event]:
     """Query execution events across all features in a project.
 
     Globs all execution.events.jsonl files in kitty-specs/*/,

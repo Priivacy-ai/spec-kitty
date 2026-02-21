@@ -344,7 +344,9 @@ def test_init_non_interactive_requires_ai(cli_app, monkeypatch: pytest.MonkeyPat
     assert "--ai is required in non-interactive mode" in console_output
 
 
-def test_init_non_interactive_requires_force_for_nonempty_here(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_init_non_interactive_requires_force_for_nonempty_here(
+    cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
     app, console, _ = cli_app
     monkeypatch.chdir(tmp_path)
     (tmp_path / "existing.txt").write_text("data", encoding="utf-8")

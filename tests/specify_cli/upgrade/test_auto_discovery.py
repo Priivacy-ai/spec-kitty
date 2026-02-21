@@ -31,8 +31,7 @@ class TestAutoDiscovery:
         # Verify all discovered
         discovered = MigrationRegistry.get_all()
         assert len(discovered) == expected_count, (
-            f"Expected {expected_count} migrations (matching m_*.py pattern), "
-            f"but discovered {len(discovered)}"
+            f"Expected {expected_count} migrations (matching m_*.py pattern), but discovered {len(discovered)}"
         )
 
     def test_auto_discover_is_idempotent(self):
@@ -122,6 +121,7 @@ class TestAutoDiscovery:
 
         # Verify they're in ascending order
         from packaging.version import Version
+
         sorted_versions = sorted(versions, key=Version)
 
         assert versions == sorted_versions, "Migrations should be sorted by target_version"
@@ -175,7 +175,7 @@ class TestAutoDiscoveryIntegration:
         applicable = MigrationRegistry.get_applicable(
             from_version="0.1.0",
             to_version="999.0.0",  # Get all migrations
-            project_path=tmp_path
+            project_path=tmp_path,
         )
 
         # Should have many migrations

@@ -71,10 +71,7 @@ class EncodingHooksMigration(BaseMigration):
                 return False, "Cannot read existing pre-commit hook"
 
             # Check if it's our hook
-            if (
-                "spec-kitty" not in content.lower()
-                and "encoding" not in content.lower()
-            ):
+            if "spec-kitty" not in content.lower() and "encoding" not in content.lower():
                 # It's a custom hook - warn but allow (will append)
                 pass
 
@@ -105,17 +102,11 @@ class EncodingHooksMigration(BaseMigration):
                 if hasattr(pkg_hooks, "is_dir") and pkg_hooks.is_dir():
                     template_hooks_dir = Path(str(pkg_hooks))
                 else:
-                    warnings.append(
-                        "Hook templates not found in .kittify/templates/ or package"
-                    )
-                    return MigrationResult(
-                        success=True, changes_made=changes, warnings=warnings
-                    )
+                    warnings.append("Hook templates not found in .kittify/templates/ or package")
+                    return MigrationResult(success=True, changes_made=changes, warnings=warnings)
             except (ImportError, TypeError):
                 warnings.append("Could not locate hook templates")
-                return MigrationResult(
-                    success=True, changes_made=changes, warnings=warnings
-                )
+                return MigrationResult(success=True, changes_made=changes, warnings=warnings)
 
         if dry_run:
             changes.append("Would install pre-commit hooks from templates")

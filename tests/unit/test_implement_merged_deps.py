@@ -28,25 +28,13 @@ class TestSingleParentMergedDependency:
         # Create WP01 in 'done' lane
         wp01_file = tasks_dir / "WP01-event-infrastructure.md"
         wp01_file.write_text(
-            "---\n"
-            "work_package_id: WP01\n"
-            "title: Event Infrastructure\n"
-            "lane: done\n"
-            "dependencies: []\n"
-            "---\n"
-            "# Content\n"
+            "---\nwork_package_id: WP01\ntitle: Event Infrastructure\nlane: done\ndependencies: []\n---\n# Content\n"
         )
 
         # Create WP02 depending on WP01
         wp02_file = tasks_dir / "WP02-event-logger.md"
         wp02_file.write_text(
-            "---\n"
-            "work_package_id: WP02\n"
-            "title: Event Logger\n"
-            "lane: planned\n"
-            "dependencies: [WP01]\n"
-            "---\n"
-            "# Content\n"
+            "---\nwork_package_id: WP02\ntitle: Event Logger\nlane: planned\ndependencies: [WP01]\n---\n# Content\n"
         )
 
         # Check dependency status
@@ -74,25 +62,13 @@ class TestSingleParentMergedDependency:
         # Create WP01 in 'doing' lane (in-progress)
         wp01_file = tasks_dir / "WP01-event-infrastructure.md"
         wp01_file.write_text(
-            "---\n"
-            "work_package_id: WP01\n"
-            "title: Event Infrastructure\n"
-            "lane: doing\n"
-            "dependencies: []\n"
-            "---\n"
-            "# Content\n"
+            "---\nwork_package_id: WP01\ntitle: Event Infrastructure\nlane: doing\ndependencies: []\n---\n# Content\n"
         )
 
         # Create WP02 depending on WP01
         wp02_file = tasks_dir / "WP02-event-logger.md"
         wp02_file.write_text(
-            "---\n"
-            "work_package_id: WP02\n"
-            "title: Event Logger\n"
-            "lane: planned\n"
-            "dependencies: [WP01]\n"
-            "---\n"
-            "# Content\n"
+            "---\nwork_package_id: WP02\ntitle: Event Logger\nlane: planned\ndependencies: [WP01]\n---\n# Content\n"
         )
 
         # Check dependency status
@@ -123,13 +99,7 @@ class TestMultiParentAllDoneDependencies:
         for i in range(1, 4):
             wp_file = tasks_dir / f"WP0{i}-component-{i}.md"
             wp_file.write_text(
-                f"---\n"
-                f"work_package_id: WP0{i}\n"
-                f"title: Component {i}\n"
-                f"lane: done\n"
-                f"dependencies: []\n"
-                f"---\n"
-                f"# Content\n"
+                f"---\nwork_package_id: WP0{i}\ntitle: Component {i}\nlane: done\ndependencies: []\n---\n# Content\n"
             )
 
         # Create WP04 depending on all three
@@ -220,13 +190,7 @@ class TestDependencyStatusEdgeCases:
         # Only create WP02 (no WP01)
         wp02_file = tasks_dir / "WP02-event-logger.md"
         wp02_file.write_text(
-            "---\n"
-            "work_package_id: WP02\n"
-            "title: Event Logger\n"
-            "lane: planned\n"
-            "dependencies: [WP01]\n"
-            "---\n"
-            "# Content\n"
+            "---\nwork_package_id: WP02\ntitle: Event Logger\nlane: planned\ndependencies: [WP01]\n---\n# Content\n"
         )
 
         # Check dependency status
@@ -246,24 +210,13 @@ class TestDependencyStatusEdgeCases:
         # Create WP01 without lane field
         wp01_file = tasks_dir / "WP01-event-infrastructure.md"
         wp01_file.write_text(
-            "---\n"
-            "work_package_id: WP01\n"
-            "title: Event Infrastructure\n"
-            "dependencies: []\n"
-            "---\n"
-            "# Content\n"
+            "---\nwork_package_id: WP01\ntitle: Event Infrastructure\ndependencies: []\n---\n# Content\n"
         )
 
         # Create WP02 depending on WP01
         wp02_file = tasks_dir / "WP02-event-logger.md"
         wp02_file.write_text(
-            "---\n"
-            "work_package_id: WP02\n"
-            "title: Event Logger\n"
-            "lane: planned\n"
-            "dependencies: [WP01]\n"
-            "---\n"
-            "# Content\n"
+            "---\nwork_package_id: WP02\ntitle: Event Logger\nlane: planned\ndependencies: [WP01]\n---\n# Content\n"
         )
 
         # Check dependency status
@@ -283,13 +236,7 @@ class TestDependencyStatusEdgeCases:
         # Create WP01 with no dependencies
         wp01_file = tasks_dir / "WP01-event-infrastructure.md"
         wp01_file.write_text(
-            "---\n"
-            "work_package_id: WP01\n"
-            "title: Event Infrastructure\n"
-            "lane: planned\n"
-            "dependencies: []\n"
-            "---\n"
-            "# Content\n"
+            "---\nwork_package_id: WP01\ntitle: Event Infrastructure\nlane: planned\ndependencies: []\n---\n# Content\n"
         )
 
         # Check dependency status

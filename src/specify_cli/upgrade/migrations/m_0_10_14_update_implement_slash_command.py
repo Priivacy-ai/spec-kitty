@@ -71,16 +71,16 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
         # For 0.10.x: Try packaged missions (should work post-0.10.8)
         try:
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
             if template_path.is_file():
                 return True, ""
         except Exception as e:
             return False, f"Cannot access packaged missions: {e}"
 
         # Fallback: Try legacy .kittify location (pre-0.11.0)
-        legacy_path = project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
+        legacy_path = (
+            project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
+        )
         if legacy_path.exists():
             return True, ""
 
@@ -99,9 +99,7 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
         try:
             # Try packaged missions first (0.10.8+)
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
 
             if template_path.is_file():
                 template_content = template_path.read_text(encoding="utf-8")
@@ -111,7 +109,9 @@ class UpdateImplementSlashCommandMigration_0_10_14(BaseMigration):
 
         # Fallback to legacy location (pre-0.11.0)
         if not template_content:
-            legacy_path = project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
+            legacy_path = (
+                project_path / ".kittify" / "missions" / self.MISSION_NAME / "command-templates" / self.TEMPLATE_FILE
+            )
             if legacy_path.exists():
                 template_content = legacy_path.read_text(encoding="utf-8")
                 template_source = "legacy .kittify/missions"

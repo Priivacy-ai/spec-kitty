@@ -48,10 +48,8 @@ This command uses spec-kitty CLI.
     scripts = manifest._get_referenced_scripts()
 
     # Assert: CLI commands should NOT be treated as scripts
-    assert "spec-kitty" not in scripts, \
-        f"'spec-kitty' should not be in scripts list, got: {scripts}"
-    assert len(scripts) == 0, \
-        f"No scripts should be detected for CLI commands, got: {scripts}"
+    assert "spec-kitty" not in scripts, f"'spec-kitty' should not be in scripts list, got: {scripts}"
+    assert len(scripts) == 0, f"No scripts should be detected for CLI commands, got: {scripts}"
 
 
 def test_actual_kittify_scripts_are_included(tmp_path: Path):
@@ -91,7 +89,7 @@ sh: .kittify/scripts/helper.sh
     scripts = manifest._get_referenced_scripts()
 
     # Assert: Actual scripts SHOULD be included (platform-specific)
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         assert "scripts/helper.ps1" in scripts
     else:
         assert "scripts/helper.sh" in scripts

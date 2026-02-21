@@ -39,10 +39,7 @@ class TestFullFlow:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
-                "results": [
-                    {"event_id": e["event_id"], "status": "success"}
-                    for e in events
-                ]
+                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
             }
             mock_post.return_value = mock_response
 
@@ -67,10 +64,7 @@ class TestFullFlow:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
-                "results": [
-                    {"event_id": f"id{i}", "status": "success"}
-                    for i in range(3)
-                ]
+                "results": [{"event_id": f"id{i}", "status": "success"} for i in range(3)]
             }
             mock_post.return_value = mock_response
 
@@ -219,10 +213,7 @@ class TestMultiEventBatch:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
-                "results": [
-                    {"event_id": e["event_id"], "status": "success"}
-                    for e in events
-                ]
+                "results": [{"event_id": e["event_id"], "status": "success"} for e in events]
             }
             mock_post.return_value = mock_response
 

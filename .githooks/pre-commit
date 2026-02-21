@@ -15,13 +15,17 @@ python -m ruff format --check "${STAGED_PY[@]}"
 echo "pre-commit: ruff check on ${#STAGED_PY[@]} staged file(s)..."
 python -m ruff check "${STAGED_PY[@]}"
 
-# Run mypy only if staged files touch src/
-SRC_FILES=()
-for f in "${STAGED_PY[@]}"; do
-  case "$f" in src/*) SRC_FILES+=("$f") ;; esac
-done
+# Run mypy only if staged files touch src/ (skip with SKIP_MYPY=1)
+if [ "${SKIP_MYPY:-}" != "1" ]; then
+  SRC_FILES=()
+  for f in "${STAGED_PY[@]}"; do
+    case "$f" in src/*) SRC_FILES+=("$f") ;; esac
+  done
 
-if [ "${#SRC_FILES[@]}" -gt 0 ]; then
-  echo "pre-commit: mypy on ${#SRC_FILES[@]} staged src file(s)..."
-  python -m mypy --strict "${SRC_FILES[@]}"
+  if [ "${#SRC_FILES[@]}" -gt 0 ]; then
+    echo "pre-commit: mypy on ${#SRC_FILES[@]} staged src file(s)..."
+    python -m mypy --strict "${SRC_FILES[@]}"
+  fi
+else
+  echo "pre-commit: mypy skipped (SKIP_MYPY=1)"
 fi

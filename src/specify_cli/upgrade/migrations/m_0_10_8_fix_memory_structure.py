@@ -129,7 +129,7 @@ class FixMemoryStructureMigration(BaseMigration):
                                 success=False,
                                 changes_made=changes_made,
                                 warnings=warnings,
-                                errors=[f"Failed to move or copy memory/: {copy_error}"]
+                                errors=[f"Failed to move or copy memory/: {copy_error}"],
                             )
             else:
                 warnings.append(f"{kittify_memory} already exists, skipping root memory/ migration")
@@ -244,9 +244,4 @@ class FixMemoryStructureMigration(BaseMigration):
                             shutil.copy2(kittify_agents, wt_agents)
                             changes_made.append(f"Copied to worktree (symlink failed): {wt_agents}")
 
-        return MigrationResult(
-            success=True,
-            changes_made=changes_made,
-            warnings=warnings,
-            errors=[]
-        )
+        return MigrationResult(success=True, changes_made=changes_made, warnings=warnings, errors=[])

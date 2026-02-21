@@ -55,19 +55,11 @@ def fake_package_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path
     # software-dev mission with templates and command-templates
     sw_dev = missions / "software-dev"
     (sw_dev / "templates").mkdir(parents=True)
-    (sw_dev / "templates" / "spec-template.md").write_text(
-        "# Spec Template\nThis is the default spec template."
-    )
-    (sw_dev / "templates" / "plan-template.md").write_text(
-        "# Plan Template\nThis is the default plan template."
-    )
+    (sw_dev / "templates" / "spec-template.md").write_text("# Spec Template\nThis is the default spec template.")
+    (sw_dev / "templates" / "plan-template.md").write_text("# Plan Template\nThis is the default plan template.")
     (sw_dev / "command-templates").mkdir(parents=True)
-    (sw_dev / "command-templates" / "plan.md").write_text(
-        "# Plan Command\nDefault plan command template."
-    )
-    (sw_dev / "mission.yaml").write_text(
-        "name: Software Development\nkey: software-dev\n"
-    )
+    (sw_dev / "command-templates" / "plan.md").write_text("# Plan Command\nDefault plan command template.")
+    (sw_dev / "mission.yaml").write_text("name: Software Development\nkey: software-dev\n")
 
     # Scripts directory (sibling of missions)
     scripts = pkg_root / "scripts"
@@ -135,9 +127,7 @@ class TestFreshInstallE2E:
         (project / ".kittify").mkdir(parents=True)
 
         # Resolve template -- should come from global tier
-        result = resolve_template(
-            "spec-template.md", project, mission="software-dev"
-        )
+        result = resolve_template("spec-template.md", project, mission="software-dev")
         assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert result.path.exists()
         assert "Spec Template" in result.path.read_text()
@@ -239,24 +229,18 @@ class TestUpgradeLegacyProjectE2E:
         project = isolated_runtime.parent / "legacy_project"
         kittify = project / ".kittify"
         (kittify / "templates").mkdir(parents=True)
-        (kittify / "templates" / "spec-template.md").write_text(
-            "# Custom Spec\nThis is a legacy custom spec."
-        )
+        (kittify / "templates" / "spec-template.md").write_text("# Custom Spec\nThis is a legacy custom spec.")
 
         # Resolve -- should get legacy file with stderr nudge (no DeprecationWarning)
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            result = resolve_template(
-                "spec-template.md", project, mission="software-dev"
-            )
+            result = resolve_template("spec-template.md", project, mission="software-dev")
 
         assert result.tier == ResolutionTier.LEGACY
         assert "Custom Spec" in result.path.read_text()
 
         # No DeprecationWarning when global runtime is configured
-        deprecation_warnings = [
-            x for x in w if issubclass(x.category, DeprecationWarning)
-        ]
+        deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
         assert len(deprecation_warnings) == 0
 
         # Instead, a nudge to stderr
@@ -281,9 +265,7 @@ class TestUpgradeLegacyProjectE2E:
         project = isolated_runtime.parent / "legacy_project"
         kittify = project / ".kittify"
         (kittify / "templates").mkdir(parents=True)
-        (kittify / "templates" / "spec-template.md").write_text(
-            "# My Custom Spec\nThis is different from global."
-        )
+        (kittify / "templates" / "spec-template.md").write_text("# My Custom Spec\nThis is different from global.")
 
         # Run migration
         report = execute_migration(project)
@@ -291,9 +273,7 @@ class TestUpgradeLegacyProjectE2E:
         # Customized file should move to overrides
         assert len(report.moved) >= 1
         assert (kittify / "overrides" / "templates" / "spec-template.md").exists()
-        assert "My Custom Spec" in (
-            kittify / "overrides" / "templates" / "spec-template.md"
-        ).read_text()
+        assert "My Custom Spec" in (kittify / "overrides" / "templates" / "spec-template.md").read_text()
 
     def test_after_migration_resolves_from_override_tier(
         self,
@@ -313,9 +293,7 @@ class TestUpgradeLegacyProjectE2E:
         project = isolated_runtime.parent / "legacy_project"
         kittify = project / ".kittify"
         (kittify / "templates").mkdir(parents=True)
-        (kittify / "templates" / "spec-template.md").write_text(
-            "# My Custom Spec\nThis is different from global."
-        )
+        (kittify / "templates" / "spec-template.md").write_text("# My Custom Spec\nThis is different from global.")
 
         # Migrate
         execute_migration(project)
@@ -323,16 +301,12 @@ class TestUpgradeLegacyProjectE2E:
         # Re-resolve -- should now come from OVERRIDE tier without deprecation warning
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            result = resolve_template(
-                "spec-template.md", project, mission="software-dev"
-            )
+            result = resolve_template("spec-template.md", project, mission="software-dev")
 
         assert result.tier == ResolutionTier.OVERRIDE
         assert "My Custom Spec" in result.path.read_text()
         # No deprecation warnings for override tier
-        deprecation_warnings = [
-            x for x in w if issubclass(x.category, DeprecationWarning)
-        ]
+        deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
         assert len(deprecation_warnings) == 0
 
     def test_migrate_removes_identical_files(
@@ -353,9 +327,7 @@ class TestUpgradeLegacyProjectE2E:
         project = isolated_runtime.parent / "legacy_project"
         kittify = project / ".kittify"
         (kittify / "templates").mkdir(parents=True)
-        (kittify / "templates" / "spec-template.md").write_text(
-            "# Spec Template\nThis is the default spec template."
-        )
+        (kittify / "templates" / "spec-template.md").write_text("# Spec Template\nThis is the default spec template.")
 
         report = execute_migration(project)
 
@@ -381,17 +353,13 @@ class TestUpgradeLegacyProjectE2E:
         project = isolated_runtime.parent / "legacy_project"
         kittify = project / ".kittify"
         (kittify / "templates").mkdir(parents=True)
-        (kittify / "templates" / "spec-template.md").write_text(
-            "# Spec Template\nThis is the default spec template."
-        )
+        (kittify / "templates" / "spec-template.md").write_text("# Spec Template\nThis is the default spec template.")
 
         # Migrate (removes identical)
         execute_migration(project)
 
         # Re-resolve -- should fall through to GLOBAL tier
-        result = resolve_template(
-            "spec-template.md", project, mission="software-dev"
-        )
+        result = resolve_template("spec-template.md", project, mission="software-dev")
         assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert result.path.exists()
 
@@ -413,9 +381,7 @@ class TestUpgradeLegacyProjectE2E:
         project = isolated_runtime.parent / "pinned_project"
         kittify = project / ".kittify"
         kittify.mkdir(parents=True)
-        (kittify / "config.yaml").write_text(
-            "runtime:\n  pin_version: '1.2.3'\n"
-        )
+        (kittify / "config.yaml").write_text("runtime:\n  pin_version: '1.2.3'\n")
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -455,14 +421,10 @@ class TestUpgradeLegacyProjectE2E:
 
         # Identical to global (should be removed)
         (kittify / "templates").mkdir(parents=True)
-        (kittify / "templates" / "spec-template.md").write_text(
-            "# Spec Template\nThis is the default spec template."
-        )
+        (kittify / "templates" / "spec-template.md").write_text("# Spec Template\nThis is the default spec template.")
 
         # Customized (should move to overrides)
-        (kittify / "templates" / "plan-template.md").write_text(
-            "# My Custom Plan\nThis differs from global."
-        )
+        (kittify / "templates" / "plan-template.md").write_text("# My Custom Plan\nThis differs from global.")
 
         # Project-specific (should be kept)
         (kittify / "config.yaml").write_text("agents:\n  available:\n    - claude\n")
@@ -478,22 +440,16 @@ class TestUpgradeLegacyProjectE2E:
 
         # Step 4: Verify post-migration resolution
         # Identical file now resolves from GLOBAL_MISSION (mission-specific global)
-        result_spec = resolve_template(
-            "spec-template.md", project, mission="software-dev"
-        )
+        result_spec = resolve_template("spec-template.md", project, mission="software-dev")
         assert result_spec.tier == ResolutionTier.GLOBAL_MISSION
 
         # Customized file resolves from OVERRIDE (no deprecation warning)
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            result_plan = resolve_template(
-                "plan-template.md", project, mission="software-dev"
-            )
+            result_plan = resolve_template("plan-template.md", project, mission="software-dev")
         assert result_plan.tier == ResolutionTier.OVERRIDE
         assert "My Custom Plan" in result_plan.path.read_text()
-        deprecation_warnings = [
-            x for x in w if issubclass(x.category, DeprecationWarning)
-        ]
+        deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
         assert len(deprecation_warnings) == 0
 
         # Project-specific files untouched

@@ -153,9 +153,7 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
     governance_path = constitution_dir / "governance.yaml"
 
     if not governance_path.exists():
-        logger.warning(
-            "governance.yaml not found. Run 'spec-kitty constitution sync'."
-        )
+        logger.warning("governance.yaml not found. Run 'spec-kitty constitution sync'.")
         return GovernanceConfig()
 
     # Check staleness
@@ -164,10 +162,7 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
     if constitution_path.exists() and metadata_path.exists():
         stale, _, _ = is_stale(constitution_path, metadata_path)
         if stale:
-            logger.warning(
-                "Constitution changed since last sync. "
-                "Run 'spec-kitty constitution sync' to update."
-            )
+            logger.warning("Constitution changed since last sync. Run 'spec-kitty constitution sync' to update.")
 
     # Load and validate
     yaml = YAML()
@@ -202,10 +197,7 @@ def load_agents_config(repo_root: Path) -> AgentsConfig:
     if constitution_path.exists() and metadata_path.exists():
         stale, _, _ = is_stale(constitution_path, metadata_path)
         if stale:
-            logger.warning(
-                "Constitution changed since last sync. "
-                "Run 'spec-kitty constitution sync' to update."
-            )
+            logger.warning("Constitution changed since last sync. Run 'spec-kitty constitution sync' to update.")
 
     # Load and validate
     yaml = YAML()
@@ -229,9 +221,7 @@ def load_directives_config(repo_root: Path) -> DirectivesConfig:
     directives_path = constitution_dir / "directives.yaml"
 
     if not directives_path.exists():
-        logger.warning(
-            "directives.yaml not found. Run 'spec-kitty constitution sync'."
-        )
+        logger.warning("directives.yaml not found. Run 'spec-kitty constitution sync'.")
         return DirectivesConfig()
 
     constitution_path = constitution_dir / "constitution.md"
@@ -239,10 +229,7 @@ def load_directives_config(repo_root: Path) -> DirectivesConfig:
     if constitution_path.exists() and metadata_path.exists():
         stale, _, _ = is_stale(constitution_path, metadata_path)
         if stale:
-            logger.warning(
-                "Constitution changed since last sync. "
-                "Run 'spec-kitty constitution sync' to update."
-            )
+            logger.warning("Constitution changed since last sync. Run 'spec-kitty constitution sync' to update.")
 
     yaml = YAML()
     data = yaml.load(directives_path)

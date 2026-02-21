@@ -114,9 +114,7 @@ def _validate_envelope(event_data: dict[str, Any], errors: list[str]) -> None:
             errors.append(f"{loc}: {err['msg']}")
 
 
-def _validate_extended_envelope(
-    event_data: dict[str, Any], errors: list[str]
-) -> None:
+def _validate_extended_envelope(event_data: dict[str, Any], errors: list[str]) -> None:
     """Check envelope fields that the Pydantic model does not cover.
 
     These are fields required by the server contract but absent from the
@@ -126,18 +124,12 @@ def _validate_extended_envelope(
     # aggregate_type must be a known value
     agg_type = event_data.get("aggregate_type")
     if agg_type is not None and agg_type not in VALID_AGGREGATE_TYPES:
-        errors.append(
-            f"aggregate_type: must be one of {sorted(VALID_AGGREGATE_TYPES)}, "
-            f"got {agg_type!r}"
-        )
+        errors.append(f"aggregate_type: must be one of {sorted(VALID_AGGREGATE_TYPES)}, got {agg_type!r}")
 
     # event_type must be a known value
     etype = event_data.get("event_type")
     if etype is not None and etype not in VALID_EVENT_TYPES:
-        errors.append(
-            f"event_type: unknown event type {etype!r}; "
-            f"expected one of {sorted(VALID_EVENT_TYPES)}"
-        )
+        errors.append(f"event_type: unknown event type {etype!r}; expected one of {sorted(VALID_EVENT_TYPES)}")
 
 
 def _validate_payload(
@@ -157,10 +149,7 @@ def _validate_payload(
     required: set[str] = rules.get("required", set())
     missing = required - set(payload.keys())
     if missing:
-        errors.append(
-            f"payload: missing required field(s) {sorted(missing)} "
-            f"for {event_type}"
-        )
+        errors.append(f"payload: missing required field(s) {sorted(missing)} for {event_type}")
 
     # Per-field validators
     validators: dict[str, Any] = rules.get("validators", {})
@@ -172,7 +161,4 @@ def _validate_payload(
             except Exception:
                 ok = False
             if not ok:
-                errors.append(
-                    f"payload.{field_name}: invalid value {value!r} "
-                    f"for {event_type}"
-                )
+                errors.append(f"payload.{field_name}: invalid value {value!r} for {event_type}")

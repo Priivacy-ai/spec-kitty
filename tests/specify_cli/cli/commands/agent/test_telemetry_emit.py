@@ -1,4 +1,5 @@
 """Tests for the `spec-kitty agent telemetry emit` CLI command."""
+
 from __future__ import annotations
 
 import json
@@ -39,18 +40,30 @@ def _read_events(project_root: Path, feature: str) -> list[dict]:
 def test_emit_specifier_event_with_all_flags(project_with_feature: Path) -> None:
     """Emit a specifier event with all optional flags provided."""
     with patch("specify_cli.cli.commands.agent.telemetry.find_repo_root", return_value=project_with_feature):
-        result = runner.invoke(app, [
-            "emit",
-            "--feature", "048-test-feature",
-            "--role", "specifier",
-            "--agent", "claude",
-            "--model", "claude-opus-4-6",
-            "--input-tokens", "50000",
-            "--output-tokens", "5000",
-            "--cost-usd", "1.50",
-            "--duration-ms", "90000",
-            "--wp-id", "N/A",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "emit",
+                "--feature",
+                "048-test-feature",
+                "--role",
+                "specifier",
+                "--agent",
+                "claude",
+                "--model",
+                "claude-opus-4-6",
+                "--input-tokens",
+                "50000",
+                "--output-tokens",
+                "5000",
+                "--cost-usd",
+                "1.50",
+                "--duration-ms",
+                "90000",
+                "--wp-id",
+                "N/A",
+            ],
+        )
 
     assert result.exit_code == 0
     events = _read_events(project_with_feature, "048-test-feature")
@@ -69,11 +82,16 @@ def test_emit_specifier_event_with_all_flags(project_with_feature: Path) -> None
 def test_emit_minimal_flags(project_with_feature: Path) -> None:
     """Emit with only required flags — agent/model default to unknown/None."""
     with patch("specify_cli.cli.commands.agent.telemetry.find_repo_root", return_value=project_with_feature):
-        result = runner.invoke(app, [
-            "emit",
-            "--feature", "048-test-feature",
-            "--role", "planner",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "emit",
+                "--feature",
+                "048-test-feature",
+                "--role",
+                "planner",
+            ],
+        )
 
     assert result.exit_code == 0
     events = _read_events(project_with_feature, "048-test-feature")
@@ -90,12 +108,17 @@ def test_emit_minimal_flags(project_with_feature: Path) -> None:
 def test_emit_failure_flag(project_with_feature: Path) -> None:
     """Emit with --failure sets success to false."""
     with patch("specify_cli.cli.commands.agent.telemetry.find_repo_root", return_value=project_with_feature):
-        result = runner.invoke(app, [
-            "emit",
-            "--feature", "048-test-feature",
-            "--role", "merger",
-            "--failure",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "emit",
+                "--feature",
+                "048-test-feature",
+                "--role",
+                "merger",
+                "--failure",
+            ],
+        )
 
     assert result.exit_code == 0
     events = _read_events(project_with_feature, "048-test-feature")
@@ -106,14 +129,21 @@ def test_emit_failure_flag(project_with_feature: Path) -> None:
 def test_emit_json_output(project_with_feature: Path) -> None:
     """Emit with --json returns structured JSON output."""
     with patch("specify_cli.cli.commands.agent.telemetry.find_repo_root", return_value=project_with_feature):
-        result = runner.invoke(app, [
-            "emit",
-            "--feature", "048-test-feature",
-            "--role", "reviewer",
-            "--agent", "copilot",
-            "--model", "gpt-4.1",
-            "--json",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "emit",
+                "--feature",
+                "048-test-feature",
+                "--role",
+                "reviewer",
+                "--agent",
+                "copilot",
+                "--model",
+                "gpt-4.1",
+                "--json",
+            ],
+        )
 
     assert result.exit_code == 0
     output = json.loads(result.stdout)
@@ -127,11 +157,16 @@ def test_emit_json_output(project_with_feature: Path) -> None:
 def test_emit_invalid_role(project_with_feature: Path) -> None:
     """Invalid role is rejected by click.Choice."""
     with patch("specify_cli.cli.commands.agent.telemetry.find_repo_root", return_value=project_with_feature):
-        result = runner.invoke(app, [
-            "emit",
-            "--feature", "048-test-feature",
-            "--role", "invalid_role",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "emit",
+                "--feature",
+                "048-test-feature",
+                "--role",
+                "invalid_role",
+            ],
+        )
 
     assert result.exit_code != 0
 
@@ -142,11 +177,16 @@ def test_emit_creates_feature_dir_if_missing(tmp_path: Path) -> None:
     # Don't create the feature dir — emit should create it
 
     with patch("specify_cli.cli.commands.agent.telemetry.find_repo_root", return_value=tmp_path):
-        result = runner.invoke(app, [
-            "emit",
-            "--feature", "099-new-feature",
-            "--role", "specifier",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "emit",
+                "--feature",
+                "099-new-feature",
+                "--role",
+                "specifier",
+            ],
+        )
 
     assert result.exit_code == 0
     assert (tmp_path / "kitty-specs" / "099-new-feature").is_dir()
@@ -159,11 +199,16 @@ def test_emit_all_roles(project_with_feature: Path) -> None:
     roles = ["specifier", "planner", "implementer", "reviewer", "merger"]
     for role in roles:
         with patch("specify_cli.cli.commands.agent.telemetry.find_repo_root", return_value=project_with_feature):
-            result = runner.invoke(app, [
-                "emit",
-                "--feature", "048-test-feature",
-                "--role", role,
-            ])
+            result = runner.invoke(
+                app,
+                [
+                    "emit",
+                    "--feature",
+                    "048-test-feature",
+                    "--role",
+                    role,
+                ],
+            )
         assert result.exit_code == 0, f"Role {role} failed with exit code {result.exit_code}"
 
     events = _read_events(project_with_feature, "048-test-feature")

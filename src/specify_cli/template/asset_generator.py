@@ -84,9 +84,7 @@ def render_command_template(
             scripts = {}
         if not isinstance(agent_scripts, dict):
             agent_scripts = {}
-        script_command = scripts.get(
-            script_type, f"(Missing script command for {script_type})"
-        )
+        script_command = scripts.get(script_type, f"(Missing script command for {script_type})")
         agent_script_command = agent_scripts.get(script_type)
         return {
             "{SCRIPT}": script_command,
@@ -95,9 +93,7 @@ def render_command_template(
             "__AGENT__": agent_key,
         }
 
-    metadata, rendered_body, raw_frontmatter = render_template(
-        template_path, variables=build_variables
-    )
+    metadata, rendered_body, raw_frontmatter = render_template(template_path, variables=build_variables)
     description = str(metadata.get("description", "")).strip()
 
     frontmatter_clean = _filter_frontmatter(raw_frontmatter)
@@ -175,10 +171,12 @@ def _raise_template_discovery_error(commands_dir: Path) -> None:
         "Templates could not be found in any of the expected locations:\n\n"
         "Checked paths (in order):\n"
         "  ✗ Packaged resources (bundled with CLI)\n"
-        "  ✗ Environment variable SPEC_KITTY_TEMPLATE_ROOT" +
-        (f" = {env_root}" if env_root else " (not set)") + "\n" +
-        "  ✗ Remote repository SPECIFY_TEMPLATE_REPO" +
-        (f" = {remote_repo}" if remote_repo else " (not configured)") + "\n\n"
+        "  ✗ Environment variable SPEC_KITTY_TEMPLATE_ROOT"
+        + (f" = {env_root}" if env_root else " (not set)")
+        + "\n"
+        + "  ✗ Remote repository SPECIFY_TEMPLATE_REPO"
+        + (f" = {remote_repo}" if remote_repo else " (not configured)")
+        + "\n\n"
         "To fix this, try one of these approaches:\n\n"
         "1. Reinstall from PyPI (recommended for end users):\n"
         "   pip install --upgrade spec-kitty-cli\n\n"

@@ -47,9 +47,7 @@ def test_compiled_index_uses_import_sequence(tmp_path: Path) -> None:
     assert "imports" in index_doc
     assert isinstance(index_doc["imports"], list)
     assert all(isinstance(item, str) for item in index_doc["imports"])
-    assert any(
-        item.endswith("doctrine-artifacts.glossary.yml") for item in index_doc["imports"]
-    )
+    assert any(item.endswith("doctrine-artifacts.glossary.yml") for item in index_doc["imports"])
     assert "contexts" not in index_doc
 
 

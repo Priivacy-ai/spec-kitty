@@ -55,10 +55,9 @@ def _write_prompt_to_file(
     prompt_file.write_text(content, encoding="utf-8")
     return prompt_file
 
+
 app = typer.Typer(
-    name="workflow",
-    help="Workflow commands that display prompts and instructions for agents",
-    no_args_is_help=True
+    name="workflow", help="Workflow commands that display prompts and instructions for agents", no_args_is_help=True
 )
 
 
@@ -68,6 +67,7 @@ def _resolve_primary_branch(repo_root: Path) -> str:
     Delegates to the centralized implementation in core.git_ops.
     """
     from specify_cli.core.git_ops import resolve_primary_branch
+
     return resolve_primary_branch(repo_root)
 
 
@@ -124,12 +124,7 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
         raise typer.Exit(1)
 
     try:
-        return detect_feature_slug(
-            repo_root,
-            explicit_feature=explicit_feature,
-            cwd=cwd,
-            mode="strict"
-        )
+        return detect_feature_slug(repo_root, explicit_feature=explicit_feature, cwd=cwd, mode="strict")
     except FeatureDetectionError as e:
         print(f"Error: {e}")
         raise typer.Exit(1)
@@ -205,19 +200,14 @@ def _ensure_sparse_checkout(worktree_path: Path) -> bool:
     if needs_setup:
         # Configure sparse-checkout
         subprocess.run(
-            ["git", "config", "core.sparseCheckout", "true"],
-            cwd=worktree_path, capture_output=True, check=False
+            ["git", "config", "core.sparseCheckout", "true"], cwd=worktree_path, capture_output=True, check=False
         )
         subprocess.run(
-            ["git", "config", "core.sparseCheckoutCone", "false"],
-            cwd=worktree_path, capture_output=True, check=False
+            ["git", "config", "core.sparseCheckoutCone", "false"], cwd=worktree_path, capture_output=True, check=False
         )
         sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
         sparse_checkout_file.write_text(expected_content, encoding="utf-8")
-        subprocess.run(
-            ["git", "read-tree", "-mu", "HEAD"],
-            cwd=worktree_path, capture_output=True, check=False
-        )
+        subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=worktree_path, capture_output=True, check=False)
 
         # Remove orphaned kitty-specs if present (from before sparse-checkout was configured)
         orphan_kitty = worktree_path / "kitty-specs"
@@ -283,15 +273,30 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
 
 @app.command(name="implement")
 def implement(
-    wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
+    wp_id: Annotated[
+        Optional[str],
+        typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted"),
+    ] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
-    base: Annotated[Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
+    agent: Annotated[
+        Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")
+    ] = None,
+    base: Annotated[
+        Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")
+    ] = None,
     model: Annotated[Optional[str], typer.Option("--model", help="LLM model used (for telemetry)")] = None,
-    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input token count (for telemetry)")] = None,
-    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output token count (for telemetry)")] = None,
-    cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Estimated cost in USD (for telemetry)")] = None,
-    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Execution duration in milliseconds (for telemetry)")] = None,
+    input_tokens: Annotated[
+        Optional[int], typer.Option("--input-tokens", help="Input token count (for telemetry)")
+    ] = None,
+    output_tokens: Annotated[
+        Optional[int], typer.Option("--output-tokens", help="Output token count (for telemetry)")
+    ] = None,
+    cost_usd: Annotated[
+        Optional[float], typer.Option("--cost-usd", help="Estimated cost in USD (for telemetry)")
+    ] = None,
+    duration_ms: Annotated[
+        Optional[int], typer.Option("--duration-ms", help="Execution duration in milliseconds (for telemetry)")
+    ] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -354,7 +359,7 @@ def implement(
                 wp_file=wp.path,
                 base=base,  # May be None
                 feature_slug=feature_slug,
-                repo_root=repo_root
+                repo_root=repo_root,
             )
         except typer.Exit:
             # Validation failed (e.g., missing --base for single dependency)
@@ -389,7 +394,7 @@ def implement(
                         wp_id=normalized_wp_id,
                         base=resolved_base,  # None for auto-merge or no deps
                         feature=feature_slug,
-                        json_output=False
+                        json_output=False,
                     )
                 except typer.Exit:
                     # Worktree creation failed - propagate error
@@ -464,7 +469,9 @@ def implement(
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
         else:
-            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow implement will not move it to doing.")
+            print(
+                f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow implement will not move it to doing."
+            )
 
         # Check review status
         review_status = extract_scalar(wp.frontmatter, "review_status")
@@ -517,8 +524,10 @@ def implement(
         # Inject worktree topology context for stacked branches
         try:
             from specify_cli.core.worktree_topology import (
-                materialize_worktree_topology, render_topology_json,
+                materialize_worktree_topology,
+                render_topology_json,
             )
+
             topology = materialize_worktree_topology(repo_root, feature_slug)
             if topology.has_stacking:
                 lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
@@ -534,15 +543,17 @@ def implement(
         lines.append("  1. **Commit your implementation files:**")
         lines.append("     git status  # Check what you changed")
         lines.append("     git add <your-implementation-files>  # NOT WP status files")
-        lines.append(f"     git commit -m \"feat({normalized_wp_id}): <brief description>\"")
+        lines.append(f'     git commit -m "feat({normalized_wp_id}): <brief description>"')
         lines.append("     git log -1 --oneline  # Verify commit succeeded")
         lines.append("  2. Mark all subtasks as done:")
         lines.append("     spec-kitty agent tasks mark-status T001 T002 T003 --status done")
         lines.append("  3. Move WP to review:")
-        lines.append(f"     spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
+        lines.append(
+            f'     spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note "Ready for review"'
+        )
         lines.append("")
         lines.append("✗ Blocked or cannot complete:")
-        lines.append(f"  spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        lines.append(f'  spec-kitty agent tasks add-history {normalized_wp_id} --note "Blocked: <reason>"')
         lines.append("=" * 80)
         lines.append("")
         lines.append("📍 WORKING DIRECTORY:")
@@ -603,16 +614,18 @@ def implement(
         lines.append("   1. **Commit your implementation files:**")
         lines.append("      git status  # Check what you changed")
         lines.append("      git add <your-implementation-files>  # NOT WP status files")
-        lines.append(f"      git commit -m \"feat({normalized_wp_id}): <brief description>\"")
+        lines.append(f'      git commit -m "feat({normalized_wp_id}): <brief description>"')
         lines.append("      git log -1 --oneline  # Verify commit succeeded")
         lines.append("      (Use fix: for bugs, chore: for maintenance, docs: for documentation)")
         lines.append("   2. Mark all subtasks as done:")
         lines.append("      spec-kitty agent tasks mark-status T001 T002 T003 --status done")
         lines.append("   3. Move WP to review (will check for uncommitted changes):")
-        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review: <summary>\"")
+        lines.append(
+            f'      spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note "Ready for review: <summary>"'
+        )
         lines.append("")
         lines.append("⚠️  Blocked or cannot complete:")
-        lines.append(f"   spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        lines.append(f'   spec-kitty agent tasks add-history {normalized_wp_id} --note "Blocked: <reason>"')
         lines.append("")
         lines.append("⚠️  NOTE: The move-task command will FAIL if you have uncommitted changes!")
         lines.append("     Commit all implementation files BEFORE moving to for_review.")
@@ -636,9 +649,9 @@ def implement(
         print(f"    cat {prompt_file}")
         print()
         print("After implementation, run:")
-        print(f"  1. git status && git add <your-files> && git commit -m \"feat({normalized_wp_id}): <description>\"")
+        print(f'  1. git status && git add <your-files> && git commit -m "feat({normalized_wp_id}): <description>"')
         print("  2. spec-kitty agent tasks mark-status T001 T002 ... --status done")
-        print(f"  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
+        print(f'  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note "Ready for review"')
         print("     (Pre-flight check will verify no uncommitted changes)")
 
         # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
@@ -662,9 +675,8 @@ def implement(
         except Exception as telemetry_err:
             # Fire-and-forget: log but don't block workflow
             import logging
-            logging.getLogger(__name__).warning(
-                f"Failed to emit execution event: {telemetry_err}"
-            )
+
+            logging.getLogger(__name__).warning(f"Failed to emit execution event: {telemetry_err}")
 
     except Exception as e:
         print(f"Error: {e}")
@@ -700,6 +712,7 @@ def _resolve_review_context(
 
     # Get actual branch name from worktree
     from specify_cli.core.git_ops import get_current_branch
+
     branch = get_current_branch(workspace_path)
     if branch:
         ctx["branch_name"] = branch
@@ -710,7 +723,7 @@ def _resolve_review_context(
     candidates: list[str] = []
 
     # From WP dependencies (e.g., dependencies: ["WP01"])
-    dep_match = re.search(r'dependencies:\s*\[([^\]]*)\]', wp_frontmatter)
+    dep_match = re.search(r"dependencies:\s*\[([^\]]*)\]", wp_frontmatter)
     if dep_match:
         dep_content = dep_match.group(1).strip()
         if dep_content:
@@ -728,18 +741,24 @@ def _resolve_review_context(
     for candidate in candidates:
         mb = subprocess.run(
             ["git", "merge-base", branch, candidate],
-            cwd=repo_root, capture_output=True, text=True,
-                                                encoding="utf-8",
-                                                errors="replace", check=False,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
         )
         if mb.returncode != 0:
             continue
 
         count_r = subprocess.run(
             ["git", "rev-list", "--count", f"{mb.stdout.strip()}..{branch}"],
-            cwd=repo_root, capture_output=True, text=True,
-                                                encoding="utf-8",
-                                                errors="replace", check=False,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
         )
         if count_r.returncode != 0:
             continue
@@ -811,14 +830,26 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
 
 @app.command(name="review")
 def review(
-    wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
+    wp_id: Annotated[
+        Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")
+    ] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
+    agent: Annotated[
+        Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")
+    ] = None,
     model: Annotated[Optional[str], typer.Option("--model", help="LLM model used (for telemetry)")] = None,
-    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input token count (for telemetry)")] = None,
-    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output token count (for telemetry)")] = None,
-    cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Estimated cost in USD (for telemetry)")] = None,
-    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Execution duration in milliseconds (for telemetry)")] = None,
+    input_tokens: Annotated[
+        Optional[int], typer.Option("--input-tokens", help="Input token count (for telemetry)")
+    ] = None,
+    output_tokens: Annotated[
+        Optional[int], typer.Option("--output-tokens", help="Output token count (for telemetry)")
+    ] = None,
+    cost_usd: Annotated[
+        Optional[float], typer.Option("--cost-usd", help="Estimated cost in USD (for telemetry)")
+    ] = None,
+    duration_ms: Annotated[
+        Optional[int], typer.Option("--duration-ms", help="Execution duration in milliseconds (for telemetry)")
+    ] = None,
 ) -> None:
     """Display work package prompt with review instructions.
 
@@ -886,7 +917,9 @@ def review(
 
             # Build history entry
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started review via workflow command"
+            history_entry = (
+                f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started review via workflow command"
+            )
 
             # Add history entry to body
             updated_body = append_activity_log(wp.body, history_entry)
@@ -906,12 +939,16 @@ def review(
                 allow_empty=True,  # OK if already in this state
             )
 
-            print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
+            print(
+                f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})"
+            )
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
         else:
-            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to doing.")
+            print(
+                f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to doing."
+            )
 
         # Calculate workspace path
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
@@ -934,7 +971,7 @@ def review(
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                check=False
+                check=False,
             )
 
             if result.returncode != 0:
@@ -948,15 +985,27 @@ def review(
                     text=True,
                     encoding="utf-8",
                     errors="replace",
-                    check=False
+                    check=False,
                 )
                 if sparse_checkout_result.returncode == 0:
                     sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
-                    subprocess.run(["git", "config", "core.sparseCheckout", "true"], cwd=workspace_path, capture_output=True, check=False)
-                    subprocess.run(["git", "config", "core.sparseCheckoutCone", "false"], cwd=workspace_path, capture_output=True, check=False)
+                    subprocess.run(
+                        ["git", "config", "core.sparseCheckout", "true"],
+                        cwd=workspace_path,
+                        capture_output=True,
+                        check=False,
+                    )
+                    subprocess.run(
+                        ["git", "config", "core.sparseCheckoutCone", "false"],
+                        cwd=workspace_path,
+                        capture_output=True,
+                        check=False,
+                    )
                     sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
                     sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
-                    subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
+                    subprocess.run(
+                        ["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False
+                    )
 
                     # Add to .git/info/exclude to block WP status files but allow research artifacts
                     # Use local git exclude (not .gitignore) to prevent merge pollution (fixes #120)
@@ -974,7 +1023,9 @@ def review(
                             if exclude_path.exists():
                                 exclude_content = exclude_path.read_text(encoding="utf-8")
                                 if "kitty-specs/**/tasks/*.md" not in exclude_content:
-                                    exclude_path.write_text(exclude_content.rstrip() + "\n" + exclude_entry, encoding="utf-8")
+                                    exclude_path.write_text(
+                                        exclude_content.rstrip() + "\n" + exclude_entry, encoding="utf-8"
+                                    )
                             else:
                                 exclude_path.write_text(exclude_entry, encoding="utf-8")
 
@@ -986,9 +1037,7 @@ def review(
             _ensure_sparse_checkout(workspace_path)
 
         # Resolve git context (branch name, base branch, commit count)
-        review_ctx = _resolve_review_context(
-            workspace_path, repo_root, feature_slug, wp.frontmatter
-        )
+        review_ctx = _resolve_review_context(workspace_path, repo_root, feature_slug, wp.frontmatter)
 
         # Capture dependency warning for both file and summary
         dependents_warning = []
@@ -1007,7 +1056,9 @@ def review(
                     incomplete.append(dependent_id)
             if incomplete:
                 dependents_list = ", ".join(sorted(incomplete))
-                dependents_warning.append(f"⚠️  Dependency Alert: {dependents_list} depend on {normalized_wp_id} (not yet done)")
+                dependents_warning.append(
+                    f"⚠️  Dependency Alert: {dependents_list} depend on {normalized_wp_id} (not yet done)"
+                )
                 dependents_warning.append("   If you request changes, notify those agents to rebase.")
 
         # Build full prompt content for file
@@ -1049,8 +1100,10 @@ def review(
         # Inject worktree topology context for stacked branches
         try:
             from specify_cli.core.worktree_topology import (
-                materialize_worktree_topology, render_topology_json,
+                materialize_worktree_topology,
+                render_topology_json,
             )
+
             topology = materialize_worktree_topology(repo_root, feature_slug)
             if topology.has_stacking:
                 lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
@@ -1078,11 +1131,13 @@ def review(
         lines.append("WHEN YOU'RE DONE:")
         lines.append("=" * 80)
         lines.append("✓ Review passed, no issues:")
-        lines.append(f"  spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
+        lines.append(f'  spec-kitty agent tasks move-task {normalized_wp_id} --to done --note "Review passed"')
         lines.append("")
         lines.append("⚠️  Changes requested:")
         lines.append("  1. Add feedback to the WP file's '## Review Feedback' section")
-        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --note \"Changes requested\"")
+        lines.append(
+            f'  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --note "Changes requested"'
+        )
         lines.append("=" * 80)
         lines.append("")
         lines.append("📍 WORKING DIRECTORY:")
@@ -1119,7 +1174,9 @@ def review(
         lines.append("=" * 80)
         lines.append("")
         lines.append("✅ APPROVE (no issues found):")
-        lines.append(f"   spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed: <summary>\"")
+        lines.append(
+            f'   spec-kitty agent tasks move-task {normalized_wp_id} --to done --note "Review passed: <summary>"'
+        )
         lines.append("")
         # Create unique temp file path for review feedback (avoids conflicts between agents)
         review_feedback_path = Path(tempfile.gettempdir()) / f"spec-kitty-review-feedback-{normalized_wp_id}.md"
@@ -1132,7 +1189,9 @@ def review(
         lines.append("EOF")
         lines.append("")
         lines.append("   2. Move to planned with feedback:")
-        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
+        lines.append(
+            f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}"
+        )
         lines.append("")
         lines.append("⚠️  NOTE: You MUST run one of these commands to complete the review!")
         lines.append("     The Python script handles all file updates automatically.")
@@ -1161,8 +1220,10 @@ def review(
         print(f"    cat {prompt_file}")
         print()
         print("After review, run:")
-        print(f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to done --note \"Review passed\"")
-        print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
+        print(f'  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to done --note "Review passed"')
+        print(
+            f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}"
+        )
 
         # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
         try:
@@ -1185,9 +1246,8 @@ def review(
         except Exception as telemetry_err:
             # Fire-and-forget: log but don't block workflow
             import logging
-            logging.getLogger(__name__).warning(
-                f"Failed to emit execution event: {telemetry_err}"
-            )
+
+            logging.getLogger(__name__).warning(f"Failed to emit execution event: {telemetry_err}")
 
     except Exception as e:
         print(f"Error: {e}")

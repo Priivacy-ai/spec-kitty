@@ -106,9 +106,7 @@ class GlossaryCandidateExtractionMiddleware:
         if context.metadata and "glossary_fields" in context.metadata:
             metadata_fields = context.metadata["glossary_fields"]
             # Validate it's a list of strings
-            if isinstance(metadata_fields, list) and all(
-                isinstance(f, str) for f in metadata_fields
-            ):
+            if isinstance(metadata_fields, list) and all(isinstance(f, str) for f in metadata_fields):
                 fields_to_scan = metadata_fields
 
         # 2. Collect text from glossary fields
@@ -168,6 +166,7 @@ class GlossaryCandidateExtractionMiddleware:
             )
         except Exception as exc:
             import logging
+
             logging.getLogger(__name__).error(
                 "Failed to emit TermCandidateObserved for %s: %s",
                 term.surface,
@@ -333,9 +332,8 @@ class SemanticCheckMiddleware:
             )
         except Exception as exc:
             import logging
-            logging.getLogger(__name__).error(
-                "Failed to emit SemanticCheckEvaluated: %s", exc
-            )
+
+            logging.getLogger(__name__).error("Failed to emit SemanticCheckEvaluated: %s", exc)
 
 
 class GenerationGateMiddleware:
@@ -462,6 +460,7 @@ class GenerationGateMiddleware:
                 setattr(context, "checkpoint_token", checkpoint.retry_token)
             except Exception as ckpt_err:
                 import logging
+
                 _logger = logging.getLogger(__name__)
                 _logger.error(
                     "Failed to emit checkpoint (blocking proceeds): %s",
@@ -482,6 +481,7 @@ class GenerationGateMiddleware:
                 )
             except Exception as emit_err:
                 import logging
+
                 _logger = logging.getLogger(__name__)
                 _logger.error(
                     "Failed to emit generation-blocked event (blocking proceeds): %s",
@@ -524,9 +524,7 @@ class GenerationGateMiddleware:
             else:
                 # Try to convert string to GlossaryScope
                 try:
-                    refs.append(
-                        ScopeRef(scope=GlossaryScope(scope_val), version_id=version)
-                    )
+                    refs.append(ScopeRef(scope=GlossaryScope(scope_val), version_id=version))
                 except ValueError:
                     pass  # Skip unknown scopes
         return refs
@@ -646,9 +644,7 @@ class ResumeMiddleware:
 
         # Verify input context hasn't changed
         inputs = getattr(context, "inputs", {})
-        if not handle_context_change(
-            checkpoint, inputs, confirm_fn=self.confirm_fn
-        ):
+        if not handle_context_change(checkpoint, inputs, confirm_fn=self.confirm_fn):
             # User declined resumption
             raise AbortResume("User declined resumption due to context change")
 

@@ -97,14 +97,12 @@ def _guard_subtasks_complete_or_force(
     if subtasks_complete is not True:
         return (
             False,
-            "Transition in_progress -> for_review requires completed subtasks "
-            "or force with reason",
+            "Transition in_progress -> for_review requires completed subtasks or force with reason",
         )
     if implementation_evidence_present is not True:
         return (
             False,
-            "Transition in_progress -> for_review requires implementation evidence "
-            "or force with reason",
+            "Transition in_progress -> for_review requires implementation evidence or force with reason",
         )
     return True, None
 
@@ -116,8 +114,7 @@ def _guard_reviewer_approval(
     if evidence is None:
         return (
             False,
-            "Transition for_review -> done requires evidence "
-            "(reviewer identity and approval reference)",
+            "Transition for_review -> done requires evidence (reviewer identity and approval reference)",
         )
     review = getattr(evidence, "review", None)
     reviewer = getattr(review, "reviewer", None) if review is not None else None
@@ -125,14 +122,12 @@ def _guard_reviewer_approval(
     if not reviewer or not str(reviewer).strip():
         return (
             False,
-            "Transition for_review -> done requires evidence "
-            "(reviewer identity and approval reference)",
+            "Transition for_review -> done requires evidence (reviewer identity and approval reference)",
         )
     if not reference or not str(reference).strip():
         return (
             False,
-            "Transition for_review -> done requires evidence "
-            "(reviewer identity and approval reference)",
+            "Transition for_review -> done requires evidence (reviewer identity and approval reference)",
         )
     return True, None
 
@@ -144,8 +139,7 @@ def _guard_review_ref_required(
     if not review_ref or not review_ref.strip():
         return (
             False,
-            "Transition for_review -> in_progress requires review_ref "
-            "(review feedback reference)",
+            "Transition for_review -> in_progress requires review_ref (review feedback reference)",
         )
     return True, None
 

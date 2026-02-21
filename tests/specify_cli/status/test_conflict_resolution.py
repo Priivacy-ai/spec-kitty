@@ -66,16 +66,19 @@ class TestLanePriority:
         """7 canonical lanes + 1 'doing' alias = 8 entries total."""
         assert len(LANE_PRIORITY) == 8
 
-    @pytest.mark.parametrize("lane,expected_priority", [
-        ("planned", 1),
-        ("claimed", 2),
-        ("in_progress", 3),
-        ("for_review", 4),
-        ("done", 5),
-        ("blocked", 0),
-        ("canceled", 6),
-        ("doing", 3),
-    ])
+    @pytest.mark.parametrize(
+        "lane,expected_priority",
+        [
+            ("planned", 1),
+            ("claimed", 2),
+            ("in_progress", 3),
+            ("for_review", 4),
+            ("done", 5),
+            ("blocked", 0),
+            ("canceled", 6),
+            ("doing", 3),
+        ],
+    )
     def test_specific_priority_values(self, lane, expected_priority):
         """Each lane has its expected numeric priority."""
         assert LANE_PRIORITY[lane] == expected_priority
@@ -264,8 +267,10 @@ reviewed_by: alice
 ---
 """
         result = resolve_lane_conflict_rollback_aware(
-            ours_content, theirs_content,
-            ours_lane="done", theirs_lane="in_progress",
+            ours_content,
+            theirs_content,
+            ours_lane="done",
+            theirs_lane="in_progress",
         )
         assert result == "in_progress"
 
@@ -283,8 +288,10 @@ reviewed_by: ""
 ---
 """
         result = resolve_lane_conflict_rollback_aware(
-            ours_content, theirs_content,
-            ours_lane="in_progress", theirs_lane="done",
+            ours_content,
+            theirs_content,
+            ours_lane="in_progress",
+            theirs_lane="done",
         )
         assert result == "in_progress"
 
@@ -303,8 +310,10 @@ reviewed_by: ""
 ---
 """
         result = resolve_lane_conflict_rollback_aware(
-            ours_content, theirs_content,
-            ours_lane="for_review", theirs_lane="in_progress",
+            ours_content,
+            theirs_content,
+            ours_lane="for_review",
+            theirs_lane="in_progress",
         )
         assert result == "for_review"
 
@@ -323,8 +332,10 @@ reviewed_by: ""
 ---
 """
         result = resolve_lane_conflict_rollback_aware(
-            ours_content, theirs_content,
-            ours_lane="in_progress", theirs_lane="done",
+            ours_content,
+            theirs_content,
+            ours_lane="in_progress",
+            theirs_lane="done",
         )
         assert result == "done"
 
@@ -344,8 +355,10 @@ reviewed_by: bob
 """
         # for_review (4) vs in_progress (3) -- in_progress is lower
         result = resolve_lane_conflict_rollback_aware(
-            ours_content, theirs_content,
-            ours_lane="in_progress", theirs_lane="for_review",
+            ours_content,
+            theirs_content,
+            ours_lane="in_progress",
+            theirs_lane="for_review",
         )
         assert result == "in_progress"
 
@@ -362,8 +375,10 @@ review_status: "has_feedback"
 ---
 """
         result = resolve_lane_conflict_rollback_aware(
-            ours_content, theirs_content,
-            ours_lane="for_review", theirs_lane="planned",
+            ours_content,
+            theirs_content,
+            ours_lane="for_review",
+            theirs_lane="planned",
         )
         assert result == "planned"
 
@@ -382,8 +397,10 @@ reviewed_by: ""
 ---
 """
         result = resolve_lane_conflict_rollback_aware(
-            ours_content, theirs_content,
-            ours_lane="in_progress", theirs_lane="in_progress",
+            ours_content,
+            theirs_content,
+            ours_lane="in_progress",
+            theirs_lane="in_progress",
         )
         assert result == "in_progress"
 
@@ -402,8 +419,10 @@ reviewed_by: ""
 ---
 """
         result = resolve_lane_conflict_rollback_aware(
-            ours_content, theirs_content,
-            ours_lane="unknown_state", theirs_lane="planned",
+            ours_content,
+            theirs_content,
+            ours_lane="unknown_state",
+            theirs_lane="planned",
         )
         # planned (1) > unknown_state (0), so planned wins in monotonic mode
         assert result == "planned"
@@ -647,39 +666,52 @@ class TestExistingBehaviorPreserved:
 class TestExhaustiveTransitionPairs:
     """Parametrized tests for all interesting lane transition pairs."""
 
-    @pytest.mark.parametrize("ours_lane,theirs_lane,expected_winner", [
-        ("planned", "done", "done"),
-        ("done", "planned", "done"),
-        ("in_progress", "for_review", "for_review"),
-        ("for_review", "in_progress", "for_review"),
-        ("blocked", "claimed", "claimed"),
-        ("claimed", "blocked", "claimed"),
-        ("canceled", "done", "canceled"),
-        ("done", "canceled", "canceled"),
-        ("doing", "for_review", "for_review"),
-        ("for_review", "doing", "for_review"),
-    ])
+    @pytest.mark.parametrize(
+        "ours_lane,theirs_lane,expected_winner",
+        [
+            ("planned", "done", "done"),
+            ("done", "planned", "done"),
+            ("in_progress", "for_review", "for_review"),
+            ("for_review", "in_progress", "for_review"),
+            ("blocked", "claimed", "claimed"),
+            ("claimed", "blocked", "claimed"),
+            ("canceled", "done", "canceled"),
+            ("done", "canceled", "canceled"),
+            ("doing", "for_review", "for_review"),
+            ("for_review", "doing", "for_review"),
+        ],
+    )
     def test_monotonic_resolution_pairs(self, ours_lane, theirs_lane, expected_winner):
         """No rollback: higher priority lane always wins."""
-        ours_content = f"---\nlane: {ours_lane}\nreview_status: \"\"\nreviewed_by: \"\"\n---\n"
-        theirs_content = f"---\nlane: {theirs_lane}\nreview_status: \"\"\nreviewed_by: \"\"\n---\n"
+        ours_content = f'---\nlane: {ours_lane}\nreview_status: ""\nreviewed_by: ""\n---\n'
+        theirs_content = f'---\nlane: {theirs_lane}\nreview_status: ""\nreviewed_by: ""\n---\n'
 
         result = resolve_lane_conflict_rollback_aware(
-            ours_content, theirs_content,
-            ours_lane=ours_lane, theirs_lane=theirs_lane,
+            ours_content,
+            theirs_content,
+            ours_lane=ours_lane,
+            theirs_lane=theirs_lane,
         )
         assert result == expected_winner
 
-    @pytest.mark.parametrize("rollback_lane", [
-        "planned", "claimed", "in_progress", "doing",
-    ])
+    @pytest.mark.parametrize(
+        "rollback_lane",
+        [
+            "planned",
+            "claimed",
+            "in_progress",
+            "doing",
+        ],
+    )
     def test_rollback_always_beats_done(self, rollback_lane):
         """Any rollback (lane behind for_review) beats forward 'done'."""
-        ours_content = "---\nlane: done\nreview_status: \"\"\nreviewed_by: \"\"\n---\n"
-        theirs_content = f"---\nlane: {rollback_lane}\nreview_status: \"has_feedback\"\nreviewed_by: alice\n---\n"
+        ours_content = '---\nlane: done\nreview_status: ""\nreviewed_by: ""\n---\n'
+        theirs_content = f'---\nlane: {rollback_lane}\nreview_status: "has_feedback"\nreviewed_by: alice\n---\n'
 
         result = resolve_lane_conflict_rollback_aware(
-            ours_content, theirs_content,
-            ours_lane="done", theirs_lane=rollback_lane,
+            ours_content,
+            theirs_content,
+            ours_lane="done",
+            theirs_lane=rollback_lane,
         )
         assert result == rollback_lane

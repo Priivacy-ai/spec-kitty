@@ -97,9 +97,7 @@ def validate_worktree_location(project_root: Optional[Path] = None) -> WorktreeV
     elif is_main_branch:
         errors.append("Command must run from feature worktree, not main branch.")
     elif not is_feature_branch:
-        errors.append(
-            f"Unexpected branch '{current_branch}'. Commands must run from feature worktrees."
-        )
+        errors.append(f"Unexpected branch '{current_branch}'. Commands must run from feature worktrees.")
 
     worktree_path = project_root if is_feature_branch and not errors else None
 

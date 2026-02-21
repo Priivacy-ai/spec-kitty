@@ -70,11 +70,7 @@ class AcceptanceSummary:
 
     @property
     def all_done(self) -> bool:
-        return not (
-            self.lanes.get("planned")
-            or self.lanes.get("doing")
-            or self.lanes.get("for_review")
-        )
+        return not (self.lanes.get("planned") or self.lanes.get("doing") or self.lanes.get("for_review"))
 
     @property
     def ok(self) -> bool:
@@ -312,10 +308,7 @@ def collect_feature_summary(
 
     branch: Optional[str] = None
     try:
-        branch_value = (
-            run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, check=True)
-            .stdout.strip()
-        )
+        branch_value = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root, check=True).stdout.strip()
         if branch_value and branch_value != "HEAD":
             branch = branch_value
     except TaskCliError:
@@ -323,16 +316,14 @@ def collect_feature_summary(
 
     try:
         worktree_root = Path(
-            run_git(["rev-parse", "--show-toplevel"], cwd=repo_root, check=True)
-            .stdout.strip()
+            run_git(["rev-parse", "--show-toplevel"], cwd=repo_root, check=True).stdout.strip()
         ).resolve()
     except TaskCliError:
         worktree_root = repo_root
 
     try:
         git_common_dir = Path(
-            run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True)
-            .stdout.strip()
+            run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True).stdout.strip()
         ).resolve()
         primary_repo_root = git_common_dir.parent
     except TaskCliError:
@@ -383,9 +374,7 @@ def collect_feature_summary(
             activity_issues.append(f"{wp_id}: Activity Log missing entries")
         else:
             if wp.current_lane not in lanes_logged:
-                activity_issues.append(
-                    f"{wp_id}: Activity Log missing entry for lane={wp.current_lane}"
-                )
+                activity_issues.append(f"{wp_id}: Activity Log missing entry for lane={wp.current_lane}")
             if wp.current_lane == "done" and entries[-1]["lane"] != "done":
                 activity_issues.append(f"{wp_id}: latest Activity Log entry not lane=done")
 
@@ -434,9 +423,7 @@ def collect_feature_summary(
 
     warnings: List[str] = []
     if missing_optional:
-        warnings.append(
-            "Optional artifacts missing: " + ", ".join(missing_optional)
-        )
+        warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
     if path_violations:
         warnings.append("Path conventions not satisfied.")
 
@@ -466,9 +453,7 @@ def choose_mode(preference: Optional[str], repo_root: Path) -> AcceptanceMode:
     if preference in {"pr", "local", "checklist"}:
         return preference
     try:
-        remotes = (
-            run_git(["remote"], cwd=repo_root, check=False).stdout.strip().splitlines()
-        )
+        remotes = run_git(["remote"], cwd=repo_root, check=False).stdout.strip().splitlines()
         if remotes:
             return "pr"
     except TaskCliError:
@@ -485,9 +470,7 @@ def perform_acceptance(
     auto_commit: bool = True,
 ) -> AcceptanceResult:
     if mode != "checklist" and not summary.ok:
-        raise AcceptanceError(
-            "Acceptance checks failed; run verify to see outstanding issues."
-        )
+        raise AcceptanceError("Acceptance checks failed; run verify to see outstanding issues.")
 
     actor_name = (actor or os.getenv("USER") or os.getenv("USERNAME") or "system").strip()
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -497,11 +480,7 @@ def perform_acceptance(
 
     if auto_commit and mode != "checklist":
         try:
-            parent_commit = (
-                run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=False)
-                .stdout.strip()
-                or None
-            )
+            parent_commit = run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=False).stdout.strip() or None
         except TaskCliError:
             parent_commit = None
 
@@ -548,10 +527,7 @@ def perform_acceptance(
             run_git(["commit", "-m", commit_msg], cwd=summary.repo_root, check=True)
             commit_created = True
             try:
-                accept_commit = (
-                    run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=True)
-                    .stdout.strip()
-                )
+                accept_commit = run_git(["rev-parse", "HEAD"], cwd=summary.repo_root, check=True).stdout.strip()
             except TaskCliError:
                 accept_commit = None
         else:
@@ -581,9 +557,7 @@ def perform_acceptance(
             ]
         )
     else:  # checklist
-        instructions.append(
-            "All checks passed. Proceed with your manual acceptance workflow."
-        )
+        instructions.append("All checks passed. Proceed with your manual acceptance workflow.")
 
     if summary.worktree_root != summary.primary_repo_root:
         cleanup_instructions.append(

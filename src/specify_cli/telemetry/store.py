@@ -111,9 +111,7 @@ class SimpleJsonStore(EventStore):
                     events.append(Event.from_dict(data))
                 except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
                     skipped += 1
-                    logger.warning(
-                        "Skipping malformed event line: %s", str(e)[:100]
-                    )
+                    logger.warning("Skipping malformed event line: %s", str(e)[:100])
                 except Exception as e:
                     skipped += 1
                     logger.warning(
@@ -122,9 +120,7 @@ class SimpleJsonStore(EventStore):
                     )
 
         if skipped:
-            logger.warning(
-                "Skipped %d malformed line(s) in %s", skipped, self._file_path
-            )
+            logger.warning("Skipped %d malformed line(s) in %s", skipped, self._file_path)
 
         return events
 

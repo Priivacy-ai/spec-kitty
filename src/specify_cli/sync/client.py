@@ -1,4 +1,5 @@
 """WebSocket client for real-time sync with exponential backoff reconnection"""
+
 import asyncio
 import json
 import random
@@ -12,6 +13,7 @@ from specify_cli.sync.auth import AuthClient, AuthenticationError
 
 class ConnectionStatus:
     """Connection status constants"""
+
     CONNECTED = "Connected"
     RECONNECTING = "Reconnecting"
     OFFLINE = "Offline"
@@ -101,7 +103,7 @@ class WebSocketClient:
                     uri,
                     additional_headers=headers,
                     ping_interval=None,  # We handle heartbeat manually
-                    ping_timeout=None
+                    ping_timeout=None,
                 )
                 self.connected = True
                 self.status = ConnectionStatus.CONNECTED
@@ -171,10 +173,7 @@ class WebSocketClient:
 
         while self.reconnect_attempts < self.MAX_RECONNECT_ATTEMPTS:
             # Calculate exponential backoff delay
-            delay = min(
-                self.BASE_DELAY_SECONDS * (2 ** self.reconnect_attempts),
-                self.MAX_DELAY_SECONDS
-            )
+            delay = min(self.BASE_DELAY_SECONDS * (2**self.reconnect_attempts), self.MAX_DELAY_SECONDS)
             # Add jitter to prevent thundering herd
             jitter = random.uniform(-self.JITTER_RANGE, self.JITTER_RANGE)
             delay = max(0, delay + jitter)
@@ -216,10 +215,7 @@ class WebSocketClient:
         Returns:
             Delay in seconds (without jitter)
         """
-        return min(
-            self.BASE_DELAY_SECONDS * (2 ** attempt),
-            self.MAX_DELAY_SECONDS
-        )
+        return min(self.BASE_DELAY_SECONDS * (2**attempt), self.MAX_DELAY_SECONDS)
 
     async def send_event(self, event: dict):
         """
@@ -256,13 +252,13 @@ class WebSocketClient:
 
     async def _handle_message(self, data: dict):
         """Handle incoming message"""
-        msg_type = data.get('type')
+        msg_type = data.get("type")
 
-        if msg_type == 'snapshot':
+        if msg_type == "snapshot":
             await self._handle_snapshot(data)
-        elif msg_type == 'event':
+        elif msg_type == "event":
             await self._handle_event(data)
-        elif msg_type == 'ping':
+        elif msg_type == "ping":
             await self._handle_ping(data)
         else:
             # Unknown message type
@@ -273,7 +269,7 @@ class WebSocketClient:
         message = await self.ws.recv()
         data = json.loads(message)
 
-        if data.get('type') == 'snapshot':
+        if data.get("type") == "snapshot":
             print(f"📦 Received snapshot: {len(data.get('work_packages', []))} work packages")
         else:
             print(f"⚠️  Expected snapshot, got {data.get('type')}")
@@ -290,10 +286,7 @@ class WebSocketClient:
 
     async def _handle_ping(self, data: dict):
         """Respond to server ping"""
-        pong = {
-            'type': 'pong',
-            'timestamp': data.get('timestamp')
-        }
+        pong = {"type": "pong", "timestamp": data.get("timestamp")}
         await self.ws.send(json.dumps(pong))
 
     def set_message_handler(self, handler: Callable):

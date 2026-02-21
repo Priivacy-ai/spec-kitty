@@ -41,9 +41,7 @@ def check_global_runtime_exists() -> DoctorCheck:
     """Check if ~/.kittify/ exists (1A-11)."""
     home = get_kittify_home()
     if home.is_dir():
-        return DoctorCheck(
-            "global_runtime_exists", True, f"{home} exists", "info"
-        )
+        return DoctorCheck("global_runtime_exists", True, f"{home} exists", "info")
     return DoctorCheck(
         "global_runtime_exists",
         False,
@@ -107,9 +105,7 @@ def check_stale_legacy_assets(project_dir: Path) -> DoctorCheck:
     """Count legacy shared assets in project .kittify/ (1A-10)."""
     kittify = project_dir / ".kittify"
     if not kittify.exists():
-        return DoctorCheck(
-            "stale_legacy", True, "No .kittify/ directory", "info"
-        )
+        return DoctorCheck("stale_legacy", True, "No .kittify/ directory", "info")
 
     stale_count = 0
     shared_dirs = {"templates", "missions", "scripts", "command-templates"}
@@ -122,9 +118,7 @@ def check_stale_legacy_assets(project_dir: Path) -> DoctorCheck:
             stale_count += 1
 
     if stale_count == 0:
-        return DoctorCheck(
-            "stale_legacy", True, "No stale shared assets", "info"
-        )
+        return DoctorCheck("stale_legacy", True, "No stale shared assets", "info")
     return DoctorCheck(
         "stale_legacy",
         False,

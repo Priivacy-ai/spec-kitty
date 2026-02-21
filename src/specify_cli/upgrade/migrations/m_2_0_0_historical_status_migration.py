@@ -64,10 +64,7 @@ class HistoricalStatusMigration(BaseMigration):
                 if not events:
                     return True
                 # Has marker? Already migrated with full history.
-                if any(
-                    e.reason and "historical_frontmatter_to_jsonl:v1" in e.reason
-                    for e in events
-                ):
+                if any(e.reason and "historical_frontmatter_to_jsonl:v1" in e.reason for e in events):
                     continue
                 # Has non-migration actors? Live data, skip.
                 if any(not e.actor.startswith("migration") for e in events):
@@ -92,9 +89,7 @@ class HistoricalStatusMigration(BaseMigration):
         except ImportError as e:
             return False, f"Status module not available: {e}"
 
-    def apply(
-        self, project_path: Path, dry_run: bool = False
-    ) -> MigrationResult:
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Run full-history migration across all features."""
         from specify_cli.status.migrate import migrate_feature
 
@@ -114,20 +109,11 @@ class HistoricalStatusMigration(BaseMigration):
             try:
                 fr = migrate_feature(feature_dir, dry_run=dry_run)
                 if fr.status == "migrated":
-                    wp_count = sum(
-                        1 for wp in fr.wp_details if wp.events_created > 0
-                    )
-                    total_events = sum(
-                        wp.events_created for wp in fr.wp_details
-                    )
-                    result.changes_made.append(
-                        f"{feature_dir.name}: migrated "
-                        f"({wp_count} WPs, {total_events} events)"
-                    )
+                    wp_count = sum(1 for wp in fr.wp_details if wp.events_created > 0)
+                    total_events = sum(wp.events_created for wp in fr.wp_details)
+                    result.changes_made.append(f"{feature_dir.name}: migrated ({wp_count} WPs, {total_events} events)")
                 elif fr.status == "failed":
-                    result.warnings.append(
-                        f"{feature_dir.name}: {fr.error}"
-                    )
+                    result.warnings.append(f"{feature_dir.name}: {fr.error}")
             except Exception as e:
                 result.errors.append(f"{feature_dir.name}: {e}")
 

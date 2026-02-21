@@ -38,11 +38,7 @@ from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.sync.events import emit_feature_created, emit_wp_created, get_emitter
 
-app = typer.Typer(
-    name="feature",
-    help="Feature lifecycle commands for AI agents",
-    no_args_is_help=True
-)
+app = typer.Typer(name="feature", help="Feature lifecycle commands for AI agents", no_args_is_help=True)
 
 console = Console()
 
@@ -65,6 +61,7 @@ def _resolve_primary_branch(repo_root: Path) -> str:
     Delegates to the centralized implementation in core.git_ops.
     """
     from specify_cli.core.git_ops import resolve_primary_branch
+
     return resolve_primary_branch(repo_root)
 
 
@@ -126,10 +123,7 @@ def _should_emit_execution_event(
     duration_ms: Optional[int],
 ) -> bool:
     """Emit execution telemetry only when caller supplied telemetry context."""
-    return any(
-        value is not None
-        for value in (agent, model, input_tokens, output_tokens, cost_usd, duration_ms)
-    )
+    return any(value is not None for value in (agent, model, input_tokens, output_tokens, cost_usd, duration_ms))
 
 
 def _commit_to_branch(
@@ -177,7 +171,7 @@ def _commit_to_branch(
 
     except subprocess.CalledProcessError as e:
         # Check if it's just "nothing to commit" (benign)
-        stderr = e.stderr if hasattr(e, 'stderr') and e.stderr else ""
+        stderr = e.stderr if hasattr(e, "stderr") and e.stderr else ""
         if "nothing to commit" in stderr or "nothing added to commit" in stderr:
             # Benign - file unchanged
             if not json_output:
@@ -332,14 +326,22 @@ def _build_setup_plan_detection_error(
 @app.command(name="create-feature")
 def create_feature(
     feature_slug: Annotated[str, typer.Argument(help="Feature slug (e.g., 'user-auth')")],
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")] = None,
+    mission: Annotated[
+        Optional[str], typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")
+    ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent identifier (for telemetry)")] = None,
     model: Annotated[Optional[str], typer.Option("--model", help="Model used (for telemetry)")] = None,
-    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input tokens consumed (for telemetry)")] = None,
-    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output tokens generated (for telemetry)")] = None,
+    input_tokens: Annotated[
+        Optional[int], typer.Option("--input-tokens", help="Input tokens consumed (for telemetry)")
+    ] = None,
+    output_tokens: Annotated[
+        Optional[int], typer.Option("--output-tokens", help="Output tokens generated (for telemetry)")
+    ] = None,
     cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Cost in USD (for telemetry)")] = None,
-    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Duration in milliseconds (for telemetry)")] = None,
+    duration_ms: Annotated[
+        Optional[int], typer.Option("--duration-ms", help="Duration in milliseconds (for telemetry)")
+    ] = None,
 ) -> None:
     """Create new feature directory structure in planning repository.
 
@@ -351,7 +353,7 @@ def create_feature(
         spec-kitty agent create-feature "new-dashboard" --agent claude --model claude-sonnet-4.5 --input-tokens 5000 --output-tokens 2500
     """
     # Validate kebab-case format early (before any operations)
-    KEBAB_CASE_PATTERN = r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+    KEBAB_CASE_PATTERN = r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
     if not re.match(KEBAB_CASE_PATTERN, feature_slug):
         error_msg = (
             f"Invalid feature slug '{feature_slug}'. "
@@ -421,10 +423,7 @@ def create_feature(
         # Guardrail: feature creation must happen on the primary branch.
         primary_branch = _resolve_primary_branch(repo_root)
         if current_branch != primary_branch:
-            error_msg = (
-                f"Feature creation must run on '{primary_branch}' branch "
-                f"(current: '{current_branch}')."
-            )
+            error_msg = f"Feature creation must run on '{primary_branch}' branch (current: '{current_branch}')."
             if json_output:
                 print(json.dumps({"error": error_msg}))
             else:
@@ -450,7 +449,7 @@ def create_feature(
         (tasks_dir / ".gitkeep").touch()
 
         # Create tasks/README.md (using same content from setup_feature_directory)
-        tasks_readme_content = '''# Tasks Directory
+        tasks_readme_content = """# Tasks Directory
 
 This directory contains work package (WP) prompt files with lane status in frontmatter.
 
@@ -519,8 +518,8 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 - Format: `WP01-kebab-case-slug.md`
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
-'''
-        (tasks_dir / "README.md").write_text(tasks_readme_content, encoding='utf-8')
+"""
+        (tasks_dir / "README.md").write_text(tasks_readme_content, encoding="utf-8")
 
         # Copy spec template if it exists
         spec_file = feature_dir / "spec.md"
@@ -622,6 +621,7 @@ spec-kitty agent tasks move-task WP01 --to doing
         ):
             try:
                 from specify_cli.telemetry.emit import emit_execution_event
+
                 emit_execution_event(
                     feature_dir=feature_dir,
                     feature_slug=feature_slug_formatted,
@@ -642,11 +642,7 @@ spec-kitty agent tasks move-task WP01 --to doing
                     console.print(f"[yellow]Warning:[/yellow] Telemetry emission failed: {e}")
 
         if json_output:
-            print(json.dumps({
-                "result": "success",
-                "feature": feature_slug_formatted,
-                "feature_dir": str(feature_dir)
-            }))
+            print(json.dumps({"result": "success", "feature": feature_slug_formatted, "feature_dir": str(feature_dir)}))
         else:
             console.print(f"[green]✓[/green] Feature created: {feature_slug_formatted}")
             console.print(f"   Directory: {feature_dir}")
@@ -756,10 +752,16 @@ def setup_plan(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent identifier (for telemetry)")] = None,
     model: Annotated[Optional[str], typer.Option("--model", help="Model used (for telemetry)")] = None,
-    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input tokens consumed (for telemetry)")] = None,
-    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output tokens generated (for telemetry)")] = None,
+    input_tokens: Annotated[
+        Optional[int], typer.Option("--input-tokens", help="Input tokens consumed (for telemetry)")
+    ] = None,
+    output_tokens: Annotated[
+        Optional[int], typer.Option("--output-tokens", help="Output tokens generated (for telemetry)")
+    ] = None,
     cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Cost in USD (for telemetry)")] = None,
-    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Duration in milliseconds (for telemetry)")] = None,
+    duration_ms: Annotated[
+        Optional[int], typer.Option("--duration-ms", help="Duration in milliseconds (for telemetry)")
+    ] = None,
 ) -> None:
     """Scaffold implementation plan template in planning repository.
 
@@ -923,14 +925,10 @@ def setup_plan(
                                 )
                         except Exception as gap_err:
                             if not json_output:
-                                console.print(
-                                    f"[yellow]Warning:[/yellow] Gap analysis failed: {gap_err}"
-                                )
+                                console.print(f"[yellow]Warning:[/yellow] Gap analysis failed: {gap_err}")
                     else:
                         if not json_output:
-                            console.print(
-                                "[yellow]Warning:[/yellow] No docs/ directory found, skipping gap analysis"
-                            )
+                            console.print("[yellow]Warning:[/yellow] No docs/ directory found, skipping gap analysis")
 
             # T016: Detect and configure generators
             all_generators: list[DocGenerator] = [
@@ -944,18 +942,17 @@ def setup_plan(
                     if gen.detect(repo_root):
                         if gen.name not in {"jsdoc", "sphinx", "rustdoc"}:
                             continue
-                        generator_name = cast(
-                            Literal["sphinx", "jsdoc", "rustdoc"], gen.name
+                        generator_name = cast(Literal["sphinx", "jsdoc", "rustdoc"], gen.name)
+                        generators_detected.append(
+                            {
+                                "name": generator_name,
+                                "language": gen.languages[0],
+                                "config_path": "",
+                            }
                         )
-                        generators_detected.append({
-                            "name": generator_name,
-                            "language": gen.languages[0],
-                            "config_path": "",
-                        })
                         if not json_output:
                             console.print(
-                                f"[cyan]→ Detected {gen.name} generator "
-                                f"(languages: {', '.join(gen.languages)})[/cyan]"
+                                f"[cyan]→ Detected {gen.name} generator (languages: {', '.join(gen.languages)})[/cyan]"
                             )
                 except Exception:
                     pass  # Skip generators that fail detection
@@ -974,9 +971,7 @@ def setup_plan(
                         pass  # Non-fatal
                 except Exception as gen_err:
                     if not json_output:
-                        console.print(
-                            f"[yellow]Warning:[/yellow] Failed to save generator config: {gen_err}"
-                        )
+                        console.print(f"[yellow]Warning:[/yellow] Failed to save generator config: {gen_err}")
 
         # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
         if _should_emit_execution_event(
@@ -989,6 +984,7 @@ def setup_plan(
         ):
             try:
                 from specify_cli.telemetry.emit import emit_execution_event
+
                 emit_execution_event(
                     feature_dir=feature_dir,
                     feature_slug=feature_slug,
@@ -1009,11 +1005,8 @@ def setup_plan(
                     console.print(f"[yellow]Warning:[/yellow] Telemetry emission failed: {e}")
 
         if json_output:
-            print(json.dumps({
-                "result": "success",
-                "feature_slug": feature_slug,
-                "plan_file": str(plan_file),
-                "feature_dir": str(feature_dir),
+            print(json.dumps({"result": "success", "feature_slug": feature_slug,
+                "plan_file": str(plan_file), "feature_dir": str(feature_dir),
                 "spec_file": str(spec_file),
             }))
         else:
@@ -1025,6 +1018,7 @@ def setup_plan(
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
+
 
 def _find_latest_feature_worktree(repo_root: Path) -> Optional[Path]:
     """Find the latest feature worktree by number.
@@ -1075,7 +1069,7 @@ def _get_current_branch(repo_root: Path) -> str:
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False
+        check=False,
     )
     return result.stdout.strip() if result.returncode == 0 else _resolve_primary_branch(repo_root)
 
@@ -1083,40 +1077,12 @@ def _get_current_branch(repo_root: Path) -> str:
 @app.command(name="accept")
 def accept_feature(
     feature: Annotated[
-        Optional[str],
-        typer.Option(
-            "--feature",
-            help="Feature directory slug (auto-detected if not specified)"
-        )
+        Optional[str], typer.Option("--feature", help="Feature directory slug (auto-detected if not specified)")
     ] = None,
-    mode: Annotated[
-        str,
-        typer.Option(
-            "--mode",
-            help="Acceptance mode: auto, pr, local, checklist"
-        )
-    ] = "auto",
-    json_output: Annotated[
-        bool,
-        typer.Option(
-            "--json",
-            help="Output results as JSON for agent parsing"
-        )
-    ] = False,
-    lenient: Annotated[
-        bool,
-        typer.Option(
-            "--lenient",
-            help="Skip strict metadata validation"
-        )
-    ] = False,
-    no_commit: Annotated[
-        bool,
-        typer.Option(
-            "--no-commit",
-            help="Skip auto-commit (report only)"
-        )
-    ] = False,
+    mode: Annotated[str, typer.Option("--mode", help="Acceptance mode: auto, pr, local, checklist")] = "auto",
+    json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON for agent parsing")] = False,
+    lenient: Annotated[bool, typer.Option("--lenient", help="Skip strict metadata validation")] = False,
+    no_commit: Annotated[bool, typer.Option("--no-commit", help="Skip auto-commit (report only)")] = False,
 ) -> None:
     """Perform feature acceptance workflow.
 
@@ -1165,60 +1131,22 @@ def accept_feature(
 @app.command(name="merge")
 def merge_feature(
     feature: Annotated[
-        Optional[str],
-        typer.Option(
-            "--feature",
-            help="Feature directory slug (auto-detected if not specified)"
-        )
+        Optional[str], typer.Option("--feature", help="Feature directory slug (auto-detected if not specified)")
     ] = None,
     target: Annotated[
-        Optional[str],
-        typer.Option(
-            "--target",
-            help="Target branch to merge into (auto-detected if not specified)"
-        )
+        Optional[str], typer.Option("--target", help="Target branch to merge into (auto-detected if not specified)")
     ] = None,
-    strategy: Annotated[
-        str,
-        typer.Option(
-            "--strategy",
-            help="Merge strategy: merge, squash, rebase"
-        )
-    ] = "merge",
-    push: Annotated[
-        bool,
-        typer.Option(
-            "--push",
-            help="Push to origin after merging"
-        )
-    ] = False,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            help="Show actions without executing"
-        )
-    ] = False,
+    strategy: Annotated[str, typer.Option("--strategy", help="Merge strategy: merge, squash, rebase")] = "merge",
+    push: Annotated[bool, typer.Option("--push", help="Push to origin after merging")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show actions without executing")] = False,
     keep_branch: Annotated[
-        bool,
-        typer.Option(
-            "--keep-branch",
-            help="Keep feature branch after merge (default: delete)"
-        )
+        bool, typer.Option("--keep-branch", help="Keep feature branch after merge (default: delete)")
     ] = False,
     keep_worktree: Annotated[
-        bool,
-        typer.Option(
-            "--keep-worktree",
-            help="Keep worktree after merge (default: remove)"
-        )
+        bool, typer.Option("--keep-worktree", help="Keep worktree after merge (default: remove)")
     ] = False,
     auto_retry: Annotated[
-        bool,
-        typer.Option(
-            "--auto-retry/--no-auto-retry",
-            help="Auto-navigate to latest worktree if in wrong location"
-        )
+        bool, typer.Option("--auto-retry/--no-auto-retry", help="Auto-navigate to latest worktree if in wrong location")
     ] = True,
 ) -> None:
     """Merge feature branch into target branch.
@@ -1333,10 +1261,16 @@ def finalize_tasks(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent identifier (for telemetry)")] = None,
     model: Annotated[Optional[str], typer.Option("--model", help="Model used (for telemetry)")] = None,
-    input_tokens: Annotated[Optional[int], typer.Option("--input-tokens", help="Input tokens consumed (for telemetry)")] = None,
-    output_tokens: Annotated[Optional[int], typer.Option("--output-tokens", help="Output tokens generated (for telemetry)")] = None,
+    input_tokens: Annotated[
+        Optional[int], typer.Option("--input-tokens", help="Input tokens consumed (for telemetry)")
+    ] = None,
+    output_tokens: Annotated[
+        Optional[int], typer.Option("--output-tokens", help="Output tokens generated (for telemetry)")
+    ] = None,
     cost_usd: Annotated[Optional[float], typer.Option("--cost-usd", help="Cost in USD (for telemetry)")] = None,
-    duration_ms: Annotated[Optional[int], typer.Option("--duration-ms", help="Duration in milliseconds (for telemetry)")] = None,
+    duration_ms: Annotated[
+        Optional[int], typer.Option("--duration-ms", help="Duration in milliseconds (for telemetry)")
+    ] = None,
 ) -> None:
     """Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.
 
@@ -1453,9 +1387,9 @@ def finalize_tasks(
                 parts = raw_content.split("---", 2)
                 if len(parts) >= 3:
                     frontmatter_text = parts[1]
-                    has_dependencies_line = re.search(
-                        r"^\s*dependencies\s*:", frontmatter_text, re.MULTILINE
-                    ) is not None
+                    has_dependencies_line = (
+                        re.search(r"^\s*dependencies\s*:", frontmatter_text, re.MULTILINE) is not None
+                    )
 
             # Read current frontmatter
             try:
@@ -1490,9 +1424,7 @@ def finalize_tasks(
             try:
                 json.loads(meta_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError) as exc:
-                console.print(
-                    f"[yellow]Warning:[/yellow] Failed to read meta.json for event emission: {exc}"
-                )
+                console.print(f"[yellow]Warning:[/yellow] Failed to read meta.json for event emission: {exc}")
         else:
             console.print("[yellow]Warning:[/yellow] meta.json missing; skipping FeatureCreated emission")
 
@@ -1553,10 +1485,7 @@ def finalize_tasks(
                 if commit_success:
                     # Commit succeeded - get hash
                     _rc, stdout, _stderr = run_command(
-                        ["git", "rev-parse", "HEAD"],
-                        check_return=True,
-                        capture=True,
-                        cwd=repo_root
+                        ["git", "rev-parse", "HEAD"], check_return=True, capture=True, cwd=repo_root
                     )
                     commit_hash = stdout.strip()
                     commit_created = True
@@ -1570,7 +1499,9 @@ def finalize_tasks(
                     if json_output:
                         print(json.dumps({"error": f"Git commit failed: {error_output}"}))
                     else:
-                        console.print("[dim]No changes to commit (tasks already up to date or git failure occured)[/dim]")
+                        console.print(
+                            "[dim]No changes to commit (tasks already up to date or git failure occured)[/dim]"
+                        )
                     raise typer.Exit(1)
 
         except typer.Exit:
@@ -1590,11 +1521,7 @@ def finalize_tasks(
         for wp in work_packages:
             try:
                 raw_dependencies = wp.get("dependencies", [])
-                dependencies = (
-                    [str(dep) for dep in raw_dependencies]
-                    if isinstance(raw_dependencies, list)
-                    else []
-                )
+                dependencies = [str(dep) for dep in raw_dependencies] if isinstance(raw_dependencies, list) else []
                 emit_wp_created(
                     wp_id=str(wp["id"]),
                     title=str(wp["title"]),
@@ -1603,19 +1530,21 @@ def finalize_tasks(
                     causation_id=causation_id,
                 )
             except Exception as exc:
-                console.print(
-                    f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}"
-                )
+                console.print(f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}")
 
         if json_output:
-            print(json.dumps({
-                "result": "success",
-                "updated_wp_count": updated_count,
-                "tasks_dir": str(tasks_dir),
-                "commit_created": commit_created,
-                "commit_hash": commit_hash,
-                "files_committed": files_committed
-            }))
+            print(
+                json.dumps(
+                    {
+                        "result": "success",
+                        "updated_wp_count": updated_count,
+                        "tasks_dir": str(tasks_dir),
+                        "commit_created": commit_created,
+                        "commit_hash": commit_hash,
+                        "files_committed": files_committed,
+                    }
+                )
+            )
 
         # Emit ExecutionEvent for telemetry (always emit, nullable fields OK)
         if _should_emit_execution_event(
@@ -1628,6 +1557,7 @@ def finalize_tasks(
         ):
             try:
                 from specify_cli.telemetry.emit import emit_execution_event
+
                 feature_slug = feature_dir.name
                 emit_execution_event(
                     feature_dir=feature_dir,
@@ -1669,7 +1599,7 @@ def _parse_dependencies_from_tasks_md(tasks_content: str) -> dict[str, list[str]
     dependencies = {}
 
     # Split into WP sections
-    wp_sections = re.split(r'##\s+Work Package (WP\d{2})', tasks_content)
+    wp_sections = re.split(r"##\s+Work Package (WP\d{2})", tasks_content)
 
     # Process sections (they come in pairs: WP ID, then content)
     for i in range(1, len(wp_sections), 2):
@@ -1683,14 +1613,14 @@ def _parse_dependencies_from_tasks_md(tasks_content: str) -> dict[str, list[str]
         explicit_deps = []
 
         # Pattern: "Depends on WP01" or "Depends on WP01, WP02"
-        depends_matches = re.findall(r'Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)', section_content, re.IGNORECASE)
+        depends_matches = re.findall(r"Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)", section_content, re.IGNORECASE)
         for match in depends_matches:
-            explicit_deps.extend(re.findall(r'WP\d{2}', match))
+            explicit_deps.extend(re.findall(r"WP\d{2}", match))
 
         # Pattern: "Dependencies: WP01, WP02"
-        deps_line = re.search(r'Dependencies:\s*(.+)', section_content)
+        deps_line = re.search(r"Dependencies:\s*(.+)", section_content)
         if deps_line:
-            explicit_deps.extend(re.findall(r'WP\d{2}', deps_line.group(1)))
+            explicit_deps.extend(re.findall(r"WP\d{2}", deps_line.group(1)))
 
         if explicit_deps:
             # Remove duplicates and sort

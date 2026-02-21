@@ -37,9 +37,7 @@ def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
 
     env = os.environ.copy()
     src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(
-        os.pathsep
-    )
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
     env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
     return subprocess.run(
@@ -147,9 +145,7 @@ It is NOT part of the 1.x product line.
     (feature_dir / "plan.md").write_text("# Implementation Plan\n\nDetails here.\n")
 
     # Create tasks.md
-    (feature_dir / "tasks.md").write_text(
-        "# Tasks\n\n## WP01 - Setup\n\n## WP02 - Integration\n\nDepends on WP01.\n"
-    )
+    (feature_dir / "tasks.md").write_text("# Tasks\n\n## WP01 - Setup\n\n## WP02 - Integration\n\nDepends on WP01.\n")
 
     # Create WP files
     wp01_file = tasks_dir / "WP01-setup.md"
@@ -245,8 +241,9 @@ It is NOT part of the 1.x product line.
 
     # Verify main branch does NOT have this commit
     commits_main_after_doing = get_commits_on_branch(repo, "main")
-    assert len(commits_main_after_doing) == len(main_commits_after_planning), \
+    assert len(commits_main_after_doing) == len(main_commits_after_planning), (
         "Main branch should not have new commits after status change to 2.x feature"
+    )
 
     # ========================================================================
     # Step 4: Make Implementation Commits
@@ -393,26 +390,12 @@ def test_wp02_depends_on_wp01_with_2x_target(dual_branch_repo):
 
     # Create WP01 (no dependencies)
     wp01_file = tasks_dir / "WP01-setup.md"
-    wp01_file.write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Setup\n"
-        "lane: planned\n"
-        "dependencies: []\n"
-        "---\n\n"
-        "# WP01\n"
-    )
+    wp01_file.write_text("---\nwork_package_id: WP01\ntitle: Setup\nlane: planned\ndependencies: []\n---\n\n# WP01\n")
 
     # Create WP02 (depends on WP01)
     wp02_file = tasks_dir / "WP02-build.md"
     wp02_file.write_text(
-        "---\n"
-        "work_package_id: WP02\n"
-        "title: Build Feature\n"
-        "lane: planned\n"
-        'dependencies: ["WP01"]\n'
-        "---\n\n"
-        "# WP02\n"
+        '---\nwork_package_id: WP02\ntitle: Build Feature\nlane: planned\ndependencies: ["WP01"]\n---\n\n# WP02\n'
     )
 
     # Commit planning to main
@@ -510,14 +493,7 @@ def test_review_rework_commits_to_correct_branch(dual_branch_repo):
 
     # Create WP file
     wp_file = tasks_dir / "WP01-test.md"
-    wp_file.write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "lane: planned\n"
-        "dependencies: []\n"
-        "---\n\n"
-        "# WP01\n"
-    )
+    wp_file.write_text("---\nwork_package_id: WP01\nlane: planned\ndependencies: []\n---\n\n# WP01\n")
 
     # Commit planning
     subprocess.run(["git", "add", str(feature_dir)], cwd=repo, check=True, capture_output=True)
@@ -572,14 +548,13 @@ def test_review_rework_commits_to_correct_branch(dual_branch_repo):
     # ========================================================================
 
     main_final_commits = get_commits_on_branch(repo, "main")
-    assert len(main_final_commits) == main_planning_commit_count, \
+    assert len(main_final_commits) == main_planning_commit_count, (
         "Main should have NO new commits during entire review workflow"
+    )
 
     # All status transitions should be on 2.x only
     status_count_2x = count_commits_matching(repo, "2.x", "Move WP01")
-    assert status_count_2x >= 5, \
-        f"Expected at least 5 status commits on 2.x (full workflow), found {status_count_2x}"
+    assert status_count_2x >= 5, f"Expected at least 5 status commits on 2.x (full workflow), found {status_count_2x}"
 
     status_count_main = count_commits_matching(repo, "main", "Move WP01")
-    assert status_count_main == 0, \
-        f"Main should have ZERO status commits, found {status_count_main}"
+    assert status_count_main == 0, f"Main should have ZERO status commits, found {status_count_main}"

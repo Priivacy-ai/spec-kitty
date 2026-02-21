@@ -106,10 +106,7 @@ class InstallDocumentationMission(BaseMigration):
 
         # Check if destination already exists
         if dest_mission.exists() and (dest_mission / "mission.yaml").exists():
-            return MigrationResult(
-                success=True,
-                changes_made=["Documentation mission already installed (skipped)"]
-            )
+            return MigrationResult(success=True, changes_made=["Documentation mission already installed (skipped)"])
 
         # Ensure missions directory exists
         if not missions_dir.exists():

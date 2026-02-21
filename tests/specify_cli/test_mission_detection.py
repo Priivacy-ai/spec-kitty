@@ -1,7 +1,5 @@
 """Tests for mission detection (issue #93 fix)."""
 
-
-
 from specify_cli.cli.commands.mission import _detect_current_feature
 
 

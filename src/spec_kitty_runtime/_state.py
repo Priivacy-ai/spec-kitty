@@ -16,10 +16,8 @@ def state_path(run_dir: Path) -> Path:
     return run_dir / "state.json"
 
 
-
 def events_path(run_dir: Path) -> Path:
     return run_dir / "run.events.jsonl"
-
 
 
 def append_event(run_dir: Path, event_type: str, payload: dict[str, object]) -> None:
@@ -35,7 +33,6 @@ def append_event(run_dir: Path, event_type: str, payload: dict[str, object]) -> 
         handle.write("\n")
 
 
-
 def _pending_to_json(pending: dict[str, PendingDecision]) -> dict[str, dict[str, object]]:
     return {
         decision_id: {
@@ -46,7 +43,6 @@ def _pending_to_json(pending: dict[str, PendingDecision]) -> dict[str, dict[str,
         }
         for decision_id, value in pending.items()
     }
-
 
 
 def _pending_from_json(raw: Any) -> dict[str, PendingDecision]:
@@ -73,7 +69,6 @@ def _pending_from_json(raw: Any) -> dict[str, PendingDecision]:
     return pending
 
 
-
 def _step_dicts(steps: list[MissionStep]) -> list[dict[str, object]]:
     return [
         {
@@ -88,14 +83,12 @@ def _step_dicts(steps: list[MissionStep]) -> list[dict[str, object]]:
     ]
 
 
-
 def create_initial_state(run_id: str, template: MissionTemplate) -> RuntimeState:
     return RuntimeState(
         run_id=run_id,
         mission_key=template.mission.key,
         steps=_step_dicts(template.steps),
     )
-
 
 
 def write_state(run_dir: Path, state: RuntimeState) -> None:
@@ -112,7 +105,6 @@ def write_state(run_dir: Path, state: RuntimeState) -> None:
     path = state_path(run_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-
 
 
 def read_state(run_dir: Path) -> RuntimeState:
@@ -137,11 +129,7 @@ def read_state(run_dir: Path) -> RuntimeState:
     pending = _pending_from_json(raw.get("pending_decisions"))
     answered_raw = raw.get("answered_inputs")
     answered: dict[str, object] = answered_raw if isinstance(answered_raw, dict) else {}
-    answered_clean = {
-        key: value
-        for key, value in answered.items()
-        if isinstance(key, str) and isinstance(value, str)
-    }
+    answered_clean = {key: value for key, value in answered.items() if isinstance(key, str) and isinstance(value, str)}
 
     issued_step_id = raw.get("issued_step_id")
     if issued_step_id is not None and not isinstance(issued_step_id, str):
@@ -165,7 +153,6 @@ def read_state(run_dir: Path) -> RuntimeState:
         pending_decisions=pending,
         answered_inputs=answered_clean,
     )
-
 
 
 def _candidate_templates_for_root(root: Path, mission_key: str) -> list[Path]:
@@ -194,12 +181,10 @@ def _candidate_templates_for_root(root: Path, mission_key: str) -> list[Path]:
     return unique
 
 
-
 def _split_env_paths(env_value: str) -> list[Path]:
     if not env_value.strip():
         return []
     return [Path(chunk) for chunk in env_value.split(os.pathsep) if chunk.strip()]
-
 
 
 def resolve_template(template_key: str, context: DiscoveryContext) -> Path:
@@ -235,10 +220,8 @@ def resolve_template(template_key: str, context: DiscoveryContext) -> Path:
     raise MissionRuntimeError(f"Mission template not found for key '{template_key}'")
 
 
-
 def read_template(path: Path) -> MissionTemplate:
     return load_mission_template_file(path)
-
 
 
 def read_snapshot(run_dir: Path) -> Snapshot:

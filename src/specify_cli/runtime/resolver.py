@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 # Public data types
 # ---------------------------------------------------------------------------
 
+
 class ResolutionTier(Enum):
     OVERRIDE = "override"
     LEGACY = "legacy"
@@ -48,6 +49,7 @@ class ResolutionResult:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _is_global_runtime_configured() -> bool:
     """Return True if ``~/.kittify/`` has been populated by ``ensure_runtime``.
@@ -102,8 +104,7 @@ def _emit_migrate_nudge() -> None:
         return
     _migrate_nudge_shown = True
     print(
-        "Note: Run `spec-kitty migrate` to clean up legacy project files "
-        "and use the global runtime (~/.kittify/).",
+        "Note: Run `spec-kitty migrate` to clean up legacy project files and use the global runtime (~/.kittify/).",
         file=sys.stderr,
     )
 
@@ -155,7 +156,9 @@ def _resolve_asset(
         global_mission_path = global_home / "missions" / mission / subdir / name
         if global_mission_path.is_file():
             return ResolutionResult(
-                path=global_mission_path, tier=ResolutionTier.GLOBAL_MISSION, mission=mission,
+                path=global_mission_path,
+                tier=ResolutionTier.GLOBAL_MISSION,
+                mission=mission,
             )
 
         # Tier 4 -- global non-mission (~/.kittify/{subdir}/{name})
@@ -172,7 +175,9 @@ def _resolve_asset(
         pkg_path = pkg_missions / mission / subdir / name
         if pkg_path.is_file():
             return ResolutionResult(
-                path=pkg_path, tier=ResolutionTier.PACKAGE_DEFAULT, mission=mission,
+                path=pkg_path,
+                tier=ResolutionTier.PACKAGE_DEFAULT,
+                mission=mission,
             )
     except FileNotFoundError:
         pass
@@ -186,6 +191,7 @@ def _resolve_asset(
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def resolve_template(
     name: str,
@@ -300,7 +306,4 @@ def resolve_mission(
     except FileNotFoundError:
         pass
 
-    raise FileNotFoundError(
-        f"Mission '{name}' config not found in any resolution tier "
-        f"(project={project_dir})"
-    )
+    raise FileNotFoundError(f"Mission '{name}' config not found in any resolution tier (project={project_dir})")

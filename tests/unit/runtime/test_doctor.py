@@ -46,9 +46,7 @@ class TestDoctorCheck:
         assert check.severity == "info"
 
     def test_failed_check(self) -> None:
-        check = DoctorCheck(
-            name="failing", passed=False, message="Bad", severity="error"
-        )
+        check = DoctorCheck(name="failing", passed=False, message="Bad", severity="error")
         assert check.passed is False
         assert check.severity == "error"
 
@@ -61,9 +59,7 @@ class TestDoctorCheck:
 class TestCheckGlobalRuntimeExists:
     """Detect missing ~/.kittify/ directory."""
 
-    def test_detects_missing_global_runtime(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_detects_missing_global_runtime(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Missing ~/.kittify/ is detected and reported (1A-11)."""
         nonexistent = tmp_path / "nonexistent"
         monkeypatch.setenv("SPEC_KITTY_HOME", str(nonexistent))
@@ -72,9 +68,7 @@ class TestCheckGlobalRuntimeExists:
         assert check.severity == "error"
         assert "Missing global runtime" in check.message
 
-    def test_passes_when_exists(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_passes_when_exists(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Existing ~/.kittify/ passes the check."""
         home = tmp_path / "kittify"
         home.mkdir()
@@ -84,9 +78,7 @@ class TestCheckGlobalRuntimeExists:
         assert check.severity == "info"
         assert "exists" in check.message
 
-    def test_check_name(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_check_name(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Check has the expected name."""
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "nope"))
         check = check_global_runtime_exists()
@@ -101,9 +93,7 @@ class TestCheckGlobalRuntimeExists:
 class TestCheckVersionLock:
     """Detect version.lock mismatch with CLI version."""
 
-    def test_detects_version_mismatch(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_detects_version_mismatch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """version.lock mismatch is detected (1A-12)."""
         home = tmp_path / "kittify"
         (home / "cache").mkdir(parents=True)
@@ -115,9 +105,7 @@ class TestCheckVersionLock:
         assert "Version mismatch" in check.message
         assert "lock=0.0.0" in check.message
 
-    def test_detects_missing_version_lock(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_detects_missing_version_lock(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Missing version.lock is detected as warning."""
         home = tmp_path / "kittify"
         home.mkdir()
@@ -127,9 +115,7 @@ class TestCheckVersionLock:
         assert check.severity == "warning"
         assert "version.lock missing" in check.message
 
-    def test_passes_when_version_matches(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_passes_when_version_matches(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Matching version.lock passes the check."""
         from specify_cli import __version__
 
@@ -142,9 +128,7 @@ class TestCheckVersionLock:
         assert check.severity == "info"
         assert "matches CLI" in check.message
 
-    def test_check_name(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_check_name(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Check has the expected name."""
         home = tmp_path / "kittify"
         home.mkdir()
@@ -161,9 +145,7 @@ class TestCheckVersionLock:
 class TestCheckMissionIntegrity:
     """Detect corrupted/missing managed mission directories."""
 
-    def test_detects_missing_mission_dir(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_detects_missing_mission_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Corrupted: managed mission directory missing (1A-13)."""
         home = tmp_path / "kittify"
         # Create some but not all managed dirs
@@ -175,9 +157,7 @@ class TestCheckMissionIntegrity:
         assert check.severity == "error"
         assert "Missing" in check.message
 
-    def test_passes_when_all_present(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_passes_when_all_present(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """All managed mission directories present passes the check."""
         home = tmp_path / "kittify"
         for managed_dir in MANAGED_MISSION_DIRS:
@@ -188,9 +168,7 @@ class TestCheckMissionIntegrity:
         assert check.severity == "info"
         assert "mission dirs present" in check.message
 
-    def test_detects_all_missing(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_detects_all_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """All mission dirs missing reports all of them."""
         home = tmp_path / "kittify"
         home.mkdir()
@@ -200,9 +178,7 @@ class TestCheckMissionIntegrity:
         for managed_dir in MANAGED_MISSION_DIRS:
             assert managed_dir in check.message
 
-    def test_check_name(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_check_name(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Check has the expected name."""
         home = tmp_path / "kittify"
         home.mkdir()
@@ -273,9 +249,7 @@ class TestCheckStaleLegacyAssets:
         (kittify / "templates").mkdir(parents=True)
         (kittify / "templates" / "spec.md").write_text("stale")
         (kittify / "missions" / "software-dev").mkdir(parents=True)
-        (kittify / "missions" / "software-dev" / "mission.yaml").write_text(
-            "stale"
-        )
+        (kittify / "missions" / "software-dev" / "mission.yaml").write_text("stale")
         (kittify / "scripts").mkdir(parents=True)
         (kittify / "scripts" / "build.sh").write_text("stale")
 
@@ -299,9 +273,7 @@ class TestCheckStaleLegacyAssets:
 class TestRunGlobalChecks:
     """run_global_checks() aggregates all checks."""
 
-    def test_returns_list_of_checks(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_returns_list_of_checks(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Returns a list of DoctorCheck objects."""
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "kittify"))
         checks = run_global_checks()
@@ -322,9 +294,7 @@ class TestRunGlobalChecks:
             "mission_integrity",
         }
 
-    def test_includes_legacy_check_with_project(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_includes_legacy_check_with_project(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """With project_dir, returns checks including stale_legacy/governance."""
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "kittify"))
         project = tmp_path / "project"
@@ -340,9 +310,7 @@ class TestRunGlobalChecks:
         assert "stale_legacy" in names
         assert "governance_resolution" in names
 
-    def test_all_pass_with_healthy_setup(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_all_pass_with_healthy_setup(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """All checks pass with a properly configured runtime."""
         from specify_cli import __version__
 

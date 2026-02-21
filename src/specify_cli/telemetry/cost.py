@@ -1,4 +1,5 @@
 """Cost tracking and aggregation for LLM telemetry events."""
+
 import logging
 from pathlib import Path
 from dataclasses import dataclass
@@ -121,10 +122,7 @@ def cost_summary(events: list[Event], group_by: str = "agent") -> list[CostSumma
             input_price = model_pricing.get("input_per_1k", 0.0)
             output_price = model_pricing.get("output_per_1k", 0.0)
 
-            estimated = round(
-                (input_tokens * input_price / 1000.0) + (output_tokens * output_price / 1000.0),
-                6
-            )
+            estimated = round((input_tokens * input_price / 1000.0) + (output_tokens * output_price / 1000.0), 6)
             group["estimated_cost_usd"] += estimated
             group["total_cost_usd"] += estimated
         else:

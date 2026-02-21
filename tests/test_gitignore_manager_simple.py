@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "specify_cli"))
 
 import gitignore_manager
+
 GitignoreManager = gitignore_manager.GitignoreManager
 ProtectionResult = gitignore_manager.ProtectionResult
 
@@ -73,9 +74,18 @@ def test_all_agents_protected():
         manager.protect_all_agents()
 
         expected_dirs = [
-            ".claude/", ".codex/", ".opencode/", ".windsurf/",
-            ".gemini/", ".cursor/", ".qwen/", ".kilocode/",
-            ".augment/", ".roo/", ".amazonq/", ".github/copilot/"
+            ".claude/",
+            ".codex/",
+            ".opencode/",
+            ".windsurf/",
+            ".gemini/",
+            ".cursor/",
+            ".qwen/",
+            ".kilocode/",
+            ".augment/",
+            ".roo/",
+            ".amazonq/",
+            ".github/copilot/",
         ]
 
         content = manager.gitignore_path.read_text()

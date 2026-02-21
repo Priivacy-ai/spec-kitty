@@ -1,4 +1,5 @@
 """Integration tests for the telemetry CLI commands."""
+
 from __future__ import annotations
 
 import json
@@ -58,7 +59,7 @@ def project(tmp_path: Path) -> Path:
 
 def _invoke(args: list[str], repo_root: Path) -> object:
     """Invoke the telemetry CLI with mocked repo root.
-    
+
     Note: Typer promotes a single-command group to a flat command,
     so we strip the leading 'cost' argument if present.
     """
@@ -74,10 +75,13 @@ def _invoke(args: list[str], repo_root: Path) -> object:
 class TestCostWithEvents:
     def test_basic_table_output(self, project: Path) -> None:
         feature_dir = project / "kitty-specs" / "043-test-feature"
-        _seed_events(feature_dir, [
-            {"agent": "claude", "input_tokens": 1000, "output_tokens": 500},
-            {"agent": "claude", "input_tokens": 2000, "output_tokens": 1000},
-        ])
+        _seed_events(
+            feature_dir,
+            [
+                {"agent": "claude", "input_tokens": 1000, "output_tokens": 500},
+                {"agent": "claude", "input_tokens": 2000, "output_tokens": 1000},
+            ],
+        )
         result = _invoke(["cost"], project)
         assert result.exit_code == 0
         assert "Cost Report" in result.output
@@ -86,10 +90,13 @@ class TestCostWithEvents:
 
     def test_multiple_agents(self, project: Path) -> None:
         feature_dir = project / "kitty-specs" / "043-test-feature"
-        _seed_events(feature_dir, [
-            {"agent": "claude", "input_tokens": 1000, "output_tokens": 500, "event_id": _make_event_id(1)},
-            {"agent": "copilot", "input_tokens": 2000, "output_tokens": 800, "event_id": _make_event_id(2)},
-        ])
+        _seed_events(
+            feature_dir,
+            [
+                {"agent": "claude", "input_tokens": 1000, "output_tokens": 500, "event_id": _make_event_id(1)},
+                {"agent": "copilot", "input_tokens": 2000, "output_tokens": 800, "event_id": _make_event_id(2)},
+            ],
+        )
         result = _invoke(["cost"], project)
         assert result.exit_code == 0
         assert "claude" in result.output
@@ -127,9 +134,12 @@ class TestCostEmptyProject:
 class TestCostJsonOutput:
     def test_json_output_parseable(self, project: Path) -> None:
         feature_dir = project / "kitty-specs" / "043-test-feature"
-        _seed_events(feature_dir, [
-            {"agent": "claude", "input_tokens": 1000, "output_tokens": 500},
-        ])
+        _seed_events(
+            feature_dir,
+            [
+                {"agent": "claude", "input_tokens": 1000, "output_tokens": 500},
+            ],
+        )
         result = _invoke(["cost", "--json"], project)
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -143,10 +153,13 @@ class TestCostJsonOutput:
 
     def test_json_multiple_groups(self, project: Path) -> None:
         feature_dir = project / "kitty-specs" / "043-test-feature"
-        _seed_events(feature_dir, [
-            {"agent": "claude", "event_id": _make_event_id(1)},
-            {"agent": "copilot", "event_id": _make_event_id(2)},
-        ])
+        _seed_events(
+            feature_dir,
+            [
+                {"agent": "claude", "event_id": _make_event_id(1)},
+                {"agent": "copilot", "event_id": _make_event_id(2)},
+            ],
+        )
         result = _invoke(["cost", "--json"], project)
         data = json.loads(result.output)
         assert len(data) == 2
@@ -176,10 +189,13 @@ class TestCostFeatureFilter:
 class TestCostGroupBy:
     def test_group_by_model(self, project: Path) -> None:
         feature_dir = project / "kitty-specs" / "043-test-feature"
-        _seed_events(feature_dir, [
-            {"model": "claude-sonnet-4-20250514", "event_id": _make_event_id(1)},
-            {"model": "gpt-4o", "event_id": _make_event_id(2)},
-        ])
+        _seed_events(
+            feature_dir,
+            [
+                {"model": "claude-sonnet-4-20250514", "event_id": _make_event_id(1)},
+                {"model": "gpt-4o", "event_id": _make_event_id(2)},
+            ],
+        )
         result = _invoke(["cost", "--group-by", "model", "--json"], project)
         data = json.loads(result.output)
         keys = {d["group_key"] for d in data}
@@ -201,18 +217,21 @@ class TestCostGroupBy:
 class TestCostTimeframeFilter:
     def test_since_filter(self, project: Path) -> None:
         feature_dir = project / "kitty-specs" / "043-test-feature"
-        _seed_events(feature_dir, [
-            {
-                "agent": "claude",
-                "timestamp": datetime(2026, 1, 1, tzinfo=timezone.utc),
-                "event_id": _make_event_id(1),
-            },
-            {
-                "agent": "copilot",
-                "timestamp": datetime(2026, 6, 1, tzinfo=timezone.utc),
-                "event_id": _make_event_id(2),
-            },
-        ])
+        _seed_events(
+            feature_dir,
+            [
+                {
+                    "agent": "claude",
+                    "timestamp": datetime(2026, 1, 1, tzinfo=timezone.utc),
+                    "event_id": _make_event_id(1),
+                },
+                {
+                    "agent": "copilot",
+                    "timestamp": datetime(2026, 6, 1, tzinfo=timezone.utc),
+                    "event_id": _make_event_id(2),
+                },
+            ],
+        )
         result = _invoke(
             ["cost", "--since", "2026-03-01T00:00:00+00:00", "--json"],
             project,
@@ -223,18 +242,21 @@ class TestCostTimeframeFilter:
 
     def test_until_filter(self, project: Path) -> None:
         feature_dir = project / "kitty-specs" / "043-test-feature"
-        _seed_events(feature_dir, [
-            {
-                "agent": "claude",
-                "timestamp": datetime(2026, 1, 1, tzinfo=timezone.utc),
-                "event_id": _make_event_id(1),
-            },
-            {
-                "agent": "copilot",
-                "timestamp": datetime(2026, 6, 1, tzinfo=timezone.utc),
-                "event_id": _make_event_id(2),
-            },
-        ])
+        _seed_events(
+            feature_dir,
+            [
+                {
+                    "agent": "claude",
+                    "timestamp": datetime(2026, 1, 1, tzinfo=timezone.utc),
+                    "event_id": _make_event_id(1),
+                },
+                {
+                    "agent": "copilot",
+                    "timestamp": datetime(2026, 6, 1, tzinfo=timezone.utc),
+                    "event_id": _make_event_id(2),
+                },
+            ],
+        )
         result = _invoke(
             ["cost", "--until", "2026-03-01T00:00:00+00:00", "--json"],
             project,

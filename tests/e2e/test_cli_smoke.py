@@ -29,11 +29,14 @@ class TestFullCLIWorkflow:
         """Step 1: create-feature produces feature directory and spec.md."""
         result = run_cli(
             e2e_project,
-            "agent", "feature", "create-feature", "smoke-test", "--json",
+            "agent",
+            "feature",
+            "create-feature",
+            "smoke-test",
+            "--json",
         )
         assert result.returncode == 0, (
-            f"create-feature failed (rc={result.returncode}):\n"
-            f"stdout: {result.stdout}\nstderr: {result.stderr}"
+            f"create-feature failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
         output = json.loads(result.stdout)
@@ -55,7 +58,11 @@ class TestFullCLIWorkflow:
         # Create feature first
         result = run_cli(
             e2e_project,
-            "agent", "feature", "create-feature", "plan-smoke", "--json",
+            "agent",
+            "feature",
+            "create-feature",
+            "plan-smoke",
+            "--json",
         )
         assert result.returncode == 0, f"create-feature failed: {result.stderr}"
         output = json.loads(result.stdout)
@@ -65,12 +72,15 @@ class TestFullCLIWorkflow:
         # Run setup-plan
         result = run_cli(
             e2e_project,
-            "agent", "feature", "setup-plan",
-            "--feature", feature_slug, "--json",
+            "agent",
+            "feature",
+            "setup-plan",
+            "--feature",
+            feature_slug,
+            "--json",
         )
         assert result.returncode == 0, (
-            f"setup-plan failed (rc={result.returncode}):\n"
-            f"stdout: {result.stdout}\nstderr: {result.stderr}"
+            f"setup-plan failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
         plan_file = feature_dir / "plan.md"
@@ -88,11 +98,13 @@ class TestFullCLIWorkflow:
         # === Step 1: Create feature ===
         result = run_cli(
             repo,
-            "agent", "feature", "create-feature", "full-e2e", "--json",
+            "agent",
+            "feature",
+            "create-feature",
+            "full-e2e",
+            "--json",
         )
-        assert result.returncode == 0, (
-            f"create-feature failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+        assert result.returncode == 0, f"create-feature failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         create_output = json.loads(result.stdout)
         assert create_output["result"] == "success"
 
@@ -104,12 +116,14 @@ class TestFullCLIWorkflow:
         # === Step 2: Setup plan ===
         result = run_cli(
             repo,
-            "agent", "feature", "setup-plan",
-            "--feature", feature_slug, "--json",
+            "agent",
+            "feature",
+            "setup-plan",
+            "--feature",
+            feature_slug,
+            "--json",
         )
-        assert result.returncode == 0, (
-            f"setup-plan failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+        assert result.returncode == 0, f"setup-plan failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         plan_output = json.loads(result.stdout)
         assert plan_output["result"] == "success"
         assert (feature_dir / "plan.md").exists()
@@ -158,6 +172,7 @@ Create a hello module.
 
         # Create meta.json (required by finalize-tasks for event emission)
         import json as json_mod
+
         meta_content = {
             "feature_number": "001",
             "feature_slug": feature_slug,
@@ -165,27 +180,34 @@ Create a hello module.
             "vcs": "git",
         }
         (feature_dir / "meta.json").write_text(
-            json_mod.dumps(meta_content, indent=2), encoding="utf-8",
+            json_mod.dumps(meta_content, indent=2),
+            encoding="utf-8",
         )
 
         # Commit the tasks so finalize-tasks has a clean working tree
         subprocess.run(
-            ["git", "add", "."], cwd=repo, check=True, capture_output=True,
+            ["git", "add", "."],
+            cwd=repo,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "commit", "-m", "Add tasks for smoke test"],
-            cwd=repo, check=True, capture_output=True,
+            cwd=repo,
+            check=True,
+            capture_output=True,
         )
 
         # === Step 4: Finalize tasks ===
         # Use explicit feature binding to keep fresh sessions deterministic.
         result = run_cli(
             repo,
-            "agent", "feature", "finalize-tasks", "--feature", feature_slug, "--json",
+            "agent",
+            "feature",
+            "finalize-tasks",
+            "--feature", feature_slug, "--json",
         )
-        assert result.returncode == 0, (
-            f"finalize-tasks failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+        assert result.returncode == 0, f"finalize-tasks failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
         # Verify WP file still exists and has dependencies field
         wp01_path = tasks_dir / "WP01-hello-world.md"
@@ -196,8 +218,10 @@ Create a hello module.
         # === Step 5: Implement WP01 (create workspace) ===
         result = run_cli(
             repo,
-            "implement", "WP01",
-            "--feature", feature_slug,
+            "implement",
+            "WP01",
+            "--feature",
+            feature_slug,
             "--json",
         )
 
@@ -209,8 +233,10 @@ Create a hello module.
             # Try without --json (implement might not support it cleanly)
             result = run_cli(
                 repo,
-                "implement", "WP01",
-                "--feature", feature_slug,
+                "implement",
+                "WP01",
+                "--feature",
+                feature_slug,
             )
 
         # Verify worktree was created
@@ -231,26 +257,39 @@ Create a hello module.
             encoding="utf-8",
         )
         subprocess.run(
-            ["git", "add", "."], cwd=worktree_dir, check=True, capture_output=True,
+            ["git", "add", "."],
+            cwd=worktree_dir,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "commit", "-m", "feat(WP01): add hello module"],
-            cwd=worktree_dir, check=True, capture_output=True,
+            cwd=worktree_dir,
+            check=True,
+            capture_output=True,
         )
 
         # Verify the commit landed in the worktree
         log_result = subprocess.run(
             ["git", "log", "--oneline", "-1"],
-            cwd=worktree_dir, capture_output=True, text=True, check=True,
+            cwd=worktree_dir,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         assert "hello" in log_result.stdout.lower(), "Commit not found in worktree"
 
         # === Step 7: Move WP01 to for_review ===
         result = run_cli(
             repo,
-            "agent", "tasks", "move-task", "WP01",
-            "--to", "for_review",
-            "--feature", feature_slug,
+            "agent",
+            "tasks",
+            "move-task",
+            "WP01",
+            "--to",
+            "for_review",
+            "--feature",
+            feature_slug,
             "--json",
         )
 
@@ -271,14 +310,15 @@ Create a hello module.
         # Verify git history has the expected commits
         log_result = subprocess.run(
             ["git", "log", "--oneline", "--all"],
-            cwd=repo, capture_output=True, text=True, check=True,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         log_text = log_result.stdout.lower()
         assert "spec" in log_text, "spec commit missing from git log"
         assert "plan" in log_text, "plan commit missing from git log"
-        assert "tasks" in log_text or "finalize" in log_text, (
-            "tasks/finalize commit missing from git log"
-        )
+        assert "tasks" in log_text or "finalize" in log_text, "tasks/finalize commit missing from git log"
 
 
 @pytest.mark.e2e
@@ -289,7 +329,11 @@ class TestWorkflowEdgeCases:
         """create-feature rejects non-kebab-case slugs."""
         result = run_cli(
             e2e_project,
-            "agent", "feature", "create-feature", "Bad_Slug", "--json",
+            "agent",
+            "feature",
+            "create-feature",
+            "Bad_Slug",
+            "--json",
         )
         assert result.returncode != 0, "Should reject non-kebab-case slug"
         # The JSON output may contain Rich console formatting escape codes,
@@ -303,17 +347,19 @@ class TestWorkflowEdgeCases:
         """setup-plan fails gracefully when no feature exists."""
         result = run_cli(
             e2e_project,
-            "agent", "feature", "setup-plan", "--json",
+            "agent",
+            "feature",
+            "setup-plan",
+            "--json",
         )
         # Should fail because no feature exists yet
-        assert result.returncode != 0, (
-            "setup-plan should fail when no feature exists"
-        )
+        assert result.returncode != 0, "setup-plan should fail when no feature exists"
 
     def test_implement_requires_existing_wp(self, e2e_project: Path, run_cli) -> None:
         """implement fails gracefully when WP does not exist."""
         result = run_cli(
             e2e_project,
-            "implement", "WP99",
+            "implement",
+            "WP99",
         )
         assert result.returncode != 0, "implement should fail for non-existent WP"

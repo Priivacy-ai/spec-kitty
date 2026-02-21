@@ -310,7 +310,6 @@ def download_and_extract_template(
     return project_path
 
 
-
 def _merge_tree(source_dir: Path, dest_dir: Path, console: Console, verbose: bool) -> None:
     """Merge directory contents from source into destination."""
     for item in source_dir.iterdir():

@@ -67,9 +67,7 @@ class TelemetryEmitTemplatesMigration(BaseMigration):
         try:
             data_root = files("specify_cli")
             for template_name in TEMPLATES_TO_UPDATE:
-                template_path = data_root.joinpath(
-                    "missions", "software-dev", "command-templates", template_name
-                )
+                template_path = data_root.joinpath("missions", "software-dev", "command-templates", template_name)
                 if not template_path.is_file():
                     return False, f"Template not found: missions/software-dev/command-templates/{template_name}"
             return True, ""
@@ -87,9 +85,7 @@ class TelemetryEmitTemplatesMigration(BaseMigration):
         try:
             data_root = files("specify_cli")
             for template_name in TEMPLATES_TO_UPDATE:
-                template_path = data_root.joinpath(
-                    "missions", "software-dev", "command-templates", template_name
-                )
+                template_path = data_root.joinpath("missions", "software-dev", "command-templates", template_name)
                 templates[template_name] = template_path.read_text(encoding="utf-8")
         except Exception as e:
             return MigrationResult(

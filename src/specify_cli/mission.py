@@ -17,11 +17,13 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 class MissionError(Exception):
     """Base exception for mission-related errors."""
+
     pass
 
 
 class MissionNotFoundError(MissionError):
     """Raised when a mission cannot be found."""
+
     pass
 
 
@@ -145,8 +147,7 @@ class MissionConfig(BaseModel):
         unknown_paths = set(self.paths.keys()) - valid_path_keys
         if unknown_paths:
             warnings.warn(
-                f"Unknown path conventions: {sorted(unknown_paths)}. "
-                f"Known conventions: {sorted(valid_path_keys)}",
+                f"Unknown path conventions: {sorted(unknown_paths)}. Known conventions: {sorted(valid_path_keys)}",
                 stacklevel=2,
             )
 
@@ -205,11 +206,10 @@ class Mission:
 
         if not config_file.exists():
             raise MissionNotFoundError(
-                f"Mission config not found: {config_file}\n"
-                f"Expected mission.yaml in mission directory"
+                f"Mission config not found: {config_file}\nExpected mission.yaml in mission directory"
             )
 
-        with open(config_file, 'r') as f:
+        with open(config_file, "r") as f:
             try:
                 raw_config = yaml.safe_load(f) or {}
             except yaml.YAMLError as e:
@@ -224,9 +224,7 @@ class Mission:
         # Drop known compatibility keys from hybrid mission.yaml files.
         # Unknown extra fields still fail validation as before.
         normalized_config = {
-            key: value
-            for key, value in raw_config.items()
-            if key not in MISSION_COMPAT_IGNORED_FIELDS
+            key: value for key, value in raw_config.items() if key not in MISSION_COMPAT_IGNORED_FIELDS
         }
 
         try:
@@ -306,7 +304,7 @@ class Mission:
             FileNotFoundError: If command template doesn't exist
         """
         # Support both with and without .md extension
-        if not command_name.endswith('.md'):
+        if not command_name.endswith(".md"):
             command_name = f"{command_name}.md"
 
         # When a project directory is supplied, use the 4-tier resolver
@@ -513,8 +511,7 @@ def get_mission_by_name(mission_name: str, kittify_dir: Optional[Path] = None) -
     if not mission_path.exists():
         available = list_available_missions(kittify_dir)
         raise MissionNotFoundError(
-            f"Mission '{mission_name}' not found.\n"
-            f"Available missions: {', '.join(available) if available else 'none'}"
+            f"Mission '{mission_name}' not found.\nAvailable missions: {', '.join(available) if available else 'none'}"
         )
 
     return Mission(mission_path)
@@ -536,12 +533,13 @@ def set_active_mission(mission_name: str, kittify_dir: Optional[Path] = None) ->
         MissionNotFoundError: If mission doesn't exist
     """
     import warnings
+
     warnings.warn(
         "set_active_mission() is deprecated. Missions are now per-feature "
         "and selected during /spec-kitty.specify. This function will be "
         "removed in a future version.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
 
     if kittify_dir is None:
@@ -586,7 +584,7 @@ def get_feature_mission_key(feature_dir: Path) -> str:
     if not meta_file.exists():
         return "software-dev"
     try:
-        with open(meta_file, 'r', encoding='utf-8') as f:
+        with open(meta_file, "r", encoding="utf-8") as f:
             meta = json.load(f)
         mission = meta.get("mission")
         if isinstance(mission, str) and mission:
@@ -620,18 +618,14 @@ def get_deliverables_path(feature_dir: Path, feature_slug: Optional[str] = None)
     # Try to read from meta.json
     if meta_file.exists():
         try:
-            with open(meta_file, 'r', encoding='utf-8') as f:
+            with open(meta_file, "r", encoding="utf-8") as f:
                 meta = json.load(f)
             deliverables_path = meta.get("deliverables_path")
             if isinstance(deliverables_path, str) and deliverables_path:
                 return deliverables_path
 
             # Check if this is a research mission - provide default if so
-            mission = (
-                meta.get("mission")
-                if isinstance(meta.get("mission"), str)
-                else "software-dev"
-            )
+            mission = meta.get("mission") if isinstance(meta.get("mission"), str) else "software-dev"
             if mission == "research":
                 # Generate default path using slug from meta or directory name
                 slug = (
@@ -666,18 +660,21 @@ def validate_deliverables_path(deliverables_path: str) -> Tuple[bool, str]:
         Tuple of (is_valid, error_message)
         If valid, error_message is empty string.
     """
-    path = deliverables_path.strip().rstrip('/')
+    path = deliverables_path.strip().rstrip("/")
 
     # Check if inside kitty-specs/
-    if path.startswith('kitty-specs/') or path.startswith('kitty-specs'):
+    if path.startswith("kitty-specs/") or path.startswith("kitty-specs"):
         return False, "deliverables_path must NOT be inside kitty-specs/ (reserved for planning artifacts)"
 
     # Check if just 'research/' at root
-    if path == 'research' or path == 'research/':
-        return False, "deliverables_path should not be just 'research/' at root (ambiguous). Use 'docs/research/<feature>/' or 'research-outputs/<feature>/' instead."
+    if path == "research" or path == "research/":
+        return (
+            False,
+            "deliverables_path should not be just 'research/' at root (ambiguous). Use 'docs/research/<feature>/' or 'research-outputs/<feature>/' instead.",
+        )
 
     # Check if absolute path
-    if path.startswith('/'):
+    if path.startswith("/"):
         return False, "deliverables_path should be a relative path, not absolute"
 
     return True, ""
@@ -715,8 +712,7 @@ def get_mission_for_feature(feature_dir: Path, project_root: Optional[Path] = No
 
         if project_root is None:
             raise MissionNotFoundError(
-                f"Could not find .kittify directory from {feature_dir}\n"
-                f"Is this a Spec Kitty project?"
+                f"Could not find .kittify directory from {feature_dir}\nIs this a Spec Kitty project?"
             )
 
     kittify_dir = project_root / ".kittify"
@@ -727,9 +723,8 @@ def get_mission_for_feature(feature_dir: Path, project_root: Optional[Path] = No
     except MissionNotFoundError:
         # Fall back to software-dev with warning
         warnings.warn(
-            f"Mission '{mission_key}' not found for feature {feature_dir.name}, "
-            f"using software-dev as default",
-            stacklevel=2
+            f"Mission '{mission_key}' not found for feature {feature_dir.name}, using software-dev as default",
+            stacklevel=2,
         )
         return get_mission_by_name("software-dev", kittify_dir)
 
@@ -771,9 +766,6 @@ def discover_missions(project_root: Optional[Path] = None) -> Dict[str, Tuple[Mi
                 # (built-in and project share same location in .kittify/missions/)
                 missions[mission_dir.name] = (mission, "project")
             except MissionError as e:
-                warnings.warn(
-                    f"Skipping invalid mission '{mission_dir.name}': {e}",
-                    stacklevel=2
-                )
+                warnings.warn(f"Skipping invalid mission '{mission_dir.name}': {e}", stacklevel=2)
 
     return missions

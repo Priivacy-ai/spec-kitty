@@ -78,8 +78,7 @@ def get_merge_order(
     if not has_dependency_info(graph):
         # No dependency info - fall back to numerical order with warning
         logger.warning(
-            "No dependency information found in WP frontmatter. "
-            "Falling back to numerical order (WP01, WP02, ...)."
+            "No dependency information found in WP frontmatter. Falling back to numerical order (WP01, WP02, ...)."
         )
         return sorted(wp_workspaces, key=lambda x: x[1])  # Sort by wp_id
 

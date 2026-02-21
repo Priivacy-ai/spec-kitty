@@ -21,11 +21,7 @@ console = Console()
 
 
 def validate_and_resolve_base(
-    wp_id: str,
-    wp_file: Path,
-    base: str | None,
-    feature_slug: str,
-    repo_root: Path
+    wp_id: str, wp_file: Path, base: str | None, feature_slug: str, repo_root: Path
 ) -> tuple[str | None, bool]:
     """Validate dependencies and resolve base workspace.
 
@@ -63,10 +59,7 @@ def validate_and_resolve_base(
         else:
             # User provided explicit base - validate it's in dependencies
             if base not in declared_deps:
-                console.print(
-                    f"[yellow]Warning:[/yellow] {wp_id} doesn't declare {base} "
-                    f"as dependency"
-                )
+                console.print(f"[yellow]Warning:[/yellow] {wp_id} doesn't declare {base} as dependency")
                 console.print(f"Declared dependencies: {declared_deps}")
                 # Allow but warn (user might know better than parser)
             return (base, False)  # Use provided base, no auto-merge
@@ -79,18 +72,12 @@ def validate_and_resolve_base(
             console.print("\nSpecify base workspace:")
             console.print(f"  spec-kitty implement {wp_id} --base {declared_deps[0]}")
             console.print("\n[dim]Or for agent commands:[/dim]")
-            console.print(
-                f"  spec-kitty agent workflow implement {wp_id} "
-                f"--base {declared_deps[0]} --agent <name>"
-            )
+            console.print(f"  spec-kitty agent workflow implement {wp_id} --base {declared_deps[0]} --agent <name>")
             raise typer.Exit(1)
 
         # Validate provided base matches dependency
         if base not in declared_deps:
-            console.print(
-                f"[yellow]Warning:[/yellow] {wp_id} does not declare dependency "
-                f"on {base}"
-            )
+            console.print(f"[yellow]Warning:[/yellow] {wp_id} does not declare dependency on {base}")
             console.print(f"Declared dependencies: {declared_deps}")
             # Allow but warn (user might know better than parser)
 
@@ -102,11 +89,7 @@ def validate_and_resolve_base(
         return (base, False)
 
 
-def validate_base_workspace_exists(
-    base: str,
-    feature_slug: str,
-    repo_root: Path
-) -> None:
+def validate_base_workspace_exists(base: str, feature_slug: str, repo_root: Path) -> None:
     """Validate that a base workspace exists and is valid.
 
     Args:
@@ -127,17 +110,10 @@ def validate_base_workspace_exists(
         raise typer.Exit(1)
 
     # Verify it's a valid worktree
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-dir"],
-        cwd=base_workspace,
-        capture_output=True,
-        check=False
-    )
+    result = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=base_workspace, capture_output=True, check=False)
 
     if result.returncode != 0:
-        console.print(
-            f"[red]Error:[/red] {base_workspace} exists but is not a valid worktree"
-        )
+        console.print(f"[red]Error:[/red] {base_workspace} exists but is not a valid worktree")
         console.print("This directory may be corrupted. Remove it and re-create:")
         console.print(f"  rm -rf {base_workspace}")
         console.print(f"  spec-kitty implement {base}")

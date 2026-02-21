@@ -18,7 +18,7 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
 
-        if path == '/api/shutdown':
+        if path == "/api/shutdown":
             self.handle_shutdown()
             return
 
@@ -29,39 +29,39 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
 
-        if path == '/':
+        if path == "/":
             self.handle_root()
             return
 
-        if path == '/api/health':
+        if path == "/api/health":
             self.handle_health()
             return
 
-        if path == '/api/shutdown':
+        if path == "/api/shutdown":
             self.handle_shutdown()
             return
 
-        if path == '/api/features':
+        if path == "/api/features":
             self.handle_features_list()
             return
 
-        if path.startswith('/api/kanban/'):
+        if path.startswith("/api/kanban/"):
             self.handle_kanban(path)
             return
 
-        if path.startswith('/api/research/'):
+        if path.startswith("/api/research/"):
             self.handle_research(path)
             return
 
-        if path.startswith('/api/contracts/'):
+        if path.startswith("/api/contracts/"):
             self.handle_contracts(path)
             return
 
-        if path.startswith('/api/checklists/'):
+        if path.startswith("/api/checklists/"):
             self.handle_checklists(path)
             return
 
-        if path.startswith('/api/artifact/'):
+        if path.startswith("/api/artifact/"):
             self.handle_artifact(path)
             return
 
@@ -69,11 +69,11 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
             self.handle_dossier(path)
             return
 
-        if path == '/api/diagnostics':
+        if path == "/api/diagnostics":
             self.handle_diagnostics()
             return
 
-        if path == '/api/constitution':
+        if path == "/api/constitution":
             self.handle_constitution()
             return
 

@@ -184,9 +184,7 @@ class TestValidateEventSchema:
         assert not any("force=true without reason" in f for f in findings)
 
     def test_review_ref_required_for_for_review_to_in_progress(self):
-        event = _make_event(
-            from_lane="for_review", to_lane="in_progress"
-        )
+        event = _make_event(from_lane="for_review", to_lane="in_progress")
         findings = validate_event_schema(event)
         assert any("for_review->in_progress without review_ref" in f for f in findings)
 
@@ -269,7 +267,7 @@ class TestValidateTransitionLegality:
                 event_id=f"01HXYZ012345678{i:09d}ABCDE",
                 from_lane=f,
                 to_lane=t,
-                at=f"2026-02-08T{12+i:02d}:00:00Z",
+                at=f"2026-02-08T{12 + i:02d}:00:00Z",
             )
             for i, (f, t) in enumerate(legal_pairs)
         ]
@@ -481,9 +479,7 @@ class TestValidateMaterializationDrift:
     def test_events_without_snapshot(self, tmp_path: Path):
         """Events exist but no status.json: drift."""
         event = _make_event()
-        (tmp_path / "status.events.jsonl").write_text(
-            json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        (tmp_path / "status.events.jsonl").write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
         findings = validate_materialization_drift(tmp_path)
         assert len(findings) == 1
         assert "status.json is missing" in findings[0]
@@ -492,9 +488,7 @@ class TestValidateMaterializationDrift:
         """status.json matches reducer output: no findings."""
         # Create an event
         event = _make_event()
-        (tmp_path / "status.events.jsonl").write_text(
-            json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        (tmp_path / "status.events.jsonl").write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
 
         # Materialize correctly
         from specify_cli.status.reducer import materialize
@@ -508,9 +502,7 @@ class TestValidateMaterializationDrift:
         """Manually editing status.json causes drift detection."""
         # Create an event
         event = _make_event()
-        (tmp_path / "status.events.jsonl").write_text(
-            json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        (tmp_path / "status.events.jsonl").write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
 
         # Materialize correctly first
         from specify_cli.status.reducer import materialize
@@ -521,9 +513,7 @@ class TestValidateMaterializationDrift:
         snapshot_path = tmp_path / "status.json"
         data = json.loads(snapshot_path.read_text())
         data["work_packages"]["WP01"]["lane"] = "done"  # Wrong!
-        snapshot_path.write_text(
-            json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
-        )
+        snapshot_path.write_text(json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n")
 
         findings = validate_materialization_drift(tmp_path)
         assert len(findings) >= 1
@@ -532,9 +522,7 @@ class TestValidateMaterializationDrift:
     def test_event_count_mismatch(self, tmp_path: Path):
         """Event count mismatch is detected."""
         event = _make_event()
-        (tmp_path / "status.events.jsonl").write_text(
-            json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        (tmp_path / "status.events.jsonl").write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
 
         from specify_cli.status.reducer import materialize
 
@@ -544,9 +532,7 @@ class TestValidateMaterializationDrift:
         snapshot_path = tmp_path / "status.json"
         data = json.loads(snapshot_path.read_text())
         data["event_count"] = 999
-        snapshot_path.write_text(
-            json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
-        )
+        snapshot_path.write_text(json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n")
 
         findings = validate_materialization_drift(tmp_path)
         assert any("event_count" in f for f in findings)

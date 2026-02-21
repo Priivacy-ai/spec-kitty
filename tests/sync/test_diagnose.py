@@ -55,6 +55,7 @@ def _make_valid_event(**overrides) -> dict:
 # Envelope validation (T016)
 # ---------------------------------------------------------------------------
 
+
 class TestEnvelopeValidation:
     """Validate events against the Pydantic Event model."""
 
@@ -139,6 +140,7 @@ class TestEnvelopeValidation:
 # Extended envelope checks
 # ---------------------------------------------------------------------------
 
+
 class TestExtendedEnvelope:
     """Extended checks for aggregate_type and event_type membership."""
 
@@ -154,15 +156,13 @@ class TestExtendedEnvelope:
         event = _make_valid_event(event_type="NotARealEvent")
         results = diagnose_events([event])
         assert results[0].valid is False
-        assert any(
-            "event_type" in e.lower() or "unknown" in e.lower()
-            for e in results[0].errors
-        )
+        assert any("event_type" in e.lower() or "unknown" in e.lower() for e in results[0].errors)
 
 
 # ---------------------------------------------------------------------------
 # Payload validation -- WPStatusChanged (T017)
 # ---------------------------------------------------------------------------
+
 
 class TestWPStatusChangedPayload:
     """Validate WPStatusChanged payloads against emitter rules."""
@@ -224,6 +224,7 @@ class TestWPStatusChangedPayload:
 # ---------------------------------------------------------------------------
 # Payload validation -- other event types
 # ---------------------------------------------------------------------------
+
 
 class TestOtherPayloads:
     """Validate payloads for non-WPStatusChanged event types."""
@@ -293,6 +294,7 @@ class TestOtherPayloads:
 # Batch / mixed results (T019)
 # ---------------------------------------------------------------------------
 
+
 class TestMixedBatch:
     """Batch of valid + invalid events returns correct counts."""
 
@@ -334,6 +336,7 @@ class TestMixedBatch:
 # Error categorization reuse (WP02)
 # ---------------------------------------------------------------------------
 
+
 class TestErrorCategorization:
     """Verify diagnose reuses batch.py error categorization."""
 
@@ -356,6 +359,7 @@ class TestErrorCategorization:
 # ---------------------------------------------------------------------------
 # DiagnoseResult dataclass
 # ---------------------------------------------------------------------------
+
 
 class TestDiagnoseResult:
     """DiagnoseResult dataclass structure tests."""

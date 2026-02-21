@@ -17,12 +17,10 @@ class MigrationRegistry:
     _migrations: Dict[str, Type["BaseMigration"]] = {}
 
     # Required fields for all migrations
-    REQUIRED_FIELDS = ['migration_id', 'description', 'target_version']
+    REQUIRED_FIELDS = ["migration_id", "description", "target_version"]
 
     @classmethod
-    def register(
-        cls, migration_class: Type["BaseMigration"]
-    ) -> Type["BaseMigration"]:
+    def register(cls, migration_class: Type["BaseMigration"]) -> Type["BaseMigration"]:
         """Decorator to register a migration class.
 
         Args:
@@ -39,9 +37,7 @@ class MigrationRegistry:
         for field in cls.REQUIRED_FIELDS:
             value = getattr(migration_class, field, None)
             if not value:
-                raise ValueError(
-                    f"Migration {migration_class.__name__} is missing required field '{field}'"
-                )
+                raise ValueError(f"Migration {migration_class.__name__} is missing required field '{field}'")
 
         migration_id = migration_class.migration_id
 

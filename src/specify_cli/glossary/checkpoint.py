@@ -65,9 +65,7 @@ class StepCheckpoint:
     def __post_init__(self) -> None:
         """Validate checkpoint fields."""
         # Validate hash format (64 hex chars for SHA256)
-        if len(self.input_hash) != 64 or not all(
-            c in "0123456789abcdef" for c in self.input_hash
-        ):
+        if len(self.input_hash) != 64 or not all(c in "0123456789abcdef" for c in self.input_hash):
             raise ValueError(f"Invalid input_hash format: {self.input_hash}")
 
         # Validate retry token is UUID format (36 chars with hyphens)
@@ -179,9 +177,7 @@ def load_checkpoint(
             try:
                 checkpoint = parse_checkpoint_event(event_payload)
             except ValueError as exc:
-                logger.warning(
-                    "Invalid checkpoint event in %s: %s", event_log_path.name, exc
-                )
+                logger.warning("Invalid checkpoint event in %s: %s", event_log_path.name, exc)
                 continue
 
             if latest is None or checkpoint.timestamp > latest.timestamp:
@@ -255,10 +251,7 @@ def checkpoint_to_dict(checkpoint: StepCheckpoint) -> dict[str, Any]:
         "run_id": checkpoint.run_id,
         "step_id": checkpoint.step_id,
         "strictness": checkpoint.strictness.value,
-        "scope_refs": [
-            {"scope": ref.scope.value, "version_id": ref.version_id}
-            for ref in checkpoint.scope_refs
-        ],
+        "scope_refs": [{"scope": ref.scope.value, "version_id": ref.version_id} for ref in checkpoint.scope_refs],
         "input_hash": checkpoint.input_hash,
         "cursor": checkpoint.cursor,
         "retry_token": checkpoint.retry_token,

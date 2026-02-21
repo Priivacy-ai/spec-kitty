@@ -71,12 +71,17 @@ def build_decision_prompt(
         lines.append("")
 
     lines.append("To answer:")
-    lines.append(f'  spec-kitty next --agent {agent} --feature {feature_slug} --answer "<your answer>" --decision-id "{decision_id}"')
+    lines.append(
+        f'  spec-kitty next --agent {agent} --feature {feature_slug} --answer "<your answer>" --decision-id "{decision_id}"'
+    )
 
     prompt_text = "\n".join(lines)
     prompt_file = _write_to_temp(
-        "decision", None, prompt_text,
-        agent=agent, feature_slug=feature_slug,
+        "decision",
+        None,
+        prompt_text,
+        agent=agent,
+        feature_slug=feature_slug,
     )
     return prompt_text, prompt_file
 
@@ -166,10 +171,10 @@ def _build_wp_prompt(
     # Completion instructions
     lines.append("WHEN DONE:")
     if action == "implement":
-        lines.append(f"  spec-kitty agent tasks move-task {wp_id} --to for_review --note \"Ready for review\"")
+        lines.append(f'  spec-kitty agent tasks move-task {wp_id} --to for_review --note "Ready for review"')
     else:
-        lines.append(f"  APPROVE: spec-kitty agent tasks move-task {wp_id} --to done --note \"Review passed\"")
-        lines.append(f"  REJECT:  spec-kitty agent tasks move-task {wp_id} --to planned --note \"Changes requested\"")
+        lines.append(f'  APPROVE: spec-kitty agent tasks move-task {wp_id} --to done --note "Review passed"')
+        lines.append(f'  REJECT:  spec-kitty agent tasks move-task {wp_id} --to planned --note "Changes requested"')
 
     return "\n".join(lines)
 

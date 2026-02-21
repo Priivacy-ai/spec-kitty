@@ -11,6 +11,7 @@ from specify_cli.glossary.scope import (
 )
 from specify_cli.glossary.models import SenseStatus
 
+
 def test_scope_resolution_order():
     """SCOPE_RESOLUTION_ORDER is correct."""
     assert SCOPE_RESOLUTION_ORDER == [
@@ -20,12 +21,14 @@ def test_scope_resolution_order():
         GlossaryScope.SPEC_KITTY_CORE,
     ]
 
+
 def test_get_scope_precedence():
     """get_scope_precedence returns correct precedence."""
     assert get_scope_precedence(GlossaryScope.MISSION_LOCAL) == 0  # Highest
     assert get_scope_precedence(GlossaryScope.TEAM_DOMAIN) == 1
     assert get_scope_precedence(GlossaryScope.AUDIENCE_DOMAIN) == 2
     assert get_scope_precedence(GlossaryScope.SPEC_KITTY_CORE) == 3  # Lowest
+
 
 def test_should_use_scope():
     """should_use_scope checks if scope is configured."""
@@ -35,6 +38,7 @@ def test_should_use_scope():
     assert should_use_scope(GlossaryScope.SPEC_KITTY_CORE, configured) is True
     assert should_use_scope(GlossaryScope.TEAM_DOMAIN, configured) is False
     assert should_use_scope(GlossaryScope.AUDIENCE_DOMAIN, configured) is False
+
 
 def test_validate_seed_file():
     """validate_seed_file checks schema."""
@@ -53,6 +57,7 @@ def test_validate_seed_file():
     with pytest.raises(ValueError, match="must have 'definition' key"):
         validate_seed_file({"terms": [{"surface": "foo"}]})
 
+
 def test_load_seed_file(sample_seed_file, tmp_path):
     """Can load seed file and parse terms."""
     senses = load_seed_file(GlossaryScope.TEAM_DOMAIN, tmp_path)
@@ -63,10 +68,12 @@ def test_load_seed_file(sample_seed_file, tmp_path):
     assert senses[0].confidence == 1.0
     assert senses[0].status == SenseStatus.ACTIVE
 
+
 def test_load_seed_file_missing(tmp_path):
     """Returns empty list if seed file missing."""
     senses = load_seed_file(GlossaryScope.TEAM_DOMAIN, tmp_path)
     assert senses == []
+
 
 def test_activate_scope():
     """Emits GlossaryScopeActivated event via emit_scope_activated."""

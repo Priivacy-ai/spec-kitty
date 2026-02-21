@@ -27,9 +27,7 @@ def test_doctrine_structure_paths_exist() -> None:
 
 
 def test_curation_readme_documents_pull_based_flow() -> None:
-    readme = (REPO_ROOT / "src" / "doctrine" / "curation" / "README.md").read_text(
-        encoding="utf-8"
-    )
+    readme = (REPO_ROOT / "src" / "doctrine" / "curation" / "README.md").read_text(encoding="utf-8")
     assert "pull-based" in readme.lower()
     assert "ZOMBIES TDD" in readme
 

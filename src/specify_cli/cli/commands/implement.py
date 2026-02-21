@@ -95,12 +95,7 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
     """
     try:
         repo_root = find_repo_root()
-        ctx = detect_feature(
-            repo_root,
-            explicit_feature=feature_flag,
-            cwd=Path.cwd(),
-            mode="strict"
-        )
+        ctx = detect_feature(repo_root, explicit_feature=feature_flag, cwd=Path.cwd(), mode="strict")
         if ctx is None:
             console.print("[red]Error:[/red] Could not determine feature context")
             raise typer.Exit(1)
@@ -157,12 +152,7 @@ def validate_workspace_path(workspace_path: Path, wp_id: str) -> bool:
         return False  # Good - doesn't exist, should create
 
     # Check if it's a valid git worktree
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-dir"],
-        cwd=workspace_path,
-        capture_output=True,
-        check=False
-    )
+    result = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=workspace_path, capture_output=True, check=False)
 
     if result.returncode == 0:
         # Valid worktree exists
@@ -248,15 +238,11 @@ def resolve_primary_branch(repo_root: Path) -> str:
         Detected primary branch name.
     """
     from specify_cli.core.git_ops import resolve_primary_branch as _resolve
+
     return _resolve(repo_root)
 
 
-def display_rebase_warning(
-    workspace_path: Path,
-    wp_id: str,
-    base_branch: str,
-    feature_slug: str
-) -> None:
+def display_rebase_warning(workspace_path: Path, wp_id: str, base_branch: str, feature_slug: str) -> None:
     """Display warning about needing to rebase on changed base.
 
     Args:
@@ -279,11 +265,7 @@ def display_rebase_warning(
     console.print("Future jj integration will auto-rebase dependent workspaces.\n")
 
 
-def check_for_dependents(
-    repo_root: Path,
-    feature_slug: str,
-    wp_id: str
-) -> None:
+def check_for_dependents(repo_root: Path, feature_slug: str, wp_id: str) -> None:
     """Check if any WPs depend on this WP and warn if not yet done.
 
     Args:
@@ -358,7 +340,7 @@ def _ensure_planning_artifacts_committed_git(
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False
+        check=False,
     )
     current_branch = result.stdout.strip() if result.returncode == 0 else ""
 
@@ -370,7 +352,7 @@ def _ensure_planning_artifacts_committed_git(
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False
+        check=False,
     )
 
     if result.returncode == 0 and result.stdout.strip():
@@ -379,7 +361,7 @@ def _ensure_planning_artifacts_committed_git(
         # Examples: ??(untracked), M (staged modified), MM(staged+modified), etc.
         files_to_commit = []
         valid_status_chars = set(" MADRCU?!")
-        for line in result.stdout.strip().split('\n'):
+        for line in result.stdout.strip().split("\n"):
             if line.strip():
                 # Strictly parse porcelain format: "XY <path>"
                 # Ignore non-porcelain noise to avoid false positives in mocked output.
@@ -399,9 +381,7 @@ def _ensure_planning_artifacts_committed_git(
                 console.print(f"  {f}")
 
             if current_branch != primary_branch:
-                console.print(
-                    f"\n[red]Error:[/red] Planning artifacts must be committed on {primary_branch}."
-                )
+                console.print(f"\n[red]Error:[/red] Planning artifacts must be committed on {primary_branch}.")
                 console.print(f"Current branch: {current_branch}")
                 console.print(f"Run: git checkout {primary_branch}")
                 raise typer.Exit(1)
@@ -417,7 +397,7 @@ def _ensure_planning_artifacts_committed_git(
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                check=False
+                check=False,
             )
             if result.returncode != 0:
                 console.print("[red]Error:[/red] Failed to stage files")
@@ -433,7 +413,7 @@ def _ensure_planning_artifacts_committed_git(
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                check=False
+                check=False,
             )
             if result.returncode != 0:
                 console.print("[red]Error:[/red] Failed to commit")
@@ -471,9 +451,7 @@ def _ensure_planning_artifacts_committed_jj(
     # In jj, working copy IS a commit - no "uncommitted" state
     # Just verify the feature directory exists
     if not feature_dir.exists():
-        console.print(
-            f"\n[red]Error:[/red] Feature directory not found: {feature_dir}"
-        )
+        console.print(f"\n[red]Error:[/red] Feature directory not found: {feature_dir}")
         console.print("Run planning commands first (specify, plan, tasks)")
         raise typer.Exit(1)
 
@@ -485,7 +463,7 @@ def _ensure_planning_artifacts_committed_jj(
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False
+        check=False,
     )
     current_bookmark = result.stdout.strip() if result.returncode == 0 else "unknown"
     console.print(f"[green]✓[/green] Planning artifacts ready (on {current_bookmark or '@'})")
@@ -676,10 +654,7 @@ def implement(
 
                 # Verify it's a valid worktree
                 result = subprocess.run(
-                    ["git", "rev-parse", "--git-dir"],
-                    cwd=base_workspace,
-                    capture_output=True,
-                    check=False
+                    ["git", "rev-parse", "--git-dir"], cwd=base_workspace, capture_output=True, check=False
                 )
                 if result.returncode != 0:
                     tracker.error("validate", f"base workspace {base} invalid")
@@ -713,14 +688,10 @@ def implement(
 
             if vcs_backend == VCSBackend.GIT:
                 # Git path: check branch and status using git commands
-                _ensure_planning_artifacts_committed_git(
-                    repo_root, feature_dir, feature_slug, wp_id, primary_branch
-                )
+                _ensure_planning_artifacts_committed_git(repo_root, feature_dir, feature_slug, wp_id, primary_branch)
             else:
                 # jj path: check status and commit using jj commands
-                _ensure_planning_artifacts_committed_jj(
-                    repo_root, feature_dir, feature_slug, wp_id, primary_branch
-                )
+                _ensure_planning_artifacts_committed_jj(repo_root, feature_dir, feature_slug, wp_id, primary_branch)
 
         except typer.Exit:
             raise
@@ -848,26 +819,25 @@ def implement(
 
             # Respect active user branch when it differs from target.
             # This prevents implicit branch switching in mixed branch workflows.
-            if (
-                current_branch
-                and current_branch != target_branch
-                and current_branch != primary_branch
-            ):
+            if current_branch and current_branch != target_branch and current_branch != primary_branch:
                 console.print(
                     f"\n[yellow]Note:[/yellow] You are on '{current_branch}', "
                     f"feature targets '{target_branch}'. Branching from '{current_branch}'."
                 )
                 base_branch = current_branch
             else:
-                target_exists = subprocess.run(
-                    ["git", "rev-parse", "--verify", target_branch],
-                    cwd=repo_root,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    check=False,
-                ).returncode == 0
+                target_exists = (
+                    subprocess.run(
+                        ["git", "rev-parse", "--verify", target_branch],
+                        cwd=repo_root,
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        check=False,
+                    ).returncode
+                    == 0
+                )
 
                 if target_exists:
                     base_branch = target_branch
@@ -875,9 +845,7 @@ def implement(
                     if target_branch == primary_branch:
                         base_branch = primary_branch
                     else:
-                        console.print(
-                            f"[cyan]→ Creating target branch: {target_branch} (from {primary_branch})[/cyan]"
-                        )
+                        console.print(f"[cyan]→ Creating target branch: {target_branch} (from {primary_branch})[/cyan]")
                         create_target = subprocess.run(
                             ["git", "branch", target_branch, primary_branch],
                             cwd=repo_root,
@@ -942,10 +910,7 @@ def implement(
                         base_branch = base_workspace_info.current_branch
                     # For git, verify the branch exists
                     verify_base_result = subprocess.run(
-                        ["git", "rev-parse", "--verify", base_branch],
-                        cwd=repo_root,
-                        capture_output=True,
-                        check=False
+                        ["git", "rev-parse", "--verify", base_branch], cwd=repo_root, capture_output=True, check=False
                     )
                     if verify_base_result.returncode != 0:
                         tracker.error("create", f"base branch {base_branch} not found")
@@ -992,24 +957,23 @@ def implement(
             text=True,
             encoding="utf-8",
             errors="replace",
-            check=False
+            check=False,
         )
-        base_commit_sha: str = (
-            base_commit_result.stdout.strip()
-            if base_commit_result.returncode == 0
-            else "unknown"
-        )
+        base_commit_sha: str = base_commit_result.stdout.strip() if base_commit_result.returncode == 0 else "unknown"
 
         # Step 3.6: Update WP frontmatter with base tracking
         try:
             created_at = datetime.now(timezone.utc).isoformat()
 
             # Update frontmatter with base tracking fields
-            update_fields(wp_file, {
-                "base_branch": base_branch,
-                "base_commit": base_commit_sha,
-                "created_at": created_at,
-            })
+            update_fields(
+                wp_file,
+                {
+                    "base_branch": base_branch,
+                    "base_commit": base_commit_sha,
+                    "created_at": created_at,
+                },
+            )
 
             console.print(f"[cyan]→ Base tracking: {base_branch} @ {base_commit_sha[:7]}[/cyan]")
         except Exception as e:
@@ -1069,6 +1033,7 @@ def implement(
 
             # Auto-commit to current branch (respects user context, no auto-checkout)
             from specify_cli.core.git_ops import resolve_target_branch
+
             commit_msg = f"chore: {wp_id} claimed for implementation"
 
             # Resolve branch routing (unified logic, no auto-checkout)
@@ -1120,9 +1085,7 @@ def implement(
                         feature_slug=feature_slug,
                     )
                 except Exception as emit_exc:
-                    console.print(
-                        f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}"
-                    )
+                    console.print(f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}")
 
     except Exception as e:
         # Non-fatal: workspace created but lane update failed
@@ -1132,18 +1095,23 @@ def implement(
     if json_output:
         # JSON output for scripting
         import json
+
         workspace_rel = str(workspace_path.relative_to(repo_root))
-        print(json.dumps({
-            # Canonical key for consumers.
-            "workspace": workspace_rel,
-            # Backward compatibility for existing integrations.
-            "workspace_path": workspace_rel,
-            "branch": branch_name,
-            "feature": feature_slug,
-            "wp_id": wp_id,
-            "base": base or resolve_primary_branch(repo_root),
-            "status": "created"
-        }))
+        print(
+            json.dumps(
+                {
+                    # Canonical key for consumers.
+                    "workspace": workspace_rel,
+                    # Backward compatibility for existing integrations.
+                    "workspace_path": workspace_rel,
+                    "branch": branch_name,
+                    "feature": feature_slug,
+                    "wp_id": wp_id,
+                    "base": base or resolve_primary_branch(repo_root),
+                    "status": "created",
+                }
+            )
+        )
     else:
         # Human-readable output
         console.print(tracker.render())

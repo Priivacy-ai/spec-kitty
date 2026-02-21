@@ -16,25 +16,31 @@ from specify_cli.upgrade.migrations.m_0_12_1_remove_kitty_specs_from_gitignore i
 class TestIsBlockingPattern:
     """Test the pattern detection logic."""
 
-    @pytest.mark.parametrize("pattern", [
-        "kitty-specs",
-        "kitty-specs/",
-        "/kitty-specs",
-        "/kitty-specs/",
-    ])
+    @pytest.mark.parametrize(
+        "pattern",
+        [
+            "kitty-specs",
+            "kitty-specs/",
+            "/kitty-specs",
+            "/kitty-specs/",
+        ],
+    )
     def test_blocking_patterns_detected(self, pattern: str):
         """Patterns that block the entire kitty-specs directory should be detected."""
         assert is_blocking_pattern(pattern) is True
 
-    @pytest.mark.parametrize("pattern", [
-        "kitty-specs/**/tasks/*.md",
-        "kitty-specs/*/tasks/*.md",
-        "kitty-specs/**/tasks/",
-        "# kitty-specs/",  # Comment
-        "",  # Empty line
-        "node_modules/",  # Unrelated
-        ".kittify/",  # Unrelated
-    ])
+    @pytest.mark.parametrize(
+        "pattern",
+        [
+            "kitty-specs/**/tasks/*.md",
+            "kitty-specs/*/tasks/*.md",
+            "kitty-specs/**/tasks/",
+            "# kitty-specs/",  # Comment
+            "",  # Empty line
+            "node_modules/",  # Unrelated
+            ".kittify/",  # Unrelated
+        ],
+    )
     def test_non_blocking_patterns_ignored(self, pattern: str):
         """Patterns that don't block entire directory should NOT be detected."""
         assert is_blocking_pattern(pattern) is False

@@ -74,10 +74,7 @@ class PathValidationResult:
                 lines.append(f"  - {suggestion}")
 
         lines.append("")
-        lines.append(
-            "These directories are required by the active mission. "
-            "Create them before continuing."
-        )
+        lines.append("These directories are required by the active mission. Create them before continuing.")
         return "\n".join(lines)
 
 
@@ -142,9 +139,7 @@ def validate_mission_paths(
             continue
 
         result.missing_paths.append(relative_path)
-        result.warnings.append(
-            f"{mission.name} expects {key} path: {relative_path} (not found)"
-        )
+        result.warnings.append(f"{mission.name} expects {key} path: {relative_path} (not found)")
 
     if result.missing_paths:
         result.suggestions = suggest_directory_creation(result.missing_paths)

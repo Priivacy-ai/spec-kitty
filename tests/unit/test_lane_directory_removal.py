@@ -138,8 +138,7 @@ def test_migration_0_9_0_removes_empty_lane_directories(migration_0_9_0, mock_v0
             persisting_lanes.append(lane)
 
     assert not persisting_lanes, (
-        f"Lane directories should be removed after migration, "
-        f"but these still exist: {persisting_lanes}"
+        f"Lane directories should be removed after migration, but these still exist: {persisting_lanes}"
     )
 
 
@@ -166,8 +165,7 @@ def test_migration_0_9_0_handles_ds_store_files(migration_0_9_0, mock_v0_6_4_pro
             persisting_lanes.append(f"{lane}/ (contains: {[f.name for f in contents]})")
 
     assert not persisting_lanes, (
-        f"Lane directories should be removed even with .DS_Store files, "
-        f"but these still exist: {persisting_lanes}"
+        f"Lane directories should be removed even with .DS_Store files, but these still exist: {persisting_lanes}"
     )
 
 
@@ -190,8 +188,7 @@ def test_migration_0_9_0_handles_gitkeep_files(migration_0_9_0, mock_v0_6_4_proj
             persisting_lanes.append(lane)
 
     assert not persisting_lanes, (
-        f"Lane directories with .gitkeep should be removed, "
-        f"but these still exist: {persisting_lanes}"
+        f"Lane directories with .gitkeep should be removed, but these still exist: {persisting_lanes}"
     )
 
 
@@ -223,15 +220,12 @@ def test_migration_0_9_1_removes_remaining_lane_directories(migration_0_9_1, moc
             persisting_lanes.append(f"{lane}/ (contains: {[f.name for f in contents]})")
 
     assert not persisting_lanes, (
-        f"Migration 0.9.1 should remove ALL remaining lane directories, "
-        f"but these still exist: {persisting_lanes}"
+        f"Migration 0.9.1 should remove ALL remaining lane directories, but these still exist: {persisting_lanes}"
     )
 
 
 def test_upgrade_path_0_6_4_to_0_10_x_removes_all_lanes(
-    migration_0_9_0,
-    migration_0_9_1,
-    mock_v0_6_4_project_with_ds_store
+    migration_0_9_0, migration_0_9_1, mock_v0_6_4_project_with_ds_store
 ):
     """Integration test: Full upgrade path from v0.6.4 to v0.10.x.
 

@@ -42,9 +42,7 @@ def _write_wp(
     if history is not None:
         lines.append("history:")
         for entry in history:
-            lines.append(
-                f'- timestamp: "{entry.get("timestamp", "2026-01-01T00:00:00Z")}"'
-            )
+            lines.append(f'- timestamp: "{entry.get("timestamp", "2026-01-01T00:00:00Z")}"')
             lines.append(f'  lane: "{entry.get("lane", "planned")}"')
             lines.append(f'  agent: "{entry.get("agent", "system")}"')
             lines.append('  shell_pid: ""')
@@ -80,9 +78,7 @@ def _write_live_event(feature_dir: Path, wp_id: str = "WP01") -> None:
     )
 
 
-def _write_migration_only_event(
-    feature_dir: Path, wp_id: str = "WP01"
-) -> None:
+def _write_migration_only_event(feature_dir: Path, wp_id: str = "WP01") -> None:
     """Write a StatusEvent with a migration actor (legacy bootstrap)."""
     from specify_cli.status.models import Lane, StatusEvent
 
@@ -257,10 +253,15 @@ class TestApply:
         feature_dir = tmp_path / "kitty-specs" / "910-single"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "done", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "done",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
+            ],
+        )
 
         migration = HistoricalStatusMigration()
         result = migration.apply(tmp_path)
@@ -393,7 +394,9 @@ class TestCrossBranchIdempotency:
         tasks_dir = tmp_path / "kitty-specs" / "950-cross" / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(
-            tasks_dir, "WP01", "done",
+            tasks_dir,
+            "WP01",
+            "done",
             history=[
                 {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
                 {"timestamp": "2026-01-01T11:00:00Z", "lane": "doing", "agent": "claude"},
@@ -469,7 +472,5 @@ class TestMigrationMetadata:
     def test_registered_in_registry(self) -> None:
         from specify_cli.upgrade.registry import MigrationRegistry
 
-        registered_ids = [
-            m.migration_id for m in MigrationRegistry.get_all()
-        ]
+        registered_ids = [m.migration_id for m in MigrationRegistry.get_all()]
         assert "2.0.0_historical_status_migration" in registered_ids

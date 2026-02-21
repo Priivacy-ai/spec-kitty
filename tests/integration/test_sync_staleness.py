@@ -13,7 +13,6 @@ import subprocess
 from pathlib import Path
 
 
-
 class TestSyncStaleness:
     """Tests for workspace staleness detection."""
 

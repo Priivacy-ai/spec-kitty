@@ -3,6 +3,7 @@ Infrastructure smoke tests to verify adversarial test setup.
 
 These tests validate that the test infrastructure is correctly configured.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -120,9 +121,7 @@ class TestFactoryFixtures:
         assert path.exists(), "Should create file"
         assert path.read_bytes() == b"\xff\xfe"
 
-    def test_symlink_factory_returns_none_if_unsupported(
-        self, symlink_factory, symlinks_supported, tmp_path
-    ):
+    def test_symlink_factory_returns_none_if_unsupported(self, symlink_factory, symlinks_supported, tmp_path):
         """symlink_factory should return None if symlinks not supported."""
         target = tmp_path / "target"
         target.mkdir()

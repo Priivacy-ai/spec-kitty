@@ -34,9 +34,7 @@ def hash_constitution(constitution_path: Path) -> str:
     return hash_content(content)
 
 
-def is_stale(
-    constitution_path: Path | None, metadata_path: Path, content: str | None = None
-) -> tuple[bool, str, str]:
+def is_stale(constitution_path: Path | None, metadata_path: Path, content: str | None = None) -> tuple[bool, str, str]:
     """Check if constitution has changed since last sync.
 
     Args:

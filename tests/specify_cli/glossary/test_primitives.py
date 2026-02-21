@@ -1,6 +1,5 @@
 """Tests for PrimitiveExecutionContext (T040)."""
 
-
 from specify_cli.glossary.strictness import Strictness
 from specify_cli.missions.primitives import PrimitiveExecutionContext
 

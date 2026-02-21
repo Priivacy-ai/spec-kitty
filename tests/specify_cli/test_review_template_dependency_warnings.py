@@ -7,15 +7,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BASE_TEMPLATE = REPO_ROOT / "src" / "doctrine" / "templates" / "command-templates" / "review.md"
-MISSION_TEMPLATE = (
-    REPO_ROOT
-    / "src"
-    / "specify_cli"
-    / "missions"
-    / "software-dev"
-    / "command-templates"
-    / "review.md"
-)
+MISSION_TEMPLATE = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "review.md"
 
 REQUIRED_KEYS = [
     "dependency_check",

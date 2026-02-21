@@ -601,9 +601,7 @@ class TestEdgeCases:
         assert exc_info.value.strictness == Strictness.MEDIUM
         assert len(exc_info.value.conflicts) == 1
 
-    def test_event_emission_error_is_logged(
-        self, mock_context, high_severity_conflict, monkeypatch, caplog
-    ):
+    def test_event_emission_error_is_logged(self, mock_context, high_severity_conflict, monkeypatch, caplog):
         """When event emission fails, the error is logged."""
         import logging
         from specify_cli.glossary import events

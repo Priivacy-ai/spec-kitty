@@ -132,9 +132,7 @@ class TestPostSaveHook:
         assert (constitution_dir / "directives.yaml").exists()
         assert (constitution_dir / "metadata.yaml").exists()
 
-    def test_post_save_hook_logs_success(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_post_save_hook_logs_success(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """post_save_hook() logs success message."""
         constitution_dir = tmp_path / ".kittify" / "constitution"
         constitution_dir.mkdir(parents=True)
@@ -148,9 +146,7 @@ class TestPostSaveHook:
         # Verify log message
         assert any("Constitution synced: 4 YAML files updated" in record.message for record in caplog.records)
 
-    def test_post_save_hook_extraction_failure_no_crash(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_post_save_hook_extraction_failure_no_crash(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """post_save_hook() with extraction error → no crash, warning logged."""
         constitution_dir = tmp_path / ".kittify" / "constitution"
         constitution_dir.mkdir(parents=True)
