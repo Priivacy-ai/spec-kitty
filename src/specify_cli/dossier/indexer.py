@@ -353,13 +353,15 @@ class Indexer:
 
             if not matched:
                 # Create "ghost" artifact ref (missing)
+                # Use manifest blocking field to determine if this is truly required
+                required_status = "required" if spec.blocking else "optional"
                 ghost = ArtifactRef(
                     artifact_key=spec.artifact_key,
                     artifact_class=spec.artifact_class.value,
                     relative_path=spec.path_pattern,
                     content_hash_sha256="",
                     size_bytes=0,
-                    required_status="required",
+                    required_status=required_status,
                     is_present=False,
                     error_reason="not_found",
                     indexed_at=datetime.utcnow(),

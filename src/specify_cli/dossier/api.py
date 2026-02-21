@@ -284,7 +284,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
             feature_dir = (
                 self.repo_root / "kitty-specs" / feature_slug
             )
-            snapshot = load_snapshot(feature_slug, feature_dir)
+            snapshot = load_snapshot(feature_dir, feature_slug)
 
             if not snapshot:
                 return error_response(f"Dossier not found for {feature_slug}", 404)
@@ -474,7 +474,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
             feature_dir = (
                 self.repo_root / "kitty-specs" / feature_slug
             )
-            snapshot = load_snapshot(feature_slug, feature_dir)
+            snapshot = load_snapshot(feature_dir, feature_slug)
 
             if not snapshot:
                 return error_response(f"Snapshot not found for {feature_slug}", 404)
@@ -497,10 +497,10 @@ class DossierAPIHandler(DossierHandlerAdapter):
             return error_response(f"Error exporting snapshot: {str(exc)}", 500)
 
     def _load_dossier(self, feature_slug: str) -> Optional[MissionDossier]:
-        """Load dossier for a feature (placeholder).
+        """Load dossier for a feature from snapshot artifact summaries.
 
-        This is a placeholder - actual implementation will load from
-        dossier storage (.kittify/dossiers/{feature_slug}/dossier.json).
+        Reconstructs a MissionDossier from the latest snapshot by converting
+        artifact_summaries back to ArtifactRef objects.
 
         Args:
             feature_slug: Feature identifier
@@ -508,6 +508,38 @@ class DossierAPIHandler(DossierHandlerAdapter):
         Returns:
             MissionDossier or None if not found
         """
-        # TODO: Implement actual dossier loading from storage
-        # For now, return None to indicate not found
-        return None
+        try:
+            feature_dir = self.repo_root / "kitty-specs" / feature_slug
+            snapshot = load_snapshot(feature_dir, feature_slug)
+
+            if not snapshot:
+                return None
+
+            # Reconstruct artifacts from snapshot's artifact_summaries
+            artifacts = []
+            for summary in snapshot.artifact_summaries:
+                artifact = ArtifactRef(
+                    artifact_key=summary.get("artifact_key", ""),
+                    artifact_class=summary.get("artifact_class", "other"),
+                    relative_path=summary.get("relative_path", ""),
+                    content_hash_sha256=summary.get("content_hash_sha256"),
+                    size_bytes=summary.get("size_bytes", 0),
+                    wp_id=summary.get("wp_id"),
+                    step_id=summary.get("step_id"),
+                    required_status=summary.get("required_status", "optional"),
+                    is_present=summary.get("is_present", False),
+                    error_reason=summary.get("error_reason"),
+                    indexed_at=summary.get("indexed_at"),
+                    provenance=summary.get("provenance", {}),
+                )
+                artifacts.append(artifact)
+
+            # Create MissionDossier from artifacts
+            return MissionDossier(
+                feature_slug=feature_slug,
+                feature_dir=str(feature_dir),
+                artifacts=artifacts,
+                indexed_at=snapshot.computed_at.isoformat() if snapshot.computed_at else None,
+            )
+        except Exception:
+            return None

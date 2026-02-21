@@ -65,6 +65,10 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
             self.handle_artifact(path)
             return
 
+        if path.startswith('/api/dossier/'):
+            self.handle_dossier(path)
+            return
+
         if path == '/api/diagnostics':
             self.handle_diagnostics()
             return
