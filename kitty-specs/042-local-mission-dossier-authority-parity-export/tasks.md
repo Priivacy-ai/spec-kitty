@@ -99,12 +99,12 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T012-T017 (6 subtasks)
-- [ ] T012: Implement Indexer.index_feature() scanning logic (walk feature directory)
-- [ ] T013: Artifact classification (derive from filename patterns, manifest definitions)
-- [ ] T014: Missing artifact detection (required vs optional, per manifest)
-- [ ] T015: Unreadable artifact handling (permission denied, encoding errors, deleted mid-scan)
-- [ ] T016: MissionDossier builder from indexed artifacts (create complete inventory)
-- [ ] T017: Step-aware completeness checking (given mission step, which artifacts required?)
+- [x] T012: Implement Indexer.index_feature() scanning logic (walk feature directory)
+- [x] T013: Artifact classification (derive from filename patterns, manifest definitions)
+- [x] T014: Missing artifact detection (required vs optional, per manifest)
+- [x] T015: Unreadable artifact handling (permission denied, encoding errors, deleted mid-scan)
+- [x] T016: MissionDossier builder from indexed artifacts (create complete inventory)
+- [x] T017: Step-aware completeness checking (given mission step, which artifacts required?)
 
 **Implementation Notes**:
 - Indexer: Recursive directory scan, yield artifacts as discovered
