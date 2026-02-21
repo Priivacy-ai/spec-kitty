@@ -129,10 +129,16 @@ def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
             {
                 "artifact_key": a.artifact_key,
                 "artifact_class": a.artifact_class,
+                "relative_path": a.relative_path,
+                "content_hash_sha256": a.content_hash_sha256,
+                "size_bytes": a.size_bytes,
                 "wp_id": a.wp_id,
                 "step_id": a.step_id,
+                "required_status": a.required_status,
                 "is_present": a.is_present,
                 "error_reason": a.error_reason,
+                "indexed_at": a.indexed_at.isoformat() if a.indexed_at else None,
+                "provenance": a.provenance,
             }
             for a in sorted_artifacts
         ],

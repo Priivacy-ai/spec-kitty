@@ -507,39 +507,47 @@ class DossierAPIHandler(DossierHandlerAdapter):
 
         Returns:
             MissionDossier or None if not found
+
+        Raises:
+            ValueError, TypeError on invalid snapshot data
         """
-        try:
-            feature_dir = self.repo_root / "kitty-specs" / feature_slug
-            snapshot = load_snapshot(feature_dir, feature_slug)
+        feature_dir = self.repo_root / "kitty-specs" / feature_slug
+        snapshot = load_snapshot(feature_dir, feature_slug)
 
-            if not snapshot:
-                return None
-
-            # Reconstruct artifacts from snapshot's artifact_summaries
-            artifacts = []
-            for summary in snapshot.artifact_summaries:
-                artifact = ArtifactRef(
-                    artifact_key=summary.get("artifact_key", ""),
-                    artifact_class=summary.get("artifact_class", "other"),
-                    relative_path=summary.get("relative_path", ""),
-                    content_hash_sha256=summary.get("content_hash_sha256"),
-                    size_bytes=summary.get("size_bytes", 0),
-                    wp_id=summary.get("wp_id"),
-                    step_id=summary.get("step_id"),
-                    required_status=summary.get("required_status", "optional"),
-                    is_present=summary.get("is_present", False),
-                    error_reason=summary.get("error_reason"),
-                    indexed_at=summary.get("indexed_at"),
-                    provenance=summary.get("provenance", {}),
-                )
-                artifacts.append(artifact)
-
-            # Create MissionDossier from artifacts
-            return MissionDossier(
-                feature_slug=feature_slug,
-                feature_dir=str(feature_dir),
-                artifacts=artifacts,
-                indexed_at=snapshot.computed_at.isoformat() if snapshot.computed_at else None,
-            )
-        except Exception:
+        if not snapshot:
             return None
+
+        # Reconstruct artifacts from snapshot's artifact_summaries
+        artifacts = []
+        for summary in snapshot.artifact_summaries:
+            # Parse indexed_at if it's a string (from JSON)
+            indexed_at = summary.get("indexed_at")
+            if isinstance(indexed_at, str):
+                from datetime import datetime
+                indexed_at = datetime.fromisoformat(indexed_at)
+
+            artifact = ArtifactRef(
+                artifact_key=summary.get("artifact_key", ""),
+                artifact_class=summary.get("artifact_class", "other"),
+                relative_path=summary.get("relative_path", ""),
+                content_hash_sha256=summary.get("content_hash_sha256"),
+                size_bytes=summary.get("size_bytes", 0),
+                wp_id=summary.get("wp_id"),
+                step_id=summary.get("step_id"),
+                required_status=summary.get("required_status", "optional"),
+                is_present=summary.get("is_present", False),
+                error_reason=summary.get("error_reason"),
+                indexed_at=indexed_at,
+                provenance=summary.get("provenance", {}),
+            )
+            artifacts.append(artifact)
+
+        # Create minimal MissionDossier with just the artifacts
+        # Use placeholder values for required fields we don't have from snapshot
+        return MissionDossier(
+            feature_slug=feature_slug,
+            feature_dir=str(feature_dir),
+            artifacts=artifacts,
+            mission_slug="unknown",  # Not tracked in snapshot
+            mission_run_id=snapshot.snapshot_id,  # Use snapshot ID as proxy
+        )
