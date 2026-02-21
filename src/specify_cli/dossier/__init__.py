@@ -2,6 +2,12 @@
 
 from .models import ArtifactRef, MissionDossier
 from .hasher import hash_file, hash_file_with_validation, Hasher
+from .manifest import (
+    ArtifactClassEnum,
+    ExpectedArtifactSpec,
+    ExpectedArtifactManifest,
+    ManifestRegistry,
+)
 
 __all__ = [
     "ArtifactRef",
@@ -9,4 +15,8 @@ __all__ = [
     "hash_file",
     "hash_file_with_validation",
     "Hasher",
+    "ArtifactClassEnum",
+    "ExpectedArtifactSpec",
+    "ExpectedArtifactManifest",
+    "ManifestRegistry",
 ]
