@@ -16,6 +16,7 @@ subtasks:
 - T027
 feature_slug: 042-local-mission-dossier-authority-parity-export
 shell_pid: "93614"
+agent: "coordinator"
 ---
 
 # WP05: Snapshot Computation & Parity Hash
@@ -385,3 +386,7 @@ When reviewing WP05:
 - **Estimated Lines**: ~350 (store.py + tests)
 - **Integration Point**: WP06 (API) will return snapshots; WP08 (drift detection) compares hashes
 - **Performance**: Snapshot computation <1s for 30 artifacts (SC-001)
+
+## Activity Log
+
+- 2026-02-21T15:56:21Z – coordinator – shell_pid=93614 – lane=doing – Assigned agent via workflow command
