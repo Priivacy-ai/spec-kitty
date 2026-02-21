@@ -5,6 +5,13 @@ These tests verify:
 - Hook respects metadata-driven enablement
 - Primitive execution with/without glossary pipeline
 - Pipeline integration contract
+
+The execute_with_glossary hook is the integration point between mission
+executors and the glossary validation pipeline. When glossary_check is
+enabled (default), it runs the full middleware stack before executing
+the primitive. See:
+- src/doctrine/missions/glossary_hook.py for hook implementation
+- src/specify_cli/glossary/attachment.py for pipeline runner
 """
 
 from pathlib import Path
