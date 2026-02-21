@@ -32,11 +32,11 @@ Feature 042 implements a mission artifact dossier system that indexes all spec-k
 **Status**: planned
 
 **Subtasks**: T001-T005 (5 subtasks)
-- [ ] T001: Create ArtifactRef pydantic model (identity, location, content hash, provenance, state fields)
-- [ ] T002: Implement SHA256 deterministic hashing utility (file → hash)
-- [ ] T003: Build Hasher class with order-independent parity (sorted hashes, combined hash)
-- [ ] T004: UTF-8 validation & error handling (explicit failure, no silent corruption)
-- [ ] T005: Unit tests for hashing determinism (same file → same hash, reproducibility)
+- [x] T001: Create ArtifactRef pydantic model (identity, location, content hash, provenance, state fields)
+- [x] T002: Implement SHA256 deterministic hashing utility (file → hash)
+- [x] T003: Build Hasher class with order-independent parity (sorted hashes, combined hash)
+- [x] T004: UTF-8 validation & error handling (explicit failure, no silent corruption)
+- [x] T005: Unit tests for hashing determinism (same file → same hash, reproducibility)
 
 **Implementation Notes**:
 - ArtifactRef: ~25 fields covering identity, location, metadata, provenance, state (see data-model.md for full spec)

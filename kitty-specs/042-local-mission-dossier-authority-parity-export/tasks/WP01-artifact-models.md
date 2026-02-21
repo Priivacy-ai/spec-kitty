@@ -1,15 +1,20 @@
 ---
-work_package_id: "WP01"
-title: "ArtifactRef Model & Deterministic Hashing"
-feature_slug: 042-local-mission-dossier-authority-parity-export
-lane: planned
+work_package_id: WP01
+title: ArtifactRef Model & Deterministic Hashing
+lane: "doing"
 dependencies: []
+base_branch: 2.x
+base_commit: a61abc8adeb69a5452dda768efcc262bcdf7d5b3
+created_at: '2026-02-21T15:32:13.451041+00:00'
 subtasks:
-  - T001
-  - T002
-  - T003
-  - T004
-  - T005
+- T001
+- T002
+- T003
+- T004
+- T005
+feature_slug: 042-local-mission-dossier-authority-parity-export
+shell_pid: "72113"
+agent: "coordinator"
 ---
 
 # WP01: ArtifactRef Model & Deterministic Hashing
@@ -362,3 +367,7 @@ When reviewing WP01:
 - **Estimated Lines**: ~300 (models ~100, hasher ~120, tests ~80)
 - **Testing**: Parametrized tests, fixtures for temp files
 - **Integration Point**: WP03 (indexing) will use these models/functions
+
+## Activity Log
+
+- 2026-02-21T15:32:13Z – coordinator – shell_pid=72113 – lane=doing – Assigned agent via workflow command
