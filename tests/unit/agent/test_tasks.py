@@ -168,6 +168,108 @@ class TestMoveTask:
         output = json.loads(first_line)
         assert "error" in output
 
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_to_planned_requires_feedback_file(
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
+        mock_task_file: Path
+    ):
+        """Should strictly require --review-feedback-file for --to planned."""
+        repo_root = mock_task_file.parent.parent.parent.parent
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "008-test-feature"
+        mock_branch.return_value = (repo_root, "main")
+
+        # Simulate review-in-progress state (workflow review auto-moves to doing)
+        mock_task_file.write_text(
+            mock_task_file.read_text().replace('lane: "planned"', 'lane: "doing"'),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            app, ["move-task", "WP01", "--to", "planned", "--json", "--no-auto-commit"]
+        )
+
+        assert result.exit_code == 1
+        first_line = result.stdout.strip().split('\n')[0]
+        output = json.loads(first_line)
+        assert "requires review feedback" in output["error"]
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_to_planned_rejects_missing_feedback_file(
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
+        mock_task_file: Path, tmp_path: Path
+    ):
+        """Should fail when --review-feedback-file path does not exist."""
+        repo_root = mock_task_file.parent.parent.parent.parent
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "008-test-feature"
+        mock_branch.return_value = (repo_root, "main")
+
+        mock_task_file.write_text(
+            mock_task_file.read_text().replace('lane: "planned"', 'lane: "doing"'),
+            encoding="utf-8",
+        )
+        missing_feedback = tmp_path / "missing-feedback.md"
+
+        result = runner.invoke(
+            app,
+            [
+                "move-task", "WP01", "--to", "planned",
+                "--review-feedback-file", str(missing_feedback),
+                "--json", "--no-auto-commit",
+            ],
+        )
+
+        assert result.exit_code == 1
+        first_line = result.stdout.strip().split('\n')[0]
+        output = json.loads(first_line)
+        assert "not found" in output["error"]
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    def test_move_task_to_planned_persists_feedback_content_and_path(
+        self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
+        mock_task_file: Path, tmp_path: Path
+    ):
+        """Should persist both review feedback text and its source path deterministically."""
+        repo_root = mock_task_file.parent.parent.parent.parent
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "008-test-feature"
+        mock_branch.return_value = (repo_root, "main")
+
+        mock_task_file.write_text(
+            mock_task_file.read_text().replace('lane: "planned"', 'lane: "for_review"'),
+            encoding="utf-8",
+        )
+
+        feedback_file = tmp_path / "review-feedback.md"
+        feedback_file.write_text("**Issue 1**: Deterministic rollback regression.\n", encoding="utf-8")
+        resolved_feedback = str(feedback_file.resolve())
+
+        result = runner.invoke(
+            app,
+            [
+                "move-task", "WP01", "--to", "planned",
+                "--review-feedback-file", str(feedback_file),
+                "--json", "--no-auto-commit",
+            ],
+        )
+
+        assert result.exit_code == 0, f"stdout: {result.stdout}"
+        output = json.loads(result.stdout)
+        assert output["new_lane"] == "planned"
+
+        updated_content = mock_task_file.read_text(encoding="utf-8")
+        assert "## Review Feedback" in updated_content
+        assert "**Issue 1**: Deterministic rollback regression." in updated_content
+        assert f"**Feedback file**: `{resolved_feedback}`" in updated_content
+        assert f'review_feedback_file: "{resolved_feedback}"' in updated_content
+
 
 class TestMarkStatus:
     """Tests for mark-status command."""

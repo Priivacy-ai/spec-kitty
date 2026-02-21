@@ -708,6 +708,43 @@ def _validate_ready_for_review(
     return True, []
 
 
+def _upsert_review_feedback_section(
+    body: str,
+    reviewer: str,
+    feedback_date: str,
+    feedback_path: str,
+    feedback_content: str,
+) -> str:
+    """Insert or replace the `## Review Feedback` section deterministically."""
+    section = (
+        "## Review Feedback\n\n"
+        f"**Reviewed by**: {reviewer}\n"
+        "**Status**: ❌ Changes Requested\n"
+        f"**Date**: {feedback_date}\n"
+        f"**Feedback file**: `{feedback_path}`\n\n"
+        f"{feedback_content}\n\n"
+    )
+
+    review_header = "## Review Feedback"
+    review_section_start = body.find(review_header)
+    if review_section_start != -1:
+        next_section_start = body.find("\n##", review_section_start + len(review_header))
+        if next_section_start == -1:
+            return body[:review_section_start] + section
+        return body[:review_section_start] + section + body[next_section_start:]
+
+    activity_log_start = body.find("\n## Activity Log")
+    if activity_log_start != -1:
+        before = body[:activity_log_start].rstrip()
+        after = body[activity_log_start:]
+        return f"{before}\n\n{section}{after}"
+
+    body_without_trailing = body.rstrip()
+    if body_without_trailing:
+        return f"{body_without_trailing}\n\n{section}"
+    return section
+
+
 @app.command(name="move-task")
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
@@ -717,7 +754,7 @@ def move_task(
     assignee: Annotated[Optional[str], typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
     note: Annotated[Optional[str], typer.Option("--note", help="History note")] = None,
-    review_feedback_file: Annotated[Optional[Path], typer.Option("--review-feedback-file", help="Path to review feedback file (required when moving to planned from review)")] = None,
+    review_feedback_file: Annotated[Optional[Path], typer.Option("--review-feedback-file", help="Path to review feedback file (required for --to planned unless --force)")] = None,
     reviewer: Annotated[Optional[str], typer.Option("--reviewer", help="Reviewer name (auto-detected from git if omitted)")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force move even with unchecked subtasks or missing feedback")] = False,
     auto_commit: Annotated[bool, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch")] = True,
@@ -784,15 +821,36 @@ def move_task(
             _output_error(json_output, f"Agent mismatch: {task_id} is assigned to '{current_agent}', not '{agent}'. Use --force to override.")
             raise typer.Exit(1)
 
-        # Validate review feedback when moving to planned (likely from review)
-        if target_lane == "planned" and old_lane == "for_review" and not review_feedback_file and not force:
-            error_msg = f"❌ Moving {task_id} from 'for_review' to 'planned' requires review feedback.\n\n"
-            error_msg += "Please provide feedback:\n"
-            error_msg += "  1. Create feedback file: echo '**Issue**: Description' > feedback.md\n"
-            error_msg += f"  2. Run: spec-kitty agent tasks move-task {task_id} --to planned --review-feedback-file feedback.md\n\n"
-            error_msg += "OR use --force to skip feedback (not recommended)"
-            _output_error(json_output, error_msg)
-            raise typer.Exit(1)
+        resolved_review_feedback_file: Optional[Path] = None
+        review_feedback_content: Optional[str] = None
+
+        # Strictly enforce deterministic review feedback capture on planned rollbacks.
+        if target_lane == "planned" and not force:
+            if not review_feedback_file:
+                error_msg = f"❌ Moving {task_id} to 'planned' requires review feedback.\n\n"
+                error_msg += "Please provide feedback:\n"
+                error_msg += "  1. Create feedback file: echo '**Issue**: Description' > feedback.md\n"
+                error_msg += f"  2. Run: spec-kitty agent tasks move-task {task_id} --to planned --review-feedback-file feedback.md\n\n"
+                error_msg += "OR use --force to skip feedback (not recommended)"
+                _output_error(json_output, error_msg)
+                raise typer.Exit(1)
+
+            if not review_feedback_file.exists() or not review_feedback_file.is_file():
+                _output_error(
+                    json_output,
+                    f"Review feedback file not found: {review_feedback_file}",
+                )
+                raise typer.Exit(1)
+
+            review_feedback_content = review_feedback_file.read_text(encoding="utf-8").strip()
+            if not review_feedback_content:
+                _output_error(
+                    json_output,
+                    f"Review feedback file is empty: {review_feedback_file}",
+                )
+                raise typer.Exit(1)
+
+            resolved_review_feedback_file = review_feedback_file.resolve()
 
         # Validate subtasks are complete when moving to for_review or done (Issue #72)
         if target_lane in ("for_review", "done") and not force:
@@ -836,14 +894,12 @@ def move_task(
         if shell_pid:
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
-        # Handle review feedback insertion if moving to planned with feedback
+        # Handle review feedback insertion for deterministic planned rollbacks
         updated_body = wp.body
-        if review_feedback_file and review_feedback_file.exists():
-            # Read feedback content
-            feedback_content = review_feedback_file.read_text(encoding="utf-8").strip()
-
+        if target_lane == "planned" and review_feedback_content is not None and resolved_review_feedback_file is not None:
             # Auto-detect reviewer if not provided
-            if not reviewer:
+            effective_reviewer = reviewer
+            if not effective_reviewer:
                 try:
                     import subprocess
                     result = subprocess.run(
@@ -854,30 +910,27 @@ def move_task(
                         errors="replace",
                         check=True
                     )
-                    reviewer = result.stdout.strip() or "unknown"
+                    effective_reviewer = result.stdout.strip() or "unknown"
                 except (subprocess.CalledProcessError, FileNotFoundError):
-                    reviewer = "unknown"
+                    effective_reviewer = "unknown"
 
-            # Insert feedback into "## Review Feedback" section
-            # Find the section and replace its content
-            review_section_start = updated_body.find("## Review Feedback")
-            if review_section_start != -1:
-                # Find the next section (starts with ##) or end of document
-                next_section_start = updated_body.find("\n##", review_section_start + 18)
+            feedback_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+            updated_body = _upsert_review_feedback_section(
+                body=updated_body,
+                reviewer=effective_reviewer,
+                feedback_date=feedback_date,
+                feedback_path=str(resolved_review_feedback_file),
+                feedback_content=review_feedback_content,
+            )
 
-                if next_section_start == -1:
-                    # No next section, replace to end
-                    before = updated_body[:review_section_start]
-                    updated_body = before + f"## Review Feedback\n\n**Reviewed by**: {reviewer}\n**Status**: ❌ Changes Requested\n**Date**: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}\n\n{feedback_content}\n\n"
-                else:
-                    # Replace content between this section and next
-                    before = updated_body[:review_section_start]
-                    after = updated_body[next_section_start:]
-                    updated_body = before + f"## Review Feedback\n\n**Reviewed by**: {reviewer}\n**Status**: ❌ Changes Requested\n**Date**: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}\n\n{feedback_content}\n\n" + after
-
-            # Update frontmatter for review status
+            # Update frontmatter for review status and source feedback path
             updated_front = set_scalar(updated_front, "review_status", "has_feedback")
-            updated_front = set_scalar(updated_front, "reviewed_by", reviewer)
+            updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
+            updated_front = set_scalar(
+                updated_front,
+                "review_feedback_file",
+                str(resolved_review_feedback_file),
+            )
 
         # Update reviewed_by when moving to done (approved)
         if target_lane == "done" and not extract_scalar(updated_front, "reviewed_by"):

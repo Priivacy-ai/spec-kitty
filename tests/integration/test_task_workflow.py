@@ -225,6 +225,70 @@ class TestFullWorkflow:
         assert output2["valid"] is True
         assert output2["lane"] == "doing"
 
+    def test_reject_planned_rollback_without_feedback_file(self, task_repo: Path, monkeypatch):
+        """Should strictly require review feedback file when moving back to planned."""
+        monkeypatch.chdir(task_repo)
+
+        # planned -> doing -> for_review
+        result1 = runner.invoke(
+            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+        )
+        assert result1.exit_code == 0
+        result2 = runner.invoke(
+            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+        )
+        assert result2.exit_code == 0
+
+        # for_review -> planned must include --review-feedback-file
+        result3 = runner.invoke(
+            app, ["move-task", "WP01", "--to", "planned", "--feature", "001-test-feature", "--json"]
+        )
+        assert result3.exit_code == 1
+        output3 = _parse_json_output(result3.stdout)
+        assert "requires review feedback" in output3["error"]
+
+    def test_persist_feedback_content_and_feedback_file_path(self, task_repo: Path, monkeypatch):
+        """Should persist feedback text and source file path deterministically."""
+        monkeypatch.chdir(task_repo)
+
+        # planned -> doing -> for_review
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "doing", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+        assert runner.invoke(
+            app, ["move-task", "WP01", "--to", "for_review", "--feature", "001-test-feature", "--json"]
+        ).exit_code == 0
+
+        # Simulate `workflow review` claiming review (lane becomes doing/in_progress in frontmatter).
+        task_file = task_repo / "kitty-specs" / "001-test-feature" / "tasks" / "WP01-test-task.md"
+        task_file.write_text(
+            task_file.read_text(encoding="utf-8").replace('lane: "for_review"', 'lane: "in_progress"'),
+            encoding="utf-8",
+        )
+
+        feedback_file = task_repo / "feedback.md"
+        feedback_file.write_text("**Issue 1**: deterministic feedback persistence\n", encoding="utf-8")
+        resolved_feedback = str(feedback_file.resolve())
+
+        result = runner.invoke(
+            app,
+            [
+                "move-task", "WP01", "--to", "planned",
+                "--feature", "001-test-feature",
+                "--review-feedback-file", str(feedback_file),
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0, f"stdout: {result.stdout}"
+        output = _parse_json_output(result.stdout)
+        assert output["new_lane"] == "planned"
+
+        content = task_file.read_text(encoding="utf-8")
+        assert "## Review Feedback" in content
+        assert "**Issue 1**: deterministic feedback persistence" in content
+        assert f"**Feedback file**: `{resolved_feedback}`" in content
+        assert f'review_feedback_file: "{resolved_feedback}"' in content
+
 
 class TestLocationIndependence:
     """Tests for running commands from different locations."""
