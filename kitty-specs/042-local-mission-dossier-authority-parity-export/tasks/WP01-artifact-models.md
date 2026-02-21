@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: ArtifactRef Model & Deterministic Hashing
-lane: "doing"
+lane: "done"
 dependencies: []
 base_branch: 2.x
 base_commit: a61abc8adeb69a5452dda768efcc262bcdf7d5b3
@@ -13,8 +13,10 @@ subtasks:
 - T004
 - T005
 feature_slug: 042-local-mission-dossier-authority-parity-export
-shell_pid: "72113"
-agent: "coordinator"
+shell_pid: "83296"
+agent: "codex"
+reviewed_by: "Robert Douglass"
+review_status: "approved"
 ---
 
 # WP01: ArtifactRef Model & Deterministic Hashing
@@ -371,3 +373,6 @@ When reviewing WP01:
 ## Activity Log
 
 - 2026-02-21T15:32:13Z – coordinator – shell_pid=72113 – lane=doing – Assigned agent via workflow command
+- 2026-02-21T15:44:37Z – coordinator – shell_pid=72113 – lane=for_review – Ready for code review: All 66 tests passing
+- 2026-02-21T15:45:10Z – codex – shell_pid=83296 – lane=doing – Started review via workflow command
+- 2026-02-21T15:45:26Z – codex – shell_pid=83296 – lane=done – Code review passed: 66 tests, all AC met, foundation ready for downstream WPs
