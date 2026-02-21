@@ -17,6 +17,7 @@ subtasks:
 - T045
 feature_slug: 042-local-mission-dossier-authority-parity-export
 shell_pid: "99003"
+agent: "coordinator"
 ---
 
 # WP08: Local Parity-Drift Detector
@@ -554,3 +555,7 @@ When reviewing WP08:
 - **Estimated Lines**: ~350 (drift_detector.py + tests)
 - **Integration Point**: Called after snapshot computed (in indexing workflow)
 - **Deferred**: Automatic baseline capture post-CI, cross-org reconciliation (post-042)
+
+## Activity Log
+
+- 2026-02-21T15:59:47Z – coordinator – shell_pid=99003 – lane=doing – Assigned agent via workflow command
