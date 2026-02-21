@@ -1,10 +1,13 @@
 ---
 work_package_id: WP06
 title: Dashboard API Endpoints
-lane: planned
+lane: "for_review"
 dependencies:
 - WP04
 - WP05
+base_branch: 042-local-mission-dossier-authority-parity-export-WP06-merge-base
+base_commit: 1bf5196379830703d153f67da65abff9469ed59d
+created_at: '2026-02-21T15:59:41.476706+00:00'
 subtasks:
 - T028
 - T029
@@ -13,6 +16,8 @@ subtasks:
 - T032
 - T033
 feature_slug: 042-local-mission-dossier-authority-parity-export
+shell_pid: "98799"
+agent: "coordinator"
 ---
 
 # WP06: Dashboard API Endpoints
@@ -513,3 +518,8 @@ When reviewing WP06:
 - **Estimated Lines**: ~400 (api.py + adapter + tests)
 - **Integration Point**: WP07 (UI) fetches from these endpoints; WP10 integration tests
 - **Deferred**: FastAPI migration (feature 044)
+
+## Activity Log
+
+- 2026-02-21T15:59:41Z – coordinator – shell_pid=98799 – lane=doing – Assigned agent via workflow command
+- 2026-02-21T16:02:26Z – coordinator – shell_pid=98799 – lane=for_review – Ready for review: Dashboard API endpoints (overview, artifacts list, artifact detail, snapshot export) with adapter pattern for FastAPI migration. All 33 tests passing.
