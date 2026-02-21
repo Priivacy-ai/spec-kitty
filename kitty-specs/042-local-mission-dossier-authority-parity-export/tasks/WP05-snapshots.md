@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Snapshot Computation & Parity Hash
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 - WP03
@@ -390,3 +390,4 @@ When reviewing WP05:
 ## Activity Log
 
 - 2026-02-21T15:56:21Z – coordinator – shell_pid=93614 – lane=doing – Assigned agent via workflow command
+- 2026-02-21T15:59:03Z – coordinator – shell_pid=93614 – lane=for_review – Ready for review: Snapshot computation and parity hash implemented with 28 comprehensive tests covering deterministic computation, order-independent parity hash, persistence, reproducibility validation, and equality comparison. All 5 subtasks (T023-T027) completed.
