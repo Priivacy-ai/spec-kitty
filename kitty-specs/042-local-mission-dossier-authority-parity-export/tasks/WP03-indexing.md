@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Indexing & Missing Detection
-lane: planned
+lane: "doing"
 dependencies:
 - WP01
 - WP02
@@ -13,6 +13,8 @@ subtasks:
 - T016
 - T017
 feature_slug: 042-local-mission-dossier-authority-parity-export
+agent: "coordinator"
+shell_pid: "85771"
 ---
 
 # WP03: Indexing & Missing Detection
@@ -497,3 +499,7 @@ When reviewing WP03:
 - **Estimated Lines**: ~400 (indexer.py + tests)
 - **Integration Point**: WP04 will use MissionDossier for event emission
 - **Performance**: <1s for 30 artifacts (SC-001)
+
+## Activity Log
+
+- 2026-02-21T15:49:06Z – coordinator – shell_pid=85771 – lane=doing – Started implementation via workflow command
