@@ -26,6 +26,7 @@ subtasks:
 - T058
 feature_slug: 042-local-mission-dossier-authority-parity-export
 shell_pid: "4443"
+agent: "coordinator"
 ---
 
 # WP10: Integration & Edge Cases
@@ -709,3 +710,7 @@ When reviewing WP10:
 - **Estimated Lines**: ~450 (test suite + fixtures)
 - **Integration Point**: CI/CD pipeline, final validation gate
 - **Performance**: Large file tests marked @pytest.mark.slow
+
+## Activity Log
+
+- 2026-02-21T16:03:33Z – coordinator – shell_pid=4443 – lane=doing – Assigned agent via workflow command
