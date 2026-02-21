@@ -1,10 +1,13 @@
 ---
 work_package_id: WP06
 title: Dashboard API Endpoints
-lane: planned
+lane: "doing"
 dependencies:
 - WP04
 - WP05
+base_branch: 042-local-mission-dossier-authority-parity-export-WP06-merge-base
+base_commit: 1bf5196379830703d153f67da65abff9469ed59d
+created_at: '2026-02-21T15:59:41.476706+00:00'
 subtasks:
 - T028
 - T029
@@ -13,6 +16,7 @@ subtasks:
 - T032
 - T033
 feature_slug: 042-local-mission-dossier-authority-parity-export
+shell_pid: "98799"
 ---
 
 # WP06: Dashboard API Endpoints
