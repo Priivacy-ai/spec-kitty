@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# pre-push: run commitlint on commits about to be pushed.
+set -euo pipefail
+
+# Read the push info from stdin (local_ref local_sha remote_ref remote_sha)
+while read -r _ local_sha _ remote_sha; do
+  if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+    # Branch is being deleted — nothing to lint
+    continue
+  fi
+
+  if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+    # New branch — lint all commits from merge-base with default branch
+    default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@') || default_branch="main"
+    range_from=$(git merge-base "$default_branch" "$local_sha" 2>/dev/null) || range_from=""
+  else
+    range_from="$remote_sha"
+  fi
+
+  if [ -z "$range_from" ]; then
+    echo "pre-push: could not determine commit range, skipping commitlint."
+    continue
+  fi
+
+  count=$(git rev-list --count "$range_from".."$local_sha" 2>/dev/null) || count=0
+  if [ "$count" -eq 0 ]; then
+    continue
+  fi
+
+  echo "pre-push: commitlint on $count commit(s) ($range_from..$local_sha)..."
+  npx --yes @commitlint/cli@19.8.1 \
+    --config commitlint.config.cjs \
+    --from "$range_from" \
+    --to "$local_sha" \
+    --verbose
+done

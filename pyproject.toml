@@ -147,6 +147,15 @@ markers = [
     "requires_symlinks: Tests that need symlink support",
 ]
 
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+# Black-compatible defaults (ruff's default, made explicit)
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
 [tool.mypy]
 # Keep strict mode as the default quality bar for actively maintained code.
 strict = true

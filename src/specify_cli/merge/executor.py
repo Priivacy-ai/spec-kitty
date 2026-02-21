@@ -181,9 +181,7 @@ def execute_merge(
         # Filter ordered_workspaces to only remaining WPs
         remaining_set = set(state.remaining_wps)
         ordered_workspaces = [
-            (wt_path, wp_id, branch)
-            for wt_path, wp_id, branch in ordered_workspaces
-            if wp_id in remaining_set
+            (wt_path, wp_id, branch) for wt_path, wp_id, branch in ordered_workspaces if wp_id in remaining_set
         ]
         console.print(f"[cyan]Resuming from {state.completed_wps[-1] if state.completed_wps else 'start'}[/cyan]")
     else:
@@ -204,9 +202,7 @@ def execute_merge(
             cwd=merge_root,
         )
         if target_status.strip():
-            raise MergeExecutionError(
-                f"Target repository at {merge_root} has uncommitted changes."
-            )
+            raise MergeExecutionError(f"Target repository at {merge_root} has uncommitted changes.")
         run_command(["git", "checkout", target_branch], cwd=merge_root)
         tracker.complete("checkout", f"using {merge_root}")
     except Exception as exc:
@@ -315,9 +311,7 @@ def execute_merge(
             tracker.complete("push")
         except Exception as exc:
             tracker.error("push", str(exc))
-            console.print(
-                "\n[yellow]Warning:[/yellow] Merge succeeded but push failed."
-            )
+            console.print("\n[yellow]Warning:[/yellow] Merge succeeded but push failed.")
             console.print(f"Run manually: git push origin {target_branch}")
 
     # Step 8: Remove worktrees
@@ -335,12 +329,8 @@ def execute_merge(
                 failed_removals.append((wp_id, wt_path))
 
         if failed_removals:
-            tracker.error(
-                "worktree", f"could not remove {len(failed_removals)} worktrees"
-            )
-            console.print(
-                "\n[yellow]Warning:[/yellow] Could not remove some worktrees:"
-            )
+            tracker.error("worktree", f"could not remove {len(failed_removals)} worktrees")
+            console.print("\n[yellow]Warning:[/yellow] Could not remove some worktrees:")
             for wp_id, wt_path in failed_removals:
                 console.print(f"  {wp_id}: git worktree remove {wt_path}")
         else:
@@ -366,12 +356,8 @@ def execute_merge(
                     failed_deletions.append((wp_id, branch))
 
         if failed_deletions:
-            tracker.error(
-                "branch", f"could not delete {len(failed_deletions)} branches"
-            )
-            console.print(
-                "\n[yellow]Warning:[/yellow] Could not delete some branches:"
-            )
+            tracker.error("branch", f"could not delete {len(failed_deletions)} branches")
+            console.print("\n[yellow]Warning:[/yellow] Could not delete some branches:")
             for wp_id, branch in failed_deletions:
                 console.print(f"  {wp_id}: git branch -D {branch}")
         else:
@@ -463,18 +449,14 @@ def execute_legacy_merge(
     tracker.start("checkout")
     try:
         if in_worktree:
-            console.print(
-                f"[cyan]Detected worktree. Merge operations will run from {merge_root}[/cyan]"
-            )
+            console.print(f"[cyan]Detected worktree. Merge operations will run from {merge_root}[/cyan]")
         _, target_status, _ = run_command(
             ["git", "status", "--porcelain"],
             capture=True,
             cwd=merge_root,
         )
         if target_status.strip():
-            raise MergeExecutionError(
-                f"Target repository at {merge_root} has uncommitted changes."
-            )
+            raise MergeExecutionError(f"Target repository at {merge_root} has uncommitted changes.")
         run_command(["git", "checkout", target_branch], cwd=merge_root)
         tracker.complete("checkout", f"using {merge_root}")
     except Exception as exc:
@@ -495,9 +477,7 @@ def execute_legacy_merge(
             tracker.complete("pull")
     except Exception as exc:
         tracker.error("pull", str(exc))
-        result.error = (
-            f"Pull failed: {exc}. You may need to resolve conflicts manually."
-        )
+        result.error = f"Pull failed: {exc}. You may need to resolve conflicts manually."
         return result
 
     tracker.start("merge")
@@ -510,12 +490,8 @@ def execute_legacy_merge(
             )
             tracker.complete("merge", "squashed")
         elif strategy == "rebase":
-            console.print(
-                "\n[yellow]Note:[/yellow] Rebase strategy requires manual intervention."
-            )
-            console.print(
-                f"Please run: git checkout {current_branch} && git rebase {target_branch}"
-            )
+            console.print("\n[yellow]Note:[/yellow] Rebase strategy requires manual intervention.")
+            console.print(f"Please run: git checkout {current_branch} && git rebase {target_branch}")
             tracker.skip("merge", "requires manual rebase")
             result.success = True
             return result
@@ -537,9 +513,7 @@ def execute_legacy_merge(
             tracker.complete("push")
         except Exception as exc:
             tracker.error("push", str(exc))
-            console.print(
-                "\n[yellow]Warning:[/yellow] Merge succeeded but push failed."
-            )
+            console.print("\n[yellow]Warning:[/yellow] Merge succeeded but push failed.")
             console.print(f"Run manually: git push origin {target_branch}")
 
     if in_worktree and remove_worktree:
@@ -554,9 +528,7 @@ def execute_legacy_merge(
             _cleanup_sparse_checkout_config(merge_root)
         except Exception as exc:
             tracker.error("worktree", str(exc))
-            console.print(
-                "\n[yellow]Warning:[/yellow] Could not remove worktree."
-            )
+            console.print("\n[yellow]Warning:[/yellow] Could not remove worktree.")
             console.print(f"Run manually: git worktree remove {feature_worktree_path}")
 
     if delete_branch:
@@ -571,22 +543,16 @@ def execute_legacy_merge(
             except Exception:
                 tracker.error("branch", str(exc))
                 console.print(tracker.render())
-                console.print(
-                    f"\n[yellow]Warning:[/yellow] Could not delete branch {current_branch}."
-                )
+                console.print(f"\n[yellow]Warning:[/yellow] Could not delete branch {current_branch}.")
                 console.print(f"Run manually: git branch -d {current_branch}")
 
     console.print(tracker.render())
-    console.print(
-        f"\n[bold green]✓ Feature {current_branch} successfully merged into {target_branch}[/bold green]"
-    )
+    console.print(f"\n[bold green]✓ Feature {current_branch} successfully merged into {target_branch}[/bold green]")
     result.success = True
     return result
 
 
-def _validate_wp_ready(
-    repo_root: Path, worktree_path: Path, branch_name: str
-) -> tuple[bool, str]:
+def _validate_wp_ready(repo_root: Path, worktree_path: Path, branch_name: str) -> tuple[bool, str]:
     """Validate WP workspace is ready to merge.
 
     Args:
@@ -657,9 +623,7 @@ def _show_dry_run(
                 ]
             )
         else:
-            steps.append(
-                f"git merge --no-ff {branch} -m 'Merge {wp_id} from {feature_slug}'"
-            )
+            steps.append(f"git merge --no-ff {branch} -m 'Merge {wp_id} from {feature_slug}'")
 
     if push:
         steps.append(f"git push origin {target_branch}")
@@ -713,9 +677,7 @@ def _cleanup_sparse_checkout_config(repo_root: Path) -> None:
             timeout=10,
         )
         # Count worktrees (each has a "worktree <path>" line)
-        worktree_count = sum(
-            1 for line in result.stdout.splitlines() if line.startswith("worktree ")
-        )
+        worktree_count = sum(1 for line in result.stdout.splitlines() if line.startswith("worktree "))
         # The main repo itself counts as one worktree
         if worktree_count > 1:
             return
