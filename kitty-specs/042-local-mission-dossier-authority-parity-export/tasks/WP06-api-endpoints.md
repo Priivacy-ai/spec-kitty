@@ -17,6 +17,7 @@ subtasks:
 - T033
 feature_slug: 042-local-mission-dossier-authority-parity-export
 shell_pid: "98799"
+agent: "coordinator"
 ---
 
 # WP06: Dashboard API Endpoints
@@ -517,3 +518,7 @@ When reviewing WP06:
 - **Estimated Lines**: ~400 (api.py + adapter + tests)
 - **Integration Point**: WP07 (UI) fetches from these endpoints; WP10 integration tests
 - **Deferred**: FastAPI migration (feature 044)
+
+## Activity Log
+
+- 2026-02-21T15:59:41Z – coordinator – shell_pid=98799 – lane=doing – Assigned agent via workflow command
