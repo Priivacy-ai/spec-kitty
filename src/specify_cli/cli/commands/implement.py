@@ -41,11 +41,11 @@ from specify_cli.git import safe_commit
 console = Console()
 
 
-def _json_safe_output(func):
+def _json_safe_output(func):  # type: ignore[no-untyped-def]
     """Ensure --json mode remains machine-parseable on both success and failure."""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs):  # type: ignore[no-untyped-def]
         json_output = bool(kwargs.get("json_output", False))
         previous_quiet = console.quiet
         if json_output:
@@ -58,7 +58,8 @@ def _json_safe_output(func):
         try:
             return func(*args, **kwargs)
         except typer.Exit as exc:
-            if json_output and getattr(exc, "exit_code", 1):
+            exit_code = getattr(exc, "exit_code", 1)  # Get exit code, default to 1 (error)
+            if json_output and exit_code != 0:  # Only output JSON on non-zero exit
                 payload = {"status": "error", "error": "implement command failed"}
                 if wp_id:
                     payload["wp_id"] = str(wp_id)
@@ -525,7 +526,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
     return VCSBackend.GIT
 
 
-@_json_safe_output
+@_json_safe_output  # type: ignore[untyped-decorator]
 @require_main_repo
 def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),

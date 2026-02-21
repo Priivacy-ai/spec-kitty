@@ -42,7 +42,7 @@ def _should_use_simple_help() -> bool:
     return console.width < 100
 
 
-def _format_simple_help(group: TyperGroup, ctx, formatter) -> None:
+def _format_simple_help(group: TyperGroup, ctx, formatter) -> None:  # type: ignore[no-untyped-def]
     """Render machine-friendly help without Rich tables/banner noise."""
     formatter.write_usage(ctx.command_path, "[OPTIONS] COMMAND [ARGS]...")
 
