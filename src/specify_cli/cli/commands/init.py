@@ -356,7 +356,6 @@ def init(
     project_name: str | None = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
     ai_assistant: str | None = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"),
     script_type: str | None = typer.Option(None, "--script", help="Script type to use: sh or ps", rich_help_panel="Selection"),
-    agent_strategy: str | None = typer.Option(None, "--agent-strategy", help="Agent selection strategy: preferred or random", rich_help_panel="Selection"),
     preferred_implementer: str | None = typer.Option(None, "--preferred-implementer", help="Preferred agent for implementation", rich_help_panel="Selection"),
     preferred_reviewer: str | None = typer.Option(None, "--preferred-reviewer", help="Preferred agent for review", rich_help_panel="Selection"),
     mission_key: str | None = typer.Option(None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"),
@@ -590,27 +589,6 @@ def init(
             selected_preferred_reviewer = selected_preferred_implementer
             if selected_preferred_implementer is not None:
                 _console.print(f"[dim]Single agent mode: {AI_CHOICES[selected_preferred_implementer]} will do both implementation and review[/dim]")
-    else:
-        if preferred_implementer_value or preferred_reviewer_value:
-            _console.print("[red]Error:[/red] --preferred-implementer/--preferred-reviewer require --agent-strategy preferred")
-            raise typer.Exit(1)
-
-    if non_interactive:
-        try:
-            resolved_strategy, resolved_impl, resolved_rev = _resolve_non_interactive_strategy(
-                selected_agents,
-                selected_strategy,
-                preferred_implementer_value,
-                preferred_reviewer_value,
-            )
-        except ValueError as exc:
-            _console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1)
-        selected_strategy = resolved_strategy
-        if selected_strategy == "preferred":
-            selected_preferred_implementer = resolved_impl
-            selected_preferred_reviewer = resolved_rev
-
     # Build agent config to save later
     agent_config = AgentConfig(
         available=selected_agents,

@@ -1346,7 +1346,7 @@ def finalize_tasks(
                 commit_hash = None
 
                 if not json_output:
-                    console.print(f"[dim]Tasks unchanged, no commit needed[/dim]")
+                    console.print("[dim]Tasks unchanged, no commit needed[/dim]")
             else:
                 # Commit with descriptive message (safe_commit preserves staging area)
                 commit_msg = f"Add tasks for feature {feature_slug}"
