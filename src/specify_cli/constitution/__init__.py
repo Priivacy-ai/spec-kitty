@@ -28,7 +28,7 @@ from .schemas import (
     PerformanceConfig,
     QualityConfig,
     SectionsParsed,
-    TestingConfig,
+    ConstitutionTestingConfig,
     emit_yaml,
 )
 from .sync import (
@@ -62,7 +62,7 @@ __all__ = [
     "PerformanceConfig",
     "QualityConfig",
     "SectionsParsed",
-    "TestingConfig",
+    "ConstitutionTestingConfig",
     "emit_yaml",
     "SyncResult",
     "load_agents_config",

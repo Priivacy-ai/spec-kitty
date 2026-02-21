@@ -29,7 +29,7 @@ from specify_cli.constitution.schemas import (
     PerformanceConfig,
     QualityConfig,
     SectionsParsed,
-    TestingConfig,
+    ConstitutionTestingConfig,
     emit_yaml,
 )
 
@@ -110,7 +110,7 @@ class Extractor:
             Merged GovernanceConfig with testing/quality/performance/branch/commits data
         """
         # Initialize with defaults
-        testing = TestingConfig()
+        testing = ConstitutionTestingConfig()
         quality = QualityConfig()
         commits = CommitConfig()
         performance = PerformanceConfig()

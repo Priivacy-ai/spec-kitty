@@ -155,23 +155,18 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
     @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
-    @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
-    def test_creates_feature_from_any_branch(
+    def test_requires_primary_branch(
         self,
-        mock_commit: Mock,
-        mock_get_number: Mock,
         mock_branch: Mock,
         mock_is_git: Mock,
         mock_locate: Mock,
         tmp_path: Path,
     ):
-        """Should allow feature creation from any branch (not just main)."""
-        # Setup: On non-main branch
+        """Should require primary branch (main/master/develop) for feature creation."""
+        # Setup: On non-primary branch
         mock_locate.return_value = tmp_path
         mock_is_git.return_value = True
-        mock_branch.return_value = "develop"
-        mock_get_number.return_value = 1
+        mock_branch.return_value = "feature-123"  # Not a primary branch
 
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
@@ -180,11 +175,12 @@ class TestCreateFeatureCommand:
         # Execute
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
 
-        # Verify - should succeed from any branch
-        assert result.exit_code == 0
+        # Verify - should fail when not on primary branch
+        assert result.exit_code == 1
         first_line = result.stdout.strip().split("\n")[0]
         output = json.loads(first_line)
-        assert output["result"] == "success"
+        assert "error" in output
+        assert "branch" in output["error"].lower()
 
 
 class TestCheckPrerequisitesCommand:
