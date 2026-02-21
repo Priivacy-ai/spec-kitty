@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Local Parity-Drift Detector
-lane: "for_review"
+lane: "done"
 dependencies:
 - WP04
 - WP05
@@ -18,6 +18,8 @@ subtasks:
 feature_slug: 042-local-mission-dossier-authority-parity-export
 shell_pid: "99003"
 agent: "coordinator"
+reviewed_by: "Robert Douglass"
+review_status: "approved"
 ---
 
 # WP08: Local Parity-Drift Detector
@@ -560,3 +562,4 @@ When reviewing WP08:
 
 - 2026-02-21T15:59:47Z – coordinator – shell_pid=99003 – lane=doing – Assigned agent via workflow command
 - 2026-02-21T16:02:16Z – coordinator – shell_pid=99003 – lane=for_review – Ready for review: Implemented complete parity-drift detector with 30 comprehensive tests, all passing
+- 2026-02-21T16:03:23Z – coordinator – shell_pid=99003 – lane=done – Code review passed: 30 tests, baseline namespacing verified, offline drift detection validated
