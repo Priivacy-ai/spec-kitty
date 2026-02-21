@@ -62,9 +62,7 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
         )
     except FeatureDetectionError as e:
         console.print(f"[red]Error:[/red] {e}")
-        console.print(
-            "\n[dim]Hint: Use --feature <slug> to specify explicitly[/dim]"
-        )
+        console.print("\n[dim]Hint: Use --feature <slug> to specify explicitly[/dim]")
         raise typer.Exit(1)
 
 
@@ -121,12 +119,27 @@ def emit(
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[Optional[str], typer.Option("--reason", help="Reason for forced transition")] = None,
-    evidence_json: Annotated[Optional[str], typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
+    evidence_json: Annotated[
+        Optional[str], typer.Option("--evidence-json", help="JSON string with done evidence")
+    ] = None,
     review_ref: Annotated[Optional[str], typer.Option("--review-ref", help="Review feedback reference")] = None,
-    workspace_context: Annotated[Optional[str], typer.Option("--workspace-context", help="Workspace context identifier for claimed->in_progress")] = None,
-    subtasks_complete: Annotated[Optional[bool], typer.Option("--subtasks-complete", help="Whether required subtasks are complete for in_progress->for_review")] = None,
-    implementation_evidence_present: Annotated[Optional[bool], typer.Option("--implementation-evidence-present", help="Whether implementation evidence exists for in_progress->for_review")] = None,
-    execution_mode: Annotated[str, typer.Option("--execution-mode", help="Execution mode (worktree or direct_repo)")] = "worktree",
+    workspace_context: Annotated[
+        Optional[str], typer.Option("--workspace-context", help="Workspace context identifier for claimed->in_progress")
+    ] = None,
+    subtasks_complete: Annotated[
+        Optional[bool],
+        typer.Option("--subtasks-complete", help="Whether required subtasks are complete for in_progress->for_review"),
+    ] = None,
+    implementation_evidence_present: Annotated[
+        Optional[bool],
+        typer.Option(
+            "--implementation-evidence-present",
+            help="Whether implementation evidence exists for in_progress->for_review",
+        ),
+    ] = None,
+    execution_mode: Annotated[
+        str, typer.Option("--execution-mode", help="Execution mode (worktree or direct_repo)")
+    ] = "worktree",
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Emit a status transition event for a work package.
@@ -165,8 +178,7 @@ def emit(
                 example = '{"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}'
                 _output_error(
                     json_output,
-                    f"Invalid JSON in --evidence-json: {exc}\n"
-                    f"Expected valid JSON object, e.g.: '{example}'",
+                    f"Invalid JSON in --evidence-json: {exc}\nExpected valid JSON object, e.g.: '{example}'",
                 )
                 raise typer.Exit(1)
 
@@ -205,9 +217,7 @@ def emit(
         _output_result(
             json_output,
             result,
-            f"[green]OK[/green] {event.wp_id}: "
-            f"{event.from_lane} -> {event.to_lane} "
-            f"(event: {event.event_id[:12]}...)",
+            f"[green]OK[/green] {event.wp_id}: {event.from_lane} -> {event.to_lane} (event: {event.event_id[:12]}...)",
         )
 
     except typer.Exit:
@@ -216,6 +226,7 @@ def emit(
         # Check if it's a TransitionError (imported lazily above)
         try:
             from specify_cli.status.emit import TransitionError
+
             if isinstance(exc, TransitionError):
                 _output_error(json_output, str(exc))
                 raise typer.Exit(1)
@@ -278,14 +289,13 @@ def materialize(
         # Update legacy views (try/except -- don't block on legacy bridge)
         try:
             from specify_cli.status.legacy_bridge import update_all_views
+
             update_all_views(feature_dir, snapshot)
         except ImportError:
             pass  # Legacy bridge not yet available (WP06 not merged)
         except Exception as exc:
             if not json_output:
-                console.print(
-                    f"[yellow]Warning:[/yellow] Legacy bridge update failed: {exc}"
-                )
+                console.print(f"[yellow]Warning:[/yellow] Legacy bridge update failed: {exc}")
 
         # Build output
         if json_output:
@@ -295,10 +305,7 @@ def materialize(
             wp_count = len(snapshot.work_packages)
             event_count = snapshot.event_count
 
-            console.print(
-                f"[green]Materialized[/green] {feature_slug}: "
-                f"{event_count} events -> {wp_count} WPs"
-            )
+            console.print(f"[green]Materialized[/green] {feature_slug}: {event_count} events -> {wp_count} WPs")
 
             # Lane distribution
             lane_parts = []
@@ -328,9 +335,7 @@ def doctor(
     ] = None,
     stale_claimed: Annotated[
         int,
-        typer.Option(
-            "--stale-claimed-days", help="Threshold for stale claims (days)"
-        ),
+        typer.Option("--stale-claimed-days", help="Threshold for stale claims (days)"),
     ] = 7,
     stale_in_progress: Annotated[
         int,
@@ -367,9 +372,7 @@ def doctor(
         global_checks = run_global_checks(project_dir=repo_root)
     else:
         global_checks = []
-    global_has_issues = any(
-        (not c.passed) and c.severity == "error" for c in global_checks
-    )
+    global_has_issues = any((not c.passed) and c.severity == "error" for c in global_checks)
 
     try:
         result = run_doctor(
@@ -381,9 +384,7 @@ def doctor(
         )
     except FileNotFoundError as e:
         if json_output:
-            console.print_json(
-                json.dumps({"error": str(e), "healthy": False})
-            )
+            console.print_json(json.dumps({"error": str(e), "healthy": False}))
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -433,13 +434,9 @@ def doctor(
         # Project-specific section
         console.print(f"\n[bold]Feature Status: {result.feature_slug}[/bold]")
         if result.is_healthy:
-            console.print(
-                "  [green]Healthy[/green]"
-            )
+            console.print("  [green]Healthy[/green]")
         else:
-            console.print(
-                "  [yellow]Issues found[/yellow]"
-            )
+            console.print("  [yellow]Issues found[/yellow]")
             table = Table(title="Doctor Findings")
             table.add_column("Severity", style="bold")
             table.add_column("Category")
@@ -447,9 +444,7 @@ def doctor(
             table.add_column("Message")
             table.add_column("Action")
             for f in result.findings:
-                severity_style = (
-                    "red" if f.severity == "error" else "yellow"
-                )
+                severity_style = "red" if f.severity == "error" else "yellow"
                 table.add_row(
                     f"[{severity_style}]{f.severity}[/{severity_style}]",
                     str(f.category),
@@ -604,10 +599,7 @@ def migrate(
             raise typer.Exit(1)
         feature_dirs = [feature_dir]
     else:
-        feature_dirs = sorted(
-            d for d in kitty_specs.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        )
+        feature_dirs = sorted(d for d in kitty_specs.iterdir() if d.is_dir() and not d.name.startswith("."))
         if not feature_dirs:
             _output_error(json_output, "No features found to migrate")
             raise typer.Exit(1)
@@ -633,12 +625,7 @@ def migrate(
         elif fr.status == "failed":
             result.total_failed += 1
 
-    result.aliases_resolved = sum(
-        1
-        for f in result.features
-        for wp in f.wp_details
-        if wp.alias_resolved
-    )
+    result.aliases_resolved = sum(1 for f in result.features for wp in f.wp_details if wp.alias_resolved)
 
     if json_output:
         print(json.dumps(_migration_result_to_dict(result), indent=2))
@@ -741,9 +728,7 @@ def validate(
                 )
             )
         else:
-            console.print(
-                f"[green]Status Validation: {feature_slug} (Phase {phase})[/green]"
-            )
+            console.print(f"[green]Status Validation: {feature_slug} (Phase {phase})[/green]")
             console.print("No events to validate.")
             console.print("[green]Result: PASS[/green]")
         raise typer.Exit(0)
@@ -763,9 +748,7 @@ def validate(
     try:
         events = read_events(feature_dir)
         snapshot = reduce(events)
-        view_findings = validate_derived_views(
-            feature_dir, snapshot.work_packages, phase
-        )
+        view_findings = validate_derived_views(feature_dir, snapshot.work_packages, phase)
         for finding in view_findings:
             if finding.startswith("ERROR:"):
                 result.errors.append(finding)
@@ -792,9 +775,7 @@ def validate(
             )
         )
     else:
-        console.print(
-            f"\n[bold]Status Validation: {feature_slug} (Phase {phase})[/bold]"
-        )
+        console.print(f"\n[bold]Status Validation: {feature_slug} (Phase {phase})[/bold]")
         console.print("-" * 50)
 
         if result.errors:
@@ -809,9 +790,7 @@ def validate(
 
         if result.passed:
             if result.warnings:
-                console.print(
-                    f"\n[green]Result: PASS[/green] ({len(result.warnings)} warning(s))"
-                )
+                console.print(f"\n[green]Result: PASS[/green] ({len(result.warnings)} warning(s))")
             else:
                 console.print("\n[green]Result: PASS[/green]")
         else:

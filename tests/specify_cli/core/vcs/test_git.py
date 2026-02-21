@@ -635,9 +635,7 @@ class TestRebaseStats:
         )
 
         # Get the stats
-        updated, added, deleted = git_vcs._parse_rebase_stats(
-            git_repo, initial_commit, "HEAD"
-        )
+        updated, added, deleted = git_vcs._parse_rebase_stats(git_repo, initial_commit, "HEAD")
 
         # Should have 1 add, 1 modify, 0 deletes
         assert added == 1
@@ -655,9 +653,7 @@ class TestRebaseStats:
         current_commit = result.stdout.strip()
 
         # Compare HEAD with itself - no changes
-        updated, added, deleted = git_vcs._parse_rebase_stats(
-            git_repo, current_commit, current_commit
-        )
+        updated, added, deleted = git_vcs._parse_rebase_stats(git_repo, current_commit, current_commit)
 
         assert updated == 0
         assert added == 0

@@ -107,9 +107,7 @@ class EnsureMissionsMigration(BaseMigration):
                 else:
                     # Mission directory exists but is incomplete
                     if dry_run:
-                        changes.append(
-                            f"Would repair incomplete mission: {mission_name}"
-                        )
+                        changes.append(f"Would repair incomplete mission: {mission_name}")
                     else:
                         try:
                             # Remove incomplete and copy fresh
@@ -146,19 +144,13 @@ class EnsureMissionsMigration(BaseMigration):
 
                     if not wt_mission.exists():
                         if dry_run:
-                            changes.append(
-                                f"Would copy missing mission to worktree {worktree.name}: {mission_name}"
-                            )
+                            changes.append(f"Would copy missing mission to worktree {worktree.name}: {mission_name}")
                         else:
                             try:
                                 shutil.copytree(src_mission, wt_mission)
-                                changes.append(
-                                    f"Copied missing mission to worktree {worktree.name}: {mission_name}"
-                                )
+                                changes.append(f"Copied missing mission to worktree {worktree.name}: {mission_name}")
                             except OSError as e:
-                                warnings.append(
-                                    f"Could not copy mission to worktree {worktree.name}: {e}"
-                                )
+                                warnings.append(f"Could not copy mission to worktree {worktree.name}: {e}")
 
         success = len(errors) == 0
         return MigrationResult(
@@ -216,7 +208,7 @@ class EnsureMissionsMigration(BaseMigration):
                 if missions_dir.exists() and pyproject.exists():
                     # Verify it's the spec-kitty repo by checking pyproject.toml
                     try:
-                        content = pyproject.read_text(encoding='utf-8-sig')
+                        content = pyproject.read_text(encoding="utf-8-sig")
                         if "spec-kitty-cli" in content:
                             return missions_dir
                     except OSError:

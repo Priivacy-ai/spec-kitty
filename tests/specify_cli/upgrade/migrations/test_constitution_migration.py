@@ -119,11 +119,7 @@ class TestConstitutionDirectoryMigration:
         # Run migration
         migration = Migration()
         with patch("specify_cli.constitution.sync.sync") as mock_sync:
-            mock_sync.return_value = Mock(
-                synced=True,
-                files_written=["governance.yaml", "agents.yaml"],
-                error=None
-            )
+            mock_sync.return_value = Mock(synced=True, files_written=["governance.yaml", "agents.yaml"], error=None)
             changes = migration.apply(tmp_path, dry_run=False)
 
             # Verify sync was called
@@ -255,7 +251,6 @@ class TestConstitutionDirectoryMigration:
 
         # Verify relative paths used
         assert any(
-            ".kittify/memory/constitution.md" in change
-            and ".kittify/constitution/constitution.md" in change
+            ".kittify/memory/constitution.md" in change and ".kittify/constitution/constitution.md" in change
             for change in changes
         )

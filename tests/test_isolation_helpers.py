@@ -105,14 +105,11 @@ def assert_test_isolation() -> None:
 
     if installed != source:
         pytest.fail(
-            f"Test isolation broken! Source: {source}, Installed: {installed}. "
-            f"Run: pip uninstall spec-kitty-cli -y"
+            f"Test isolation broken! Source: {source}, Installed: {installed}. Run: pip uninstall spec-kitty-cli -y"
         )
 
 
-def run_cli_subprocess(
-    project_path: Path, *args: str, check: bool = False
-) -> subprocess.CompletedProcess[str]:
+def run_cli_subprocess(project_path: Path, *args: str, check: bool = False) -> subprocess.CompletedProcess[str]:
     """Run CLI in subprocess with guaranteed source version.
 
     This is a lower-level helper for tests that need full control.
@@ -133,9 +130,7 @@ def run_cli_subprocess(
     env["SPEC_KITTY_CLI_VERSION"] = get_source_version()
     env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT / "src" / "doctrine" / "missions")
     env["SPEC_KITTY_TEST_MODE"] = "1"
-    env["SPEC_KITTY_HOME"] = str(
-        Path(tempfile.gettempdir()) / "spec-kitty-runtime-home"
-    )
+    env["SPEC_KITTY_HOME"] = str(Path(tempfile.gettempdir()) / "spec-kitty-runtime-home")
 
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
 

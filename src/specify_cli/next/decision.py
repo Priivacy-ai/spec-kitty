@@ -31,6 +31,7 @@ from specify_cli.mission_v1.guards import _read_lane_from_frontmatter
 
 class DecisionKind:
     """String constants for decision kinds (avoids Enum import overhead)."""
+
     step = "step"
     decision_required = "decision_required"
     blocked = "blocked"

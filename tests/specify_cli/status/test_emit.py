@@ -225,16 +225,12 @@ class TestBuildDoneEvidence:
     def test_missing_reference_raises(self):
         """Missing approval reference in review raises TransitionError."""
         with pytest.raises(TransitionError, match="review.reference"):
-            _build_done_evidence(
-                {"review": {"reviewer": "rev", "verdict": "approved"}}
-            )
+            _build_done_evidence({"review": {"reviewer": "rev", "verdict": "approved"}})
 
     def test_empty_reviewer_raises(self):
         """Empty reviewer string raises TransitionError."""
         with pytest.raises(TransitionError, match="review.reviewer"):
-            _build_done_evidence(
-                {"review": {"reviewer": "", "verdict": "approved"}}
-            )
+            _build_done_evidence({"review": {"reviewer": "", "verdict": "approved"}})
 
     def test_minimal_evidence_works(self):
         """Minimal evidence with required review fields succeeds."""
@@ -369,9 +365,7 @@ class TestEmitStatusTransition:
         )
         assert event.to_lane == Lane.IN_PROGRESS
 
-    def test_invalid_transition_rejected_no_persistence(
-        self, feature_dir: Path
-    ):
+    def test_invalid_transition_rejected_no_persistence(self, feature_dir: Path):
         """Invalid transition raises TransitionError and persists nothing."""
         with pytest.raises(TransitionError):
             emit_status_transition(
@@ -593,9 +587,7 @@ class TestDoneEvidence:
                 actor="reviewer",
             )
 
-    def test_done_with_valid_evidence(
-        self, feature_dir: Path, valid_evidence_dict: dict
-    ):
+    def test_done_with_valid_evidence(self, feature_dir: Path, valid_evidence_dict: dict):
         """Transition to done with valid evidence succeeds."""
         emit_status_transition(
             feature_dir=feature_dir,
@@ -719,9 +711,7 @@ class TestSaasFanOut:
             to_lane=Lane.IN_PROGRESS,
         )
         mock_emit = MagicMock()
-        with patch(
-            "specify_cli.sync.events.emit_wp_status_changed", mock_emit
-        ):
+        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
             _saas_fan_out(event, "034-test-feature", None)
 
         mock_emit.assert_called_once_with(
@@ -740,9 +730,7 @@ class TestSaasFanOut:
             to_lane=Lane.CLAIMED,
         )
         mock_emit = MagicMock()
-        with patch(
-            "specify_cli.sync.events.emit_wp_status_changed", mock_emit
-        ):
+        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
             _saas_fan_out(event, "034-test-feature", None)
         mock_emit.assert_called_once()
 
@@ -802,9 +790,7 @@ class TestPipelineOrder:
         snapshot_path = feature_dir / "status.json"
         assert not snapshot_path.exists()
 
-    def test_event_persisted_even_if_materialize_fails(
-        self, feature_dir: Path
-    ):
+    def test_event_persisted_even_if_materialize_fails(self, feature_dir: Path):
         """If materialize fails, the event is still in the JSONL log."""
         with patch(
             "specify_cli.status.emit._reducer.materialize",
@@ -873,9 +859,7 @@ class TestPipelineOrder:
 class TestReviewRefGuard:
     """Tests for review_ref requirement on for_review -> in_progress."""
 
-    def test_for_review_to_in_progress_requires_review_ref(
-        self, feature_dir: Path
-    ):
+    def test_for_review_to_in_progress_requires_review_ref(self, feature_dir: Path):
         """for_review -> in_progress without review_ref is rejected."""
         emit_status_transition(
             feature_dir=feature_dir,
@@ -908,9 +892,7 @@ class TestReviewRefGuard:
                 actor="reviewer",
             )
 
-    def test_for_review_to_in_progress_with_review_ref(
-        self, feature_dir: Path
-    ):
+    def test_for_review_to_in_progress_with_review_ref(self, feature_dir: Path):
         """for_review -> in_progress with review_ref succeeds."""
         emit_status_transition(
             feature_dir=feature_dir,
@@ -953,9 +935,7 @@ class TestReviewRefGuard:
 class TestReasonGuard:
     """Tests for reason requirement on in_progress -> planned."""
 
-    def test_in_progress_to_planned_requires_reason(
-        self, feature_dir: Path
-    ):
+    def test_in_progress_to_planned_requires_reason(self, feature_dir: Path):
         """in_progress -> planned without reason is rejected."""
         emit_status_transition(
             feature_dir=feature_dir,

@@ -1,4 +1,5 @@
 """Conflict detection using Lamport clocks."""
+
 from typing import Tuple
 from .models import Event
 

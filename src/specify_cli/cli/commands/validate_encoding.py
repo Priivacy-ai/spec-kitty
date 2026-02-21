@@ -17,7 +17,9 @@ from specify_cli.text_sanitization import detect_problematic_characters, sanitiz
 
 
 def validate_encoding(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to validate (auto-detected when omitted)"),
+    feature: Optional[str] = typer.Option(
+        None, "--feature", help="Feature slug to validate (auto-detected when omitted)"
+    ),
     fix: bool = typer.Option(False, "--fix", help="Automatically fix encoding errors by sanitizing files"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
     backup: bool = typer.Option(True, "--backup/--no-backup", help="Create .bak files before fixing"),
@@ -61,13 +63,15 @@ def validate_encoding(
             total_fixed += fixed
 
         console.print()
-        console.print(Panel(
-            f"[bold]Summary:[/bold]\n"
-            f"Total files with issues: [yellow]{total_issues}[/yellow]\n"
-            f"Total files fixed: [green]{total_fixed}[/green]",
-            title="Encoding Validation Complete",
-            border_style="cyan" if total_issues == 0 else "yellow",
-        ))
+        console.print(
+            Panel(
+                f"[bold]Summary:[/bold]\n"
+                f"Total files with issues: [yellow]{total_issues}[/yellow]\n"
+                f"Total files fixed: [green]{total_fixed}[/green]",
+                title="Encoding Validation Complete",
+                border_style="cyan" if total_issues == 0 else "yellow",
+            )
+        )
 
         raise typer.Exit(0 if total_issues == 0 or fix else 1)
 
@@ -166,9 +170,7 @@ def _validate_feature_dir(feature_dir: Path, *, fix: bool, backup: bool) -> tupl
                     console.print()
                     console.print(f"[yellow]Example issues in {files_with_issues[0]}:[/yellow]")
                     for line_num, col, char, replacement in issues[:5]:  # Show first 5
-                        console.print(
-                            f"  Line {line_num}, col {col}: '{char}' (U+{ord(char):04X}) → '{replacement}'"
-                        )
+                        console.print(f"  Line {line_num}, col {col}: '{char}' (U+{ord(char):04X}) → '{replacement}'")
                     if len(issues) > 5:
                         console.print(f"  ... and {len(issues) - 5} more")
             except Exception:

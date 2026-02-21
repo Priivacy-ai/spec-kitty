@@ -1,4 +1,5 @@
 """Multi-Parent Merge Tests for diamond dependencies."""
+
 from __future__ import annotations
 
 import subprocess

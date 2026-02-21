@@ -25,7 +25,9 @@ def test_collect_feature_summary_reports_metadata_issue(feature_repo: Path, feat
     assert any("missing assignee" in issue for issue in summary.metadata_issues)
 
 
-def test_detect_feature_slug_prefers_env(feature_repo: Path, feature_slug: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_detect_feature_slug_prefers_env(
+    feature_repo: Path, feature_slug: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("SPECIFY_FEATURE", "999-from-env")
     assert acc.detect_feature_slug(feature_repo) == "999-from-env"
 
@@ -104,8 +106,9 @@ def test_acceptance_succeeds_for_done_wp_without_assignee(feature_repo: Path, fe
 
     # Strict validation should NOT complain about missing assignee for done lane
     summary = acc.collect_feature_summary(feature_repo, feature_slug, strict_metadata=True)
-    assert not any("missing assignee" in issue for issue in summary.metadata_issues), \
+    assert not any("missing assignee" in issue for issue in summary.metadata_issues), (
         "Done WPs should not require assignee"
+    )
 
 
 # T040: Test that doing/for_review WPs still require assignee (Bug #119)
@@ -124,16 +127,18 @@ def test_assignee_still_required_for_active_lanes(feature_repo: Path, feature_sl
     run(["git", "commit", "-am", "Move to doing without assignee"], cwd=feature_repo)
 
     summary = acc.collect_feature_summary(feature_repo, feature_slug, strict_metadata=True)
-    assert any("missing assignee" in issue for issue in summary.metadata_issues), \
+    assert any("missing assignee" in issue for issue in summary.metadata_issues), (
         "Doing lane should still require assignee"
+    )
 
     # Test for_review lane
     run_tasks_cli(["update", feature_slug, "WP01", "for_review", "--force"], cwd=feature_repo)
     run(["git", "commit", "-am", "Move to for_review without assignee"], cwd=feature_repo)
 
     summary = acc.collect_feature_summary(feature_repo, feature_slug, strict_metadata=True)
-    assert any("missing assignee" in issue for issue in summary.metadata_issues), \
+    assert any("missing assignee" in issue for issue in summary.metadata_issues), (
         "For_review lane should still require assignee"
+    )
 
 
 # T041: Test required fields still enforced for all lanes
@@ -148,8 +153,7 @@ def test_required_fields_still_enforced(feature_repo: Path, feature_slug: str) -
     lines_no_lane = [line for line in front.splitlines() if not line.startswith("lane:")]
     wp_path.write_text(th.build_document("\n".join(lines_no_lane), body, padding), encoding="utf-8")
     summary = acc.collect_feature_summary(feature_repo, feature_slug, strict_metadata=True)
-    assert any("missing lane" in issue for issue in summary.metadata_issues), \
-        "Lane should still be required"
+    assert any("missing lane" in issue for issue in summary.metadata_issues), "Lane should still be required"
 
     # Test missing agent - move to doing first, then remove agent field manually
     wp_path.read_text(encoding="utf-8")
@@ -160,8 +164,7 @@ def test_required_fields_still_enforced(feature_repo: Path, feature_slug: str) -
     lines_no_agent = [line for line in front.splitlines() if not line.startswith("agent:")]
     wp_path.write_text(th.build_document("\n".join(lines_no_agent), body, padding), encoding="utf-8")
     summary = acc.collect_feature_summary(feature_repo, feature_slug, strict_metadata=True)
-    assert any("missing agent" in issue for issue in summary.metadata_issues), \
-        "Agent should still be required"
+    assert any("missing agent" in issue for issue in summary.metadata_issues), "Agent should still be required"
 
     # Test missing shell_pid - restore agent, remove shell_pid
     front, body, padding = th.split_frontmatter(wp_path.read_text(encoding="utf-8"))
@@ -171,5 +174,4 @@ def test_required_fields_still_enforced(feature_repo: Path, feature_slug: str) -
     lines_no_pid = [line for line in lines_with_agent if not line.startswith("shell_pid:")]
     wp_path.write_text(th.build_document("\n".join(lines_no_pid), body, padding), encoding="utf-8")
     summary = acc.collect_feature_summary(feature_repo, feature_slug, strict_metadata=True)
-    assert any("missing shell_pid" in issue for issue in summary.metadata_issues), \
-        "Shell_pid should still be required"
+    assert any("missing shell_pid" in issue for issue in summary.metadata_issues), "Shell_pid should still be required"

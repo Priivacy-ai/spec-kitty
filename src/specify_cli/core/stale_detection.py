@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 
-
 @dataclass
 class StaleCheckResult:
     """Result of checking a work package for staleness."""

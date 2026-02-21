@@ -118,9 +118,7 @@ class TestCreateFeatureIntegration:
         # Verify .kittify is unchanged in main repo
         assert (git_repo / ".kittify").exists()
 
-    def test_creates_feature_with_auto_incrementing_number(
-        self, git_repo: Path, monkeypatch
-    ):
+    def test_creates_feature_with_auto_incrementing_number(self, git_repo: Path, monkeypatch):
         """Should auto-increment feature number when creating multiple features."""
         # Setup
         monkeypatch.chdir(git_repo)

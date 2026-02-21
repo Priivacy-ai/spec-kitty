@@ -96,7 +96,7 @@ def research_feature_with_wrong_source_schema(mock_research_project):
 
     # WRONG source-register.csv schema
     (research_dir / "source-register.csv").write_text(
-        "id,reference,link,date,priority\n" "1,Reference,http://example.com,2025-01-25,high\n",
+        "id,reference,link,date,priority\n1,Reference,http://example.com,2025-01-25,high\n",
         encoding="utf-8",
     )
 
@@ -223,9 +223,7 @@ class TestMigrationApply:
         captured = capsys.readouterr()
         assert "schema mismatch" in captured.out.lower()
 
-    def test_apply_provides_migration_tips(
-        self, research_feature_with_wrong_evidence_schema, capsys
-    ):
+    def test_apply_provides_migration_tips(self, research_feature_with_wrong_evidence_schema, capsys):
         """Test migration provides actionable migration tips."""
         migration = ResearchCSVSchemaCheckMigration()
         migration.apply(research_feature_with_wrong_evidence_schema, dry_run=False)
@@ -273,9 +271,7 @@ class TestMultipleFeatures:
         (correct_feature / "meta.json").write_text(json.dumps({"mission": "research"}))
         research_dir = correct_feature / "research"
         research_dir.mkdir()
-        (research_dir / "evidence-log.csv").write_text(
-            "timestamp,source_type,citation,key_finding,confidence,notes\n"
-        )
+        (research_dir / "evidence-log.csv").write_text("timestamp,source_type,citation,key_finding,confidence,notes\n")
 
         # Create one wrong feature
         wrong_feature = mock_research_project / "kitty-specs" / "002-wrong"

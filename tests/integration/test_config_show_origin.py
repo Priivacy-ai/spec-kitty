@@ -34,9 +34,7 @@ def _create_file(path: Path, content: str = "placeholder") -> Path:
 class TestShowOriginLabelsMatchResolution:
     """Each tier label corresponds to actual resolved file (1A-14, 1A-15)."""
 
-    def test_override_and_global_tiers_together(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_override_and_global_tiers_together(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Override and global tiers coexist correctly in one run."""
         project = tmp_path / "project"
         global_home = tmp_path / "global"
@@ -68,9 +66,7 @@ class TestShowOriginLabelsMatchResolution:
         assert plan_entry.tier == "global_mission"
         assert plan_entry.resolved_path == global_path
 
-    def test_package_default_tier(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_package_default_tier(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Package-default tier resolves when no higher tiers provide the asset."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -92,28 +88,27 @@ class TestShowOriginLabelsMatchResolution:
         assert spec_entry.tier == "package_default"
         assert spec_entry.resolved_path == pkg_path
 
-    def test_not_found_entries(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_not_found_entries(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Assets not found at any tier have None path and tier, with error message."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
         global_home = tmp_path / "global"
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
 
-        with patch(
-            "specify_cli.runtime.resolver.get_package_asset_root",
-            side_effect=FileNotFoundError("no pkg"),
-        ), patch(
-            "specify_cli.runtime.show_origin.get_package_asset_root",
-            side_effect=FileNotFoundError("no pkg"),
+        with (
+            patch(
+                "specify_cli.runtime.resolver.get_package_asset_root",
+                side_effect=FileNotFoundError("no pkg"),
+            ),
+            patch(
+                "specify_cli.runtime.show_origin.get_package_asset_root",
+                side_effect=FileNotFoundError("no pkg"),
+            ),
         ):
             entries = collect_origins(project)
 
         # Resolver-based entries (template, command, mission) should be not found
-        resolver_entries = [
-            e for e in entries if e.asset_type in ("template", "command", "mission")
-        ]
+        resolver_entries = [e for e in entries if e.asset_type in ("template", "command", "mission")]
         assert len(resolver_entries) > 0, "Should have template/command/mission entries"
         for entry in resolver_entries:
             assert entry.resolved_path is None
@@ -136,9 +131,7 @@ class TestShowOriginLabelsMatchResolution:
 class TestShowOriginExtendedAssets:
     """Verify collect_origins covers scripts, AGENTS.md, and dynamic discovery."""
 
-    def test_agents_md_from_project(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_agents_md_from_project(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """AGENTS.md resolved from project .kittify/ directory."""
         project = tmp_path / "project"
         agents_file = project / ".kittify" / "AGENTS.md"
@@ -159,9 +152,7 @@ class TestShowOriginExtendedAssets:
         assert agents_entries[0].tier == "project"
         assert agents_entries[0].resolved_path == agents_file
 
-    def test_scripts_from_project(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_scripts_from_project(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Scripts in .kittify/scripts/ are discovered."""
         project = tmp_path / "project"
         scripts_dir = project / ".kittify" / "scripts"
@@ -179,9 +170,7 @@ class TestShowOriginExtendedAssets:
         script_entries = [e for e in entries if e.asset_type == "script"]
         assert any(e.name == "validate_encoding.py" for e in script_entries)
 
-    def test_dynamic_command_discovery(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_dynamic_command_discovery(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Command templates are dynamically discovered from package defaults."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -190,9 +179,20 @@ class TestShowOriginExtendedAssets:
         pkg_root = tmp_path / "pkg"
         cmd_dir = pkg_root / "software-dev" / "command-templates"
         cmd_dir.mkdir(parents=True)
-        for name in ["specify.md", "plan.md", "tasks.md", "implement.md",
-                      "review.md", "accept.md", "merge.md", "dashboard.md",
-                      "analyze.md", "checklist.md", "clarify.md", "constitution.md"]:
+        for name in [
+            "specify.md",
+            "plan.md",
+            "tasks.md",
+            "implement.md",
+            "review.md",
+            "accept.md",
+            "merge.md",
+            "dashboard.md",
+            "analyze.md",
+            "checklist.md",
+            "clarify.md",
+            "constitution.md",
+        ]:
             (cmd_dir / name).write_text(f"# {name}\n")
 
         with patch(
@@ -214,9 +214,7 @@ class TestShowOriginExtendedAssets:
         assert "clarify.md" in command_names
         assert "constitution.md" in command_names
 
-    def test_all_missions_discovered(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_all_missions_discovered(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """All mission directories are discovered dynamically."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)

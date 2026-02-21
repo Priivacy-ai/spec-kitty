@@ -161,9 +161,7 @@ class WorkflowSimplificationMigration(BaseMigration):
             changes.append("Templates now use 'spec-kitty agent workflow' commands")
             changes.append("Agents now see prompts directly, no file navigation needed")
         elif not changes:
-            warnings.append(
-                "No templates were updated (already updated or mission templates missing)"
-            )
+            warnings.append("No templates were updated (already updated or mission templates missing)")
 
         success = len(errors) == 0
         return MigrationResult(

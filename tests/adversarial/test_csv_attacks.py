@@ -9,6 +9,7 @@ Tests for CSV validation to ensure:
 
 Target: src/specify_cli/validators/csv_schema.py
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -43,16 +44,13 @@ class TestFormulaInjection:
             ("+1+1", "Plus formula"),
             ("-1+1", "Minus formula"),
             ("@SUM(A1:A10)", "At-sign function"),
-            ("=HYPERLINK(\"http://evil.com\",\"Click\")", "Hyperlink injection"),
+            ('=HYPERLINK("http://evil.com","Click")', "Hyperlink injection"),
         ],
     )
     def test_formula_in_cell_handled(self, tmp_path: Path, formula: str, description: str):
         """CSV with formula injection should be validated without execution."""
         csv_path = tmp_path / "test.csv"
-        content = (
-            f"{','.join(EVIDENCE_COLUMNS)}\n"
-            f"2025-01-25T10:00:00,journal,\"{formula}\",Finding,high,Notes\n"
-        )
+        content = f'{",".join(EVIDENCE_COLUMNS)}\n2025-01-25T10:00:00,journal,"{formula}",Finding,high,Notes\n'
         csv_path.write_text(content, encoding="utf-8")
 
         # Should not raise exception

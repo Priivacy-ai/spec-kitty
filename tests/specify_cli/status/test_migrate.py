@@ -26,6 +26,7 @@ from specify_cli.status.store import EVENTS_FILENAME, read_events
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 def _write_wp(
     tasks_dir: Path,
     wp_id: str,
@@ -89,21 +90,33 @@ def feature_with_wps(tmp_path: Path) -> Path:
     _write_wp(tasks_dir, "WP01", "planned")
 
     # WP02: doing (alias) with history: planned -> doing
-    _write_wp(tasks_dir, "WP02", "doing", history=[
-        {"timestamp": "2026-02-08T09:00:00Z", "lane": "planned", "agent": "system"},
-        {"timestamp": "2026-02-08T10:00:00Z", "lane": "doing", "agent": "agent-a"},
-    ])
+    _write_wp(
+        tasks_dir,
+        "WP02",
+        "doing",
+        history=[
+            {"timestamp": "2026-02-08T09:00:00Z", "lane": "planned", "agent": "system"},
+            {"timestamp": "2026-02-08T10:00:00Z", "lane": "doing", "agent": "agent-a"},
+        ],
+    )
 
     # WP03: for_review with history: planned -> in_progress -> for_review
-    _write_wp(tasks_dir, "WP03", "for_review", history=[
-        {"timestamp": "2026-02-08T09:00:00Z", "lane": "planned", "agent": "system"},
-        {"timestamp": "2026-02-08T10:00:00Z", "lane": "in_progress", "agent": "agent-b"},
-        {"timestamp": "2026-02-08T11:00:00Z", "lane": "for_review", "agent": "agent-b"},
-    ])
+    _write_wp(
+        tasks_dir,
+        "WP03",
+        "for_review",
+        history=[
+            {"timestamp": "2026-02-08T09:00:00Z", "lane": "planned", "agent": "system"},
+            {"timestamp": "2026-02-08T10:00:00Z", "lane": "in_progress", "agent": "agent-b"},
+            {"timestamp": "2026-02-08T11:00:00Z", "lane": "for_review", "agent": "agent-b"},
+        ],
+    )
 
     # WP04: done with history: planned -> in_progress -> for_review -> done
     _write_wp(
-        tasks_dir, "WP04", "done",
+        tasks_dir,
+        "WP04",
+        "done",
         history=[
             {"timestamp": "2026-02-08T09:00:00Z", "lane": "planned", "agent": "system"},
             {"timestamp": "2026-02-08T10:00:00Z", "lane": "in_progress", "agent": "agent-c"},
@@ -152,8 +165,8 @@ def feature_already_migrated(tmp_path: Path) -> Path:
 # T070 -- migrate_feature core tests
 # ---------------------------------------------------------------------------
 
-class TestMigrateFeature:
 
+class TestMigrateFeature:
     def test_four_wps_various_lanes(self, feature_with_wps: Path) -> None:
         """4 WPs at planned/doing/for_review/done -> multi-event history reconstruction."""
         result = migrate_feature(feature_with_wps)
@@ -230,10 +243,15 @@ class TestMigrateFeature:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        _write_wp(tasks_dir, "WP01", "in_progress", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "in_progress", "agent": "claude-dev"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "in_progress",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "in_progress", "agent": "claude-dev"},
+            ],
+        )
 
         migrate_feature(feature_dir, actor="fallback-actor")
 
@@ -248,10 +266,15 @@ class TestMigrateFeature:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        _write_wp(tasks_dir, "WP01", "done", history=[
-            {"timestamp": "2026-01-15T09:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-15T09:30:00Z", "lane": "done", "agent": "reviewer"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "done",
+            history=[
+                {"timestamp": "2026-01-15T09:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-15T09:30:00Z", "lane": "done", "agent": "reviewer"},
+            ],
+        )
 
         migrate_feature(feature_dir)
         events = read_events(feature_dir)
@@ -324,10 +347,15 @@ class TestMigrateFeature:
         tasks_dir.mkdir(parents=True)
 
         _write_wp(tasks_dir, "WP01", "nonexistent")
-        _write_wp(tasks_dir, "WP02", "done", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP02",
+            "done",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
+            ],
+        )
 
         result = migrate_feature(feature_dir)
         assert result.status == "failed"
@@ -351,6 +379,7 @@ class TestMigrateFeature:
         assert len(event_ids) == len(set(event_ids))
         # Verify ULID format (26 uppercase base32 characters)
         import re
+
         ulid_pattern = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
         for eid in event_ids:
             assert ulid_pattern.match(eid), f"Invalid ULID: {eid}"
@@ -392,12 +421,17 @@ class TestMigrateFeature:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        _write_wp(tasks_dir, "WP01", "for_review", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "claimed", "agent": "agent-x"},
-            {"timestamp": "2026-01-01T12:00:00Z", "lane": "in_progress", "agent": "agent-x"},
-            {"timestamp": "2026-01-01T13:00:00Z", "lane": "for_review", "agent": "agent-x"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "for_review",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "claimed", "agent": "agent-x"},
+                {"timestamp": "2026-01-01T12:00:00Z", "lane": "in_progress", "agent": "agent-x"},
+                {"timestamp": "2026-01-01T13:00:00Z", "lane": "for_review", "agent": "agent-x"},
+            ],
+        )
 
         migrate_feature(feature_dir)
         events = read_events(feature_dir)
@@ -415,8 +449,8 @@ class TestMigrateFeature:
 # T071 -- Alias resolution
 # ---------------------------------------------------------------------------
 
-class TestAliasResolution:
 
+class TestAliasResolution:
     def test_doing_resolved_to_in_progress(self, tmp_path: Path) -> None:
         """``doing`` alias is resolved to ``in_progress``."""
         feature_dir = tmp_path / "kitty-specs" / "110-alias"
@@ -460,9 +494,7 @@ class TestAliasResolution:
 
         agg = MigrationResult()
         agg.features.append(fr)
-        agg.aliases_resolved = sum(
-            1 for f in agg.features for wp in f.wp_details if wp.alias_resolved
-        )
+        agg.aliases_resolved = sum(1 for f in agg.features for wp in f.wp_details if wp.alias_resolved)
         assert agg.aliases_resolved == 2
 
     @pytest.mark.parametrize("raw_lane", ["Doing", "DOING", " doing ", " Doing "])
@@ -489,8 +521,8 @@ class TestAliasResolution:
 # T072 -- Idempotency (3-layer)
 # ---------------------------------------------------------------------------
 
-class TestIdempotency:
 
+class TestIdempotency:
     def test_second_run_is_skipped_via_marker(self, feature_with_wps: Path) -> None:
         """Running migrate twice: second call detects marker and skips (layer 1)."""
         result1 = migrate_feature(feature_with_wps)
@@ -510,10 +542,7 @@ class TestIdempotency:
 
         # Verify marker exists in at least one event
         events = read_events(feature_with_wps)
-        marker_events = [
-            e for e in events
-            if e.reason and "historical_frontmatter_to_jsonl:v1" in e.reason
-        ]
+        marker_events = [e for e in events if e.reason and "historical_frontmatter_to_jsonl:v1" in e.reason]
         assert len(marker_events) > 0
 
         # Run again → skipped
@@ -574,11 +603,16 @@ class TestIdempotency:
         tasks_dir.mkdir(parents=True)
 
         # Create WP with multi-step history
-        _write_wp(tasks_dir, "WP01", "done", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "doing", "agent": "claude"},
-            {"timestamp": "2026-01-01T12:00:00Z", "lane": "done", "agent": "reviewer"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "done",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "doing", "agent": "claude"},
+                {"timestamp": "2026-01-01T12:00:00Z", "lane": "done", "agent": "reviewer"},
+            ],
+        )
 
         # Write legacy bootstrap event (migration-only actor)
         events_file = feature_dir / EVENTS_FILENAME
@@ -617,10 +651,15 @@ class TestIdempotency:
         feature_dir = tmp_path / "kitty-specs" / "120-whitespace"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "done", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "done",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
+            ],
+        )
 
         events_file = feature_dir / EVENTS_FILENAME
         events_file.write_text("   \n\n  \n", encoding="utf-8")
@@ -634,8 +673,8 @@ class TestIdempotency:
 # T073 -- Dry-run
 # ---------------------------------------------------------------------------
 
-class TestDryRun:
 
+class TestDryRun:
     def test_dry_run_no_files_created(self, feature_with_wps: Path) -> None:
         """dry_run=True computes result but writes nothing."""
         result = migrate_feature(feature_with_wps, dry_run=True)
@@ -666,10 +705,15 @@ class TestDryRun:
         feature_dir = tmp_path / "kitty-specs" / "820-dry-backup"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "done", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "done",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
+            ],
+        )
 
         # Write legacy migration event
         events_file = feature_dir / EVENTS_FILENAME
@@ -693,6 +737,7 @@ class TestDryRun:
         assert result.status == "migrated"
         # No backup created during dry-run
         import glob
+
         backups = glob.glob(str(feature_dir / f"{EVENTS_FILENAME}.bak.*"))
         assert len(backups) == 0
 
@@ -701,8 +746,8 @@ class TestDryRun:
 # T073 -- Materialization
 # ---------------------------------------------------------------------------
 
-class TestMaterialization:
 
+class TestMaterialization:
     def test_materialization_produces_valid_snapshot(self, feature_with_wps: Path) -> None:
         """status.json is materialized after migration."""
         migrate_feature(feature_with_wps)
@@ -747,6 +792,7 @@ class TestMaterialization:
 # T073 -- CLI command tests
 # ---------------------------------------------------------------------------
 
+
 class TestMigrateCLI:
     """CLI tests invoke the ``migrate`` command via CliRunner."""
 
@@ -756,10 +802,15 @@ class TestMigrateCLI:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "doing")
-        _write_wp(tasks_dir, "WP02", "done", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP02",
+            "done",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
+            ],
+        )
 
         (tmp_path / ".kittify").mkdir(parents=True)
         monkeypatch.chdir(tmp_path)
@@ -777,10 +828,15 @@ class TestMigrateCLI:
         feature_dir = tmp_path / "kitty-specs" / "201-json-test"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "for_review", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "for_review", "agent": "agent-a"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "for_review",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "for_review", "agent": "agent-a"},
+            ],
+        )
 
         (tmp_path / ".kittify").mkdir(parents=True)
         monkeypatch.chdir(tmp_path)
@@ -829,10 +885,15 @@ class TestMigrateCLI:
         for slug in ["300-feat-a", "301-feat-b"]:
             tasks_dir = tmp_path / "kitty-specs" / slug / "tasks"
             tasks_dir.mkdir(parents=True)
-            _write_wp(tasks_dir, "WP01", "done", history=[
-                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-                {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
-            ])
+            _write_wp(
+                tasks_dir,
+                "WP01",
+                "done",
+                history=[
+                    {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                    {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
+                ],
+            )
 
         monkeypatch.chdir(tmp_path)
 
@@ -866,10 +927,15 @@ class TestMigrateCLI:
         feature_dir = tmp_path / "kitty-specs" / "500-actor"
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
-        _write_wp(tasks_dir, "WP01", "done", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "migration"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "done",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "migration"},
+            ],
+        )
 
         (tmp_path / ".kittify").mkdir(parents=True)
         monkeypatch.chdir(tmp_path)
@@ -893,8 +959,8 @@ class TestMigrateCLI:
 # T074 -- Integration / JSON output shape
 # ---------------------------------------------------------------------------
 
-class TestMigrationResultJSON:
 
+class TestMigrationResultJSON:
     def test_json_output_schema(self, feature_with_wps: Path) -> None:
         """Verify the JSON output structure matches expected schema."""
         from specify_cli.cli.commands.agent.status import _migration_result_to_dict
@@ -934,8 +1000,8 @@ class TestMigrationResultJSON:
 # Edge cases
 # ---------------------------------------------------------------------------
 
-class TestEdgeCases:
 
+class TestEdgeCases:
     def test_malformed_frontmatter_continues(self, tmp_path: Path) -> None:
         """WP with malformed frontmatter marks the feature as failed."""
         feature_dir = tmp_path / "kitty-specs" / "600-malformed"
@@ -947,10 +1013,15 @@ class TestEdgeCases:
         bad_file.write_text("not valid frontmatter at all", encoding="utf-8")
 
         # Write good WP
-        _write_wp(tasks_dir, "WP02", "done", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP02",
+            "done",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
+            ],
+        )
 
         result = migrate_feature(feature_dir)
         assert result.status == "failed"
@@ -987,10 +1058,15 @@ class TestEdgeCases:
         a_dir = kitty_specs / "700-a"
         a_tasks = a_dir / "tasks"
         a_tasks.mkdir(parents=True)
-        _write_wp(a_tasks, "WP01", "done", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
-        ])
+        _write_wp(
+            a_tasks,
+            "WP01",
+            "done",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
+            ],
+        )
 
         # Feature B: will skip (has live events)
         b_dir = kitty_specs / "701-b"
@@ -1039,7 +1115,9 @@ class TestEdgeCases:
         tasks_dir.mkdir(parents=True)
 
         _write_wp(
-            tasks_dir, "WP01", "done",
+            tasks_dir,
+            "WP01",
+            "done",
             history=[
                 {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
                 {"timestamp": "2026-01-01T11:00:00Z", "lane": "done", "agent": "reviewer"},
@@ -1083,10 +1161,15 @@ class TestEdgeCases:
         tasks_dir.mkdir(parents=True)
 
         # History ends at in_progress, but current lane is for_review
-        _write_wp(tasks_dir, "WP01", "for_review", history=[
-            {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
-            {"timestamp": "2026-01-01T11:00:00Z", "lane": "in_progress", "agent": "agent-a"},
-        ])
+        _write_wp(
+            tasks_dir,
+            "WP01",
+            "for_review",
+            history=[
+                {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
+                {"timestamp": "2026-01-01T11:00:00Z", "lane": "in_progress", "agent": "agent-a"},
+            ],
+        )
 
         migrate_feature(feature_dir)
         events = read_events(feature_dir)

@@ -6,6 +6,7 @@ generators (JSDoc, Sphinx, rustdoc) into the documentation mission workflow.
 Generators detect project languages, create configuration files, and invoke
 generator tools via subprocess to produce API reference documentation.
 """
+
 from __future__ import annotations
 
 import json
@@ -51,7 +52,7 @@ class DocGenerator(Protocol):
         """
         ...
 
-    def generate(self, source_dir: Path, output_dir: Path) -> 'GeneratorResult':
+    def generate(self, source_dir: Path, output_dir: Path) -> "GeneratorResult":
         """Run generator to produce documentation.
 
         Args:
@@ -69,6 +70,7 @@ class DocGenerator(Protocol):
 
 class GeneratorError(Exception):
     """Raised when a generator encounters an unrecoverable error."""
+
     pass
 
 
@@ -85,19 +87,10 @@ def check_tool_available(tool_name: str, install_url: str) -> bool:
     Raises:
         GeneratorError: If tool is not available (with installation instructions)
     """
-    check = subprocess.run(
-        [tool_name, "--version"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace"
-    )
+    check = subprocess.run([tool_name, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace")
 
     if check.returncode != 0:
-        raise GeneratorError(
-            f"{tool_name} not found - install required tool\n"
-            f"Visit: {install_url}"
-        )
+        raise GeneratorError(f"{tool_name} not found - install required tool\nVisit: {install_url}")
 
     return True
 
@@ -113,6 +106,7 @@ class GeneratorResult:
         warnings: List of warning messages (may be present even if success=True)
         generated_files: List of generated documentation files
     """
+
     success: bool
     output_dir: Path
     errors: List[str] = field(default_factory=list)
@@ -125,12 +119,7 @@ class GeneratorResult:
         file_count = len(self.generated_files)
         error_count = len(self.errors)
         warning_count = len(self.warnings)
-        return (
-            f"GeneratorResult({status}, "
-            f"{file_count} files, "
-            f"{error_count} errors, "
-            f"{warning_count} warnings)"
-        )
+        return f"GeneratorResult({status}, {file_count} files, {error_count} errors, {warning_count} warnings)"
 
 
 @dataclass
@@ -193,25 +182,22 @@ class JSDocGenerator:
             "source": {
                 "include": [source_dir],
                 "includePattern": ".+\\.(js|jsx|ts|tsx)$",
-                "excludePattern": "(^|\\/|\\\\)_"
+                "excludePattern": "(^|\\/|\\\\)_",
             },
             "opts": {
                 "destination": str(output_dir / "api" / "javascript"),
                 "recurse": True,
                 "readme": "README.md",
-                "template": f"node_modules/{template}"
+                "template": f"node_modules/{template}",
             },
             "plugins": ["plugins/markdown"],
-            "templates": {
-                "cleverLinks": False,
-                "monospaceLinks": False
-            }
+            "templates": {"cleverLinks": False, "monospaceLinks": False},
         }
 
         config_file = output_dir / "jsdoc.json"
         output_dir.mkdir(parents=True, exist_ok=True)
         try:
-            config_file.write_text(json.dumps(config, indent=2), encoding='utf-8')
+            config_file.write_text(json.dumps(config, indent=2), encoding="utf-8")
             return config_file
         except OSError as e:
             raise GeneratorError(f"Failed to write jsdoc.json: {e}")
@@ -240,28 +226,16 @@ class JSDocGenerator:
 
         # Check if npx is available
         check_npx = subprocess.run(
-            ["npx", "--version"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace"
+            ["npx", "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
 
         if check_npx.returncode != 0:
-            raise GeneratorError(
-                "npx not found - install Node.js to use JSDoc generator\n"
-                "Visit: https://nodejs.org/"
-            )
+            raise GeneratorError("npx not found - install Node.js to use JSDoc generator\nVisit: https://nodejs.org/")
 
         # Run JSDoc
         cmd = ["npx", "jsdoc", "-c", str(config_file)]
         result = subprocess.run(
-            cmd,
-            cwd=str(source_dir),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace"
+            cmd, cwd=str(source_dir), capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
 
         # Parse output
@@ -286,7 +260,7 @@ class JSDocGenerator:
             output_dir=api_dir if api_dir.exists() else output_dir,
             errors=errors,
             warnings=warnings,
-            generated_files=generated_files
+            generated_files=generated_files,
         )
 
 
@@ -349,7 +323,7 @@ class SphinxGenerator:
         version = options.get("version", "0.1.0")
         theme = options.get("theme", "sphinx_rtd_theme")
 
-        config_content = f'''# Sphinx configuration for {project_name}
+        config_content = f"""# Sphinx configuration for {project_name}
 # Auto-generated by spec-kitty documentation mission
 
 project = '{project_name}'
@@ -385,12 +359,12 @@ autodoc_default_options = {{
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
-'''
+"""
 
         config_file = output_dir / "conf.py"
         output_dir.mkdir(parents=True, exist_ok=True)
         try:
-            config_file.write_text(config_content, encoding='utf-8')
+            config_file.write_text(config_content, encoding="utf-8")
             return config_file
         except OSError as e:
             raise GeneratorError(f"Failed to write conf.py: {e}")
@@ -419,11 +393,7 @@ sys.path.insert(0, os.path.abspath('..'))
 
         # Check if sphinx-build is available
         check_sphinx = subprocess.run(
-            ["sphinx-build", "--version"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace"
+            ["sphinx-build", "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
 
         if check_sphinx.returncode != 0:
@@ -439,19 +409,14 @@ sys.path.insert(0, os.path.abspath('..'))
         # Run Sphinx
         cmd = [
             "sphinx-build",
-            "-b", "html",           # HTML builder
-            "-W",                   # Treat warnings as errors (optional)
-            str(output_dir),        # Source directory (contains conf.py)
-            str(build_dir)          # Build directory
+            "-b",
+            "html",  # HTML builder
+            "-W",  # Treat warnings as errors (optional)
+            str(output_dir),  # Source directory (contains conf.py)
+            str(build_dir),  # Build directory
         ]
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace"
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
         # Parse output
         errors = []
@@ -474,7 +439,7 @@ sys.path.insert(0, os.path.abspath('..'))
             output_dir=build_dir,
             errors=errors,
             warnings=warnings,
-            generated_files=generated_files
+            generated_files=generated_files,
         )
 
 
@@ -551,7 +516,7 @@ No separate configuration file is needed for rustdoc.
         instructions_file = output_dir / "rustdoc-config.md"
         output_dir.mkdir(parents=True, exist_ok=True)
         try:
-            instructions_file.write_text(instructions, encoding='utf-8')
+            instructions_file.write_text(instructions, encoding="utf-8")
             return instructions_file
         except OSError as e:
             raise GeneratorError(f"Failed to write rustdoc instructions: {e}")
@@ -580,33 +545,25 @@ No separate configuration file is needed for rustdoc.
 
         # Check if cargo is available
         check_cargo = subprocess.run(
-            ["cargo", "--version"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace"
+            ["cargo", "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
 
         if check_cargo.returncode != 0:
             raise GeneratorError(
-                "cargo not found - install Rust toolchain to use rustdoc generator\n"
-                "Visit: https://rustup.rs/"
+                "cargo not found - install Rust toolchain to use rustdoc generator\nVisit: https://rustup.rs/"
             )
 
         # Run cargo doc
         cmd = [
-            "cargo", "doc",
-            "--no-deps",              # Don't document dependencies
-            "--target-dir", str(output_dir)
+            "cargo",
+            "doc",
+            "--no-deps",  # Don't document dependencies
+            "--target-dir",
+            str(output_dir),
         ]
 
         result = subprocess.run(
-            cmd,
-            cwd=str(source_dir),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace"
+            cmd, cwd=str(source_dir), capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
 
         # Parse output
@@ -631,5 +588,5 @@ No separate configuration file is needed for rustdoc.
             output_dir=doc_dir if doc_dir.exists() else output_dir,
             errors=errors,
             warnings=warnings,
-            generated_files=generated_files
+            generated_files=generated_files,
         )

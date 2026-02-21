@@ -45,10 +45,7 @@ class WorktreeCommandsDedupMigration(BaseMigration):
         main_claude_commands = project_path / ".claude" / "commands"
 
         if not main_claude_commands.exists():
-            return (
-                False,
-                "Main repo .claude/commands/ must exist before removing from worktrees"
-            )
+            return (False, "Main repo .claude/commands/ must exist before removing from worktrees")
 
         return True, ""
 
@@ -66,9 +63,7 @@ class WorktreeCommandsDedupMigration(BaseMigration):
                     wt_commands = worktree / ".claude" / "commands"
                     if wt_commands.exists():
                         if dry_run:
-                            changes.append(
-                                f"Would remove .claude/commands/ from worktree {worktree.name}"
-                            )
+                            changes.append(f"Would remove .claude/commands/ from worktree {worktree.name}")
                         else:
                             try:
                                 shutil.rmtree(wt_commands)
@@ -76,9 +71,7 @@ class WorktreeCommandsDedupMigration(BaseMigration):
                                     f"Removed .claude/commands/ from worktree {worktree.name} (inherits from main repo)"
                                 )
                             except OSError as e:
-                                errors.append(
-                                    f"Failed to remove .claude/commands/ from {worktree.name}: {e}"
-                                )
+                                errors.append(f"Failed to remove .claude/commands/ from {worktree.name}: {e}")
 
         success = len(errors) == 0
         return MigrationResult(

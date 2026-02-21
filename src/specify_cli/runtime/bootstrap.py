@@ -159,9 +159,7 @@ def ensure_runtime() -> None:
                 return
 
         # Build new asset tree in a unique temp directory
-        tmp_dir = Path(
-            tempfile.mkdtemp(prefix=".kittify_update_", dir=home.parent)
-        )
+        tmp_dir = Path(tempfile.mkdtemp(prefix=".kittify_update_", dir=home.parent))
         try:
             populate_from_package(tmp_dir)
             merge_package_assets(source=tmp_dir, dest=home)

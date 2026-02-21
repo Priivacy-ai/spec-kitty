@@ -26,7 +26,7 @@ def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
         try:
             test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             test_sock.settimeout(0.1)
-            if test_sock.connect_ex(('127.0.0.1', port)) == 0:
+            if test_sock.connect_ex(("127.0.0.1", port)) == 0:
                 test_sock.close()
                 continue
             test_sock.close()
@@ -36,7 +36,7 @@ def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                sock.bind(('127.0.0.1', port))
+                sock.bind(("127.0.0.1", port))
                 return port
         except OSError:
             continue
@@ -44,21 +44,19 @@ def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
     # If the preferred range is exhausted, defer to the OS for any ephemeral port.
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.bind(('127.0.0.1', 0))
+            sock.bind(("127.0.0.1", 0))
             return int(sock.getsockname()[1])
     except OSError as exc:
-        raise RuntimeError(
-            f"Could not find free port in range {start_port}-{start_port + max_attempts}"
-        ) from exc
+        raise RuntimeError(f"Could not find free port in range {start_port}-{start_port + max_attempts}") from exc
 
 
 def _build_handler_class(project_dir: Path, project_token: Optional[str]) -> type[DashboardRouter]:
     return type(
-        'DashboardHandler',
+        "DashboardHandler",
         (DashboardRouter,),
         {
-            'project_dir': str(project_dir),
-            'project_token': project_token,
+            "project_dir": str(project_dir),
+            "project_token": project_token,
         },
     )
 
@@ -66,7 +64,7 @@ def _build_handler_class(project_dir: Path, project_token: Optional[str]) -> typ
 def run_dashboard_server(project_dir: Path, port: int, project_token: Optional[str]) -> None:
     """Run the dashboard server forever (used by detached child processes)."""
     handler_class = _build_handler_class(project_dir, project_token)
-    server = HTTPServer(('127.0.0.1', port), handler_class)
+    server = HTTPServer(("127.0.0.1", port), handler_class)
     server.serve_forever()
 
 
@@ -115,7 +113,7 @@ def start_dashboard(
     if background_process:
         script = _background_script(project_dir_abs, port, project_token)
         proc = subprocess.Popen(
-            [sys.executable, '-c', script],
+            [sys.executable, "-c", script],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL,
@@ -124,7 +122,7 @@ def start_dashboard(
         return port, proc.pid
 
     handler_class = _build_handler_class(project_dir_abs, project_token)
-    server = HTTPServer(('127.0.0.1', port), handler_class)
+    server = HTTPServer(("127.0.0.1", port), handler_class)
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

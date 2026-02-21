@@ -95,9 +95,9 @@ def test_run_diagnostics_reports_manifest_and_worktree_state(monkeypatch, tmp_pa
 
     def fake_run(args, cwd=None, capture_output=False, text=False, check=False, **kwargs):  # noqa: D401 - pytest helper
         """Return the active branch name for diagnostics."""
-        assert args == ['git', 'branch', '--show-current']
+        assert args == ["git", "branch", "--show-current"]
         assert cwd == project_dir
-        return types.SimpleNamespace(stdout='feature/testing\n', returncode=0)
+        return types.SimpleNamespace(stdout="feature/testing\n", returncode=0)
 
     monkeypatch.setattr(diagnostics.subprocess, "run", fake_run)
 
@@ -122,7 +122,7 @@ def test_run_diagnostics_records_git_branch_errors(monkeypatch, tmp_path: Path) 
     _configure_common_patches(monkeypatch, worktree_dir)
 
     def failing_run(*_args, **_kwargs):
-        raise subprocess.CalledProcessError(1, ['git', 'branch', '--show-current'])
+        raise subprocess.CalledProcessError(1, ["git", "branch", "--show-current"])
 
     monkeypatch.setattr(diagnostics.subprocess, "run", failing_run)
 

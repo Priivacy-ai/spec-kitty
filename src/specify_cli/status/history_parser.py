@@ -78,14 +78,10 @@ def normalize_entries(history: list[dict[str, Any]]) -> list[NormalizedHistoryEn
             continue
 
         lane = resolve_lane_alias(str(raw_lane).strip())
-        timestamp = str(entry.get("timestamp", "")) or datetime.now(
-            timezone.utc
-        ).isoformat()
+        timestamp = str(entry.get("timestamp", "")) or datetime.now(timezone.utc).isoformat()
         actor = str(entry.get("agent", "")) or "migration"
 
-        entries.append(
-            NormalizedHistoryEntry(timestamp=timestamp, lane=lane, actor=actor)
-        )
+        entries.append(NormalizedHistoryEntry(timestamp=timestamp, lane=lane, actor=actor))
     return entries
 
 
@@ -257,9 +253,7 @@ def build_transition_chain(
     else:
         fallback_timestamp = datetime.now(timezone.utc).isoformat()
 
-    final_transitions = gap_fill(
-        transitions, last_history_lane, current_lane, fallback_timestamp
-    )
+    final_transitions = gap_fill(transitions, last_history_lane, current_lane, fallback_timestamp)
 
     # Step 5: Attach DoneEvidence to transitions targeting "done"
     evidence = extract_done_evidence(frontmatter, wp_id)

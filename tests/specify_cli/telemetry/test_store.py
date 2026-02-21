@@ -180,9 +180,7 @@ class TestSaveAndLoadEvents:
         json_result = json_store.load_all_events()
         mem_result = mem_store.load_all_events()
 
-        assert [e.event_id for e in json_result] == [
-            e.event_id for e in mem_result
-        ]
+        assert [e.event_id for e in json_result] == [e.event_id for e in mem_result]
 
 
 # ---------------------------------------------------------------------------
@@ -235,13 +233,7 @@ class TestIdempotentWrites:
         assert len(result) == 1
 
         # Also verify file has exactly 1 line
-        lines = [
-            ln
-            for ln in (tmp_path / "events.jsonl")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if ln.strip()
-        ]
+        lines = [ln for ln in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines() if ln.strip()]
         assert len(lines) == 1
 
     def test_idempotent_across_store_instances(self, tmp_path: Path) -> None:
@@ -269,9 +261,7 @@ class TestIdempotentWrites:
 class TestMalformedLineTolerance:
     """Verify corrupted JSONL lines are skipped with warning."""
 
-    def test_malformed_line_skipped(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_malformed_line_skipped(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """T005/FR-012: Malformed line skipped, valid events returned."""
         from specify_cli.telemetry.store import SimpleJsonStore
 
@@ -293,8 +283,9 @@ class TestMalformedLineTolerance:
 
         assert len(result) == 1
         assert result[0].event_id == valid_event.event_id
-        assert any("malformed" in record.message.lower() or "skipping" in record.message.lower()
-                    for record in caplog.records)
+        assert any(
+            "malformed" in record.message.lower() or "skipping" in record.message.lower() for record in caplog.records
+        )
 
     def test_partial_json_line_skipped(self, tmp_path: Path) -> None:
         """T005: Partial JSON from crash is tolerated."""
@@ -387,13 +378,7 @@ class TestJsonlFormat:
                 )
             )
 
-        lines = [
-            ln
-            for ln in (tmp_path / "events.jsonl")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if ln.strip()
-        ]
+        lines = [ln for ln in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines() if ln.strip()]
         assert len(lines) == 3
 
         for line in lines:

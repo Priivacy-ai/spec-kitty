@@ -41,22 +41,17 @@ def _resolve_feature_dirs(repo_root: Path, feature: str) -> list[Path]:
 @app.callback()
 def telemetry_callback(
     ctx: typer.Context,
-    feature: str | None = typer.Option(
-        None, "--feature", "-f", help="Filter by feature slug or glob pattern"
-    ),
-    since: str | None = typer.Option(
-        None, "--since", help="Start date (ISO 8601)"
-    ),
-    until: str | None = typer.Option(
-        None, "--until", help="End date (ISO 8601)"
-    ),
+    feature: str | None = typer.Option(None, "--feature", "-f", help="Filter by feature slug or glob pattern"),
+    since: str | None = typer.Option(None, "--since", help="Start date (ISO 8601)"),
+    until: str | None = typer.Option(None, "--until", help="End date (ISO 8601)"),
     group_by: str = typer.Option(
-        "agent", "--group-by", "-g", help="Group by: agent, model, feature, role",
+        "agent",
+        "--group-by",
+        "-g",
+        help="Group by: agent, model, feature, role",
         click_type=click.Choice(["agent", "model", "feature", "role"]),
     ),
-    json_output: bool = typer.Option(
-        False, "--json", help="Output as JSON"
-    ),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ) -> None:
     """Backward-compatible default behavior: `telemetry` maps to `telemetry cost`."""
     if ctx.invoked_subcommand is None:
@@ -71,22 +66,17 @@ def telemetry_callback(
 
 @app.command("cost")
 def cost_cmd(
-    feature: str | None = typer.Option(
-        None, "--feature", "-f", help="Filter by feature slug or glob pattern"
-    ),
-    since: str | None = typer.Option(
-        None, "--since", help="Start date (ISO 8601)"
-    ),
-    until: str | None = typer.Option(
-        None, "--until", help="End date (ISO 8601)"
-    ),
+    feature: str | None = typer.Option(None, "--feature", "-f", help="Filter by feature slug or glob pattern"),
+    since: str | None = typer.Option(None, "--since", help="Start date (ISO 8601)"),
+    until: str | None = typer.Option(None, "--until", help="End date (ISO 8601)"),
     group_by: str = typer.Option(
-        "agent", "--group-by", "-g", help="Group by: agent, model, feature, role",
+        "agent",
+        "--group-by",
+        "-g",
+        help="Group by: agent, model, feature, role",
         click_type=click.Choice(["agent", "model", "feature", "role"]),
     ),
-    json_output: bool = typer.Option(
-        False, "--json", help="Output as JSON"
-    ),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
 ) -> None:
     """Show cost report for AI agent invocations."""
     try:
@@ -179,7 +169,10 @@ def emit_cmd(
         ..., "--feature", "-f", help="Feature slug (e.g., 048-full-lifecycle-telemetry-events)"
     ),
     role: str = typer.Option(
-        ..., "--role", "-r", help="Phase role",
+        ...,
+        "--role",
+        "-r",
+        help="Phase role",
         click_type=click.Choice(["specifier", "planner", "implementer", "reviewer", "merger"]),
     ),
     agent: str | None = typer.Option(None, "--agent", help="Agent identifier (claude, copilot, codex, cursor, etc.)"),
@@ -234,12 +227,16 @@ def emit_cmd(
         return
 
     if json_output:
-        print(json.dumps({
-            "result": "success",
-            "feature": feature,
-            "role": role,
-            "agent": effective_agent,
-            "model": model,
-        }))
+        print(
+            json.dumps(
+                {
+                    "result": "success",
+                    "feature": feature,
+                    "role": role,
+                    "agent": effective_agent,
+                    "model": model,
+                }
+            )
+        )
     else:
         console.print(f"[green]✓[/green] Telemetry event emitted: {role} for {feature}")

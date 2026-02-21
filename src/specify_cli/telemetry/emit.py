@@ -114,6 +114,4 @@ def emit_execution_event(
         store.save_event(event)
 
     except Exception as e:
-        logger.warning(
-            "Telemetry emission failed for %s/%s: %s", feature_slug, wp_id, e
-        )
+        logger.warning("Telemetry emission failed for %s/%s: %s", feature_slug, wp_id, e)

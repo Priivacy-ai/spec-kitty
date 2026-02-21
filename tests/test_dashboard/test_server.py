@@ -15,7 +15,7 @@ def test_find_free_port_returns_available_port():
     port = server.find_free_port(start_port=15000, max_attempts=50)
     assert isinstance(port, int)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(('127.0.0.1', port))
+        sock.bind(("127.0.0.1", port))
 
 
 def test_start_dashboard_background_invokes_subprocess(monkeypatch, tmp_path):

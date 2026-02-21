@@ -52,7 +52,7 @@ class OfflineQueue:
             db_path: Path to SQLite database. Defaults to ~/.spec-kitty/queue.db
         """
         if db_path is None:
-            db_path = Path.home() / '.spec-kitty' / 'queue.db'
+            db_path = Path.home() / ".spec-kitty" / "queue.db"
 
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -62,7 +62,7 @@ class OfflineQueue:
         """Initialize database schema with indexes"""
         conn = sqlite3.connect(self.db_path)
         try:
-            conn.execute('''
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS queue (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     event_id TEXT UNIQUE NOT NULL,
@@ -71,9 +71,9 @@ class OfflineQueue:
                     timestamp INTEGER NOT NULL,
                     retry_count INTEGER DEFAULT 0
                 )
-            ''')
-            conn.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON queue(timestamp)')
-            conn.execute('CREATE INDEX IF NOT EXISTS idx_retry ON queue(retry_count)')
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON queue(timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_retry ON queue(retry_count)")
             conn.commit()
         finally:
             conn.close()
@@ -95,13 +95,13 @@ class OfflineQueue:
         conn = sqlite3.connect(self.db_path)
         try:
             conn.execute(
-                'INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)',
+                "INSERT OR REPLACE INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
                 (
                     str(event["event_id"]),
                     str(event["event_type"]),
                     json.dumps(event),
                     int(datetime.now().timestamp()),
-                )
+                ),
             )
             conn.commit()
             return True
@@ -127,10 +127,7 @@ class OfflineQueue:
         try:
             # Order by timestamp first, then by id for deterministic FIFO ordering
             # when multiple events are queued within the same second
-            cursor = conn.execute(
-                'SELECT event_id, data FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?',
-                (limit,)
-            )
+            cursor = conn.execute("SELECT event_id, data FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?", (limit,))
             events: list[dict[str, Any]] = []
             for row in cursor:
                 _, data = row
@@ -151,8 +148,8 @@ class OfflineQueue:
 
         conn = sqlite3.connect(self.db_path)
         try:
-            placeholders = ','.join('?' * len(event_ids))
-            conn.execute(f'DELETE FROM queue WHERE event_id IN ({placeholders})', event_ids)
+            placeholders = ",".join("?" * len(event_ids))
+            conn.execute(f"DELETE FROM queue WHERE event_id IN ({placeholders})", event_ids)
             conn.commit()
         finally:
             conn.close()
@@ -169,10 +166,9 @@ class OfflineQueue:
 
         conn = sqlite3.connect(self.db_path)
         try:
-            placeholders = ','.join('?' * len(event_ids))
+            placeholders = ",".join("?" * len(event_ids))
             conn.execute(
-                f'UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})',
-                event_ids
+                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})", event_ids
             )
             conn.commit()
         finally:
@@ -199,7 +195,7 @@ class OfflineQueue:
         """Remove all events from queue"""
         conn = sqlite3.connect(self.db_path)
         try:
-            conn.execute('DELETE FROM queue')
+            conn.execute("DELETE FROM queue")
             conn.commit()
         finally:
             conn.close()
@@ -257,8 +253,7 @@ class OfflineQueue:
         conn = sqlite3.connect(self.db_path)
         try:
             cursor = conn.execute(
-                'SELECT event_id, data FROM queue WHERE retry_count < ? ORDER BY timestamp ASC, id ASC',
-                (max_retries,)
+                "SELECT event_id, data FROM queue WHERE retry_count < ? ORDER BY timestamp ASC, id ASC", (max_retries,)
             )
             events: list[dict[str, Any]] = []
             for row in cursor:
@@ -289,9 +284,7 @@ class OfflineQueue:
                 return QueueStats()
 
             # Total retried (retry_count > 0)
-            total_retried_row = conn.execute(
-                "SELECT COUNT(*) FROM queue WHERE retry_count > 0"
-            ).fetchone()
+            total_retried_row = conn.execute("SELECT COUNT(*) FROM queue WHERE retry_count > 0").fetchone()
             total_retried = int(total_retried_row[0]) if total_retried_row is not None else 0
 
             # Oldest event age
@@ -304,7 +297,7 @@ class OfflineQueue:
                 oldest_event_age = now_dt - oldest_dt
 
             # Retry distribution buckets
-            cursor = conn.execute('''
+            cursor = conn.execute("""
                 SELECT
                     CASE
                         WHEN retry_count = 0 THEN '0 retries'
@@ -314,19 +307,19 @@ class OfflineQueue:
                     COUNT(*) as count
                 FROM queue
                 GROUP BY bucket
-            ''')
+            """)
             retry_distribution: dict[str, int] = {}
             for bucket, count in cursor:
                 retry_distribution[str(bucket)] = int(count)
 
             # Top 5 event types by count
-            cursor = conn.execute('''
+            cursor = conn.execute("""
                 SELECT event_type, COUNT(*) as count
                 FROM queue
                 GROUP BY event_type
                 ORDER BY count DESC
                 LIMIT 5
-            ''')
+            """)
             top_event_types: list[tuple[str, int]] = []
             for event_type, count in cursor:
                 top_event_types.append((str(event_type), int(count)))

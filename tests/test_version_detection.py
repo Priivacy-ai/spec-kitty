@@ -38,6 +38,7 @@ def get_venv_module_version() -> str:
         pytest.skip(f"Could not import module version: {result.stderr}")
     return result.stdout.strip()
 
+
 def run_cli_version() -> subprocess.CompletedProcess[str]:
     repo_root = Path(__file__).resolve().parents[1]
     env = os.environ.copy()
@@ -75,8 +76,9 @@ class TestVersionReading:
             pytest.skip(f"Could not read package metadata: {exc}")
 
         # Versions should match
-        assert module_version == metadata_version, \
+        assert module_version == metadata_version, (
             f"Module __version__ ({module_version}) should match package metadata ({metadata_version})"
+        )
 
     def test_cli_version_matches_package_metadata(self):
         """Verify spec-kitty --version command shows package metadata version."""
@@ -92,14 +94,14 @@ class TestVersionReading:
         output = result.stdout + result.stderr
 
         # Should show the package metadata version
-        assert metadata_version in output, \
-            f"CLI should show version {metadata_version}, got: {output}"
+        assert metadata_version in output, f"CLI should show version {metadata_version}, got: {output}"
 
     def test_no_hardcoded_version_in_init(self):
         """Verify __init__.py doesn't have hardcoded version string."""
         # Find the __init__.py file
         try:
             import specify_cli
+
             init_file = Path(specify_cli.__file__)
         except Exception as exc:
             pytest.skip(f"Could not locate __init__.py: {exc}")
@@ -108,15 +110,18 @@ class TestVersionReading:
 
         # Should NOT have hardcoded version like __version__ = "0.4.13"
         # Should use version_utils or importlib.metadata
-        assert 'version_utils' in init_content or 'importlib.metadata' in init_content or 'importlib_metadata' in init_content, \
-            "__init__.py should use version_utils.get_version() or importlib.metadata to read version dynamically"
+        assert (
+            "version_utils" in init_content
+            or "importlib.metadata" in init_content
+            or "importlib_metadata" in init_content
+        ), "__init__.py should use version_utils.get_version() or importlib.metadata to read version dynamically"
 
         # Should not have pattern like __version__ = "0.x.x"
         import re
+
         hardcoded_pattern = re.compile(r'__version__\s*=\s*["\']0\.\d+\.\d+["\']')
         match = hardcoded_pattern.search(init_content)
-        assert match is None, \
-            f"Found hardcoded version in __init__.py: {match.group(0) if match else 'N/A'}"
+        assert match is None, f"Found hardcoded version in __init__.py: {match.group(0) if match else 'N/A'}"
 
     def test_version_format(self):
         """Verify version is parseable as a valid PEP 440 version."""
@@ -127,8 +132,7 @@ class TestVersionReading:
         except InvalidVersion as exc:  # pragma: no cover - explicit failure path
             pytest.fail(f"Version '{module_version}' is not a valid PEP 440 version: {exc}")
 
-        assert len(parsed.release) >= 3, \
-            f"Version '{module_version}' should include major.minor.patch release segments"
+        assert len(parsed.release) >= 3, f"Version '{module_version}' should include major.minor.patch release segments"
 
 
 class TestVersionConsistency:
@@ -158,9 +162,9 @@ class TestVersionConsistency:
 
         # Should have a version number
         import re
-        version_pattern = re.compile(r'\d+\.\d+\.\d+')
-        assert version_pattern.search(output), \
-            f"Output should contain version number, got: {output}"
+
+        version_pattern = re.compile(r"\d+\.\d+\.\d+")
+        assert version_pattern.search(output), f"Output should contain version number, got: {output}"
 
     def test_all_version_methods_agree(self):
         """Verify all version access methods return the same value."""
@@ -179,11 +183,13 @@ class TestVersionConsistency:
         cli_output = result.stdout + result.stderr
 
         # All should agree
-        assert module_version == metadata_version, \
+        assert module_version == metadata_version, (
             f"Module version ({module_version}) should match metadata ({metadata_version})"
+        )
 
-        assert metadata_version in cli_output, \
+        assert metadata_version in cli_output, (
             f"CLI should show metadata version ({metadata_version}), got: {cli_output}"
+        )
 
 
 class TestEdgeCases:
@@ -212,8 +218,7 @@ class TestEdgeCases:
         result = run_cli_version()
 
         # Should not crash
-        assert result.returncode == 0, \
-            f"--version should not crash, got exit code {result.returncode}"
+        assert result.returncode == 0, f"--version should not crash, got exit code {result.returncode}"
 
         # Should produce output
         output = result.stdout + result.stderr
@@ -228,6 +233,7 @@ class TestVersionUpdateWorkflow:
         # Find pyproject.toml
         try:
             import specify_cli
+
             package_root = Path(specify_cli.__file__).parent.parent.parent
             pyproject = package_root / "pyproject.toml"
         except Exception:
@@ -240,6 +246,7 @@ class TestVersionUpdateWorkflow:
 
         # Should have a parseable version field
         import re
+
         version_pattern = re.compile(r'version\s*=\s*"([^"]+)"')
         match = version_pattern.search(content)
 
@@ -249,36 +256,37 @@ class TestVersionUpdateWorkflow:
                 parsed = Version(pyproject_version)
             except InvalidVersion as exc:  # pragma: no cover - explicit failure path
                 pytest.fail(f"pyproject.toml version '{pyproject_version}' is invalid: {exc}")
-            assert len(parsed.release) >= 3, \
+            assert len(parsed.release) >= 3, (
                 f"pyproject.toml version '{pyproject_version}' should include major.minor.patch"
+            )
 
     def test_version_not_imported_from_pyproject(self):
         """Verify version prioritizes importlib.metadata over pyproject.toml."""
         # Reading from pyproject.toml should be FALLBACK only, not primary
         # Should try importlib.metadata first
         import specify_cli
+
         init_file = Path(specify_cli.__file__)
         init_content = init_file.read_text()
 
         # Should delegate to version_utils
-        assert 'version_utils' in init_content or 'importlib.metadata' in init_content, \
+        assert "version_utils" in init_content or "importlib.metadata" in init_content, (
             "Should use version_utils.get_version() or importlib.metadata"
+        )
 
         # __init__.py should NOT parse pyproject.toml directly
-        assert 'pyproject.toml' not in init_content, \
-            "Should not parse pyproject.toml directly in __init__.py"
+        assert "pyproject.toml" not in init_content, "Should not parse pyproject.toml directly in __init__.py"
 
         # Verify version_utils uses importlib.metadata as primary method
         from specify_cli import version_utils
+
         utils_file = Path(version_utils.__file__)
         utils_content = utils_file.read_text()
 
-        assert 'importlib.metadata' in utils_content, \
-            "version_utils should try importlib.metadata first"
+        assert "importlib.metadata" in utils_content, "version_utils should try importlib.metadata first"
 
         # pyproject.toml is acceptable as FALLBACK in version_utils
-        assert 'pyproject.toml' in utils_content, \
-            "version_utils should have pyproject.toml fallback"
+        assert "pyproject.toml" in utils_content, "version_utils should have pyproject.toml fallback"
 
 
 class TestRegressionPrevention:
@@ -318,15 +326,13 @@ class TestRegressionPrevention:
         output = result.stdout + result.stderr
 
         # CLI should show current version, not old version
-        assert metadata_version in output, \
-            f"CLI should show current version {metadata_version}, got: {output}"
+        assert metadata_version in output, f"CLI should show current version {metadata_version}, got: {output}"
 
         # Specifically check it doesn't show old versions
         old_versions = ["0.4.13", "0.4.12", "0.4.11"]
         for old_ver in old_versions:
             if metadata_version != old_ver:  # Only check if we're not actually that version
-                assert old_ver not in output, \
-                    f"CLI should not show old version {old_ver}, got: {output}"
+                assert old_ver not in output, f"CLI should not show old version {old_ver}, got: {output}"
 
 
 class TestPackageMetadataIntegrity:
@@ -337,8 +343,7 @@ class TestPackageMetadataIntegrity:
         try:
             pkg_version = get_venv_metadata_version()
             result = run_venv_python(
-                "from importlib.metadata import metadata; "
-                "m = metadata('spec-kitty-cli'); print(m.get('Name'))"
+                "from importlib.metadata import metadata; m = metadata('spec-kitty-cli'); print(m.get('Name'))"
             )
             pkg_name = result.stdout.strip()
 
@@ -367,5 +372,4 @@ class TestPackageMetadataIntegrity:
         except InvalidVersion as exc:  # pragma: no cover - explicit failure path
             pytest.fail(f"Version '{pkg_version}' is not valid PEP 440: {exc}")
 
-        assert len(parsed.release) >= 3, \
-            f"Version '{pkg_version}' should include major.minor.patch release segments"
+        assert len(parsed.release) >= 3, f"Version '{pkg_version}' should include major.minor.patch release segments"

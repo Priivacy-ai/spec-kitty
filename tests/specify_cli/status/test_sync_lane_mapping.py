@@ -68,15 +68,11 @@ class TestCanonicalFanOut:
             (Lane.PLANNED, Lane.CANCELED),
         ],
     )
-    def test_fan_out_passes_canonical_lanes_directly(
-        self, from_lane: Lane, to_lane: Lane
-    ) -> None:
+    def test_fan_out_passes_canonical_lanes_directly(self, from_lane: Lane, to_lane: Lane) -> None:
         """Each canonical lane value is passed directly to emit_wp_status_changed."""
         event = self._make_event(from_lane=from_lane, to_lane=to_lane)
         mock_emit = MagicMock()
-        with patch(
-            "specify_cli.sync.events.emit_wp_status_changed", mock_emit
-        ):
+        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
             _saas_fan_out(event, "039-test-feature", None)
 
         mock_emit.assert_called_once_with(
@@ -92,9 +88,7 @@ class TestCanonicalFanOut:
         """planned->claimed is no longer a no-op (was collapsed to planned->planned)."""
         event = self._make_event(from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED)
         mock_emit = MagicMock()
-        with patch(
-            "specify_cli.sync.events.emit_wp_status_changed", mock_emit
-        ):
+        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
             _saas_fan_out(event, "039-test-feature", None)
         mock_emit.assert_called_once()
 
@@ -117,9 +111,7 @@ class TestCanonicalFanOut:
 class TestInvalidLaneHandling:
     """Ensure invalid lane values are rejected with TransitionError."""
 
-    def test_invalid_to_lane_raises_transition_error(
-        self, feature_dir: Path
-    ) -> None:
+    def test_invalid_to_lane_raises_transition_error(self, feature_dir: Path) -> None:
         """Completely unknown lane value raises TransitionError."""
         with pytest.raises(TransitionError):
             emit_status_transition(
@@ -130,9 +122,7 @@ class TestInvalidLaneHandling:
                 actor="tester",
             )
 
-    def test_empty_to_lane_raises_transition_error(
-        self, feature_dir: Path
-    ) -> None:
+    def test_empty_to_lane_raises_transition_error(self, feature_dir: Path) -> None:
         """Empty string lane value raises TransitionError."""
         with pytest.raises(TransitionError):
             emit_status_transition(
@@ -143,9 +133,7 @@ class TestInvalidLaneHandling:
                 actor="tester",
             )
 
-    def test_numeric_lane_raises_transition_error(
-        self, feature_dir: Path
-    ) -> None:
+    def test_numeric_lane_raises_transition_error(self, feature_dir: Path) -> None:
         """Numeric lane value raises TransitionError."""
         with pytest.raises(TransitionError):
             emit_status_transition(

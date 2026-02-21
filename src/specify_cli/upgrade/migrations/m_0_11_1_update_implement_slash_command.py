@@ -69,9 +69,7 @@ class UpdateImplementSlashCommandMigration(BaseMigration):
         # Try to load from packaged data
         try:
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
             if template_path.is_file():
                 return True, ""
         except Exception as e:
@@ -88,9 +86,7 @@ class UpdateImplementSlashCommandMigration(BaseMigration):
         # Load template from packaged missions
         try:
             data_root = files("specify_cli")
-            template_path = data_root.joinpath(
-                "missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE
-            )
+            template_path = data_root.joinpath("missions", self.MISSION_NAME, "command-templates", self.TEMPLATE_FILE)
 
             if not template_path.is_file():
                 errors.append("Template not found in packaged missions")

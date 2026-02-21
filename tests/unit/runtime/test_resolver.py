@@ -26,6 +26,7 @@ from specify_cli.runtime.resolver import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _create_file(path: Path, content: str = "placeholder") -> Path:
     """Create a file (and any missing parent dirs), return its path."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,6 +66,7 @@ def _setup_all_tiers(
 # ---------------------------------------------------------------------------
 # T018 -- Resolution precedence tests (G2)
 # ---------------------------------------------------------------------------
+
 
 class TestResolutionPrecedence:
     """Test that the 4-tier precedence chain is respected."""
@@ -199,6 +201,7 @@ class TestResolutionPrecedence:
 # T018 -- resolve_command and resolve_mission tests
 # ---------------------------------------------------------------------------
 
+
 class TestResolveCommand:
     """Test resolve_command follows the same 4-tier chain for command-templates/."""
 
@@ -256,9 +259,7 @@ class TestResolveMission:
         kittify = project / ".kittify"
         pkg_root = tmp_path / "pkg"
 
-        override_path = _create_file(
-            kittify / "overrides" / "missions" / "software-dev" / "mission.yaml"
-        )
+        override_path = _create_file(kittify / "overrides" / "missions" / "software-dev" / "mission.yaml")
         _create_file(pkg_root / "software-dev" / "mission.yaml")
 
         with (
@@ -323,6 +324,7 @@ class TestResolveMission:
 # ---------------------------------------------------------------------------
 # T019 -- Legacy resolution tests (F-Legacy)
 # ---------------------------------------------------------------------------
+
 
 class TestLegacyResolution:
     """Tests for the F-Legacy family of acceptance criteria."""
@@ -452,6 +454,7 @@ class TestLegacyResolution:
 # T018 -- ResolutionResult dataclass tests
 # ---------------------------------------------------------------------------
 
+
 class TestResolutionResult:
     """Verify ResolutionResult is frozen and has correct defaults."""
 
@@ -472,6 +475,7 @@ class TestResolutionResult:
 # ---------------------------------------------------------------------------
 # Init integration -- _resolve_mission_command_templates_dir uses 4-tier
 # ---------------------------------------------------------------------------
+
 
 class TestInitResolverIntegration:
     """Prove that init template discovery respects the full 4-tier chain.
@@ -521,7 +525,9 @@ class TestInitResolverIntegration:
             ),
         ):
             resolved_dir = _resolve_mission_command_templates_dir(
-                project, "software-dev", scratch_parent=tmp_path / "scratch",
+                project,
+                "software-dev",
+                scratch_parent=tmp_path / "scratch",
             )
 
         plan_file = resolved_dir / "plan.md"
@@ -569,7 +575,9 @@ class TestInitResolverIntegration:
             ),
         ):
             resolved_dir = _resolve_mission_command_templates_dir(
-                project, "software-dev", scratch_parent=tmp_path / "scratch",
+                project,
+                "software-dev",
+                scratch_parent=tmp_path / "scratch",
             )
 
         impl_file = resolved_dir / "implement.md"
@@ -630,7 +638,9 @@ class TestInitResolverIntegration:
             ),
         ):
             resolved_dir = _resolve_mission_command_templates_dir(
-                project, "software-dev", scratch_parent=tmp_path / "scratch",
+                project,
+                "software-dev",
+                scratch_parent=tmp_path / "scratch",
             )
 
         assert (resolved_dir / "plan.md").read_text() == "# Override plan"
@@ -663,7 +673,9 @@ class TestInitResolverIntegration:
             ),
         ):
             resolved_dir = _resolve_mission_command_templates_dir(
-                project, "software-dev", scratch_parent=tmp_path / "scratch",
+                project,
+                "software-dev",
+                scratch_parent=tmp_path / "scratch",
             )
 
         assert resolved_dir.is_dir()

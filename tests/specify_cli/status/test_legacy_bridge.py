@@ -24,6 +24,7 @@ from specify_cli.status.models import StatusSnapshot
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def create_wp_file(tasks_dir: Path, wp_id: str, title: str, lane: str, *, extra_fields: dict | None = None) -> Path:
     """Create a minimal WP markdown file with frontmatter."""
     fm = FrontmatterManager()
@@ -82,6 +83,7 @@ def create_snapshot(
 # Frontmatter view tests
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateFrontmatterViews:
     """Tests for update_frontmatter_views()."""
 
@@ -114,6 +116,7 @@ class TestUpdateFrontmatterViews:
 
         # Small delay to ensure mtime would differ if file were written
         import time
+
         time.sleep(0.01)
 
         update_frontmatter_views(feature_dir, snapshot)
@@ -131,11 +134,14 @@ class TestUpdateFrontmatterViews:
         create_wp_file(tasks_dir, "WP02", "Second Task", "planned")
         create_wp_file(tasks_dir, "WP03", "Third Task", "in_progress")
 
-        snapshot = create_snapshot("034-test-feature", {
-            "WP01": "for_review",
-            "WP02": "done",
-            "WP03": "blocked",
-        })
+        snapshot = create_snapshot(
+            "034-test-feature",
+            {
+                "WP01": "for_review",
+                "WP02": "done",
+                "WP03": "blocked",
+            },
+        )
 
         update_frontmatter_views(feature_dir, snapshot)
 
@@ -157,10 +163,13 @@ class TestUpdateFrontmatterViews:
 
         create_wp_file(tasks_dir, "WP01", "Test Task", "planned")
 
-        snapshot = create_snapshot("034-test-feature", {
-            "WP01": "for_review",
-            "WP04": "done",
-        })
+        snapshot = create_snapshot(
+            "034-test-feature",
+            {
+                "WP01": "for_review",
+                "WP04": "done",
+            },
+        )
 
         with caplog.at_level("WARNING"):
             update_frontmatter_views(feature_dir, snapshot)
@@ -180,7 +189,10 @@ class TestUpdateFrontmatterViews:
         tasks_dir.mkdir(parents=True)
 
         create_wp_file(
-            tasks_dir, "WP01", "Test Task", "planned",
+            tasks_dir,
+            "WP01",
+            "Test Task",
+            "planned",
             extra_fields={
                 "assignee": "alice",
                 "agent": "claude",
@@ -296,6 +308,7 @@ class TestUpdateFrontmatterViews:
 # Tasks.md view tests
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateTasksMdViews:
     """Tests for update_tasks_md_views()."""
 
@@ -371,6 +384,7 @@ class TestUpdateTasksMdViews:
 # Phase-aware behavior tests
 # ---------------------------------------------------------------------------
 
+
 class TestPhaseAwareBehavior:
     """Tests for update_all_views() phase-aware routing."""
 
@@ -389,6 +403,7 @@ class TestPhaseAwareBehavior:
         snapshot = create_snapshot("034-test-feature", {"WP01": "for_review"})
 
         import time
+
         time.sleep(0.01)
 
         update_all_views(feature_dir, snapshot, repo_root=tmp_path)
@@ -478,6 +493,7 @@ class TestPhaseAwareBehavior:
 # Round-trip consistency tests
 # ---------------------------------------------------------------------------
 
+
 class TestRoundTripConsistency:
     """Tests for round-trip read/write consistency."""
 
@@ -509,8 +525,7 @@ class TestRoundTripConsistency:
             }[wp_id]
             frontmatter, _ = fm.read(tasks_dir / f"{wp_id}-{slug}.md")
             assert frontmatter["lane"] == expected_lane, (
-                f"Round-trip mismatch for {wp_id}: "
-                f"expected {expected_lane}, got {frontmatter['lane']}"
+                f"Round-trip mismatch for {wp_id}: expected {expected_lane}, got {frontmatter['lane']}"
             )
 
     def test_idempotent_update(self, tmp_path: Path) -> None:
@@ -533,6 +548,7 @@ class TestRoundTripConsistency:
 
         # Record mtime after first update
         import time
+
         time.sleep(0.01)
         mtime_after_first = wp_file.stat().st_mtime_ns
 
@@ -547,6 +563,7 @@ class TestRoundTripConsistency:
 # ---------------------------------------------------------------------------
 # Error handling tests
 # ---------------------------------------------------------------------------
+
 
 class TestErrorHandling:
     """Tests for error propagation and edge cases."""

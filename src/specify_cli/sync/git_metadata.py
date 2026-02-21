@@ -153,11 +153,7 @@ class GitMetadataResolver:
                 errors="replace",
                 timeout=5,
             )
-            branch = (
-                branch_result.stdout.strip()
-                if branch_result.returncode == 0
-                else None
-            )
+            branch = branch_result.stdout.strip() if branch_result.returncode == 0 else None
 
             # Get HEAD SHA
             sha_result = subprocess.run(
@@ -169,11 +165,7 @@ class GitMetadataResolver:
                 errors="replace",
                 timeout=5,
             )
-            sha = (
-                sha_result.stdout.strip()
-                if sha_result.returncode == 0
-                else None
-            )
+            sha = sha_result.stdout.strip() if sha_result.returncode == 0 else None
 
             return branch, sha
         except FileNotFoundError:
@@ -200,8 +192,7 @@ class GitMetadataResolver:
                 return self._cached_repo_slug
             else:
                 logger.warning(
-                    "Invalid repo_slug override '%s' (expected owner/repo format); "
-                    "falling back to auto-derived",
+                    "Invalid repo_slug override '%s' (expected owner/repo format); falling back to auto-derived",
                     self._repo_slug_override,
                 )
 

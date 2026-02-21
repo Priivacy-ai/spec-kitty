@@ -109,8 +109,11 @@ class TestEventEnvelope:
         auth = MagicMock()
         auth.get_team_slug.side_effect = Exception("Not authenticated")
         em = EventEmitter(
-            clock=temp_clock, config=mock_config, queue=temp_queue,
-            _auth=auth, ws_client=None,
+            clock=temp_clock,
+            config=mock_config,
+            queue=temp_queue,
+            _auth=auth,
+            ws_client=None,
         )
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
@@ -170,7 +173,9 @@ class TestWPStatusChanged:
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
         """WPStatusChanged event has correct structure."""
         event = emitter.emit_wp_status_changed(
-            wp_id="WP01", from_lane="planned", to_lane="in_progress",
+            wp_id="WP01",
+            from_lane="planned",
+            to_lane="in_progress",
         )
         assert event is not None
         assert event["event_type"] == "WPStatusChanged"
@@ -189,7 +194,10 @@ class TestWPStatusChanged:
     def test_actor_agent(self, emitter: EventEmitter, temp_queue):
         """actor can be set to agent name."""
         event = emitter.emit_wp_status_changed(
-            "WP01", "planned", "in_progress", actor="claude-opus",
+            "WP01",
+            "planned",
+            "in_progress",
+            actor="claude-opus",
         )
         assert event is not None
         assert event["payload"]["actor"] == "claude-opus"
@@ -197,7 +205,10 @@ class TestWPStatusChanged:
     def test_feature_slug_optional(self, emitter: EventEmitter, temp_queue):
         """feature_slug is optional and nullable."""
         event = emitter.emit_wp_status_changed(
-            "WP01", "planned", "in_progress", feature_slug="028-sync",
+            "WP01",
+            "planned",
+            "in_progress",
+            feature_slug="028-sync",
         )
         assert event is not None
         assert event["payload"]["feature_slug"] == "028-sync"
@@ -221,7 +232,9 @@ class TestWPCreated:
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
         """WPCreated event has correct structure."""
         event = emitter.emit_wp_created(
-            wp_id="WP01", title="Implement sync", feature_slug="028-sync",
+            wp_id="WP01",
+            title="Implement sync",
+            feature_slug="028-sync",
         )
         assert event is not None
         assert event["event_type"] == "WPCreated"
@@ -239,7 +252,10 @@ class TestWPCreated:
     def test_dependencies_list(self, emitter: EventEmitter, temp_queue):
         """Dependencies can be a list of WP IDs."""
         event = emitter.emit_wp_created(
-            "WP02", "Title", "028-sync", dependencies=["WP01"],
+            "WP02",
+            "Title",
+            "028-sync",
+            dependencies=["WP01"],
         )
         assert event is not None
         assert event["payload"]["dependencies"] == ["WP01"]
@@ -251,7 +267,9 @@ class TestWPAssigned:
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
         """WPAssigned event has correct structure."""
         event = emitter.emit_wp_assigned(
-            wp_id="WP01", agent_id="claude-opus", phase="implementation",
+            wp_id="WP01",
+            agent_id="claude-opus",
+            phase="implementation",
         )
         assert event is not None
         assert event["event_type"] == "WPAssigned"
@@ -298,7 +316,10 @@ class TestFeatureCreated:
     def test_created_at_optional(self, emitter: EventEmitter, temp_queue):
         """created_at is optional."""
         event = emitter.emit_feature_created(
-            "028-sync", "028", "main", 5,
+            "028-sync",
+            "028",
+            "main",
+            5,
             created_at="2026-02-04T12:00:00+00:00",
         )
         assert event is not None
@@ -311,7 +332,8 @@ class TestFeatureCompleted:
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
         """FeatureCompleted event has correct structure."""
         event = emitter.emit_feature_completed(
-            feature_slug="028-sync", total_wps=7,
+            feature_slug="028-sync",
+            total_wps=7,
         )
         assert event is not None
         assert event["event_type"] == "FeatureCompleted"
@@ -321,7 +343,8 @@ class TestFeatureCompleted:
     def test_optional_fields(self, emitter: EventEmitter, temp_queue):
         """completed_at and total_duration are optional."""
         event = emitter.emit_feature_completed(
-            "028-sync", 7,
+            "028-sync",
+            7,
             completed_at="2026-02-04T18:00:00+00:00",
             total_duration="6h",
         )
@@ -336,7 +359,9 @@ class TestHistoryAdded:
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
         """HistoryAdded event has correct structure."""
         event = emitter.emit_history_added(
-            wp_id="WP01", entry_type="note", entry_content="Started implementation",
+            wp_id="WP01",
+            entry_type="note",
+            entry_content="Started implementation",
         )
         assert event is not None
         assert event["event_type"] == "HistoryAdded"
@@ -362,7 +387,8 @@ class TestErrorLogged:
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
         """ErrorLogged event has correct structure."""
         event = emitter.emit_error_logged(
-            error_type="runtime", error_message="Something broke",
+            error_type="runtime",
+            error_message="Something broke",
         )
         assert event is not None
         assert event["event_type"] == "ErrorLogged"
@@ -372,7 +398,9 @@ class TestErrorLogged:
     def test_aggregate_id_uses_wp_id(self, emitter: EventEmitter, temp_queue):
         """aggregate_id is wp_id when provided."""
         event = emitter.emit_error_logged(
-            "runtime", "error", wp_id="WP01",
+            "runtime",
+            "error",
+            wp_id="WP01",
         )
         assert event is not None
         assert event["aggregate_id"] == "WP01"
@@ -388,8 +416,11 @@ class TestErrorLogged:
     def test_optional_fields(self, emitter: EventEmitter, temp_queue):
         """stack_trace and agent_id are optional."""
         event = emitter.emit_error_logged(
-            "network", "timeout",
-            wp_id="WP01", stack_trace="Traceback...", agent_id="claude",
+            "network",
+            "timeout",
+            wp_id="WP01",
+            stack_trace="Traceback...",
+            agent_id="claude",
         )
         assert event is not None
         assert event["payload"]["stack_trace"] == "Traceback..."
@@ -408,7 +439,9 @@ class TestDependencyResolved:
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
         """DependencyResolved event has correct structure."""
         event = emitter.emit_dependency_resolved(
-            wp_id="WP02", dependency_wp_id="WP01", resolution_type="completed",
+            wp_id="WP02",
+            dependency_wp_id="WP01",
+            resolution_type="completed",
         )
         assert event is not None
         assert event["event_type"] == "DependencyResolved"
@@ -588,9 +621,12 @@ class TestGitMetadataInEvents:
         null_resolver.resolve.return_value = null_metadata
 
         em = EventEmitter(
-            clock=temp_clock, config=mock_config, queue=temp_queue,
+            clock=temp_clock,
+            config=mock_config,
+            queue=temp_queue,
             _auth=MagicMock(get_team_slug=MagicMock(return_value="test")),
-            ws_client=None, _identity=mock_identity,
+            ws_client=None,
+            _identity=mock_identity,
             _git_resolver=null_resolver,
         )
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
@@ -608,9 +644,12 @@ class TestGitMetadataInEvents:
         resolver.resolve.return_value = partial
 
         em = EventEmitter(
-            clock=temp_clock, config=mock_config, queue=temp_queue,
+            clock=temp_clock,
+            config=mock_config,
+            queue=temp_queue,
             _auth=MagicMock(get_team_slug=MagicMock(return_value="test")),
-            ws_client=None, _identity=mock_identity,
+            ws_client=None,
+            _identity=mock_identity,
             _git_resolver=resolver,
         )
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
@@ -700,7 +739,9 @@ class TestInternalValidation:
     def test_invalid_causation_id_format(self, emitter: EventEmitter, temp_queue):
         """Non-ULID causation_id causes validation failure."""
         event = emitter.emit_wp_status_changed(
-            "WP01", "planned", "in_progress",
+            "WP01",
+            "planned",
+            "in_progress",
             causation_id="not-a-ulid",  # too short, wrong format
         )
         assert event is None
@@ -708,7 +749,10 @@ class TestInternalValidation:
     def test_created_at_non_datetime_validation(self, emitter: EventEmitter, temp_queue):
         """Invalid created_at datetime string fails FeatureCreated validation."""
         event = emitter.emit_feature_created(
-            "028-sync", "028", "main", 5,
+            "028-sync",
+            "028",
+            "main",
+            5,
             created_at="not-a-date",
         )
         assert event is None
@@ -716,7 +760,8 @@ class TestInternalValidation:
     def test_completed_at_non_datetime_validation(self, emitter: EventEmitter, temp_queue):
         """Invalid completed_at datetime string fails FeatureCompleted validation."""
         event = emitter.emit_feature_completed(
-            "028-sync", 5,
+            "028-sync",
+            5,
             completed_at="not-a-date",
         )
         assert event is None
@@ -728,8 +773,11 @@ class TestInternalValidation:
         auth.is_authenticated.return_value = False
 
         em = EventEmitter(
-            clock=temp_clock, config=mock_config, queue=temp_queue,
-            _auth=auth, ws_client=None,
+            clock=temp_clock,
+            config=mock_config,
+            queue=temp_queue,
+            _auth=auth,
+            ws_client=None,
         )
 
         # Monkey-patch _validate_event to raise
@@ -741,8 +789,11 @@ class TestInternalValidation:
     def test_lazy_auth_creation(self, temp_queue, temp_clock, mock_config):
         """Auth is lazily created when _auth is None."""
         em = EventEmitter(
-            clock=temp_clock, config=mock_config, queue=temp_queue,
-            _auth=None, ws_client=None,
+            clock=temp_clock,
+            config=mock_config,
+            queue=temp_queue,
+            _auth=None,
+            ws_client=None,
         )
         # Accessing auth property should create AuthClient via lazy import
         with patch("specify_cli.sync.auth.AuthClient") as MockAuth:

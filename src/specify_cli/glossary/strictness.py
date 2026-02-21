@@ -164,10 +164,7 @@ def should_block(
     from .models import Severity
 
     _known_severities = set(Severity)
-    return any(
-        c.severity == Severity.HIGH or c.severity not in _known_severities
-        for c in conflicts
-    )
+    return any(c.severity == Severity.HIGH or c.severity not in _known_severities for c in conflicts)
 
 
 def categorize_conflicts(

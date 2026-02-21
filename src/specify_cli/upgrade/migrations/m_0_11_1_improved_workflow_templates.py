@@ -160,9 +160,7 @@ class ImprovedWorkflowTemplatesMigration(BaseMigration):
             changes.append("Templates emphasize automated file updates (no manual editing)")
             changes.append("Prevents state corruption from incomplete workflows")
         elif not changes:
-            warnings.append(
-                "No templates were updated (already updated or mission templates missing)"
-            )
+            warnings.append("No templates were updated (already updated or mission templates missing)")
 
         success = len(errors) == 0
         return MigrationResult(

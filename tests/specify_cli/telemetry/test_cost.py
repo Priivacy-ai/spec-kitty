@@ -1,4 +1,5 @@
 """Tests for cost tracking and pricing table functionality."""
+
 from datetime import datetime, timezone
 
 import pytest

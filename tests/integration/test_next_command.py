@@ -49,7 +49,8 @@ def _scaffold_project(
     feature_dir = repo_root / "kitty-specs" / feature_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(
-        json.dumps({"mission": mission_key}), encoding="utf-8",
+        json.dumps({"mission": mission_key}),
+        encoding="utf-8",
     )
 
     return repo_root
@@ -106,7 +107,17 @@ def _advance_runtime_to_step(
     mission_key = get_feature_mission_key(feature_dir)
     run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
 
-    step_order = ["discovery", "specify", "plan", "tasks_outline", "tasks_packages", "tasks_finalize", "implement", "review", "accept"]
+    step_order = [
+        "discovery",
+        "specify",
+        "plan",
+        "tasks_outline",
+        "tasks_packages",
+        "tasks_finalize",
+        "implement",
+        "review",
+        "accept",
+    ]
     target_idx = step_order.index(target_step_id) if target_step_id in step_order else -1
 
     for _ in range(target_idx + 2):
@@ -211,11 +222,14 @@ class TestNextCommandImplementState:
     def test_implement_state_picks_planned_wp(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {
-            "WP01": "done",
-            "WP02": "planned",
-            "WP03": "planned",
-        })
+        _add_wp_files(
+            feature_dir,
+            {
+                "WP01": "done",
+                "WP02": "planned",
+                "WP03": "planned",
+            },
+        )
         # Advance runtime to implement step
         _advance_runtime_to_step(repo_root, "042-test-feature", "implement")
 
@@ -230,10 +244,13 @@ class TestNextCommandImplementState:
     def test_implement_state_no_planned_checks_for_review(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {
-            "WP01": "done",
-            "WP02": "for_review",
-        })
+        _add_wp_files(
+            feature_dir,
+            {
+                "WP01": "done",
+                "WP02": "for_review",
+            },
+        )
         # Advance runtime to implement step
         _advance_runtime_to_step(repo_root, "042-test-feature", "implement")
 
@@ -247,10 +264,13 @@ class TestNextCommandImplementState:
     def test_all_wps_done_advances_to_review(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {
-            "WP01": "done",
-            "WP02": "done",
-        })
+        _add_wp_files(
+            feature_dir,
+            {
+                "WP01": "done",
+                "WP02": "done",
+            },
+        )
         # Advance runtime to implement step
         _advance_runtime_to_step(repo_root, "042-test-feature", "implement")
 
@@ -267,11 +287,14 @@ class TestNextCommandProgress:
     def test_progress_in_decision(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {
-            "WP01": "done",
-            "WP02": "doing",
-            "WP03": "planned",
-        })
+        _add_wp_files(
+            feature_dir,
+            {
+                "WP01": "done",
+                "WP02": "doing",
+                "WP03": "planned",
+            },
+        )
 
         from specify_cli.next.decision import decide_next
 
@@ -334,10 +357,7 @@ class TestNextCommandKnownBlockedMissions:
 
     @pytest.mark.xfail(
         strict=True,
-        reason=(
-            "Tracked in docs/development/tracking/next-mission-mappings/"
-            "issue-plan-mission-next-mapping.md"
-        ),
+        reason=("Tracked in docs/development/tracking/next-mission-mappings/issue-plan-mission-next-mapping.md"),
     )
     def test_plan_mission_should_return_runnable_step_when_mapped(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(
@@ -355,8 +375,7 @@ class TestNextCommandKnownBlockedMissions:
     @pytest.mark.xfail(
         strict=True,
         reason=(
-            "Tracked in docs/development/tracking/next-mission-mappings/"
-            "issue-documentation-mission-next-mapping.md"
+            "Tracked in docs/development/tracking/next-mission-mappings/issue-documentation-mission-next-mapping.md"
         ),
     )
     def test_documentation_mission_should_return_runnable_step_when_mapped(self, tmp_path: Path) -> None:
@@ -502,8 +521,7 @@ class TestNextCommandCLI:
         assert feature_runs.exists(), "Feature-runs index should exist"
 
         # Verify the step has progressed
-        assert d1["step_id"] != d2["step_id"] or d1["step_id"] is None, \
-            "Steps should advance between calls"
+        assert d1["step_id"] != d2["step_id"] or d1["step_id"] is None, "Steps should advance between calls"
 
     def test_json_output_includes_runtime_fields(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """JSON output includes new runtime fields."""
@@ -527,7 +545,6 @@ class TestNextCommandCLI:
 
 
 class TestNextCommandAnswerJSON:
-
     def test_answer_json_single_document(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Successful answer flow emits one JSON document with merged answer fields."""
         repo_root = _scaffold_project(tmp_path, mission_key="input-mission")
@@ -548,8 +565,14 @@ class TestNextCommandAnswerJSON:
         r = runner.invoke(
             cli_app,
             [
-                "next", "--agent", "test", "--feature", "042-test-feature",
-                "--answer", "yes", "--json",
+                "next",
+                "--agent",
+                "test",
+                "--feature",
+                "042-test-feature",
+                "--answer",
+                "yes",
+                "--json",
             ],
         )
         assert r.exit_code == 0, r.output
@@ -569,7 +592,11 @@ class TestNextCommandAnswerJSON:
         first = runner.invoke(
             cli_app,
             [
-                "next", "--agent", "test", "--feature", "042-test-feature",
+                "next",
+                "--agent",
+                "test",
+                "--feature",
+                "042-test-feature",
                 "--json",
             ],
         )
@@ -578,8 +605,14 @@ class TestNextCommandAnswerJSON:
         r = runner.invoke(
             cli_app,
             [
-                "next", "--agent", "test", "--feature", "042-test-feature",
-                "--answer", "yes", "--json",
+                "next",
+                "--agent",
+                "test",
+                "--feature",
+                "042-test-feature",
+                "--answer",
+                "yes",
+                "--json",
             ],
         )
         assert r.exit_code == 0, r.output
@@ -598,7 +631,6 @@ class TestNextCommandAnswerJSON:
 
 
 class TestNextCommandDecisionRequired:
-
     def test_decision_required_has_question_field_in_json(self, tmp_path: Path) -> None:
         """JSON output includes question/options for real runtime decision_required."""
         repo_root = _scaffold_project(tmp_path, mission_key="input-mission")
@@ -632,7 +664,6 @@ class TestNextCommandDecisionRequired:
 
 
 class TestAtomicTaskTransitions:
-
     def test_plan_to_tasks_outline_to_packages_to_finalize(self, tmp_path: Path) -> None:
         """Advance through all 3 atomic task steps in the correct order."""
         repo_root = _scaffold_project(tmp_path)

@@ -276,9 +276,7 @@ class TestUnauthenticatedBehavior:
                                 assert runtime.ws_client is mock_ws
                                 mock_ensure_future.assert_not_called()
 
-    def test_websocket_connect_scheduled_with_running_loop(
-        self, tmp_path, monkeypatch
-    ):
+    def test_websocket_connect_scheduled_with_running_loop(self, tmp_path, monkeypatch):
         """When an event loop is running, runtime schedules async connect."""
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()

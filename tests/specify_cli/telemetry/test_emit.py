@@ -126,9 +126,7 @@ def test_emit_clock_persists(tmp_path: Path) -> None:
 
 def test_emit_swallows_errors(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """If the store raises, no exception propagates and a warning is logged."""
-    with patch.object(
-        SimpleJsonStore, "save_event", side_effect=OSError("disk full")
-    ):
+    with patch.object(SimpleJsonStore, "save_event", side_effect=OSError("disk full")):
         with caplog.at_level(logging.WARNING):
             # Must NOT raise
             emit_execution_event(

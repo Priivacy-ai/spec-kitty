@@ -13,7 +13,6 @@ import subprocess
 from pathlib import Path
 
 
-
 class TestConstitutionDiscovery:
     """Tests for constitution file discovery."""
 

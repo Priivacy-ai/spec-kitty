@@ -128,11 +128,11 @@ def repair_lane_mismatch(
     if add_history:
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         history_entry = (
-            f"  - timestamp: \"{timestamp}\"\n"
-            f"    lane: \"{expected_lane}\"\n"
-            f"    agent: \"{agent}\"\n"
-            f"    shell_pid: \"{shell_pid}\"\n"
-            f"    action: \"Auto-repaired lane metadata (was: {actual_lane})\"\n"
+            f'  - timestamp: "{timestamp}"\n'
+            f'    lane: "{expected_lane}"\n'
+            f'    agent: "{agent}"\n'
+            f'    shell_pid: "{shell_pid}"\n'
+            f'    action: "Auto-repaired lane metadata (was: {actual_lane})"\n'
         )
 
         # Find activity_log in frontmatter
@@ -141,13 +141,15 @@ def repair_lane_mismatch(
             existing_log = frontmatter.get("activity_log", "")
             if isinstance(existing_log, list):
                 # Already parsed as list - append dict
-                frontmatter["activity_log"].append({
-                    "timestamp": timestamp,
-                    "lane": expected_lane,
-                    "agent": agent,
-                    "shell_pid": shell_pid,
-                    "action": f"Auto-repaired lane metadata (was: {actual_lane})"
-                })
+                frontmatter["activity_log"].append(
+                    {
+                        "timestamp": timestamp,
+                        "lane": expected_lane,
+                        "agent": agent,
+                        "shell_pid": shell_pid,
+                        "action": f"Auto-repaired lane metadata (was: {actual_lane})",
+                    }
+                )
             elif isinstance(existing_log, str):
                 # Raw YAML string - append entry
                 frontmatter["activity_log"] = existing_log.rstrip() + "\n" + history_entry
@@ -199,9 +201,7 @@ def validate_task_metadata(task_file: Path) -> list[str]:
     # Check lane mismatch
     has_mismatch, expected_lane, actual_lane = detect_lane_mismatch(task_file)
     if has_mismatch:
-        issues.append(
-            f"Lane mismatch: file in '{expected_lane}/' but metadata says '{actual_lane}'"
-        )
+        issues.append(f"Lane mismatch: file in '{expected_lane}/' but metadata says '{actual_lane}'")
 
     # Parse frontmatter
     try:

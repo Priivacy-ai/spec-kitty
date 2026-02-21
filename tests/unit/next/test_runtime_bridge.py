@@ -42,7 +42,8 @@ def _scaffold_project(
     feature_dir = repo_root / "kitty-specs" / feature_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(
-        json.dumps({"mission": mission_key}), encoding="utf-8",
+        json.dumps({"mission": mission_key}),
+        encoding="utf-8",
     )
 
     return repo_root
@@ -64,7 +65,6 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
 
 
 class TestRuntimeTemplateKey:
-
     def test_project_override_takes_precedence(self, tmp_path: Path) -> None:
         """Project-level mission-runtime.yaml shadows the built-in."""
         repo_root = _scaffold_project(tmp_path)
@@ -81,12 +81,12 @@ class TestRuntimeTemplateKey:
         )
 
         result = _runtime_template_key("software-dev", repo_root)
-        assert result == str(project_yaml), (
-            f"Project override must take precedence, got: {result}"
-        )
+        assert result == str(project_yaml), f"Project override must take precedence, got: {result}"
 
     def test_env_takes_precedence_over_project_override(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """SPEC_KITTY_MISSION_PATHS outranks project override for runtime templates."""
         repo_root = _scaffold_project(tmp_path)
@@ -160,7 +160,6 @@ class TestRuntimeTemplateKey:
 
 
 class TestGetOrStartRun:
-
     def test_creates_new_run(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
@@ -213,18 +212,21 @@ class TestGetOrStartRun:
 
 
 class TestWPIteration:
-
     def test_wp_iteration_does_not_advance_runtime(self, tmp_path: Path) -> None:
         """When WPs remain, runtime step should not advance."""
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {
-            "WP01": "planned",
-            "WP02": "planned",
-        })
+        _add_wp_files(
+            feature_dir,
+            {
+                "WP01": "planned",
+                "WP02": "planned",
+            },
+        )
 
         from specify_cli.next.runtime_bridge import (
-            get_or_start_run, decide_next_via_runtime,
+            get_or_start_run,
+            decide_next_via_runtime,
         )
         from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
         from spec_kitty_runtime.engine import _read_snapshot
@@ -252,13 +254,17 @@ class TestWPIteration:
         """When all WPs are done, runtime should advance past implement."""
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
-        _add_wp_files(feature_dir, {
-            "WP01": "done",
-            "WP02": "done",
-        })
+        _add_wp_files(
+            feature_dir,
+            {
+                "WP01": "done",
+                "WP02": "done",
+            },
+        )
 
         from specify_cli.next.runtime_bridge import (
-            get_or_start_run, decide_next_via_runtime,
+            get_or_start_run,
+            decide_next_via_runtime,
         )
         from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
         from spec_kitty_runtime.engine import _read_snapshot
@@ -283,7 +289,6 @@ class TestWPIteration:
 
 
 class TestRuntimeResultFlow:
-
     @staticmethod
     def _read_run_events(run_dir: Path) -> list[dict]:
         event_file = run_dir / "run.events.jsonl"
@@ -314,7 +319,7 @@ class TestRuntimeResultFlow:
         assert failed.kind == DecisionKind.blocked
         assert failed.run_id == run_ref.run_id
         assert len(after) > len(before), "failed path must append runtime lifecycle event(s)"
-        assert any(evt["event_type"] == "NextStepAutoCompleted" for evt in after[len(before):])
+        assert any(evt["event_type"] == "NextStepAutoCompleted" for evt in after[len(before) :])
 
     def test_blocked_result_flows_through_runtime_event_log(self, tmp_path: Path) -> None:
         """A blocked result must call runtime next_step and append canonical events."""
@@ -335,7 +340,7 @@ class TestRuntimeResultFlow:
         assert blocked.kind == DecisionKind.blocked
         assert blocked.run_id == run_ref.run_id
         assert len(after) > len(before), "blocked path must append runtime lifecycle event(s)"
-        assert any(evt["event_type"] == "NextStepAutoCompleted" for evt in after[len(before):])
+        assert any(evt["event_type"] == "NextStepAutoCompleted" for evt in after[len(before) :])
 
 
 # ---------------------------------------------------------------------------
@@ -344,7 +349,6 @@ class TestRuntimeResultFlow:
 
 
 class TestGuardChecks:
-
     def test_specify_guard_blocks_without_spec(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
@@ -401,7 +405,6 @@ class TestGuardChecks:
 
 
 class TestMapRuntimeDecision:
-
     def test_map_preserves_json_contract(self, tmp_path: Path) -> None:
         """Mapped decisions have all required JSON fields."""
         repo_root = _scaffold_project(tmp_path)
@@ -435,7 +438,6 @@ class TestMapRuntimeDecision:
 
 
 class TestAnswerDecision:
-
     def test_answer_without_pending_raises(self, tmp_path: Path) -> None:
         """Answering when no decisions pending raises error."""
         repo_root = _scaffold_project(tmp_path)
@@ -445,7 +447,11 @@ class TestAnswerDecision:
 
         with pytest.raises(MissionRuntimeError, match="not found"):
             answer_decision_via_runtime(
-                "042-test-feature", "nonexistent", "yes", "test", repo_root,
+                "042-test-feature",
+                "nonexistent",
+                "yes",
+                "test",
+                repo_root,
             )
 
 
@@ -455,7 +461,6 @@ class TestAnswerDecision:
 
 
 class TestFullLoop:
-
     def test_full_loop_step_to_terminal(self, tmp_path: Path) -> None:
         """Drive mission from start to terminal through all steps."""
         repo_root = _scaffold_project(tmp_path)
@@ -518,7 +523,6 @@ class TestFullLoop:
 
 
 class TestWPStepHelpers:
-
     def test_is_wp_iteration_step(self) -> None:
         from specify_cli.next.runtime_bridge import _is_wp_iteration_step
 
@@ -569,7 +573,6 @@ class TestWPStepHelpers:
 
 
 class TestAtomicTaskSteps:
-
     def test_tasks_outline_guard_blocks_without_tasks_md(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"

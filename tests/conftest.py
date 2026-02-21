@@ -61,12 +61,7 @@ def _venv_site_packages_dir(venv_dir: Path) -> Path:
     """Return the site-packages directory for a virtual environment."""
     if os.name == "nt":
         return venv_dir / "Lib" / "site-packages"
-    return (
-        venv_dir
-        / "lib"
-        / f"python{sys.version_info.major}.{sys.version_info.minor}"
-        / "site-packages"
-    )
+    return venv_dir / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
 
 
 def _link_current_site_packages(venv_dir: Path) -> None:
@@ -126,9 +121,7 @@ def _create_test_venv(venv_dir: Path) -> None:
         offline_fallback_marker.write_text("1\n", encoding="utf-8")
 
     if not _venv_has_required_runtime(venv_dir):
-        raise RuntimeError(
-            "Test venv is missing runtime dependencies (typer/rich/httpx/yaml)."
-        )
+        raise RuntimeError("Test venv is missing runtime dependencies (typer/rich/httpx/yaml).")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -189,9 +182,7 @@ def ensure_spec_kitty_executable(test_venv: Path) -> None:
         shim_path.chmod(0o755)
 
     current_path = os.environ.get("PATH", "")
-    os.environ["PATH"] = (
-        f"{bin_dir}{os.pathsep}{current_path}" if current_path else str(bin_dir)
-    )
+    os.environ["PATH"] = f"{bin_dir}{os.pathsep}{current_path}" if current_path else str(bin_dir)
 
 
 @pytest.fixture()
@@ -372,9 +363,7 @@ dependencies: []
         (worktree_dir / "shared.txt").write_text(f"{wp_id} changes\n", encoding="utf-8")
 
         # Also modify WP-specific file (no conflict)
-        (worktree_dir / f"{wp_id}.txt").write_text(
-            f"{wp_id} specific\n", encoding="utf-8"
-        )
+        (worktree_dir / f"{wp_id}.txt").write_text(f"{wp_id} specific\n", encoding="utf-8")
 
         run(["git", "add", "."], cwd=worktree_dir)
         run(["git", "commit", "-m", f"Add {wp_id} changes"], cwd=worktree_dir)

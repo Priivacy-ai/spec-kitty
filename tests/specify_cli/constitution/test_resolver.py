@@ -52,9 +52,7 @@ directives:
 """,
     )
 
-    result = resolve_governance(
-        tmp_path, tool_registry={"git", "python", "pytest"}
-    )
+    result = resolve_governance(tmp_path, tool_registry={"git", "python", "pytest"})
 
     assert result.paradigms == ["test-first"]
     assert result.directives == ["DIR-001"]

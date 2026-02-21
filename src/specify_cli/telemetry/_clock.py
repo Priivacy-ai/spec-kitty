@@ -47,6 +47,4 @@ class FileClockStorage(ClockStorage):
 
         data[node_id] = clock_value
         self._file_path.parent.mkdir(parents=True, exist_ok=True)
-        self._file_path.write_text(
-            json.dumps(data, sort_keys=True), encoding="utf-8"
-        )
+        self._file_path.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")

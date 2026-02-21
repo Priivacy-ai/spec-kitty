@@ -138,10 +138,7 @@ class TestPipelineConflictDetection:
 
         # With strictness=OFF, pipeline completes (no blocking)
         # but conflicts are still detected
-        workspace_conflicts = [
-            c for c in result.conflicts
-            if c.term.surface_text == "workspace"
-        ]
+        workspace_conflicts = [c for c in result.conflicts if c.term.surface_text == "workspace"]
         assert len(workspace_conflicts) >= 1
         assert workspace_conflicts[0].conflict_type == ConflictType.AMBIGUOUS
 
@@ -463,10 +460,7 @@ class TestPipelineUnknownTerms:
         result = pipeline.process(ctx)
 
         # frobulator not in any seed file -> UNKNOWN
-        unknown_conflicts = [
-            c for c in result.conflicts
-            if c.term.surface_text == "frobulator"
-        ]
+        unknown_conflicts = [c for c in result.conflicts if c.term.surface_text == "frobulator"]
         assert len(unknown_conflicts) == 1
         assert unknown_conflicts[0].conflict_type == ConflictType.UNKNOWN
 
@@ -495,10 +489,7 @@ class TestPipelineSeedFileEdgeCases:
         result = pipeline.process(ctx)
 
         # workspace not found -> UNKNOWN conflict
-        assert any(
-            c.conflict_type == ConflictType.UNKNOWN
-            for c in result.conflicts
-        )
+        assert any(c.conflict_type == ConflictType.UNKNOWN for c in result.conflicts)
 
     def test_malformed_seed_file_skipped(self, tmp_path):
         """Pipeline continues when seed file is malformed YAML."""
@@ -650,10 +641,7 @@ class TestEndToEndSpecifyWithConflict:
             mission_id="software-dev",
             run_id="run-abc-123",
             inputs={
-                "description": (
-                    "Create a new feature that manages workspace configuration "
-                    "for parallel development"
-                ),
+                "description": ("Create a new feature that manages workspace configuration for parallel development"),
             },
             metadata={
                 "glossary_check": "enabled",
@@ -724,10 +712,7 @@ class TestEndToEndSpecifyWithConflict:
         # Pipeline completes, conflicts detected but not blocked
         assert result.effective_strictness == Strictness.OFF
         # workspace is ambiguous but we don't block
-        workspace_conflicts = [
-            c for c in result.conflicts
-            if c.term.surface_text == "workspace"
-        ]
+        workspace_conflicts = [c for c in result.conflicts if c.term.surface_text == "workspace"]
         assert len(workspace_conflicts) >= 1
 
     def test_specify_step_no_conflicts_clean_glossary(self, tmp_path):
@@ -1036,10 +1021,7 @@ class TestClarificationBeforeGate:
         # Verify: conflict was resolved (not blocked)
         assert result.effective_strictness == Strictness.MEDIUM
         # The resolved conflict was moved out of context.conflicts
-        remaining_workspace = [
-            c for c in result.conflicts
-            if c.term.surface_text == "workspace"
-        ]
+        remaining_workspace = [c for c in result.conflicts if c.term.surface_text == "workspace"]
         assert len(remaining_workspace) == 0
 
         # The resolved conflict is available in resolved_conflicts
@@ -1244,10 +1226,12 @@ class TestExecuteWithGlossaryEndToEnd:
 
         def my_specify_primitive(context):
             """Simulate a real specify step primitive."""
-            primitive_results.append({
-                "strictness": context.effective_strictness,
-                "remaining_conflicts": len(context.conflicts),
-            })
+            primitive_results.append(
+                {
+                    "strictness": context.effective_strictness,
+                    "remaining_conflicts": len(context.conflicts),
+                }
+            )
             return primitive_results[-1]
 
         ctx = _make_context(

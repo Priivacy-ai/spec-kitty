@@ -41,6 +41,7 @@ from . import reducer as _reducer
 
 logger = logging.getLogger(__name__)
 
+
 class TransitionError(Exception):
     """Raised when a status transition is invalid."""
 
@@ -88,21 +89,14 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
     review_data = evidence.get("review")
     if not isinstance(review_data, dict):
         raise TransitionError(
-            "Moving to done requires evidence with review.reviewer "
-            "review.verdict, and review.reference"
+            "Moving to done requires evidence with review.reviewer review.verdict, and review.reference"
         )
     reviewer = review_data.get("reviewer")
     verdict = review_data.get("verdict")
     reference = review_data.get("reference")
-    if (
-        not reviewer
-        or not verdict
-        or not reference
-        or not str(reference).strip()
-    ):
+    if not reviewer or not verdict or not reference or not str(reference).strip():
         raise TransitionError(
-            "Moving to done requires evidence with review.reviewer "
-            "review.verdict, and review.reference"
+            "Moving to done requires evidence with review.reviewer review.verdict, and review.reference"
         )
 
     review_approval = ReviewApproval(
@@ -111,12 +105,8 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
         reference=str(reference),
     )
 
-    repos = [
-        RepoEvidence(**r) for r in evidence.get("repos", [])
-    ]
-    verification = [
-        VerificationResult(**v) for v in evidence.get("verification", [])
-    ]
+    repos = [RepoEvidence(**r) for r in evidence.get("repos", [])]
+    verification = [VerificationResult(**v) for v in evidence.get("verification", [])]
 
     return DoneEvidence(
         review=review_approval,
@@ -218,20 +208,10 @@ def emit_status_transition(
     if workspace_context is None:
         context_root = repo_root if repo_root is not None else feature_dir
         workspace_context = f"{execution_mode}:{context_root}"
-    if (
-        subtasks_complete is None
-        and from_lane == "in_progress"
-        and resolved_lane == "for_review"
-    ):
+    if subtasks_complete is None and from_lane == "in_progress" and resolved_lane == "for_review":
         subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
-    if (
-        implementation_evidence_present is None
-        and from_lane == "in_progress"
-        and resolved_lane == "for_review"
-    ):
-        implementation_evidence_present = _infer_implementation_evidence(
-            feature_dir, wp_id
-        )
+    if implementation_evidence_present is None and from_lane == "in_progress" and resolved_lane == "for_review":
+        implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
 
     # Step 3: Validate the transition
     # Build DoneEvidence early so we can pass it to validate_transition
@@ -279,8 +259,7 @@ def emit_status_transition(
         snapshot = _reducer.materialize(feature_dir)
     except Exception:
         logger.warning(
-            "Materialization failed after event %s was persisted; "
-            "run 'status materialize' to recover",
+            "Materialization failed after event %s was persisted; run 'status materialize' to recover",
             event.event_id,
         )
         snapshot = None
@@ -295,8 +274,7 @@ def emit_status_transition(
             pass  # WP06 not yet available
         except Exception:
             logger.warning(
-                "Legacy bridge update failed for event %s; "
-                "canonical log and snapshot are unaffected",
+                "Legacy bridge update failed for event %s; canonical log and snapshot are unaffected",
                 event.event_id,
             )
 

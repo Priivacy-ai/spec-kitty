@@ -23,12 +23,12 @@ class APIHandler(DashboardHandler):
 
         # Derive active mission from the most active feature (per-feature mission model)
         mission_context = {
-            'name': 'No active feature',
-            'domain': 'unknown',
-            'version': '',
-            'slug': '',
-            'description': '',
-            'path': '',
+            "name": "No active feature",
+            "domain": "unknown",
+            "version": "",
+            "slug": "",
+            "description": "",
+            "path": "",
         }
 
         try:
@@ -37,30 +37,30 @@ class APIHandler(DashboardHandler):
             active_feature = resolve_active_feature(project_path, features)
 
             if active_feature:
-                feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
+                feature_mission_key = active_feature.get("meta", {}).get("mission", "software-dev")
                 kittify_dir = project_path / ".kittify"
                 mission = get_mission_by_name(feature_mission_key, kittify_dir)
                 mission_context = {
-                    'name': mission.name,
-                    'domain': mission.config.domain,
-                    'version': mission.config.version,
-                    'slug': mission.path.name,
-                    'description': mission.config.description or '',
-                    'path': format_path_for_display(str(mission.path)) or "",
+                    "name": mission.name,
+                    "domain": mission.config.domain,
+                    "version": mission.config.version,
+                    "slug": mission.path.name,
+                    "description": mission.config.description or "",
+                    "path": format_path_for_display(str(mission.path)) or "",
                 }
         except (MissionError, Exception):
             pass  # Keep default "No active feature" context
 
         self.send_response(200)
-        self.send_header('Content-type', 'text/html')
+        self.send_header("Content-type", "text/html")
         self.end_headers()
         self.wfile.write(get_dashboard_html(mission_context=mission_context).encode())
 
     def handle_health(self) -> None:
         """Return project health metadata."""
         self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Cache-Control', 'no-cache')
+        self.send_header("Content-type", "application/json")
+        self.send_header("Cache-Control", "no-cache")
         self.end_headers()
 
         try:
@@ -69,13 +69,13 @@ class APIHandler(DashboardHandler):
             project_path = str(self.project_dir)
 
         response_data = {
-            'status': 'ok',
-            'project_path': project_path,
+            "status": "ok",
+            "project_path": project_path,
         }
 
-        token = getattr(self, 'project_token', None)
+        token = getattr(self, "project_token", None)
         if token:
-            response_data['token'] = token
+            response_data["token"] = token
 
         self.wfile.write(json.dumps(response_data).encode())
 
@@ -88,8 +88,8 @@ class APIHandler(DashboardHandler):
         try:
             diagnostics = run_diagnostics(Path(self.project_dir or Path.cwd()))
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Cache-Control', 'no-cache')
+            self.send_header("Content-type", "application/json")
+            self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(json.dumps(diagnostics).encode())
         except Exception as exc:  # pragma: no cover - fallback safety
@@ -100,7 +100,7 @@ class APIHandler(DashboardHandler):
                 "traceback": traceback.format_exc(),
             }
             self.send_response(500)
-            self.send_header('Content-type', 'application/json')
+            self.send_header("Content-type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(error_msg).encode())
 
@@ -115,22 +115,22 @@ class APIHandler(DashboardHandler):
 
             if not constitution_path.exists():
                 self.send_response(404)
-                self.send_header('Content-type', 'text/plain')
+                self.send_header("Content-type", "text/plain")
                 self.end_headers()
-                self.wfile.write(b'Constitution not found')
+                self.wfile.write(b"Constitution not found")
                 return
 
-            content = constitution_path.read_text(encoding='utf-8')
+            content = constitution_path.read_text(encoding="utf-8")
             self.send_response(200)
-            self.send_header('Content-type', 'text/plain; charset=utf-8')
-            self.send_header('Cache-Control', 'no-cache')
+            self.send_header("Content-type", "text/plain; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
             self.end_headers()
-            self.wfile.write(content.encode('utf-8'))
+            self.wfile.write(content.encode("utf-8"))
         except Exception as exc:  # pragma: no cover - fallback safety
             import traceback
 
             error_msg = f"Error loading constitution: {exc}\n{traceback.format_exc()}"
             self.send_response(500)
-            self.send_header('Content-type', 'text/plain')
+            self.send_header("Content-type", "text/plain")
             self.end_headers()
             self.wfile.write(error_msg.encode())

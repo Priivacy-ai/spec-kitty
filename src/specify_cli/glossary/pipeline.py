@@ -179,14 +179,11 @@ class GlossaryMiddlewarePipeline:
                 # Expected exceptions -- re-raise for the caller
                 raise
             except Exception as e:
-                raise RuntimeError(
-                    f"Glossary middleware {mw.__class__.__name__} failed: {e}"
-                ) from e
+                raise RuntimeError(f"Glossary middleware {mw.__class__.__name__} failed: {e}") from e
 
             if result is None:
                 raise RuntimeError(
-                    f"Glossary middleware {mw.__class__.__name__} returned None "
-                    f"instead of a context object"
+                    f"Glossary middleware {mw.__class__.__name__} returned None instead of a context object"
                 )
 
             current_context = result

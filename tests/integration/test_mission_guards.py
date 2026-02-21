@@ -135,10 +135,7 @@ class TestEventCountGuard:
         feature_dir.mkdir()
         log = feature_dir / "mission-events.jsonl"
         log.write_text(
-            "\n".join(
-                json.dumps({"type": "checkpoint"}) for _ in range(3)
-            )
-            + "\n",
+            "\n".join(json.dumps({"type": "checkpoint"}) for _ in range(3)) + "\n",
             encoding="utf-8",
         )
         guard = GUARD_REGISTRY["event_count"](["checkpoint", 3])
@@ -149,10 +146,7 @@ class TestEventCountGuard:
         feature_dir.mkdir()
         log = feature_dir / "mission-events.jsonl"
         log.write_text(
-            "\n".join(
-                json.dumps({"type": "checkpoint"}) for _ in range(2)
-            )
-            + "\n",
+            "\n".join(json.dumps({"type": "checkpoint"}) for _ in range(2)) + "\n",
             encoding="utf-8",
         )
         guard = GUARD_REGISTRY["event_count"](["checkpoint", 3])
@@ -163,4 +157,3 @@ class TestEventCountGuard:
         feature_dir.mkdir()
         guard = GUARD_REGISTRY["event_count"](["checkpoint", 1])
         assert guard(_event_data(MissionModel(feature_dir=feature_dir))) is False
-

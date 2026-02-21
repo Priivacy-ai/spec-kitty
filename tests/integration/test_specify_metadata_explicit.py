@@ -29,9 +29,7 @@ def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
 
     env = os.environ.copy()
     src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(
-        os.pathsep
-    )
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
     env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
     return subprocess.run(
@@ -69,22 +67,15 @@ def init_test_repo(tmp_path: Path) -> Path:
 
     # Create minimal config
     import yaml
+
     config = {
         "vcs": {"type": "git"},
-        "agents": {
-            "available": ["claude"],
-            "selection": {"preferred_implementer": "claude"}
-        }
+        "agents": {"available": ["claude"], "selection": {"preferred_implementer": "claude"}},
     }
     (kittify / "config.yaml").write_text(yaml.dump(config))
 
     # Create minimal metadata
-    metadata = {
-        "spec_kitty": {
-            "version": "0.13.8",
-            "initialized_at": "2026-01-29T00:00:00Z"
-        }
-    }
+    metadata = {"spec_kitty": {"version": "0.13.8", "initialized_at": "2026-01-29T00:00:00Z"}}
     (kittify / "metadata.yaml").write_text(yaml.dump(metadata))
 
     # Create initial commit
@@ -462,10 +453,10 @@ def test_json_schema_validation(tmp_path):
     assert isinstance(loaded_meta["vcs"], str)  # NEW
 
     # Value constraints
-    assert loaded_meta["target_branch"] in ("main", "2.x", "custom-branch"), \
+    assert loaded_meta["target_branch"] in ("main", "2.x", "custom-branch"), (
         "target_branch should be a valid branch name"
-    assert loaded_meta["vcs"] in ("git", "jj"), \
-        "vcs should be 'git' or 'jj'"
+    )
+    assert loaded_meta["vcs"] in ("git", "jj"), "vcs should be 'git' or 'jj'"
 
 
 def test_explicit_fields_in_git_history(tmp_path):

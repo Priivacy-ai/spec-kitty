@@ -61,10 +61,10 @@ LANE_PRIORITY = {
     "in_progress": 3,
     "for_review": 4,
     "done": 5,
-    "blocked": 0,       # Blocked is lowest priority (not "ahead" in workflow)
-    "canceled": 6,       # Canceled is terminal, treated as highest monotonic priority
+    "blocked": 0,  # Blocked is lowest priority (not "ahead" in workflow)
+    "canceled": 6,  # Canceled is terminal, treated as highest monotonic priority
     # Legacy alias support:
-    "doing": 3,          # Maps to same priority as in_progress
+    "doing": 3,  # Maps to same priority as in_progress
 }
 
 
@@ -96,8 +96,8 @@ def parse_conflict_markers(content: str) -> list[ConflictRegion]:
     for match in CONFLICT_PATTERN.finditer(content):
         regions.append(
             ConflictRegion(
-                start_line=content[:match.start()].count("\n"),
-                end_line=content[:match.end()].count("\n"),
+                start_line=content[: match.start()].count("\n"),
+                end_line=content[: match.end()].count("\n"),
                 ours=match.group(1),
                 theirs=match.group(2),
                 original=match.group(0),
@@ -150,7 +150,7 @@ def _detect_rollback(content: str) -> bool:
         return True
 
     # Heuristic 2: History entry mentions "review" and lane is behind for_review
-    if re.search(r'action:.*review.*', content, re.IGNORECASE):
+    if re.search(r"action:.*review.*", content, re.IGNORECASE):
         lane_match = LANE_PATTERN.search(content)
         if lane_match:
             lane_value = lane_match.group(3)
@@ -221,9 +221,7 @@ def resolve_lane_conflict_rollback_aware(
     return ours_lane if ours_priority >= theirs_priority else theirs_lane
 
 
-def _resolve_lane_with_rollback_awareness(
-    ours: str, theirs: str
-) -> str | None:
+def _resolve_lane_with_rollback_awareness(ours: str, theirs: str) -> str | None:
     """Internal: resolve a lane conflict region using rollback-aware logic.
 
     Extracts lane values, runs rollback-aware resolution, and returns
@@ -338,9 +336,7 @@ def _parse_history_entries(content: str) -> list[dict[str, Any]] | None:
     return [entry for entry in entries if isinstance(entry, dict)]
 
 
-def _merge_history_entries(
-    ours: list[dict[str, Any]], theirs: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+def _merge_history_entries(ours: list[dict[str, Any]], theirs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     merged = ours + theirs
 
     seen: set[tuple[str, str, str, str]] = set()

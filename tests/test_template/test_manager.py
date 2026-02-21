@@ -61,18 +61,10 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     assert (project_path / ".kittify" / "scripts" / "tasks" / "tasks_cli.py").exists()
     assert (project_path / ".kittify" / "templates" / "command-templates" / "sample.md").exists()
     assert (project_path / ".kittify" / "missions" / "default" / "rules.md").exists()
-    assert (
-        project_path
-        / ".kittify"
-        / "memory"
-        / "templates"
-        / "POWERSHELL_SYNTAX.md"
-    ).exists()
+    assert (project_path / ".kittify" / "memory" / "templates" / "POWERSHELL_SYNTAX.md").exists()
 
 
-def test_copy_specify_base_from_package_uses_packaged_assets(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_copy_specify_base_from_package_uses_packaged_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     fake_pkg = tmp_path / "package_data"
     (fake_pkg / "memory").mkdir(parents=True)
     (fake_pkg / "memory" / "seed.txt").write_text("seed", encoding="utf-8")
@@ -107,10 +99,4 @@ def test_copy_specify_base_from_package_uses_packaged_assets(
     assert (project_path / ".kittify" / "scripts" / "bash" / "bootstrap.sh").exists()
     assert (project_path / ".kittify" / "scripts" / "tasks" / "tasks_cli.py").exists()
     assert (project_path / ".kittify" / "memory" / "seed.txt").exists()
-    assert (
-        project_path
-        / ".kittify"
-        / "memory"
-        / "templates"
-        / "POWERSHELL_SYNTAX.md"
-    ).exists()
+    assert (project_path / ".kittify" / "memory" / "templates" / "POWERSHELL_SYNTAX.md").exists()

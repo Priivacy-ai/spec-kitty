@@ -32,11 +32,12 @@ def simulate_slow_health_check_scenario():
     mock_pid = 99999
     mock_port = 9237
 
-    with patch("specify_cli.dashboard.lifecycle.start_dashboard") as mock_start, \
-         patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health, \
-         patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive, \
-         patch("specify_cli.dashboard.lifecycle._write_dashboard_file") as mock_write:
-
+    with (
+        patch("specify_cli.dashboard.lifecycle.start_dashboard") as mock_start,
+        patch("specify_cli.dashboard.lifecycle._check_dashboard_health") as mock_health,
+        patch("specify_cli.dashboard.lifecycle._is_process_alive") as mock_alive,
+        patch("specify_cli.dashboard.lifecycle._write_dashboard_file") as mock_write,
+    ):
         # Setup: Process starts successfully
         mock_start.return_value = (mock_port, mock_pid)
 
@@ -80,6 +81,7 @@ def simulate_slow_health_check_scenario():
 
     # Cleanup
     import shutil
+
     shutil.rmtree(test_dir, ignore_errors=True)
 
 
@@ -121,6 +123,7 @@ def test_specific_error_messages():
 
     # Cleanup
     import shutil
+
     shutil.rmtree(test_dir, ignore_errors=True)
 
     print("\n✅ All error message tests passed!")

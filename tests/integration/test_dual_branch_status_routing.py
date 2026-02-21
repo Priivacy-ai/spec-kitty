@@ -36,9 +36,7 @@ def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
 
     env = os.environ.copy()
     src_path = REPO_ROOT / "src"
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(
-        os.pathsep
-    )
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
     env.setdefault("SPEC_KITTY_TEMPLATE_ROOT", str(REPO_ROOT))
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
     return subprocess.run(
@@ -50,9 +48,7 @@ def run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess:
     )
 
 
-def create_feature_with_target(
-    repo: Path, feature_slug: str, target_branch: str | None = None
-) -> Path:
+def create_feature_with_target(repo: Path, feature_slug: str, target_branch: str | None = None) -> Path:
     """Create feature directory with optional target_branch in meta.json."""
     feature_dir = repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
@@ -77,13 +73,7 @@ def create_feature_with_target(
     # Create WP01 file
     wp_file = tasks_dir / "WP01-test.md"
     wp_file.write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Test Work Package\n"
-        "lane: planned\n"
-        "dependencies: []\n"
-        "---\n\n"
-        "# WP01 Content\n"
+        "---\nwork_package_id: WP01\ntitle: Test Work Package\nlane: planned\ndependencies: []\n---\n\n# WP01 Content\n"
     )
 
     # Commit to current branch
@@ -276,7 +266,7 @@ def test_status_routing_from_worktree_context(dual_branch_repo):
     # Update WP lane to doing (simulate starting work)
     wp_file = feature_dir / "tasks" / "WP01-test.md"
     content = wp_file.read_text()
-    updated = content.replace('lane: planned', 'lane: doing')
+    updated = content.replace("lane: planned", "lane: doing")
     wp_file.write_text(updated)
 
     # Commit the lane change to the WP file on main (so it's tracked)
@@ -346,11 +336,7 @@ def test_mark_subtasks_routes_correctly(dual_branch_repo):
     # Create tasks.md with subtasks (required by mark-status)
     tasks_md = feature_dir / "tasks.md"
     tasks_md.write_text(
-        "# Tasks\n\n"
-        "## WP01 - Setup\n\n"
-        "### Subtasks\n"
-        "- [ ] WP01.1 - First subtask\n"
-        "- [ ] WP01.2 - Second subtask\n"
+        "# Tasks\n\n## WP01 - Setup\n\n### Subtasks\n- [ ] WP01.1 - First subtask\n- [ ] WP01.2 - Second subtask\n"
     )
 
     # Also add subtasks to WP01 file for consistency
@@ -506,8 +492,9 @@ def test_fallback_when_target_missing(dual_branch_repo):
     assert result.returncode == 0, f"Should fallback gracefully: {result.stderr}"
 
     # Should have warning in output
-    assert "Warning" in result.stdout or "could not checkout" in result.stderr.lower(), \
+    assert "Warning" in result.stdout or "could not checkout" in result.stderr.lower(), (
         "Should warn about missing target branch"
+    )
 
     # Commit should land on current branch (main)
     assert_commit_on_branch(repo, "main", "Move WP01 to doing")
@@ -587,13 +574,7 @@ def test_multiple_lane_transitions_same_target(dual_branch_repo):
         wp_id = f"WP0{wp_num}"
         wp_file = tasks_dir / f"{wp_id}-test.md"
         wp_file.write_text(
-            f"---\n"
-            f"work_package_id: {wp_id}\n"
-            f"title: Test {wp_id}\n"
-            f"lane: planned\n"
-            f"dependencies: []\n"
-            f"---\n\n"
-            f"# {wp_id}\n"
+            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n"
         )
 
     # Commit to main

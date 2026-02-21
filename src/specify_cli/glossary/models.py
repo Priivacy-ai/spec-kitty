@@ -11,6 +11,7 @@ from typing import Any, List
 @dataclass(frozen=True)
 class TermSurface:
     """Raw string representation of a term."""
+
     surface_text: str  # e.g., "workspace"
 
     def __post_init__(self) -> None:
@@ -21,22 +22,25 @@ class TermSurface:
 
 class SenseStatus(Enum):
     """Status of a TermSense."""
-    DRAFT = "draft"          # Auto-extracted, low confidence
-    ACTIVE = "active"        # Promoted by user or high confidence
+
+    DRAFT = "draft"  # Auto-extracted, low confidence
+    ACTIVE = "active"  # Promoted by user or high confidence
     DEPRECATED = "deprecated"  # Kept in history, not in active resolution
 
 
 @dataclass
 class Provenance:
     """Provenance metadata for a TermSense."""
-    actor_id: str      # e.g., "user:alice" or "llm:claude-sonnet-4"
+
+    actor_id: str  # e.g., "user:alice" or "llm:claude-sonnet-4"
     timestamp: datetime
-    source: str        # e.g., "user_clarification", "metadata_hint", "auto_extraction"
+    source: str  # e.g., "user_clarification", "metadata_hint", "auto_extraction"
 
 
 @dataclass
 class TermSense:
     """Meaning of a TermSurface within a specific GlossaryScope."""
+
     surface: TermSurface
     scope: str  # GlossaryScope enum value (defined in scope.py)
     definition: str
@@ -55,14 +59,16 @@ class TermSense:
 
 class ConflictType(Enum):
     """Type of semantic conflict."""
-    UNKNOWN = "unknown"                      # No match in any scope
-    AMBIGUOUS = "ambiguous"                  # Multiple active senses, unqualified usage
-    INCONSISTENT = "inconsistent"            # LLM output contradicts active glossary
+
+    UNKNOWN = "unknown"  # No match in any scope
+    AMBIGUOUS = "ambiguous"  # Multiple active senses, unqualified usage
+    INCONSISTENT = "inconsistent"  # LLM output contradicts active glossary
     UNRESOLVED_CRITICAL = "unresolved_critical"  # Unknown critical term, low confidence
 
 
 class Severity(Enum):
     """Severity level of a semantic conflict."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -71,6 +77,7 @@ class Severity(Enum):
 @dataclass
 class SenseRef:
     """Reference to a TermSense (used in conflict candidates)."""
+
     surface: str
     scope: str
     definition: str
@@ -80,6 +87,7 @@ class SenseRef:
 @dataclass
 class SemanticConflict:
     """Classification of a term conflict."""
+
     term: TermSurface
     conflict_type: ConflictType
     severity: Severity
@@ -94,6 +102,7 @@ class SemanticConflict:
 
 
 # Serialization helpers for event emission
+
 
 def term_surface_to_dict(ts: TermSurface) -> dict[str, Any]:
     """Serialize TermSurface to dict."""

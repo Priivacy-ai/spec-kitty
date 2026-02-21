@@ -21,7 +21,9 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def research(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to target (auto-detected when omitted)"),
+    feature: Optional[str] = typer.Option(
+        None, "--feature", help="Feature slug to target (auto-detected when omitted)"
+    ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ) -> None:
     """Execute Phase 0 research workflow to scaffold artifacts."""
@@ -158,8 +160,7 @@ def research(
     console.print(tracker.render())
 
     relative_paths = [
-        str(path.relative_to(feature_dir)) if path.is_relative_to(feature_dir) else str(path)
-        for path in created_paths
+        str(path.relative_to(feature_dir)) if path.is_relative_to(feature_dir) else str(path) for path in created_paths
     ]
     summary_lines = "\n".join(f"- [cyan]{rel}[/cyan]" for rel in sorted(set(relative_paths)))
     console.print()

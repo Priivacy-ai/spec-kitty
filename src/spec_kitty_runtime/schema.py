@@ -44,12 +44,10 @@ class MissionTemplate:
     steps: list[MissionStep]
 
 
-
 def _as_string(value: Any, *, field_name: str) -> str:
     if isinstance(value, str) and value.strip():
         return value
     raise MissionRuntimeError(f"Invalid mission template: '{field_name}' must be a non-empty string")
-
 
 
 def _as_string_list(value: Any, *, field_name: str) -> list[str]:
@@ -63,7 +61,6 @@ def _as_string_list(value: Any, *, field_name: str) -> list[str]:
             raise MissionRuntimeError(f"Invalid mission template: '{field_name}' must contain only strings")
         result.append(item)
     return result
-
 
 
 def load_mission_template_file(path: Path | str) -> MissionTemplate:
@@ -102,12 +99,12 @@ def load_mission_template_file(path: Path | str) -> MissionTemplate:
             title=str(step_raw.get("title") or ""),
             description=str(step_raw.get("description") or ""),
             prompt_template=(
-                str(step_raw.get("prompt_template"))
-                if step_raw.get("prompt_template") is not None
-                else None
+                str(step_raw.get("prompt_template")) if step_raw.get("prompt_template") is not None else None
             ),
             depends_on=_as_string_list(step_raw.get("depends_on"), field_name=f"steps[{idx}].depends_on"),
-            requires_inputs=_as_string_list(step_raw.get("requires_inputs"), field_name=f"steps[{idx}].requires_inputs"),
+            requires_inputs=_as_string_list(
+                step_raw.get("requires_inputs"), field_name=f"steps[{idx}].requires_inputs"
+            ),
         )
         steps.append(step)
 

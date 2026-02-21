@@ -133,6 +133,7 @@ def _sanitize_states(states: list[Any]) -> list[Any]:
         cleaned_states.append(cleaned_state)
     return cleaned_states
 
+
 class StateMachineMission:
     """v1 state machine mission backed by ``transitions.MarkupMachine``.
 

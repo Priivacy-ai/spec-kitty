@@ -50,16 +50,12 @@ def test_cli_uses_source_version(run_cli, test_project):
     """Verify CLI reports source version, not installed version."""
     result = run_cli(test_project, "--version")
 
-    assert result.returncode == 0, (
-        f"--version command failed: {result.stderr}"
-    )
+    assert result.returncode == 0, f"--version command failed: {result.stderr}"
 
     output = result.stdout.strip()
     source_version = get_source_version()
 
-    assert source_version in output, (
-        f"CLI reported '{output}' but source version is {source_version}"
-    )
+    assert source_version in output, f"CLI reported '{output}' but source version is {source_version}"
 
 
 def test_version_checker_respects_test_mode(test_project, isolated_env):
@@ -91,16 +87,13 @@ print(version)
         env=isolated_env,
     )
 
-    assert result.returncode == 0, (
-        f"Version checker failed in test mode: {result.stderr}"
-    )
+    assert result.returncode == 0, f"Version checker failed in test mode: {result.stderr}"
 
     reported_version = result.stdout.strip()
     expected_version = isolated_env["SPEC_KITTY_CLI_VERSION"]
 
     assert reported_version == expected_version, (
-        f"Version checker returned {reported_version} "
-        f"but expected {expected_version} from environment"
+        f"Version checker returned {reported_version} but expected {expected_version} from environment"
     )
 
 
@@ -143,8 +136,7 @@ except RuntimeError as e:
 
     # Should have an error message about missing SPEC_KITTY_CLI_VERSION
     assert "EXPECTED_ERROR" in result.stdout, (
-        f"Test mode should fail without SPEC_KITTY_CLI_VERSION, "
-        f"but got: {result.stdout}"
+        f"Test mode should fail without SPEC_KITTY_CLI_VERSION, but got: {result.stdout}"
     )
     assert "SPEC_KITTY_CLI_VERSION" in result.stdout
 
@@ -164,9 +156,7 @@ def test_subprocess_inherits_isolation(run_cli, test_project):
     assert "Version Mismatch" not in result.stderr
 
     # Should succeed (missions should be available in test_project)
-    assert result.returncode == 0, (
-        f"mission list failed: {result.stderr}"
-    )
+    assert result.returncode == 0, f"mission list failed: {result.stderr}"
 
 
 def test_isolated_env_has_required_variables(isolated_env):
@@ -179,12 +169,8 @@ def test_isolated_env_has_required_variables(isolated_env):
     }
 
     for var in required_vars:
-        assert var in isolated_env, (
-            f"isolated_env fixture missing required variable: {var}"
-        )
-        assert isolated_env[var], (
-            f"isolated_env fixture has empty value for: {var}"
-        )
+        assert var in isolated_env, f"isolated_env fixture missing required variable: {var}"
+        assert isolated_env[var], f"isolated_env fixture has empty value for: {var}"
 
     # Verify TEST_MODE is set to "1"
     assert isolated_env["SPEC_KITTY_TEST_MODE"] == "1"
@@ -194,12 +180,15 @@ def test_isolated_env_has_required_variables(isolated_env):
     assert isolated_env["SPEC_KITTY_CLI_VERSION"] == source_version
 
 
-@pytest.mark.parametrize("command", [
-    ["init", "--help"],
-    ["upgrade", "--help"],
-    ["specify", "--help"],
-    ["mission", "list"],
-])
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["init", "--help"],
+        ["upgrade", "--help"],
+        ["specify", "--help"],
+        ["mission", "list"],
+    ],
+)
 def test_commands_work_with_isolation(run_cli, test_project, command):
     """Verify various commands work with isolated environment.
 
@@ -260,12 +249,8 @@ print("PASS")
     # Wait for all to complete
     for i, p in processes:
         stdout, stderr = p.communicate()
-        assert p.returncode == 0, (
-            f"Process {i} failed with: {stderr}"
-        )
-        assert "PASS" in stdout, (
-            f"Process {i} didn't output PASS: {stdout}"
-        )
+        assert p.returncode == 0, f"Process {i} failed with: {stderr}"
+        assert "PASS" in stdout, f"Process {i} didn't output PASS: {stdout}"
 
 
 def test_version_mismatch_detection_in_regular_mode():

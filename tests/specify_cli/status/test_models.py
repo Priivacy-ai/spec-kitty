@@ -160,31 +160,23 @@ class TestStatusEvent:
         restored = StatusEvent.from_dict(d)
         assert restored == sample_status_event
 
-    def test_to_dict_serializes_lane_as_string(
-        self, sample_status_event: StatusEvent
-    ) -> None:
+    def test_to_dict_serializes_lane_as_string(self, sample_status_event: StatusEvent) -> None:
         d = sample_status_event.to_dict()
         assert d["from_lane"] == "planned"
         assert d["to_lane"] == "claimed"
         assert isinstance(d["from_lane"], str)
 
-    def test_to_dict_with_evidence(
-        self, sample_status_event_with_evidence: StatusEvent
-    ) -> None:
+    def test_to_dict_with_evidence(self, sample_status_event_with_evidence: StatusEvent) -> None:
         d = sample_status_event_with_evidence.to_dict()
         assert d["evidence"] is not None
         assert d["evidence"]["review"]["reviewer"] == "reviewer-1"
 
-    def test_round_trip_with_evidence(
-        self, sample_status_event_with_evidence: StatusEvent
-    ) -> None:
+    def test_round_trip_with_evidence(self, sample_status_event_with_evidence: StatusEvent) -> None:
         d = sample_status_event_with_evidence.to_dict()
         restored = StatusEvent.from_dict(d)
         assert restored == sample_status_event_with_evidence
 
-    def test_none_evidence_serializes_as_none(
-        self, sample_status_event: StatusEvent
-    ) -> None:
+    def test_none_evidence_serializes_as_none(self, sample_status_event: StatusEvent) -> None:
         d = sample_status_event.to_dict()
         assert d["evidence"] is None
 
@@ -204,9 +196,7 @@ class TestStatusEvent:
         assert event.from_lane is Lane.PLANNED
         assert event.to_lane is Lane.CLAIMED
 
-    def test_ulid_pattern_matches_event_id(
-        self, sample_status_event: StatusEvent
-    ) -> None:
+    def test_ulid_pattern_matches_event_id(self, sample_status_event: StatusEvent) -> None:
         assert ULID_PATTERN.match(sample_status_event.event_id)
 
     def test_force_event_with_reason(self) -> None:
@@ -246,9 +236,7 @@ class TestStatusEvent:
 
 
 class TestStatusSnapshot:
-    def test_to_dict_round_trip(
-        self, sample_status_snapshot: StatusSnapshot
-    ) -> None:
+    def test_to_dict_round_trip(self, sample_status_snapshot: StatusSnapshot) -> None:
         d = sample_status_snapshot.to_dict()
         restored = StatusSnapshot.from_dict(d)
         assert restored.feature_slug == sample_status_snapshot.feature_slug
@@ -256,9 +244,7 @@ class TestStatusSnapshot:
         assert restored.work_packages == sample_status_snapshot.work_packages
         assert restored.summary == sample_status_snapshot.summary
 
-    def test_summary_has_all_lane_keys(
-        self, sample_status_snapshot: StatusSnapshot
-    ) -> None:
+    def test_summary_has_all_lane_keys(self, sample_status_snapshot: StatusSnapshot) -> None:
         expected_keys = {
             "planned",
             "claimed",
@@ -270,9 +256,7 @@ class TestStatusSnapshot:
         }
         assert set(sample_status_snapshot.summary.keys()) == expected_keys
 
-    def test_summary_counts_match_work_packages(
-        self, sample_status_snapshot: StatusSnapshot
-    ) -> None:
+    def test_summary_counts_match_work_packages(self, sample_status_snapshot: StatusSnapshot) -> None:
         total_wps = len(sample_status_snapshot.work_packages)
         total_summary = sum(sample_status_snapshot.summary.values())
         assert total_summary == total_wps

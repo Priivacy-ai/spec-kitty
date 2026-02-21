@@ -26,6 +26,7 @@ def test_ensure_dashboard_running_writes_state(monkeypatch, tmp_path):
 
     monkeypatch.setattr(lifecycle, "_check_dashboard_health", fake_check)
     monkeypatch.setattr(lifecycle, "start_dashboard", lambda *args, **kwargs: (34567, None))
+
     class EnsureTime:
         value = 0.0
 
@@ -75,7 +76,7 @@ def test_stop_dashboard_sends_shutdown(monkeypatch, tmp_path):
                     "status": "ok",
                     "project_path": str(project_dir),
                 }
-                return json.dumps(payload).encode('utf-8')
+                return json.dumps(payload).encode("utf-8")
 
         if isinstance(request, str) and "/api/shutdown" in request:
             calls["shutdown"] += 1

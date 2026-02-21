@@ -67,8 +67,7 @@ class TestValidateCleanFeature:
 
             # Should confirm clean files
             output = result.stdout + result.stderr
-            assert "properly UTF-8 encoded" in output or "✓" in output, \
-                f"Should confirm clean encoding. Got: {output}"
+            assert "properly UTF-8 encoded" in output or "✓" in output, f"Should confirm clean encoding. Got: {output}"
 
 
 class TestDetectIssuesWithoutFix:
@@ -98,18 +97,15 @@ class TestDetectIssuesWithoutFix:
             )
 
             # Should exit with error code
-            assert result.returncode == 1, \
-                f"Should exit 1 with issues, got {result.returncode}"
+            assert result.returncode == 1, f"Should exit 1 with issues, got {result.returncode}"
 
             # Should show the problematic file
             output = result.stdout + result.stderr
-            assert "bad.md" in output, \
-                f"Should show bad.md in output. Got: {result.stdout}"
+            assert "bad.md" in output, f"Should show bad.md in output. Got: {result.stdout}"
 
             # Should suggest fix
             output = result.stdout + result.stderr
-            assert "--fix" in output or "fix" in result.stdout.lower(), \
-                f"Should suggest --fix. Got: {result.stdout}"
+            assert "--fix" in output or "fix" in result.stdout.lower(), f"Should suggest --fix. Got: {result.stdout}"
 
 
 class TestFixIssuesWithBackup:
@@ -141,24 +137,20 @@ class TestFixIssuesWithBackup:
             )
 
             # Should exit successfully
-            assert result.returncode == 0, \
-                f"Should exit 0 after fix, got {result.returncode}: {result.stdout}"
+            assert result.returncode == 0, f"Should exit 0 after fix, got {result.returncode}: {result.stdout}"
 
             # Should mention fix
             output = result.stdout + result.stderr
-            assert "Fixed" in output or "fixed" in result.stdout, \
-                f"Should mention fix. Got: {result.stdout}"
+            assert "Fixed" in output or "fixed" in result.stdout, f"Should mention fix. Got: {result.stdout}"
 
             # File should be fixed
             fixed_content = bad_file.read_text()
-            assert fixed_content == 'User\'s "test"', \
-                f"File should be fixed, got: {fixed_content!r}"
+            assert fixed_content == 'User\'s "test"', f"File should be fixed, got: {fixed_content!r}"
 
             # Backup should exist
             backup = bad_file.with_suffix(".md.bak")
             assert backup.exists(), "Backup should be created"
-            assert backup.read_text() == "User\u2019s \u201ctest\u201d", \
-                "Backup should have original content"
+            assert backup.read_text() == "User\u2019s \u201ctest\u201d", "Backup should have original content"
 
 
 class TestFixWithoutBackup:
@@ -191,8 +183,7 @@ class TestFixWithoutBackup:
             )
 
             # Should exit successfully
-            assert result.returncode == 0, \
-                f"Should exit 0, got {result.returncode}"
+            assert result.returncode == 0, f"Should exit 0, got {result.returncode}"
 
             # File should be fixed
             assert bad_file.read_text() == "User's test", "File should be fixed"
@@ -229,14 +220,17 @@ class TestValidateAllFeatures:
             )
 
             # Should detect issues in all features
-            assert result.returncode == 1, \
-                f"Should exit 1 with issues, got {result.returncode}"
+            assert result.returncode == 1, f"Should exit 1 with issues, got {result.returncode}"
 
             # Should mention multiple features or show count
             output = result.stdout
-            assert ("001-feature" in output or "002-feature" in output or
-                    "003-feature" in output or "3" in output or "features" in output), \
-                f"Should indicate multiple features scanned. Got: {output}"
+            assert (
+                "001-feature" in output
+                or "002-feature" in output
+                or "003-feature" in output
+                or "3" in output
+                or "features" in output
+            ), f"Should indicate multiple features scanned. Got: {output}"
 
     def test_fix_all_features(self):
         """Verify --all --fix repairs all features."""
@@ -266,8 +260,7 @@ class TestValidateAllFeatures:
             )
 
             # Should exit successfully
-            assert result.returncode == 0, \
-                f"Should exit 0 after fixing all, got {result.returncode}"
+            assert result.returncode == 0, f"Should exit 0 after fixing all, got {result.returncode}"
 
             # All files should be fixed
             for f in files_to_check:
@@ -315,8 +308,9 @@ class TestCLIErrorHandling:
             # Should fail with clear message
             assert result.returncode == 1, "Should exit 1 for nonexistent feature"
             output = result.stdout + result.stderr
-            assert "not found" in output.lower() or "Error" in result.stdout, \
+            assert "not found" in output.lower() or "Error" in result.stdout, (
                 f"Should indicate feature not found. Got: {result.stdout}"
+            )
 
 
 class TestCLIOutputFormatting:

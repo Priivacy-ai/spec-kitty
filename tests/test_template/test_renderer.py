@@ -61,7 +61,4 @@ def test_rewrite_paths_keeps_source_template_paths() -> None:
 
 def test_rewrite_paths_rewrites_legacy_constitution_templates_path() -> None:
     content = "See .kittify/constitution/templates/POWERSHELL_SYNTAX.md"
-    assert (
-        rewrite_paths(content)
-        == "See .kittify/memory/templates/POWERSHELL_SYNTAX.md"
-    )
+    assert rewrite_paths(content) == "See .kittify/memory/templates/POWERSHELL_SYNTAX.md"

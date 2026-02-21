@@ -423,9 +423,7 @@ class TestGlossaryList:
     def test_list_json_with_scope_filter(self, mock_glossary_store, monkeypatch):
         """Verify --json with --scope produces filtered JSON."""
         monkeypatch.chdir(mock_glossary_store)
-        result = runner.invoke(
-            glossary_app, ["list", "--json", "--scope", "mission_local"]
-        )
+        result = runner.invoke(glossary_app, ["list", "--json", "--scope", "mission_local"])
 
         assert result.exit_code == 0
         data = json.loads(result.stdout)
@@ -473,11 +471,7 @@ class TestGlossaryList:
         long_def = "A" * 100
         seed = glossaries_dir / "team_domain.yaml"
         seed.write_text(
-            "terms:\n"
-            "  - surface: longterm\n"
-            f"    definition: {long_def}\n"
-            "    confidence: 0.8\n"
-            "    status: active\n"
+            f"terms:\n  - surface: longterm\n    definition: {long_def}\n    confidence: 0.8\n    status: active\n"
         )
 
         result = runner.invoke(glossary_app, ["list"])
@@ -495,11 +489,7 @@ class TestGlossaryList:
         long_def = "A" * 100
         seed = glossaries_dir / "team_domain.yaml"
         seed.write_text(
-            "terms:\n"
-            "  - surface: longterm\n"
-            f"    definition: {long_def}\n"
-            "    confidence: 0.8\n"
-            "    status: active\n"
+            f"terms:\n  - surface: longterm\n    definition: {long_def}\n    confidence: 0.8\n    status: active\n"
         )
 
         result = runner.invoke(glossary_app, ["list", "--json"])
@@ -561,9 +551,7 @@ class TestGlossaryConflicts:
     def test_conflicts_mission_filter(self, mock_event_log_multi_mission, monkeypatch):
         """Verify --mission filter restricts to specific mission."""
         monkeypatch.chdir(mock_event_log_multi_mission)
-        result = runner.invoke(
-            glossary_app, ["conflicts", "--mission", "documentation"]
-        )
+        result = runner.invoke(glossary_app, ["conflicts", "--mission", "documentation"])
 
         assert result.exit_code == 0
         assert "tutorial" in result.stdout
@@ -573,9 +561,7 @@ class TestGlossaryConflicts:
     def test_conflicts_strictness_filter(self, mock_event_log_multi_mission, monkeypatch):
         """Verify --strictness filter restricts to specific strictness level."""
         monkeypatch.chdir(mock_event_log_multi_mission)
-        result = runner.invoke(
-            glossary_app, ["conflicts", "--strictness", "max"]
-        )
+        result = runner.invoke(glossary_app, ["conflicts", "--strictness", "max"])
 
         assert result.exit_code == 0
         assert "tutorial" in result.stdout
@@ -585,9 +571,7 @@ class TestGlossaryConflicts:
     def test_conflicts_invalid_strictness(self, mock_event_log, monkeypatch):
         """Verify error on invalid --strictness value."""
         monkeypatch.chdir(mock_event_log)
-        result = runner.invoke(
-            glossary_app, ["conflicts", "--strictness", "invalid"]
-        )
+        result = runner.invoke(glossary_app, ["conflicts", "--strictness", "invalid"])
 
         assert result.exit_code == 1
         assert "Invalid strictness" in result.stdout
@@ -681,9 +665,7 @@ class TestGlossaryConflicts:
         assert "valid" in result.stdout
         assert "Total: 1 conflict(s)" in result.stdout
 
-    def test_conflicts_summary_shows_unresolved_count(
-        self, mock_event_log_unresolved, monkeypatch
-    ):
+    def test_conflicts_summary_shows_unresolved_count(self, mock_event_log_unresolved, monkeypatch):
         """Verify unresolved summary count is displayed."""
         monkeypatch.chdir(mock_event_log_unresolved)
         result = runner.invoke(glossary_app, ["conflicts"])
@@ -750,13 +732,7 @@ class TestGlossaryResolve:
         assert "resolved successfully" in result.stdout.lower()
 
         # Verify event was written
-        event_file = (
-            mock_event_log_unresolved
-            / ".kittify"
-            / "events"
-            / "glossary"
-            / "software-dev.events.jsonl"
-        )
+        event_file = mock_event_log_unresolved / ".kittify" / "events" / "glossary" / "software-dev.events.jsonl"
         lines = event_file.read_text().strip().split("\n")
         last_event = json.loads(lines[-1])
         assert last_event["event_type"] == "GlossaryClarificationResolved"
@@ -778,13 +754,7 @@ class TestGlossaryResolve:
         assert "resolved successfully" in result.stdout.lower()
 
         # Verify BOTH events were written
-        event_file = (
-            mock_event_log_unresolved
-            / ".kittify"
-            / "events"
-            / "glossary"
-            / "software-dev.events.jsonl"
-        )
+        event_file = mock_event_log_unresolved / ".kittify" / "events" / "glossary" / "software-dev.events.jsonl"
         lines = event_file.read_text().strip().split("\n")
 
         # Second-to-last: GlossaryClarificationResolved
@@ -879,13 +849,7 @@ class TestGlossaryResolve:
         assert "resolved successfully" in result.stdout.lower()
 
         # Verify event was written to custom mission log
-        custom_file = (
-            mock_event_log_unresolved
-            / ".kittify"
-            / "events"
-            / "glossary"
-            / "custom-mission.events.jsonl"
-        )
+        custom_file = mock_event_log_unresolved / ".kittify" / "events" / "glossary" / "custom-mission.events.jsonl"
         assert custom_file.exists()
         lines = custom_file.read_text().strip().split("\n")
         last_event = json.loads(lines[-1])
@@ -969,9 +933,7 @@ class TestExtractConflicts:
                 "timestamp": "2026-01-01T00:00:00Z",
                 "blocked": True,
                 "effective_strictness": "medium",
-                "findings": [
-                    {"term": {"surface_text": "test"}, "conflict_type": "unknown", "severity": "low"}
-                ],
+                "findings": [{"term": {"surface_text": "test"}, "conflict_type": "unknown", "severity": "low"}],
             },
             {
                 "event_type": "GlossaryClarificationRequested",
@@ -1005,9 +967,7 @@ class TestExtractConflicts:
                 "timestamp": "2026-01-01T00:00:00Z",
                 "blocked": True,
                 "effective_strictness": "medium",
-                "findings": [
-                    {"term": {"surface_text": "test"}, "conflict_type": "ambiguous", "severity": "high"}
-                ],
+                "findings": [{"term": {"surface_text": "test"}, "conflict_type": "ambiguous", "severity": "high"}],
             },
             {
                 "event_type": "GlossaryClarificationRequested",
@@ -1499,13 +1459,7 @@ class TestRegressionSenseUpdatedOnCustomResolve:
         assert result.exit_code == 0
 
         # Read all events
-        event_file = (
-            mock_event_log_unresolved
-            / ".kittify"
-            / "events"
-            / "glossary"
-            / "software-dev.events.jsonl"
-        )
+        event_file = mock_event_log_unresolved / ".kittify" / "events" / "glossary" / "software-dev.events.jsonl"
         lines = event_file.read_text().strip().split("\n")
         new_events = [json.loads(line) for line in lines]
 
@@ -1520,9 +1474,7 @@ class TestRegressionSenseUpdatedOnCustomResolve:
         assert sense_events[-1]["new_sense"]["definition"] == "Custom workspace definition"
         assert sense_events[-1]["term_surface"] == "workspace"
 
-    def test_candidate_resolve_does_not_emit_sense_updated(
-        self, mock_event_log_unresolved, monkeypatch
-    ):
+    def test_candidate_resolve_does_not_emit_sense_updated(self, mock_event_log_unresolved, monkeypatch):
         """Verify selecting a candidate (not custom) does NOT emit SenseUpdated."""
         monkeypatch.chdir(mock_event_log_unresolved)
 
@@ -1534,13 +1486,7 @@ class TestRegressionSenseUpdatedOnCustomResolve:
         assert result.exit_code == 0
 
         # Read all events
-        event_file = (
-            mock_event_log_unresolved
-            / ".kittify"
-            / "events"
-            / "glossary"
-            / "software-dev.events.jsonl"
-        )
+        event_file = mock_event_log_unresolved / ".kittify" / "events" / "glossary" / "software-dev.events.jsonl"
         lines = event_file.read_text().strip().split("\n")
         new_events = [json.loads(line) for line in lines]
 
@@ -1563,9 +1509,7 @@ class TestRegressionDeprecatedStatus:
     rendered as "draft", and --status deprecated always returned empty.
     """
 
-    def test_deprecated_seed_term_surfaces_with_status_filter(
-        self, tmp_path, monkeypatch
-    ):
+    def test_deprecated_seed_term_surfaces_with_status_filter(self, tmp_path, monkeypatch):
         """Verify glossary list --status deprecated shows deprecated seed terms."""
         monkeypatch.chdir(tmp_path)
 
@@ -1591,9 +1535,7 @@ class TestRegressionDeprecatedStatus:
         assert "legacy-api" in result.stdout
         assert "Total: 1 term(s)" in result.stdout
 
-    def test_deprecated_seed_term_shown_with_correct_status_in_json(
-        self, tmp_path, monkeypatch
-    ):
+    def test_deprecated_seed_term_shown_with_correct_status_in_json(self, tmp_path, monkeypatch):
         """Verify JSON output contains status: deprecated, not draft."""
         monkeypatch.chdir(tmp_path)
 

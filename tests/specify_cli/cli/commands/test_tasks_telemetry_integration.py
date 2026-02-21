@@ -7,6 +7,7 @@ Bug context: ExecutionEvents were only emitted when using the orchestrator,
 not when using manual task lane transitions (spec-kitty agent tasks move-task).
 This meant human-in-the-loop workflows had no cost tracking.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,6 +34,7 @@ def project_with_feature(tmp_path: Path) -> tuple[Path, Path]:
 
     # Initialize git repo
     import subprocess
+
     subprocess.run(["git", "init"], cwd=repo_root, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.name", "Test User"],
@@ -125,11 +127,9 @@ def _invoke_move_task(
 class TestExecutionEventEmissionOnLaneTransition:
     """Test that ExecutionEvents are emitted when moving tasks through lanes."""
 
-    def test_move_to_for_review_emits_execution_event(
-        self, project_with_feature: tuple[Path, Path]
-    ) -> None:
+    def test_move_to_for_review_emits_execution_event(self, project_with_feature: tuple[Path, Path]) -> None:
         """Moving a task to for_review should emit an ExecutionEvent for implementation.
-        
+
         This test documents the BUG: ExecutionEvents are NOT currently emitted.
         After the fix, this test should pass.
         """
@@ -149,7 +149,9 @@ class TestExecutionEventEmissionOnLaneTransition:
                 "--force",
             ],
         )
-        assert result.exit_code == 0, f"Exit code: {result.exit_code}\nstdout: {result.stdout}\nstderr: {getattr(result, 'stderr', 'N/A')}"
+        assert result.exit_code == 0, (
+            f"Exit code: {result.exit_code}\nstdout: {result.stdout}\nstderr: {getattr(result, 'stderr', 'N/A')}"
+        )
 
         # Move from in_progress -> for_review (ExecutionEvent SHOULD be emitted)
         result = _invoke_move_task(
@@ -165,7 +167,9 @@ class TestExecutionEventEmissionOnLaneTransition:
                 "--force",
             ],
         )
-        assert result.exit_code == 0, f"Exit code: {result.exit_code}\nstdout: {result.stdout}\nstderr: {getattr(result, 'stderr', 'N/A')}"
+        assert result.exit_code == 0, (
+            f"Exit code: {result.exit_code}\nstdout: {result.stdout}\nstderr: {getattr(result, 'stderr', 'N/A')}"
+        )
 
         # Query ExecutionEvents from the feature directory
         events = list(query_execution_events(feature_dir))
@@ -178,9 +182,7 @@ class TestExecutionEventEmissionOnLaneTransition:
             f"but found {len(events)}. ExecutionEvents are not being emitted by move-task command."
         )
 
-    def test_move_to_done_emits_execution_event(
-        self, project_with_feature: tuple[Path, Path]
-    ) -> None:
+    def test_move_to_done_emits_execution_event(self, project_with_feature: tuple[Path, Path]) -> None:
         """Moving a task to done should emit an ExecutionEvent for review."""
         repo_root, feature_dir = project_with_feature
 
@@ -238,10 +240,7 @@ class TestExecutionEventEmissionOnLaneTransition:
         # BUG: This assertion currently FAILS
         # Expected: 2 ExecutionEvents (1 for implementation, 1 for review)
         # Actual: 0 ExecutionEvents
-        assert len(events) >= 2, (
-            f"Expected at least 2 ExecutionEvents after moving to done, "
-            f"but found {len(events)}"
-        )
+        assert len(events) >= 2, f"Expected at least 2 ExecutionEvents after moving to done, but found {len(events)}"
 
         # Verify review event structure
         review_event = [e for e in events if e.payload.get("role") == "reviewer"]
@@ -250,9 +249,7 @@ class TestExecutionEventEmissionOnLaneTransition:
         assert review_event[0].payload["agent"] == "codex"
         assert review_event[0].payload["model"] == "gpt-4.1"
 
-    def test_execution_event_cost_tracking(
-        self, project_with_feature: tuple[Path, Path]
-    ) -> None:
+    def test_execution_event_cost_tracking(self, project_with_feature: tuple[Path, Path]) -> None:
         """ExecutionEvents should include cost tracking data when provided."""
         repo_root, feature_dir = project_with_feature
 

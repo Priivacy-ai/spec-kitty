@@ -225,8 +225,7 @@ def validate_citations(evidence_log_path: Path) -> CitationValidationResult:
                             field="source_type",
                             issue_type="error",
                             message=(
-                                f"Invalid source_type '{source_type}'. "
-                                f"Must be one of: {', '.join(VALID_SOURCE_TYPES)}"
+                                f"Invalid source_type '{source_type}'. Must be one of: {', '.join(VALID_SOURCE_TYPES)}"
                             ),
                         )
                     )
@@ -370,10 +369,7 @@ def validate_source_register(source_register_path: Path) -> CitationValidationRe
                             line_number=line_number,
                             field="relevance",
                             issue_type="error",
-                            message=(
-                                f"Invalid relevance '{relevance}'. "
-                                f"Must be: {', '.join(VALID_RELEVANCE_LEVELS)}"
-                            ),
+                            message=(f"Invalid relevance '{relevance}'. Must be: {', '.join(VALID_RELEVANCE_LEVELS)}"),
                         )
                     )
                     entry_valid = False
@@ -384,9 +380,7 @@ def validate_source_register(source_register_path: Path) -> CitationValidationRe
                             line_number=line_number,
                             field="status",
                             issue_type="error",
-                            message=(
-                                f"Invalid status '{status}'. Must be: {', '.join(VALID_SOURCE_STATUS)}"
-                            ),
+                            message=(f"Invalid status '{status}'. Must be: {', '.join(VALID_SOURCE_STATUS)}"),
                         )
                     )
                     entry_valid = False

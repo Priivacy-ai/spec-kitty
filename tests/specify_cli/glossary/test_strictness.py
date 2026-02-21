@@ -103,9 +103,7 @@ class TestResolvePrecedence:
             (Strictness.MAX, None, None, None, Strictness.MAX),
         ],
     )
-    def test_precedence_combinations(
-        self, global_val, mission_val, step_val, runtime_val, expected
-    ):
+    def test_precedence_combinations(self, global_val, mission_val, step_val, runtime_val, expected):
         """Test all precedence combinations systematically."""
         result = resolve_strictness(
             global_default=global_val,

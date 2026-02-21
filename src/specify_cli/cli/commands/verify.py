@@ -35,7 +35,9 @@ TOOL_LABELS = [
 
 
 def verify_setup(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to verify (auto-detected when omitted)"),
+    feature: Optional[str] = typer.Option(
+        None, "--feature", help="Feature slug to verify (auto-detected when omitted)"
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format for AI agents"),
     check_files: bool = typer.Option(True, "--check-files", help="Check mission file integrity"),
     check_tools: bool = typer.Option(True, "--check-tools", help="Check for installed development tools"),
@@ -170,10 +172,10 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:
 
     # Project info panel
     project_info = f"""
-[bold]Project Path:[/bold] {diag['project_path']}
-[bold]Current Directory:[/bold] {diag['current_working_directory']}
-[bold]Git Branch:[/bold] {diag.get('git_branch') or '[yellow]Not detected[/yellow]'}
-[bold]Active Mission:[/bold] {diag.get('active_mission') or '[yellow]None[/yellow]'}
+[bold]Project Path:[/bold] {diag["project_path"]}
+[bold]Current Directory:[/bold] {diag["current_working_directory"]}
+[bold]Git Branch:[/bold] {diag.get("git_branch") or "[yellow]Not detected[/yellow]"}
+[bold]Active Mission:[/bold] {diag.get("active_mission") or "[yellow]None[/yellow]"}
 """
     console.print(Panel(project_info.strip(), title="Project Information", border_style="cyan"))
 
@@ -207,10 +209,10 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:
     worktrees_exist = diag.get("worktrees_exist", False)
 
     worktree_info = f"""
-[bold]Worktrees Exist:[/bold] {'[green]Yes[/green]' if worktrees_exist else '[red]No[/red]'}
-[bold]Currently in Worktree:[/bold] {'[green]Yes[/green]' if in_worktree else '[red]No[/red]'}
-[bold]Active Worktrees:[/bold] {worktree_overview.get('active_worktrees', 0)}
-[bold]Total Features:[/bold] {worktree_overview.get('total_features', 0)}
+[bold]Worktrees Exist:[/bold] {"[green]Yes[/green]" if worktrees_exist else "[red]No[/red]"}
+[bold]Currently in Worktree:[/bold] {"[green]Yes[/green]" if in_worktree else "[red]No[/red]"}
+[bold]Active Worktrees:[/bold] {worktree_overview.get("active_worktrees", 0)}
+[bold]Total Features:[/bold] {worktree_overview.get("total_features", 0)}
 """
     console.print(Panel(worktree_info.strip(), title="Worktrees", border_style="cyan"))
 
@@ -222,24 +224,24 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:
     if metadata_exists:
         responding = dashboard_health.get("responding", False)
         dashboard_info = f"""
-[bold]Metadata File:[/bold] {'[green]Exists[/green]' if metadata_exists else '[red]Missing[/red]'}
-[bold]Port:[/bold] {dashboard_health.get('port', 'Unknown')}
-[bold]Process PID:[/bold] {dashboard_health.get('pid', 'Not tracked')}
-[bold]Responding:[/bold] {'[green]Yes[/green]' if responding else '[red]No[/red]'}
+[bold]Metadata File:[/bold] {"[green]Exists[/green]" if metadata_exists else "[red]Missing[/red]"}
+[bold]Port:[/bold] {dashboard_health.get("port", "Unknown")}
+[bold]Process PID:[/bold] {dashboard_health.get("pid", "Not tracked")}
+[bold]Responding:[/bold] {"[green]Yes[/green]" if responding else "[red]No[/red]"}
 """
         if not responding:
             dashboard_info += "[red]⚠️  Dashboard is not responding - may need restart[/red]\n"
     else:
         # No dashboard - show startup test results
-        if startup_test == 'SUCCESS':
+        if startup_test == "SUCCESS":
             dashboard_info = f"""
 [bold]Status:[/bold] [green]Can start successfully[/green]
-[bold]Test Port:[/bold] {dashboard_health.get('test_port', 'N/A')}
+[bold]Test Port:[/bold] {dashboard_health.get("test_port", "N/A")}
 """
-        elif startup_test == 'FAILED':
+        elif startup_test == "FAILED":
             dashboard_info = f"""
 [bold]Status:[/bold] [red]Cannot start[/red]
-[bold]Error:[/bold] {dashboard_health.get('startup_error', 'Unknown')}
+[bold]Error:[/bold] {dashboard_health.get("startup_error", "Unknown")}
 [red]⚠️  Dashboard startup is broken for this project[/red]
 """
         else:
@@ -251,10 +253,10 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:
     current_feature = diag.get("current_feature", {})
     if current_feature.get("detected"):
         feature_info = f"""
-[bold]Detected Feature:[/bold] {current_feature.get('name')}
-[bold]State:[/bold] {current_feature.get('state')}
-[bold]Branch Exists:[/bold] {'[green]Yes[/green]' if current_feature.get('branch_exists') else '[red]No[/red]'}
-[bold]Worktree Exists:[/bold] {'[green]Yes[/green]' if current_feature.get('worktree_exists') else '[red]No[/red]'}
+[bold]Detected Feature:[/bold] {current_feature.get("name")}
+[bold]State:[/bold] {current_feature.get("state")}
+[bold]Branch Exists:[/bold] {"[green]Yes[/green]" if current_feature.get("branch_exists") else "[red]No[/red]"}
+[bold]Worktree Exists:[/bold] {"[green]Yes[/green]" if current_feature.get("worktree_exists") else "[red]No[/red]"}
 """
     else:
         feature_info = "[yellow]No feature detected in current context[/yellow]"

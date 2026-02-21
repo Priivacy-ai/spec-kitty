@@ -107,9 +107,7 @@ def _setup_multi_scope_repo(tmp_path):
 class TestFullWorkflowSpecifyClarifyResume:
     """End-to-end: specify step -> extraction -> conflict -> clarification -> gate passes."""
 
-    def test_interactive_clarification_resolves_conflict_and_pipeline_completes(
-        self, tmp_path, monkeypatch
-    ):
+    def test_interactive_clarification_resolves_conflict_and_pipeline_completes(self, tmp_path, monkeypatch):
         """User selects a candidate sense for an ambiguous term. The pipeline
         should complete without raising BlockedByConflict, even under MEDIUM
         strictness (which would block unresolved HIGH-severity conflicts)."""
@@ -133,9 +131,7 @@ class TestFullWorkflowSpecifyClarifyResume:
             mission_id="software-dev",
             run_id="run-int-001",
             inputs={
-                "description": (
-                    "Implement workspace management feature with artifact storage"
-                ),
+                "description": ("Implement workspace management feature with artifact storage"),
             },
             metadata={
                 "glossary_check": "enabled",
@@ -160,18 +156,14 @@ class TestFullWorkflowSpecifyClarifyResume:
         assert "workspace" in prompt_calls
 
         # Conflict was resolved (moved to resolved_conflicts, not in conflicts)
-        remaining_workspace = [
-            c for c in result.conflicts if c.term.surface_text == "workspace"
-        ]
+        remaining_workspace = [c for c in result.conflicts if c.term.surface_text == "workspace"]
         assert len(remaining_workspace) == 0
 
         resolved = getattr(result, "resolved_conflicts", [])
         resolved_surfaces = [c.term.surface_text for c in resolved]
         assert "workspace" in resolved_surfaces
 
-    def test_custom_definition_resolves_and_emits_sense_update(
-        self, tmp_path, monkeypatch
-    ):
+    def test_custom_definition_resolves_and_emits_sense_update(self, tmp_path, monkeypatch):
         """User provides a custom definition for an ambiguous term.
         Pipeline should complete and the custom sense is treated as resolution."""
         _setup_multi_scope_repo(tmp_path)
@@ -211,9 +203,7 @@ class TestFullWorkflowSpecifyClarifyResume:
         assert len(resolved) >= 1
         assert resolved[0].term.surface_text == "workspace"
 
-    def test_multi_term_workflow_only_ambiguous_terms_prompt(
-        self, tmp_path, monkeypatch
-    ):
+    def test_multi_term_workflow_only_ambiguous_terms_prompt(self, tmp_path, monkeypatch):
         """When input contains both ambiguous and unambiguous terms, only the
         ambiguous ones trigger clarification prompts."""
         _setup_multi_scope_repo(tmp_path)
@@ -267,9 +257,7 @@ class TestDeferWorkflow:
     """User defers conflict resolution. Conflict should remain unresolved
     and the generation gate should block (under MEDIUM/MAX strictness)."""
 
-    def test_defer_leaves_conflict_unresolved_and_gate_blocks(
-        self, tmp_path, monkeypatch
-    ):
+    def test_defer_leaves_conflict_unresolved_and_gate_blocks(self, tmp_path, monkeypatch):
         """Deferring a HIGH-severity ambiguous conflict under MEDIUM strictness
         should result in BlockedByConflict."""
         _setup_multi_scope_repo(tmp_path)
@@ -307,9 +295,7 @@ class TestDeferWorkflow:
         conflict_terms = {c.term.surface_text for c in exc_info.value.conflicts}
         assert "workspace" in conflict_terms
 
-    def test_defer_under_off_strictness_completes(
-        self, tmp_path, monkeypatch
-    ):
+    def test_defer_under_off_strictness_completes(self, tmp_path, monkeypatch):
         """Even when user defers, OFF strictness never blocks."""
         _setup_multi_scope_repo(tmp_path)
 
@@ -343,9 +329,7 @@ class TestDeferWorkflow:
 
         assert result.effective_strictness == Strictness.OFF
         # Conflict remains unresolved (deferred)
-        workspace_conflicts = [
-            c for c in result.conflicts if c.term.surface_text == "workspace"
-        ]
+        workspace_conflicts = [c for c in result.conflicts if c.term.surface_text == "workspace"]
         assert len(workspace_conflicts) >= 1
 
     def test_non_interactive_mode_defers_all(self, tmp_path):
@@ -497,9 +481,7 @@ class TestStrictnessModes:
 
         assert result.effective_strictness == Strictness.OFF
         # Conflicts are detected but not blocking
-        workspace_conflicts = [
-            c for c in result.conflicts if c.term.surface_text == "workspace"
-        ]
+        workspace_conflicts = [c for c in result.conflicts if c.term.surface_text == "workspace"]
         assert len(workspace_conflicts) >= 1
         assert workspace_conflicts[0].conflict_type == ConflictType.AMBIGUOUS
 
@@ -693,9 +675,7 @@ class TestMultipleConflictsSingleStep:
         assert "workspace" in conflict_terms
         assert "mission" in conflict_terms
 
-    def test_resolve_all_multiple_conflicts_interactively(
-        self, tmp_path, monkeypatch
-    ):
+    def test_resolve_all_multiple_conflicts_interactively(self, tmp_path, monkeypatch):
         """User resolves all conflicts interactively. Pipeline completes."""
         _create_seed_file(
             tmp_path,
@@ -889,9 +869,7 @@ class TestScopeHierarchyIntegration:
         )
         result = pipeline.process(ctx)
 
-        unknown_conflicts = [
-            c for c in result.conflicts if c.term.surface_text == "xylophone"
-        ]
+        unknown_conflicts = [c for c in result.conflicts if c.term.surface_text == "xylophone"]
         assert len(unknown_conflicts) == 1
         assert unknown_conflicts[0].conflict_type == ConflictType.UNKNOWN
 
@@ -958,9 +936,7 @@ class TestEventEmissionEndToEnd:
             config={},
         )
 
-        event = emit_term_candidate_observed(
-            term=term, context=ctx, repo_root=tmp_path
-        )
+        event = emit_term_candidate_observed(term=term, context=ctx, repo_root=tmp_path)
 
         assert event is not None
         assert event["event_type"] == "TermCandidateObserved"
@@ -1148,9 +1124,7 @@ class TestEventEmissionEndToEnd:
 class TestProductionCodePath:
     """Verify full integration through the production execute_with_glossary hook."""
 
-    def test_full_e2e_production_specify_clarify_proceed(
-        self, tmp_path, monkeypatch
-    ):
+    def test_full_e2e_production_specify_clarify_proceed(self, tmp_path, monkeypatch):
         """Full production path: hook -> pipeline -> clarify -> primitive."""
         from specify_cli.missions.glossary_hook import execute_with_glossary
 
@@ -1168,11 +1142,13 @@ class TestProductionCodePath:
         primitive_results = []
 
         def my_specify_primitive(context):
-            primitive_results.append({
-                "strictness": context.effective_strictness,
-                "remaining_conflicts": len(context.conflicts),
-                "terms_extracted": len(context.extracted_terms),
-            })
+            primitive_results.append(
+                {
+                    "strictness": context.effective_strictness,
+                    "remaining_conflicts": len(context.conflicts),
+                    "terms_extracted": len(context.extracted_terms),
+                }
+            )
             return primitive_results[-1]
 
         ctx = PrimitiveExecutionContext(
@@ -1205,9 +1181,7 @@ class TestProductionCodePath:
         assert result["strictness"] == Strictness.MEDIUM
         assert result["terms_extracted"] >= 1
 
-    def test_production_path_disabled_skips_pipeline_runs_primitive(
-        self, tmp_path
-    ):
+    def test_production_path_disabled_skips_pipeline_runs_primitive(self, tmp_path):
         """When glossary is disabled, the primitive still runs."""
         from specify_cli.missions.glossary_hook import execute_with_glossary
 
@@ -1258,9 +1232,7 @@ class TestErrorHandlingEdgeCases:
             config={},
         )
 
-        pipeline = create_standard_pipeline(
-            tmp_path, runtime_strictness=Strictness.OFF
-        )
+        pipeline = create_standard_pipeline(tmp_path, runtime_strictness=Strictness.OFF)
 
         # Should not crash
         result = pipeline.process(ctx)
@@ -1281,9 +1253,7 @@ class TestErrorHandlingEdgeCases:
             config={},
         )
 
-        pipeline = create_standard_pipeline(
-            tmp_path, runtime_strictness=Strictness.OFF
-        )
+        pipeline = create_standard_pipeline(tmp_path, runtime_strictness=Strictness.OFF)
 
         result = pipeline.process(ctx)
         assert result is not None
@@ -1300,9 +1270,7 @@ class TestErrorHandlingEdgeCases:
             config={},
         )
 
-        pipeline = create_standard_pipeline(
-            tmp_path, runtime_strictness=Strictness.OFF
-        )
+        pipeline = create_standard_pipeline(tmp_path, runtime_strictness=Strictness.OFF)
 
         result = pipeline.process(ctx)
         assert result is not None
@@ -1429,9 +1397,7 @@ class TestIntegrationPerformance:
             pipeline.process(ctx)
 
         elapsed = time.perf_counter() - start
-        assert elapsed < 5.0, (
-            f"10 pipeline iterations too slow: {elapsed:.2f}s (expected < 5.0s)"
-        )
+        assert elapsed < 5.0, f"10 pipeline iterations too slow: {elapsed:.2f}s (expected < 5.0s)"
 
     def test_hundred_watch_terms_under_200ms(self, tmp_path):
         """Pipeline with 100 metadata watch terms completes in < 200ms."""
@@ -1447,9 +1413,7 @@ class TestIntegrationPerformance:
             config={},
         )
 
-        pipeline = create_standard_pipeline(
-            tmp_path, runtime_strictness=Strictness.OFF
-        )
+        pipeline = create_standard_pipeline(tmp_path, runtime_strictness=Strictness.OFF)
 
         start = time.perf_counter()
         pipeline.process(ctx)

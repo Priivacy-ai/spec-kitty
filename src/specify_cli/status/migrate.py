@@ -300,9 +300,7 @@ def migrate_feature(
 
         # Validate canonical lane
         if canonical_lane not in CANONICAL_LANES:
-            wp_errors.append(
-                f"{wp_file.name}: unrecognized lane '{raw_lane_str}'"
-            )
+            wp_errors.append(f"{wp_file.name}: unrecognized lane '{raw_lane_str}'")
             wp_details.append(
                 WPMigrationDetail(
                     wp_id=wp_id,
@@ -358,9 +356,7 @@ def migrate_feature(
                     evidence=t.evidence,
                 )
             except ValueError:
-                wp_errors.append(
-                    f"{wp_file.name}: invalid transition {t.from_lane}->{t.to_lane}"
-                )
+                wp_errors.append(f"{wp_file.name}: invalid transition {t.from_lane}->{t.to_lane}")
                 continue
 
             all_events.append(event)
@@ -402,9 +398,7 @@ def migrate_feature(
 
             materialize(feature_dir)
         except Exception as exc:
-            logger.warning(
-                "Materialization failed for %s (non-fatal): %s", feature_slug, exc
-            )
+            logger.warning("Materialization failed for %s (non-fatal): %s", feature_slug, exc)
 
     status = "migrated" if all_events else "skipped"
     error_msg: str | None = None

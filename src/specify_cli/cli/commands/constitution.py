@@ -44,18 +44,12 @@ def _resolve_constitution_path(repo_root: Path) -> Path:
     if legacy_path.exists():
         return legacy_path
 
-    raise TaskCliError(
-        "Constitution not found. Expected:\n"
-        f"  - {new_path}\n"
-        f"  - {legacy_path} (legacy)"
-    )
+    raise TaskCliError(f"Constitution not found. Expected:\n  - {new_path}\n  - {legacy_path} (legacy)")
 
 
 @app.command()
 def sync(
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Force sync even if not stale"
-    ),
+    force: bool = typer.Option(False, "--force", "-f", help="Force sync even if not stale"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Sync constitution.md to structured YAML config files."""
@@ -89,10 +83,7 @@ def sync(
             for filename in result.files_written:
                 console.print(f"  ✓ {filename}")
         else:
-            console.print(
-                "[blue]ℹ️  Constitution already in sync[/blue] "
-                "(use --force to re-extract)"
-            )
+            console.print("[blue]ℹ️  Constitution already in sync[/blue] (use --force to re-extract)")
 
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")

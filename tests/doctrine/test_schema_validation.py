@@ -37,10 +37,7 @@ def _schema_validator(schema_name: str) -> Draft202012Validator:
 
 def _error_message(schema_name: str, fixture_path: Path, error) -> str:
     pointer = "/" + "/".join(str(part) for part in error.path) if error.path else "/"
-    return (
-        f"schema={schema_name} fixture={fixture_path.name} "
-        f"path={pointer} message={error.message}"
-    )
+    return f"schema={schema_name} fixture={fixture_path.name} path={pointer} message={error.message}"
 
 
 @pytest.mark.parametrize("schema_name", sorted(SCHEMA_FILES.keys()))
@@ -54,9 +51,7 @@ def test_valid_fixtures_pass(schema_name: str) -> None:
     for fixture_path in fixture_paths:
         instance = _load_yaml(fixture_path)
         errors = sorted(validator.iter_errors(instance), key=str)
-        assert not errors, "\n".join(
-            _error_message(schema_name, fixture_path, error) for error in errors
-        )
+        assert not errors, "\n".join(_error_message(schema_name, fixture_path, error) for error in errors)
 
 
 @pytest.mark.parametrize("schema_name", sorted(SCHEMA_FILES.keys()))
@@ -70,7 +65,4 @@ def test_invalid_fixtures_fail(schema_name: str) -> None:
     for fixture_path in fixture_paths:
         instance = _load_yaml(fixture_path)
         errors = sorted(validator.iter_errors(instance), key=str)
-        assert errors, (
-            f"schema={schema_name} fixture={fixture_path.name} "
-            "expected validation errors but got none"
-        )
+        assert errors, f"schema={schema_name} fixture={fixture_path.name} expected validation errors but got none"

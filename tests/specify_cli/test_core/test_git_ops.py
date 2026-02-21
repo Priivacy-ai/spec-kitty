@@ -219,6 +219,7 @@ def test_has_tracking_branch_with_tracking(tmp_path, _git_identity):
 
     # Should have tracking now
     from specify_cli.core.git_ops import has_tracking_branch
+
     assert has_tracking_branch(repo) is True
 
 
@@ -241,6 +242,7 @@ def test_has_tracking_branch_without_tracking(tmp_path, _git_identity):
 
     # Should NOT have tracking
     from specify_cli.core.git_ops import has_tracking_branch
+
     assert has_tracking_branch(repo) is False
 
 
@@ -257,6 +259,7 @@ def test_has_tracking_branch_no_remote(tmp_path, _git_identity):
 
     # Should NOT have tracking (no remote)
     from specify_cli.core.git_ops import has_tracking_branch
+
     assert has_tracking_branch(repo) is False
 
 
@@ -526,9 +529,7 @@ def test_resolve_target_branch_fallback_uses_origin_head(tmp_path):
     meta = {"feature_number": "020", "slug": "020-feature"}
     (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
-    resolution = resolve_target_branch(
-        "020-feature", repo, "ticket_nr_4_branch", respect_current=True
-    )
+    resolution = resolve_target_branch("020-feature", repo, "ticket_nr_4_branch", respect_current=True)
 
     assert resolution.target == "ticket_nr_4_branch"  # Detected from origin/HEAD
     assert resolution.should_notify is False

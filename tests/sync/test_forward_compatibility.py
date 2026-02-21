@@ -25,6 +25,7 @@ from specify_cli.sync.client import WebSocketClient
 # Sample SaaS-originated event messages (wrapped in WebSocket 'event' envelope)
 # ---------------------------------------------------------------------------
 
+
 def _gate_passed_message(lamport_clock: int = 42) -> dict:
     """Build a WebSocket message containing a GatePassed event from SaaS."""
     return {
@@ -93,6 +94,7 @@ def _unknown_message_type() -> dict:
 # T023: Lamport clock receive() handles GatePassed/GateFailed values
 # ---------------------------------------------------------------------------
 
+
 class TestLamportClockReceiveConnectorEvents:
     """Verify clock.receive() correctly updates for connector event clock values.
 
@@ -157,6 +159,7 @@ class TestLamportClockReceiveConnectorEvents:
 # ---------------------------------------------------------------------------
 # T024: WebSocket client doesn't crash on unknown event types
 # ---------------------------------------------------------------------------
+
 
 class TestWebSocketClientForwardCompatibility:
     """Verify the WebSocket client handles unknown event/message types gracefully.
@@ -253,6 +256,7 @@ class TestWebSocketClientForwardCompatibility:
 # ---------------------------------------------------------------------------
 # T025: End-to-end: message handler wired to clock updates for all event types
 # ---------------------------------------------------------------------------
+
 
 class TestClockUpdateViaMessageHandler:
     """Verify a message handler that wires clock.receive() works for all event types.
@@ -376,6 +380,7 @@ class TestClockUpdateViaMessageHandler:
 # T024 supplement: VALID_EVENT_TYPES only gates outgoing events
 # ---------------------------------------------------------------------------
 
+
 class TestValidEventTypesOnlyGatesOutgoing:
     """Verify VALID_EVENT_TYPES allowlist only applies to outgoing event emission.
 
@@ -387,19 +392,27 @@ class TestValidEventTypesOnlyGatesOutgoing:
     def test_gate_passed_not_in_valid_event_types(self):
         """GatePassed is not in VALID_EVENT_TYPES (and that's fine for incoming)."""
         from specify_cli.sync.emitter import VALID_EVENT_TYPES
+
         assert "GatePassed" not in VALID_EVENT_TYPES
 
     def test_gate_failed_not_in_valid_event_types(self):
         """GateFailed is not in VALID_EVENT_TYPES (and that's fine for incoming)."""
         from specify_cli.sync.emitter import VALID_EVENT_TYPES
+
         assert "GateFailed" not in VALID_EVENT_TYPES
 
     def test_valid_event_types_only_contains_cli_originated_types(self):
         """VALID_EVENT_TYPES contains only CLI-originated event types."""
         from specify_cli.sync.emitter import VALID_EVENT_TYPES
+
         expected = {
-            "WPStatusChanged", "WPCreated", "WPAssigned",
-            "FeatureCreated", "FeatureCompleted", "HistoryAdded",
-            "ErrorLogged", "DependencyResolved",
+            "WPStatusChanged",
+            "WPCreated",
+            "WPAssigned",
+            "FeatureCreated",
+            "FeatureCompleted",
+            "HistoryAdded",
+            "ErrorLogged",
+            "DependencyResolved",
         }
         assert VALID_EVENT_TYPES == expected

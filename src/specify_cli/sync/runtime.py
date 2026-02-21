@@ -104,6 +104,7 @@ class SyncRuntime:
 
         # Start background service (use existing singleton)
         from .background import get_sync_service
+
         self.background_service = get_sync_service()
 
         # Connect WebSocket if authenticated
@@ -123,6 +124,7 @@ class SyncRuntime:
         if auth.is_authenticated():
             try:
                 from .client import WebSocketClient as _WebSocketClient
+
                 self.ws_client = cast(type[Any], _WebSocketClient)(
                     server_url=config.get_server_url(),
                     auth_client=auth,
@@ -138,10 +140,7 @@ class SyncRuntime:
                     # Creating a temporary event loop here spawns a background
                     # listener task that outlives the loop and triggers noisy
                     # "Task was destroyed but it is pending!" warnings.
-                    logger.debug(
-                        "No running event loop; skipping auto WebSocket connect "
-                        "in sync context"
-                    )
+                    logger.debug("No running event loop; skipping auto WebSocket connect in sync context")
                     logger.info("Events will be queued for batch sync")
                     return
 
@@ -183,9 +182,7 @@ class SyncRuntime:
                 )
                 try:
                     loop = asyncio.get_running_loop()
-                    disconnect_task = cast(
-                        asyncio.Task[object], asyncio.ensure_future(disconnect())
-                    )
+                    disconnect_task = cast(asyncio.Task[object], asyncio.ensure_future(disconnect()))
                     self._track_task(disconnect_task)
                 except RuntimeError:
                     loop = asyncio.new_event_loop()

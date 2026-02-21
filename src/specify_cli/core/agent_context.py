@@ -132,7 +132,7 @@ def preserve_manual_additions(old_content: str, new_content: str) -> str:
         return new_content
 
     # Extract the manual section (including markers)
-    manual_section = old_content[start_idx:end_idx + len(end_marker)]
+    manual_section = old_content[start_idx : end_idx + len(end_marker)]
 
     # Find where to inject in new content
     new_start_idx = new_content.find(start_marker)
@@ -144,7 +144,7 @@ def preserve_manual_additions(old_content: str, new_content: str) -> str:
 
     # Replace the section in new content with the preserved manual section
     before = new_content[:new_start_idx]
-    after = new_content[new_end_idx + len(end_marker):]
+    after = new_content[new_end_idx + len(end_marker) :]
 
     return before + manual_section + after
 
@@ -171,10 +171,7 @@ def update_agent_context(
         FileNotFoundError: If agent file doesn't exist
     """
     if agent_type not in AGENT_CONFIGS:
-        raise ValueError(
-            f"Unsupported agent type: {agent_type}. "
-            f"Supported types: {', '.join(AGENT_CONFIGS.keys())}"
-        )
+        raise ValueError(f"Unsupported agent type: {agent_type}. Supported types: {', '.join(AGENT_CONFIGS.keys())}")
 
     agent_file_path = repo_root / AGENT_CONFIGS[agent_type]
 
@@ -269,7 +266,7 @@ def update_agent_context(
         # Update last updated timestamp
         if "**Last updated**:" in line or "*Last updated*:" in line:
             # Replace date in format YYYY-MM-DD
-            line = re.sub(r'\d{4}-\d{2}-\d{2}', current_date, line)
+            line = re.sub(r"\d{4}-\d{2}-\d{2}", current_date, line)
 
         new_lines.append(line)
 
@@ -284,7 +281,7 @@ def update_agent_context(
     final_content = preserve_manual_additions(old_content, new_content)
 
     # Write updated content
-    agent_file_path.write_text(final_content, encoding='utf-8')
+    agent_file_path.write_text(final_content, encoding="utf-8")
 
 
 def get_supported_agent_types() -> List[str]:
@@ -307,9 +304,6 @@ def get_agent_file_path(agent_type: str, repo_root: Path) -> Path:
         ValueError: If agent_type is not supported
     """
     if agent_type not in AGENT_CONFIGS:
-        raise ValueError(
-            f"Unsupported agent type: {agent_type}. "
-            f"Supported types: {', '.join(AGENT_CONFIGS.keys())}"
-        )
+        raise ValueError(f"Unsupported agent type: {agent_type}. Supported types: {', '.join(AGENT_CONFIGS.keys())}")
 
     return repo_root / AGENT_CONFIGS[agent_type]

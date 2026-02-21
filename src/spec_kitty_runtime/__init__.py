@@ -35,7 +35,6 @@ class NullEmitter:
         return None
 
 
-
 def start_mission_run(
     *,
     template_key: str,
@@ -63,7 +62,6 @@ def start_mission_run(
         run_dir=str(run_dir),
         mission_key=template.mission.key,
     )
-
 
 
 def _issue_step(state: RuntimeState, run_dir: Path, index: int) -> NextDecision:
@@ -121,7 +119,6 @@ def _issue_step(state: RuntimeState, run_dir: Path, index: int) -> NextDecision:
         )
 
     return NextDecision(kind="step", run_id=state.run_id, step_id=step_id)
-
 
 
 def next_step(
@@ -209,7 +206,6 @@ def next_step(
         )
 
     return _issue_step(state, run_dir, next_index)
-
 
 
 def provide_decision_answer(

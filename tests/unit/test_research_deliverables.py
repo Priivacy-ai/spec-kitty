@@ -6,13 +6,13 @@ import json
 from pathlib import Path
 
 
-
 class TestGetDeliverablesPath:
     """Tests for get_deliverables_path function."""
 
     def test_returns_path_from_meta_json(self, tmp_path: Path) -> None:
         """Should return deliverables_path from meta.json when present."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import get_deliverables_path
@@ -20,10 +20,7 @@ class TestGetDeliverablesPath:
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         feature_dir.mkdir(parents=True)
         meta_file = feature_dir / "meta.json"
-        meta_file.write_text(json.dumps({
-            "mission": "research",
-            "deliverables_path": "docs/research/test-feature/"
-        }))
+        meta_file.write_text(json.dumps({"mission": "research", "deliverables_path": "docs/research/test-feature/"}))
 
         result = get_deliverables_path(feature_dir)
         assert result == "docs/research/test-feature/"
@@ -31,6 +28,7 @@ class TestGetDeliverablesPath:
     def test_returns_default_for_research_mission_without_path(self, tmp_path: Path) -> None:
         """Should return default path for research mission if deliverables_path not set."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import get_deliverables_path
@@ -38,10 +36,7 @@ class TestGetDeliverablesPath:
         feature_dir = tmp_path / "kitty-specs" / "001-market-research"
         feature_dir.mkdir(parents=True)
         meta_file = feature_dir / "meta.json"
-        meta_file.write_text(json.dumps({
-            "mission": "research",
-            "slug": "001-market-research"
-        }))
+        meta_file.write_text(json.dumps({"mission": "research", "slug": "001-market-research"}))
 
         result = get_deliverables_path(feature_dir)
         assert result == "docs/research/001-market-research/"
@@ -49,6 +44,7 @@ class TestGetDeliverablesPath:
     def test_returns_none_for_software_dev_mission(self, tmp_path: Path) -> None:
         """Should return None for software-dev missions (no deliverables path needed)."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import get_deliverables_path
@@ -56,9 +52,7 @@ class TestGetDeliverablesPath:
         feature_dir = tmp_path / "kitty-specs" / "001-feature"
         feature_dir.mkdir(parents=True)
         meta_file = feature_dir / "meta.json"
-        meta_file.write_text(json.dumps({
-            "mission": "software-dev"
-        }))
+        meta_file.write_text(json.dumps({"mission": "software-dev"}))
 
         result = get_deliverables_path(feature_dir)
         assert result is None
@@ -66,6 +60,7 @@ class TestGetDeliverablesPath:
     def test_uses_feature_slug_for_default_when_provided(self, tmp_path: Path) -> None:
         """Should use provided feature_slug for default path generation."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import get_deliverables_path
@@ -80,6 +75,7 @@ class TestGetDeliverablesPath:
     def test_handles_missing_meta_json(self, tmp_path: Path) -> None:
         """Should handle missing meta.json gracefully."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import get_deliverables_path
@@ -94,6 +90,7 @@ class TestGetDeliverablesPath:
     def test_handles_invalid_json(self, tmp_path: Path) -> None:
         """Should handle invalid JSON gracefully."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import get_deliverables_path
@@ -113,6 +110,7 @@ class TestValidateDeliverablesPath:
     def test_rejects_kitty_specs_prefix(self) -> None:
         """Should reject paths starting with kitty-specs/."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import validate_deliverables_path
@@ -124,6 +122,7 @@ class TestValidateDeliverablesPath:
     def test_rejects_just_research_at_root(self) -> None:
         """Should reject just 'research/' at root (ambiguous)."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import validate_deliverables_path
@@ -139,6 +138,7 @@ class TestValidateDeliverablesPath:
     def test_rejects_absolute_paths(self) -> None:
         """Should reject absolute paths."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import validate_deliverables_path
@@ -150,6 +150,7 @@ class TestValidateDeliverablesPath:
     def test_accepts_valid_docs_research_path(self) -> None:
         """Should accept valid docs/research/<feature>/ paths."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import validate_deliverables_path
@@ -161,6 +162,7 @@ class TestValidateDeliverablesPath:
     def test_accepts_valid_research_outputs_path(self) -> None:
         """Should accept valid research-outputs/<feature>/ paths."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import validate_deliverables_path
@@ -172,6 +174,7 @@ class TestValidateDeliverablesPath:
     def test_accepts_custom_valid_path(self) -> None:
         """Should accept other valid relative paths."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import validate_deliverables_path
@@ -187,6 +190,7 @@ class TestMetaJsonDeliverablesPath:
     def test_meta_json_stores_deliverables_path(self, tmp_path: Path) -> None:
         """meta.json should store deliverables_path for research missions."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import get_deliverables_path
@@ -202,7 +206,7 @@ class TestMetaJsonDeliverablesPath:
             "friendly_name": "Test Research",
             "mission": "research",
             "deliverables_path": "docs/research/test/",
-            "created_at": "2025-01-25T10:00:00Z"
+            "created_at": "2025-01-25T10:00:00Z",
         }
         meta_file.write_text(json.dumps(meta_data))
 
@@ -213,6 +217,7 @@ class TestMetaJsonDeliverablesPath:
     def test_default_deliverables_path_when_missing(self, tmp_path: Path) -> None:
         """Should default to docs/research/<feature>/ when not specified for research."""
         import sys
+
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import get_deliverables_path
@@ -222,10 +227,7 @@ class TestMetaJsonDeliverablesPath:
         meta_file = feature_dir / "meta.json"
 
         # Write meta.json WITHOUT deliverables_path but WITH research mission
-        meta_data = {
-            "mission": "research",
-            "slug": "018-literature-review"
-        }
+        meta_data = {"mission": "research", "slug": "018-literature-review"}
         meta_file.write_text(json.dumps(meta_data))
 
         result = get_deliverables_path(feature_dir)

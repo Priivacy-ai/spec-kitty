@@ -95,23 +95,16 @@ def validate_event_schema(event: dict) -> list[str]:
     # execution_mode check
     exec_mode = event.get("execution_mode")
     if exec_mode is not None and exec_mode not in ("worktree", "direct_repo"):
-        findings.append(
-            f"Event {event_id}: execution_mode must be 'worktree' or 'direct_repo', got '{exec_mode}'"
-        )
+        findings.append(f"Event {event_id}: execution_mode must be 'worktree' or 'direct_repo', got '{exec_mode}'")
 
     # Force audit check: force=true requires reason
     if event.get("force") is True and not event.get("reason"):
         findings.append(f"Event {event_id}: force=true without reason")
 
     # Review ref check: for_review -> in_progress requires review_ref
-    if (
-        event.get("from_lane") == "for_review"
-        and event.get("to_lane") == "in_progress"
-    ):
+    if event.get("from_lane") == "for_review" and event.get("to_lane") == "in_progress":
         if not event.get("review_ref"):
-            findings.append(
-                f"Event {event_id}: for_review->in_progress without review_ref"
-            )
+            findings.append(f"Event {event_id}: for_review->in_progress without review_ref")
 
     return findings
 
@@ -128,9 +121,7 @@ def validate_transition_legality(events: list[dict]) -> list[str]:
     findings: list[str] = []
 
     # Sort by (at, event_id) to ensure correct replay order
-    sorted_events = sorted(
-        events, key=lambda e: (e.get("at", ""), e.get("event_id", ""))
-    )
+    sorted_events = sorted(events, key=lambda e: (e.get("at", ""), e.get("event_id", "")))
 
     for event in sorted_events:
         from_lane = event.get("from_lane")
@@ -147,9 +138,7 @@ def validate_transition_legality(events: list[dict]) -> list[str]:
             continue
 
         if (from_lane, to_lane) not in ALLOWED_TRANSITIONS:
-            findings.append(
-                f"Event {event_id}: illegal transition {from_lane} -> {to_lane}"
-            )
+            findings.append(f"Event {event_id}: illegal transition {from_lane} -> {to_lane}")
 
     return findings
 
@@ -174,40 +163,26 @@ def validate_done_evidence(events: list[dict]) -> list[str]:
 
         evidence = event.get("evidence")
         if not evidence:
-            findings.append(
-                f"Event {event_id}: done without evidence (not forced)"
-            )
+            findings.append(f"Event {event_id}: done without evidence (not forced)")
             continue
 
         # Check evidence structure
         if not isinstance(evidence, dict):
-            findings.append(
-                f"Event {event_id}: done evidence is not a dict"
-            )
+            findings.append(f"Event {event_id}: done evidence is not a dict")
             continue
 
         review = evidence.get("review")
         if not review:
-            findings.append(
-                f"Event {event_id}: done evidence missing review section"
-            )
+            findings.append(f"Event {event_id}: done evidence missing review section")
         elif not isinstance(review, dict):
-            findings.append(
-                f"Event {event_id}: done evidence review is not a dict"
-            )
+            findings.append(f"Event {event_id}: done evidence review is not a dict")
         else:
             if not review.get("reviewer"):
-                findings.append(
-                    f"Event {event_id}: done evidence missing reviewer identity"
-                )
+                findings.append(f"Event {event_id}: done evidence missing reviewer identity")
             if not review.get("verdict"):
-                findings.append(
-                    f"Event {event_id}: done evidence missing verdict"
-                )
+                findings.append(f"Event {event_id}: done evidence missing verdict")
             if not review.get("reference"):
-                findings.append(
-                    f"Event {event_id}: done evidence missing approval reference"
-                )
+                findings.append(f"Event {event_id}: done evidence missing approval reference")
 
     return findings
 
@@ -228,9 +203,7 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
 
     if not events_path.exists():
         if status_path.exists():
-            findings.append(
-                "status.json exists but status.events.jsonl is missing"
-            )
+            findings.append("status.json exists but status.events.jsonl is missing")
         return findings
 
     if not status_path.exists():
@@ -264,18 +237,14 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
                     f"(expected lane={expected_wp.get('lane', '?')})"
                 )
             elif expected_wp is None:
-                findings.append(
-                    f"Materialization drift: {wp_id} in status.json but not in reducer output"
-                )
+                findings.append(f"Materialization drift: {wp_id} in status.json but not in reducer output")
             elif disk_wp.get("lane") != expected_wp.get("lane"):
                 findings.append(
                     f"Materialization drift: {wp_id} lane={disk_wp.get('lane')} in status.json "
                     f"but reducer says lane={expected_wp.get('lane')}"
                 )
             elif disk_wp != expected_wp:
-                findings.append(
-                    f"Materialization drift: {wp_id} state differs between status.json and reducer output"
-                )
+                findings.append(f"Materialization drift: {wp_id} state differs between status.json and reducer output")
 
     # Also check event count and last_event_id
     if disk_data.get("event_count") != expected_snapshot.event_count:
@@ -285,10 +254,7 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
         )
 
     if disk_data.get("last_event_id") != expected_snapshot.last_event_id:
-        findings.append(
-            "Materialization drift: last_event_id mismatch between "
-            "status.json and reducer output"
-        )
+        findings.append("Materialization drift: last_event_id mismatch between status.json and reducer output")
 
     return findings
 
@@ -320,28 +286,18 @@ def validate_derived_views(
         canonical_lane = wp_state.get("lane")
 
         # Find the corresponding WP file
-        wp_files = list(tasks_dir.glob(f"{wp_id}-*.md")) + list(
-            tasks_dir.glob(f"{wp_id}.md")
-        )
+        wp_files = list(tasks_dir.glob(f"{wp_id}-*.md")) + list(tasks_dir.glob(f"{wp_id}.md"))
         if not wp_files:
-            findings.append(
-                f"{wp_id}: no WP file found in tasks/ "
-                f"(canonical state: {canonical_lane})"
-            )
+            findings.append(f"{wp_id}: no WP file found in tasks/ (canonical state: {canonical_lane})")
             continue
 
         wp_file = wp_files[0]
         content = wp_file.read_text(encoding="utf-8-sig")
 
         # Extract lane from frontmatter
-        lane_match = re.search(
-            r'^lane:\s*["\']?(\S+?)["\']?\s*$', content, re.MULTILINE
-        )
+        lane_match = re.search(r'^lane:\s*["\']?(\S+?)["\']?\s*$', content, re.MULTILINE)
         if not lane_match:
-            findings.append(
-                f"{wp_id}: no lane field in frontmatter "
-                f"(canonical state: {canonical_lane})"
-            )
+            findings.append(f"{wp_id}: no lane field in frontmatter (canonical state: {canonical_lane})")
             continue
 
         frontmatter_lane = lane_match.group(1)
@@ -352,25 +308,20 @@ def validate_derived_views(
 
         if frontmatter_lane != canonical_lane:
             findings.append(
-                f"{severity}: {wp_id} frontmatter lane={frontmatter_lane} "
-                f"but canonical state={canonical_lane}"
+                f"{severity}: {wp_id} frontmatter lane={frontmatter_lane} but canonical state={canonical_lane}"
             )
 
     tasks_md = feature_dir / "tasks.md"
     if tasks_md.exists():
         status_lines = _extract_tasks_status_lines(tasks_md.read_text(encoding="utf-8"))
         if status_lines is None:
-            findings.append(
-                f"{severity}: tasks.md is missing generated canonical status block"
-            )
+            findings.append(f"{severity}: tasks.md is missing generated canonical status block")
         else:
             tasks_status: dict[str, str] = {}
             for line in status_lines:
                 match = re.match(r"^- (WP\d{2}): ([a-z_]+)$", line.strip())
                 if match is None:
-                    findings.append(
-                        f"{severity}: tasks.md status block has malformed line: {line.strip()}"
-                    )
+                    findings.append(f"{severity}: tasks.md status block has malformed line: {line.strip()}")
                     continue
                 tasks_status[match.group(1)] = match.group(2)
 
@@ -379,21 +330,17 @@ def validate_derived_views(
                 tasks_lane = tasks_status.get(wp_id)
                 if tasks_lane is None:
                     findings.append(
-                        f"{severity}: tasks.md status block missing {wp_id} "
-                        f"(canonical state: {canonical_lane})"
+                        f"{severity}: tasks.md status block missing {wp_id} (canonical state: {canonical_lane})"
                     )
                     continue
                 if tasks_lane != canonical_lane:
                     findings.append(
-                        f"{severity}: {wp_id} tasks.md lane={tasks_lane} "
-                        f"but canonical state={canonical_lane}"
+                        f"{severity}: {wp_id} tasks.md lane={tasks_lane} but canonical state={canonical_lane}"
                     )
 
             for wp_id in sorted(tasks_status):
                 if wp_id not in snapshot_wps:
-                    findings.append(
-                        f"{severity}: tasks.md status block includes unknown {wp_id}"
-                    )
+                    findings.append(f"{severity}: tasks.md status block includes unknown {wp_id}")
 
     return findings
 
@@ -406,7 +353,7 @@ def _extract_tasks_status_lines(content: str) -> list[str] | None:
     end_idx = content.find(STATUS_BLOCK_END, start_idx)
     if end_idx == -1:
         return None
-    block = content[start_idx + len(STATUS_BLOCK_START):end_idx]
+    block = content[start_idx + len(STATUS_BLOCK_START) : end_idx]
     lines = [line.strip() for line in block.strip().splitlines() if line.strip()]
     if not lines:
         return []

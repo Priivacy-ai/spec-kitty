@@ -76,9 +76,7 @@ class ConstitutionCleanupMigration(BaseMigration):
                 changes.append(f"Removed {mission_dir.name}/constitution/")
                 removed_from.append(mission_dir.name)
             except OSError as e:
-                errors.append(
-                    f"Failed to remove {mission_dir.name}/constitution/: {e}"
-                )
+                errors.append(f"Failed to remove {mission_dir.name}/constitution/: {e}")
 
         if removed_from:
             warnings.append(

@@ -33,14 +33,11 @@ def _make_feature(tmp_path: Path, feature_slug: str = "099-test-feature") -> tup
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\n"
-            f"lane: planned\ndependencies: []\n---\n\n# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
 
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"status_phase": 1}), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps({"status_phase": 1}), encoding="utf-8")
     return repo_root, feature_dir
 
 
@@ -63,10 +60,12 @@ def _emit_event(feature_dir: Path, wp_id: str, from_lane: str, to_lane: str, act
     from specify_cli.status.emit import emit_status_transition
 
     if to_lane == "in_progress" and from_lane == "planned":
-        emit_status_transition(feature_dir, feature_dir.parent.parent.name + "-" + feature_dir.name,
-                               wp_id, "claimed", actor)
-        emit_status_transition(feature_dir, feature_dir.parent.parent.name + "-" + feature_dir.name,
-                               wp_id, "in_progress", actor)
+        emit_status_transition(
+            feature_dir, feature_dir.parent.parent.name + "-" + feature_dir.name, wp_id, "claimed", actor
+        )
+        emit_status_transition(
+            feature_dir, feature_dir.parent.parent.name + "-" + feature_dir.name, wp_id, "in_progress", actor
+        )
     else:
         emit_status_transition(
             feature_dir,
@@ -85,7 +84,11 @@ def _emit_planned_to_done(feature_dir: Path, feature_slug: str, wp_id: str, acto
     emit_status_transition(feature_dir, feature_slug, wp_id, "in_progress", actor)
     emit_status_transition(feature_dir, feature_slug, wp_id, "for_review", actor)
     emit_status_transition(
-        feature_dir, feature_slug, wp_id, "done", actor,
+        feature_dir,
+        feature_slug,
+        wp_id,
+        "done",
+        actor,
         evidence={
             "review": {
                 "reviewer": "reviewer-agent",
@@ -121,6 +124,7 @@ class TestFeatureState:
 
         # Emit one transition
         from specify_cli.status.emit import emit_status_transition
+
         emit_status_transition(feature_dir, feature_slug, "WP01", "claimed", "test-actor")
 
         with patch(
@@ -180,6 +184,7 @@ class TestListReady:
         feature_slug = "099-test-feature"
 
         from specify_cli.status.emit import emit_status_transition
+
         emit_status_transition(feature_dir, feature_slug, "WP01", "claimed", "test")
         emit_status_transition(feature_dir, feature_slug, "WP01", "in_progress", "test")
 
@@ -227,10 +232,14 @@ class TestStartImplementation:
                 app,
                 [
                     "start-implementation",
-                    "--feature", feature_slug,
-                    "--wp", "WP01",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--feature",
+                    feature_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -248,6 +257,7 @@ class TestStartImplementation:
 
         # First put WP01 in_progress as claude
         from specify_cli.status.emit import emit_status_transition
+
         emit_status_transition(feature_dir, feature_slug, "WP01", "claimed", "claude")
         emit_status_transition(feature_dir, feature_slug, "WP01", "in_progress", "claude")
 
@@ -259,10 +269,14 @@ class TestStartImplementation:
                 app,
                 [
                     "start-implementation",
-                    "--feature", feature_slug,
-                    "--wp", "WP01",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--feature",
+                    feature_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -277,6 +291,7 @@ class TestStartImplementation:
 
         # Put WP01 in claimed state as "other-agent"
         from specify_cli.status.emit import emit_status_transition
+
         emit_status_transition(feature_dir, feature_slug, "WP01", "claimed", "other-agent")
 
         with patch(
@@ -287,10 +302,14 @@ class TestStartImplementation:
                 app,
                 [
                     "start-implementation",
-                    "--feature", feature_slug,
-                    "--wp", "WP01",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--feature",
+                    feature_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -313,10 +332,14 @@ class TestStartReview:
                 app,
                 [
                     "start-review",
-                    "--feature", "099-test-feature",
-                    "--wp", "WP01",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--feature",
+                    "099-test-feature",
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -330,6 +353,7 @@ class TestStartReview:
 
         # Put WP01 in for_review state
         from specify_cli.status.emit import emit_status_transition
+
         emit_status_transition(feature_dir, feature_slug, "WP01", "claimed", "claude")
         emit_status_transition(feature_dir, feature_slug, "WP01", "in_progress", "claude")
         emit_status_transition(feature_dir, feature_slug, "WP01", "for_review", "claude")
@@ -342,11 +366,16 @@ class TestStartReview:
                 app,
                 [
                     "start-review",
-                    "--feature", feature_slug,
-                    "--wp", "WP01",
-                    "--actor", "reviewer",
-                    "--policy", _valid_policy_json(),
-                    "--review-ref", "review-feedback-001",
+                    "--feature",
+                    feature_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "reviewer",
+                    "--policy",
+                    _valid_policy_json(),
+                    "--review-ref",
+                    "review-feedback-001",
                 ],
             )
 
@@ -374,10 +403,14 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--feature", feature_slug,
-                    "--wp", "WP01",
-                    "--to", "done",
-                    "--actor", "claude",
+                    "--feature",
+                    feature_slug,
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "done",
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -398,10 +431,14 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--feature", feature_slug,
-                    "--wp", "WP01",
-                    "--to", "canceled",
-                    "--actor", "claude",
+                    "--feature",
+                    feature_slug,
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "canceled",
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -423,10 +460,14 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--feature", feature_slug,
-                    "--wp", "WP01",
-                    "--to", "claimed",
-                    "--actor", "claude",
+                    "--feature",
+                    feature_slug,
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "claimed",
+                    "--actor",
+                    "claude",
                     # no --policy
                 ],
             )
@@ -444,21 +485,28 @@ class TestAppendHistory:
         repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
         feature_slug = "099-test-feature"
 
-        with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
-            return_value=repo_root,
-        ), patch(
-            "specify_cli.git.commit_helpers.safe_commit",
-            return_value=True,
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.git.commit_helpers.safe_commit",
+                return_value=True,
+            ),
         ):
             result = runner.invoke(
                 app,
                 [
                     "append-history",
-                    "--feature", feature_slug,
-                    "--wp", "WP01",
-                    "--actor", "claude",
-                    "--note", "Started implementation",
+                    "--feature",
+                    feature_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--note",
+                    "Started implementation",
                 ],
             )
 
@@ -478,10 +526,14 @@ class TestAppendHistory:
                 app,
                 [
                     "append-history",
-                    "--feature", "099-test-feature",
-                    "--wp", "WP99",
-                    "--actor", "claude",
-                    "--note", "nonexistent",
+                    "--feature",
+                    "099-test-feature",
+                    "--wp",
+                    "WP99",
+                    "--actor",
+                    "claude",
+                    "--note",
+                    "nonexistent",
                 ],
             )
 
@@ -510,8 +562,10 @@ class TestAcceptFeature:
                 app,
                 [
                     "accept-feature",
-                    "--feature", feature_slug,
-                    "--actor", "claude",
+                    "--feature",
+                    feature_slug,
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -540,8 +594,10 @@ class TestAcceptFeature:
                 app,
                 [
                     "accept-feature",
-                    "--feature", feature_slug,
-                    "--actor", "claude",
+                    "--feature",
+                    feature_slug,
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -563,22 +619,28 @@ class TestMergeFeature:
         mock_preflight.passed = False
         mock_preflight.errors = ["Missing worktree for WP01"]
 
-        with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
-            return_value=repo_root,
-        ), patch(
-            "specify_cli.orchestrator_api.commands.run_preflight",
-            return_value=mock_preflight,
-        ), patch(
-            "specify_cli.orchestrator_api.commands.get_merge_order",
-            return_value=[],
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.run_preflight",
+                return_value=mock_preflight,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.get_merge_order",
+                return_value=[],
+            ),
         ):
             result = runner.invoke(
                 app,
                 [
                     "merge-feature",
-                    "--feature", feature_slug,
-                    "--target", "main",
+                    "--feature",
+                    feature_slug,
+                    "--target",
+                    "main",
                 ],
             )
 
@@ -595,23 +657,30 @@ class TestMergeFeature:
         mock_preflight.passed = True
         mock_preflight.errors = []
 
-        with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
-            return_value=repo_root,
-        ), patch(
-            "specify_cli.orchestrator_api.commands.run_preflight",
-            return_value=mock_preflight,
-        ), patch(
-            "specify_cli.orchestrator_api.commands.get_merge_order",
-            return_value=[],
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.run_preflight",
+                return_value=mock_preflight,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.get_merge_order",
+                return_value=[],
+            ),
         ):
             result = runner.invoke(
                 app,
                 [
                     "merge-feature",
-                    "--feature", feature_slug,
-                    "--target", "main",
-                    "--strategy", "merge",
+                    "--feature",
+                    feature_slug,
+                    "--target",
+                    "main",
+                    "--strategy",
+                    "merge",
                 ],
             )
 
@@ -630,23 +699,30 @@ class TestMergeFeature:
         mock_preflight.passed = True
         mock_preflight.errors = []
 
-        with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
-            return_value=repo_root,
-        ), patch(
-            "specify_cli.orchestrator_api.commands.run_preflight",
-            return_value=mock_preflight,
-        ), patch(
-            "specify_cli.orchestrator_api.commands.get_merge_order",
-            return_value=[],
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.run_preflight",
+                return_value=mock_preflight,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands.get_merge_order",
+                return_value=[],
+            ),
         ):
             result = runner.invoke(
                 app,
                 [
                     "merge-feature",
-                    "--feature", feature_slug,
-                    "--target", "main",
-                    "--strategy", "rebase",
+                    "--feature",
+                    feature_slug,
+                    "--target",
+                    "main",
+                    "--strategy",
+                    "rebase",
                 ],
             )
 
@@ -667,9 +743,12 @@ class TestMergeFeature:
                 app,
                 [
                     "merge-feature",
-                    "--feature", feature_slug,
-                    "--target", "main",
-                    "--strategy", "octopus",
+                    "--feature",
+                    feature_slug,
+                    "--target",
+                    "main",
+                    "--strategy",
+                    "octopus",
                 ],
             )
 
@@ -731,10 +810,14 @@ class TestWPNotFound:
                 app,
                 [
                     "start-implementation",
-                    "--feature", "099-test-feature",
-                    "--wp", "WP99",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--feature",
+                    "099-test-feature",
+                    "--wp",
+                    "WP99",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -752,11 +835,16 @@ class TestWPNotFound:
                 app,
                 [
                     "start-review",
-                    "--feature", "099-test-feature",
-                    "--wp", "WP99",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
-                    "--review-ref", "ref-001",
+                    "--feature",
+                    "099-test-feature",
+                    "--wp",
+                    "WP99",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
+                    "--review-ref",
+                    "ref-001",
                 ],
             )
 
@@ -774,10 +862,14 @@ class TestWPNotFound:
                 app,
                 [
                     "transition",
-                    "--feature", "099-test-feature",
-                    "--wp", "WP99",
-                    "--to", "canceled",
-                    "--actor", "claude",
+                    "--feature",
+                    "099-test-feature",
+                    "--wp",
+                    "WP99",
+                    "--to",
+                    "canceled",
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -815,9 +907,7 @@ class TestFeatureStateNoEvents:
 # ── Suffixed WP filenames (P0 regression) ─────────────────────────
 
 
-def _make_feature_with_suffixed_wps(
-    tmp_path: Path, feature_slug: str = "040-test-feature"
-) -> tuple[Path, Path]:
+def _make_feature_with_suffixed_wps(tmp_path: Path, feature_slug: str = "040-test-feature") -> tuple[Path, Path]:
     """Create a feature directory whose WP files have hyphen-suffixed names.
 
     e.g. WP07-adapter-implementations.md instead of WP07.md
@@ -838,9 +928,7 @@ def _make_feature_with_suffixed_wps(
     # Also include a non-WP file to verify it is excluded
     (tasks_dir / "README.md").write_text("# Tasks\n", encoding="utf-8")
 
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"status_phase": 1}), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps({"status_phase": 1}), encoding="utf-8")
     return repo_root, feature_dir
 
 
@@ -857,10 +945,14 @@ class TestSuffixedWPFilenames:
                 app,
                 [
                     "start-implementation",
-                    "--feature", "040-test-feature",
-                    "--wp", "WP07",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--feature",
+                    "040-test-feature",
+                    "--wp",
+                    "WP07",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -887,10 +979,14 @@ class TestSuffixedWPFilenames:
                 app,
                 [
                     "transition",
-                    "--feature", "040-test-feature",
-                    "--wp", "WP07",
-                    "--to", "canceled",
-                    "--actor", "claude",
+                    "--feature",
+                    "040-test-feature",
+                    "--wp",
+                    "WP07",
+                    "--to",
+                    "canceled",
+                    "--actor",
+                    "claude",
                 ],
             )
 

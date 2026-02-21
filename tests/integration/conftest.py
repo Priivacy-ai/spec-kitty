@@ -44,12 +44,8 @@ def isolated_env() -> dict[str, str]:
     env["PYTHONPATH"] = str(src_path)  # Source only, no existing PYTHONPATH
     env["SPEC_KITTY_CLI_VERSION"] = source_version  # Override version detection
     env["SPEC_KITTY_TEST_MODE"] = "1"  # Signal test mode (fail-fast on fixture bugs)
-    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(
-        REPO_ROOT / "src" / "doctrine" / "missions"
-    )  # Find bundled mission assets
-    env["SPEC_KITTY_HOME"] = str(
-        runtime_home
-    )  # Writable runtime home for sandboxed tests
+    env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT / "src" / "doctrine" / "missions")  # Find bundled mission assets
+    env["SPEC_KITTY_HOME"] = str(runtime_home)  # Writable runtime home for sandboxed tests
 
     return env
 
@@ -98,12 +94,8 @@ def test_project(tmp_path: Path) -> Path:
     (project / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
 
     subprocess.run(["git", "init", "-b", "main"], cwd=project, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "ci@example.com"], cwd=project, check=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Spec Kitty CI"], cwd=project, check=True
-    )
+    subprocess.run(["git", "config", "user.email", "ci@example.com"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.name", "Spec Kitty CI"], cwd=project, check=True)
     subprocess.run(["git", "add", "."], cwd=project, check=True)
     subprocess.run(["git", "commit", "-m", "Initial project"], cwd=project, check=True)
 
@@ -179,9 +171,7 @@ def dual_branch_repo(tmp_path: Path) -> Path:
         shutil.copytree(missions_src, missions_dest)
 
     # Initialize git with main branch
-    subprocess.run(
-        ["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True
-    )
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "config", "user.name", "Test User"],
         cwd=repo,

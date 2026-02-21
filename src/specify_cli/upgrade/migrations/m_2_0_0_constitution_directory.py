@@ -62,9 +62,7 @@ class ConstitutionDirectoryMigration(BaseMigration):
                         f"Initial extraction: {len(sync_result.files_written)} YAML files created"
                     )
                 elif sync_result.error:
-                    result.warnings.append(
-                        f"Initial extraction failed: {sync_result.error}"
-                    )
+                    result.warnings.append(f"Initial extraction failed: {sync_result.error}")
             except Exception as e:
                 result.warnings.append(
                     f"Initial extraction skipped ({e}). Run 'spec-kitty constitution sync' manually."
@@ -81,9 +79,7 @@ class ConstitutionDirectoryMigration(BaseMigration):
 
         # Scenario 3: New exists, old doesn't -> skip (already migrated)
         if new_path.exists() and not old_path.exists():
-            result.changes_made.append(
-                f"Constitution already at {new_path.relative_to(project_path)}"
-            )
+            result.changes_made.append(f"Constitution already at {new_path.relative_to(project_path)}")
             return result
 
         # Scenario 4: Neither exists -> skip (no constitution)

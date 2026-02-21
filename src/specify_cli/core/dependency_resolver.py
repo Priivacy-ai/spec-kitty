@@ -76,9 +76,7 @@ class DependencyStatus:
         )
 
 
-def check_dependency_status(
-    feature_dir: Path, wp_id: str, dependencies: list[str]
-) -> DependencyStatus:
+def check_dependency_status(feature_dir: Path, wp_id: str, dependencies: list[str]) -> DependencyStatus:
     """Check status of a WP's dependencies.
 
     Args:
@@ -120,9 +118,7 @@ def check_dependency_status(
     )
 
 
-def predict_merge_conflicts(
-    repo_root: Path, branches: list[str], target: str | None = None
-) -> dict[str, list[str]]:
+def predict_merge_conflicts(repo_root: Path, branches: list[str], target: str | None = None) -> dict[str, list[str]]:
     """Predict which files will conflict when merging branches.
 
     Uses git merge-tree to simulate merge without touching working directory.
@@ -140,6 +136,7 @@ def predict_merge_conflicts(
 
     if target is None:
         from specify_cli.core.git_ops import resolve_primary_branch
+
         target = resolve_primary_branch(repo_root)
 
     conflicts: dict[str, list[str]] = {}
