@@ -6,6 +6,7 @@
 **Priority**: P1 (Highest)
 **Target Branch**: `2.x`
 **Mission**: software-dev
+**Delivery Mode**: API + local dashboard UI parity slice (both in scope)
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -39,7 +40,7 @@ The local sync pipeline needs to emit canonical dossier events so that a SaaS ba
 1. **Given** a mission with 10 indexed artifacts, **When** dossier is computed, **Then** MissionDossierSnapshotComputed event emitted with completeness_status, parity_hash_sha256, artifact counts
 2. **Given** a MissionDossierSnapshotComputed event, **When** SaaS receives it, **Then** it can reconstruct full artifact catalog from prior MissionDossierArtifactIndexed events
 3. **Given** 2 local scans with no content changes, **When** both generate snapshots, **Then** parity_hash_sha256 is identical (deterministic)
-4. **Given** local snapshot hash differs from SaaS hash, **When** drift detection runs, **Then** MissionDossierParityDriftDetected emitted with severity, missing_in_local, missing_in_saas
+4. **Given** a cached last-known remote parity hash differs from current local snapshot hash, **When** local drift detection runs (online or offline), **Then** MissionDossierParityDriftDetected emitted with severity, missing_in_local, missing_in_saas
 
 ---
 
@@ -84,7 +85,7 @@ Curator wants to query "show me all output artifacts from Phase 2" or "all evide
   - Revision fields capture git SHA when available. Provenance tracks source_kind="git".
 
 - What if artifact manifest is not yet defined for a new mission type?
-  - Graceful degradation: index artifacts found, emit warnings, but do not block sync. Missing-artifact detection skipped until manifest defined.
+  - V1 completeness guarantees apply only to `software-dev`, `research`, and `documentation`. Other mission types are indexed for visibility only; missing-required detection is skipped until a manifest is explicitly added.
 
 - What if content changes during scan (file being written)?
   - Content hash captures the state at scan time. If file changes immediately after, next scan produces different hash (expected).
@@ -98,15 +99,17 @@ Curator wants to query "show me all output artifacts from Phase 2" or "all evide
 
 - **FR-001**: System MUST index all artifact files in a feature directory and compute deterministic content_hash_sha256 for each
 - **FR-002**: System MUST support 6 artifact classes (input, workflow, output, evidence, policy, runtime) with stable, extensible encoding
-- **FR-003**: System MUST define expected-artifact manifests per mission type and mission step (Phase 0, 1, 2 for software-dev; extensible for other missions)
+- **FR-003**: System MUST define expected-artifact manifests per mission type and mission step for `software-dev`, `research`, and `documentation` in v1 (extensible for other missions later)
 - **FR-004**: System MUST detect missing required artifacts and emit MissionDossierArtifactMissing events with reason codes (not_found, unreadable, invalid_format, not_produced_yet)
 - **FR-005**: System MUST compute deterministic parity_hash_sha256 from all indexed artifacts' content hashes, such that identical artifact content always produces identical parity hash
-- **FR-006**: System MUST emit 4 canonical dossier events to the sync pipeline: MissionDossierArtifactIndexed, MissionDossierArtifactMissing, MissionDossierSnapshotComputed, MissionDossierParityDriftDetected
+- **FR-006**: System MUST support 4 canonical dossier event types in the sync pipeline: MissionDossierArtifactIndexed, MissionDossierArtifactMissing, MissionDossierSnapshotComputed, MissionDossierParityDriftDetected (anomaly events are emitted only when conditions occur)
 - **FR-007**: System MUST expose dashboard API endpoints: `/api/dossier/overview`, `/api/dossier/artifacts`, `/api/dossier/artifacts/{artifact_key}`, `/api/dossier/snapshots/export`
 - **FR-008**: System MUST support artifact filtering by class, wp_id, step_id with stable, repeatable ordering
 - **FR-009**: System MUST never silently omit artifacts; all anomalies (missing, unreadable, invalid format) MUST be explicit in dossier events and API responses
 - **FR-010**: Dossier projection MUST be deterministic—repeated scans of unchanged content produce identical snapshots and parity hashes
 - **FR-011**: System MUST integrate with existing sync/events infrastructure (spec_kitty_events contracts, offline queue, WebSocket routing)
+- **FR-012**: Local runtime MUST own parity-drift detection and operate offline by comparing current local snapshot against locally cached parity baselines when available
+- **FR-013**: Local dashboard UI MUST render dossier overview, artifact list/filter, and artifact detail views from the dossier API layer
 
 ### Key Entities *(if data involved)*
 
@@ -122,9 +125,9 @@ Curator wants to query "show me all output artifacts from Phase 2" or "all evide
 ### Measurable Outcomes
 
 - **SC-001**: Local dashboard can retrieve and render complete artifact catalog (>30 artifacts tested) with full-text detail in under 500ms
-- **SC-002**: Dossier projection is deterministic—running scan twice on unchanged content produces byte-for-byte identical parity_hash_sha256 and event payloads
+- **SC-002**: Dossier projection is deterministic—running scan twice on unchanged content produces identical parity_hash_sha256 and identical canonical dossier payload fields (excluding volatile envelope fields such as event_id/timestamp/lamport_clock)
 - **SC-003**: All 4 canonical dossier event types (Indexed, Missing, Computed, ParityDrift) are emitted and consumable by offline queue (testable via mock SaaS webhook endpoint)
-- **SC-004**: Missing required artifacts are always surfaced—zero silent omissions in 100 test missions across 5 mission types
+- **SC-004**: Missing required artifacts are always surfaced—zero silent omissions in 100 test missions across the 3 v1 manifest-backed mission types (`software-dev`, `research`, `documentation`)
 - **SC-005**: API response times for artifact filtering queries (e.g., "all output artifacts") scale linearly with artifact count, supporting up to 1000 artifacts per feature
 - **SC-006**: Parity hash computation is reproducible—identical artifact content on different machines/timezones produces identical hash
 - **SC-007**: Artifact content hashing is robust—UTF-8 encoding issues detected and handled consistently, not causing hash mismatches
@@ -132,7 +135,8 @@ Curator wants to query "show me all output artifacts from Phase 2" or "all evide
 ### Acceptance Criteria
 
 - ✅ Local dashboard/API code is deployed to spec-kitty 2.x
-- ✅ Expected artifact manifests defined for software-dev mission (Phase 0, 1, 2)
+- ✅ Expected artifact manifests defined for `software-dev`, `research`, and `documentation` missions
+- ✅ Local dashboard dossier panel is delivered (overview + list/filter + detail)
 - ✅ Dossier events schema added to spec-kitty-events contracts
 - ✅ Dashboard integration tests cover all 4 endpoint categories (overview, list, detail, export)
 - ✅ Event emission tests verify deterministic ordering and hash reproducibility
@@ -141,17 +145,17 @@ Curator wants to query "show me all output artifacts from Phase 2" or "all evide
 
 ## Assumptions
 
-1. **Expected artifact manifests are defined in mission templates**, not hard-coded. This allows future mission types to declare their own requirements without code changes.
+1. **Expected artifact manifests are defined in mission templates**, not hard-coded. V1 ships strict manifests for `software-dev`, `research`, and `documentation`, based only on artifacts that already exist in those mission templates.
 2. **Content hashing uses SHA256** (standard, widely available, sufficient for collision resistance in this context).
 3. **Parity hash is order-independent**: hash is computed from sorted list of artifact hashes, ensuring determinism regardless of scan iteration order.
 4. **Sync/events infrastructure (spec_kitty_events, offline queue) is already stable** and compatible with new event types.
 5. **Artifact provenance tracking is optional**: ProvenanceRef[] can be empty; events do not fail if provenance data is unavailable.
-6. **SaaS is responsible for storing/displaying snapshots**, not spec-kitty local. Local role is indexing and emitting; SaaS role is archiving and rendering.
+6. **Local runtime is responsible for drift detection** so parity behavior works offline. SaaS remains responsible for storage/display and can perform secondary parity validation.
 7. **Artifact content remains stable once scanned**: we assume files are not being written to during a scan (user responsibility to avoid concurrent edits).
 
 ## Out of Scope (Non-Goals)
 
-1. Building SaaS UI or dashboard UI (only API layer)
+1. Building SaaS dashboard UI in this feature (local dashboard UI is in scope)
 2. Implementing event replay/theater workflows (emit-only this phase)
 3. Replacing git/filesystem as source of truth for artifacts
 4. Full-text search indexing (basic filtering only)
@@ -163,16 +167,16 @@ Curator wants to query "show me all output artifacts from Phase 2" or "all evide
 ### Phase 1: Core Projection & Events (WP01-WP05)
 
 - **WP01**: ArtifactRef model + deterministic hashing + Dossier data model
-- **WP02**: Expected artifact manifest system + software-dev Phase 0/1/2 registries
+- **WP02**: Expected artifact manifest system + v1 registries for `software-dev`, `research`, and `documentation` using existing mission artifacts only
 - **WP03**: Indexing + missing artifact detection
 - **WP04**: Dossier event types + emit integration with spec_kitty_events + offline routing
 - **WP05**: Deterministic snapshot computation + parity hash algorithm
 
-### Phase 2: API & Dashboard Integration (WP06-WP08)
+### Phase 2: API & Local Dashboard Integration (WP06-WP08)
 
 - **WP06**: Dashboard API endpoints (overview, list, detail, export)
 - **WP07**: Dashboard UI integration (dossier panel + filters)
-- **WP08**: Event routing to SaaS webhook simulator (test harness)
+- **WP08**: Local parity-drift detector + event routing to SaaS webhook simulator (test harness)
 
 ### Phase 3: Testing & Hardening (WP09-WP10)
 
@@ -184,7 +188,7 @@ Curator wants to query "show me all output artifacts from Phase 2" or "all evide
 - **PRD**: /Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-planning/product-ideas/mission-collaboration-platform-ddd/prd-mission-dossier-dashboard-parity-v1.md
 - **Existing Dashboard**: src/specify_cli/dashboard/ (scanner.py, api.py, server.py)
 - **Existing Sync**: src/specify_cli/sync/ (events.py, emitter.py, OfflineQueue)
-- **Spec-Kitty-Events Contracts**: spec-kitty-events/contracts/events.schema.json (to be extended)
+- **Spec-Kitty-Events Contracts**: /Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-events/src/spec_kitty_events/schemas/event.schema.json (to be extended with dossier payload schemas)
 
 ## References & External Context
 

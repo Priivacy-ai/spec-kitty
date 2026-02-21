@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mission Dossier Parity Drift Detected Event",
+  "description": "Anomaly event emitted when local parity hash differs from cached baseline",
+  "type": "object",
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "enum": ["mission_dossier_parity_drift_detected"],
+      "description": "Event type identifier"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{26}$",
+      "description": "Unique event identifier (ULID format)"
+    },
+    "feature_slug": {
+      "type": "string",
+      "pattern": "^[0-9]{3}-[a-z0-9\\-]+$",
+      "description": "Feature identifier"
+    },
+    "actor": {
+      "type": "string",
+      "description": "Actor who triggered the scan"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when event was emitted"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "local_parity_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Current local parity hash"
+        },
+        "baseline_parity_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Last-known baseline parity hash (from SaaS or local cache)"
+        },
+        "missing_in_local": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Artifact keys present in baseline but missing in local"
+        },
+        "missing_in_baseline": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Artifact keys present in local but missing in baseline"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "error"],
+          "description": "'info' for new artifacts, 'warning' for modified, 'error' for deleted required"
+        }
+      },
+      "required": [
+        "local_parity_hash",
+        "baseline_parity_hash",
+        "missing_in_local",
+        "missing_in_baseline",
+        "severity"
+      ]
+    }
+  },
+  "required": ["event_type", "feature_slug", "actor", "timestamp", "payload"]
+}

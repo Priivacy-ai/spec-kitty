@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mission Dossier Artifact Missing Event",
+  "description": "Anomaly event emitted when a required artifact is missing or unreadable",
+  "type": "object",
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "enum": ["mission_dossier_artifact_missing"],
+      "description": "Event type identifier"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{26}$",
+      "description": "Unique event identifier (ULID format)"
+    },
+    "feature_slug": {
+      "type": "string",
+      "pattern": "^[0-9]{3}-[a-z0-9\\-]+$",
+      "description": "Feature identifier"
+    },
+    "actor": {
+      "type": "string",
+      "description": "Actor who triggered the scan"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when event was emitted"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "artifact_key": {
+          "type": "string",
+          "description": "Stable key for the missing artifact"
+        },
+        "artifact_class": {
+          "type": "string",
+          "enum": ["input", "workflow", "output", "evidence", "policy", "runtime", "other"],
+          "description": "Classification of missing artifact"
+        },
+        "expected_path_pattern": {
+          "type": "string",
+          "description": "Path pattern from manifest (e.g., 'spec.md' or 'tasks/*.md')"
+        },
+        "reason_code": {
+          "type": "string",
+          "enum": ["not_found", "unreadable", "invalid_format", "deleted_after_scan"],
+          "description": "Reason artifact is missing or inaccessible"
+        },
+        "reason_detail": {
+          "type": ["string", "null"],
+          "description": "Additional detail (e.g., permission error message)"
+        },
+        "blocking": {
+          "type": "boolean",
+          "description": "True if missing artifact blocks completeness"
+        }
+      },
+      "required": [
+        "artifact_key",
+        "artifact_class",
+        "expected_path_pattern",
+        "reason_code",
+        "blocking"
+      ]
+    }
+  },
+  "required": ["event_type", "feature_slug", "actor", "timestamp", "payload"]
+}

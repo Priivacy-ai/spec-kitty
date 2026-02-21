@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mission Dossier Snapshot Computed Event",
+  "description": "Emitted after dossier finalization with parity hash and completeness status",
+  "type": "object",
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "enum": ["mission_dossier_snapshot_computed"],
+      "description": "Event type identifier"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{26}$",
+      "description": "Unique event identifier (ULID format)"
+    },
+    "feature_slug": {
+      "type": "string",
+      "pattern": "^[0-9]{3}-[a-z0-9\\-]+$",
+      "description": "Feature identifier"
+    },
+    "actor": {
+      "type": "string",
+      "description": "Actor who triggered the scan"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when event was emitted"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "snapshot_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique snapshot identifier"
+        },
+        "parity_hash_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Deterministic parity hash (SHA256) for artifact catalog"
+        },
+        "artifact_counts": {
+          "type": "object",
+          "properties": {
+            "total": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total number of indexed artifacts"
+            },
+            "required": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total required artifacts (from manifest)"
+            },
+            "required_present": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Required artifacts that are present"
+            },
+            "required_missing": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Required artifacts that are missing (blocking)"
+            },
+            "optional": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total optional artifacts"
+            },
+            "optional_present": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Optional artifacts that are present"
+            }
+          },
+          "required": [
+            "total",
+            "required",
+            "required_present",
+            "required_missing",
+            "optional",
+            "optional_present"
+          ]
+        },
+        "completeness_status": {
+          "type": "string",
+          "enum": ["complete", "incomplete", "unknown"],
+          "description": "'complete' if all required artifacts present, 'incomplete' if any missing, 'unknown' if no manifest"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "parity_hash_sha256",
+        "artifact_counts",
+        "completeness_status"
+      ]
+    }
+  },
+  "required": ["event_type", "feature_slug", "actor", "timestamp", "payload"]
+}

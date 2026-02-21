@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mission Dossier Artifact Indexed Event",
+  "description": "Emitted when an artifact is successfully indexed in the dossier",
+  "type": "object",
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "enum": ["mission_dossier_artifact_indexed"],
+      "description": "Event type identifier"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{26}$",
+      "description": "Unique event identifier (ULID format)"
+    },
+    "feature_slug": {
+      "type": "string",
+      "pattern": "^[0-9]{3}-[a-z0-9\\-]+$",
+      "description": "Feature identifier (e.g., '042-local-mission-dossier')"
+    },
+    "actor": {
+      "type": "string",
+      "description": "Actor who triggered the scan (e.g., 'claude', 'curator')"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when event was emitted"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "artifact_key": {
+          "type": "string",
+          "description": "Stable, unique key for artifact (e.g., 'input.spec.main')"
+        },
+        "artifact_class": {
+          "type": "string",
+          "enum": ["input", "workflow", "output", "evidence", "policy", "runtime", "other"],
+          "description": "Classification of artifact"
+        },
+        "relative_path": {
+          "type": "string",
+          "description": "Path relative to feature directory (e.g., 'spec.md')"
+        },
+        "content_hash_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA256 hash of artifact content (64 hex chars)"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "File size in bytes"
+        },
+        "wp_id": {
+          "type": ["string", "null"],
+          "description": "Work package ID if applicable (e.g., 'WP01')"
+        },
+        "step_id": {
+          "type": ["string", "null"],
+          "description": "Mission step if applicable (e.g., 'planning')"
+        },
+        "required_status": {
+          "type": "string",
+          "enum": ["required", "optional"],
+          "description": "Whether artifact is required or optional"
+        }
+      },
+      "required": [
+        "artifact_key",
+        "artifact_class",
+        "relative_path",
+        "content_hash_sha256",
+        "size_bytes",
+        "required_status"
+      ]
+    }
+  },
+  "required": ["event_type", "feature_slug", "actor", "timestamp", "payload"]
+}
