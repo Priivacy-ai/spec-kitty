@@ -133,7 +133,7 @@ contexts:
           Status: canonical
           Location: '`architecture/journeys/*.md`'
           Related terms: Feature, Phase, Mission
-          Template: '`src/specify_cli/missions/design/templates/user-journey-template.md`'
+          Template: '`src/doctrine/templates/architecture/user-journey-template.md`'
           Distinction: User Stories live in `spec.md` and describe *what value to deliver*. User 
             Journeys live in `architecture/journeys/` and describe *how actors interact with the 
             system end-to-end*.

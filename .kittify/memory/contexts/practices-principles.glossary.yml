@@ -129,7 +129,7 @@ contexts:
           Status: canonical
           Related terms: Lane, Work Package, EventBridge
       - name: AFK Mode
-        definition: 'Away From Keyboard — a session management protocol granting agents extended autonomy
+        definition: 'Away From Keyboard -- a session management protocol granting agents extended autonomy
           with defined boundaries. When activated: commit after each logical unit, push permission granted,
           minor decisions autonomous, critical decisions trigger escalation. Deactivated when human returns
           or agent encounters a critical decision.'
@@ -137,3 +137,40 @@ contexts:
           Context: Practices & Principles
           Status: canonical
           Related terms: Human In Charge, Decision Boundary, Escalation
+      - name: Domain Classification
+        definition: The practice of assigning each source code package to one of three tiers -- 
+          core, supporting, or glue -- based on its criticality and testability. The tier determines
+          the coverage threshold enforced in CI, the level of static analysis applied, and the scope
+          of quality gate checks. Declared in `pyproject.toml` under `[tool.coverage_tiers]` as the 
+          single source of truth.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Core Domain, Supporting Domain, Glue Domain, Phase Checkpoint Protocol
+      - name: Core Domain
+        definition: Packages containing the canonical business logic of the system -- state 
+          machines, domain models, VCS abstractions, event infrastructure. Subject to the highest 
+          coverage threshold (currently 80%) and full static analysis including quality and security
+          rules. Changes here carry the highest risk and require the most scrutiny.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Domain Classification, Supporting Domain, Glue Domain
+      - name: Supporting Domain
+        definition: Packages providing important but inherently harder-to-unit-test functionality --
+          CLI command bindings, I/O-heavy adapters, format parsers. Subject to a reduced but 
+          enforced coverage threshold (currently 55%) and full static analysis. Best-effort coverage
+          is acceptable; gaps must be justified, not ignored.
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Domain Classification, Core Domain, Glue Domain
+      - name: Glue Domain
+        definition: 'Packages acting as thin wiring between subsystems -- orchestration entry points,
+          web UI handlers, utility scripts. Coverage is tracked but not enforced (threshold: 0%). Quality
+          issues are suppressed in SonarCloud to avoid noise. Security scanning (Bandit, pip-audit) continues
+          to apply without exception; glue code is not exempt from OWASP or CVE checks.'
+        meta:
+          Context: Practices & Principles
+          Status: canonical
+          Related terms: Domain Classification, Core Domain, Supporting Domain

@@ -60,10 +60,9 @@ contexts:
           In code: '`kitty-specs/<feature>/meta.json` (`vcs` field)'
           Related terms: Feature, `kitty-specs/`
       - name: '`doctrine/`'
-        definition: Directory (usually at project root) where Doctrine Stack artifacts live, 
-          distributed as a git subtree. Its root-level placement signals cross-cutting authority. 
-          Contains guidelines, directives, paradigms (or legacy approaches during migration), 
-          tactics, templates, and agent profiles.
+        definition: Directory at project root where Doctrine framework artifacts live, distributed 
+          as a git subtree. Its root-level placement signals cross-cutting authority. Contains 
+          guidelines, directives, approaches, tactics, templates, and agent profiles.
         meta:
           Context: Configuration
           Status: canonical
