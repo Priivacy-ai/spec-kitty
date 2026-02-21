@@ -1,15 +1,17 @@
 # Agent: Qwen Code
 
 ## Basic Info
+
 - **Directory**: `.qwen/`
 - **Primary Interface**: CLI
 - **Vendor**: Alibaba (Qwen Team)
-- **Documentation**: https://qwenlm.github.io/qwen-code-docs/
-- **GitHub**: https://github.com/QwenLM/qwen-code
+- **Documentation**: <https://qwenlm.github.io/qwen-code-docs/>
+- **GitHub**: <https://github.com/QwenLM/qwen-code>
 
 ## CLI Availability
 
 ### Installation
+
 ```bash
 # NPM global install (recommended)
 npm install -g @qwen-code/qwen-code@latest
@@ -21,6 +23,7 @@ brew install qwen-code
 **Prerequisites**: Node.js 20 or higher
 
 ### Verification
+
 ```bash
 which qwen
 qwen --version
@@ -28,6 +31,7 @@ qwen --help
 ```
 
 ### Local Test Results
+
 ```bash
 $ which qwen
 /opt/homebrew/bin/qwen
@@ -46,6 +50,7 @@ $ echo 'print("Hello")' | qwen -p "What does this code do?" --output-format json
 ## Task Specification
 
 ### How to Pass Instructions
+
 - [x] Command line argument (`qwen "your prompt"` or `qwen -p "prompt"`)
 - [x] Stdin (`echo "code" | qwen`)
 - [x] Stdin + prompt combined (`cat file.md | qwen -p "analyze"`)
@@ -53,6 +58,7 @@ $ echo 'print("Hello")' | qwen -p "What does this code do?" --output-format json
 - [ ] Environment variable
 
 ### Example Invocation
+
 ```bash
 # One-shot headless execution
 qwen "Write a function to reverse a string in Python" --output-format json
@@ -75,6 +81,7 @@ qwen --resume <session-id>
 ```
 
 ### Context Handling
+
 - Automatically indexes the current working directory
 - Respects `.gitignore` patterns
 - Uses `AGENTS.md` or `.qwen/AGENTS.md` for project-specific instructions
@@ -85,6 +92,7 @@ qwen --resume <session-id>
 ## Completion Detection
 
 ### Exit Codes
+
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
@@ -93,12 +101,14 @@ qwen --resume <session-id>
 *Note: Qwen Code uses non-zero exit codes for errors. Specific codes follow similar patterns to Gemini CLI (fork origin).*
 
 ### Output Format
+
 - [x] Stdout (plain text) - default
 - [x] Stdout (JSON) - `--output-format json`
 - [x] Streaming JSONL - `--output-format stream-json`
 - [x] Structured logs (stats, tool calls, token usage in JSON)
 
 **JSON Output Structure** (array format):
+
 ```json
 [
   {
@@ -134,6 +144,7 @@ qwen --resume <session-id>
 ## Parallel Execution
 
 ### Rate Limits
+
 | Auth Method | Rate Limit |
 |-------------|------------|
 | Qwen OAuth (free tier) | 2,000 requests/day |
@@ -141,12 +152,14 @@ qwen --resume <session-id>
 | DashScope API | Alibaba Cloud limits |
 
 ### Concurrent Sessions
+
 - Multiple CLI instances can run in parallel in separate directories
 - Each session gets a unique `session_id`
 - Session data stored in `~/.qwen/projects/<sanitized-cwd>/chats/`
 - Workspace isolation via `--include-directories`
 
 ### Resource Requirements
+
 - 256K token context window (native), up to 1M with extrapolation
 - Model: Qwen3-Coder-480B-A35B (480B params, 35B active via MoE)
 - Tools: file operations, shell commands, web fetch, grep, glob
@@ -154,6 +167,7 @@ qwen --resume <session-id>
 ## Authentication
 
 ### Option 1: Qwen OAuth (Recommended - Free)
+
 ```bash
 # Interactive login
 qwen
@@ -165,6 +179,7 @@ qwen
 **Free Tier**: 2,000 requests/day
 
 ### Option 2: OpenAI-Compatible API
+
 ```bash
 export OPENAI_API_KEY="your-api-key-here"
 export OPENAI_BASE_URL="https://api.openai.com/v1"  # optional
@@ -172,12 +187,14 @@ export OPENAI_MODEL="gpt-4o"  # optional
 ```
 
 ### Option 3: DashScope API (Alibaba Cloud)
+
 ```bash
 # Via settings.json or environment variables
 # Requires Alibaba Cloud account
 ```
 
 ### Option 4: Settings File
+
 ```json
 // ~/.qwen/settings.json or .qwen/settings.json
 {
@@ -188,6 +205,7 @@ export OPENAI_MODEL="gpt-4o"  # optional
 ```
 
 **Environment Variables**:
+
 - `OPENAI_API_KEY` - API key for OpenAI-compatible endpoints
 - `OPENAI_BASE_URL` - Custom API endpoint
 - `OPENAI_MODEL` - Model to use
@@ -198,9 +216,11 @@ export OPENAI_MODEL="gpt-4o"  # optional
 ## Orchestration Assessment
 
 ### Can participate in autonomous workflow?
+
 [x] Yes
 
 ### Capabilities
+
 - **Headless execution**: Full support with `-p` flag
 - **JSON output**: Structured parsing with `--output-format json`
 - **Streaming**: Real-time progress with `--output-format stream-json`
@@ -209,16 +229,19 @@ export OPENAI_MODEL="gpt-4o"  # optional
 - **Multi-auth**: Supports OAuth, OpenAI-compatible, and custom endpoints
 
 ### Limitations
+
 - Requires authentication setup (OAuth or API key)
 - Rate limits on free tier (2,000/day)
 - Fork of Gemini CLI (may lag on features)
 
 ### Integration Complexity
+
 **Low** - Full CLI with headless mode, JSON output, session management, and familiar Gemini CLI interface
 
 ## Advanced Features
 
 ### MCP Server Support
+
 ```bash
 # Manage MCP servers
 qwen mcp list
@@ -229,6 +252,7 @@ qwen --allowed-mcp-server-names server1,server2 "your prompt"
 ```
 
 ### Extensions
+
 ```bash
 # List extensions
 qwen --list-extensions
@@ -238,12 +262,14 @@ qwen -e extension1,extension2 "your prompt"
 ```
 
 ### Approval Modes
+
 - `plan` - Plan only, no execution
 - `default` - Prompt for each action
 - `auto-edit` - Auto-approve file edits only
 - `yolo` - Auto-approve everything
 
 ### Skills & SubAgents
+
 ```bash
 # Enable experimental skills
 qwen --experimental-skills "your prompt"
@@ -252,6 +278,7 @@ qwen --experimental-skills "your prompt"
 ```
 
 ### Input/Output Formats
+
 ```bash
 # Input format
 qwen --input-format text "prompt"     # Default text
@@ -299,6 +326,7 @@ Qwen Code is a fork of Gemini CLI, optimized for Qwen3-Coder:
 | JSON format | Single object | Array of events |
 
 ## Sources
+
 - [Qwen Code Documentation](https://qwenlm.github.io/qwen-code-docs/)
 - [GitHub Repository](https://github.com/QwenLM/qwen-code)
 - [Qwen3-Coder Blog Post](https://qwenlm.github.io/blog/qwen3-coder/)

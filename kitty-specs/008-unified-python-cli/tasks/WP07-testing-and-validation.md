@@ -34,6 +34,7 @@ history:
 **Goal**: Validate all workflows work end-to-end, cross-platform compatibility verified, performance targets met.
 
 **Success Criteria**:
+
 - All spec-kitty workflows complete without errors
 - Upgrade migration works on test projects
 - CI passes on Windows, macOS, Linux
@@ -52,6 +53,7 @@ history:
 **This is SEQUENTIAL work** - final phase before merge.
 
 **Testing Scope**:
+
 - Full workflow testing (specify → merge)
 - Cross-platform validation (3 OS)
 - Performance benchmarking
@@ -67,6 +69,7 @@ history:
 Test each spec-kitty workflow end-to-end:
 
 **T115**: `/spec-kitty.specify` workflow
+
 ```bash
 # Create new feature
 spec-kitty agent create-feature "validation-test" --json
@@ -79,35 +82,42 @@ cat kitty-specs/009-validation-test/spec.md
 ```
 
 **T116**: `/spec-kitty.plan` workflow
+
 - Setup plan template
 - Update agent context
 - Verify plan.md created with tech stack
 
 **T117**: `/spec-kitty.tasks` workflow
+
 - Generate work packages
 - Verify tasks.md created
 - Verify task prompts generated in tasks/ directory
 
 **T118**: `/spec-kitty.implement` workflow
+
 - Move task through lanes: planned → doing → for_review → done
 - Verify history tracking
 - Verify frontmatter updates
 
 **T119**: `/spec-kitty.review` workflow
+
 - Validate task completion
 - Mark as done
 - Verify workflow constraints
 
 **T120**: `/spec-kitty.accept` workflow
+
 - Acceptance validation
 - Feature readiness check
 
 **T121**: `/spec-kitty.merge` workflow
+
 - Merge feature branch
 - Clean up worktree
 - Verify cleanup
 
 **Manual Test Script**:
+
 ```bash
 #!/bin/bash
 # Full workflow validation script
@@ -161,6 +171,7 @@ echo "✓ Full workflow validation passed!"
 ### T124-T126 – Test upgrade migration
 
 **T124**: Create test project with old bash structure:
+
 ```bash
 # Setup test project
 mkdir test-project
@@ -172,6 +183,7 @@ cp old-templates/* .claude/commands/
 ```
 
 **T125**: Run `spec-kitty upgrade` on test project:
+
 ```bash
 cd test-project
 spec-kitty upgrade
@@ -182,6 +194,7 @@ cat .claude/commands/spec-kitty.implement.md  # Should reference agent commands
 ```
 
 **T126**: Test all workflows in upgraded project:
+
 - Run full workflow test script (from T115-T121)
 - Verify no regressions
 - Verify agents can use upgraded project
@@ -191,11 +204,13 @@ cat .claude/commands/spec-kitty.implement.md  # Should reference agent commands
 ### T127-T129 – Cross-platform validation
 
 **T127**: Run CI tests on macOS (primary development platform)
+
 ```bash
 pytest tests/ -v --cov=src/specify_cli/cli/commands/agent --cov-report=term
 ```
 
 **T128**: Run CI tests on Linux (production platform)
+
 ```bash
 # In GitHub Actions or Docker
 pytest tests/ -v --cov --cov-report=term
@@ -204,12 +219,14 @@ pytest tests/ -v --cov --cov-report=term
 **T129**: Run CI tests on Windows (verify file copy fallback)
 
 **Test Specification**:
+
 ```bash
 # In GitHub Actions Windows runner
 pytest tests/ -v --cov --cov-report=term
 ```
 
 **Windows-Specific Test** (add to `tests/unit/agent/test_feature.py`):
+
 ```python
 import platform
 import pytest
@@ -237,6 +254,7 @@ def test_windows_symlink_fallback(tmp_path):
 **Acceptance**: Test passes on Windows CI runner, verifying FR-015 (file copy fallback)
 
 **GitHub Actions Matrix**:
+
 ```yaml
 strategy:
   matrix:
@@ -249,6 +267,7 @@ strategy:
 ### T130-T132 – Performance validation
 
 **T130**: Measure simple command performance (target <100ms):
+
 ```python
 import time
 
@@ -261,6 +280,7 @@ def test_simple_command_performance():
 ```
 
 **T131**: Measure complex command performance (target <5s):
+
 ```python
 def test_complex_command_performance():
     start = time.time()
@@ -271,6 +291,7 @@ def test_complex_command_performance():
 ```
 
 **T132**: Verify no measurable overhead vs bash baseline:
+
 - Benchmark old bash script execution time
 - Benchmark new Python command execution time
 - Compare: Python should be ≤ 2x bash time (acceptable overhead)
@@ -280,6 +301,7 @@ def test_complex_command_performance():
 ### T133-T136 – Coverage and edge cases
 
 **T133**: Calculate test coverage for agent namespace:
+
 ```bash
 pytest tests/ \
   --cov=src/specify_cli/cli/commands/agent \
@@ -290,6 +312,7 @@ pytest tests/ \
 ```
 
 **T134**: Verify 90%+ coverage achieved (FR-026, FR-027):
+
 - Review coverage report
 - Identify gaps
 - If below 90%, add targeted tests
@@ -297,12 +320,14 @@ pytest tests/ \
 **T135**: Verify zero path-related errors
 
 **Success Criteria** (per SC-005):
+
 - **Target**: 95%+ reduction in agent retry behavior due to path issues
 - **Baseline**: Current agent error logs (if available) OR user-reported pain points
 - **Measurement**: Zero path-related errors in T115-T121 workflow tests
 - **Validation**: Qualitative confirmation acceptable (per research.md Risk 3 mitigation)
 
 **Test Steps**:
+
 - Review agent execution logs (if available)
 - Test from various starting directories (main repo, worktree, nested)
 - Test with broken symlinks (should handle gracefully)
@@ -311,11 +336,13 @@ pytest tests/ \
 **Acceptance**: No path resolution errors occur during workflow tests OR errors have clear, actionable messages
 
 **T136**: Document edge cases discovered:
+
 - Create `EDGE_CASES.md` with findings
 - Document workarounds if needed
 - File issues for future improvements
 
 **Example Edge Cases**:
+
 - Deeply nested worktree directories (>10 levels)
 - .kittify directory is symlink
 - Repository root is symlink
@@ -327,28 +354,34 @@ pytest tests/ \
 ## Test Strategy
 
 **Workflow Tests** (T115-T121):
+
 - Manual execution of full workflows
 - Automated script for CI validation
 - Verify from both main repo and worktree
 
 **Release Tests** (T122-T123): REMOVED - out of scope
+
 - GitHub API integration
 
 **Migration Tests** (T124-T126):
+
 - Test project with bash scripts
 - Upgrade migration execution
 - Post-upgrade workflow validation
 
 **Cross-Platform Tests** (T127-T129):
+
 - CI matrix: 3 OS × 2 Python versions
 - Platform-specific fallbacks (Windows)
 
 **Performance Tests** (T130-T132):
+
 - Simple command benchmarks
 - Complex command benchmarks
 - Baseline comparison
 
 **Coverage Tests** (T133-T136):
+
 - Coverage report generation
 - 90%+ validation
 - Edge case discovery
@@ -404,6 +437,7 @@ pytest tests/ \
 This work package was validated through the successful merge of feature 008-unified-python-cli to main (commit af52d47 on 2025-12-18).
 
 **Evidence of Validation**:
+
 - **All tests passing**: 179/179 tests (100% pass rate)
   - WP01: 10/10 tests
   - WP02: 63/63 tests  
@@ -415,10 +449,10 @@ This work package was validated through the successful merge of feature 008-unif
 - **Production ready**: Merge approval implies validation criteria met
 
 **Test Coverage Verified**:
+
 - Unit tests: Comprehensive coverage across all modules
 - Integration tests: Full workflow validation
 - Cross-platform: Windows, macOS, Linux compatibility confirmed
 - Performance: All commands execute within acceptable timeframes
 
 **Conclusion**: The successful merge to main branch serves as validation that all testing and validation objectives were met. No separate validation phase required post-merge.
-

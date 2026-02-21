@@ -8,6 +8,7 @@
 **Question**: How many history formats exist in WP frontmatter?
 
 **Finding**: Only ONE format exists (Format A). All 203 WP files across 34 features use:
+
 ```yaml
 history:
   - timestamp: '2026-02-08T14:07:18Z'
@@ -28,6 +29,7 @@ history:
 **Question**: What does the current `migrate_feature()` miss?
 
 **Finding**: Current code (line 180-192 of `migrate.py`) creates exactly ONE event per WP:
+
 - `from_lane=Lane.PLANNED` (hardcoded sentinel)
 - `to_lane=Lane(canonical_lane)` (current frontmatter lane)
 - `force=False` (latent bug: many transitions like `planned->done` are not in `ALLOWED_TRANSITIONS`)
@@ -44,6 +46,7 @@ history:
 **Finding**: `store.py` provides only `append_event()` (single line, append mode). `reducer.py` demonstrates the atomic write pattern for `status.json`: write to `.tmp` file, then `os.replace()`.
 
 **Decision**: Implement `_write_events_atomic()` in `migrate.py` using the same pattern as `materialize()`:
+
 1. Write all events to `status.events.jsonl.tmp`
 2. `os.replace()` to `status.events.jsonl`
 
@@ -55,6 +58,7 @@ history:
 **Question**: How to prevent duplicate events on re-run?
 
 **Finding**: Three real scenarios exist:
+
 1. **No events file**: Fresh migration needed
 2. **Events file with only migration actors**: Legacy bootstrap that should be replaced with full history
 3. **Events file with live (non-migration) actors**: Must not be touched
@@ -62,6 +66,7 @@ history:
 Current code uses a simple "non-empty file → skip" check, which conflates scenarios 2 and 3.
 
 **Decision**: 3-layer check:
+
 - Layer 1: Check for `historical_frontmatter_to_jsonl:v1` marker in event reasons → skip
 - Layer 2: Check for any non-migration actors → skip (live data)
 - Layer 3: All migration actors → backup and replace
@@ -74,6 +79,7 @@ Current code uses a simple "non-empty file → skip" check, which conflates scen
 **Question**: How many WPs have extractable review evidence?
 
 **Finding**: Searched all 203 WP files. Many done WPs have:
+
 - `review_status: "approved"` (or `"has_feedback"`)
 - `reviewed_by: "<name>"`
 
@@ -93,6 +99,7 @@ WPs without these fields will use `force=true` with explicit reason noting missi
 The `MigrationRegistry.register` decorator auto-registers. The runner calls `has_migration(id)` on `ProjectMetadata` to skip already-applied migrations.
 
 **Decision**: Create `m_2_0_0_historical_status_migration.py` with:
+
 - `migration_id = "2.0.0_historical_status_migration"`
 - `detect()`: Scan for features with WPs but no events (or only migration-actor events)
 - `apply()`: Call `migrate_feature()` per feature, aggregate results

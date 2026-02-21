@@ -11,6 +11,7 @@ Without standardized deterministic gates, agents and maintainers detect many com
 ## Desired Behavior
 
 Quality gates are enforced at the cheapest checkpoints:
+
 - file change scope (changed/staged markdown checks),
 - commit time (commit message and staged-content policy),
 - shared CI gates (range-based checks).

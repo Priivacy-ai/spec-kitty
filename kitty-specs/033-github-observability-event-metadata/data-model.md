@@ -33,6 +33,7 @@ Stateful resolver with TTL cache. One instance per `EventEmitter`.
 | `ttl` | `float` | Cache TTL in seconds (default: 2.0) |
 
 **Methods**:
+
 - `resolve() -> GitMetadata`: Return current git state (from cache or subprocess)
 - `_resolve_branch_and_sha() -> tuple[str | None, str | None]`: Subprocess call
 - `_resolve_repo_slug() -> str | None`: Config override > auto-derived > None

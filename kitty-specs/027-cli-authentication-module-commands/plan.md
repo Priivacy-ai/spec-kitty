@@ -13,6 +13,7 @@ Implement CLI-side authentication for spec-kitty sync functionality. This featur
 
 **Language/Version**: Python 3.12 (from spec-kitty pyproject.toml)
 **Primary Dependencies**:
+
 - `httpx` - HTTP client for API calls (already in spec-kitty dependencies)
 - `click` - CLI framework (existing CLI pattern)
 - `toml` - Config/credentials file format (already used for config.toml)
@@ -24,6 +25,7 @@ Implement CLI-side authentication for spec-kitty sync functionality. This featur
 **Project Type**: Single project (CLI tool)
 **Performance Goals**: Authentication completes in <10 seconds, token refresh transparent to user
 **Constraints**:
+
 - Credentials file must have 600 permissions
 - No passwords stored locally (tokens only)
 - Token values never in logs
@@ -90,9 +92,11 @@ spec-kitty/src/specify_cli/
 ### Phase 1: Auth Module Core (sync/auth.py)
 
 **Files**:
+
 - `src/specify_cli/sync/auth.py` - AuthClient class and token functions
 
 **Deliverables**:
+
 1. `AuthClient` class with:
    - `obtain_tokens(username, password)` → calls `/api/v1/token/`
    - `refresh_tokens(refresh_token)` → calls `/api/v1/token/refresh/`
@@ -113,10 +117,12 @@ spec-kitty/src/specify_cli/
 ### Phase 2: CLI Commands (cli/commands/auth.py)
 
 **Files**:
+
 - `src/specify_cli/cli/commands/auth.py` - Click command group
 - `src/specify_cli/cli.py` - Register command group
 
 **Deliverables**:
+
 1. `auth login` command:
    - Prompt for username (visible) and password (hidden)
    - Call `AuthClient.obtain_tokens()`
@@ -136,9 +142,11 @@ spec-kitty/src/specify_cli/
 ### Phase 3: WebSocket Integration
 
 **Files**:
+
 - `src/specify_cli/sync/client.py` - Update WebSocketClient
 
 **Deliverables**:
+
 1. Update `WebSocketClient` to:
    - Use `AuthClient.get_access_token()` for auth
    - Obtain WebSocket token via `AuthClient.obtain_ws_token()`
@@ -149,11 +157,13 @@ spec-kitty/src/specify_cli/
 ### Phase 4: Tests
 
 **Files**:
+
 - `tests/sync/test_auth.py` - Unit tests for AuthClient
 - `tests/sync/test_credentials.py` - Unit tests for CredentialStore
 - `tests/cli/test_auth_commands.py` - Integration tests for CLI commands
 
 **Deliverables**:
+
 1. Unit tests for token obtain/refresh/clear
 2. Unit tests for credential file read/write/permissions
 3. Integration tests for login/logout/status commands
@@ -168,6 +178,7 @@ spec-kitty/src/specify_cli/
 ### SaaS Endpoints (Feature 008)
 
 **POST /api/v1/token/**
+
 ```json
 Request:
 {
@@ -188,6 +199,7 @@ Response (401):
 ```
 
 **POST /api/v1/token/refresh/**
+
 ```json
 Request:
 {
@@ -207,6 +219,7 @@ Response (401):
 ```
 
 **POST /api/v1/ws-token/**
+
 ```
 Authorization: Bearer {access_token}
 
@@ -269,6 +282,7 @@ url = "https://spec-kitty-dev.fly.dev"
 **This plan is COMPLETE.**
 
 **Artifacts**:
+
 - `plan.md` - This file
 - `research.md` - Minimal (references Feature 009 research)
 - `data-model.md` - Credential and token entities
@@ -277,6 +291,7 @@ url = "https://spec-kitty-dev.fly.dev"
 
 **Repository**: spec-kitty (2.x branch)
 **Target Files**:
+
 - `src/specify_cli/sync/auth.py` (CREATE)
 - `src/specify_cli/cli/commands/auth.py` (CREATE)
 - `src/specify_cli/cli.py` (UPDATE)

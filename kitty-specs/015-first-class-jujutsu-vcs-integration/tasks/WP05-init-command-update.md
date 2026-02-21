@@ -32,6 +32,7 @@ history:
 **Goal**: Update `spec-kitty init` to detect jj, show recommendation message, store VCS preference.
 
 **Success Criteria**:
+
 - Running `spec-kitty init` with jj installed shows "jj detected" confirmation
 - Running `spec-kitty init` without jj shows recommendation message to install it
 - VCS preference stored in `.kittify/config.yaml`
@@ -44,15 +45,18 @@ history:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `src/specify_cli/cli/commands/init.py` - Existing init command
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/data-model.md` - ProjectVCSConfig structure
 
 **Architecture Decisions**:
+
 - jj preferred when available (FR-003)
 - Info message is non-blocking (per user requirement)
 - Config stored in `.kittify/config.yaml` under `vcs:` section
 
 **Constraints**:
+
 - Must not break existing init workflow
 - Message should be clear about what VCS will be used
 - Config.yaml may not exist yet (create if needed)
@@ -64,8 +68,10 @@ history:
 **Purpose**: Add VCS detection imports to init command.
 
 **Steps**:
+
 1. Open `src/specify_cli/cli/commands/init.py`
 2. Add imports:
+
    ```python
    from specify_cli.core.vcs import (
        is_jj_available,
@@ -75,6 +81,7 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/init.py`
 
 ---
@@ -84,8 +91,10 @@ history:
 **Purpose**: Detect available VCS tools during init.
 
 **Steps**:
+
 1. Add VCS detection after directory setup in init workflow
 2. Determine default VCS based on availability:
+
    ```python
    def _detect_default_vcs() -> VCSBackend:
        if is_jj_available():
@@ -97,6 +106,7 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/init.py`
 
 ---
@@ -106,7 +116,9 @@ history:
 **Purpose**: Show informational message about VCS selection.
 
 **Steps**:
+
 1. Add message display after VCS detection:
+
    ```python
    from rich.console import Console
    console = Console()
@@ -126,9 +138,11 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/init.py`
 
 **Notes**:
+
 - Message is informational, not an error
 - Use Rich formatting for visual distinction
 - Include installation link for jj
@@ -140,7 +154,9 @@ history:
 **Purpose**: Persist VCS preference in project configuration.
 
 **Steps**:
+
 1. Add VCS section to `.kittify/config.yaml`:
+
    ```yaml
    vcs:
      preferred: "auto"  # auto | jj | git
@@ -148,7 +164,9 @@ history:
        min_version: "0.20.0"
        colocate: true
    ```
+
 2. Implement config update:
+
    ```python
    def _save_vcs_config(config_path: Path, detected_vcs: VCSBackend) -> None:
        # Load existing config or create new
@@ -157,9 +175,11 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/init.py`
 
 **Notes**:
+
 - Use ruamel.yaml for round-trip editing (preserve comments)
 - Create config.yaml if it doesn't exist
 - Default to "auto" for preferred (detect at runtime)
@@ -171,7 +191,9 @@ history:
 **Purpose**: Allow explicit VCS override during init.
 
 **Steps**:
+
 1. Add CLI option:
+
    ```python
    @app.command()
    def init(
@@ -183,7 +205,9 @@ history:
        ),
    ):
    ```
+
 2. Validate and use override:
+
    ```python
    if vcs:
        if vcs not in ("git", "jj"):
@@ -197,6 +221,7 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/init.py`
 
 ---
@@ -206,6 +231,7 @@ history:
 **Purpose**: Test VCS detection and messaging in init command.
 
 **Steps**:
+
 1. Add tests to existing init tests or create new file
 2. Test scenarios:
    - Init with jj available → "jj detected" message
@@ -215,9 +241,11 @@ history:
    - Config.yaml created with vcs section
 
 **Files**:
+
 - Modify or create: `tests/specify_cli/cli/commands/test_init.py`
 
 **Test Examples**:
+
 ```python
 def test_init_with_jj_shows_confirmation(tmp_path, capsys):
     # Mock jj as available
@@ -260,6 +288,7 @@ def test_init_creates_vcs_config(tmp_path):
 ## Review Guidance
 
 **Key Checkpoints**:
+
 1. Verify message is informational, not error/warning
 2. Verify --vcs flag validates tool availability
 3. Verify config.yaml is created/updated correctly
@@ -271,5 +300,5 @@ def test_init_creates_vcs_config(tmp_path):
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
 - 2026-01-17T12:12:57Z – claude-code – shell_pid=72657 – lane=doing – Started implementation via workflow command
 - 2026-01-17T12:21:39Z – claude-code – shell_pid=72657 – lane=for_review – Ready for review: VCS detection and --vcs flag added to init command with 6 tests (822 total tests pass)
-- 2026-01-17T12:27:34Z – __AGENT__ – shell_pid=90012 – lane=doing – Started review via workflow command
-- 2026-01-17T12:32:25Z – __AGENT__ – shell_pid=90012 – lane=done – Review passed: All 6 subtasks implemented correctly - VCS detection imports (T026), workflow integration (T027), info messages (T028), config.yaml persistence (T029), --vcs flag with validation (T030), and 6 tests (T031). All 822 tests pass.
+- 2026-01-17T12:27:34Z – **AGENT** – shell_pid=90012 – lane=doing – Started review via workflow command
+- 2026-01-17T12:32:25Z – **AGENT** – shell_pid=90012 – lane=done – Review passed: All 6 subtasks implemented correctly - VCS detection imports (T026), workflow integration (T027), info messages (T028), config.yaml persistence (T029), --vcs flag with validation (T030), and 6 tests (T031). All 822 tests pass.

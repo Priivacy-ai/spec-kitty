@@ -18,7 +18,6 @@ subtasks:
 ---
 *Path: [kitty-specs/002-lightweight-pypi-release/tasks/planned/WP01-release-validation-tooling.md](kitty-specs/002-lightweight-pypi-release/tasks/planned/WP01-release-validation-tooling.md)*
 
-
 # Work Package Prompt: WP01 – Release Validation Tooling
 
 ## Objectives & Success Criteria
@@ -37,6 +36,7 @@ subtasks:
 ## Subtasks & Detailed Guidance
 
 ### Subtask T001 – Implement validator CLI
+
 - **Purpose**: Enforce semantic alignment before releases, blocking bad tags or incomplete branches.
 - **Steps**:
   1. Create `scripts/release/validate_release.py` as an executable module (`if __name__ == "__main__":`) with Typer or argparse CLI.
@@ -56,6 +56,7 @@ subtasks:
   - Keep dependencies minimal—prefer stdlib `subprocess` for git. If using `packaging.version`, add dependency to test requirements if needed.
 
 ### Subtask T002 – Add pytest coverage
+
 - **Purpose**: Prevent regressions and codify acceptance criteria (missing changelog, mismatched tag, regression).
 - **Steps**:
   1. Create `tests/release/test_validate_release.py`.
@@ -114,6 +115,7 @@ subtasks:
 ### Implementation Validation
 
 #### Subtask T001: Validator CLI ✅
+
 - **File**: `scripts/release/validate_release.py` (327 lines)
 - **Functionality**: Complete implementation with both branch and tag modes
 - **CLI Interface**: Proper argparse with help text, supports all required flags (`--mode`, `--tag`, `--pyproject`, `--changelog`, `--fail-on-missing-tag`)
@@ -125,6 +127,7 @@ subtasks:
 - **Output**: Structured summary table to stdout, errors to stderr with proper exit codes
 
 #### Subtask T002: Pytest Coverage ✅
+
 - **File**: `tests/release/test_validate_release.py` (203 lines)
 - **Test Coverage**: 4 comprehensive tests
   1. `test_branch_mode_succeeds_with_version_bump` - validates happy path
@@ -162,6 +165,7 @@ $ python scripts/release/validate_release.py --mode branch
 ### Code Quality Observations
 
 **Strengths**:
+
 1. Clean separation of concerns (parsing, validation, reporting)
 2. Comprehensive error handling with helpful hints
 3. Proper use of dataclasses for structured results
@@ -170,6 +174,7 @@ $ python scripts/release/validate_release.py --mode branch
 6. Executable script with proper shebang and docstring
 
 **Minor Notes** (non-blocking):
+
 - The implementation exceeds minimum requirements with excellent error messages
 - Code is well-structured and maintainable
 - Tests provide good coverage of edge cases

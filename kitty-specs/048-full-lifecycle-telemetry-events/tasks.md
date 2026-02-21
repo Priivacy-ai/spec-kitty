@@ -18,6 +18,7 @@
 **Prompt**: `tasks/WP01-emit-command-and-cost-grouping.md`
 
 ### Included Subtasks
+
 - [x] T001 Add `emit` subcommand to `src/specify_cli/cli/commands/agent/telemetry.py`
 - [x] T002 Add `group_by="role"` support to `src/specify_cli/telemetry/cost.py`
 - [x] T003 Add "role" to `click.Choice` in the cost CLI command
@@ -28,19 +29,23 @@
 - [x] T008 Write tests for always-emit behavior (no --agent/--model flags)
 
 ### Implementation Notes
+
 - The `emit` command is a thin wrapper around `emit_execution_event()` from `src/specify_cli/telemetry/emit.py`
 - Feature directory is resolved from `kitty-specs/<feature>/` relative to repo root
 - The command must always exit 0 (fire-and-forget) — catch all exceptions internally
 - For the always-emit change: replace `if agent and model:` with unconditional emission, defaulting agent to `"unknown"` when not provided
 
 ### Parallel Opportunities
+
 - T001 (emit command) and T002-T003 (cost grouping) can be developed in parallel
 - T004 and T005 (gate removal) are independent of each other
 
 ### Dependencies
+
 - None (starting package)
 
 ### Risks & Mitigations
+
 - Existing tests may assert the `if agent and model` gate behavior → update those tests (T008)
 - Fire-and-forget must not swallow errors silently in tests → use logging assertions
 
@@ -53,6 +58,7 @@
 **Prompt**: `tasks/WP02-template-updates-and-migration.md`
 
 ### Included Subtasks
+
 - [x] T009 Update `src/specify_cli/missions/software-dev/command-templates/specify.md` — add telemetry emit section
 - [x] T010 [P] Update `src/specify_cli/missions/software-dev/command-templates/plan.md` — add telemetry emit section
 - [x] T011 [P] Update `src/specify_cli/missions/software-dev/command-templates/tasks.md` — add telemetry emit section
@@ -62,6 +68,7 @@
 - [x] T015 Write migration tests (parametrized across agents)
 
 ### Implementation Notes
+
 - Each template gets a new `## Telemetry` section at the end with the emit command pattern
 - The emit step instructs the agent to call: `spec-kitty agent telemetry emit --feature <slug> --role <role> --agent <name> --model <model>`
 - Include guidance for optional flags (`--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms`)
@@ -69,13 +76,16 @@
 - Migration file naming: follow existing convention in `src/specify_cli/upgrade/migrations/`
 
 ### Parallel Opportunities
+
 - T009-T013 (template updates) are all independent — can be done in parallel
 - T014-T015 (migration) depend on templates being finalized
 
 ### Dependencies
+
 - Depends on WP01 (emit command must exist before templates reference it)
 
 ### Risks & Mitigations
+
 - Templates are large markdown files — careful editing needed to avoid breaking existing content
 - Migration must not recreate agent directories that were deliberately removed (use `if not agent_dir.exists(): continue`)
 
@@ -111,6 +121,7 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
+
 - WP01: done
 - WP02: done
 <!-- status-model:end -->

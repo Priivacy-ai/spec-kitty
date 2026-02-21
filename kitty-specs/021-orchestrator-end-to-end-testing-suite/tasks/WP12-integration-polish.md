@@ -48,14 +48,17 @@ Final integration, validation utilities, and polish:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/quickstart.md` - User scenarios
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Timeout defaults
 
 **Existing Code**:
+
 - All previous WP implementations
 - `tests/conftest.py` - Root pytest configuration
 
 **Constraints**:
+
 - Must not break existing tests
 - Timeout defaults: 300s per test, 10s for probe
 - Environment variables for configurability
@@ -69,9 +72,11 @@ Final integration, validation utilities, and polish:
 **Purpose**: Register orchestrator markers in root pytest configuration.
 
 **Steps**:
+
 1. Check if `tests/conftest.py` exists, if not create it.
 
 2. Add orchestrator marker registration:
+
    ```python
    # tests/conftest.py
 
@@ -131,6 +136,7 @@ Final integration, validation utilities, and polish:
    ```
 
 3. Alternative: Add to `pyproject.toml`:
+
    ```toml
    [tool.pytest.ini_options]
    markers = [
@@ -147,6 +153,7 @@ Final integration, validation utilities, and polish:
    ```
 
 **Files**:
+
 - `tests/conftest.py` (update ~40 lines)
 - OR `pyproject.toml` (add marker configuration)
 
@@ -159,7 +166,9 @@ Final integration, validation utilities, and polish:
 **Purpose**: Provide `validate_test_result()` for comprehensive state validation.
 
 **Steps**:
+
 1. Create `tests/specify_cli/orchestrator/validation.py`:
+
    ```python
    """Validation utilities for orchestrator test results.
 
@@ -392,6 +401,7 @@ Final integration, validation utilities, and polish:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/validation.py` (~180 lines)
 
 **Parallel?**: Yes - can proceed with T056, T058, T059
@@ -403,7 +413,9 @@ Final integration, validation utilities, and polish:
 **Purpose**: Distinguish skip vs fail messages in test output.
 
 **Steps**:
+
 1. Add to `tests/specify_cli/orchestrator/conftest.py`:
+
    ```python
    import pytest
 
@@ -476,6 +488,7 @@ Final integration, validation utilities, and polish:
    ```
 
 2. Add output formatting for validation results:
+
    ```python
    def format_validation_result(result: "ValidationResult") -> str:
        """Format validation result for test output.
@@ -507,6 +520,7 @@ Final integration, validation utilities, and polish:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/conftest.py` (add ~80 lines)
 
 **Parallel?**: Yes - can proceed with T056, T057, T059
@@ -518,7 +532,9 @@ Final integration, validation utilities, and polish:
 **Purpose**: Make timeouts configurable via environment variables.
 
 **Steps**:
+
 1. Create `tests/specify_cli/orchestrator/config.py`:
+
    ```python
    """Configuration for orchestrator tests.
 
@@ -609,6 +625,7 @@ Final integration, validation utilities, and polish:
    ```
 
 2. Update tests to use config:
+
    ```python
    # In test files, use:
    from tests.specify_cli.orchestrator.config import get_config
@@ -618,6 +635,7 @@ Final integration, validation utilities, and polish:
    ```
 
 3. Add pytest fixture for config:
+
    ```python
    # In conftest.py
    from tests.specify_cli.orchestrator.config import (
@@ -632,6 +650,7 @@ Final integration, validation utilities, and polish:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/config.py` (~90 lines)
 - `tests/specify_cli/orchestrator/conftest.py` (add fixture)
 
@@ -644,7 +663,9 @@ Final integration, validation utilities, and polish:
 **Purpose**: Verify documented quickstart scenarios work.
 
 **Steps**:
+
 1. Create `tests/specify_cli/orchestrator/test_quickstart.py`:
+
    ```python
    """Tests that validate quickstart.md scenarios work as documented.
 
@@ -777,6 +798,7 @@ Final integration, validation utilities, and polish:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_quickstart.py` (~130 lines)
 
 **Parallel?**: No - should be last (validates everything)
@@ -795,6 +817,7 @@ Final integration, validation utilities, and polish:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] `pytest --markers` shows all orchestrator markers
 - [ ] `validate_test_result()` catches state inconsistencies
 - [ ] Skip messages are informative (include agent name, reason)
@@ -802,6 +825,7 @@ Final integration, validation utilities, and polish:
 - [ ] All quickstart commands work (or skip gracefully)
 
 **Code Quality**:
+
 - No marker registration warnings
 - Validation errors are actionable
 - Config is well-documented with defaults

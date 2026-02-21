@@ -12,6 +12,7 @@ Slash commands (like `/spec-kitty.specify`) are a convention for invoking predef
 4. **Agent interacts** with the user and codebase
 
 The command file contains:
+
 - A detailed prompt explaining what to do
 - Instructions for user interaction
 - References to templates and artifacts
@@ -93,6 +94,7 @@ src/specify_cli/missions/
 ```
 
 During `spec-kitty init`, these templates are adapted for each agent:
+
 - **Markdown agents** get `.md` files
 - **TOML agents** get `.toml` files with converted syntax
 - **Different arg syntax** (`$ARGUMENTS` vs `{{args}}`) is handled per agent
@@ -145,6 +147,7 @@ Feature: 012-user-auth
 ```
 
 Each agent:
+
 - Works in its own worktree
 - Has its own branch
 - Uses the same command templates
@@ -153,6 +156,7 @@ Each agent:
 ### Why This Works
 
 All agents:
+
 1. Read the same WP prompt from `tasks/WP##.md`
 2. Follow the same implementation workflow
 3. Use the same lane transitions (planned → doing → for_review)
@@ -185,6 +189,7 @@ All three work in parallel without conflicts.
 ### User Choice
 
 Different users prefer different agents:
+
 - Some teams use Claude Code for its reasoning
 - Some prefer Copilot for IDE integration
 - Some use Gemini for its context handling
@@ -194,6 +199,7 @@ Spec Kitty doesn't force a choice—use what works for you.
 ### Vendor Independence
 
 AI agents evolve rapidly:
+
 - New agents appear regularly
 - Existing agents gain new capabilities
 - Pricing and availability change
@@ -203,6 +209,7 @@ By supporting multiple agents, Spec Kitty isn't locked to any single vendor.
 ### Team Flexibility
 
 A team might use different agents for different tasks:
+
 - Claude Code for complex feature implementation
 - Copilot for quick edits and reviews
 - Gemini for research tasks
@@ -258,13 +265,16 @@ The command file provides all instructions; the agent executes them.
 *This document explains the multi-agent architecture. For how to use specific agents, see the tutorials and how-to guides.*
 
 ## Try It
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
+
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 
 ## Reference
+
 - [Supported Agents](../reference/supported-agents.md)
 - [Agent Subcommands](../reference/agent-subcommands.md)

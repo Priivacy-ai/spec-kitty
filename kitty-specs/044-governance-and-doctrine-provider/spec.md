@@ -29,6 +29,7 @@ The governance stack resolves in strict precedence order:
 | **Tactics & Templates** | Bootstrap-selected behavioral patterns | Session-scoped | Execution patterns chosen from available repository |
 
 **Key design decisions**:
+
 - The constitution absorbs what was previously split between "constitution" and "local repository" in the original Doctrine stack. There is no separate `doctrine/` directory.
 - General Guidelines and Operational Contracts are the only truly immutable layers. Operational Contracts support exception clauses for specific project modes (e.g., spike, prototype).
 - Everything from "Constitution" downward is project-configurable.
@@ -69,6 +70,7 @@ As a project lead, I want all governance rules to default to advisory (warn) mod
 - **FR-2.1**: All governance rules SHALL default to `warn` severity unless explicitly escalated.
 - **FR-2.2**: The constitution SHALL support an `enforcement` section that escalates specific rule_ids to `block` severity.
 - **FR-2.3**: The constitution enforcement section SHALL use a simple declarative format:
+
   ```markdown
   ## Governance Enforcement
   
@@ -78,6 +80,7 @@ As a project lead, I want all governance rules to default to advisory (warn) mod
   | require-spec-review | block |
   | budget-limit | block |
   ```
+
 - **FR-2.4**: Rules originating from General Guidelines or Operational Contracts SHALL NOT be demotable below `warn` (they can be escalated to `block` but not silenced).
 - **FR-2.5**: Rules originating from the Constitution or below MAY be set to `pass` (effectively disabled) via the enforcement section.
 - **FR-2.6**: When a rule is escalated to `block`, the governance result message SHALL include which layer (constitution/directive) caused the escalation and why.
@@ -167,6 +170,7 @@ As a Spec Kitty operator, I want to see a summary of governance evaluations acro
 ## Scope Boundaries
 
 ### In Scope
+
 - Six lifecycle hooks with tri-state evaluation
 - Doctrine general guidelines and operational contracts (built-in)
 - Constitution-derived project rules with Markdown parsing
@@ -176,6 +180,7 @@ As a Spec Kitty operator, I want to see a summary of governance evaluations acro
 - `--skip-governance` escape hatch
 
 ### Out of Scope
+
 - External governance plugin loading (future — plugin API deferred)
 - Real-time governance enforcement in agent prompts (agents receive guidance, not runtime checks)
 - Automated remediation (governance reports violations, does not fix them)

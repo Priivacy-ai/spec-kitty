@@ -120,6 +120,7 @@ Each agent research file (`research/XX-agent-name.md`) will follow this structur
 ```
 
 ### Local Test Results
+
 ```bash
 # Actual output from running --help or version
 ```
@@ -127,6 +128,7 @@ Each agent research file (`research/XX-agent-name.md`) will follow this structur
 ## Task Specification
 
 ### How to Pass Instructions
+
 - [ ] Command line argument
 - [ ] Stdin
 - [ ] File path (--file, -f)
@@ -134,16 +136,19 @@ Each agent research file (`research/XX-agent-name.md`) will follow this structur
 - [ ] Environment variable
 
 ### Example Invocation
+
 ```bash
 # Working command example
 ```
 
 ### Context Handling
+
 [How does it handle codebase context?]
 
 ## Completion Detection
 
 ### Exit Codes
+
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
@@ -151,6 +156,7 @@ Each agent research file (`research/XX-agent-name.md`) will follow this structur
 | ... | ... |
 
 ### Output Format
+
 - [ ] Stdout (plain text)
 - [ ] Stdout (JSON)
 - [ ] File output
@@ -159,28 +165,36 @@ Each agent research file (`research/XX-agent-name.md`) will follow this structur
 ## Parallel Execution
 
 ### Rate Limits
+
 [Documented rate limits or quotas]
 
 ### Concurrent Sessions
+
 [Can multiple instances run simultaneously?]
 
 ### Resource Requirements
+
 [Memory, CPU, tokens]
 
 ## Orchestration Assessment
 
 ### Can participate in autonomous workflow?
+
 [ ] Yes / [ ] No / [ ] Partial
 
 ### Limitations
+
 [What prevents full participation?]
 
 ### Integration Complexity
+
 Low / Medium / High
 
 ## Sources
+
 - [Link 1]
 - [Link 2]
+
 ```
 
 ## Data Collection Checklist

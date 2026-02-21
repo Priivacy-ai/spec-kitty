@@ -162,6 +162,7 @@ Defines the documentation navigation structure.
 ```
 
 Each entry has:
+
 - `name`: Display text in navigation
 - `href`: Path to markdown file
 - `items`: Nested navigation items (optional)
@@ -312,11 +313,13 @@ agents:
 Starting in spec-kitty 0.12.0, agent configuration follows a config-driven model where `.kittify/config.yaml` is the single source of truth for which agents are active in your project.
 
 **Key principles**:
+
 - Agent directories on filesystem (e.g., `.claude/commands/`) are derived from `config.yaml`
 - Migrations respect `config.yaml` - only process configured agents
 - Use `spec-kitty agent config` commands to manage agents (not manual editing)
 
 **Schema**:
+
 ```yaml
 agents:
   available:
@@ -329,11 +332,13 @@ agents:
 ```
 
 **Fields**:
+
 - `available` (list): Agent keys currently active in project
 - `selection.preferred_implementer` (string): Preferred agent for implementation tasks
 - `selection.preferred_reviewer` (string): Preferred agent for review tasks
 
 **See**:
+
 - [Managing AI Agents](../how-to/manage-agents.md) - Complete guide to agent management commands
 - [CLI Reference: spec-kitty agent config](cli-commands.md#spec-kitty-agent-config) - Command syntax and options
 - [ADR #6: Config-Driven Agent Management](../../architecture/adrs/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
@@ -349,6 +354,7 @@ spec-kitty agent config list
 ```
 
 Output:
+
 ```
 Configured agents:
   ✓ opencode (.opencode/command/)
@@ -365,6 +371,7 @@ spec-kitty agent config add claude codex
 ```
 
 This command:
+
 1. Creates agent directories (`.claude/commands/`, `.codex/prompts/`)
 2. Copies slash command templates from mission templates
 3. Updates `config.yaml` to include new agents
@@ -376,10 +383,12 @@ spec-kitty agent config remove codex gemini
 ```
 
 This command:
+
 1. Deletes agent directories
 2. Updates `config.yaml` to remove agents
 
 **Options:**
+
 - `--keep-config`: Delete directory but keep in config (useful for temporary removal)
 
 #### Check Agent Status
@@ -389,12 +398,14 @@ spec-kitty agent config status
 ```
 
 Shows a table of all agents with their status:
+
 - **OK**: Configured and directory exists
 - **Missing**: Configured but directory doesn't exist
 - **Orphaned**: Directory exists but not configured
 - **Not used**: Neither configured nor present
 
 Example output:
+
 ```
 ┏━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┓
 ┃ Agent Key ┃ Directory           ┃ Configured ┃ Exists ┃ Status   ┃
@@ -414,6 +425,7 @@ spec-kitty agent config sync
 ```
 
 Synchronizes filesystem with `config.yaml`:
+
 - By default, removes orphaned directories (present but not configured)
 - Use `--create-missing` to create directories for configured agents
 - Use `--keep-orphaned` to keep orphaned directories
@@ -500,8 +512,10 @@ If you see this file in older projects, it will be ignored. The mission in each 
 - [CLI Commands](cli-commands.md) — Command reference including `--vcs` flag
 
 ## Getting Started
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 
 ## Practical Usage
+
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 - [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)

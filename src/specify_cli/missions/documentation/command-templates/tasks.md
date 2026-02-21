@@ -146,6 +146,7 @@ git branch --show-current  # Should show "main"
 ## Documentation-Specific Task Generation Rules
 
 **Generator Subtasks**:
+
 - Mark generators as `[P]` (parallel) - different languages can generate simultaneously
 - Include tool check subtasks (verify sphinx-build, npx, cargo available)
 - Include config generation subtasks (create conf.py, jsdoc.json)
@@ -153,16 +154,19 @@ git branch --show-current  # Should show "main"
 - Include integration subtasks (link generated docs into manual structure)
 
 **Content Authoring Subtasks**:
+
 - One subtask per document (don't bundle "write all tutorials" into one task)
 - Mark independent docs as `[P]` (parallel) - different docs can be written simultaneously
 - Include validation subtasks (test tutorials, verify how-tos solve problems)
 
 **Quality Validation Subtasks**:
+
 - Mark validation checks as `[P]` (parallel) - different checks can run simultaneously
 - Include automated checks (link checker, spell check, build)
 - Include manual checks (accessibility review, Divio compliance)
 
 **Work Package Scope**:
+
 - Each Divio type typically gets its own work package (WP for tutorials, WP for how-tos, etc.)
 - Exception: Small projects may combine types if only 1-2 docs per type
 - Generator setup is always separate (WP01 foundation)
@@ -173,6 +177,7 @@ git branch --show-current  # Should show "main"
 ## Key Guidelines
 
 **For Agents**:
+
 - Adapt work packages to iteration mode
 - For gap-filling, work packages target specific gaps from audit
 - Mark generator invocations as parallel (different languages)
@@ -182,6 +187,7 @@ git branch --show-current  # Should show "main"
 - If publish is in scope, add a release WP to produce `release.md`
 
 **For Users**:
+
 - Tasks.md shows the full work breakdown
 - Work packages are independently implementable
 - MVP often just structure + reference (API docs)

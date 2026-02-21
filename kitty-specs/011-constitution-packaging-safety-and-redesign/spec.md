@@ -161,6 +161,7 @@ A user running spec-kitty 0.6.4 wants to upgrade to 0.10.12 without manual inter
 While implementing this feature, we identified that the review template (`src/specify_cli/templates/command-templates/review.md`) was too lenient, allowing code with TODOs, mocked implementations, and security vulnerabilities to pass review. This was a systematic quality problem affecting all features.
 
 **What was added**:
+
 - Expanded review instructions from 3 bullets (109 lines) to 12 scrutiny categories (505 lines)
 - Added comprehensive security scrutiny with 10 subsections and mandatory verification commands
 - Added adversarial mindset framework ("find problems, don't just verify checkboxes")
@@ -168,6 +169,7 @@ While implementing this feature, we identified that the review template (`src/sp
 - Changed default stance from implicit approval to explicit rejection unless proven correct
 
 **Justification for including in feature 011**:
+
 1. Immediate impact on all future features (including remaining WPs in this feature)
 2. Template already being relocated to src/ by WP01 (natural time to improve it)
 3. Related to 011's mission of improving spec-kitty quality and safety

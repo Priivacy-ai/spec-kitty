@@ -129,23 +129,27 @@ As a developer whose merge was interrupted (context compaction, network failure,
 ### Functional Requirements
 
 **Pre-flight Validation**
+
 - **FR-001**: System MUST check all WP worktrees for uncommitted changes before starting any merge operation
 - **FR-002**: System MUST verify target branch can fast-forward to origin before starting merge
 - **FR-003**: System MUST display all pre-flight issues together with remediation steps, not one at a time
 - **FR-004**: System MUST exit with non-zero status if pre-flight fails, without modifying any branches
 
 **Conflict Forecast**
+
 - **FR-005**: System MUST predict file conflicts by comparing each WP's changes against the target branch and other WPs
 - **FR-006**: System MUST display predicted conflicts during `--dry-run` grouped by file and showing which WPs touch each file
 - **FR-007**: System MUST show merge order in dry-run output
 
 **Smart Merge Order**
+
 - **FR-008**: System MUST parse `dependencies: []` from WP frontmatter to build a dependency graph
 - **FR-009**: System MUST merge WPs in topological order (dependencies before dependents)
 - **FR-010**: System MUST detect circular dependencies and fail pre-flight with a clear error
 - **FR-011**: System MUST fall back to numerical order if no dependency information is available
 
 **Status File Auto-Resolution**
+
 - **FR-012**: System MUST auto-resolve conflicts in files matching `kitty-specs/**/tasks/*.md` and `kitty-specs/**/tasks.md`
 - **FR-013**: System MUST resolve `lane:` conflicts by preferring the "more done" value (done > for_review > doing > planned)
 - **FR-014**: System MUST resolve checkbox conflicts by preferring checked `[x]` over unchecked `[ ]`
@@ -153,18 +157,21 @@ As a developer whose merge was interrupted (context compaction, network failure,
 - **FR-016**: System MUST NOT auto-resolve conflicts in files outside the status file patterns
 
 **Automatic Cleanup**
+
 - **FR-017**: System MUST remove all WP worktrees after successful merge (default behavior)
 - **FR-018**: System MUST delete all WP branches after successful merge (default behavior)
 - **FR-019**: System MUST support `--keep-worktree` and `--keep-branch` flags to preserve resources
 - **FR-020**: System MUST continue cleanup of remaining resources if one cleanup operation fails
 
 **Merge Resume**
+
 - **FR-021**: System MUST persist merge state to `.kittify/merge-state.json` during multi-WP merge
 - **FR-022**: System MUST support `--resume` flag to continue an interrupted merge
 - **FR-023**: System MUST clear merge state file after successful completion or explicit abort
 - **FR-024**: System MUST detect active git merge state and integrate with resume logic
 
 **Feature-Wide Default**
+
 - **FR-025**: System MUST merge ALL "done" WPs for the feature by default (not just current WP)
 - **FR-026**: System MUST support `--single` flag to merge only the current WP (legacy behavior)
 - **FR-027**: System MUST work when invoked from main branch (detect feature from context or require explicit slug)

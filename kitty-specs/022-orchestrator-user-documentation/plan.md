@@ -61,6 +61,7 @@ docs/
 All documents must follow these conventions (derived from existing docs/):
 
 ### Tutorials
+
 ```markdown
 # Title
 
@@ -80,9 +81,11 @@ command example
 ```
 
 Expected output:
+
 ```
 output here
 ```
+
 ```
 
 ### How-To Guides
@@ -109,6 +112,7 @@ Explanation of the outcome.
 ## See Also
 
 - [Related Guide](path.md)
+
 ```
 
 ### Reference
@@ -132,6 +136,7 @@ Brief description.
 ```bash
 example command
 ```
+
 ```
 
 ### Explanations

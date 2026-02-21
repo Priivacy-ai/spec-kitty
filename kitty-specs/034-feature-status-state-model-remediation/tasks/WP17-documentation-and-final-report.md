@@ -80,6 +80,7 @@ Update documentation and generate the final delivery report for the entire featu
 - **CLAUDE.md**: Must be updated with status model patterns (per plan.md instructions)
 
 **Key constraints**:
+
 - Documentation must be accurate as of the final implementation (no aspirational content)
 - Every CLI command documented must be verified to actually work
 - The final report is explicitly requested in the user's deliverables list
@@ -97,11 +98,13 @@ Update documentation and generate the final delivery report for the entire featu
 **Purpose**: Document all new commands, phases, and configuration for end users.
 
 **Steps**:
+
 1. Create or update `docs/status-model.md` (or appropriate existing docs file):
 
 2. Document new CLI commands with usage examples:
 
    **`spec-kitty agent status emit`**:
+
    ```bash
    # Move WP01 to claimed
    spec-kitty agent status emit WP01 --to claimed --actor agent-1
@@ -114,6 +117,7 @@ Update documentation and generate the final delivery report for the entire featu
    ```
 
    **`spec-kitty agent status materialize`**:
+
    ```bash
    # Rebuild status.json from event log
    spec-kitty agent status materialize --feature 034-feature-name
@@ -123,6 +127,7 @@ Update documentation and generate the final delivery report for the entire featu
    ```
 
    **`spec-kitty agent status validate`**:
+
    ```bash
    # Check event log integrity and drift
    spec-kitty agent status validate --feature 034-feature-name
@@ -132,6 +137,7 @@ Update documentation and generate the final delivery report for the entire featu
    ```
 
    **`spec-kitty agent status reconcile`**:
+
    ```bash
    # Preview reconciliation suggestions
    spec-kitty agent status reconcile --feature 034-feature-name --dry-run
@@ -144,12 +150,14 @@ Update documentation and generate the final delivery report for the entire featu
    ```
 
    **`spec-kitty agent status doctor`**:
+
    ```bash
    # Run health checks
    spec-kitty agent status doctor --feature 034-feature-name
    ```
 
    **`spec-kitty agent status migrate`**:
+
    ```bash
    # Migrate a single feature
    spec-kitty agent status migrate --feature 034-feature-name
@@ -167,6 +175,7 @@ Update documentation and generate the final delivery report for the entire featu
    - Phase 2: Read-cutover -- status.json is sole authority, frontmatter is generated view
 
 4. Document configuration:
+
    ```yaml
    # .kittify/config.yaml (global default)
    status:
@@ -177,6 +186,7 @@ Update documentation and generate the final delivery report for the entire featu
      "status_phase": 2
    }
    ```
+
    Precedence: meta.json > config.yaml > default (1)
 
 5. Document the migration command workflow:
@@ -188,11 +198,13 @@ Update documentation and generate the final delivery report for the entire featu
 **Files**: `docs/status-model.md` (new or updated)
 
 **Validation**:
+
 - Every command example runs without errors
 - Phase configuration examples work as described
 - Migration workflow produces expected results
 
 **Edge Cases**:
+
 - Operator has features on different phases: document per-feature override via meta.json
 - Operator wants to roll back to Phase 0: document the procedure
 - Operator is on 0.1x: note reconcile --apply limitation
@@ -204,6 +216,7 @@ Update documentation and generate the final delivery report for the entire featu
 **Purpose**: Document the architecture, data model, and integration points for developers.
 
 **Steps**:
+
 1. Update `CLAUDE.md` with status model patterns. Add a new section after the existing "Merge & Preflight Patterns" section:
 
    ```markdown
@@ -236,9 +249,11 @@ Update documentation and generate the final delivery report for the entire featu
    - Phase 0: Transition matrix enforced, no event log
    - Phase 1: Dual-write (events + frontmatter)
    - Phase 2: Canonical reads from status.json
+
    ```
 
 2. Document the `status/` package architecture:
+
    ```
    src/specify_cli/status/
    ├── __init__.py          # Public API: emit_status_transition, Lane, StatusEvent, etc.
@@ -270,11 +285,13 @@ Update documentation and generate the final delivery report for the entire featu
 **Files**: `CLAUDE.md` (updated), `docs/status-model.md` (updated or new section)
 
 **Validation**:
+
 - Architecture diagram matches actual code structure
 - All documented functions exist and have correct signatures
 - Integration points accurately describe the actual code flow
 
 **Edge Cases**:
+
 - CLAUDE.md has grown very long: add the section in the appropriate location, keep it concise
 - Contributor wants to add a new command to the status CLI: document the pattern
 
@@ -285,9 +302,11 @@ Update documentation and generate the final delivery report for the entire featu
 **Purpose**: Create the comprehensive delivery report as explicitly requested in the user's deliverables.
 
 **Steps**:
+
 1. Create `kitty-specs/034-feature-status-state-model-remediation/final-report.md`:
 
 2. Structure:
+
    ```markdown
    # Final Delivery Report: Feature Status State Model Remediation
 
@@ -328,6 +347,7 @@ Update documentation and generate the final delivery report for the entire featu
    ```
 
 3. Generate the commit lists:
+
    ```bash
    # 2.x commits
    git log --oneline 2.x --not main -- src/specify_cli/status/ tests/
@@ -339,11 +359,13 @@ Update documentation and generate the final delivery report for the entire featu
 **Files**: `kitty-specs/034-feature-status-state-model-remediation/final-report.md` (new)
 
 **Validation**:
+
 - Executive summary accurately describes the feature
 - Commit lists are complete (cross-reference with git log)
 - Migration notes are actionable
 
 **Edge Cases**:
+
 - Commits from other features appear in the log: filter by file paths related to status/
 - Backport used manual adaptation (not cherry-pick): note in commit list section
 
@@ -354,7 +376,9 @@ Update documentation and generate the final delivery report for the entire featu
 **Purpose**: Include a summary of the parity matrix from WP16 in the final report.
 
 **Steps**:
+
 1. Add a section to `final-report.md`:
+
    ```markdown
    ## Parity Matrix Summary
 
@@ -384,11 +408,13 @@ Update documentation and generate the final delivery report for the entire featu
 **Files**: `kitty-specs/034-feature-status-state-model-remediation/final-report.md` (updated)
 
 **Validation**:
+
 - Delta table matches the parity matrix from WP16
 - No contradictions between the two documents
 - Justifications are clear and accurate
 
 **Edge Cases**:
+
 - Parity matrix has more entries than expected: summarize key deltas, reference full matrix for details
 - Last-minute adaptations during backport: update delta table to reflect final state
 
@@ -399,7 +425,9 @@ Update documentation and generate the final delivery report for the entire featu
 **Purpose**: Document known risks, mitigations, and the procedure for rolling back the canonical status model.
 
 **Steps**:
+
 1. Add to `final-report.md`:
+
    ```markdown
    ## Risk Register
 
@@ -438,9 +466,11 @@ Update documentation and generate the final delivery report for the entire featu
       find kitty-specs/ -name "status.events.jsonl" -delete
       find kitty-specs/ -name "status.json" -delete
       ```
+
    3. Frontmatter remains intact and authoritative
    4. All status operations revert to pre-feature behavior
    5. No data loss -- frontmatter was never modified destructively
+
    ```
 
 2. Ensure rollback procedures are tested (at least manually verified).
@@ -448,12 +478,14 @@ Update documentation and generate the final delivery report for the entire featu
 **Files**: `kitty-specs/034-feature-status-state-model-remediation/final-report.md` (updated)
 
 **Validation**:
+
 - Each risk has a clear mitigation
 - Rollback procedures are step-by-step and actionable
 - Phase rollback does not require code changes (configuration only)
 - Complete removal procedure is safe (no data loss)
 
 **Edge Cases**:
+
 - Rollback during active merge: document that merge state should be cleared first
 - Rollback on 0.1x: same procedure (phase is configuration-only on both branches)
 - Partial rollback (some features on Phase 2, others on Phase 1): document per-feature override
@@ -465,15 +497,18 @@ Update documentation and generate the final delivery report for the entire featu
 **Purpose**: Run each command documented in quickstart.md in sequence on a test feature and verify all work as described.
 
 **Steps**:
+
 1. Read the existing `kitty-specs/034-feature-status-state-model-remediation/quickstart.md`.
 
 2. Create a temporary test feature directory for validation:
+
    ```bash
    mkdir -p /tmp/test-quickstart/kitty-specs/099-quickstart-test/tasks/
    # Create WP files with planned lanes
    ```
 
 3. Execute each command from quickstart.md in sequence:
+
    ```bash
    # Whatever commands quickstart.md documents, run them:
    spec-kitty agent status migrate --feature 099-quickstart-test
@@ -495,6 +530,7 @@ Update documentation and generate the final delivery report for the entire featu
    - If a command fails, investigate and fix (or document the limitation)
 
 6. Document the validation run:
+
    ```markdown
    ### Validation Results
 
@@ -508,11 +544,13 @@ Update documentation and generate the final delivery report for the entire featu
 **Files**: `kitty-specs/034-feature-status-state-model-remediation/quickstart.md` (updated if needed)
 
 **Validation**:
+
 - Every command in quickstart.md runs without errors
 - Output matches documented examples (or examples are updated)
 - No broken links or references in quickstart.md
 
 **Edge Cases**:
+
 - quickstart.md references commands not yet implemented: add "coming soon" note or remove
 - quickstart.md references deprecated flags: update to current flags
 - quickstart.md assumes specific directory structure: verify assumptions or document prerequisites

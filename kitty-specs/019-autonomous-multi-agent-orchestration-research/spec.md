@@ -14,6 +14,7 @@ Investigate the headless/CLI invocation capabilities of all 12 AI coding agents 
 Spec-kitty currently supports 12 AI coding agents, each with their own slash command directories. The current workflow requires manual intervention at each stage transition (implement → review → implement → etc.).
 
 **The vision**: After `/spec-kitty.tasks` completes, a user runs `/spec-kitty.implement` and walks away. The system autonomously:
+
 1. Assigns WP01 to an implementation agent (e.g., Claude Code)
 2. Detects completion and state change to `for_review`
 3. Triggers a review agent (e.g., Codex or OpenCode)
@@ -32,6 +33,7 @@ For each of the 12 agents, determine: Can this agent be invoked from a shell scr
 **Research Approach**: Examine official documentation, GitHub repos, and npm/pip packages for each agent to identify CLI entry points.
 
 **Deliverables**:
+
 1. **Given** each agent, **Document** the exact CLI command(s) to invoke it
 2. **Given** an agent with no CLI, **Document** alternative approaches (API, extension CLI, workarounds)
 3. **Given** CLI availability, **Document** required authentication/setup steps
@@ -47,6 +49,7 @@ For agents with CLI capability, determine: How do you tell the agent what to do?
 **Research Approach**: Test each CLI tool with various input methods (stdin, file paths, arguments, prompt files).
 
 **Deliverables**:
+
 1. **Document** how each agent accepts task instructions (flags, stdin, file path, environment)
 2. **Document** whether agents can read markdown prompt files directly
 3. **Document** context window limitations and how to provide codebase context
@@ -60,6 +63,7 @@ For agents with CLI capability, determine: How do you know when the agent has fi
 **Why this priority**: State transitions require knowing when an agent completes its task.
 
 **Deliverables**:
+
 1. **Document** exit codes and their meanings for each agent
 2. **Document** output formats (stdout, files, structured JSON)
 3. **Document** how to detect success vs failure vs partial completion
@@ -73,6 +77,7 @@ Determine: What limits parallel agent execution?
 **Why this priority**: Maximizing parallelization accelerates feature delivery.
 
 **Deliverables**:
+
 1. **Document** rate limits for each agent (API quotas, concurrent session limits)
 2. **Document** resource requirements (memory, CPU, API tokens)
 3. **Document** whether multiple instances can run simultaneously
@@ -86,6 +91,7 @@ Determine: How should users specify agent preferences for implementation vs revi
 **Why this priority**: Users have different subscriptions, preferences, and trust levels for different agents.
 
 **Deliverables**:
+
 1. **Propose** a configuration schema for agent preferences (YAML/JSON in `.kittify/`)
 2. **Document** fallback strategies when preferred agent is unavailable
 3. **Document** single-agent edge case (same agent does both roles)
@@ -99,6 +105,7 @@ Specifically investigate Cursor's CLI capabilities, as mentioned by user.
 **Why this priority**: Cursor is a popular IDE-based agent; confirming CLI access expands orchestration options.
 
 **Deliverables**:
+
 1. **Find** Cursor's CLI tool (name, installation, documentation link)
 2. **Document** how to invoke Cursor from command line
 3. **Document** any limitations vs IDE usage

@@ -65,6 +65,7 @@ kitty-specs/<feature>/
 | 2 | Canonical read. Frontmatter is generated view only. | — |
 
 Configure globally:
+
 ```yaml
 # .kittify/config.yaml
 status:
@@ -72,6 +73,7 @@ status:
 ```
 
 Or per-feature:
+
 ```json
 // kitty-specs/<feature>/meta.json
 { "status_phase": 2 }

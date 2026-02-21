@@ -103,6 +103,7 @@
 **Ready for Next Phase**: ✅ This specification is complete, unambiguous, and ready for `/spec-kitty.plan` (design/architecture phase).
 
 **Recommendation**: Proceed to planning phase to design:
+
 - Worktree creation logic (when to create, validation, error handling)
 - Dependency parsing from tasks.md (detection algorithm, circular dependency checks)
 - Planning workflow changes (commit to main, no initial worktree)

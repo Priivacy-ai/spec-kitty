@@ -49,14 +49,17 @@ Test review rejection and re-implementation cycles:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/spec.md` - User Story 2
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Review cycle behavior
 
 **Existing Code**:
+
 - `tests/fixtures/orchestrator/checkpoint_review_pending/` - From WP05
 - `tests/specify_cli/orchestrator/conftest.py` - From WP06
 
 **Constraints**:
+
 - Start from `checkpoint_review_pending` fixture
 - May need fixture state manipulation for rejection trigger
 - Mark with `@pytest.mark.orchestrator_review_cycles`
@@ -70,7 +73,9 @@ Test review rejection and re-implementation cycles:
 **Purpose**: Verify that review rejection triggers re-implementation.
 
 **Steps**:
+
 1. Create `tests/specify_cli/orchestrator/test_review_cycles.py`:
+
    ```python
    """Review cycle tests for orchestrator.
 
@@ -154,6 +159,7 @@ Test review rejection and re-implementation cycles:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_review_cycles.py` (~80 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -165,7 +171,9 @@ Test review rejection and re-implementation cycles:
 **Purpose**: Verify re-implementation produces new commits.
 
 **Steps**:
+
 1. Add to `test_review_cycles.py`:
+
    ```python
    import subprocess
 
@@ -283,6 +291,7 @@ Test review rejection and re-implementation cycles:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_review_cycles.py` (add ~95 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -294,7 +303,9 @@ Test review rejection and re-implementation cycles:
 **Purpose**: Test complete reject→re-impl→re-review→approve flow.
 
 **Steps**:
+
 1. Add to `test_review_cycles.py`:
+
    ```python
    @pytest.mark.slow
    @pytest.mark.orchestrator_review_cycles
@@ -388,6 +399,7 @@ Test review rejection and re-implementation cycles:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_review_cycles.py` (add ~85 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -399,7 +411,9 @@ Test review rejection and re-implementation cycles:
 **Purpose**: Verify WP fails when max review cycles exceeded.
 
 **Steps**:
+
 1. Add to `test_review_cycles.py`:
+
    ```python
    @pytest.mark.slow
    @pytest.mark.orchestrator_review_cycles
@@ -498,6 +512,7 @@ Test review rejection and re-implementation cycles:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_review_cycles.py` (add ~90 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -509,7 +524,9 @@ Test review rejection and re-implementation cycles:
 **Purpose**: Verify all state transitions are recorded.
 
 **Steps**:
+
 1. Add to `test_review_cycles.py`:
+
    ```python
    @pytest.mark.orchestrator_review_cycles
    class TestStateTransitionHistory:
@@ -647,6 +664,7 @@ Test review rejection and re-implementation cycles:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_review_cycles.py` (add ~130 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -665,6 +683,7 @@ Test review rejection and re-implementation cycles:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] Rejection test detects status change to in_progress
 - [ ] Re-implementation creates new commits (when changes needed)
 - [ ] Full cycle eventually reaches done or failed
@@ -672,6 +691,7 @@ Test review rejection and re-implementation cycles:
 - [ ] History records transitions with timestamps
 
 **Code Quality**:
+
 - Tests handle non-deterministic agent behavior gracefully
 - Clear skip conditions when fixtures don't match expected state
 - Proper assertion messages explain what was expected vs actual

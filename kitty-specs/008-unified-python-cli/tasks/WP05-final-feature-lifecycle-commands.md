@@ -43,6 +43,7 @@ history:
 **Goal**: Complete the feature lifecycle command migration by exposing the existing `tasks_cli.py accept` and `merge` commands through the `spec-kitty agent feature` namespace, eliminating the last bash wrapper scripts.
 
 **Success Criteria**:
+
 - `spec-kitty agent feature accept --json` executes acceptance workflow with parseable JSON output
 - `spec-kitty agent feature merge --json` executes merge workflow with parseable JSON output
 - Auto-retry logic from `merge-feature.sh` preserved (auto-navigate to latest worktree if in wrong location)
@@ -57,6 +58,7 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - **WP01 complete** ✅ (foundation infrastructure)
 - **WP02 complete** ✅ (feature management with create-feature, check-prerequisites, setup-plan)
 - Bash scripts to replace:
@@ -68,10 +70,12 @@ history:
 **Stream Assignment**: **Stream D (Agent Delta)** - Can run in parallel with WP03, WP04 after WP01-WP02 complete
 
 **Files Owned by This Stream**:
+
 - `src/specify_cli/cli/commands/agent/feature.py` ✅ (add accept/merge commands)
 - `tests/unit/agent/test_feature.py` ✅ (add tests for new commands)
 
 **Existing Implementation to Leverage**:
+
 - `scripts/tasks/tasks_cli.py` - Contains `accept` and `merge` subcommands already implemented
 - `scripts/bash/common.sh` - Contains `find_latest_feature_worktree()` utility for auto-retry
 
@@ -82,7 +86,9 @@ history:
 ### T070 – Analyze existing accept and merge implementations
 
 **Steps**:
+
 1. Read `scripts/tasks/tasks_cli.py` to understand the `accept` and `merge` subcommands:
+
    ```bash
    python3 scripts/tasks/tasks_cli.py accept --help
    python3 scripts/tasks/tasks_cli.py merge --help

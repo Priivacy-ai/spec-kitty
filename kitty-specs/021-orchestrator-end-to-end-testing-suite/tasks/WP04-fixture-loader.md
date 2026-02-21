@@ -49,14 +49,17 @@ Implement fixture loading that restores checkpoints to usable test state:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Loader behavior steps
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/data-model.md` - TestContext
 
 **Existing Code**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` - From WP03
 - `src/specify_cli/core/vcs/git.py` - Git operations (if available)
 
 **Constraints**:
+
 - Use `tempfile.mkdtemp()` for isolation
 - Git operations via subprocess (not GitPython)
 - Cleanup must handle failures gracefully
@@ -70,7 +73,9 @@ Implement fixture loading that restores checkpoints to usable test state:
 **Purpose**: Copy a checkpoint fixture to an isolated temp directory.
 
 **Steps**:
+
 1. Add to `fixtures.py`:
+
    ```python
    import shutil
    import tempfile
@@ -119,6 +124,7 @@ Implement fixture loading that restores checkpoints to usable test state:
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (add ~40 lines)
 
 **Parallel?**: Yes - can proceed with T016-T018
@@ -130,7 +136,9 @@ Implement fixture loading that restores checkpoints to usable test state:
 **Purpose**: Initialize a git repository in the temp directory.
 
 **Steps**:
+
 1. Add to `fixtures.py`:
+
    ```python
    import subprocess
 
@@ -195,6 +203,7 @@ Implement fixture loading that restores checkpoints to usable test state:
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (add ~55 lines)
 
 **Parallel?**: Yes - can proceed with T015, T017, T018
@@ -206,7 +215,9 @@ Implement fixture loading that restores checkpoints to usable test state:
 **Purpose**: Recreate git worktrees from the saved metadata.
 
 **Steps**:
+
 1. Add to `fixtures.py`:
+
    ```python
    def create_worktrees_from_metadata(
        repo_path: Path,
@@ -263,6 +274,7 @@ Implement fixture loading that restores checkpoints to usable test state:
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (add ~50 lines)
 
 **Parallel?**: Yes - can proceed with T015, T016, T018
@@ -274,7 +286,9 @@ Implement fixture loading that restores checkpoints to usable test state:
 **Purpose**: Load and deserialize the OrchestrationRun from state file.
 
 **Steps**:
+
 1. This is already implemented in T014 as `load_state_file()`. This subtask ensures it's properly integrated:
+
    ```python
    def load_orchestration_state(feature_dir: Path) -> OrchestrationRun:
        """Load orchestration state from feature directory.
@@ -293,6 +307,7 @@ Implement fixture loading that restores checkpoints to usable test state:
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (add ~15 lines)
 
 **Parallel?**: Yes - can proceed with T015-T017
@@ -304,7 +319,9 @@ Implement fixture loading that restores checkpoints to usable test state:
 **Purpose**: Main entry point that loads a checkpoint and returns complete TestContext.
 
 **Steps**:
+
 1. Add main loader function:
+
    ```python
    from specify_cli.orchestrator.testing.paths import TestPath, select_test_path_sync
 
@@ -367,6 +384,7 @@ Implement fixture loading that restores checkpoints to usable test state:
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (add ~55 lines)
 
 **Parallel?**: No - depends on T015-T018
@@ -378,7 +396,9 @@ Implement fixture loading that restores checkpoints to usable test state:
 **Purpose**: Properly clean up test context including worktrees.
 
 **Steps**:
+
 1. Add cleanup functions:
+
    ```python
    import atexit
    from typing import Set
@@ -433,12 +453,14 @@ Implement fixture loading that restores checkpoints to usable test state:
    ```
 
 2. Update `load_checkpoint` to register for cleanup:
+
    ```python
    # In load_checkpoint, after creating temp_dir:
    register_for_cleanup(temp_dir)
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/testing/fixtures.py` (add ~50 lines)
 
 **Parallel?**: No - should be last in sequence
@@ -457,6 +479,7 @@ Implement fixture loading that restores checkpoints to usable test state:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] `load_checkpoint()` returns valid TestContext
 - [ ] Git repo is properly initialized with commits
 - [ ] Worktrees are created at correct paths
@@ -465,6 +488,7 @@ Implement fixture loading that restores checkpoints to usable test state:
 - [ ] atexit handler catches forgotten cleanups
 
 **Code Quality**:
+
 - All git operations use subprocess with proper error handling
 - Cleanup is idempotent (safe to call multiple times)
 - No resource leaks (temp dirs always cleaned up)

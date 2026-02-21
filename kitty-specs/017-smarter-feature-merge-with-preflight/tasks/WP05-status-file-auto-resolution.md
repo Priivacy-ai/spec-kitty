@@ -34,6 +34,7 @@ Implement automatic conflict resolution for status tracking files (YAML frontmat
 **User Story**: As a developer, I want conflicts in status tracking files resolved automatically so I only manually resolve actual code conflicts.
 
 **Success Criteria**:
+
 - Conflicting `lane:` values auto-resolve to "more done" value
 - Conflicting checkboxes auto-resolve to checked `[x]`
 - Conflicting `history:` arrays merge chronologically
@@ -45,11 +46,13 @@ Implement automatic conflict resolution for status tracking files (YAML frontmat
 ## Context & Constraints
 
 **Related Documents**:
+
 - `kitty-specs/017-smarter-feature-merge-with-preflight/spec.md` - User Story 4 acceptance scenarios
 - `kitty-specs/017-smarter-feature-merge-with-preflight/plan.md` - status_resolver.py design
 - `kitty-specs/017-smarter-feature-merge-with-preflight/data-model.md` - ResolutionResult, Resolution Rules
 
 **Constraints**:
+
 - Post-merge Python cleanup (not git merge driver)
 - Must handle malformed YAML gracefully
 - Status file patterns: `kitty-specs/**/tasks/*.md`, `kitty-specs/**/tasks.md`
@@ -62,16 +65,19 @@ Implement automatic conflict resolution for status tracking files (YAML frontmat
 **Purpose**: Parse git conflict markers to extract both sides of a conflict.
 
 **Steps**:
+
 1. Open `src/specify_cli/merge/status_resolver.py`
 2. Implement `parse_conflict_markers()` to extract HEAD and theirs content
 3. Handle multiple conflict regions in a single file
 
 **Files**:
+
 - `src/specify_cli/merge/status_resolver.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 """Status file auto-resolution for merge conflicts."""
 
@@ -138,17 +144,20 @@ def parse_conflict_markers(content: str) -> list[ConflictRegion]:
 **Purpose**: Resolve `lane:` field conflicts by choosing the "more done" value (FR-013).
 
 **Steps**:
+
 1. Add `resolve_lane_conflict()` function
 2. Define lane priority order
 3. Parse lane value from YAML content
 4. Return the "more done" value
 
 **Files**:
+
 - `src/specify_cli/merge/status_resolver.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 LANE_PRIORITY = {
     "done": 4,
@@ -193,16 +202,19 @@ def resolve_lane_conflict(ours: str, theirs: str) -> str:
 **Purpose**: Resolve checkbox conflicts by preferring checked `[x]` (FR-014).
 
 **Steps**:
+
 1. Add `resolve_checkbox_conflict()` function
 2. Parse checkbox patterns `- [ ]` and `- [x]`
 3. For each line with conflict, prefer checked version
 
 **Files**:
+
 - `src/specify_cli/merge/status_resolver.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 CHECKBOX_PATTERN = re.compile(r'^(\s*-\s*\[)([x ])\](.*)$', re.MULTILINE)
 
@@ -249,17 +261,20 @@ def resolve_checkbox_conflict(ours: str, theirs: str) -> str:
 **Purpose**: Resolve `history:` array conflicts by chronological concatenation (FR-015).
 
 **Steps**:
+
 1. Add `resolve_history_conflict()` function
 2. Parse history entries from both sides
 3. Merge and sort by timestamp
 4. Deduplicate entries
 
 **Files**:
+
 - `src/specify_cli/merge/status_resolver.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 import yaml
 from typing import Any
@@ -315,18 +330,21 @@ def resolve_history_conflict(ours: str, theirs: str) -> str:
 **Purpose**: Call status resolution after each WP merge to auto-resolve conflicts.
 
 **Steps**:
+
 1. Import status_resolver in executor.py
 2. After `git merge` call, check for conflicts
 3. Call `resolve_status_conflicts()` for matching files
 4. If all resolved, `git add` and continue; else pause
 
 **Files**:
+
 - `src/specify_cli/merge/executor.py`
 - `src/specify_cli/merge/status_resolver.py`
 
 **Parallel?**: No (integration)
 
 **Main function**:
+
 ```python
 import subprocess
 import fnmatch
@@ -439,12 +457,14 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
 **Purpose**: Cleanup should not stop if one file fails to resolve (FR-020).
 
 **Steps**:
+
 1. Review executor cleanup logic
 2. Wrap individual file operations in try/except
 3. Collect errors, continue with remaining files
 4. Report all errors at end
 
 **Files**:
+
 - `src/specify_cli/merge/executor.py`
 
 **Parallel?**: No (integration)
@@ -456,11 +476,13 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
 **Purpose**: Document new merge features in agent command templates.
 
 **Steps**:
+
 1. Update `.claude/commands/spec-kitty.merge.md`
 2. Replicate updates to all 12 agent directories (use AGENT_DIRS from migrations)
 3. Document: --resume, --feature, conflict forecast, auto-resolution
 
 **Files**:
+
 - `.claude/commands/spec-kitty.merge.md`
 - `.codex/prompts/spec-kitty.merge.md`
 - `.opencode/command/spec-kitty.merge.md`
@@ -469,6 +491,7 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
 **Parallel?**: Yes
 
 **Notes**:
+
 - Reference AGENT_DIRS from `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py`
 - Key additions to document:
   - Pre-flight validation behavior
@@ -492,6 +515,7 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
 ## Review Guidance
 
 **Acceptance Test**:
+
 1. Create two WPs that both modify same task file's `lane:` field
    - WP01: `lane: for_review`
    - WP02: `lane: done`
@@ -499,6 +523,7 @@ def resolve_status_conflicts(repo_root: Path) -> list[ResolutionResult]:
 3. No manual intervention required
 
 **Edge Cases**:
+
 - Malformed YAML → skip file, report error
 - Conflict in non-YAML content within status file → manual required
 - Multiple conflict types in same file → handle each region

@@ -50,6 +50,7 @@ history:
 **Primary Goal**: Implement concurrent operation detection and deterministic conflict resolution using Last-Write-Wins merge rule.
 
 **Success Criteria**:
+
 - ✅ Conflict detection identifies events with same Lamport clock (concurrent operations)
 - ✅ Last-Write-Wins merge rule implemented (lexicographic ULID sorting)
 - ✅ Conflict detection integrated into state reconstruction (EventReader enhancement)
@@ -62,6 +63,7 @@ history:
 **User Story**: US4 - Conflict Detection for Concurrent Operations
 
 **Independent Test**:
+
 ```python
 # Simulate concurrent events (same clock)
 from specify_cli.events.store import EventStore
@@ -128,6 +130,7 @@ print("✓ Conflict detected and resolved via LWW")
 **This work package MUST be implemented on the `2.x` branch (NOT main).**
 
 Verify you're on 2.x:
+
 ```bash
 git branch --show-current  # Must output: 2.x
 ```
@@ -142,17 +145,20 @@ git branch --show-current  # Must output: 2.x
 ### Architectural Constraints
 
 **From spec.md (US4)**:
+
 - Use `is_concurrent()` from spec-kitty-events library OR implement LWW locally
 - State-machine merge rule for workflow transitions (later event_id wins)
 - CRDT set merge for tag additions (future - not implemented in this WP)
 - Deterministic resolution (no user prompts)
 
 **From data-model.md (Conflict Resolution)**:
+
 - Group events by Lamport clock
 - Detect conflicts: len(events_at_clock) > 1
 - Apply LWW: Sort by event_id (lexicographic), take last event
 
 **From plan decision** (Planning Q2):
+
 - Last-Write-Wins sufficient for workflow state (research-validated)
 - Conflicts rare in CLI use case (single user per project)
 
@@ -173,6 +179,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Add conflict detection to reader module**:
+
    ```python
    # In src/specify_cli/events/reader.py (add new class)
 
@@ -243,15 +250,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/reader.py` (modify: add ConflictDetector class and ConflictInfo dataclass)
 
 **Validation**:
+
 - [ ] `detect_conflicts()` groups events by lamport_clock
 - [ ] Identifies conflicts where len(events_at_clock) > 1
 - [ ] Returns ConflictInfo with conflicting_events and winning_event
 - [ ] `is_concurrent()` checks if two events have same clock
 
 **Edge Cases**:
+
 - No conflicts (all unique clocks): Returns empty list
 - Multiple conflicts at different clocks: All detected and returned
 - Conflict with 3+ concurrent events: LWW still works (lexicographic sort, last wins)
@@ -267,6 +277,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Add merge rule to ConflictDetector**:
+
    ```python
    # In src/specify_cli/events/reader.py (add to ConflictDetector class)
 
@@ -315,15 +326,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/reader.py` (modify: add merge rule methods to ConflictDetector)
 
 **Validation**:
+
 - [ ] `apply_lww_merge()` sorts events by event_id
 - [ ] Returns event with highest event_id (lexicographic order)
 - [ ] Works with 2, 3, or more conflicting events
 - [ ] `format_conflict_explanation()` produces human-readable output
 
 **Edge Cases**:
+
 - Single event (no conflict): Should not call this method (detected in detect_conflicts)
 - Events with identical event_id: Impossible (ULID guarantees uniqueness)
 - ULID format invalid: Would fail in Event validation (caught earlier)
@@ -339,6 +353,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Modify reconstruct_wp_status() to detect conflicts**:
+
    ```python
    # In src/specify_cli/events/reader.py (modify reconstruct_wp_status method)
 
@@ -465,9 +480,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/reader.py` (modify: enhance reconstruct methods to return conflicts)
 
 **Validation**:
+
 - [ ] `reconstruct_wp_status()` detects conflicts via ConflictDetector
 - [ ] Skips losing events during replay (only winning events applied)
 - [ ] Returns tuple: (status, conflicts)
@@ -475,6 +492,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] `reconstruct_all_wp_statuses()` detects conflicts for all WPs
 
 **Edge Cases**:
+
 - No conflicts: Returns (status, []) with empty conflicts list
 - Multiple conflicts for same WP: All detected and resolved
 - Conflict detection disabled: Returns (status, []) without detection overhead
@@ -490,6 +508,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Modify status command to show conflicts**:
+
    ```python
    # In src/specify_cli/cli/commands/status.py (modify)
 
@@ -524,9 +543,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/status.py` (modify: add conflict warning display)
 
 **Validation**:
+
 - [ ] Conflicts displayed after kanban board
 - [ ] Shows WP ID, clock value, number of conflicting events
 - [ ] Shows merge rule applied (LWW)
@@ -534,6 +555,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] Test: Create concurrent events, run status, verify warning shown
 
 **Edge Cases**:
+
 - No conflicts: No warning section shown
 - Multiple conflicts: All displayed in list
 - Conflict without clear winner: Should not happen (LWW always produces winner)
@@ -549,6 +571,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Verify logging in reconstruct_wp_status()**:
+
    ```python
    # In src/specify_cli/events/reader.py
    # Should already log conflicts from T033
@@ -570,6 +593,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Enhance logging with merge rule details**:
+
    ```python
    # In src/specify_cli/events/reader.py (modify format_conflict_explanation)
 
@@ -592,15 +616,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/reader.py` (modify: enhance conflict explanation)
 
 **Validation**:
+
 - [ ] Conflict logged to stderr (not stdout)
 - [ ] Explanation includes: clock value, conflicting event IDs, merge rule, winner
 - [ ] Shows payload details (e.g., new_status) for each conflicting event
 - [ ] Test: Trigger conflict, verify detailed log output
 
 **Edge Cases**:
+
 - Conflict with identical payloads: Still logged (conflict exists even if outcome same)
 - Missing payload fields: Uses .get() with defaults (no KeyError)
 
@@ -613,6 +640,7 @@ git branch --show-current  # Must output: 2.x
 **No separate test files** (constitution: tests not explicitly requested).
 
 **Validation approach**:
+
 1. **T031**: Unit test - Group events by clock, identify duplicates
 2. **T032**: Unit test - Sort by event_id, verify last event wins
 3. **T033**: Integration test - Reconstruct status with conflicts, verify winning event used
@@ -620,6 +648,7 @@ git branch --show-current  # Must output: 2.x
 5. **T035**: Log test - Verify conflict explanation logged to stderr
 
 **Conflict simulation test**:
+
 ```python
 from specify_cli.events.store import EventStore
 from specify_cli.events.reader import EventReader, ConflictDetector
@@ -688,6 +717,7 @@ print("✓ LWW merge rule test passed")
 **Impact**: User expects agent-a's transition to win, but agent-b wins due to later ULID
 
 **Mitigation**:
+
 - Both events preserved in event log (audit trail complete)
 - Conflict warning shown to user (T034)
 - Logged explanation shows which event won and why (T035)
@@ -698,6 +728,7 @@ print("✓ LWW merge rule test passed")
 **Impact**: Conflict detection adds latency to every state reconstruction
 
 **Mitigation**:
+
 - Conflicts rare in CLI (single user per project, validated by research)
 - Detection is O(n) pass (grouping by clock, lightweight)
 - Can disable detection via parameter if needed (detect_conflicts=False)
@@ -707,6 +738,7 @@ print("✓ LWW merge rule test passed")
 **Impact**: Different agents reconstruct different state (violates determinism requirement)
 
 **Mitigation**:
+
 - ULID lexicographic sort is deterministic (same input → same output)
 - No random tie-breaking (ULIDs are globally unique)
 - Test validates determinism (run reconstruction twice, same result)
@@ -762,6 +794,7 @@ print("✓ LWW merge rule test passed")
    - ✓ Shows winning event and result
 
 **Reviewers should**:
+
 - Run conflict simulation test (verify LWW applied)
 - Check stderr output (verify detailed logging)
 - Run status command with conflicts (verify warning shown)
@@ -774,6 +807,7 @@ print("✓ LWW merge rule test passed")
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+
 - 2026-01-30T15:51:10Z – unknown – shell_pid=14744 – lane=for_review – Ready for review: conflict detection + LWW merge with status warnings
 - 2026-01-30T15:57:48Z – claude-wp06-reviewer – shell_pid=21622 – lane=doing – Started review via workflow command
 - 2026-01-30T15:58:47Z – claude-wp06-reviewer – shell_pid=21622 – lane=done – Review passed: ConflictDetector class implemented with LWW merge rule, concurrent event detection working, conflict warnings added to status display. All requirements met.

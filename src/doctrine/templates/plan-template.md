@@ -1,6 +1,6 @@
 # Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
 
+*Path: [templates/plan-template.md](templates/plan-template.md)*
 
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`

@@ -157,6 +157,7 @@ docs/
 ### Phase 2: Coverage Matrix
 
 Create a matrix: `[Feature/Concept] × [Divio Type]` showing:
+
 - ✅ Covered adequately
 - ⚠️ Partially covered
 - ❌ Missing entirely

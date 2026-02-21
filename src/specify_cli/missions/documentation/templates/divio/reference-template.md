@@ -18,6 +18,7 @@ outcome: user-knows-what-exists
 {Brief description of what this reference documents}
 
 **Quick Navigation**:
+
 - [{Section 1}](#{section-anchor})
 - [{Section 2}](#{section-anchor})
 - [{Section 3}](#{section-anchor})
@@ -49,6 +50,7 @@ outcome: user-knows-what-exists
 **Description**: {What is returned}
 
 **Possible values**:
+
 - `{value1}`: {When this is returned}
 - `{value2}`: {When this is returned}
 
@@ -62,16 +64,19 @@ outcome: user-knows-what-exists
 ### Examples
 
 **Basic usage**:
+
 ```{language}
 {basic-example}
 ```
 
 **With options**:
+
 ```{language}
 {example-with-options}
 ```
 
 **Advanced usage**:
+
 ```{language}
 {advanced-example}
 ```
@@ -104,6 +109,7 @@ outcome: user-knows-what-exists
 **Description**: {What it represents}
 
 **Usage**:
+
 ```{language}
 {usage-example}
 ```
@@ -126,6 +132,7 @@ outcome: user-knows-what-exists
 | `{prop2}` | `{type}` | {Description} |
 
 **Example**:
+
 ```{language}
 {example-usage}
 ```
@@ -135,12 +142,14 @@ outcome: user-knows-what-exists
 ## Version History
 
 ### Version {X.Y.Z}
+
 - Added: `{new-feature}`
 - Changed: `{modified-behavior}`
 - Deprecated: `{old-feature}` (use `{new-feature}` instead)
 - Removed: `{removed-feature}`
 
 ### Version {X.Y.Z}
+
 - {Changes in this version}
 
 ---
@@ -148,6 +157,7 @@ outcome: user-knows-what-exists
 ## Write the Docs Best Practices (Remove this section before publishing)
 
 **Reference Principles**:
+
 - ✅ Information-oriented: Describe facts accurately
 - ✅ Structure around code organization (classes, modules, commands)
 - ✅ Consistent format for all similar items
@@ -157,6 +167,7 @@ outcome: user-knows-what-exists
 - ✅ Do not explain how to use (that's How-To) or why (that's Explanation)
 
 **Accessibility**:
+
 - ✅ Proper heading hierarchy
 - ✅ Alt text for diagrams/screenshots
 - ✅ Tables for structured data
@@ -164,11 +175,13 @@ outcome: user-knows-what-exists
 - ✅ Descriptive link text
 
 **Inclusivity**:
+
 - ✅ Diverse example names
 - ✅ Gender-neutral language
 - ✅ No cultural assumptions
 
 **Reference-Specific Guidelines**:
+
 - Alphabetical or logical ordering
 - Every public API/command documented
 - Parameters/options in consistent format (tables work well)

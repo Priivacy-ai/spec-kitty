@@ -16,11 +16,13 @@ description: Create an isolated workspace (worktree) for implementing a specific
 3. **NEVER write deliverable files to the main repository** - This is a critical workflow error
 
 **Why this matters:**
+
 - Each WP has an isolated worktree with its own branch
 - Changes in main repository will NOT be seen by reviewers looking at the WP worktree
 - Writing to main instead of the workspace causes review failures and merge conflicts
 
 **Verify you're in the right directory:**
+
 ```bash
 pwd
 # Should show: /path/to/repo/.worktrees/###-feature-WP##/
@@ -31,10 +33,13 @@ pwd
 ## CRITICAL: This is a TWO-STEP Command
 
 **Step 1**: Get the WP prompt and implementation instructions
+
 ```bash
 spec-kitty agent workflow implement WP## --agent __AGENT__
 ```
+
 This displays the full WP prompt with detailed requirements and shows:
+
 ```
 WHEN YOU'RE DONE:
 ================================================================================
@@ -43,6 +48,7 @@ WHEN YOU'RE DONE:
 ```
 
 **Step 2**: Create the workspace (if needed) and implement according to the prompt
+
 ```bash
 spec-kitty implement WP##              # No dependencies (branches from main)
 spec-kitty implement WP## --base WPXX  # With dependencies (branches from base WP)
@@ -51,18 +57,21 @@ spec-kitty implement WP## --base WPXX  # With dependencies (branches from base W
 ## Completion Requirements
 
 **Your work is NOT complete until**:
+
 1. ✅ All subtasks in WP prompt are finished
 2. ✅ All tests pass (if required)
 3. ✅ Changes committed to the WP workspace
 4. ✅ **WP moved to for_review lane**: `spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"`
 
 **The WP file location determines status**:
+
 - In `tasks/WP##-*.md` with `lane: "doing"` = IN PROGRESS (not done)
 - Need to move to `for_review` lane when complete
 
 ## When to Use
 
 After `/spec-kitty.tasks` generates work packages in the main repository:
+
 - Planning artifacts (spec, plan, tasks) are already in main
 - Run `spec-kitty agent workflow implement WP01 --agent __AGENT__` to get the full prompt
 - Run `spec-kitty implement WP01` to create a workspace for the first WP
@@ -72,6 +81,7 @@ After `/spec-kitty.tasks` generates work packages in the main repository:
 ## Workflow
 
 **Planning Phase** (main repo, no worktrees):
+
 ```
 /spec-kitty.specify → Creates spec.md in main
 /spec-kitty.plan → Creates plan.md in main
@@ -79,6 +89,7 @@ After `/spec-kitty.tasks` generates work packages in the main repository:
 ```
 
 **Implementation Phase** (creates worktrees on-demand):
+
 ```
 spec-kitty implement WP01 → Creates .worktrees/###-feature-WP01/
 spec-kitty implement WP02 --base WP01 → Creates .worktrees/###-feature-WP02/
@@ -87,6 +98,7 @@ spec-kitty implement WP02 --base WP01 → Creates .worktrees/###-feature-WP02/
 ## Examples
 
 **Independent WP** (no dependencies):
+
 ```bash
 spec-kitty implement WP01
 # Creates: .worktrees/010-workspace-per-wp-WP01/
@@ -95,6 +107,7 @@ spec-kitty implement WP01
 ```
 
 **Dependent WP**:
+
 ```bash
 spec-kitty implement WP02 --base WP01
 # Creates: .worktrees/010-workspace-per-wp-WP02/
@@ -105,6 +118,7 @@ spec-kitty implement WP02 --base WP01
 ## Validation
 
 The command validates:
+
 - Base workspace exists (if --base specified)
 - Suggests --base if WP has dependencies in frontmatter
 - Errors if trying to branch from a non-existent base
@@ -112,6 +126,7 @@ The command validates:
 ## Parallel Development
 
 Multiple agents can implement different WPs simultaneously:
+
 ```bash
 # Agent A
 spec-kitty implement WP01
@@ -125,6 +140,7 @@ spec-kitty implement WP03
 ## Dependencies
 
 Work package dependencies are declared in frontmatter:
+
 ```yaml
 dependencies: ["WP01"]  # This WP depends on WP01
 ```
@@ -161,12 +177,14 @@ spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
 ## Lane Status
 
 Work packages move through lanes:
+
 - `planned` → Initial state after `/spec-kitty.tasks`
 - `doing` → Agent is implementing (automatically set by workflow command)
 - `for_review` → Implementation complete, waiting for review ← **YOU MUST MOVE HERE**
 - `done` → Review passed, WP complete
 
 **Check current lane**:
+
 ```bash
 grep "^lane:" kitty-specs/###-feature/tasks/WP##-*.md
 ```
@@ -174,17 +192,22 @@ grep "^lane:" kitty-specs/###-feature/tasks/WP##-*.md
 ## Troubleshooting
 
 **Error: "Base workspace WP01 does not exist"**
+
 - Solution: Implement WP01 first: `spec-kitty implement WP01`
 
 **Error: "WP02 has dependencies. Use: spec-kitty implement WP02 --base WP01"**
+
 - Solution: Add --base flag as suggested
 
 **Warning: "Base branch has changed. Consider rebasing..."**
+
 - Solution: Run suggested rebase command
 
 **"I finished implementing but nothing happened"**
+
 - Check: Did you move to for_review? `spec-kitty agent tasks move-task WP## --to for_review`
 - The WP file must be moved to for_review lane for the workflow to continue
 
 **"Status board shows 'doing' but I just moved to 'for_review'"**
+
 - This is normal! Status is tracked in the target branch. A reviewer may have already moved it back to "doing" (changes requested), or there's a sync delay. Don't panic - focus on your WP.

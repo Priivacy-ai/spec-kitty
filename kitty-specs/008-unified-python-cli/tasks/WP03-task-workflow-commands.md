@@ -29,6 +29,7 @@ history:
 **Goal**: Migrate task management bash scripts to Python agent commands, converting 850 lines of argparse CLI to Typer.
 
 **Success Criteria**:
+
 - All 6 task commands implemented: `move-task`, `mark-status`, `list-tasks`, `add-history`, `rollback-task`, `validate-workflow` (note: `move-task` later evolved to `workflow implement/review` in v0.11.1)
 - `spec-kitty agent move-task WP01 --to doing --json` moves task and returns JSON (historical - now `spec-kitty agent workflow implement WP01`)
 - Full task workflow works: planned → doing → for_review → done
@@ -43,6 +44,7 @@ history:
 ## Context & Constraints
 
 **Prerequisites**:
+
 - **WP01 complete** ✅ (foundation infrastructure)
 - Existing code to migrate: `src/specify_cli/tasks_support.py` (850 lines argparse)
 - Bash wrappers to replace: Thin scripts calling `tasks_cli.py`
@@ -50,10 +52,12 @@ history:
 **Stream Assignment**: **Stream B (Agent Beta)** - Can run in parallel with WP02, WP04, WP05
 
 **Files Owned by This Stream**:
+
 - `src/specify_cli/cli/commands/agent/tasks.py` ✅
 - `tests/unit/agent/test_tasks.py` ✅
 
 **Key Requirements**:
+
 - Preserve ALL existing functionality from `tasks_support.py`
 - YAML frontmatter parsing with ruamel.yaml (handles edge cases)
 - Lane transitions with history tracking
@@ -66,6 +70,7 @@ history:
 ### T034 – Analyze existing tasks_support.py
 
 Read `src/specify_cli/tasks_support.py` to understand:
+
 1. Argparse command structure (6 subcommands)
 2. YAML frontmatter parsing logic
 3. Lane transition rules
@@ -79,8 +84,10 @@ Document key functions to preserve in migration notes.
 ### T035 – Convert argparse to Typer in tasks.py
 
 **Steps**:
+
 1. Open `src/specify_cli/cli/commands/agent/tasks.py` (stub from WP01)
 2. Convert argparse patterns to Typer decorators:
+
    ```python
    import typer
    from typing_extensions import Annotated
@@ -92,6 +99,7 @@ Document key functions to preserve in migration notes.
        no_args_is_help=True
    )
    ```
+
 3. Preserve core logic from `tasks_support.py` (frontmatter parsing, file operations)
 4. Create internal helper functions for shared logic (YAML parsing, history updates)
 
@@ -146,6 +154,7 @@ def move_task(
 ```
 
 **Commands to implement**:
+
 - **T036**: `move-task` - Move between lanes (historical - later evolved to `workflow implement/review`)
 - **T037**: `mark-status` - Update checkbox status
 - **T038**: `list-tasks` - List tasks by lane with filtering
@@ -158,6 +167,7 @@ def move_task(
 ### T042 – Ensure dual output for task commands
 
 Verify all 6 commands support:
+
 - `--json` flag ✅
 - JSON-only output in JSON mode (no console mixing) ✅
 - Rich console output in default mode ✅
@@ -168,6 +178,7 @@ Verify all 6 commands support:
 ### T043 – Preserve tasks_support.py functionality
 
 **Checklist**:
+
 - [ ] All argparse subcommands converted to Typer
 - [ ] YAML frontmatter parsing works identically (use `ruamel.yaml`)
 - [ ] Lane transition validation rules preserved
@@ -189,6 +200,7 @@ Create `tests/unit/agent/test_tasks.py` with tests for:
 - **T049**: `test_validate_workflow` - Metadata validation rules
 
 Use pattern:
+
 ```python
 from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app
@@ -254,6 +266,7 @@ def test_task_commands_worktree(worktree):
 ### T052 – Verify 90%+ coverage
 
 Run coverage analysis:
+
 ```bash
 pytest tests/unit/agent/test_tasks.py \
   --cov=src/specify_cli/cli/commands/agent/tasks \
@@ -267,11 +280,14 @@ Add tests for uncovered branches until 90%+ achieved.
 ### T053 – Deprecate old tasks_support.py
 
 **Timeline Clarification**:
+
 - **WP03 (this work package)**: Add deprecation warning, update references
 - **WP06 (cleanup phase)**: Physical deletion of file along with all bash scripts
 
 **Steps for WP03**:
+
 1. Add deprecation warning to `tasks_support.py` module docstring:
+
    ```python
    """
    DEPRECATED: This module is deprecated as of v0.10.0.
@@ -281,6 +297,7 @@ Add tests for uncovered branches until 90%+ achieved.
    See: src/specify_cli/cli/commands/agent/tasks.py
    """
    ```
+
 2. Update any internal references to use new `agent tasks` commands
 3. Document migration in code comments
 4. **Do NOT delete file yet** - deletion happens in WP06 T100-T101

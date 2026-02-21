@@ -43,10 +43,10 @@ The spec explicitly ties these success criteria to running CLI commands (impleme
 **Issue 2: Coverage target not met (90%+ for new sync code).**
 The commit message reports `clock.py` at 89% and `emitter.py` at 87%, below the required 90%+ line coverage for new code under `src/specify_cli/sync/`. Please add tests to raise coverage and include a `pytest --cov=src/specify_cli/sync` report in your verification notes.
 
-
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -60,16 +60,19 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Context & Constraints
 
 ### Reference Documents
+
 - **Spec**: `kitty-specs/028-cli-event-emission-sync/spec.md` - Success criteria, edge cases
 - **Plan**: `kitty-specs/028-cli-event-emission-sync/plan.md` - Test strategy
 - **Contract**: `kitty-specs/028-cli-event-emission-sync/contracts/events.schema.json` - Schema validation
 
 ### Testing Requirements
+
 - pytest with --cov for coverage
 - mypy --strict for type checking
 - All new code must have type hints
 
 ### Dependencies
+
 - All WPs (WP01-WP06) must be complete
 - Mock server for integration tests
 
@@ -83,6 +86,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Create `tests/sync/test_events.py`
   2. Test cases to implement:
+
      ```python
      import pytest
      from unittest.mock import MagicMock, patch
@@ -125,6 +129,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
          # Add tests for all 8 event types...
      ```
+
   3. Test each event builder: WPCreated, WPAssigned, FeatureCreated, etc.
   4. Test validation failures are handled gracefully
 - **Files**: `tests/sync/test_events.py`
@@ -139,6 +144,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Create `tests/sync/test_clock.py`
   2. Test cases:
+
      ```python
      import pytest
      import tempfile
@@ -179,6 +185,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              clock = LamportClock.load(tmp_path / "nonexistent.json")
              assert clock.value == 0
      ```
+
 - **Files**: `tests/sync/test_clock.py`
 - **Parallel?**: Yes (independent test file)
 - **Notes**:
@@ -191,6 +198,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Create `tests/sync/test_background.py`
   2. Test cases:
+
      ```python
      import pytest
      from unittest.mock import MagicMock, patch
@@ -238,6 +246,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              """sync_now() syncs immediately"""
              ...
      ```
+
 - **Files**: `tests/sync/test_background.py`
 - **Parallel?**: Yes (independent test file)
 - **Notes**:
@@ -251,6 +260,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   1. Create `tests/sync/test_integration.py`
   2. Use pytest-httpx or responses to mock HTTP endpoints
   3. Test cases:
+
      ```python
      import pytest
      from specify_cli.sync.events import emit_wp_status_changed, get_emitter
@@ -285,6 +295,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              """Clock updates when server reports higher value"""
              ...
      ```
+
 - **Files**: `tests/sync/test_integration.py`
 - **Parallel?**: No (integration tests)
 - **Notes**:
@@ -297,6 +308,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Create `tests/cli/commands/test_event_emission.py`
   2. Test cases:
+
      ```python
      import pytest
      from unittest.mock import patch
@@ -338,6 +350,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              assert result.exit_code == 0  # Command still succeeds
              assert "Warning" in result.output
      ```
+
 - **Files**: `tests/cli/commands/test_event_emission.py`
 - **Parallel?**: Yes (independent test file)
 - **Notes**:
@@ -349,6 +362,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Purpose**: Create reusable fixtures for all tests
 - **Steps**:
   1. Create `tests/sync/conftest.py`:
+
      ```python
      import pytest
      import tempfile
@@ -394,6 +408,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          )
          return httpx_mock
      ```
+
   2. Add fixtures to `tests/cli/commands/conftest.py` for CLI tests
 - **Files**: `tests/sync/conftest.py`, `tests/cli/commands/conftest.py`
 - **Parallel?**: No (shared fixtures)
@@ -406,6 +421,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Purpose**: Ensure all SC-001 through SC-012 are covered by tests
 - **Steps**:
   1. Create verification matrix:
+
      | SC | Description | Test File | Test Function |
      |----|-------------|-----------|---------------|
      | SC-001 | implement emits WPStatusChanged | test_event_emission.py | test_implement_emits_* |
@@ -420,6 +436,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      | SC-010 | team_slug included | test_events.py | test_team_slug_* |
      | SC-011 | ErrorLogged emitted on errors | test_event_emission.py | test_error_logged_* |
      | SC-012 | DependencyResolved emitted | test_event_emission.py | test_dependency_resolved_* |
+
   2. Add tests for any missing criteria
   3. Document coverage in test file comments
 - **Files**: All test files
@@ -433,6 +450,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Purpose**: Test edge cases from spec
 - **Steps**:
   1. Add edge case tests:
+
      ```python
      class TestEdgeCases:
          def test_network_failure_queues_event(self):
@@ -460,6 +478,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              """401 during sync triggers token refresh"""
              ...
      ```
+
   2. Reference spec edge cases section for complete list
 - **Files**: `tests/sync/test_edge_cases.py` or add to existing files
 - **Parallel?**: No (final validation)
@@ -472,6 +491,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Test Strategy
 
 Run full test suite:
+
 ```bash
 # Run all tests with coverage
 pytest tests/sync tests/cli/commands/test_event_emission.py -v --cov=src/specify_cli/sync --cov-report=term-missing
@@ -524,6 +544,7 @@ To change a work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP07 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-02-04T13:07:50Z – unknown – shell_pid=58254 – lane=for_review – Ready for review: 143 tests covering all 8 event types, SC-001 through SC-012, edge cases (queue overflow, concurrent emission, non-blocking, clock desync). Coverage: events.py 100%, background.py 90%, clock.py 89%, emitter.py 87%.
 - 2026-02-04T13:08:04Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
 - 2026-02-04T13:10:14Z – codex – shell_pid=25757 – lane=planned – Moved to planned

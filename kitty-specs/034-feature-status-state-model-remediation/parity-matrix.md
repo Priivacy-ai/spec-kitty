@@ -55,6 +55,7 @@ all phases are available on 0.1x. The cap exists as a safety mechanism for
 future phases (3+) that may require 2.x infrastructure.
 
 Branch detection logic in `is_01x_branch()`:
+
 - `main` -> 0.1x (True)
 - `release/*` -> 0.1x (True)
 - `2.x`, `2.*` -> NOT 0.1x (False)
@@ -82,9 +83,11 @@ depends on `specify_cli.frontmatter.FrontmatterManager` which exists on main.
 ## Parity Verification Tests
 
 Tests that verify cross-branch parity are located in:
+
 - `tests/specify_cli/status/test_parity.py`
 
 These tests verify:
+
 1. **Reducer determinism**: Same input events produce identical output (excluding `materialized_at` timestamp)
 2. **SaaS no-op on 0.1x**: `_saas_fan_out` silently skips when `sync.events` is not importable
 3. **Phase cap enforcement**: `resolve_phase()` caps at `MAX_PHASE_01X` when `is_01x_branch()` returns True

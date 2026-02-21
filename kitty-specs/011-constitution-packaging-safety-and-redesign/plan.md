@@ -15,6 +15,7 @@ Emergency 0.10.x release to resolve critical packaging safety issues and improve
 
 **Language/Version**: Python 3.11+ (existing spec-kitty codebase requirement)
 **Primary Dependencies**:
+
 - Existing: typer, rich, pyyaml, ruamel.yaml, httpx, pydantic
 - **NEW**: psutil (cross-platform process/signal management for dashboard)
 
@@ -24,11 +25,13 @@ Emergency 0.10.x release to resolve critical packaging safety issues and improve
 **Project Type**: Single Python package with CLI entry points
 **Performance Goals**: Migration execution <10s for typical project, dashboard startup <3s
 **Constraints**:
+
 - Backward compatibility for 0.6.4+ projects upgrading
 - Zero breaking changes to user workflows
 - Package size must not increase significantly
 
 **Scale/Scope**:
+
 - ~50+ files affected (Python code, templates, migrations, packaging config)
 - 27 functional requirements across 4 major goals
 - 2 parallel implementation tracks
@@ -40,6 +43,7 @@ Emergency 0.10.x release to resolve critical packaging safety issues and improve
 **Status**: Constitution file exists but is template-only (not filled in for spec-kitty project). This feature affects the constitution system itself, so standard constitution checks don't apply.
 
 **Governance Note**: This is a platform-critical feature requiring:
+
 - Thorough testing of packaging (wheel inspection)
 - Migration path validation (0.6.4 → 0.10.12 in clean environment)
 - Cross-platform validation (Windows dashboard testing)
@@ -117,6 +121,7 @@ pyproject.toml           # UPDATED: Remove .kittify/* force-includes (lines 86-8
 ```
 
 **Structure Decision**: Template sources move from `.kittify/` to `src/specify_cli/` to achieve clean separation between:
+
 - **Template source code** (in src/, gets packaged, distributed via PyPI)
 - **Project instances** (.kittify/ in any repo, never packaged)
 
@@ -176,6 +181,7 @@ Integration & Testing (Sequential)
 ### Work Distribution
 
 **Track 1: Critical Safety (Priority P0)**
+
 - **Focus**: Packaging fixes and migration repairs
 - **Key files**:
   - `src/specify_cli/template/manager.py` (template loading)
@@ -186,6 +192,7 @@ Integration & Testing (Sequential)
 - **No conflicts with Track 2**
 
 **Track 2: UX Improvements (Priority P1)**
+
 - **Focus**: Constitution redesign and Windows dashboard
 - **Key files**:
   - `.kittify/templates/command-templates/constitution.md` → `src/specify_cli/templates/command-templates/constitution.md` (after Track 1 moves it)
@@ -195,10 +202,12 @@ Integration & Testing (Sequential)
 - **Minimal overlap with Track 1** (both touch pyproject.toml but different sections)
 
 **Sequential Foundation (Must complete first)**:
+
 - Phase 0 research (psutil patterns, template relocation strategy)
 - Phase 1 design (data model, migration entities)
 
 **Sequential Integration (Must complete last)**:
+
 - Package build and inspection test
 - Full migration path test (0.6.4 → 0.10.12)
 - Cross-platform validation
@@ -206,16 +215,19 @@ Integration & Testing (Sequential)
 ### Coordination Points
 
 **Sync Point 1 (After template relocation)**:
+
 - Track 1 completes template move to `src/specify_cli/`
 - Track 2 can then update constitution command template in new location
 - Merge Track 1 changes first, then Track 2 rebases
 
 **Sync Point 2 (Before integration testing)**:
+
 - Both tracks complete their implementation
 - Integration testing verifies all 4 goals work together
 - Package build test ensures nothing was accidentally included
 
 **Conflict Resolution**:
+
 - `pyproject.toml`: Track 1 removes force-includes (lines 86-110), Track 2 adds psutil dependency (line ~20). Different sections, no conflict.
 - Templates: Track 1 moves entire directory first, Track 2 updates specific file content after. Sequential, no conflict.
 - No other file conflicts identified.
@@ -223,17 +235,21 @@ Integration & Testing (Sequential)
 ## Risk Mitigation
 
 **Risk 1: Template relocation breaks existing code**
+
 - Mitigation: Comprehensive grep for `.kittify/` references, update all to use package resources
 - Test: Build package, run `spec-kitty init` from installed package
 
 **Risk 2: Migration fails on edge cases**
+
 - Mitigation: Test with actual 0.6.4 project, not just mocked migrations
 - Test: Create VM with 0.6.4, upgrade to 0.10.12, verify all migrations pass
 
 **Risk 3: Windows dashboard still broken after psutil refactor**
+
 - Mitigation: Test on actual Windows 10/11 system, not just WSL
 - Test: Dashboard starts, serves HTML, handles shutdown gracefully
 
 **Risk 4: Packaging still includes wrong files**
+
 - Mitigation: Automated test that extracts wheel and asserts no `.kittify/memory/` or filled constitution
 - Test: `unzip -l dist/*.whl | grep -E '(constitution.md|memory/)' | wc -l` should be 0 (except templates)

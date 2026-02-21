@@ -32,6 +32,7 @@ history:
 Implement WP dependency resolution and agent assignment logic.
 
 **Success Criteria**:
+
 - Dependency graph built from WP frontmatter
 - Ready WP detection correctly identifies WPs with satisfied dependencies
 - Agent selection respects roles and priorities
@@ -41,14 +42,17 @@ Implement WP dependency resolution and agent assignment logic.
 ## Context & Constraints
 
 **Reference Documents**:
+
 - [spec.md](../spec.md) - FR-001, FR-002, FR-003, FR-004, FR-017 (scheduling requirements)
 - [plan.md](../plan.md) - Scheduling loop description
 - [data-model.md](../data-model.md) - OrchestratorConfig for priorities
 
 **Existing Modules**:
+
 - `src/specify_cli/core/dependency_graph.py` - Reuse for graph operations
 
 **Implementation Command**:
+
 ```bash
 spec-kitty implement WP05 --base WP04
 ```
@@ -60,8 +64,10 @@ spec-kitty implement WP05 --base WP04
 **Purpose**: Build dependency graph from WP frontmatter.
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/scheduler.py`
 2. Implement graph building:
+
    ```python
    from specify_cli.core.dependency_graph import DependencyGraph
 
@@ -86,6 +92,7 @@ spec-kitty implement WP05 --base WP04
    ```
 
 3. Validate graph (no cycles, all deps exist):
+
    ```python
    def validate_graph(graph: dict[str, list[str]]) -> None:
        """Raise error if graph has cycles or invalid references."""
@@ -94,6 +101,7 @@ spec-kitty implement WP05 --base WP04
    ```
 
 **Notes**:
+
 - Reuse existing `DependencyGraph` class for cycle detection
 - Parse frontmatter with ruamel.yaml
 
@@ -104,7 +112,9 @@ spec-kitty implement WP05 --base WP04
 **Purpose**: Find WPs whose dependencies are all satisfied.
 
 **Steps**:
+
 1. Implement ready detection:
+
    ```python
    def get_ready_wps(
        graph: dict[str, list[str]],
@@ -137,6 +147,7 @@ spec-kitty implement WP05 --base WP04
    ```
 
 **Notes**:
+
 - WP with no dependencies is immediately ready
 - Only return pending WPs (skip running/completed/failed)
 
@@ -147,7 +158,9 @@ spec-kitty implement WP05 --base WP04
 **Purpose**: Select the best available agent for a given role.
 
 **Steps**:
+
 1. Implement selection logic:
+
    ```python
    def select_agent(
        config: OrchestratorConfig,
@@ -189,6 +202,7 @@ spec-kitty implement WP05 --base WP04
    ```
 
 2. For review, exclude the implementation agent:
+
    ```python
    # In orchestration logic:
    impl_agent = select_agent(config, "implementation")
@@ -202,7 +216,9 @@ spec-kitty implement WP05 --base WP04
 **Purpose**: Limit concurrent agent processes.
 
 **Steps**:
+
 1. Create semaphore management:
+
    ```python
    import asyncio
 
@@ -239,6 +255,7 @@ spec-kitty implement WP05 --base WP04
    ```
 
 **Notes**:
+
 - Global semaphore prevents too many total processes
 - Per-agent semaphores respect individual limits
 
@@ -249,7 +266,9 @@ spec-kitty implement WP05 --base WP04
 **Purpose**: Handle case where only one agent is configured.
 
 **Steps**:
+
 1. Detect single-agent mode:
+
    ```python
    def is_single_agent_mode(config: OrchestratorConfig) -> bool:
        """Check if operating in single-agent mode."""
@@ -265,6 +284,7 @@ spec-kitty implement WP05 --base WP04
    ```
 
 2. Handle review in single-agent mode:
+
    ```python
    async def execute_single_agent_review(
        wp_id: str,
@@ -283,6 +303,7 @@ spec-kitty implement WP05 --base WP04
    ```
 
 **Notes**:
+
 - Single-agent mode: same agent does implementation and review
 - Configurable delay between phases (default 60 seconds)
 - Log warning that cross-agent review is not available

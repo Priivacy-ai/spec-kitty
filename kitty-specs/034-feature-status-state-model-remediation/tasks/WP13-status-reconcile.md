@@ -89,6 +89,7 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 - **Dependency WP07**: Provides the `status.emit` orchestration pipeline that apply mode routes through
 
 **Key constraints**:
+
 - Python 3.11+
 - `subprocess.run` for git operations in target repos (not gitpython -- direct CLI)
 - No network dependencies -- reconciliation scans local filesystem git repos only
@@ -107,7 +108,9 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Purpose**: Core reconciliation framework with result dataclass and main entry point.
 
 **Steps**:
+
 1. Create the file with these imports:
+
    ```python
    from __future__ import annotations
    import subprocess
@@ -122,6 +125,7 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
    ```
 
 2. Define `CommitInfo` dataclass:
+
    ```python
    @dataclass(frozen=True)
    class CommitInfo:
@@ -133,6 +137,7 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
    ```
 
 3. Define `ReconcileResult` dataclass:
+
    ```python
    @dataclass
    class ReconcileResult:
@@ -145,6 +150,7 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
    ```
 
 4. Implement `reconcile()` function:
+
    ```python
    def reconcile(
        feature_dir: Path,
@@ -155,6 +161,7 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
    ) -> ReconcileResult:
        """Scan target repos for WP-linked commits and generate reconciliation events."""
    ```
+
    - Read the current snapshot from `status.json` or materialize from event log
    - Extract `feature_slug` from the feature directory name
    - For each target repo, call `scan_for_wp_commits()`
@@ -166,11 +173,13 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Files**: `src/specify_cli/status/reconcile.py` (new file)
 
 **Validation**:
+
 - `reconcile()` returns a `ReconcileResult` with populated `suggested_events` when drift is detected
 - `reconcile()` returns `drift_detected=False` when planning matches implementation
 - `reconcile()` with invalid target repo path populates `errors` list
 
 **Edge Cases**:
+
 - Target repo does not exist: add to `errors`, continue scanning other repos
 - Target repo has no matching branches or commits: no drift for that repo
 - Feature slug contains hyphens that could match unrelated branches: use precise regex `*{feature_slug}-WP\d{2}*`
@@ -184,7 +193,9 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Purpose**: Scan a target repository for branches and commits linked to specific work packages.
 
 **Steps**:
+
 1. Implement `scan_for_wp_commits()`:
+
    ```python
    def scan_for_wp_commits(
        repo_path: Path,
@@ -197,6 +208,7 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
    ```
 
 2. Branch detection -- find branches matching `*{feature_slug}-WP##*`:
+
    ```python
    result = subprocess.run(
        ["git", "branch", "-a", "--list", f"*{feature_slug}*"],
@@ -206,9 +218,11 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
        timeout=30,
    )
    ```
+
    Parse branch names, extract WP IDs using regex `WP(\d{2})`.
 
 3. Commit message scanning -- search for commits mentioning WP IDs:
+
    ```python
    result = subprocess.run(
        ["git", "log", "--all", "--oneline", f"--grep=WP{wp_num}"],
@@ -218,9 +232,11 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
        timeout=60,
    )
    ```
+
    Parse each line to extract SHA, message. Get full metadata with `git log --format`.
 
 4. Merge detection -- check if WP branches are merged into main:
+
    ```python
    result = subprocess.run(
        ["git", "branch", "--merged", "main", "--list", f"*{feature_slug}-WP{wp_num}*"],
@@ -236,11 +252,13 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Files**: `src/specify_cli/status/reconcile.py` (same file, additional function)
 
 **Validation**:
+
 - Given a repo with branch `034-feature-status-WP01`, returns `{"WP01": [CommitInfo(...)]}`
 - Given a repo with commit message "Implement WP03 status models", returns `{"WP03": [...]}`
 - Given a repo with no matching content, returns empty dict
 
 **Edge Cases**:
+
 - `subprocess.run` times out: catch `subprocess.TimeoutExpired`, add to errors, return partial results
 - Branch name contains multiple WP references (e.g., `034-feature-WP01-WP02`): attribute to both WP01 and WP02
 - Remote-only branches (e.g., `remotes/origin/...`): include them, strip the `remotes/origin/` prefix for display
@@ -253,7 +271,9 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Purpose**: Compare current snapshot lane state with discovered commit evidence and generate StatusEvents to align them.
 
 **Steps**:
+
 1. Implement `_generate_reconciliation_events()`:
+
    ```python
    def _generate_reconciliation_events(
        feature_slug: str,
@@ -272,6 +292,7 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
    - Each suggested event uses: `actor="reconcile"`, `execution_mode="direct_repo"`, `force=False`
 
 3. Generate intermediate events when multiple lane transitions are needed (the state machine does not allow skipping lanes without force):
+
    ```python
    import ulid
 
@@ -293,12 +314,14 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Files**: `src/specify_cli/status/reconcile.py` (same file)
 
 **Validation**:
+
 - WP in `planned` with commits produces transition to `claimed`
 - WP in `in_progress` with merged branch produces transition to `for_review`
 - WP already at correct lane produces no events
 - Generated events pass `validate_transition()` checks
 
 **Edge Cases**:
+
 - WP in `done` or `canceled` (terminal): no reconciliation events generated, even if new commits exist
 - WP in `blocked`: no automatic advancement; add a detail message noting the block
 - Multi-step advancement (planned -> done): generate chain of legal transitions, not a single illegal skip
@@ -311,7 +334,9 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Purpose**: Return suggested events and drift report without persisting anything, formatted as a human-readable table.
 
 **Steps**:
+
 1. Implement `format_reconcile_report()`:
+
    ```python
    from rich.console import Console
    from rich.table import Table
@@ -335,6 +360,7 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
    - Suggested events count
 
 4. If `--json` flag is set, output structured JSON instead:
+
    ```python
    def reconcile_result_to_json(result: ReconcileResult) -> dict[str, Any]:
        return {
@@ -352,11 +378,13 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Files**: `src/specify_cli/status/reconcile.py` (same file)
 
 **Validation**:
+
 - Dry-run produces Rich table output with correct columns
 - JSON output is valid JSON matching the ReconcileResult structure
 - No files are modified during dry-run (no JSONL append, no status.json write)
 
 **Edge Cases**:
+
 - Empty ReconcileResult (no drift): print "No drift detected" message
 - Many suggested events (>20 WPs): table should remain readable; consider pagination hint
 - Errors during scanning: display errors section separately from suggestions
@@ -368,7 +396,9 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Purpose**: Emit each reconciliation event through the orchestration pipeline with phase gating.
 
 **Steps**:
+
 1. Implement apply logic in the `reconcile()` function:
+
    ```python
    if not dry_run:
        phase, source = resolve_phase(repo_root, feature_slug)
@@ -403,12 +433,14 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Files**: `src/specify_cli/status/reconcile.py` (same file)
 
 **Validation**:
+
 - Apply mode on 2.x: events are appended to JSONL, snapshot is updated
 - Apply mode on 0.1x: raises error with clear message
 - Each applied event passes validation (no illegal transitions emitted)
 - Partial failure: if event N fails, events 1..N-1 are still persisted (append-only log)
 
 **Edge Cases**:
+
 - Apply mode with zero suggested events: no-op, return result with details message
 - Apply mode with event that fails validation: skip that event, add to errors, continue with remaining
 - Phase resolution failure (no config found): default to Phase 1 behavior (allow apply with warning)
@@ -420,7 +452,9 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Purpose**: Create the CLI entry point for reconciliation.
 
 **Steps**:
+
 1. Add the reconcile command to `src/specify_cli/cli/commands/agent/status.py`:
+
    ```python
    @app.command()
    def reconcile(
@@ -450,12 +484,14 @@ Create cross-repo drift detection and reconciliation event generation. This WP d
 **Files**: `src/specify_cli/cli/commands/agent/status.py` (modified)
 
 **Validation**:
+
 - `spec-kitty agent status reconcile --dry-run --feature 034-feature-status-state-model-remediation` runs without error
 - `--json` flag produces valid JSON output
 - `--apply` on 0.1x branch produces clear error message
 - `--target-repo /path/to/repo` scans the specified repo
 
 **Edge Cases**:
+
 - No feature detected and no `--feature` flag: print error "Could not detect feature. Use --feature flag."
 - Target repo path does not exist: print error per repo, continue with remaining repos
 - Multiple `--target-repo` flags: scan all repos, aggregate results

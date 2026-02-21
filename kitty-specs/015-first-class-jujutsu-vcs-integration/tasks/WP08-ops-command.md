@@ -32,6 +32,7 @@ history:
 **Goal**: Implement new `spec-kitty ops` command for operation history and undo.
 
 **Success Criteria**:
+
 - `spec-kitty ops log` shows recent operations
 - `spec-kitty ops undo` reverts last operation (jj only)
 - For git: uses reflog as operation log equivalent
@@ -45,26 +46,31 @@ history:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/contracts/vcs-protocol.py` - OperationInfo
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/data-model.md` - OperationInfo fields
 
 **Architecture Decisions**:
+
 - Unified `ops` command with different capabilities per backend
 - jj: Full operation log with undo
 - git: Reflog as read-only operation history
 - Capability checking prevents unavailable operations
 
 **Constraints**:
+
 - undo only available for jj (git has no equivalent)
 - Operation log format differs between backends
 - Must detect current context (workspace or repo)
 
 **Key jj Commands**:
+
 - `jj op log` - Show operation history
 - `jj op undo` - Undo last operation
 - `jj op restore <op-id>` - Restore to specific operation
 
 **Key git Commands**:
+
 - `git reflog` - Show reference log (approximate equivalent)
 
 ## Subtasks & Detailed Guidance
@@ -74,8 +80,10 @@ history:
 **Purpose**: Create the new ops command file with subcommands.
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/ops.py`
 2. Set up command structure with subcommands:
+
    ```python
    import typer
    from rich.console import Console
@@ -102,6 +110,7 @@ history:
    ```
 
 **Files**:
+
 - Create: `src/specify_cli/cli/commands/ops.py`
 
 ---
@@ -111,7 +120,9 @@ history:
 **Purpose**: Show operation history for both backends.
 
 **Steps**:
+
 1. Implement log display:
+
    ```python
    @app.command()
    def log(
@@ -130,7 +141,9 @@ history:
 
        _display_operations(ops, vcs.backend)
    ```
+
 2. Create table display:
+
    ```python
    def _display_operations(ops: list[OperationInfo], backend: VCSBackend) -> None:
        table = Table(title=f"Operation History ({backend.value})")
@@ -150,6 +163,7 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/ops.py`
 
 ---
@@ -159,7 +173,9 @@ history:
 **Purpose**: Implement operation undo for jj (with capability check).
 
 **Steps**:
+
 1. Implement undo with capability check:
+
    ```python
    @app.command()
    def undo(
@@ -188,9 +204,11 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/ops.py`
 
 **Notes**:
+
 - Only jj supports true operation undo
 - git users get helpful error message with alternatives
 
@@ -201,7 +219,9 @@ history:
 **Purpose**: Create reusable capability check decorator/function.
 
 **Steps**:
+
 1. Add capability checking utility:
+
    ```python
    def require_capability(capability: str, backend_name: str | None = None):
        """Decorator to require a VCS capability."""
@@ -220,12 +240,15 @@ history:
            return wrapper
        return decorator
    ```
+
 2. Alternative: inline capability check (simpler, already shown in T047)
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/ops.py` or create utility module
 
 **Notes**:
+
 - Decorator approach is cleaner for multiple commands
 - Inline check is simpler for single use case
 - Choose based on how many commands need capability checks
@@ -237,12 +260,15 @@ history:
 **Purpose**: Add ops command to spec-kitty CLI.
 
 **Steps**:
+
 1. Find main CLI registration (likely `src/specify_cli/cli/main.py`)
 2. Add ops command:
+
    ```python
    from specify_cli.cli.commands import ops
    app.add_typer(ops.app, name="ops")
    ```
+
 3. Verify command appears in `spec-kitty --help`
 4. Verify subcommands work:
    - `spec-kitty ops --help`
@@ -250,6 +276,7 @@ history:
    - `spec-kitty ops undo --help`
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/main.py` (or equivalent)
 
 ---
@@ -259,8 +286,10 @@ history:
 **Purpose**: Test ops command for both backends.
 
 **Steps**:
+
 1. Create `tests/specify_cli/cli/commands/test_ops.py`
 2. Add parametrized tests:
+
    ```python
    @pytest.mark.parametrize("backend", [
        "git",
@@ -294,6 +323,7 @@ history:
    ```
 
 **Files**:
+
 - Create: `tests/specify_cli/cli/commands/test_ops.py`
 
 **Parallel?**: Yes - can start once T045-T049 scaffolded
@@ -322,6 +352,7 @@ history:
 ## Review Guidance
 
 **Key Checkpoints**:
+
 1. Verify ops log shows meaningful history for both backends
 2. Verify undo only available for jj (graceful error for git)
 3. Verify operation IDs are usable (not too long)
@@ -332,7 +363,7 @@ history:
 ## Activity Log
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
-- 2026-01-17T13:09:21Z – __AGENT__ – shell_pid=27357 – lane=doing – Started implementation via workflow command
-- 2026-01-17T13:18:11Z – __AGENT__ – shell_pid=27357 – lane=for_review – Ready for review: ops command with log, undo, restore subcommands. 19 tests passing.
-- 2026-01-17T13:18:51Z – __AGENT__ – shell_pid=28708 – lane=doing – Started review via workflow command
-- 2026-01-17T13:21:30Z – __AGENT__ – shell_pid=28708 – lane=done – Review passed: ops command implemented with log/undo/restore subcommands, capability checking for jj-only features, helpful git alternatives, 19 tests passing
+- 2026-01-17T13:09:21Z – **AGENT** – shell_pid=27357 – lane=doing – Started implementation via workflow command
+- 2026-01-17T13:18:11Z – **AGENT** – shell_pid=27357 – lane=for_review – Ready for review: ops command with log, undo, restore subcommands. 19 tests passing.
+- 2026-01-17T13:18:51Z – **AGENT** – shell_pid=28708 – lane=doing – Started review via workflow command
+- 2026-01-17T13:21:30Z – **AGENT** – shell_pid=28708 – lane=done – Review passed: ops command implemented with log/undo/restore subcommands, capability checking for jj-only features, helpful git alternatives, 19 tests passing

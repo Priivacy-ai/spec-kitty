@@ -2,6 +2,7 @@
 
 **Date:** 2026-02-17  
 **Scope:**
+
 - `work/ideas/spec-kitty-doctrine-integration-ideation.md`
 - `.kittify/memory/contexts/orchestration.glossary.yml`
 - `.kittify/memory/contexts/governance.glossary.yml`

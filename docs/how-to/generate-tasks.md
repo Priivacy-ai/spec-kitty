@@ -25,6 +25,7 @@ Work packages live in a **flat** `tasks/` directory. Lane status is stored in ea
 ## Understanding Work Packages
 
 Each WP file contains:
+
 - A single goal for the agent
 - Subtasks and dependencies
 - The exact completion command to move the WP to review

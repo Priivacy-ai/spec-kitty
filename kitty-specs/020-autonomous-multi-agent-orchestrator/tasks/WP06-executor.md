@@ -33,6 +33,7 @@ history:
 Implement agent process spawning and management with asyncio.
 
 **Success Criteria**:
+
 - Processes spawn correctly using `asyncio.create_subprocess_exec`
 - WP prompt content piped to agent stdin
 - stdout/stderr captured to log files
@@ -42,16 +43,20 @@ Implement agent process spawning and management with asyncio.
 ## Context & Constraints
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Execution data flow, asyncio decision
 - [spec.md](../spec.md) - FR-005, FR-019 (execution and worktree requirements)
 
 **Existing Modules**:
+
 - `src/specify_cli/cli/commands/implement.py` - Worktree creation
 
 **Implementation Command**:
+
 ```bash
 spec-kitty implement WP06 --base WP04
 ```
+
 (Requires WP02, WP03 for invokers, WP04 for state)
 
 ## Subtasks & Detailed Guidance
@@ -61,8 +66,10 @@ spec-kitty implement WP06 --base WP04
 **Purpose**: Spawn agent processes using asyncio subprocess.
 
 **Steps**:
+
 1. Create `src/specify_cli/orchestrator/executor.py`
 2. Implement process spawning:
+
    ```python
    import asyncio
    from asyncio.subprocess import Process
@@ -92,6 +99,7 @@ spec-kitty implement WP06 --base WP04
    ```
 
 **Notes**:
+
 - Use `create_subprocess_exec` for proper argument handling
 - Set `cwd` to worktree directory
 - Capture all streams for logging
@@ -103,7 +111,9 @@ spec-kitty implement WP06 --base WP04
 **Purpose**: Send WP prompt content to agent via stdin.
 
 **Steps**:
+
 1. Read prompt file and pipe to stdin:
+
    ```python
    async def execute_agent(
        invoker: AgentInvoker,
@@ -147,6 +157,7 @@ spec-kitty implement WP06 --base WP04
 2. Add `uses_stdin` property to invokers that need it
 
 **Notes**:
+
 - Some agents use stdin (Claude, Codex, Gemini)
 - Others use command-line argument (Copilot, Kilocode, Auggie)
 - Check invoker's preferred method
@@ -158,7 +169,9 @@ spec-kitty implement WP06 --base WP04
 **Purpose**: Save agent output for debugging and review.
 
 **Steps**:
+
 1. Implement log capture:
+
    ```python
    def get_log_path(repo_root: Path, wp_id: str, role: str) -> Path:
        """Get path for agent log file."""
@@ -202,7 +215,9 @@ spec-kitty implement WP06 --base WP04
 **Purpose**: Enforce execution timeouts with proper cleanup.
 
 **Steps**:
+
 1. Implement timeout with process cleanup:
+
    ```python
    async def execute_with_timeout(
        process: Process,
@@ -230,6 +245,7 @@ spec-kitty implement WP06 --base WP04
    ```
 
 2. Return special exit code for timeout:
+
    ```python
    TIMEOUT_EXIT_CODE = -1  # Or use 124 like timeout command
    ```
@@ -243,7 +259,9 @@ spec-kitty implement WP06 --base WP04
 **Purpose**: Create WP worktree using existing infrastructure.
 
 **Steps**:
+
 1. Integrate with existing implement command:
+
    ```python
    import subprocess
 
@@ -286,6 +304,7 @@ spec-kitty implement WP06 --base WP04
    ```
 
 2. Alternatively, call the Python function directly:
+
    ```python
    from specify_cli.cli.commands.implement import create_wp_workspace
 
@@ -293,6 +312,7 @@ spec-kitty implement WP06 --base WP04
    ```
 
 **Notes**:
+
 - Use existing infrastructure - don't reimplement worktree logic
 - Handle `--base` flag for dependent WPs
 - Verify worktree exists after creation

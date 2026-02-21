@@ -10,6 +10,7 @@
 **Rationale**: Consistency with the established status model pattern (feature 034). The codebase convention uses frozen dataclasses for domain entities (`StatusEvent`, `DoneEvidence`, `RepoEvidence`). While Pydantic (`>=2.0`, already a dependency) would reduce serialization boilerplate, dataclasses keep the domain model aligned with existing patterns and avoid dual-convention confusion.
 
 **Alternatives considered**:
+
 - Pydantic BaseModel — built-in validation/serialization/JSON Schema, but inconsistent with domain model convention
 - Hybrid (Pydantic for complex types, dataclasses for simple) — would create confusion about which pattern to use when
 
@@ -20,10 +21,12 @@
 **Rationale**: Simplest distribution model during alpha. The zero-import boundary between `doctrine` and `specify_cli` is enforced by a CI test (AST-level import scan), not by package isolation. This provides the architectural benefit (loose coupling) without the operational cost (separate PyPI package, separate versioning, dependency edge).
 
 **Alternatives considered**:
+
 - Separate PyPI package `spec-kitty-doctrine` — true isolation but adds release complexity; no external consumers justify the overhead yet
 - Namespace package within `specify_cli` (e.g., `specify_cli.doctrine`) — violates the conceptual separation; doctrine should not be "under" the CLI
 
 **Implementation note**: `pyproject.toml` change:
+
 ```toml
 [tool.hatch.build.targets.wheel]
 packages = ["src/specify_cli", "src/doctrine"]
@@ -36,10 +39,12 @@ packages = ["src/specify_cli", "src/doctrine"]
 **Rationale**: Alias-first approach ensures backward compatibility at every step. No single commit breaks imports. The alias module can be removed in a future version after downstream features (044, 045, 046) are implemented and any external consumers have migrated.
 
 **Alternatives considered**:
+
 - Big-bang rename in single commit — higher risk of breaking imports if any are missed
 - New-name-only (keep AgentConfig forever) — perpetuates terminology conflation
 
 **Files requiring import updates** (7 files):
+
 1. `src/specify_cli/agent_utils/directories.py`
 2. `src/specify_cli/orchestrator/scheduler.py` (2 import sites)
 3. `src/specify_cli/upgrade/migrations/m_0_14_0_centralized_feature_detection.py`
@@ -55,6 +60,7 @@ packages = ["src/specify_cli", "src/doctrine"]
 **Rationale**: The doctrine reference repository uses Markdown (`.agent.md`) because it prioritizes human readability in a documentation context. Spec-kitty's internal profiles need machine-parseable structured data for the repository loader, hierarchy builder, and schema validator. YAML provides this without Markdown frontmatter parsing complexity.
 
 **Alternatives considered**:
+
 - `.agent.md` with YAML frontmatter + Markdown body — matches doctrine format but requires dual parsing (frontmatter extraction + Markdown section parsing). The 6 sections would need to be extracted from Markdown headings, which is fragile.
 - `.agent.toml` — less common for config files in this codebase; YAML is the established format
 
@@ -67,10 +73,12 @@ packages = ["src/specify_cli", "src/doctrine"]
 **Rationale**: `importlib.resources` is the standard way to access package data files in installed packages (wheels, editable installs). It handles all installation modes (wheel, sdist, editable) and is the recommended approach since Python 3.9+.
 
 **Alternatives considered**:
+
 - `Path(__file__).parent / "agents/"` — works for development but may break in zipped wheel distributions
 - `pkg_resources` — deprecated, slower, heavier dependency
 
 **Implementation pattern**:
+
 ```python
 from importlib.resources import files
 
@@ -91,6 +99,7 @@ def _shipped_profiles_dir() -> Path:
 **Decision**: Ship `agent_profile.schema.json` as a static file in `src/doctrine/schema/`, loaded via `importlib.resources`.
 
 **Rationale**: Static JSON Schema file allows:
+
 1. IDE validation of `.agent.yaml` files (via YAML language server)
 2. External tool consumption (CI validators, pre-commit hooks)
 3. Documentation generation

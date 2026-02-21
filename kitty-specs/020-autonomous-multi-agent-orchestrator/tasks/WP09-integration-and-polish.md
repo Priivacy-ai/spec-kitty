@@ -30,6 +30,7 @@ history:
 Integrate all components into working orchestration loop, add progress display, summary report, and handle edge cases.
 
 **Success Criteria**:
+
 - Full orchestration runs end-to-end on test feature
 - Progress display shows live updates during execution
 - Summary report shows useful metrics on completion
@@ -38,11 +39,13 @@ Integrate all components into working orchestration loop, add progress display, 
 ## Context & Constraints
 
 **Reference Documents**:
+
 - [spec.md](../spec.md) - Edge cases section, User Story 5 (progress visibility)
 - [plan.md](../plan.md) - Data flow, integration points
 - [quickstart.md](../quickstart.md) - Expected user experience
 
 **Edge Cases from spec.md**:
+
 - Circular dependencies → detect and reject at startup
 - Invalid agent output → retry, then fallback
 - Worktree creation fails → abort WP, continue others
@@ -50,6 +53,7 @@ Integrate all components into working orchestration loop, add progress display, 
 - No agents installed → clear error with instructions
 
 **Implementation Command**:
+
 ```bash
 spec-kitty implement WP09 --base WP08
 ```
@@ -61,7 +65,9 @@ spec-kitty implement WP09 --base WP08
 **Purpose**: Connect all components into working orchestration.
 
 **Steps**:
+
 1. Create main loop in `orchestrator/__init__.py` or `orchestrator/main.py`:
+
    ```python
    async def run_orchestration_loop(
        state: OrchestrationRun,
@@ -133,6 +139,7 @@ spec-kitty implement WP09 --base WP08
    ```
 
 2. Implement WP processing:
+
    ```python
    async def process_wp(
        wp_id: str,
@@ -191,7 +198,9 @@ spec-kitty implement WP09 --base WP08
 **Purpose**: Show live progress updates using Rich console.
 
 **Steps**:
+
 1. Implement live progress display:
+
    ```python
    from rich.live import Live
    from rich.table import Table
@@ -234,6 +243,7 @@ spec-kitty implement WP09 --base WP08
    ```
 
 2. Update display periodically:
+
    ```python
    # In orchestration loop, periodically update:
    if hasattr(state, '_live_display'):
@@ -249,7 +259,9 @@ spec-kitty implement WP09 --base WP08
 **Purpose**: Show useful metrics when orchestration completes.
 
 **Steps**:
+
 1. Implement summary report:
+
    ```python
    def print_summary(state: OrchestrationRun, console: Console):
        """Print orchestration summary."""
@@ -303,7 +315,9 @@ spec-kitty implement WP09 --base WP08
 **Purpose**: Gracefully handle all edge cases from spec.
 
 **Steps**:
+
 1. **Circular dependencies**:
+
    ```python
    def validate_graph(graph: dict[str, list[str]]) -> None:
        """Raise error if graph has cycles."""
@@ -331,6 +345,7 @@ spec-kitty implement WP09 --base WP08
    ```
 
 2. **No agents installed**:
+
    ```python
    def validate_agents(config: OrchestratorConfig) -> None:
        """Raise error if no agents available."""
@@ -350,6 +365,7 @@ spec-kitty implement WP09 --base WP08
    ```
 
 3. **Worktree creation fails**:
+
    ```python
    async def create_worktree_safe(wp_id: str, ...):
        try:
@@ -363,6 +379,7 @@ spec-kitty implement WP09 --base WP08
    ```
 
 4. **Git operations fail**:
+
    ```python
    # Retry git operations up to 3 times with backoff
    async def git_operation_with_retry(cmd: list[str], retries: int = 3):

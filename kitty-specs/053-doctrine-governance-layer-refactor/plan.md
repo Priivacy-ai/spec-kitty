@@ -76,6 +76,7 @@ tests/
 3. Confirm architecture artifacts (ADR + Journey + Diagram) are linked from spec.
 
 **Outputs**:
+
 - Stabilized feature artifacts (`spec.md`, `research.md`, `contracts/*`)
 - Confirmed baseline for implementation tasks
 
@@ -87,6 +88,7 @@ tests/
 4. Keep mission orchestration contract cleanly separated from governance behavior details.
 
 **Outputs**:
+
 - Updated glossary source in `glossary/contexts/*.md`
 - Compiled Contextive outputs in `.kittify/memory/contexts/*.glossary.yml`
 - Architecture model docs in `architecture/adrs/`, `architecture/journeys/`, `architecture/diagrams/`
@@ -98,6 +100,7 @@ tests/
 3. Add invalid fixtures to verify CI failures for broken artifacts.
 
 **Outputs**:
+
 - `src/doctrine/schemas/*.schema.yaml` for minimal MVP set
 - `tests/doctrine/*.py` with positive/negative validation coverage
 - Deferred: template-set and constitution-selection schemas (future refinement feature)
@@ -109,6 +112,7 @@ tests/
 3. Prepare tasks decomposition for implementation work packages.
 
 **Outputs**:
+
 - Feature metadata correctness (`meta.json`)
 - Ready-to-generate tasks plan
 

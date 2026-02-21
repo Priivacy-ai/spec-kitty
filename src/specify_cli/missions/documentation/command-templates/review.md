@@ -18,6 +18,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Review Philosophy
 
 Documentation review is NOT code review:
+
 - **Not about correctness** (code is about bugs) but **usability** (can readers accomplish their goals?)
 - **Not about style** but **accessibility** (can everyone use these docs?)
 - **Not about completeness** (covering every edge case) but **usefulness** (solving real problems)
@@ -32,6 +33,7 @@ Documentation review is NOT code review:
 For each documentation file, verify it follows principles for its declared type:
 
 **Tutorial Review**:
+
 - [ ] Learning-oriented (teaches by doing, not explaining)?
 - [ ] Step-by-step progression with clear sequence?
 - [ ] Each step shows immediate, visible result?
@@ -41,6 +43,7 @@ For each documentation file, verify it follows principles for its declared type:
 - [ ] Achieves concrete outcome (learner can do something new)?
 
 **How-To Review**:
+
 - [ ] Goal-oriented (solves specific problem)?
 - [ ] Assumes experienced user (not teaching basics)?
 - [ ] Practical steps, minimal explanation?
@@ -50,6 +53,7 @@ For each documentation file, verify it follows principles for its declared type:
 - [ ] Title starts with "How to..."?
 
 **Reference Review**:
+
 - [ ] Information-oriented (describes what exists)?
 - [ ] Complete (all APIs/options/commands documented)?
 - [ ] Consistent format (same structure for similar items)?
@@ -59,6 +63,7 @@ For each documentation file, verify it follows principles for its declared type:
 - [ ] Factual tone (no opinions or recommendations)?
 
 **Explanation Review**:
+
 - [ ] Understanding-oriented (clarifies concepts)?
 - [ ] Not instructional (not teaching how-to-do)?
 - [ ] Discusses concepts, design decisions, trade-offs?
@@ -68,6 +73,7 @@ For each documentation file, verify it follows principles for its declared type:
 - [ ] Identifies limitations and when (not) to use?
 
 **If type is wrong or mixed**:
+
 - Return with feedback: "This is classified as {type} but reads like {actual_type}. Either reclassify or rewrite to match {type} principles."
 
 ---
@@ -75,6 +81,7 @@ For each documentation file, verify it follows principles for its declared type:
 ### 2. Accessibility Review
 
 **Heading Hierarchy**:
+
 - [ ] One H1 per document (the title)
 - [ ] H2s for major sections
 - [ ] H3s for subsections under H2s
@@ -82,12 +89,14 @@ For each documentation file, verify it follows principles for its declared type:
 - [ ] Headings are descriptive (not "Introduction", "Section 2")
 
 **Images**:
+
 - [ ] All images have alt text
 - [ ] Alt text describes what image shows (not "image" or "screenshot")
 - [ ] Decorative images have empty alt text (`![]()`)
 - [ ] Complex diagrams have longer descriptions
 
 **Language**:
+
 - [ ] Clear, plain language (technical terms defined)
 - [ ] Active voice ("run the command" not "the command should be run")
 - [ ] Present tense ("returns" not "will return")
@@ -95,26 +104,31 @@ For each documentation file, verify it follows principles for its declared type:
 - [ ] Short paragraphs (3-5 sentences)
 
 **Links**:
+
 - [ ] Link text is descriptive ("see the installation guide" not "click here")
 - [ ] Links are not bare URLs (use markdown links)
 - [ ] No broken links (test all links)
 
 **Code Blocks**:
+
 - [ ] All code blocks have language tags for syntax highlighting
 - [ ] Expected output is shown (not just commands)
 - [ ] Code examples actually work (tested)
 
 **Tables**:
+
 - [ ] Tables have headers
 - [ ] Headers use `|---|` syntax
 - [ ] Tables are not too wide (wrap if needed)
 
 **Lists**:
+
 - [ ] Proper markdown lists (not paragraphs with commas)
 - [ ] Consistent bullet style
 - [ ] Items are parallel in structure
 
 **If accessibility issues found**:
+
 - Return with feedback listing specific issues and how to fix
 
 ---
@@ -122,28 +136,33 @@ For each documentation file, verify it follows principles for its declared type:
 ### 3. Inclusivity Review
 
 **Examples and Names**:
+
 - [ ] Uses diverse names (not just Western male names)
 - [ ] Names span different cultures and backgrounds
 - [ ] Avoids stereotypical name choices
 
 **Language**:
+
 - [ ] Gender-neutral ("they" not "he/she", "developers" not "guys")
 - [ ] Avoids ableist language ("just", "simply", "obviously", "easy" imply reader inadequacy)
 - [ ] Person-first language where appropriate ("person with disability" not "disabled person")
 - [ ] Avoids idioms (cultural-specific phrases that don't translate)
 
 **Cultural Assumptions**:
+
 - [ ] No religious references (Christmas, Ramadan, etc.)
 - [ ] No cultural-specific examples (American holidays, sports, food)
 - [ ] Date formats explained (ISO 8601 preferred)
 - [ ] Currency and units specified (USD, meters, etc.)
 
 **Tone**:
+
 - [ ] Welcoming to newcomers (not intimidating)
 - [ ] Assumes good faith (users aren't "doing it wrong")
 - [ ] Encouraging (celebrates progress)
 
 **If inclusivity issues found**:
+
 - Return with feedback listing examples to change
 
 ---
@@ -151,6 +170,7 @@ For each documentation file, verify it follows principles for its declared type:
 ### 4. Completeness Review
 
 **For Initial Documentation**:
+
 - [ ] All selected Divio types are present
 - [ ] Tutorials enable new users to get started
 - [ ] Reference covers all public APIs
@@ -158,16 +178,19 @@ For each documentation file, verify it follows principles for its declared type:
 - [ ] Explanations clarify key concepts and design
 
 **For Gap-Filling**:
+
 - [ ] High-priority gaps from audit are filled
 - [ ] Outdated docs are updated
 - [ ] Coverage percentage improved
 
 **For Feature-Specific**:
+
 - [ ] Feature is documented across relevant Divio types
 - [ ] Feature docs integrate with existing documentation
 - [ ] Feature is discoverable (linked from main index, relevant how-tos, etc.)
 
 **Common Gaps**:
+
 - [ ] Installation/setup covered (tutorial or how-to)?
 - [ ] Common tasks have how-tos?
 - [ ] All public APIs in reference?
@@ -175,6 +198,7 @@ For each documentation file, verify it follows principles for its declared type:
 - [ ] Architecture/design explained (explanation)?
 
 **If completeness gaps found**:
+
 - Return with feedback listing missing documentation
 
 ---
@@ -182,30 +206,35 @@ For each documentation file, verify it follows principles for its declared type:
 ### 5. Quality Review
 
 **Tutorial Quality**:
+
 - [ ] Tutorial actually works (reviewer followed it successfully)?
 - [ ] Each step shows result (not "do X, Y, Z" without checkpoints)?
 - [ ] Learner accomplishes something valuable?
 - [ ] Appropriate for stated audience?
 
 **How-To Quality**:
+
 - [ ] Solves the stated problem?
 - [ ] Steps are clear and actionable?
 - [ ] Reader can adapt to their situation?
 - [ ] Links to reference for details?
 
 **Reference Quality**:
+
 - [ ] Descriptions match actual behavior (not outdated)?
 - [ ] Examples work (not broken or misleading)?
 - [ ] Format is consistent across similar items?
 - [ ] Search-friendly (clear headings, keywords)?
 
 **Explanation Quality**:
+
 - [ ] Concepts are clarified (not more confusing)?
 - [ ] Design rationale is clear?
 - [ ] Alternatives are discussed fairly?
 - [ ] Trade-offs are identified?
 
 **General Quality**:
+
 - [ ] Documentation builds without errors
 - [ ] No broken links (internal or external)
 - [ ] No spelling errors
@@ -214,6 +243,7 @@ For each documentation file, verify it follows principles for its declared type:
 - [ ] If `release.md` is present, it reflects the actual publish path and handoff steps
 
 **If quality issues found**:
+
 - Return with feedback describing issues and how to improve
 
 ---
@@ -227,9 +257,11 @@ For each documentation file, verify it follows principles for its declared type:
 2. **Review each document** against checklists above
 
 3. **Build documentation** and verify:
+
    ```bash
    ./build-docs.sh
    ```
+
    - Check for build errors/warnings
    - Navigate to docs in browser
    - Test links, images, navigation
@@ -305,9 +337,11 @@ When returning work for changes, use this format:
 **Issue**: Tutorial step 3 command fails (missing required --flag option).
 
 **Fix**: Add --flag to command on line 67:
+
 ```bash
 command --flag --other-option value
 ```
+
 ```
 
 ---

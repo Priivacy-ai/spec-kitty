@@ -17,6 +17,7 @@ This research addresses three critical technical decisions for the mission syste
 ## R1: Schema Validation Library Comparison
 
 ### Research Question
+
 Which schema validation library provides the best balance of error messages, zero dependencies, type safety, and Python 3.11+ compatibility for validating mission.yaml?
 
 ### Options Evaluated
@@ -24,6 +25,7 @@ Which schema validation library provides the best balance of error messages, zer
 #### Option A: Pydantic v2
 
 **Pros**:
+
 - Industry-standard for data validation in Python
 - Excellent error messages with field-level details
 - Full type hint integration
@@ -33,11 +35,13 @@ Which schema validation library provides the best balance of error messages, zer
 - Active development and community
 
 **Cons**:
+
 - External dependency (adds ~5MB to install)
 - Heavier than alternatives
 - May be overkill for simple YAML validation
 
 **Error Message Quality** (A+):
+
 ```python
 # Missing required field
 ValidationError: 1 validation error for MissionConfig
@@ -51,6 +55,7 @@ validaton
 ```
 
 **Example Usage**:
+
 ```python
 from pydantic import BaseModel, Field
 
@@ -70,6 +75,7 @@ mission = MissionConfig(**yaml.safe_load(config_file))
 #### Option B: attrs + cattrs
 
 **Pros**:
+
 - Lighter weight than Pydantic (~400KB)
 - Type hint support
 - Good performance
@@ -77,12 +83,14 @@ mission = MissionConfig(**yaml.safe_load(config_file))
 - Composable validation
 
 **Cons**:
+
 - Two packages required (attrs + cattrs)
 - Error messages less polished than Pydantic
 - Less community adoption
 - Manual schema documentation
 
 **Error Message Quality** (B+):
+
 ```python
 # Missing required field
 cattrs.errors.ClassValidationError: While structuring MissionConfig (1 sub-exception)
@@ -94,6 +102,7 @@ cattrs.errors.ClassValidationError: While structuring MissionConfig (1 sub-excep
 ```
 
 **Example Usage**:
+
 ```python
 import attrs
 import cattrs
@@ -115,6 +124,7 @@ mission = converter.structure(yaml_data, MissionConfig)
 #### Option C: jsonschema
 
 **Pros**:
+
 - Standard JSON Schema format
 - Language-agnostic schema
 - Good error messages
@@ -122,6 +132,7 @@ mission = converter.structure(yaml_data, MissionConfig)
 - Widely used
 
 **Cons**:
+
 - External dependency
 - No type hint integration
 - Schema separate from code
@@ -129,6 +140,7 @@ mission = converter.structure(yaml_data, MissionConfig)
 - No auto-completion in IDEs
 
 **Error Message Quality** (B):
+
 ```python
 # Missing required field
 jsonschema.exceptions.ValidationError: 'name' is a required property
@@ -139,6 +151,7 @@ On instance:
 ```
 
 **Example Usage**:
+
 ```python
 import jsonschema
 
@@ -161,6 +174,7 @@ jsonschema.validate(yaml_data, schema)
 #### Option D: Dataclasses + Manual Validation
 
 **Pros**:
+
 - **Zero external dependencies** (Python 3.11+ stdlib)
 - Full type hint integration
 - IDE auto-completion
@@ -168,12 +182,14 @@ jsonschema.validate(yaml_data, schema)
 - Complete control over error messages
 
 **Cons**:
+
 - Manual validation code required
 - Error messages only as good as we write them
 - More code to maintain
 - No automatic coercion
 
 **Error Message Quality** (C+ with effort, F without):
+
 ```python
 # With custom validation
 class MissionConfigError(Exception):
@@ -189,6 +205,7 @@ if "name" not in data:
 ```
 
 **Example Usage**:
+
 ```python
 from dataclasses import dataclass
 from typing import List, Dict
@@ -232,6 +249,7 @@ class MissionConfig:
 **Primary Recommendation: Pydantic v2**
 
 **Rationale**:
+
 1. **Error Quality**: Critical for FR-007 (helpful error messages). Pydantic's field-level errors with suggestions are far superior
 2. **User Experience**: Custom mission creators need excellent feedback. 5MB dependency is acceptable for this quality
 3. **Future-Proofing**: If spec-kitty grows (API server, web dashboard), Pydantic is already integrated
@@ -241,12 +259,14 @@ class MissionConfig:
 **Alternative if Zero Dependencies Required: Dataclasses + Manual Validation**
 
 If adding Pydantic is blocked for dependency reasons:
+
 - Use dataclasses with comprehensive manual validation
 - Invest 2-3 extra days building quality error messages
 - Create validation helpers in `src/specify_cli/validation_utils.py`
 - Trade-off: More code to maintain, but zero external dependencies
 
 **Rejected Options**:
+
 - **attrs+cattrs**: Two dependencies for marginal benefit over Pydantic
 - **jsonschema**: Poor IDE experience, no type hints
 
@@ -255,11 +275,13 @@ If adding Pydantic is blocked for dependency reasons:
 ## R2: Citation Format Validation
 
 ### Research Question
+
 How should we validate citations in evidence-log.csv and source-register.csv for the research mission?
 
 ### Citation Formats to Support
 
 #### BibTeX Format
+
 ```
 @article{key2025,
   author = {Last, First},
@@ -270,26 +292,31 @@ How should we validate citations in evidence-log.csv and source-register.csv for
 ```
 
 **Regex Pattern**:
+
 ```python
 BIBTEX_PATTERN = r'@\w+\{[\w-]+,[\s\S]+?\}'
 ```
 
 #### APA 7th Edition
+
 ```
 Last, F. (2025). Title of paper. Journal Name, 10(2), 123-145. https://doi.org/...
 ```
 
 **Regex Pattern**:
+
 ```python
 APA_PATTERN = r'^[\w\s,\.]+\(\d{4}\)\.[\s\S]+\.$'
 ```
 
 #### Simple Citation (Fallback)
+
 ```
 Author (Year). Title. Source. URL
 ```
 
 **Regex Pattern**:
+
 ```python
 SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\..+\.'
 ```
@@ -313,6 +340,7 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\..+\.'
    - Check year is reasonable (1900-2030)
 
 **Implementation**:
+
 ```python
 # src/specify_cli/validators/research.py
 
@@ -375,6 +403,7 @@ def validate_citations(evidence_log_path: Path) -> List[str]:
 **Decision**: Progressive validation with helpful error messages. Don't block on format (warning only), but enforce completeness.
 
 **Rationale**:
+
 - Researchers use varied citation styles
 - Format enforcement would be too rigid
 - Completeness is what matters for research integrity
@@ -385,6 +414,7 @@ def validate_citations(evidence_log_path: Path) -> List[str]:
 ## R3: Dashboard Integration for Active Mission Display
 
 ### Research Question
+
 How should the dashboard display and update the active mission?
 
 ### Options Evaluated
@@ -394,6 +424,7 @@ How should the dashboard display and update the active mission?
 **Approach**: Include active mission in initial page load context.
 
 **Implementation**:
+
 ```python
 # src/specify_cli/dashboard/server.py
 
@@ -415,11 +446,13 @@ def index():
 **UI Update After Switch**: User must refresh page manually
 
 **Pros**:
+
 - Zero complexity
 - No JavaScript required
 - Immediate implementation
 
 **Cons**:
+
 - Manual refresh required
 - Doesn't feel "real-time"
 
@@ -430,6 +463,7 @@ def index():
 **Approach**: Frontend polls `/api/mission/current` every 5-10 seconds.
 
 **Implementation**:
+
 ```python
 # Backend
 @app.get("/api/mission/current")
@@ -452,11 +486,13 @@ setInterval(async () => {
 ```
 
 **Pros**:
+
 - Simple to implement
 - No WebSocket complexity
 - Updates automatically
 
 **Cons**:
+
 - Polling overhead (5-10 req/minute)
 - 5-10 second delay before update shows
 
@@ -467,16 +503,19 @@ setInterval(async () => {
 **Approach**: Server pushes mission change events via WebSocket.
 
 **Implementation**:
+
 - Requires FastAPI WebSocket support or socket.io
 - File watcher on `.kittify/active-mission`
 - Push event to connected clients immediately
 
 **Pros**:
+
 - Instant updates (<1 second)
 - No polling overhead
 - Professional UX
 
 **Cons**:
+
 - Significant complexity
 - Requires WebSocket library
 - File watching mechanism needed
@@ -489,17 +528,20 @@ setInterval(async () => {
 **Approach**: Server-side rendering + manual refresh with prominent indicator.
 
 **Implementation**:
+
 - Mission shown on initial load (Option A)
 - Add "Refresh" button near mission display
 - Optionally: Detect mission change via localStorage timestamp on focus
 
 **Pros**:
+
 - Simple like Option A
 - User-controlled refresh
 - No dependencies
 - Clear UX (button makes refresh obvious)
 
 **Cons**:
+
 - Not automatic
 - Requires user action
 
@@ -520,6 +562,7 @@ setInterval(async () => {
 **Primary Recommendation: Option D (Hybrid)**
 
 **Rationale**:
+
 1. **User Constraint**: "Resist the urge to complicate the dashboard unless necessary"
 2. **Usage Pattern**: Mission switching is infrequent (per user feedback)
 3. **Zero Dependencies**: Aligns with preference for no new runtime dependencies
@@ -527,6 +570,7 @@ setInterval(async () => {
 5. **Implementation Time**: 1-2 hours vs 1-2 days for WebSocket
 
 **Implementation Details**:
+
 - Add mission info to initial server context
 - Display in header: `<div>Mission: {mission.name} <button>Refresh</button></div>`
 - Optionally: Check timestamp on page focus and suggest refresh if stale
@@ -537,12 +581,14 @@ If mission switching becomes frequent, upgrade to Option B (Polling) with minima
 **Alternative if Real-Time Required: Option B (Polling)**
 
 If automatic updates are critical:
+
 - Use polling with 10-second interval
 - Low overhead (6 requests/minute)
 - Simple to implement
 - Upgrade from Option D requires minimal changes
 
 **Rejected Options**:
+
 - **Option A**: No visual feedback when mission changes
 - **Option C**: Over-engineered for infrequent operation
 
@@ -557,11 +603,13 @@ If automatic updates are critical:
 **Rationale**: Superior error messages (A+ quality) justify the 5MB dependency. Critical for SC-003 (immediate error feedback) and SC-005 (clear feedback within 5 seconds). Industry-standard choice with excellent type safety.
 
 **Alternatives Considered**:
+
 - attrs+cattrs (lighter but worse errors)
 - jsonschema (no type hints)
 - dataclasses (zero dependencies but high maintenance)
 
 **Impact**:
+
 - Add `pydantic>=2.0` to `pyproject.toml` or `requirements.txt`
 - Mission loading gains automatic validation
 - Custom mission creators get professional-grade feedback
@@ -575,16 +623,19 @@ If automatic updates are critical:
 **Rationale**: Research citation styles vary widely. Enforcing specific format would be too rigid. Focus on completeness (non-empty, valid source type) with helpful format suggestions.
 
 **Implementation**:
+
 - Python stdlib only (csv + re)
 - Three-level validation: completeness (error), format (warning), quality (optional strict mode)
 - Support BibTeX, APA, Simple citation patterns
 
 **Alternatives Considered**:
+
 - Strict format enforcement (rejected - too rigid)
 - No validation (rejected - defeats purpose of research mission)
 - External citation library integration (rejected - over-engineered)
 
 **Impact**:
+
 - Create `src/specify_cli/validators/research.py`
 - Add validation to research mission review workflow
 - Users get feedback on citation quality without workflow blocking
@@ -598,16 +649,19 @@ If automatic updates are critical:
 **Rationale**: Aligns with user guidance to "resist complication." Mission switching is infrequent. Manual refresh with clear button provides good UX without complexity.
 
 **Implementation**:
+
 - Add mission to server context on page load
 - Display in header with refresh button
 - Optional: Check for staleness on page focus
 
 **Alternatives Considered**:
+
 - Polling (adds unnecessary overhead for infrequent operation)
 - WebSocket (over-engineered for mission switching frequency)
 - Server-side only (no feedback mechanism)
 
 **Impact**:
+
 - Minimal dashboard code changes
 - Zero new dependencies
 - Clear user experience

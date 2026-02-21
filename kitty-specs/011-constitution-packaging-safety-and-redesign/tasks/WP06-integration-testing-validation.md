@@ -52,39 +52,48 @@ history:
 **Success Criteria (Maps to Spec Success Criteria)**:
 
 **SC-001**: Package Build Verification
+
 - Building spec-kitty package produces wheel with zero filled-in constitution files
 - Verify: `unzip -l dist/*.whl | grep constitution` shows only template versions
 - Verify: `unzip -l dist/*.whl | grep "\.kittify/"` returns empty
 
 **SC-002**: User Template Verification
+
 - Fresh install provides blank constitution template, not spec-kitty's internal constitution
 - Verify: Install from wheel, run `spec-kitty init`, check `.kittify/memory/constitution.md` is placeholder
 
 **SC-003**: Commands Work Without Constitution
+
 - 100% of spec-kitty commands work on projects without constitutions
 - Verify: Run full workflow (specify, plan, tasks, implement) without creating constitution
 
 **SC-004**: Windows Dashboard HTML Response
+
 - Dashboard serves HTML content on Windows (not ERR_EMPTY_RESPONSE)
 - Verify: `curl http://127.0.0.1:9237` returns Content-Length > 0 on Windows 10/11
 
 **SC-005**: Upgrade Path Validation
+
 - Upgrade from 0.6.4 to 0.10.12 completes without manual intervention
 - Verify: In clean VM, create 0.6.4 project, upgrade, all migrations succeed
 
 **SC-006**: Minimal Constitution Speed
+
 - Minimal constitution generation completes in under 2 minutes with 3-5 questions
 - Verify: Time the workflow from command start to file written
 
 **SC-007**: Comprehensive Constitution Speed
+
 - Comprehensive constitution generation completes in under 5 minutes with 8-12 questions
 - Verify: Time the workflow for comprehensive path
 
 **SC-008**: Migration Idempotency
+
 - All migrations 0.6.x to 0.10.12 are idempotent (running twice = same result as once)
 - Verify: Run `spec-kitty upgrade` twice, second run shows "already up to date"
 
 **Acceptance Test** (All criteria above must pass):
+
 ```bash
 # Run comprehensive integration test suite
 ./tests/integration/test_feature_011_validation.sh
@@ -100,6 +109,7 @@ history:
 **Why This Matters**: This is an emergency 0.10.x release with 4 critical goals. Integration testing ensures all goals work together without breaking existing functionality or introducing new bugs.
 
 **Test Environment Requirements**:
+
 - **Linux VM**: For upgrade path testing (Docker preferred)
 - **Windows 10/11**: For dashboard testing (native or VM, not WSL)
 - **macOS** (optional but recommended): For cross-platform verification
@@ -107,12 +117,14 @@ history:
 - **Clean environments**: No pre-existing spec-kitty installations
 
 **Related Documents**:
+
 - Spec: `kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md` (All User Stories, All Success Criteria)
 - Plan: `kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md` (Risk Mitigation section)
 - Research: `kitty-specs/011-constitution-packaging-safety-and-redesign/research.md` (All verification sections)
 - Data Model: `kitty-specs/011-constitution-packaging-safety-and-redesign/data-model.md` (Validation Rules)
 
 **Prerequisites**:
+
 - **WP01 complete**: Template relocation done, packaging clean
 - **WP02 complete**: Migrations fixed and tested
 - **WP03 complete**: Mission constitutions removed
@@ -134,6 +146,7 @@ history:
 **File**: Create `tests/test_packaging_safety.py`
 
 **Test Implementation**:
+
 ```python
 """Test that package build doesn't include runtime artifacts.
 
@@ -299,16 +312,20 @@ if __name__ == "__main__":
 ```
 
 **Steps**:
+
 1. Create test file: `tests/test_packaging_safety.py`
 2. Copy test implementation above
 3. Run tests to verify they work:
+
    ```bash
    pytest tests/test_packaging_safety.py -v
    ```
+
 4. Add to CI/CD if not already present
 5. Document test purpose in module docstring
 
 **Verification**:
+
 ```bash
 # Run packaging tests
 pytest tests/test_packaging_safety.py -v
@@ -330,6 +347,7 @@ pytest tests/test_packaging_safety.py -v
 **Test Script**: Create `tests/integration/test_upgrade_path.sh`
 
 **Implementation**:
+
 ```bash
 #!/bin/bash
 # Test upgrade path from 0.6.4 to 0.10.12
@@ -460,6 +478,7 @@ echo "==================================="
 ```
 
 **Steps**:
+
 1. Create test script: `tests/integration/test_upgrade_path.sh`
 2. Make executable: `chmod +x tests/integration/test_upgrade_path.sh`
 3. Build current package: `python -m build`
@@ -467,6 +486,7 @@ echo "==================================="
 5. Verify output shows all steps passing
 
 **What This Tests**:
+
 - 0.6.4 installation works
 - 0.6.4 project structure created correctly
 - Upgrade to 0.10.12 succeeds
@@ -477,6 +497,7 @@ echo "==================================="
 - Second upgrade run succeeds (idempotency)
 
 **Failure Scenarios to Watch For**:
+
 - Migration fails with "Template not found"
 - Migration fails with "can_apply() returned False"
 - User constitution overwritten or lost
@@ -484,6 +505,7 @@ echo "==================================="
 - Second upgrade run produces different errors
 
 **Alternative: Test in GitHub Actions**:
+
 ```yaml
 # .github/workflows/test-upgrade-path.yml
 name: Test Upgrade Path
@@ -508,6 +530,7 @@ jobs:
 ```
 
 **Verification**:
+
 ```bash
 # Run test
 ./tests/integration/test_upgrade_path.sh
@@ -539,6 +562,7 @@ jobs:
 **Test Script**: Create `tests/integration/test_dashboard_windows.ps1` (PowerShell)
 
 **Implementation**:
+
 ```powershell
 # Test Dashboard on Windows
 # Validates fix for ERR_EMPTY_RESPONSE issue (#71)
@@ -650,6 +674,7 @@ Write-Host "==================================="
 ```
 
 **Steps**:
+
 1. Create test script: `tests/integration/test_dashboard_windows.ps1`
 2. **On Windows machine**:
    - Install spec-kitty from wheel: `pip install dist\spec_kitty_cli-*.whl`
@@ -658,6 +683,7 @@ Write-Host "==================================="
 4. Document Windows version tested (Windows 10 vs 11)
 
 **What This Tests**:
+
 - Dashboard process starts on Windows
 - No signal.SIGKILL errors on startup
 - HTTP server responds (not ERR_EMPTY_RESPONSE)
@@ -665,6 +691,7 @@ Write-Host "==================================="
 - Dashboard shutdown works (process terminates)
 
 **Alternative: Manual Windows Testing** (if script fails):
+
 ```powershell
 # Manual test procedure
 cd C:\test-project
@@ -686,6 +713,7 @@ Get-Process | Where-Object {$_.Name -like "*dashboard*"}
 ```
 
 **Verification**:
+
 ```powershell
 # Expected output from test script:
 # ===================================
@@ -715,6 +743,7 @@ Get-Process | Where-Object {$_.Name -like "*dashboard*"}
 ```
 
 **Failure Modes**:
+
 - **Empty response**: psutil refactor didn't fix issue, more investigation needed
 - **Process not starting**: Signal handling still broken, check imports
 - **Process not stopping**: Termination logic issue, check psutil.terminate()
@@ -731,6 +760,7 @@ Get-Process | Where-Object {$_.Name -like "*dashboard*"}
 **Test Script**: Create `tests/integration/test_constitution_minimal.sh`
 
 **Implementation**:
+
 ```bash
 #!/bin/bash
 # Test minimal constitution workflow
@@ -887,6 +917,7 @@ echo "  - Time: < 2 minutes (target for SC-006)"
 ```
 
 **Steps**:
+
 1. Create test script: `tests/integration/test_constitution_minimal.sh`
 2. Make executable: `chmod +x tests/integration/test_constitution_minimal.sh`
 3. Run test: `./tests/integration/test_constitution_minimal.sh`
@@ -894,6 +925,7 @@ echo "  - Time: < 2 minutes (target for SC-006)"
 5. Measure time taken (should be < 2 minutes per SC-006)
 
 **Manual Testing** (preferred for interactive workflow):
+
 ```bash
 # Setup
 cd /tmp/test-minimal
@@ -925,6 +957,7 @@ cat .kittify/memory/constitution.md | wc -l
 **Test Approach**: Manual testing with full phase completion
 
 **Manual Test Procedure**:
+
 ```bash
 # Setup
 cd /tmp/test-comprehensive
@@ -1058,6 +1091,7 @@ echo "  - Time: < 5 minutes (verify manually)"
 ```
 
 **Steps**:
+
 1. Create test script: `tests/integration/test_constitution_comprehensive.sh`
 2. Make executable: `chmod +x tests/integration/test_constitution_comprehensive.sh`
 3. Run manual test following procedure above
@@ -1069,6 +1103,7 @@ echo "  - Time: < 5 minutes (verify manually)"
    - Length is appropriate (~150-200 lines)
 
 **Quality Checks**:
+
 ```bash
 # After constitution created
 cd /tmp/test-comprehensive
@@ -1096,6 +1131,7 @@ grep "Created:" .kittify/memory/constitution.md
 **Purpose**: Verify all commands work when no constitution exists (commands-without-constitution test for SC-003).
 
 **Commands to Test**:
+
 1. `spec-kitty init`
 2. `/spec-kitty.specify` (via agent command)
 3. `/spec-kitty.plan` (via agent command)
@@ -1108,6 +1144,7 @@ grep "Created:" .kittify/memory/constitution.md
 **Test Script**: Create `tests/integration/test_commands_without_constitution.sh`
 
 **Implementation**:
+
 ```bash
 #!/bin/bash
 # Test that all spec-kitty commands work without constitution
@@ -1313,6 +1350,7 @@ echo "This satisfies SC-003: 100% of commands work without constitution"
 ```
 
 **Steps**:
+
 1. Create test script: `tests/integration/test_commands_without_constitution.sh`
 2. Make executable: `chmod +x tests/integration/test_commands_without_constitution.sh`
 3. Run test: `./tests/integration/test_commands_without_constitution.sh`
@@ -1320,6 +1358,7 @@ echo "This satisfies SC-003: 100% of commands work without constitution"
 5. Document any commands that require constitution (should be ZERO)
 
 **What This Tests** (FR-013, SC-003):
+
 - `spec-kitty init` works without prompting for constitution
 - Plan command skips Constitution Check gracefully
 - Tasks command doesn't require constitution
@@ -1328,6 +1367,7 @@ echo "This satisfies SC-003: 100% of commands work without constitution"
 - Upgrade works without constitution
 
 **Failure Scenarios**:
+
 - Command errors with "Constitution required"
 - Command errors with "Constitution file not found"
 - Constitution Check section errors instead of gracefully skipping
@@ -1344,6 +1384,7 @@ echo "This satisfies SC-003: 100% of commands work without constitution"
 **Test Script**: Create `tests/integration/test_dogfooding_safety.sh`
 
 **Implementation**:
+
 ```bash
 #!/bin/bash
 # Test dogfooding safety: spec-kitty developers using spec-kitty on spec-kitty repo
@@ -1540,6 +1581,7 @@ echo "This satisfies User Story 1: Safe Dogfooding"
 ```
 
 **Steps**:
+
 1. Create test script: `tests/integration/test_dogfooding_safety.sh`
 2. Make executable: `chmod +x tests/integration/test_dogfooding_safety.sh`
 3. Run test FROM spec-kitty repo root: `./tests/integration/test_dogfooding_safety.sh`
@@ -1547,6 +1589,7 @@ echo "This satisfies User Story 1: Safe Dogfooding"
 5. Inspect wheel contents manually to double-check
 
 **Manual Verification Procedure**:
+
 ```bash
 # Step 1: Be in spec-kitty repo
 cd /path/to/spec-kitty
@@ -1588,6 +1631,7 @@ cat .kittify/memory/constitution.md
 ```
 
 **Success Indicators**:
+
 - Build succeeds even with filled constitution in `.kittify/memory/`
 - Wheel contains zero entries matching `.kittify/memory/`
 - Wheel contains zero entries matching `memory/constitution.md` (except in templates path)
@@ -1595,6 +1639,7 @@ cat .kittify/memory/constitution.md
 - Spec-kitty's own `.kittify/` is unaffected by build process
 
 **Failure Indicators**:
+
 - Wheel contains `specify_cli/memory/constitution.md` → Packaging contamination still present
 - User receives filled constitution → Critical bug, must fix before release
 - Build process modifies `.kittify/` → Incorrect packaging config
@@ -1761,6 +1806,7 @@ fi
 ```
 
 **Steps**:
+
 1. Create master test script: `tests/integration/test_feature_011_validation.sh`
 2. Make executable: `chmod +x tests/integration/test_feature_011_validation.sh`
 3. Ensure all individual test scripts exist (T034-T040)
@@ -1770,6 +1816,7 @@ fi
 7. Document results in integration test report
 
 **Expected Output**:
+
 ```
 ==============================================
 Feature 011: Integration Test Suite
@@ -1835,6 +1882,7 @@ Ready for release after manual validation.
 **Platform**: Windows 10 or Windows 11 (native, not WSL)
 
 **Procedure**:
+
 ```powershell
 # On Windows machine
 pip install .\dist\spec_kitty_cli-*.whl
@@ -1865,12 +1913,14 @@ Get-Process | Where-Object {$_.Name -like "*dashboard*"}
 ```
 
 **Pass Criteria**:
+
 - Dashboard starts without errors
 - Browser shows kanban board
 - HTTP response has content (not empty)
 - Dashboard stops cleanly
 
 **Fail Criteria**:
+
 - ERR_EMPTY_RESPONSE in browser
 - Content-Length: 0
 - Process won't start
@@ -1879,6 +1929,7 @@ Get-Process | Where-Object {$_.Name -like "*dashboard*"}
 ### Manual Test 2: Constitution Minimal Timing (SC-006)
 
 **Procedure**:
+
 ```bash
 # Setup
 cd /tmp/test-minimal-timing
@@ -1915,6 +1966,7 @@ fi
 ### Manual Test 3: Constitution Comprehensive Timing (SC-007)
 
 **Procedure**:
+
 ```bash
 # Setup
 cd /tmp/test-comprehensive-timing
@@ -1956,18 +2008,21 @@ fi
 **Test Pyramid**:
 
 **Level 1: Unit Tests** (WP01-WP05):
+
 - Template loading
 - Migration logic
 - Process management
 - Constitution generation
 
 **Level 2: Integration Tests** (This WP):
+
 - Package build and inspection
 - Upgrade path (0.6.4 → 0.10.12)
 - Commands without constitution
 - Dogfooding safety
 
 **Level 3: Manual Tests** (This WP):
+
 - Windows dashboard (platform-specific)
 - Constitution timing (user experience)
 - Cross-platform verification
@@ -1986,6 +2041,7 @@ fi
 | SC-008: Idempotency | ✓ test_upgrade_path.sh | - | T035 |
 
 **Test Execution Order**:
+
 1. Run automated tests (T034, T035, T039, T040)
 2. If all pass, proceed to manual tests
 3. Run Windows dashboard test (T036 + Manual Test 1)
@@ -2032,6 +2088,7 @@ fi
 **Key Acceptance Checkpoints**:
 
 **1. Automated Tests Passing**:
+
 ```bash
 # Run master test suite
 ./tests/integration/test_feature_011_validation.sh
@@ -2041,6 +2098,7 @@ fi
 ```
 
 **2. Package Safety Verified**:
+
 ```bash
 # Inspect wheel manually
 python -m build
@@ -2050,6 +2108,7 @@ unzip -l dist/spec_kitty_cli-*.whl | grep -E "(\.kittify|memory)" | grep -v temp
 ```
 
 **3. Upgrade Path Verified**:
+
 ```bash
 # Verify test creates 0.6.4 project and upgrades successfully
 docker run --rm -v $(pwd):/workspace python:3.11 bash -c "
@@ -2065,16 +2124,19 @@ docker run --rm -v $(pwd):/workspace python:3.11 bash -c "
 ```
 
 **4. Windows Dashboard Verified**:
+
 - Must be tested on actual Windows 10 or 11
 - Cannot rely on WSL or Linux testing for this
 - Tester must confirm: Dashboard loads, serves HTML, stops cleanly
 
 **5. Constitution Workflows Verified**:
+
 - Tester runs both minimal and comprehensive paths
 - Times each workflow
 - Verifies output length and content quality
 
 **Red Flags for Reviewer**:
+
 - Any automated test failures
 - Wheel contains `.kittify/memory/` paths
 - Upgrade test errors or warnings
@@ -2083,6 +2145,7 @@ docker run --rm -v $(pwd):/workspace python:3.11 bash -c "
 - Commands fail without constitution
 
 **Manual Validation Checklist**:
+
 ```
 [ ] Ran automated test suite: ./tests/integration/test_feature_011_validation.sh
 [ ] All automated tests passed (or documented failures with fixes)
@@ -2096,6 +2159,7 @@ docker run --rm -v $(pwd):/workspace python:3.11 bash -c "
 ```
 
 **Release Gate Decision**:
+
 - **BLOCK RELEASE** if any SC-001, SC-002, SC-005, or SC-008 fails (critical)
 - **WARN but allow** if SC-004 fails (Windows-specific, can defer to hotfix)
 - **WARN but allow** if SC-006/SC-007 slightly over target (UX, not critical)
@@ -2119,6 +2183,7 @@ spec-kitty agent workflow implement WP06
 The CLI command also updates the activity log automatically.
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-01-12T11:12:22Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T11:32:58Z – unknown – lane=for_review – Ready for review
 - 2026-01-12T11:38:42Z – agent – lane=doing – Started review via workflow command

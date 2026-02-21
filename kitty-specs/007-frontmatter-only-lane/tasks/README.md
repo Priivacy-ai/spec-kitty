@@ -5,6 +5,7 @@ This directory contains work package (WP) prompt files for the feature.
 ## Directory Structure
 
 All WP files live in this flat directory:
+
 ```
 tasks/
 ├── WP01-setup.md
@@ -16,12 +17,14 @@ tasks/
 ## Lane Management
 
 Each WP file has a `lane:` field in its YAML frontmatter:
+
 - `planned` - Not yet started
 - `doing` - In progress
 - `for_review` - Ready for review
 - `done` - Complete
 
 To change a WP's lane, use workflow commands:
+
 ```bash
 spec-kitty agent workflow implement WP01  # For implementation: planned → doing → for_review
 spec-kitty agent workflow review WP01     # For review: for_review → done (or → planned if changes needed)

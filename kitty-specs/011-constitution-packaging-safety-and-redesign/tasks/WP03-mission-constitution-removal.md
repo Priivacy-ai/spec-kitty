@@ -53,6 +53,7 @@ history:
 **Goal**: Remove mission-specific constitution system entirely from codebase and template structure.
 
 **Success Criteria**:
+
 1. `src/specify_cli/mission.py` no longer has `constitution_dir` property (lines 247-249)
 2. `src/specify_cli/manifest.py` no longer scans for constitution files (lines 70-74)
 3. `src/specify_cli/missions/*/constitution/` directories deleted (in template sources after WP01 move)
@@ -61,6 +62,7 @@ history:
 6. Documentation updated to reflect single project-level constitution model
 
 **Acceptance Test**:
+
 ```bash
 # Verify no constitution_dir references
 grep -rn "constitution_dir" src/specify_cli/
@@ -88,12 +90,14 @@ pytest tests/ -k constitution
 **Architectural Decision**: Spec-kitty now uses ONLY project-level constitutions. Each project has ONE constitution at `.kittify/memory/constitution.md`. Missions no longer have their own constitutions.
 
 **Related Documents**:
+
 - Spec: `kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md` (User Story discussion)
 - Plan: `kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md` (Constitution System Changes)
 - Research: `kitty-specs/011-constitution-packaging-safety-and-redesign/research.md` (Constitution command redesign)
 - Data Model: `kitty-specs/011-constitution-packaging-safety-and-redesign/data-model.md` (Entity 3: Constitution Structure)
 
 **Dependencies**:
+
 - **WP01 must complete first**: Template files must be moved to `src/specify_cli/` before we can delete mission constitution directories
 - WP02 adds migration to remove constitution directories from user projects (handles runtime cleanup)
 - This WP handles code and template cleanup (handles source cleanup)
@@ -109,6 +113,7 @@ pytest tests/ -k constitution
 **File**: `src/specify_cli/mission.py`
 
 **Current Code** (lines 247-249):
+
 ```python
 @property
 def constitution_dir(self) -> Path:
@@ -117,6 +122,7 @@ def constitution_dir(self) -> Path:
 ```
 
 **Steps**:
+
 1. Read `src/specify_cli/mission.py`
 2. Locate the `constitution_dir` property (around line 247)
 3. **Delete the entire property** (all 4 lines including decorator and docstring)
@@ -124,6 +130,7 @@ def constitution_dir(self) -> Path:
 5. If internal usage exists, remove those references too
 
 **Verification**:
+
 ```bash
 # After deletion, verify property gone
 grep -n "constitution_dir" src/specify_cli/mission.py
@@ -135,6 +142,7 @@ grep -n "self.constitution_dir" src/specify_cli/mission.py
 ```
 
 **Impact Analysis**:
+
 ```bash
 # Find all code that calls constitution_dir
 grep -rn "constitution_dir" src/specify_cli/ --include="*.py"
@@ -142,11 +150,13 @@ grep -rn "constitution_dir" src/specify_cli/ --include="*.py"
 ```
 
 **Expected Usages** (document for fixing):
+
 - `manifest.py`: May use `mission.constitution_dir` for file scanning
 - Tests: May reference constitution_dir property
 - Other mission-related code: May assume constitution_dir exists
 
 **Notes**:
+
 - This property is part of the public API of the Mission class
 - Removing it is a breaking change, but that's intentional
 - Any code relying on this property will need refactoring
@@ -160,6 +170,7 @@ grep -rn "constitution_dir" src/specify_cli/ --include="*.py"
 **File**: `src/specify_cli/manifest.py`
 
 **Current Code** (lines 70-74):
+
 ```python
 # Constitution
 constitution_dir = self.mission_dir / "constitution"
@@ -169,6 +180,7 @@ if constitution_dir.exists():
 ```
 
 **Steps**:
+
 1. Read `src/specify_cli/manifest.py`
 2. Locate the `get_expected_files()` method (starts around line 35)
 3. Find the "Constitution" section (around lines 70-74)
@@ -177,6 +189,7 @@ if constitution_dir.exists():
 6. Check if `manifest["constitution"]` is used elsewhere in the file
 
 **Before (lines 45-74)**:
+
 ```python
 manifest = {
     "commands": [],
@@ -196,6 +209,7 @@ if constitution_dir.exists():
 ```
 
 **After (lines 45-69)**:
+
 ```python
 manifest = {
     "commands": [],
@@ -212,6 +226,7 @@ manifest = {
 ```
 
 **Verification**:
+
 ```bash
 # Verify no constitution references remain
 grep -n "constitution" src/specify_cli/manifest.py
@@ -223,11 +238,13 @@ grep -A10 "manifest = {" src/specify_cli/manifest.py
 ```
 
 **Impact on Return Value**:
+
 - `get_expected_files()` now returns manifest with 4 keys instead of 5
 - `check_files()` method may reference `expected["constitution"]` - verify and remove
 - Any code iterating over manifest keys needs review
 
 **Additional Cleanup in Same File**:
+
 ```python
 # In check_files() method (around line 143)
 for category, files in expected.items():
@@ -244,31 +261,39 @@ for category, files in expected.items():
 **Prerequisite**: WP01 must be complete (templates moved to `src/specify_cli/`)
 
 **Directories to Delete**:
+
 ```
 src/specify_cli/missions/software-dev/constitution/
 src/specify_cli/missions/research/constitution/
 ```
 
 **Steps**:
+
 1. Verify WP01 complete (templates in `src/specify_cli/`)
 2. Check if constitution directories exist:
+
    ```bash
    find src/specify_cli/missions -type d -name "constitution"
    ```
+
 3. For each constitution directory found:
    - List contents: `ls -la src/specify_cli/missions/*/constitution/`
    - **Delete entire directory**:
+
      ```bash
      rm -rf src/specify_cli/missions/software-dev/constitution
      rm -rf src/specify_cli/missions/research/constitution
      ```
+
 4. Verify deletion:
+
    ```bash
    find src/specify_cli/missions -type d -name "constitution"
    # Expected: Empty output
    ```
 
 **Files Being Removed** (document for context):
+
 ```
 src/specify_cli/missions/software-dev/constitution/
 └── principles.md         # Template with placeholder principles
@@ -278,12 +303,14 @@ src/specify_cli/missions/research/constitution/
 ```
 
 **Content to Preserve** (if valuable):
+
 - If `principles.md` contains useful example content, consider:
   - Moving useful examples to project-level constitution template
   - Documenting example principles in research notes
   - Saving content before deletion for reference
 
 **Verification**:
+
 ```bash
 # 1. Verify directories gone
 ls -la src/specify_cli/missions/software-dev/
@@ -302,6 +329,7 @@ git status
 ```
 
 **Git Commit Message** (for this subtask):
+
 ```
 refactor: Remove mission-specific constitution directories
 
@@ -324,7 +352,9 @@ Part of feature 011 (Constitution Packaging Safety and Redesign)
 **Files to Update**: `tests/` directory (specific files TBD after grep)
 
 **Investigation Steps**:
+
 1. **Find test files referencing constitutions**:
+
    ```bash
    grep -rn "constitution" tests/ --include="*.py"
    ```
@@ -344,6 +374,7 @@ Part of feature 011 (Constitution Packaging Safety and Redesign)
 **Update Patterns**:
 
 **Pattern 1: Remove constitution_dir property tests**:
+
 ```python
 # BEFORE
 def test_mission_constitution_dir():
@@ -357,6 +388,7 @@ def test_mission_constitution_dir():
 ```
 
 **Pattern 2: Update manifest tests**:
+
 ```python
 # BEFORE
 def test_manifest_includes_constitutions():
@@ -374,6 +406,7 @@ def test_manifest_excludes_constitutions():
 ```
 
 **Pattern 3: Update feature tests to use project-level constitution**:
+
 ```python
 # BEFORE
 def test_plan_uses_mission_constitution():
@@ -389,6 +422,7 @@ def test_plan_uses_project_constitution():
 ```
 
 **Pattern 4: Remove mission setup that creates constitutions**:
+
 ```python
 # BEFORE (in test fixtures)
 @pytest.fixture
@@ -412,6 +446,7 @@ def mission_without_constitution(tmp_path):
 ```
 
 **Steps for Each Test File**:
+
 1. Read test file
 2. Identify constitution-related tests
 3. Determine if test should be:
@@ -423,6 +458,7 @@ def mission_without_constitution(tmp_path):
 6. Fix any failures
 
 **Verification**:
+
 ```bash
 # Run all tests
 pytest tests/ -v
@@ -442,6 +478,7 @@ grep -rn "constitution_dir" tests/
 **Purpose**: Find and remove ALL remaining references to mission-specific constitutions in codebase.
 
 **Comprehensive Grep Commands**:
+
 ```bash
 # 1. Find "mission.*constitution" pattern
 grep -rn "mission.*constitution" src/specify_cli/ --include="*.py"
@@ -468,18 +505,21 @@ grep -rn "constitution" examples/
 **Expected Findings**:
 
 **Category 1: Code References** (should be removed/updated):
+
 - `mission.constitution_dir` calls
 - `manifest["constitution"]` references
 - Mission loading that expects constitution subdirectory
 - Worktree setup that symlinks mission constitutions
 
 **Category 2: Documentation References** (should be updated):
+
 - README.md: May mention mission constitutions
 - CONTRIBUTING.md: May document constitution system
 - docs/*.md: May explain constitution structure
 - examples/*.md: May show mission constitution usage
 
 **Category 3: Comments and Docstrings** (should be updated):
+
 ```python
 # BEFORE
 """
@@ -493,6 +533,7 @@ Projects use a single constitution at .kittify/memory/constitution.md
 ```
 
 **Update Checklist**:
+
 - [ ] All `constitution_dir` references removed
 - [ ] All `manifest["constitution"]` references removed
 - [ ] All mission constitution directory references removed
@@ -502,6 +543,7 @@ Projects use a single constitution at .kittify/memory/constitution.md
 - [ ] All comments mentioning mission constitutions updated
 
 **Files Likely Needing Updates** (verify with grep):
+
 1. `src/specify_cli/core/worktree.py`: May symlink mission constitutions
 2. `src/specify_cli/plan_validation.py`: May reference mission constitutions
 3. `docs/` files: Architecture documentation
@@ -509,6 +551,7 @@ Projects use a single constitution at .kittify/memory/constitution.md
 5. `CLAUDE.md`: May mention mission constitutions
 
 **Worktree Constitution Handling**:
+
 ```python
 # In src/specify_cli/core/worktree.py (around line 269)
 
@@ -527,6 +570,7 @@ if constitution_src.exists():
 ```
 
 **Documentation Updates**:
+
 ```markdown
 # BEFORE (in README.md or docs/)
 ## Mission Constitutions
@@ -543,6 +587,7 @@ to all features and missions.
 ```
 
 **Verification**:
+
 ```bash
 # Final verification - should return no matches
 grep -rn "mission.*constitution\|constitution.*mission" \
@@ -561,16 +606,19 @@ grep -rn "mission.*constitution\|constitution.*mission" \
 ## Test Strategy
 
 **Unit Tests** (minimal - mostly cleanup):
+
 - Test that Mission class no longer has `constitution_dir` property
 - Test that manifest no longer includes constitution category
 - Test that missions directory structure valid without constitution/
 
 **Integration Tests** (defer to WP06):
+
 - Test that projects work without mission constitutions
 - Test that plan command doesn't look for mission constitutions
 - Test that worktrees don't try to symlink mission constitutions
 
 **Manual Verification**:
+
 ```bash
 # 1. Start spec-kitty project
 spec-kitty init
@@ -622,6 +670,7 @@ EOF
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 1. **Property removed**: Verify `constitution_dir` no longer exists in Mission class
 2. **Manifest cleaned**: Verify manifest no longer scans for constitutions
 3. **Directories deleted**: Verify no constitution subdirectories in missions
@@ -629,12 +678,14 @@ EOF
 5. **No references remain**: Grep verification shows no mission constitution references
 
 **Red Flags for Reviewer**:
+
 - Any `constitution_dir` references remain in code
 - Tests still expect mission constitution directories
 - Manifest still has "constitution" category
 - Documentation still mentions mission-specific constitutions
 
 **Testing Checklist for Reviewer**:
+
 ```bash
 # 1. Verify property removed
 python3 -c "from specify_cli.mission import Mission; assert not hasattr(Mission, 'constitution_dir')"
@@ -651,6 +702,7 @@ pytest tests/ -v
 ```
 
 **Context for Reviewer**:
+
 - This is an architectural simplification - mission constitutions caused confusion
 - Single project-level constitution is simpler and clearer for users
 - WP02 handles runtime cleanup (removing constitution dirs from user projects)
@@ -674,6 +726,7 @@ spec-kitty agent workflow implement WP03
 The CLI command also updates the activity log automatically.
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-01-12T10:48:42Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T10:50:38Z – unknown – lane=for_review – Ready for review
 - 2026-01-12T11:50:00Z – claude-sonnet-4-5 – lane=done – Review passed: constitution_dir removed from mission.py, constitution scanning removed from manifest.py, no mission constitution directories remain.

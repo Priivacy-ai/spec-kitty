@@ -16,6 +16,7 @@ the next step.
 ## ⚠️ CRITICAL: THIS IS THE MOST IMPORTANT PLANNING WORK
 
 **You are creating the blueprint for implementation**. The quality of work packages determines:
+
 - How easily agents can implement the feature
 - How parallelizable the work is
 - How reviewable the code will be
@@ -61,6 +62,7 @@ Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-
 ### 2. Load Design Documents
 
 Read from `FEATURE_DIR` (only those present):
+
 - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
 - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
 
@@ -69,6 +71,7 @@ Scale your effort to the feature: simple UI tweaks deserve lighter coverage, mul
 ### 3. Derive Fine-Grained Subtasks
 
 Create complete list of subtasks with IDs `T001`, `T002`, etc.:
+
 - Parse plan/spec to enumerate concrete implementation steps, tests (only if explicitly requested), migrations, and operational work.
 - Capture prerequisites, dependencies, and parallelizability markers (`[P]` means safe to parallelize per file/concern).
 - Assign IDs sequentially in execution order.
@@ -83,6 +86,7 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 **If more than 10 subtasks needed**: Create additional WPs, don't pack them in
 
 **GROUPING PRINCIPLES**:
+
 - Each WP should be independently implementable
 - Root in a single user story or cohesive subsystem
 - Ensure every subtask appears in exactly one work package
@@ -92,6 +96,7 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 ### 5. Write `tasks.md`
 
 Write to `FEATURE_DIR/tasks.md` using the bundled tasks template (`src/specify_cli/missions/software-dev/templates/tasks-template.md`):
+
 - Populate Work Package sections (setup, foundational, per-story, polish) with `WPxx` entries
 - Under each work package include:
   - Summary (goal, priority, independent test)
@@ -106,6 +111,7 @@ Write to `FEATURE_DIR/tasks.md` using the bundled tasks template (`src/specify_c
 ## Output
 
 After completing this step:
+
 - `FEATURE_DIR/tasks.md` exists with full work package definitions
 - Each WP has clear subtask lists, dependencies, and sizing estimates
 - No WP prompt files have been created yet
@@ -119,12 +125,14 @@ After completing this step:
 **No arbitrary limit on WP count** — let complexity dictate
 
 **Split if ANY of these are true**:
+
 - More than 10 subtasks
 - Prompt would exceed 700 lines
 - Multiple independent concerns mixed together
 - Different phases or priorities mixed
 
 **Merge if ALL of these are true**:
+
 - Each WP has <3 subtasks
 - Combined would be <7 subtasks
 - Both address the same concern/component
@@ -133,6 +141,7 @@ After completing this step:
 ## Dependency Detection
 
 Analyze tasks.md for dependency relationships:
+
 - Explicit phrases: "Depends on WP##", "Dependencies: WP##"
 - Phase grouping: Phase 2 WPs typically depend on Phase 1
 - Default to empty if unclear

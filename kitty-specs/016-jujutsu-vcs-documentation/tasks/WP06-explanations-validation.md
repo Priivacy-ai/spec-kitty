@@ -55,6 +55,7 @@ history:
 ```
 
 This conflicts with the corrected `configuration.md` which documents the actual detection order:
+
 1. Explicit backend (CLI flag)
 2. Feature meta.json locked VCS
 3. jj preferred if available
@@ -73,7 +74,6 @@ In most cases:
 - `--vcs git` or `--vcs jj` overrides detection
 ```
 
-
 ## Objectives & Success Criteria
 
 - Create conceptual explanation articles for jj design rationale
@@ -89,6 +89,7 @@ In most cases:
 ### Divio Explanation Guidelines
 
 Explanations are:
+
 - **Understanding-oriented**: Help users build mental models
 - **Conceptual**: Focus on "why" not "how"
 - **Contextual**: Relate to broader system design
@@ -98,6 +99,7 @@ Explanations are:
 ### Key Concepts to Explain
 
 From research.md and feature 015:
+
 - Why jj for multi-agent development (auto-rebase eliminates coordination)
 - How auto-rebase works (jj's change-based model)
 - Non-blocking conflicts (stored in files, resolve later)
@@ -172,10 +174,12 @@ From research.md and feature 015:
 - **Purpose**: Verify documentation builds without errors (FR-016)
 - **Steps**:
   1. Run DocFX build:
+
      ```bash
      cd docs
      docfx docfx.json
      ```
+
   2. Check for:
      - Build errors (missing files, invalid YAML)
      - Warnings (broken links, missing metadata)
@@ -190,12 +194,14 @@ From research.md and feature 015:
 - **Purpose**: Ensure no 404s in documentation (FR-017, SC-005)
 - **Steps**:
   1. After successful DocFX build, check links:
+
      ```bash
      # Option 1: Use link checker tool
      npx linkinator docs/_site --recurse
 
      # Option 2: Manual spot check of key pages
      ```
+
   2. Check specifically:
      - All new pages are accessible from toc.yml
      - All cross-references resolve

@@ -13,7 +13,6 @@ Parallel development lets you move independent work packages (WPs) at the same t
 - Keep changes isolated to avoid accidental cross-contamination.
 - Use the dashboard to coordinate and rebalance work in real time.
 
-
 ## Prerequisites
 
 - A feature with multiple WPs in `lane: "planned"`.

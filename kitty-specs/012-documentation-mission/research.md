@@ -23,6 +23,7 @@ Use subprocess to invoke JSDoc CLI, configure via jsdoc.json file, support both 
 ### Findings
 
 **Invocation from Python**:
+
 ```python
 import subprocess
 from pathlib import Path
@@ -34,6 +35,7 @@ def invoke_jsdoc(source_dir: Path, config_path: Path, output_dir: Path) -> subpr
 ```
 
 **Configuration structure** (jsdoc.json):
+
 ```json
 {
   "source": {
@@ -56,15 +58,18 @@ def invoke_jsdoc(source_dir: Path, config_path: Path, output_dir: Path) -> subpr
 ```
 
 **Output formats**:
+
 - **HTML** (default): Generates browsable site with inter-linked pages
 - **Markdown**: Requires plugin (jsdoc-to-markdown) for Markdown output
 
 **Common issues**:
+
 - JSDoc requires Node.js/npm installed - detection needed
 - Config file path resolution can be tricky - use absolute paths
 - TypeScript requires additional setup (typedoc recommended over jsdoc for TS)
 
 **Alternative for TypeScript**: TypeDoc
+
 ```python
 def invoke_typedoc(source_dir: Path, output_dir: Path) -> subprocess.CompletedProcess:
     """Invoke TypeDoc for TypeScript projects."""
@@ -91,6 +96,7 @@ Generate Sphinx conf.py from Python template, use autodoc + napoleon extensions,
 ### Findings
 
 **Invocation from Python**:
+
 ```python
 import subprocess
 from pathlib import Path
@@ -117,6 +123,7 @@ def invoke_sphinx_build(source_dir: Path, build_dir: Path, builder: str = "html"
 ```
 
 **Generated conf.py structure**:
+
 ```python
 # Sphinx configuration template
 project = '{project_name}'
@@ -147,26 +154,31 @@ autodoc_default_options = {
 ```
 
 **Extension: autodoc**
+
 - Automatically generates documentation from Python docstrings
 - Supports multiple docstring formats via napoleon extension
 - Configuration: autodoc_default_options controls what gets documented
 
 **Extension: napoleon**
+
 - Converts Google/NumPy docstring format to reStructuredText
 - More readable than raw reST in source code
 - Widely adopted in Python community
 
 **Theme selection**:
+
 - **sphinx_rtd_theme**: Read the Docs theme (default recommendation)
 - **alabaster**: Sphinx default theme (simple, clean)
 - **pydata-sphinx-theme**: Modern theme for scientific Python projects
 
 **Output formats**:
+
 - **HTML** (default): Full-featured with search, navigation
 - **Markdown**: Via MyST parser + markdown builder
 - **PDF**: Via LaTeX builder (requires LaTeX installation)
 
 **Common issues**:
+
 - Sphinx requires Python package installed (`pip install sphinx`)
 - Path configuration for autodoc (`sys.path.insert` in conf.py)
 - Theme packages must be installed separately (`pip install sphinx-rtd-theme`)
@@ -190,6 +202,7 @@ Invoke `cargo doc` for Rust projects, parse HTML output for integration, use `--
 ### Findings
 
 **Invocation from Python**:
+
 ```python
 import subprocess
 from pathlib import Path
@@ -206,6 +219,7 @@ def invoke_rustdoc(project_dir: Path, target_dir: Path) -> subprocess.CompletedP
 ```
 
 **Output structure**:
+
 ```
 target/doc/
 ├── index.html                    # Landing page
@@ -220,6 +234,7 @@ target/doc/
 ```
 
 **Configuration via Cargo.toml**:
+
 ```toml
 [package.metadata.docs.rs]
 all-features = true
@@ -231,12 +246,15 @@ documentation = "https://docs.rs/my-crate"
 ```
 
 **JSON output** (experimental):
+
 ```bash
 cargo +nightly doc --output-format json
 ```
+
 Produces machine-readable JSON describing all public items.
 
 **Common issues**:
+
 - Requires Rust toolchain installed (cargo, rustc)
 - Large output for big projects (>100MB for complex crates)
 - Private items excluded by default (use --document-private-items)
@@ -263,6 +281,7 @@ Multi-strategy approach: (1) File structure analysis, (2) Frontmatter classifica
 **Strategy 1: File structure analysis**
 
 Detect documentation frameworks by characteristic files:
+
 ```python
 def detect_doc_framework(docs_dir: Path) -> Optional[str]:
     """Detect documentation framework from file structure."""
@@ -281,6 +300,7 @@ def detect_doc_framework(docs_dir: Path) -> Optional[str]:
 **Strategy 2: Frontmatter classification**
 
 Parse YAML frontmatter to identify Divio type:
+
 ```yaml
 ---
 type: tutorial
@@ -290,6 +310,7 @@ goal: "Learn how to set up authentication"
 ```
 
 Classification logic:
+
 ```python
 def classify_divio_type(content: str) -> Optional[str]:
     """Classify document into Divio type via frontmatter."""
@@ -313,6 +334,7 @@ def classify_divio_type(content: str) -> Optional[str]:
 **Strategy 3: Content heuristics**
 
 Analyze content patterns to infer Divio type:
+
 - **Tutorial markers**: "Step 1", "First, install", "Now, let's", "You should see"
 - **How-to markers**: "How to", "To do X", "Follow these steps", "Problem: ... Solution:"
 - **Reference markers**: "Parameters:", "Returns:", "Class:", "Function:", API tables
@@ -321,6 +343,7 @@ Analyze content patterns to infer Divio type:
 **Strategy 4: Coverage matrix**
 
 Build matrix of documentation coverage:
+
 ```python
 @dataclass
 class CoverageMatrix:
@@ -334,6 +357,7 @@ class CoverageMatrix:
 ```
 
 **Version mismatch detection**:
+
 ```python
 def detect_version_mismatch(code_dir: Path, docs_dir: Path) -> List[str]:
     """Detect API elements in code missing from docs."""
@@ -412,6 +436,7 @@ Custom phases for documentation mission: discover → audit → design → gener
    - Capture optional release.md (publish handoff, deployment notes)
 
 **Workflow configuration**:
+
 ```yaml
 workflow:
   phases:
@@ -444,18 +469,21 @@ Custom phases provide clarity for documentation-specific workflow. "Audit" phase
 ### Write the Docs Best Practices
 
 **Docs as Code** implementation:
+
 - Documentation lives in version control (Git)
 - Changes reviewed via pull requests
 - CI/CD for documentation builds
 - Documentation versioned alongside code
 
 **Accessibility implementation**:
+
 - Template prompts remind authors to use proper heading hierarchy
 - Alt text placeholders for images
 - Plain language guidance
 - Screen reader considerations
 
 **Bias-free language implementation**:
+
 - Template examples use diverse names and scenarios
 - Guidance to avoid unnecessarily gendered language
 - Inclusive pronoun usage examples
@@ -464,6 +492,7 @@ Custom phases provide clarity for documentation-specific workflow. "Audit" phase
 ### Testing Strategy
 
 **Template validation tests**:
+
 ```python
 def test_divio_template_structure():
     """Verify Divio templates have required sections."""
@@ -474,6 +503,7 @@ def test_divio_template_structure():
 ```
 
 **Generator integration tests**:
+
 ```python
 @pytest.mark.integration
 def test_sphinx_generation(tmp_path):
@@ -485,6 +515,7 @@ def test_sphinx_generation(tmp_path):
 ```
 
 **Gap analysis tests**:
+
 ```python
 def test_gap_detection():
     """Test gap analysis identifies missing Divio types."""
@@ -521,11 +552,11 @@ def test_gap_detection():
 
 ## References
 
-- Write the Docs Guide: https://www.writethedocs.org/guide/
-- Divio Documentation System: https://docs.divio.com/documentation-system/
-- Sphinx Documentation: https://www.sphinx-doc.org/
-- JSDoc Reference: https://jsdoc.app/
-- rustdoc Book: https://doc.rust-lang.org/rustdoc/
-- Read the Docs: https://docs.readthedocs.io/
-- MyST Parser (Markdown for Sphinx): https://myst-parser.readthedocs.io/
-- TypeDoc (TypeScript docs): https://typedoc.org/
+- Write the Docs Guide: <https://www.writethedocs.org/guide/>
+- Divio Documentation System: <https://docs.divio.com/documentation-system/>
+- Sphinx Documentation: <https://www.sphinx-doc.org/>
+- JSDoc Reference: <https://jsdoc.app/>
+- rustdoc Book: <https://doc.rust-lang.org/rustdoc/>
+- Read the Docs: <https://docs.readthedocs.io/>
+- MyST Parser (Markdown for Sphinx): <https://myst-parser.readthedocs.io/>
+- TypeDoc (TypeScript docs): <https://typedoc.org/>

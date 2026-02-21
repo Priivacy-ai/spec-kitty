@@ -85,18 +85,21 @@ Additionally, Entire.io (Tier 1 competitive threat) is building multi-agent orch
 ### Confirmation
 
 **Success Metrics**:
+
 * **Performance**: Container overhead <10% (measured: agent spawn time, execution time)
 * **Reliability**: Zero OOM crashes from runaway agents in production (vs current state: occasional crashes)
 * **Adoption**: 95%+ of agent executions use sandboxed mode (opt-out rare, only for debugging)
 * **Operational**: Docker image build/deploy works in CI/CD pipeline
 
 **Validation Timeline**:
+
 * **Week 1-2**: Implementation + unit tests
 * **Week 3-4**: Integration testing with real WP executions
 * **Week 5-6**: Production rollout (sandboxed as default)
 * **Month 2-3**: Monitor metrics, adjust limits if needed
 
 **Confidence Level**: **HIGH** (9/10)
+
 * Validated by Swarm's production use
 * Docker is proven, stable technology
 * Minimal risk, clear rollback path (opt-out flag)
@@ -182,25 +185,29 @@ Additionally, Entire.io (Tier 1 competitive threat) is building multi-agent orch
 ## More Information
 
 **References**:
+
 * Swarm architecture analysis: `spec-kitty-planning/competitive/tier-1-threats/entire-io/SWARM-COMPARISON.md`
-* Swarm codebase: https://github.com/mtomcal/swarm (see Docker sandbox implementation)
-* **Cursor scaling research**: https://cursor.com/blog/scaling-agents
-  - Key finding: Lock-based coordination creates severe bottlenecks (20 agents → 2-3 effective throughput)
-  - Validation: Hundreds of concurrent workers require process isolation (not locks)
-  - Conclusion: Isolation via containers enables scale; locking prevents it
+* Swarm codebase: <https://github.com/mtomcal/swarm> (see Docker sandbox implementation)
+* **Cursor scaling research**: <https://cursor.com/blog/scaling-agents>
+  * Key finding: Lock-based coordination creates severe bottlenecks (20 agents → 2-3 effective throughput)
+  * Validation: Hundreds of concurrent workers require process isolation (not locks)
+  * Conclusion: Isolation via containers enables scale; locking prevents it
 * Product requirements: `spec-kitty-planning/product-ideas/prd-agent-orchestration-integration-v1.md` (AD-001)
 * Integration spec: `spec-kitty-planning/competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section 2.1)
 
 **Implementation Files**:
+
 * `orchestrator/executor.py` - Add `spawn_agent_sandboxed()` method
 * `orchestrator/config.py` - Add `DockerSandboxConfig` class
 * `docker/Dockerfile.agent-sandbox` - Base image for agent execution
 
 **Related ADRs**:
+
 * ADR-2026-02-11-2: Fresh Context Execution Mode (complementary safety pattern)
 * ADR-2026-01-23-6: Config-Driven Agent Management (agent configuration foundation)
 
 **Rollback Plan**:
+
 * If Docker overhead unacceptable: Use `--no-sandbox` flag globally (environment variable)
 * If Docker unavailable on system: Automatic fallback to direct spawn (with warning)
 * Configuration: `docker_sandbox.enabled = false` in config/docker_sandbox.yaml

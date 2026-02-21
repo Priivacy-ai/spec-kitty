@@ -1,10 +1,11 @@
 # Agent: Augment Code
 
 ## Basic Info
+
 - **Directory**: `.augment/`
 - **Primary Interface**: CLI / IDE (VS Code and JetBrains extensions with dedicated CLI - Auggie)
 - **Vendor**: Augment Code (augmentcode.com)
-- **Documentation**: https://docs.augmentcode.com/
+- **Documentation**: <https://docs.augmentcode.com/>
 
 ## CLI Availability
 
@@ -29,6 +30,7 @@ auggie token print
 **License**: Proprietary (SEE LICENSE IN LICENSE.md)
 
 ### Python SDK Installation
+
 ```bash
 # Install Python SDK
 pip install auggie-sdk
@@ -45,6 +47,7 @@ pip install auggie-sdk[dev]
 **Python**: Requires >=3.10 (supports 3.10, 3.11, 3.12, 3.13)
 
 ### Verification
+
 ```bash
 # Command to verify installation
 which auggie
@@ -52,6 +55,7 @@ auggie --version
 ```
 
 ### Local Test Results
+
 ```bash
 $ which auggie
 # Not installed locally
@@ -69,6 +73,7 @@ published 4 days ago by mpauly11 <mpauly@augmentcode.com>
 ## Task Specification
 
 ### How to Pass Instructions
+
 - [x] Command line argument (prompt as argument)
 - [x] Stdin (piping supported)
 - [ ] File path (--file, -f)
@@ -76,6 +81,7 @@ published 4 days ago by mpauly11 <mpauly@augmentcode.com>
 - [x] Environment variable (AUGMENT_SESSION_AUTH for authentication)
 
 ### Example Invocation
+
 ```bash
 # Interactive mode
 auggie "Refactor the authentication module"
@@ -94,6 +100,7 @@ AUGMENT_SESSION_AUTH=$TOKEN auggie --acp "Run tests and fix failures"
 ```
 
 ### Context Handling
+
 - Advanced context engine that understands codebases from single lines to 100M+ lines
 - Automatic workspace indexing (`--allow-indexing` flag)
 - MCP (Model Context Protocol) support for external tools
@@ -102,12 +109,14 @@ AUGMENT_SESSION_AUTH=$TOKEN auggie --acp "Run tests and fix failures"
 ## Completion Detection
 
 ### Exit Codes
+
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
 | 1 | Error / Task failed |
 
 ### Output Format
+
 - [x] Stdout (plain text) - default interactive mode
 - [x] Stdout (JSON) - ACP mode supports structured output
 - [x] Structured logs - thinking summaries in ACP mode
@@ -116,17 +125,20 @@ AUGMENT_SESSION_AUTH=$TOKEN auggie --acp "Run tests and fix failures"
 ## Parallel Execution
 
 ### Rate Limits
+
 - Community Plan: 3,000 messages/month
 - Developer Plan ($30/month): Unlimited
 - Enterprise: Custom limits
 - No per-token charges - flat rate pricing
 
 ### Concurrent Sessions
+
 - Yes, multiple instances can run simultaneously
 - CLI runs anywhere Node.js runs (CI pipelines, serverless, cron jobs)
 - Checkpoint-based rollback prevents catastrophic agent mistakes
 
 ### Resource Requirements
+
 - Node.js 22+ required for CLI
 - Python 3.10+ for SDK
 - Memory depends on codebase size and context engine
@@ -134,15 +146,19 @@ AUGMENT_SESSION_AUTH=$TOKEN auggie --acp "Run tests and fix failures"
 ## Orchestration Assessment
 
 ### Can participate in autonomous workflow?
+
 [x] Yes
 
 ### Limitations
+
 - Requires authentication (browser-based login or service account token)
 - Proprietary licensing (not open source)
 - Rate limits on Community plan (3,000 messages/month)
 
 ### Integration Complexity
+
 **Low** - Augment Code (Auggie) has excellent CLI support with:
+
 - Full ACP (Agent Client Protocol) mode for non-interactive operation
 - Service accounts for CI/CD automation
 - Python and TypeScript SDKs for programmatic access
@@ -152,11 +168,13 @@ AUGMENT_SESSION_AUTH=$TOKEN auggie --acp "Run tests and fix failures"
 ## VS Code Extension Patterns
 
 Augment Code provides a separate CLI tool (`auggie`) rather than bundling the extension:
+
 - CLI and VS Code extension share the same backend context engine
 - Works in any environment where Node.js runs
 - Same AI assistance whether in VS Code, terminal, or CI pipeline
 
 ### Headless Workarounds
+
 - No workarounds needed - native CLI support via Auggie
 - Works in CI/CD pipelines with service account tokens
 - Python SDK for complex automation scenarios
@@ -166,6 +184,7 @@ Augment Code provides a separate CLI tool (`auggie`) rather than bundling the ex
 On GitHub (as of 2026-01-08), Augment Code offers an "augment-agent" repository described as "A simple wrapper to bring Auggie in to your development lifecycle," written in TypeScript. This can be used for additional orchestration capabilities.
 
 ## Sources
+
 - [Augment Code VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=augment.vscode-augment)
 - [Install Auggie CLI](https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli)
 - [npm: @augmentcode/auggie](https://www.npmjs.com/package/@augmentcode/auggie)

@@ -173,17 +173,20 @@ WorkPackage (*)                AgentProfile (1)
 ## Validation Rules
 
 ### AgentProfile
+
 - `agent_id` must be unique across all profiles
 - If `cli.available` is true, `cli.command` must not be null
 - If `authentication.required` is true, `authentication.env_var` should be set
 - `invocation.task_input` must have at least one entry if `cli.available`
 
 ### OrchestratorConfig
+
 - All agent IDs in `defaults` must exist in known agent profiles
 - `fallback.strategy` "same_agent" requires `single_agent_mode.enabled: true`
 - If `single_agent_mode.enabled`, `single_agent_mode.agent` must be set
 
 ### AgentInvocation
+
 - `workspace_path` must be an existing directory
 - `completed_at` must be null if `state` is "pending" or "running"
 - `exit_code` must be set if `state` is "completed" or "failed"

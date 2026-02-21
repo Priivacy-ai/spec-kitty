@@ -49,7 +49,6 @@ history:
 
 **Issue 2** (Terminology consistency): `docs/how-to/implement-work-package.md` first mentions “jj workspace” without expanding to “jujutsu (jj)”. Update the first mention accordingly.
 
-
 ## Objectives & Success Criteria
 
 - Update existing documentation to mention jj alongside git
@@ -92,11 +91,13 @@ history:
   1. Read `docs/tutorials/getting-started.md`
   2. Find installation/setup section
   3. Add callout recommending jj:
+
      ```markdown
      > **Recommended**: Install [jujutsu (jj)](https://jj-vcs.github.io/jj/)
      > for automatic rebasing and non-blocking conflicts. spec-kitty will
      > use jj when available. See [Jujutsu Workflow Tutorial](jujutsu-workflow.md).
      ```
+
   4. Mention that `spec-kitty init` detects and prefers jj
 - **Files**: `docs/tutorials/getting-started.md`
 - **Parallel?**: Yes
@@ -119,11 +120,13 @@ history:
   1. Read `docs/tutorials/multi-agent-workflow.md`
   2. Find section on parallel development
   3. Add callout:
+
      ```markdown
      > **With jj**: Multiple agents can work on dependent work packages
      > simultaneously. When one WP changes, others auto-rebase. No manual
      > coordination needed. See [Why Jujutsu for Multi-Agent](../explanation/jujutsu-for-multi-agent.md).
      ```
+
 - **Files**: `docs/tutorials/multi-agent-workflow.md`
 - **Parallel?**: Yes
 
@@ -134,6 +137,7 @@ history:
   1. Read `docs/how-to/install-spec-kitty.md`
   2. Add new section: "Installing Jujutsu (Recommended)"
   3. Include installation commands:
+
      ```bash
      # macOS
      brew install jj
@@ -144,6 +148,7 @@ history:
      # Verify
      jj --version  # Should show 0.20+
      ```
+
   4. Explain benefits of jj over git-only setup
   5. Note: jj is recommended but git still works
 - **Files**: `docs/how-to/install-spec-kitty.md`
@@ -207,11 +212,13 @@ history:
   1. Read `docs/explanation/git-worktrees.md`
   2. Add section: "Comparison with jj Workspaces"
   3. Create comparison table:
+
      | Aspect | git worktrees | jj workspaces |
      |--------|---------------|---------------|
      | Isolation | Separate working trees | Same repo, different commits |
      | Rebase | Manual | Automatic |
      | Conflicts | Blocking | Non-blocking |
+
   4. Explain when each is appropriate
   5. Link to jujutsu-for-multi-agent.md
 - **Files**: `docs/explanation/git-worktrees.md`

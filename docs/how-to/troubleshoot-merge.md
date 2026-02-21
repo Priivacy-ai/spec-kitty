@@ -64,11 +64,13 @@ Merge progress is saved in `.kittify/merge-state.json`:
 ### When to Use --resume
 
 Use `--resume` when:
+
 - Terminal closed during merge
 - System crashed mid-merge
 - You manually fixed conflicts and want to continue
 
 Do **not** use `--resume` if you want to:
+
 - Change merge strategy
 - Merge a different feature
 - Start fresh after major changes
@@ -101,6 +103,7 @@ spec-kitty merge --feature 017-my-feature
 2. **Git merge state** - If git is mid-merge, runs `git merge --abort`
 
 What it does **not** do:
+
 - Does not delete worktrees (they remain as-is)
 - Does not delete branches (completed WPs stay merged)
 - Does not revert already-merged commits
@@ -108,6 +111,7 @@ What it does **not** do:
 ### When to Use --abort
 
 Use `--abort` when:
+
 - You want to change merge strategy
 - Something went fundamentally wrong
 - You need to make changes before re-merging
@@ -130,6 +134,7 @@ If auto-resolution fails (unusual file structure, corrupted content):
 
 1. Open the conflicted file
 2. Find conflict markers:
+
    ```
    <<<<<<< HEAD
    lane: "done"
@@ -137,13 +142,17 @@ If auto-resolution fails (unusual file structure, corrupted content):
    lane: "for_review"
    >>>>>>> 017-feature-WP03
    ```
+
 3. Choose the appropriate value (usually "done" for lane)
 4. Remove conflict markers
 5. Save and stage:
+
    ```bash
    git add kitty-specs/017-feature/tasks/WP03-guide.md
    ```
+
 6. Resume merge:
+
    ```bash
    spec-kitty merge --resume
    ```
@@ -153,12 +162,15 @@ If auto-resolution fails (unusual file structure, corrupted content):
 For conflicts in source code files:
 
 1. Check which files have conflicts:
+
    ```bash
    git status
    ```
+
    Look for "both modified" files.
 
 2. Open each conflicted file and resolve:
+
    ```
    <<<<<<< HEAD
    def existing_function():
@@ -170,17 +182,20 @@ For conflicts in source code files:
    ```
 
 3. Edit to combine both changes appropriately:
+
    ```python
    def existing_function():
        return "combined behavior"
    ```
 
 4. Stage resolved files:
+
    ```bash
    git add src/path/to/file.py
    ```
 
 5. Resume merge:
+
    ```bash
    spec-kitty merge --resume
    ```

@@ -122,6 +122,7 @@ pytest -v --cov=src/doctrine --cov-report=term-missing
 ## Files Modified by This Feature
 
 ### New files (`src/doctrine/`)
+
 - `src/doctrine/__init__.py`
 - `src/doctrine/py.typed`
 - `src/doctrine/model/__init__.py`
@@ -135,10 +136,12 @@ pytest -v --cov=src/doctrine --cov-report=term-missing
 - `src/doctrine/agents/*.agent.yaml` (6+ reference profiles)
 
 ### New files (`src/specify_cli/`)
+
 - `src/specify_cli/orchestrator/tool_config.py`
 - `src/specify_cli/cli/commands/agent/profile.py`
 
 ### Modified files
+
 - `pyproject.toml` — add `src/doctrine` to packages list
 - `src/specify_cli/orchestrator/agent_config.py` — replaced with deprecation alias
 - `src/specify_cli/cli/commands/agent/__init__.py` — register profile subcommand

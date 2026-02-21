@@ -32,6 +32,7 @@ Research the 2 agents that are primarily IDE-based to determine if headless oper
 2. **Windsurf/Codeium** (Codeium) - IDE with AI features, may have language server
 
 **Success Criteria**:
+
 - Both agents have completed research files
 - CLI availability documented (Yes/No/Partial)
 - Any headless workarounds documented
@@ -44,6 +45,7 @@ Research the 2 agents that are primarily IDE-based to determine if headless oper
 - **Scope**: Headless/CLI only
 
 Reference documents:
+
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/spec.md` - Research questions
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/plan.md` - Research template
 
@@ -54,17 +56,22 @@ Reference documents:
 **Purpose**: Determine if GitHub Copilot can be used headlessly.
 
 **Steps**:
+
 1. Check GitHub CLI for Copilot extension:
+
    ```bash
    gh extension list
    gh extension search copilot
    gh copilot --help
    ```
+
 2. If `gh copilot` exists, test capabilities:
+
    ```bash
    gh copilot suggest "write a hello world function"
    gh copilot explain "what does this code do"
    ```
+
 3. Search npm for Copilot CLI: `npm search copilot`
 4. Check official Copilot documentation for API/CLI access
 5. Research Copilot API (may be separate from extension)
@@ -75,6 +82,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agent
 
 **Key Questions**:
+
 - Does `gh copilot` exist and what can it do?
 - Can it accept file-based prompts?
 - Is there an API for programmatic access?
@@ -87,11 +95,14 @@ Reference documents:
 **Purpose**: Determine if Windsurf (Codeium) can be used headlessly.
 
 **Steps**:
+
 1. Check for Codeium CLI:
+
    ```bash
    which codeium
    codeium --help
    ```
+
 2. Check for language server headless mode:
    - Codeium uses a language server - can it run standalone?
    - Check for LSP commands
@@ -105,6 +116,7 @@ Reference documents:
 **Parallel?**: Yes - independent of other agent
 
 **Key Questions**:
+
 - Does Codeium have a standalone CLI?
 - Can the language server be used headlessly?
 - Is there a REST/gRPC API?
@@ -117,6 +129,7 @@ Reference documents:
 **Purpose**: If direct CLI doesn't exist, document alternative approaches.
 
 **Steps**:
+
 1. For GitHub Copilot:
    - Can you use the OpenAI API directly (Codex)?
    - Is there a REST API for Copilot?
@@ -139,6 +152,7 @@ Reference documents:
 **Purpose**: Complete both research files following template.
 
 **Steps**:
+
 1. Ensure all sections from plan.md template are filled for both agents
 2. Add source links (documentation URLs)
 3. Write orchestration assessment for each:
@@ -148,6 +162,7 @@ Reference documents:
 4. Be honest about IDE-only status if confirmed
 
 **Files**:
+
 - `research/02-github-copilot.md`
 - `research/07-windsurf.md`
 

@@ -42,6 +42,7 @@ The state machine operates on events from the canonical append-only event log de
 **Lanes:** `planned` → `claimed` → `in_progress` → `for_review` → `done` (plus `blocked` and `canceled`)
 
 **Allowed transitions (9 total):**
+
 1. `planned → claimed` — Agent declares intent to work
 2. `claimed → in_progress` — Work actively begins (workspace context established)
 3. `in_progress → for_review` — Implementation complete, submitted for review
@@ -53,6 +54,7 @@ The state machine operates on events from the canonical append-only event log de
 9. `any (except done) → canceled` — WP abandoned or superseded (terminal)
 
 **Guard conditions (6):**
+
 1. `planned → claimed`: Assignee must be set; no conflicting active claim
 2. `claimed → in_progress`: Active workspace context must be established
 3. `in_progress → for_review`: Required subtasks complete OR force flag with reason
@@ -142,11 +144,11 @@ Two states (`open`/`closed`) with free-form tags for substates.
 ## More Information
 
 **Related ADRs:**
-- ADR 2026-02-09-1 (Canonical WP Status Model) — state machine consumes events from this log
-- ADR 2026-02-09-3 (Event-Log Merge Semantics) — replays events through this state machine
-- ADR 2026-02-09-4 (Cross-Repo Evidence Completion) — evidence payloads satisfy guard conditions
+* ADR 2026-02-09-1 (Canonical WP Status Model) — state machine consumes events from this log
+* ADR 2026-02-09-3 (Event-Log Merge Semantics) — replays events through this state machine
+* ADR 2026-02-09-4 (Cross-Repo Evidence Completion) — evidence payloads satisfy guard conditions
 
 **References:**
-- Harel Statecharts — https://www.wisdom.weizmann.ac.il/~dharel/SCANNED.PAPERS/Statecharts.pdf
-- XState Documentation — https://xstate.js.org/docs/
-- PRD: Feature Status State Model Remediation (Sections 7, 8, 13, 14)
+* Harel Statecharts — <https://www.wisdom.weizmann.ac.il/~dharel/SCANNED.PAPERS/Statecharts.pdf>
+* XState Documentation — <https://xstate.js.org/docs/>
+* PRD: Feature Status State Model Remediation (Sections 7, 8, 13, 14)

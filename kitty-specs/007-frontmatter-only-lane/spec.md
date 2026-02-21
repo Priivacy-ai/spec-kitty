@@ -1,4 +1,5 @@
 # Feature Specification: Frontmatter-Only Lane Management
+
 *Path: [kitty-specs/007-frontmatter-only-lane/spec.md](kitty-specs/007-frontmatter-only-lane/spec.md)*
 
 **Feature Branch**: `007-frontmatter-only-lane`

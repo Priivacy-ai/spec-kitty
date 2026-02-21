@@ -32,6 +32,7 @@ Implement merge state persistence and `--resume` capability for recovering from 
 **User Story**: As a developer, I want to resume an interrupted merge without starting over so I don't lose progress on multi-WP features.
 
 **Success Criteria**:
+
 - Merge state saved to `.kittify/merge-state.json` after each WP
 - `--resume` flag continues from last incomplete WP
 - `--abort` flag clears state and resets to clean state
@@ -43,11 +44,13 @@ Implement merge state persistence and `--resume` capability for recovering from 
 ## Context & Constraints
 
 **Related Documents**:
+
 - `kitty-specs/017-smarter-feature-merge-with-preflight/spec.md` - User Story 6 acceptance scenarios
 - `kitty-specs/017-smarter-feature-merge-with-preflight/plan.md` - state.py design
 - `kitty-specs/017-smarter-feature-merge-with-preflight/data-model.md` - MergeState entity
 
 **Constraints**:
+
 - JSON file storage (not database)
 - Must detect interrupted git merge state (MERGE_HEAD)
 - State file location: `.kittify/merge-state.json`
@@ -60,15 +63,18 @@ Implement merge state persistence and `--resume` capability for recovering from 
 **Purpose**: Define the data structure for persisted merge state.
 
 **Steps**:
+
 1. Open `src/specify_cli/merge/state.py`
 2. Add MergeState dataclass per data-model.md
 
 **Files**:
+
 - `src/specify_cli/merge/state.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 """Merge state persistence for resume capability."""
 
@@ -138,16 +144,19 @@ class MergeState:
 **Purpose**: Persist and restore merge state to/from JSON file (FR-021).
 
 **Steps**:
+
 1. Add `save_state()` function to write state to `.kittify/merge-state.json`
 2. Add `load_state()` function to read and validate state
 3. Handle missing file, invalid JSON gracefully
 
 **Files**:
+
 - `src/specify_cli/merge/state.py`
 
 **Parallel?**: Yes
 
 **Implementation**:
+
 ```python
 STATE_FILE = ".kittify/merge-state.json"
 
@@ -215,18 +224,21 @@ def has_active_merge(repo_root: Path) -> bool:
 **Purpose**: Allow `spec-kitty merge --resume` to continue interrupted merge (FR-022).
 
 **Steps**:
+
 1. Add `--resume` flag to merge command
 2. If `--resume` and state exists, load state and continue
 3. If `--resume` and no state, error with message
 4. Detect git MERGE_HEAD for mid-merge state
 
 **Files**:
+
 - `src/specify_cli/cli/commands/merge.py`
 - `src/specify_cli/merge/state.py`
 
 **Parallel?**: No (integration)
 
 **Implementation**:
+
 ```python
 import subprocess
 
@@ -276,18 +288,21 @@ def detect_git_merge_state(repo_root: Path) -> bool:
 **Purpose**: Clear state on success or `--abort` (FR-023, FR-026).
 
 **Steps**:
+
 1. Add `clear_state()` function to remove state file
 2. Add `--abort` flag to merge command
 3. Clear state after successful merge completion
 4. Clear state when `--abort` is used
 
 **Files**:
+
 - `src/specify_cli/merge/state.py`
 - `src/specify_cli/cli/commands/merge.py`
 
 **Parallel?**: No (integration)
 
 **Implementation**:
+
 ```python
 def clear_state(repo_root: Path) -> bool:
     """Remove merge state file.
@@ -334,6 +349,7 @@ def clear_state(repo_root: Path) -> bool:
 **Purpose**: Save state after each WP merge for recovery (FR-024).
 
 **Steps**:
+
 1. Import state module in executor.py
 2. Create MergeState at start of merge
 3. Save state before and after each WP merge
@@ -341,12 +357,14 @@ def clear_state(repo_root: Path) -> bool:
 5. Clear state on successful completion
 
 **Files**:
+
 - `src/specify_cli/merge/executor.py`
 - `src/specify_cli/merge/state.py`
 
 **Parallel?**: No (integration)
 
 **Implementation outline**:
+
 ```python
 from specify_cli.merge.state import (
     MergeState,
@@ -447,6 +465,7 @@ def execute_merge(
 ## Review Guidance
 
 **Acceptance Test**:
+
 1. Start merge of 3-WP feature
 2. After WP01 completes, Ctrl+C to interrupt
 3. Verify `.kittify/merge-state.json` exists with WP01 in completed_wps
@@ -455,12 +474,14 @@ def execute_merge(
 6. On completion, verify state file is deleted
 
 **Edge Cases**:
+
 - Resume with no state file → clear error message
 - Corrupt state file → clear and start fresh with warning
 - Git MERGE_HEAD present → pause, prompt user to resolve
 - --abort with git merge in progress → abort both spec-kitty and git state
 
 **State File Format**:
+
 ```json
 {
   "feature_slug": "017-smarter-feature-merge-with-preflight",

@@ -56,6 +56,7 @@ history:
 - **All tests pass**, **mypy --strict clean**, **ruff clean**
 
 **Success metrics**:
+
 - After `/spec-kitty.constitution` completes, YAML files are auto-generated
 - `load_governance_config(repo_root)` returns a validated `GovernanceConfig` instance
 - `load_agents_config(repo_root)` returns a validated `AgentsConfig` instance
@@ -78,7 +79,9 @@ history:
 **Purpose**: Create a hook function that triggers sync() after CLI writes to constitution.md (FR-2.1).
 
 **Steps**:
+
 1. Add to `src/specify_cli/constitution/sync.py` (or a new `hooks.py`):
+
    ```python
    import logging
 
@@ -112,6 +115,7 @@ history:
    - Force=True — always extract after a write (new content)
 
 **Files**:
+
 - `src/specify_cli/constitution/sync.py` (or `hooks.py`)
 
 ### Subtask T034 – Wire Hook into Constitution Write Path
@@ -119,18 +123,21 @@ history:
 **Purpose**: Call the post-save hook after CLI commands that write constitution.md (FR-2.1, FR-2.5).
 
 **Steps**:
+
 1. Identify the code path where `/spec-kitty.constitution` writes the constitution file:
    - Check `src/specify_cli/missions/software-dev/command-templates/constitution.md` — this is the template that agents use
    - The actual write happens via the agent's file write (not Python code)
    - **IMPORTANT**: The post-save hook must be triggered from the CLI command that orchestrates the constitution flow
 
 2. Find the CLI command or orchestrator that handles constitution writes:
+
    ```bash
    grep -r "constitution" src/specify_cli/cli/ --include="*.py" -l
    grep -r "constitution" src/specify_cli/orchestrator/ --include="*.py" -l
    ```
 
 3. Add hook call after the write:
+
    ```python
    from specify_cli.constitution.sync import post_save_hook
 
@@ -145,10 +152,12 @@ history:
    - Document that manual edits require `spec-kitty constitution sync`
 
 **Files**:
+
 - Varies — depends on where the constitution write path is in the codebase
 - Likely: `src/specify_cli/cli/commands/init.py` or related orchestration code
 
 **Notes**:
+
 - The hook location depends on the codebase's write path for constitution
 - If writes happen via agent templates (outside Python), document that auto-sync only fires for CLI writes
 - Manual edits → user runs `spec-kitty constitution sync` (documented in quickstart.md)
@@ -158,7 +167,9 @@ history:
 **Purpose**: Provide a simple API for Feature 044's governance hooks to load structured config (FR-4.1).
 
 **Steps**:
+
 1. Add to `src/specify_cli/constitution/sync.py` or a new `loaders.py`:
+
    ```python
    def load_governance_config(repo_root: Path) -> GovernanceConfig:
        """Load governance config from .kittify/constitution/governance.yaml.
@@ -195,6 +206,7 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/constitution/sync.py` or `loaders.py`
 
 **Parallel?**: Yes — independent of T033-T034.
@@ -206,7 +218,9 @@ history:
 **Purpose**: Provide API for Feature 046's routing provider to load agent profiles (FR-4.3).
 
 **Steps**:
+
 1. Similar to T035 but for agents.yaml:
+
    ```python
    def load_agents_config(repo_root: Path) -> AgentsConfig:
        """Load agents config from .kittify/constitution/agents.yaml."""
@@ -223,6 +237,7 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/constitution/sync.py` or `loaders.py`
 
 **Parallel?**: Yes — independent of T035.
@@ -232,7 +247,9 @@ history:
 **Purpose**: Define the clean public API for the constitution subpackage.
 
 **Steps**:
+
 1. Update `src/specify_cli/constitution/__init__.py`:
+
    ```python
    """Constitution parser and structured config extraction.
 
@@ -275,6 +292,7 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/constitution/__init__.py`
 
 **Parallel?**: Yes — can proceed once all modules exist.
@@ -284,6 +302,7 @@ history:
 **Purpose**: End-to-end tests validating the full constitution workflow.
 
 **Steps**:
+
 1. Create `tests/specify_cli/constitution/test_integration.py`:
 
 2. **End-to-end tests**:
@@ -299,6 +318,7 @@ history:
    - Hook with missing constitution → verify graceful handling
 
 4. **Performance test** (informational):
+
    ```python
    def test_governance_loading_performance(tmp_path):
        """load_governance_config should complete in <100ms (FR-4.5)."""
@@ -312,6 +332,7 @@ history:
    ```
 
 **Files**:
+
 - `tests/specify_cli/constitution/test_integration.py`
 
 **Target**: 10-12 tests covering the full workflow and edge cases.
@@ -335,7 +356,7 @@ history:
 
 - Verify post-save hook never raises (catches all exceptions)
 - Check load functions have staleness warning (FR-4.2, FR-5.2)
-- Ensure __init__.py exports match quickstart.md API examples
+- Ensure **init**.py exports match quickstart.md API examples
 - Test load_governance_config performance (<100ms)
 - Verify the hook is wired into the correct CLI write path
 

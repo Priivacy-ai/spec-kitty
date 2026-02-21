@@ -19,6 +19,7 @@ spec-kitty mission switch research  # Activate Deep Research Kitty
 ```
 
 **What changes:**
+
 - Templates optimized for research workflows
 - Different artifact expectations (findings.md vs plan.md)
 - Research-focused command prompts
@@ -27,6 +28,7 @@ spec-kitty mission switch research  # Activate Deep Research Kitty
 ## Complete Research Workflow
 
 ### 1. Initialize Project (One-time)
+
 ```bash
 spec-kitty init auth-research --mission research --ai claude
 cd auth-research
@@ -34,6 +36,7 @@ claude
 ```
 
 ### 2. Define Research Question
+
 ```text
 /spec-kitty.specify
 
@@ -50,6 +53,7 @@ Compare solutions for AWS Lambda, Vercel Edge, and Cloudflare Workers.
 **Result:** Creates `kitty-specs/001-serverless-auth-study/spec.md` with research objectives
 
 ### 3. Research Plan
+
 ```text
 /spec-kitty.plan
 
@@ -70,11 +74,13 @@ Focus areas:
 **Result:** Creates research methodology in `plan.md`
 
 ### 4. Evidence Collection Phase
+
 ```text
 /spec-kitty.research
 ```
 
 **Result:** Creates Phase 0 research artifacts:
+
 ```
 kitty-specs/001-serverless-auth-study/
 ├── spec.md                      # Research objectives
@@ -99,17 +105,20 @@ timestamp,source_type,citation,key_finding,confidence,notes
 ```
 
 ### 6. Generate Research Tasks
+
 ```text
 /spec-kitty.tasks
 ```
 
 **Result:** Creates work packages for:
+
 - Literature review (by topic area)
 - Implementation analysis (by platform)
 - Comparison matrices (by criteria)
 - Synthesis and recommendations
 
 Example tasks:
+
 ```markdown
 ## WP01: AWS Lambda Authentication Patterns
 
@@ -129,11 +138,13 @@ Example tasks:
 ```
 
 ### 7. Execute Research
+
 ```text
 /spec-kitty.implement
 ```
 
 **Research implementation workflow:**
+
 1. Moves work package to "doing"
 2. Agent conducts research, documents findings in `research.md`
 3. Updates evidence-log.csv with sources
@@ -141,22 +152,26 @@ Example tasks:
 5. Moves to "for_review" when complete
 
 ### 8. Synthesize Findings
+
 ```text
 /spec-kitty.review
 ```
 
 Review research outputs for:
+
 - Evidence quality and citation accuracy
 - Comparison fairness and completeness
 - Logical flow of arguments
 - Actionable recommendations
 
 ### 9. Finalize Research
+
 ```text
 /spec-kitty.accept
 ```
 
 Validates:
+
 - All evidence logged with sources
 - Comparison matrices complete
 - Recommendations backed by evidence
@@ -165,30 +180,35 @@ Validates:
 ## Research Artifacts Explained
 
 ### spec.md (Research Objectives)
+
 - Research questions
 - Hypothesis (if applicable)
 - Success criteria for research
 - Scope boundaries
 
 ### plan.md (Methodology)
+
 - Information sources to consult
 - Analysis framework
 - Comparison criteria
 - Quality standards for evidence
 
 ### research.md (Findings)
+
 - Key discoveries organized by theme
 - Evidence synthesis
 - Comparison results
 - Recommendations with rationale
 
 ### data-model.md (Concepts)
+
 - Key terms and definitions
 - Relationships between concepts
 - Mental models and frameworks
 - Taxonomies and categorizations
 
 ### evidence-log.csv (Sources)
+
 - Timestamp of collection
 - Source type (paper, docs, blog, etc.)
 - Full citation
@@ -218,6 +238,7 @@ Implement JWT-based authentication for serverless API...
 **Research Question:** Which database is best for our use case?
 
 **Workflow:**
+
 ```text
 # 1. Define question
 /spec-kitty.specify
@@ -283,15 +304,18 @@ Creates: WP01 (PostgreSQL analysis), WP02 (MongoDB analysis),
 ## Common Research Patterns
 
 **Technology Selection:**
+
 - WP01-WP0N: One work package per option
 - WP Last: Comparison matrix and recommendation
 
 **Literature Review:**
+
 - WP01: Search and source collection
 - WP02-WP0N: Analysis by theme/topic
 - WP Last: Synthesis and gaps analysis
 
 **Best Practices Study:**
+
 - WP01: Industry standards research
 - WP02: Case studies collection
 - WP03: Pattern extraction

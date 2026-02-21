@@ -49,6 +49,7 @@ history:
 **Goal**: Replace placeholder-filling approach with phase-based interactive discovery workflow for constitution creation.
 
 **Success Criteria**:
+
 1. Constitution command template updated at `src/specify_cli/templates/command-templates/constitution.md`
 2. Four discovery phases implemented: Technical Standards, Code Quality, Tribal Knowledge, Governance
 3. Each phase has skip option with clear guidance on when to skip
@@ -59,6 +60,7 @@ history:
 8. All spec-kitty commands work without constitution (tested in WP06)
 
 **Acceptance Test**:
+
 ```bash
 # Test 1: Minimal path
 cd /tmp/test-project
@@ -102,6 +104,7 @@ spec-kitty agent feature setup-plan --json
 **Why This Matters**: Current constitution command uses placeholder-filling approach that's confusing and requires users to understand template structure. Many users skip constitutions entirely because the process is unclear. The new phase-based discovery makes constitution creation approachable and optional.
 
 **Current Problems**:
+
 1. **Placeholder-filling is confusing**: Users see `[PROJECT_NAME]`, `[PRINCIPLE_1_NAME]`, don't know what to fill in
 2. **All-or-nothing**: Either fill entire template or nothing
 3. **Not optional**: Commands may error if constitution incomplete
@@ -109,6 +112,7 @@ spec-kitty agent feature setup-plan --json
 5. **Template-centric**: Focuses on template structure, not user needs
 
 **New Approach**:
+
 1. **Phase-based discovery**: Ask questions one at a time, grouped by theme
 2. **Skip options**: Each phase can be skipped with guidance on when/why
 3. **Truly optional**: Commands work without constitution
@@ -116,17 +120,20 @@ spec-kitty agent feature setup-plan --json
 5. **User-centric**: Adapts to user needs (minimal vs comprehensive)
 
 **Related Documents**:
+
 - Spec: `kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md` (FR-007 through FR-016, User Story 2)
 - Plan: `kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md` (Constitution Redesign section)
 - Research: `kitty-specs/011-constitution-packaging-safety-and-redesign/research.md` (Research Area 4: Constitution Command Redesign)
 - Data Model: `kitty-specs/011-constitution-packaging-safety-and-redesign/data-model.md` (Entity 3: Constitution Structure, Discovery Phases)
 
 **Dependencies**:
+
 - **WP01 must complete**: Template must be in `src/specify_cli/templates/command-templates/` before updating
 - This WP updates the constitution.md command template
 - WP06 will test that all commands work without constitution
 
 **Design Principles**:
+
 1. **One question at a time**: Like `/spec-kitty.specify` and `/spec-kitty.plan`
 2. **Clear skip guidance**: Tell users when they should skip a phase
 3. **Progressive disclosure**: Start simple (minimal), offer more depth (comprehensive)
@@ -144,6 +151,7 @@ spec-kitty agent feature setup-plan --json
 **File**: `src/specify_cli/templates/command-templates/constitution.md`
 
 **Current Template** (lines 1-127):
+
 ```markdown
 ---
 description: Create or update the project constitution from interactive or provided principle inputs...
@@ -158,6 +166,7 @@ You are updating the project constitution at `/memory/constitution.md`. This fil
 **Problem**: Current approach is template-centric (fill placeholders), not user-centric (gather information).
 
 **New Template Structure**:
+
 ```markdown
 ---
 description: Create or update the project constitution through interactive phase-based discovery.
@@ -185,12 +194,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 This command creates or updates your project's constitution through an interactive discovery process. Unlike template-filling, this workflow asks targeted questions to understand your project's needs and generates a lean, focused constitution.
 
 **Constitution Purpose**:
+
 - Capture technical standards (languages, testing, deployment)
 - Document code quality expectations (PR process, review criteria)
 - Record tribal knowledge (team conventions, lessons learned)
 - Define governance (how constitution changes, who validates compliance)
 
 **When to Use**:
+
 - **First time**: Establishing initial project principles
 - **Updates**: Adding new principles or revising existing ones
 - **Never**: If your team doesn't need formal documentation of principles
@@ -222,6 +233,7 @@ This command uses a **4-phase discovery process**:
    - ~2-3 questions, defines constitution management
 
 **Paths**:
+
 - **Minimal** (1 page): Complete Phase 1 only, skip rest → ~3-5 questions
 - **Comprehensive** (2-3 pages): Complete all 4 phases → ~8-12 questions
 
@@ -232,6 +244,7 @@ This command uses a **4-phase discovery process**:
 ### Step 1: Initial Choice
 
 **Ask user**:
+
 ```
 Do you want to establish a project constitution?
 
@@ -241,6 +254,7 @@ C) Yes, comprehensive - Full governance and tribal knowledge (~2-3 pages, 8-12 q
 ```
 
 **Handle responses**:
+
 - **A (Skip)**: Create minimal placeholder at `.kittify/memory/constitution.md` with message: "Constitution skipped - not required for spec-kitty usage. Run /spec-kitty.constitution anytime to create one." → Exit successfully
 - **B (Minimal)**: Proceed to Phase 1 only, skip Phases 2-4
 - **C (Comprehensive)**: Proceed through all 4 phases, asking user if they want to skip each
@@ -248,6 +262,7 @@ C) Yes, comprehensive - Full governance and tribal knowledge (~2-3 pages, 8-12 q
 ### Step 2: Phase 1 - Technical Standards
 
 **Context**:
+
 ```
 Phase 1: Technical Standards
 
@@ -260,6 +275,7 @@ This phase is recommended for all projects to establish basic technical foundati
 **Questions** (ask one at a time):
 
 **Q1: Languages and Frameworks**
+
 ```
 What languages and frameworks are required for this project?
 
@@ -272,6 +288,7 @@ Your answer:
 ```
 
 **Q2: Testing Requirements**
+
 ```
 What testing framework and coverage requirements?
 
@@ -284,6 +301,7 @@ Your answer:
 ```
 
 **Q3: Performance and Scale Targets**
+
 ```
 What are the performance and scale expectations?
 
@@ -297,6 +315,7 @@ Your answer:
 ```
 
 **Q4: Deployment and Constraints**
+
 ```
 What are the deployment constraints or platform requirements?
 
@@ -314,6 +333,7 @@ Your answer:
 ### Step 3: Phase 2 - Code Quality (Optional)
 
 **If comprehensive path, ask**:
+
 ```
 Phase 2: Code Quality
 
@@ -329,6 +349,7 @@ B) No, skip this phase (use standard practices)
 **If yes, ask questions**:
 
 **Q5: PR Requirements**
+
 ```
 What are the requirements for pull requests?
 
@@ -341,6 +362,7 @@ Your answer:
 ```
 
 **Q6: Code Review Checklist**
+
 ```
 What should reviewers check during code review?
 
@@ -353,6 +375,7 @@ Your answer:
 ```
 
 **Q7: Quality Gates**
+
 ```
 What quality gates must pass before merging?
 
@@ -365,6 +388,7 @@ Your answer:
 ```
 
 **Q8: Documentation Standards**
+
 ```
 What documentation is required?
 
@@ -382,6 +406,7 @@ Your answer:
 ### Step 4: Phase 3 - Tribal Knowledge (Optional)
 
 **If comprehensive path, ask**:
+
 ```
 Phase 3: Tribal Knowledge
 
@@ -397,6 +422,7 @@ B) No, skip this phase
 **If yes, ask questions**:
 
 **Q9: Team Conventions**
+
 ```
 What team conventions or coding styles should everyone follow?
 
@@ -410,6 +436,7 @@ Your answer:
 ```
 
 **Q10: Lessons Learned**
+
 ```
 What past mistakes or lessons learned should guide future work?
 
@@ -423,6 +450,7 @@ Your answer:
 ```
 
 **Q11: Historical Decisions** (optional, ask only if user wants more depth):
+
 ```
 Any historical architectural decisions that should guide future work?
 
@@ -440,6 +468,7 @@ Your answer:
 ### Step 5: Phase 4 - Governance (Optional)
 
 **If comprehensive path, ask**:
+
 ```
 Phase 4: Governance
 
@@ -452,6 +481,7 @@ B) No, skip this phase (use simple defaults)
 ```
 
 **If skip**: Use defaults:
+
 - Amendment: Any team member can propose changes via PR
 - Compliance: Team validates during code review
 - Exceptions: Discuss with team, document in PR
@@ -459,6 +489,7 @@ B) No, skip this phase (use simple defaults)
 **If yes, ask questions**:
 
 **Q12: Amendment Process**
+
 ```
 How should the constitution be amended?
 
@@ -471,6 +502,7 @@ Your answer:
 ```
 
 **Q13: Compliance Validation**
+
 ```
 Who validates that features comply with the constitution?
 
@@ -483,6 +515,7 @@ Your answer:
 ```
 
 **Q14: Exception Handling** (optional):
+
 ```
 How should exceptions to the constitution be handled?
 
@@ -499,6 +532,7 @@ Your answer:
 ### Step 6: Generate Constitution Summary
 
 **Present summary to user for confirmation**:
+
 ```
 Constitution Summary
 ====================
@@ -541,6 +575,7 @@ C) Cancel, don't create constitution
 ```
 
 **Handle responses**:
+
 - **A (Yes)**: Proceed to Step 7
 - **B (Start over)**: Return to Step 1
 - **C (Cancel)**: Exit without creating constitution, inform user they can run command again anytime
@@ -548,6 +583,7 @@ C) Cancel, don't create constitution
 ### Step 7: Write Constitution File
 
 **Generate constitution document**:
+
 ```markdown
 # [PROJECT_NAME] Constitution
 
@@ -632,6 +668,7 @@ Exceptions discussed case-by-case with team. Strong justification required. Cons
 ```
 
 **Write to file**:
+
 ```python
 constitution_path = project_root / ".kittify" / "memory" / "constitution.md"
 constitution_path.parent.mkdir(parents=True, exist_ok=True)
@@ -641,6 +678,7 @@ constitution_path.write_text(generated_constitution, encoding="utf-8")
 ### Step 8: Completion Message
 
 **Output to user**:
+
 ```
 ✓ Constitution created at .kittify/memory/constitution.md
 
@@ -666,6 +704,7 @@ Commands will validate features against your constitution during planning and re
 ## Key Implementation Details
 
 **Template Variables**:
+
 ```python
 # Variables to populate
 PROJECT_NAME = get_project_name()  # From git remote or repo name
@@ -678,6 +717,7 @@ ANSWERS = {
 ```
 
 **Path Determination**:
+
 ```python
 # Constitution lives at project root, not worktree
 project_root = find_project_root()  # Walk up from cwd to find .git
@@ -685,6 +725,7 @@ constitution_path = project_root / ".kittify" / "memory" / "constitution.md"
 ```
 
 **Question Flow Logic**:
+
 ```python
 path = ask_initial_choice()  # "skip", "minimal", "comprehensive"
 
@@ -730,6 +771,7 @@ The above markdown content is what should be written to `src/specify_cli/templat
 **Purpose**: Create the core technical foundation questions that most projects need.
 
 **Questions to Implement** (from T028 template above):
+
 1. Languages and Frameworks
 2. Testing Requirements
 3. Performance and Scale Targets
@@ -738,6 +780,7 @@ The above markdown content is what should be written to `src/specify_cli/templat
 **Implementation Guidance**:
 
 **Question Format**:
+
 ```markdown
 **Question [N]/4: [Question Title]**
 
@@ -752,20 +795,24 @@ Your answer:
 ```
 
 **Answer Validation**:
+
 - Accept any non-empty text (no strict validation)
 - If user says "N/A" or "None" or similar, that's valid
 - Store answer as-is for constitution generation
 
 **Context Provision**:
+
 - Before Phase 1, explain what technical standards are
 - Give examples of good answers (concrete, specific)
 - Encourage brevity (1-2 sentences better than paragraphs)
 
 **Skip Logic**:
+
 - Phase 1 cannot be skipped for minimal or comprehensive paths
 - Only skipped if user chooses "No constitution" in Step 1
 
 **Testing Phase 1**:
+
 ```python
 # Test: Minimal path completes Phase 1 only
 answers = run_minimal_path()
@@ -800,6 +847,7 @@ assert "pytest" in constitution
 8. Documentation Standards
 
 **Skip Option Implementation**:
+
 ```markdown
 ## Phase 2: Code Quality
 
@@ -815,12 +863,14 @@ Your choice:
 ```
 
 **Guidance on When to Skip**:
+
 - Skip if: Standard industry practices (2 approvals, tests pass, linter clean)
 - Complete if: Custom requirements (specific review checklist, non-standard gates)
 - Skip if: Small team without formal process
 - Complete if: Large team or open source with formal contribution guidelines
 
 **Answer Storage**:
+
 ```python
 if phase2_skipped:
     answers["phase2_completed"] = False
@@ -834,6 +884,7 @@ else:
 ```
 
 **Constitution Generation (Phase 2)**:
+
 ```python
 if answers.get("phase2_completed"):
     constitution += """
@@ -854,6 +905,7 @@ if answers.get("phase2_completed"):
 ```
 
 **Testing Phase 2**:
+
 ```python
 # Test: Skip Phase 2
 answers = run_comprehensive_path_skip_phase2()
@@ -881,6 +933,7 @@ assert "Pull Request Requirements" in constitution
 11. Historical Decisions (optional - only if user wants more depth)
 
 **Skip Option Implementation**:
+
 ```markdown
 ## Phase 3: Tribal Knowledge
 
@@ -896,12 +949,14 @@ Your choice:
 ```
 
 **Guidance on When to Skip**:
+
 - Skip if: New project with no history
 - Complete if: Established project with hard-won lessons
 - Skip if: Team conventions are standard/obvious
 - Complete if: Unique conventions that new team members should know
 
 **Optional Question Logic (Q11)**:
+
 ```markdown
 [After Q9 and Q10 answered]
 
@@ -917,6 +972,7 @@ Your choice:
 ```
 
 **Answer Storage**:
+
 ```python
 if phase3_skipped:
     answers["phase3_completed"] = False
@@ -933,6 +989,7 @@ else:
 ```
 
 **Constitution Generation (Phase 3)**:
+
 ```python
 if answers.get("phase3_completed"):
     constitution += """
@@ -954,6 +1011,7 @@ if answers.get("phase3_completed"):
 ```
 
 **Testing Phase 3**:
+
 ```python
 # Test: Skip Phase 3
 answers = run_comprehensive_path_skip_phase3()
@@ -988,6 +1046,7 @@ assert "Historical Decisions" in constitution
 14. Exception Handling (optional)
 
 **Skip Option Implementation with Defaults**:
+
 ```markdown
 ## Phase 4: Governance
 
@@ -1008,6 +1067,7 @@ Your choice:
 ```
 
 **Default Governance Text**:
+
 ```python
 DEFAULT_GOVERNANCE = """
 ## Governance
@@ -1027,6 +1087,7 @@ Consider updating constitution if exceptions become common.
 ```
 
 **Governance Question Flow**:
+
 ```python
 if phase4_skipped:
     answers["phase4_completed"] = False
@@ -1045,12 +1106,14 @@ else:
 ```
 
 **Constitution Generation (Phase 4)**:
+
 ```python
 # Governance section always included, either custom or default
 constitution += answers["governance_text"]
 ```
 
 **Testing Phase 4**:
+
 ```python
 # Test: Skip Phase 4 (use defaults)
 answers = run_comprehensive_path_skip_phase4()
@@ -1080,6 +1143,7 @@ assert answers["q14_exceptions"] in constitution
 **Purpose**: Show user what will be written before committing to file. Allow cancel or restart.
 
 **Summary Format** (from T028 Step 6):
+
 ```
 Constitution Summary
 ====================
@@ -1098,6 +1162,7 @@ C) Cancel, don't create constitution
 ```
 
 **Implementation**:
+
 ```python
 def present_summary(answers):
     """Generate and show constitution summary to user."""
@@ -1163,6 +1228,7 @@ Your choice:
 ```
 
 **Confirmation Handling**:
+
 ```python
 def run_constitution_command():
     """Main command entry point."""
@@ -1186,6 +1252,7 @@ def run_constitution_command():
 ```
 
 **Success Message** (from T028 Step 8):
+
 ```python
 def show_success_message(answers):
     """Show completion message after constitution written."""
@@ -1223,6 +1290,7 @@ def show_success_message(answers):
 ```
 
 **Testing Summary and Confirmation**:
+
 ```python
 # Test: User confirms
 answers = run_full_workflow_with_confirm()
@@ -1247,6 +1315,7 @@ assert "Cancelled" in output
 ## Test Strategy
 
 **Unit Tests**:
+
 ```python
 # Test question flow
 def test_minimal_path():
@@ -1292,12 +1361,14 @@ def test_constitution_comprehensive():
 ```
 
 **Integration Tests** (defer to WP06):
+
 - Run command in test project
 - Verify constitution file created
 - Verify commands work without constitution
 - Verify constitution check in plan command
 
 **Manual Testing**:
+
 ```bash
 # Test 1: Minimal path
 cd /tmp/test-minimal
@@ -1373,6 +1444,7 @@ cat .kittify/memory/constitution.md  # Minimal placeholder
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 1. **Template replaced**: Old placeholder-filling approach completely removed
 2. **Four phases present**: Technical, Quality, Tribal, Governance
 3. **Skip options clear**: Each optional phase has clear skip guidance
@@ -1381,6 +1453,7 @@ cat .kittify/memory/constitution.md  # Minimal placeholder
 6. **Success message helpful**: Shows next steps, encourages usage
 
 **Red Flags for Reviewer**:
+
 - Placeholder-filling approach still present (old template artifacts)
 - No skip guidance for optional phases
 - Generated constitution too verbose (>3 pages)
@@ -1388,6 +1461,7 @@ cat .kittify/memory/constitution.md  # Minimal placeholder
 - Questions too vague or lack examples
 
 **Testing Checklist for Reviewer**:
+
 ```bash
 # 1. Read updated template
 cat src/specify_cli/templates/command-templates/constitution.md | less
@@ -1419,6 +1493,7 @@ spec-kitty agent feature setup-plan --json
 ```
 
 **Context for Reviewer**:
+
 - This makes constitution truly optional (User Story 2 goal)
 - Phase-based approach matches `/spec-kitty.specify` and `/spec-kitty.plan` patterns
 - Focus on user needs, not template structure
@@ -1442,6 +1517,7 @@ spec-kitty agent workflow implement WP05
 The CLI command also updates the activity log automatically.
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-01-12T11:08:16Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-12T11:11:57Z – unknown – lane=for_review – Ready for review
 - 2026-01-12T11:14:06Z – agent – lane=doing – Started review via workflow command

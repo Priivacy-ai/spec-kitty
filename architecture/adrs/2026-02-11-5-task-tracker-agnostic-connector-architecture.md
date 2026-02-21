@@ -17,12 +17,14 @@
 During Feature 014 (Acquisition Strategy & Competitive Analysis), **Jira** appeared frequently in competitive positioning documents as the "Ideal Task Tracker Profile" for ICP (Ideal Customer Profile) analysis. This led to potential confusion about Jira's architectural role in Spec Kitty:
 
 **Business/Positioning Context** (Feature 014):
+
 * Jira is widely used in Atlassian ecosystem (250K+ customers)
 * Atlassian is primary acquisition target ($10-30M estimated acquisition price for Spec Kitty)
 * Many enterprise customers use Jira for project management
 * Jira integration is valuable for enterprise sales positioning
 
 **Architectural Risk**:
+
 * Confusion: Is Jira architecturally special? Should core models (Event, WorkPackage) have Jira-specific fields?
 * Vendor lock-in: If Jira assumptions hardcoded in event log, state machine, or sync protocol, we lose flexibility
 * Market risk: Task tracker landscape is diverse (Linear, Asana, Monday, ClickUp, GitHub Issues) - cannot assume Jira dominance
@@ -62,6 +64,7 @@ During Feature 014 (Acquisition Strategy & Competitive Analysis), **Jira** appea
 **Implementation**: Create unified `TaskTrackerConnector` abstract base class in `integrations/task_tracker.py`. All task trackers (Jira, Linear, Asana, Monday, ClickUp, GitHub Issues) implement this interface with EQUAL priority. NO Jira-specific fields in core models (Event, WorkPackage, Project).
 
 **Jira's Role - Clarified**:
+
 * **Business/ICP**: "Ideal Task Tracker Profile" for customer targeting, acquisition positioning (Feature 014)
 * **Architecture**: One connector among many, equal priority with Linear, Asana, etc.
 * **Why it appears often**: Many target customers use Atlassian ecosystem (business reason), NOT architectural special treatment
@@ -93,6 +96,7 @@ During Feature 014 (Acquisition Strategy & Competitive Analysis), **Jira** appea
 ### Confirmation
 
 **Success Metrics**:
+
 * **Architectural cleanliness**: Zero Jira-specific fields in core models (Event, WorkPackage, Project)
 * **Connector parity**: Jira, Linear, GitHub Issues connectors all implement same interface (no special cases)
 * **Market coverage**: 3+ task tracker integrations shipped (Jira, Linear, GitHub Issues)
@@ -100,6 +104,7 @@ During Feature 014 (Acquisition Strategy & Competitive Analysis), **Jira** appea
 * **Acquisition value**: Atlassian recognizes platform value (demonstrated by multi-tracker support)
 
 **Validation Timeline**:
+
 * **Month 1**: Design `TaskTrackerConnector` interface (abstract methods, common data model)
 * **Month 2**: Implement Jira connector (first implementation, validates interface)
 * **Month 3**: Implement Linear connector (proves interface is tracker-agnostic)
@@ -107,6 +112,7 @@ During Feature 014 (Acquisition Strategy & Competitive Analysis), **Jira** appea
 * **Month 5-6**: Customer validation (users with different trackers successfully integrate)
 
 **Confidence Level**: **HIGH** (9/10)
+
 * Follows industry best practice (connector abstraction)
 * Clear separation of business (Jira focus) vs architecture (tracker-agnostic)
 * Proven pattern (Zapier, n8n use similar connector model)
@@ -185,11 +191,13 @@ During Feature 014 (Acquisition Strategy & Competitive Analysis), **Jira** appea
 ## More Information
 
 **References**:
+
 * Feature 014: `research/014-acquisition-strategy-and-competitive-analysis/` (Jira as ICP, Atlassian acquisition target)
 * Product requirements: `product-ideas/prd-agent-orchestration-integration-v1.md` (AD-006, Section "Task Tracker Integration Philosophy")
 * Integration spec: `competitive/tier-1-threats/entire-io/INTEGRATION-SPEC.md` (Section "Layer 4: External Integrations")
 
 **Implementation Files**:
+
 * `integrations/task_tracker.py` - TaskTrackerConnector abstract base class
 * `integrations/jira_connector.py` - JiraConnector implementation
 * `integrations/linear_connector.py` - LinearConnector implementation
@@ -197,10 +205,12 @@ During Feature 014 (Acquisition Strategy & Competitive Analysis), **Jira** appea
 * `config/task_trackers.yaml` - Configuration for all trackers
 
 **Related ADRs**:
+
 * None (this is first ADR on task tracker integration philosophy)
 * Future: Specific ADRs for each connector implementation (e.g., ADR for Jira OAuth flow, Linear GraphQL integration)
 
 **TaskTrackerConnector Interface** (sketch):
+
 ```python
 from abc import ABC, abstractmethod
 from typing import Dict, List
@@ -240,6 +250,7 @@ class GitHubIssuesConnector(TaskTrackerConnector):
 ```
 
 **Configuration Example** (`config/task_trackers.yaml`):
+
 ```yaml
 task_trackers:
   jira:
@@ -259,6 +270,7 @@ task_trackers:
 ```
 
 **CLI Usage Examples**:
+
 ```bash
 # Generate spec from Jira issue
 spec-kitty specify --from-jira PROJECT-123
@@ -286,12 +298,14 @@ spec-kitty sync WP03 --to-github myorg/myrepo#789
 | **Documentation** | **Featured prominently** | Jira docs on homepage (appeals to target customer), but other trackers equally documented |
 
 **Acquisition Implications** (Atlassian):
+
 * **Platform value**: Multi-tracker support demonstrates Spec Kitty is platform (broader appeal), not Jira point solution
 * **Integration showcase**: Jira connector demonstrates integration quality (Atlassian sees example of what they could build)
 * **Non-threatening**: Being tracker-agnostic reduces perception of "only valuable for Jira" (broader strategic value to Atlassian)
 * **Market validation**: If Spec Kitty succeeds with multiple trackers, validates TAM beyond just Jira users
 
 **Rollback Plan**:
+
 * If abstraction is wrong: Can add tracker-specific fields to Event.payload (JSONB is flexible)
 * If Jira features needed: JiraConnector can have Jira-specific methods (beyond interface minimum)
 * Configuration: Can mark trackers as "primary" in config (business priority) while keeping architecture equal

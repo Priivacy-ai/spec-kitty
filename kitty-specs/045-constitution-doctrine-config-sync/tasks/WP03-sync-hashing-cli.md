@@ -59,6 +59,7 @@ history:
 - **All tests pass**, **mypy --strict clean**, **ruff clean**
 
 **Success metrics**:
+
 - `spec-kitty constitution sync` produces correct YAML files from constitution
 - `spec-kitty constitution status` shows correct sync state and file listing
 - Sync is idempotent — running twice produces identical output
@@ -82,7 +83,9 @@ history:
 **Purpose**: Generate a content hash of constitution.md for staleness detection (FR-1.7).
 
 **Steps**:
+
 1. Create `src/specify_cli/constitution/hasher.py`:
+
    ```python
    import hashlib
 
@@ -101,9 +104,11 @@ history:
    - Validate format
 
 **Files**:
+
 - `src/specify_cli/constitution/hasher.py`
 
 **Notes**:
+
 - Whitespace normalization: `.strip()` only — preserve internal formatting
 - Must be deterministic for idempotency (FR-1.6)
 
@@ -112,7 +117,9 @@ history:
 **Purpose**: Compare current constitution hash against the hash stored in metadata.yaml (FR-5.1, FR-5.2).
 
 **Steps**:
+
 1. In `hasher.py`, add:
+
    ```python
    def is_stale(constitution_path: Path, metadata_path: Path) -> tuple[bool, str, str]:
        """Check if constitution has changed since last sync.
@@ -134,9 +141,11 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/constitution/hasher.py`
 
 **Notes**:
+
 - If metadata.yaml doesn't exist → always stale (first run)
 - Never block on staleness — always informational (FR-5.4)
 
@@ -145,7 +154,9 @@ history:
 **Purpose**: Single entry point for constitution → YAML extraction (FR-1.1).
 
 **Steps**:
+
 1. Create `src/specify_cli/constitution/sync.py`:
+
    ```python
    from pathlib import Path
    from datetime import datetime, timezone
@@ -168,6 +179,7 @@ history:
    ```
 
 2. Define `SyncResult` dataclass:
+
    ```python
    @dataclass
    class SyncResult:
@@ -187,9 +199,11 @@ history:
    - Return `SyncResult`
 
 **Files**:
+
 - `src/specify_cli/constitution/sync.py`
 
 **Notes**:
+
 - Idempotent: skip if constitution unchanged (unless `--force`)
 - Exception handling: catch extraction errors, return SyncResult with error field
 - The `output_dir` defaults to `constitution_path.parent` (`.kittify/constitution/`)
@@ -199,7 +213,9 @@ history:
 **Purpose**: User-facing CLI command for explicit sync (FR-1.1).
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/constitution.py`:
+
    ```python
    import typer
    from rich.console import Console
@@ -227,9 +243,11 @@ history:
    - List files written
 
 **Files**:
+
 - `src/specify_cli/cli/commands/constitution.py` (new)
 
 **Notes**:
+
 - Follow existing CLI patterns (see `telemetry.py` for reference)
 - Support both `--json` and human-readable output
 - Handle missing constitution file gracefully (error message, exit code 1)
@@ -239,7 +257,9 @@ history:
 **Purpose**: Display sync status, staleness, and file listing (FR-5.3).
 
 **Steps**:
+
 1. Add `status` command to `src/specify_cli/cli/commands/constitution.py`:
+
    ```python
    @app.command()
    def status(
@@ -249,6 +269,7 @@ history:
    ```
 
 2. Output format (Rich):
+
    ```
    Constitution: .kittify/constitution/constitution.md
    Status: ✅ SYNCED | ⚠️ STALE
@@ -263,6 +284,7 @@ history:
    ```
 
 3. If stale:
+
    ```
    Status: ⚠️ STALE (modified since last sync)
    Expected hash: sha256:abc123...
@@ -271,6 +293,7 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/constitution.py`
 
 ### Subtask T024 – Register Constitution Subcommand in CLI App
@@ -278,14 +301,17 @@ history:
 **Purpose**: Wire the `constitution` subcommand into the main CLI entry point.
 
 **Steps**:
+
 1. Find the main CLI app registration (likely `src/specify_cli/cli/app.py` or `src/specify_cli/cli/__init__.py`)
 2. Import the constitution app: `from specify_cli.cli.commands.constitution import app as constitution_app`
 3. Register: `main_app.add_typer(constitution_app, name="constitution")`
 
 **Files**:
+
 - `src/specify_cli/cli/app.py` or equivalent main CLI module
 
 **Notes**:
+
 - Follow the pattern used for `agent` and `telemetry` subcommands
 - Verify with `spec-kitty constitution --help`
 
@@ -294,6 +320,7 @@ history:
 **Purpose**: Comprehensive test coverage for sync orchestration, hashing, and CLI commands.
 
 **Steps**:
+
 1. Create `tests/specify_cli/constitution/test_hasher.py`:
    - Test `hash_constitution()` produces consistent output
    - Test whitespace normalization (trailing newlines don't change hash)
@@ -317,6 +344,7 @@ history:
    - Test `status` command with no constitution
 
 **Files**:
+
 - `tests/specify_cli/constitution/test_hasher.py`
 - `tests/specify_cli/constitution/test_sync.py`
 - `tests/specify_cli/cli/commands/test_constitution_cli.py`

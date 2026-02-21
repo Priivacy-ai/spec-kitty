@@ -101,6 +101,7 @@ No dependencies — branches from target branch directly.
    - `--json` (`bool`): JSON output mode
 
 3. Implementation logic:
+
    ```python
    @app.command("emit")
    def emit_cmd(
@@ -125,6 +126,7 @@ No dependencies — branches from target branch directly.
    - If directory doesn't exist, create it (first event for a new feature)
 
 5. Call `emit_execution_event()` wrapped in try/except:
+
    ```python
    try:
        from specify_cli.telemetry.emit import emit_execution_event
@@ -150,9 +152,11 @@ No dependencies — branches from target branch directly.
 6. Output result (JSON or text) and always exit 0.
 
 **Files**:
+
 - `src/specify_cli/cli/commands/agent/telemetry.py` (modify, add ~60 lines)
 
 **Notes**:
+
 - Import `click` for `click.Choice` (already imported in file for cost command)
 - The `--success/--failure` flag pair is a typer boolean flag pattern
 
@@ -166,17 +170,21 @@ No dependencies — branches from target branch directly.
 
 1. Open `src/specify_cli/telemetry/cost.py`
 2. In the `cost_summary()` function, add a new elif branch at line ~88:
+
    ```python
    elif group_by == "role":
        key = payload.get("role", "unknown")
    ```
+
 3. Update the docstring to mention "role" as a valid `group_by` value
 4. Update the `ValueError` message to include "role"
 
 **Files**:
+
 - `src/specify_cli/telemetry/cost.py` (modify, ~5 lines changed)
 
 **Validation**:
+
 - Call `cost_summary(events, group_by="role")` with events containing different roles
 - Verify events are grouped by role (specifier, planner, implementer, reviewer, merger)
 
@@ -195,6 +203,7 @@ No dependencies — branches from target branch directly.
 5. Update the help text to mention "role"
 
 **Files**:
+
 - `src/specify_cli/cli/commands/agent/telemetry.py` (modify, 1 line changed)
 
 ---
@@ -214,6 +223,7 @@ No dependencies — branches from target branch directly.
    - Model can remain `None` (already nullable in the API)
 
 **Example transformation**:
+
 ```python
 # BEFORE:
 if agent and model:
@@ -246,9 +256,11 @@ except Exception:
 ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/agent/feature.py` (modify, 3 locations)
 
 **Notes**:
+
 - Keep the `try/except` — fire-and-forget behavior must be preserved
 - The `except Exception: pass` pattern is intentional for telemetry (non-blocking)
 
@@ -268,6 +280,7 @@ except Exception:
    - Keep try/except wrapper
 
 **Files**:
+
 - `src/specify_cli/cli/commands/agent/workflow.py` (modify, 2 locations)
 
 ---
@@ -294,9 +307,11 @@ except Exception:
 5. Read the JSONL file directly to verify event content
 
 **Files**:
+
 - `tests/specify_cli/cli/commands/agent/test_telemetry_emit.py` (new, ~150 lines)
 
 **Notes**:
+
 - Follow Arrange-Act-Assert pattern per constitution
 - Use descriptive test names: `test_emit_specifier_event_with_all_flags`, etc.
 
@@ -318,6 +333,7 @@ except Exception:
 3. Create test events using the Event model with different `role` values in payload
 
 **Files**:
+
 - `tests/specify_cli/telemetry/test_cost.py` (modify, add ~60 lines)
 
 ---
@@ -338,9 +354,11 @@ except Exception:
 3. Verify event content: agent defaults to "unknown", model is None, other fields populated correctly
 
 **Files**:
+
 - Existing test files for feature.py and workflow.py (modify, add ~40 lines each)
 
 **Notes**:
+
 - May need to mock or check the JSONL file output depending on existing test patterns
 - Some existing tests may assert that no event is emitted without flags — update those assertions
 
@@ -355,6 +373,7 @@ Constitution requires ATDD + TDD (test-first). Implementation order:
 3. Refactor if needed while keeping tests green
 
 **Commands**:
+
 ```bash
 pytest tests/specify_cli/cli/commands/agent/test_telemetry_emit.py -v
 pytest tests/specify_cli/telemetry/test_cost.py -v -k role

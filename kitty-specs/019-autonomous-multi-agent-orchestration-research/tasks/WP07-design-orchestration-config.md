@@ -33,6 +33,7 @@ history:
 Design a practical configuration schema for agent preferences based on actual research findings.
 
 **Success Criteria**:
+
 - AgentProfile schema refined with real data from research
 - OrchestratorConfig designed with practical defaults
 - Fallback strategies documented
@@ -45,11 +46,13 @@ Design a practical configuration schema for agent preferences based on actual re
 **IMPORTANT**: This WP depends on WP06. The capability matrix must be complete before designing config.
 
 **Design Goals**:
+
 - Config must accommodate all CLI-capable agents discovered
 - Must be practical for real-world use
 - Should handle graceful degradation when agents unavailable
 
 Reference documents:
+
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/research.md` - Capability matrix
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/data-model.md` - Schema templates
 
@@ -60,6 +63,7 @@ Reference documents:
 **Purpose**: Extract config requirements from research findings.
 
 **Steps**:
+
 1. Open `research.md` and review capability matrix
 2. For each orchestration-ready agent, note:
    - Required config fields (auth, rate limits, commands)
@@ -75,8 +79,10 @@ Reference documents:
 **Purpose**: Update AgentProfile with realistic field values.
 
 **Steps**:
+
 1. Open `data-model.md` and locate AgentProfile schema
 2. For each CLI-capable agent discovered, create concrete example:
+
    ```yaml
    claude-code:
      cli:
@@ -87,6 +93,7 @@ Reference documents:
          package: "@anthropic-ai/claude-code"
      # ... fill from research
    ```
+
 3. Remove fields that no agent uses
 4. Add fields discovered during research
 5. Ensure schema accommodates all orchestration-ready agents
@@ -98,6 +105,7 @@ Reference documents:
 **Purpose**: Create practical user-facing configuration.
 
 **Steps**:
+
 1. Design defaults based on research findings:
    - Which agents are best for implementation?
    - Which agents are best for review?
@@ -108,6 +116,7 @@ Reference documents:
 5. Consider subscription tiers (some users may not have all agents)
 
 **Example structure**:
+
 ```yaml
 version: "1.0"
 defaults:
@@ -127,18 +136,21 @@ agents:
 **Purpose**: Define behavior when preferred agent is unavailable.
 
 **Scenarios to handle**:
+
 1. Preferred agent not installed
 2. Preferred agent rate-limited
 3. Preferred agent authentication failed
 4. Preferred agent returned error
 
 **Fallback options**:
+
 - `next_in_list`: Try next agent in defaults list
 - `same_agent`: Use same agent for both roles
 - `fail`: Stop and alert user
 - `queue`: Wait and retry later
 
 **Steps**:
+
 1. Document each fallback strategy
 2. Define default fallback behavior
 3. Note implications of each strategy
@@ -153,11 +165,13 @@ agents:
 **Scenario**: User has only Claude Code installed and subscribed.
 
 **Requirements**:
+
 - Same agent handles both implementation and review
 - No fallback needed (or fail gracefully)
 - Config should be simple
 
 **Steps**:
+
 1. Design `single_agent_mode` config section
 2. Define auto-detection (only one agent enabled)
 3. Handle review-of-own-work implications
@@ -170,6 +184,7 @@ agents:
 **Purpose**: Replace template schemas with concrete implementations.
 
 **Steps**:
+
 1. Update AgentProfile with real examples from research
 2. Update OrchestratorConfig with practical defaults
 3. Add concrete example for each CLI-capable agent
@@ -183,6 +198,7 @@ agents:
 **Purpose**: Provide a working example configuration file.
 
 **Steps**:
+
 1. Create `sample-agents.yaml` in feature directory
 2. Include all CLI-capable agents discovered
 3. Set sensible defaults based on research

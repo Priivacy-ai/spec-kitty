@@ -38,6 +38,7 @@ The canonical contract lives at `kitty-specs/033-github-observability-event-meta
 | `repo_slug` | `string\|null` | No | Per-session | `owner/repo` format; `null` if no remote configured |
 
 **Derivation precedence for `repo_slug`:**
+
 1. Config override: `.kittify/config.yaml` > `project.repo_slug`
 2. Auto-derived: `git remote get-url origin` > extract `owner/repo`
 3. `null` (no override, no remote)

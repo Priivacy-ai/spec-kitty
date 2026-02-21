@@ -32,6 +32,7 @@ subtasks:
 **Goal**: Create Python validators for research mission that enforce citation completeness and quality, providing clear feedback on bibliography issues.
 
 **Success Criteria**:
+
 - Citation validation module exists at `src/specify_cli/validators/research.py`
 - Validates evidence-log.csv and source-register.csv
 - Progressive validation: errors for completeness, warnings for format
@@ -44,6 +45,7 @@ subtasks:
 ## Context & Constraints
 
 **Problem Statement**: Research mission has CSV templates (evidence-log.csv, source-register.csv) but they're not validated:
+
 - Agents don't know if their citations are properly formatted
 - No enforcement of source documentation
 - CSV files could be empty or malformed without detection
@@ -53,17 +55,20 @@ subtasks:
 > "When running `/spec-kitty.review`, validation checks that all sources are documented and cited properly"
 
 **Supporting Documents**:
+
 - Spec: `kitty-specs/005-refactor-mission-system/spec.md` (User Story 3, FR-009 through FR-011)
 - Research: `kitty-specs/005-refactor-mission-system/research.md` (R2: Citation format validation - progressive validation decision)
 - Data Model: `kitty-specs/005-refactor-mission-system/data-model.md` (CitationValidationResult, EvidenceEntry, SourceEntry)
 
 **Design Decisions from Research**:
+
 - **Strategy**: Progressive validation (completeness required, format warnings)
 - **Formats**: Support BibTeX, APA, Simple - don't enforce single style
 - **Implementation**: Python stdlib only (csv + re), zero new dependencies
 - **Integration**: Called from research mission review workflow
 
 **Validation Levels**:
+
 1. **Level 1 - Completeness** (errors, blocking):
    - Citation field non-empty
    - source_type in valid values
@@ -79,6 +84,7 @@ subtasks:
    - Source ID uniqueness
 
 **Citation Format Patterns** (from research.md):
+
 ```python
 BIBTEX_PATTERN = r'@\w+\{[\w-]+,'
 APA_PATTERN = r'^[\w\s,\.]+\(\d{4}\)\.'
@@ -92,8 +98,10 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
 **Purpose**: Establish module directory for validation logic.
 
 **Steps**:
+
 1. Create directory: `src/specify_cli/validators/`
 2. Create `__init__.py`:
+
    ```python
    """Validation modules for spec-kitty missions.
 
@@ -122,8 +130,10 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
 **Purpose**: Establish research validation module with imports and exceptions.
 
 **Steps**:
+
 1. Create file: `src/specify_cli/validators/research.py`
 2. Add module docstring and imports:
+
    ```python
    """Citation and bibliography validation for research mission.
 
@@ -158,6 +168,7 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
    ```
 
 3. Define exception class:
+
    ```python
    class ResearchValidationError(Exception):
        """Raised when research validation fails."""
@@ -177,7 +188,9 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
 **Purpose**: Create typed result objects for validation outcomes.
 
 **Steps**:
+
 1. Add dataclasses to research.py (based on data-model.md):
+
    ```python
    @dataclass
    class CitationIssue:
@@ -250,7 +263,9 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
 **Purpose**: Define and test BibTeX format detection.
 
 **Steps**:
+
 1. Add BibTeX validation function to research.py:
+
    ```python
    def is_bibtex_format(citation: str) -> bool:
        """Check if citation appears to be BibTeX format.
@@ -267,6 +282,7 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
    ```
 
 2. Add test cases:
+
    ```python
    # In tests/unit/test_validators.py
    def test_bibtex_format_detection():
@@ -300,7 +316,9 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
 **Purpose**: Define and test APA format detection.
 
 **Steps**:
+
 1. Add APA validation function:
+
    ```python
    def is_apa_format(citation: str) -> bool:
        """Check if citation appears to be APA 7th edition format.
@@ -317,6 +335,7 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
    ```
 
 2. Add test cases:
+
    ```python
    def test_apa_format_detection():
        valid_apa = [
@@ -349,7 +368,9 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
 **Purpose**: Define fallback format for non-standard citations.
 
 **Steps**:
+
 1. Add Simple format validation:
+
    ```python
    def is_simple_format(citation: str) -> bool:
        """Check if citation matches simple citation format.
@@ -384,6 +405,7 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
    ```
 
 2. Add tests for format detection:
+
    ```python
    def test_citation_format_detection():
        assert detect_citation_format("@article{key,}") == "bibtex"
@@ -405,7 +427,9 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
 **Purpose**: Core validation logic for evidence-log.csv.
 
 **Steps**:
+
 1. Add main validation function:
+
    ```python
    def validate_citations(evidence_log_path: Path) -> CitationValidationResult:
        """Validate citations in evidence-log.csv.
@@ -544,7 +568,9 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
 **Purpose**: Validate source-register.csv for bibliography completeness.
 
 **Steps**:
+
 1. Add validation function:
+
    ```python
    def validate_source_register(source_register_path: Path) -> CitationValidationResult:
        """Validate source registry.
@@ -687,8 +713,10 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
 **Purpose**: Ensure citation validators are thoroughly tested.
 
 **Steps**:
+
 1. Create test file: `tests/unit/test_validators.py`
 2. Setup test fixtures:
+
    ```python
    import pytest
    import tempfile
@@ -718,6 +746,7 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
    ```
 
 3. Write comprehensive test suite:
+
    ```python
    from specify_cli.validators.research import (
        validate_citations,
@@ -787,8 +816,10 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
 **Purpose**: Call citation validation from research mission review workflow.
 
 **Steps**:
+
 1. Locate research review command prompt: `.kittify/missions/research/commands/review.md`
 2. Add validation step in review workflow (after "Load task prompt" section):
+
    ```markdown
    ## Citation Validation (Research Mission Specific)
 
@@ -827,6 +858,7 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
    - Confidence levels must be assigned
 
    If validation fails, return task to implementer with specific citation issues to fix.
+
    ```
 
 3. Test integration: Create research feature, populate CSVs, run review
@@ -865,11 +897,13 @@ SIMPLE_PATTERN = r'^.+\(\d{4}\)\..+\.'
    - Verify suggestions helpful
 
 **Integration Testing** (in WP10):
+
 - Full research workflow with citation validation
 - Review workflow blocks on citation errors
 - Warnings shown but don't block
 
 **Manual Testing**:
+
 ```bash
 # Create test evidence log
 cat > test-evidence.csv << EOF
@@ -892,18 +926,23 @@ print(result.format_report())
 ## Risks & Mitigations
 
 **Risk 1**: Citation patterns too strict, reject valid citations
+
 - **Mitigation**: Make format checks warnings not errors, test with diverse real citations
 
 **Risk 2**: CSV parsing fails on edge cases (quoted fields, special characters)
+
 - **Mitigation**: Use Python csv.DictReader (handles RFC 4180 CSV standard)
 
 **Risk 3**: Validation too slow for large evidence logs (100+ sources)
+
 - **Mitigation**: Keep validation lightweight, measure performance, optimize if needed
 
 **Risk 4**: Researchers use citation styles we don't support
+
 - **Mitigation**: Warnings guide but don't block, support multiple common formats
 
 **Risk 5**: Integration with review workflow breaks existing behavior
+
 - **Mitigation**: Only add validation for research mission, don't affect software-dev
 
 ---
@@ -930,6 +969,7 @@ print(result.format_report())
 ## Review Guidance
 
 **Critical Checkpoints**:
+
 1. Citation validation must be progressive (errors for critical, warnings for style)
 2. Error messages must include line numbers and specific issues
 3. Supported formats (BibTeX, APA, Simple) must all work
@@ -937,6 +977,7 @@ print(result.format_report())
 5. Test coverage must be comprehensive
 
 **What Reviewers Should Verify**:
+
 - Create evidence-log.csv with mixed citations → validate → check warnings helpful
 - Create evidence-log.csv with errors (empty citation, invalid source_type) → validate → check errors clear
 - Run full research workflow → verify review calls validation
@@ -944,6 +985,7 @@ print(result.format_report())
 - Verify format patterns work with real academic citations
 
 **Acceptance Criteria from Spec**:
+
 - User Story 3, Scenarios 3-5 satisfied
 - FR-009, FR-010, FR-011 implemented
 - SC-007, SC-008 measurable outcomes achieved

@@ -38,6 +38,7 @@ Not a new class — uses the existing `Event` Pydantic model with `event_type="E
 | `exit_code` | `int` | Process exit code |
 
 **JSONL representation** (one line in `execution.events.jsonl`):
+
 ```json
 {"aggregate_id":"043-telemetry","causation_id":null,"event_id":"01HXYZ...","event_type":"ExecutionEvent","lamport_clock":42,"node_id":"claude","payload":{"agent":"claude","cost_usd":0.15,"duration_ms":12500,"error":null,"exit_code":0,"input_tokens":1500,"model":"claude-sonnet-4-20250514","output_tokens":800,"role":"implementer","success":true,"wp_id":"WP01"},"timestamp":"2026-02-15T10:00:00+00:00"}
 ```
@@ -115,12 +116,14 @@ models:
 ```
 
 **Loading precedence**:
+
 1. Constitution pricing overrides (`.kittify/memory/constitution.md` → future `.kittify/constitution/governance.yaml`)
 2. Default `_pricing.yaml` shipped with spec-kitty
 
 ### InvocationResult (enrichment)
 
 **Existing fields** (unchanged):
+
 - `success`, `exit_code`, `stdout`, `stderr`, `duration_seconds`, `files_modified`, `commits_made`, `errors`, `warnings`
 
 **New optional fields**:
@@ -153,6 +156,7 @@ SimpleJsonStore.query(EventFilter) ──reads──→ execution.events.jsonl �
 ## State Transitions
 
 ExecutionEvents are append-only — no state machine. The `success` field in the payload records the terminal outcome:
+
 - `success=True` — invocation completed successfully
 - `success=False` — invocation failed (with `error` and `exit_code`)
 

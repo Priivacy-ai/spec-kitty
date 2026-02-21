@@ -33,6 +33,7 @@ history:
 **Goal**: Update `spec-kitty implement` to use VCS abstraction for workspace creation.
 
 **Success Criteria**:
+
 - `spec-kitty implement WP01` creates jj workspace when feature uses jj
 - `spec-kitty implement WP01` creates git worktree when feature uses git
 - VCS selection stored and locked in meta.json on first workspace creation
@@ -46,20 +47,24 @@ history:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `src/specify_cli/cli/commands/implement.py` - Existing implement command (745 lines)
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/contracts/vcs-protocol.py` - VCS interface
 
 **Architecture Decisions**:
+
 - VCS abstraction used for all workspace operations
 - VCS locked in meta.json at feature creation
 - Colocated mode for jj when git available
 
 **Constraints**:
+
 - Must maintain full backward compatibility with git workflow
 - VCS lock prevents changing VCS mid-feature
 - Sparse-checkout behavior may differ between git and jj
 
 **Key Code Locations in implement.py**:
+
 - Workspace creation: lines 580-670
 - --base flag handling: lines 394-442
 - Stale detection: lines 203-297
@@ -72,8 +77,10 @@ history:
 **Purpose**: Add VCS abstraction imports.
 
 **Steps**:
+
 1. Open `src/specify_cli/cli/commands/implement.py`
 2. Add imports:
+
    ```python
    from specify_cli.core.vcs import (
        get_vcs,
@@ -84,6 +91,7 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/implement.py`
 
 ---
@@ -93,8 +101,10 @@ history:
 **Purpose**: Replace direct git commands with VCS abstraction.
 
 **Steps**:
+
 1. Find workspace creation code (~line 580-670)
 2. Replace git worktree commands with VCS abstraction:
+
    ```python
    # Before:
    subprocess.run(["git", "worktree", "add", ...])
@@ -111,12 +121,15 @@ history:
        console.print(f"[red]Failed to create workspace: {result.error}[/red]")
        raise typer.Exit(1)
    ```
+
 3. Update success messages to be VCS-agnostic
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/implement.py`
 
 **Notes**:
+
 - Keep existing error handling patterns
 - VCS abstraction handles sparse-checkout internally (for git)
 
@@ -127,7 +140,9 @@ history:
 **Purpose**: Store and lock VCS choice in feature metadata.
 
 **Steps**:
+
 1. Add VCS detection during feature creation:
+
    ```python
    def _ensure_vcs_in_meta(feature_dir: Path) -> VCSBackend:
        meta_path = feature_dir / "meta.json"
@@ -144,12 +159,15 @@ history:
        meta_path.write_text(json.dumps(meta, indent=2))
        return vcs.backend
    ```
+
 2. Call this during first implement for a feature
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/implement.py`
 
 **Notes**:
+
 - VCS locked on first workspace creation, not feature creation
 - Allows changing VCS before first implement (if needed)
 
@@ -160,8 +178,10 @@ history:
 **Purpose**: Ensure --base flag works with both git and jj.
 
 **Steps**:
+
 1. Find --base handling (~lines 394-442)
 2. Update to use VCS abstraction:
+
    ```python
    if base_wp:
        # Validate base workspace exists
@@ -179,6 +199,7 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/implement.py`
 
 ---
@@ -188,12 +209,14 @@ history:
 **Purpose**: Handle workspace isolation for jj.
 
 **Steps**:
+
 1. Review sparse-checkout code (~lines 614-672)
 2. For git: Keep existing sparse-checkout (exclude kitty-specs/)
 3. For jj: Research if similar isolation needed
    - jj workspaces may handle this differently
    - May not need sparse-checkout equivalent
 4. Implement backend-specific isolation:
+
    ```python
    if vcs.backend == VCSBackend.GIT:
        _setup_sparse_checkout(worktree_path)
@@ -204,9 +227,11 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/implement.py`
 
 **Notes**:
+
 - This may require research into jj's workspace model
 - Document findings in implementation
 
@@ -217,8 +242,10 @@ history:
 **Purpose**: Detect when workspace needs sync.
 
 **Steps**:
+
 1. Find stale detection code (~lines 203-297)
 2. Update to use VCS abstraction:
+
    ```python
    def _check_workspace_stale(workspace_path: Path) -> bool:
        vcs = get_vcs(workspace_path)
@@ -231,6 +258,7 @@ history:
    ```
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/commands/implement.py`
 
 ---
@@ -240,8 +268,10 @@ history:
 **Purpose**: Test implement command with both VCS backends.
 
 **Steps**:
+
 1. Update `tests/specify_cli/cli/commands/test_implement.py`
 2. Add parametrized tests:
+
    ```python
    @pytest.mark.parametrize("backend", [
        "git",
@@ -252,11 +282,13 @@ history:
        # Run implement
        # Verify workspace created correctly
    ```
+
 3. Test VCS locking in meta.json
 4. Test --base flag for both backends
 5. Test stale workspace detection
 
 **Files**:
+
 - Modify: `tests/specify_cli/cli/commands/test_implement.py`
 
 **Parallel?**: Yes - can start once T032-T037 scaffolded
@@ -285,6 +317,7 @@ history:
 ## Review Guidance
 
 **Key Checkpoints**:
+
 1. Verify git workflow unchanged (backward compatible)
 2. Verify jj workspace creation is colocated
 3. Verify VCS lock in meta.json works
@@ -295,11 +328,11 @@ history:
 ## Activity Log
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
-- 2026-01-17T12:38:00Z – __AGENT__ – shell_pid=98628 – lane=doing – Started implementation via workflow command
-- 2026-01-17T12:50:08Z – __AGENT__ – shell_pid=98628 – lane=for_review – VCS abstraction integrated into implement command - all 833 tests pass
-- 2026-01-17T12:51:15Z – __AGENT__ – shell_pid=9401 – lane=doing – Started review via workflow command
-- 2026-01-17T12:54:11Z – __AGENT__ – shell_pid=9401 – lane=planned – Moved to planned
-- 2026-01-17T12:56:42Z – __AGENT__ – shell_pid=9401 – lane=doing – Started implementation via workflow command
-- 2026-01-17T12:58:56Z – __AGENT__ – shell_pid=9401 – lane=for_review – Ready for review: fix jj --base revision handling, use VCS validation, restore symlink check, update tests
-- 2026-01-17T13:04:44Z – __AGENT__ – shell_pid=16163 – lane=doing – Started review via workflow command
-- 2026-01-17T13:08:15Z – __AGENT__ – shell_pid=16163 – lane=done – Review passed: VCS abstraction correctly integrated - git backward compatible, jj workspace creation supported, meta.json locking works, --base flag handles both backends, stale detection via VCS abstraction, 24 tests passing
+- 2026-01-17T12:38:00Z – **AGENT** – shell_pid=98628 – lane=doing – Started implementation via workflow command
+- 2026-01-17T12:50:08Z – **AGENT** – shell_pid=98628 – lane=for_review – VCS abstraction integrated into implement command - all 833 tests pass
+- 2026-01-17T12:51:15Z – **AGENT** – shell_pid=9401 – lane=doing – Started review via workflow command
+- 2026-01-17T12:54:11Z – **AGENT** – shell_pid=9401 – lane=planned – Moved to planned
+- 2026-01-17T12:56:42Z – **AGENT** – shell_pid=9401 – lane=doing – Started implementation via workflow command
+- 2026-01-17T12:58:56Z – **AGENT** – shell_pid=9401 – lane=for_review – Ready for review: fix jj --base revision handling, use VCS validation, restore symlink check, update tests
+- 2026-01-17T13:04:44Z – **AGENT** – shell_pid=16163 – lane=doing – Started review via workflow command
+- 2026-01-17T13:08:15Z – **AGENT** – shell_pid=16163 – lane=done – Review passed: VCS abstraction correctly integrated - git backward compatible, jj workspace creation supported, meta.json locking works, --base flag handles both backends, stale detection via VCS abstraction, 24 tests passing

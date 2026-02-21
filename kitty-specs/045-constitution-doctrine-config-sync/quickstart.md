@@ -60,6 +60,7 @@ config = load_governance_config(repo_root)
 ## Migration from Previous Versions
 
 Run `spec-kitty upgrade` to automatically:
+
 1. Move `constitution.md` to `.kittify/constitution/`
 2. Run initial extraction
 3. Update dashboard API path

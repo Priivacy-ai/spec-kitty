@@ -104,6 +104,7 @@ Planning requirements (scale to complexity):
    - `feature_dir`: Absolute path to the feature directory
 
    **Example**:
+
    ```bash
    # If detected feature is 020-my-feature:
    spec-kitty agent feature setup-plan --feature 020-my-feature --json
@@ -136,6 +137,7 @@ Planning requirements (scale to complexity):
    - For each integration → patterns task
 
 2. **Generate and dispatch research agents**:
+
    ```
    For each unknown in Technical Context:
      Task: "Research {unknown} for {feature context}"
@@ -185,6 +187,7 @@ Planning requirements (scale to complexity):
 **This command is COMPLETE after generating planning artifacts.**
 
 After reporting:
+
 - `plan.md` path
 - `research.md` path (if generated)
 - `data-model.md` path (if generated)
@@ -194,6 +197,7 @@ After reporting:
 **YOU MUST STOP HERE.**
 
 Do NOT:
+
 - ❌ Generate `tasks.md`
 - ❌ Create work package (WP) files
 - ❌ Create `tasks/` subdirectories

@@ -18,16 +18,17 @@ Research missions conflate two distinct types of artifacts:
 2. **Research deliverables** (the actual output of the research - component inventories, best practices docs, etc.)
 
 Currently, agents put research deliverables in `research/` at project root within worktrees. These files:
+
 - Exist only in worktree branches
 - Never get merged to main
 - Result in "done" WPs with work stuck in worktrees
 
 ## Decision Drivers
 
-* Research deliverables are the PRODUCT of the mission, not planning metadata
-* Worktree-based workflow enables parallelization (like software-dev)
-* Planning artifacts must remain in `kitty-specs/` for sprint tracking
-* Existing merge workflow should work without modification
+- Research deliverables are the PRODUCT of the mission, not planning metadata
+- Worktree-based workflow enables parallelization (like software-dev)
+- Planning artifacts must remain in `kitty-specs/` for sprint tracking
+- Existing merge workflow should work without modification
 
 ## Considered Options
 
@@ -84,38 +85,38 @@ Currently, agents put research deliverables in `research/` at project root withi
 
 ### Positive
 
-* Clear separation of concerns - planning vs deliverables
-* Research workflow matches software-dev (worktree → merge)
-* Existing merge command works without modification
-* Each project controls where research lives
-* Parallelization enabled for research WPs
+- Clear separation of concerns - planning vs deliverables
+- Research workflow matches software-dev (worktree → merge)
+- Existing merge command works without modification
+- Each project controls where research lives
+- Parallelization enabled for research WPs
 
 ### Negative
 
-* Requires specifying `deliverables_path` during planning phase
-* Migration needed for existing research features (default path provided)
-* Two locations for "research" content may require documentation
+- Requires specifying `deliverables_path` during planning phase
+- Migration needed for existing research features (default path provided)
+- Two locations for "research" content may require documentation
 
 ### Neutral
 
-* Agents must understand the distinction (documented in implement.md template)
+- Agents must understand the distinction (documented in implement.md template)
 
 ## Confirmation
 
-* Research WP deliverables appear in main after merge
-* No orphaned worktree content
-* Agents can work in parallel on research WPs
-* Planning artifacts (evidence-log.csv, source-register.csv) remain accessible during planning
+- Research WP deliverables appear in main after merge
+- No orphaned worktree content
+- Agents can work in parallel on research WPs
+- Planning artifacts (evidence-log.csv, source-register.csv) remain accessible during planning
 
 ## Related ADRs
 
-* ADR 1: Record Architecture Decisions
-* ADR 3: Centralized Workspace Context Storage (workspace-per-WP pattern)
+- ADR 1: Record Architecture Decisions
+- ADR 3: Centralized Workspace Context Storage (workspace-per-WP pattern)
 
 ## Implementation Files
 
-* `src/specify_cli/missions/research/templates/plan-template.md` - Deliverables location section
-* `src/specify_cli/missions/research/command-templates/implement.md` - Two-artifact documentation
-* `src/specify_cli/missions/research/command-templates/specify.md` - Prompt for deliverables_path
-* `src/specify_cli/cli/commands/agent/workflow.py` - Read deliverables_path from meta.json
-* `src/specify_cli/mission.py` - `get_deliverables_path()` helper function
+- `src/specify_cli/missions/research/templates/plan-template.md` - Deliverables location section
+- `src/specify_cli/missions/research/command-templates/implement.md` - Two-artifact documentation
+- `src/specify_cli/missions/research/command-templates/specify.md` - Prompt for deliverables_path
+- `src/specify_cli/cli/commands/agent/workflow.py` - Read deliverables_path from meta.json
+- `src/specify_cli/mission.py` - `get_deliverables_path()` helper function

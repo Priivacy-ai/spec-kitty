@@ -147,6 +147,7 @@ As a Spec Kitty operator, when I run `/spec-kitty.specify` on a project that has
 ## Scope Boundaries
 
 ### In Scope
+
 - `spec-kitty bootstrap` CLI command with four phases
 - Vision document generation (`.kittify/memory/vision.md`)
 - Audience capture (stored in vision.md)
@@ -157,6 +158,7 @@ As a Spec Kitty operator, when I run `/spec-kitty.specify` on a project that has
 - Non-interactive mode
 
 ### Out of Scope
+
 - Modifying `spec-kitty init` — it stays unchanged
 - Approach/tactic Python data models — specified by Feature 044 (governance patterns)
 - Doctrine selection (choosing which general guidelines apply) — all guidelines ship and are immutable (Feature 044)

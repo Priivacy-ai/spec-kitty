@@ -37,8 +37,9 @@ history:
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -52,15 +53,18 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Context & Constraints
 
 ### Reference Documents
+
 - **Spec**: `kitty-specs/028-cli-event-emission-sync/spec.md` - User Story 4
 - **Plan**: `kitty-specs/028-cli-event-emission-sync/plan.md` - Batch event pattern
 - **Data Model**: `kitty-specs/028-cli-event-emission-sync/data-model.md` - FeatureCreated, WPCreated payloads
 
 ### Functional Requirements
+
 - FR-022: `finalize-tasks` MUST emit `FeatureCreated` + `WPCreated` events for all WPs
 - FR-029: MUST NOT block CLI command execution when event emission fails
 
 ### Dependencies
+
 - WP01 (Event Factory) must be complete
 - Import from `specify_cli.sync.events`
 
@@ -75,6 +79,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   1. Open `src/specify_cli/cli/commands/agent/feature.py`
   2. Locate the `finalize_tasks` command function
   3. Add imports:
+
      ```python
      from specify_cli.sync.events import (
          emit_feature_created,
@@ -82,7 +87,9 @@ Use language identifiers in code blocks: ````python`, ````bash`
          get_emitter,
      )
      ```
+
   4. After tasks.md is parsed and WPs are validated:
+
      ```python
      # Generate causation_id for batch correlation
      causation_id = get_emitter().generate_causation_id()
@@ -98,6 +105,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      except Exception as e:
          console.print(f"[yellow]Warning:[/yellow] FeatureCreated emission failed: {e}")
      ```
+
 - **Files**: `src/specify_cli/cli/commands/agent/feature.py`
 - **Parallel?**: No (must emit before WPCreated events)
 - **Notes**:
@@ -110,6 +118,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. After FeatureCreated emission, iterate over work packages
   2. Emit WPCreated for each:
+
      ```python
      for wp in work_packages:
          try:
@@ -123,6 +132,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          except Exception as e:
              console.print(f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp.id}: {e}")
      ```
+
   3. Continue iteration even if individual emissions fail
 - **Files**: `src/specify_cli/cli/commands/agent/feature.py`
 - **Parallel?**: No (sequential emission within batch)
@@ -136,11 +146,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Purpose**: Generate and share causation_id across batch events
 - **Steps**:
   1. Add `generate_causation_id()` method to EventEmitter if not exists:
+
      ```python
      def generate_causation_id(self) -> str:
          """Generate ULID for batch event correlation."""
          return ulid.new().str
      ```
+
   2. Generate causation_id ONCE at the start of finalize-tasks
   3. Pass same causation_id to all emit functions in the batch
   4. Verify events in queue all have same causation_id
@@ -157,6 +169,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   1. When parsing tasks.md, extract dependencies for each WP
   2. Dependencies are typically in frontmatter: `dependencies: ["WP01", "WP02"]`
   3. Pass dependencies list to emit_wp_created:
+
      ```python
      emit_wp_created(
          wp_id=wp.id,
@@ -166,6 +179,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          causation_id=causation_id,
      )
      ```
+
   4. Verify WPCreated payload schema includes dependencies array
 - **Files**: `src/specify_cli/cli/commands/agent/feature.py`
 - **Parallel?**: No (part of WPCreated emission)
@@ -184,6 +198,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      - `feature_number` (e.g., "028")
      - `target_branch` (e.g., "2.x")
   3. Pass to emit_feature_created:
+
      ```python
      import json
      meta_path = feature_dir / "meta.json"
@@ -198,6 +213,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          causation_id=causation_id,
      )
      ```
+
   4. Handle missing meta.json gracefully (log warning, skip emission)
 - **Files**: `src/specify_cli/cli/commands/agent/feature.py`
 - **Parallel?**: No (data extraction)
@@ -210,6 +226,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Test Strategy
 
 Tests are covered in WP07, but verify manually:
+
 ```bash
 # Run finalize-tasks on a test feature
 spec-kitty agent feature finalize-tasks --feature 028-cli-event-emission-sync
@@ -227,6 +244,7 @@ for e in feature_events:
 ```
 
 Verify:
+
 1. Exactly 1 FeatureCreated event
 2. N WPCreated events (one per WP)
 3. All events share same causation_id
@@ -271,6 +289,7 @@ To change a work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP04 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-02-04T11:34:52Z – unknown – shell_pid=25757 – lane=for_review – Ready for review: emit FeatureCreated/WPCreated in finalize-tasks
 - 2026-02-04T11:36:16Z – claude-opus – shell_pid=41706 – lane=doing – Started review via workflow command
 - 2026-02-04T11:38:01Z – claude-opus – shell_pid=41706 – lane=done – Review passed: FeatureCreated + N WPCreated events emitted in finalize-tasks with shared causation_id. Meta.json extraction with graceful degradation. Non-blocking try/except wrappers. Dependencies correctly included. No test regressions.

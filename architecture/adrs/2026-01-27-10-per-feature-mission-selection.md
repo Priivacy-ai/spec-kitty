@@ -13,12 +13,14 @@ Spec-kitty supports multiple "missions" (workflows): software-dev, research, and
 ### The Problem
 
 1. **Rigid Project Scope**
+
    ```bash
    # OLD (broken) workflow:
    spec-kitty init myproject --mission software-dev
    # Now ALL features must be software-dev
    # Can't do research or documentation in this project
    ```
+
    Users couldn't mix feature types in one repository.
 
 2. **Forced Project Segmentation**
@@ -34,16 +36,19 @@ Spec-kitty supports multiple "missions" (workflows): software-dev, research, and
    - Maintaining parallel repositories for different mission types
 
 4. **Template Mismatch**
+
    ```bash
    # Research feature in software-dev project:
    /spec-kitty.specify  # Uses software-dev templates (wrong!)
    /spec-kitty.tasks    # Generates WPs for code, not research
    ```
+
    Templates didn't match feature type, leading to inappropriate task structures.
 
 ### Real-World Use Case
 
 **Dogfooding Example:**
+
 - Spec-kitty is a software-dev project
 - Features 001-011: Software development (code features)
 - Features 012: Documentation mission (Divio 4-type docs)
@@ -61,6 +66,7 @@ Spec-kitty supports multiple "missions" (workflows): software-dev, research, and
 #### 1. Deprecate Project-Level Mission Selection
 
 **Before (init.py):**
+
 ```bash
 spec-kitty init myproject --mission software-dev
 # Writes to .kittify/meta.json: {"mission": "software-dev"}
@@ -68,6 +74,7 @@ spec-kitty init myproject --mission software-dev
 ```
 
 **After:**
+
 ```python
 # init.py line 57:
 mission_key: str = typer.Option(
@@ -84,6 +91,7 @@ if mission_key:
 ```
 
 **Backward Compatibility:**
+
 - Flag hidden but not removed
 - Warning message educates users
 - Init always uses software-dev for initial setup (templates)
@@ -93,6 +101,7 @@ if mission_key:
 **meta.json location changed:**
 
 **Before:**
+
 ```
 .kittify/meta.json
 {
@@ -102,6 +111,7 @@ if mission_key:
 ```
 
 **After:**
+
 ```
 kitty-specs/012-documentation-mission/meta.json
 {
@@ -148,6 +158,7 @@ Based on your feature description, determine mission type:
 ```
 
 **Script integration:**
+
 ```bash
 # create-feature.sh updated:
 # OLD: No mission parameter
@@ -168,6 +179,7 @@ All commands now read mission from feature's meta.json:
 | `/spec-kitty.review` | Used project mission | Reads feature meta.json |
 
 **Implementation:**
+
 ```python
 # Before:
 mission = get_active_mission()  # Project-level
@@ -179,6 +191,7 @@ mission = get_mission_for_feature(feature_dir)  # Feature-level
 #### 5. Mission Discovery Function
 
 **New function (mission.py):**
+
 ```python
 def get_mission_for_feature(feature_dir: Path) -> Mission:
     """Get mission for a specific feature.
@@ -277,10 +290,12 @@ myproject/
 ```
 
 **Pros:**
+
 - Simple conceptually (each project still has one mission)
 - No breaking changes to existing architecture
 
 **Cons:**
+
 - Awkward directory structure
 - Git operations span subprojects (confusing)
 - CI/CD setup more complex
@@ -299,10 +314,12 @@ mission_override: documentation  # Overrides default
 ```
 
 **Pros:**
+
 - Most features inherit default (less typing)
 - Explicit override signals "different mission"
 
 **Cons:**
+
 - Two-tier system is confusing
 - Override semantics unclear (what if default changes?)
 - Still have project-level configuration problem
@@ -319,10 +336,12 @@ mission_override: documentation  # Overrides default
 ```
 
 **Pros:**
+
 - Supports hybrid features (research + implementation)
 - Flexibility for complex features
 
 **Cons:**
+
 - Which templates to use? (ambiguous)
 - WP structure unclear (mix research + code tasks?)
 - Overengineering for uncommon use case
@@ -367,13 +386,16 @@ def get_mission_for_feature(feature_dir: Path) -> Mission:
 ### Testing Strategy
 
 **Unit Tests:**
+
 - `tests/unit/test_mission.py`
   - Test `get_mission_for_feature()` with all three missions
   - Test fallback for missing mission field
   - Test fallback for missing meta.json
 
 **Integration Tests:**
+
 - Test full workflow for each mission:
+
   ```bash
   /spec-kitty.specify (infers mission)
   /spec-kitty.plan (uses feature mission)
@@ -382,6 +404,7 @@ def get_mission_for_feature(feature_dir: Path) -> Mission:
   ```
 
 **Parametrized Tests:**
+
 ```python
 @pytest.mark.parametrize("mission", ["software-dev", "research", "documentation"])
 def test_specify_workflow_with_mission(mission):
@@ -398,6 +421,7 @@ def test_specify_workflow_with_mission(mission):
    - Project continues to work
 
 2. **To adopt per-feature missions:**
+
    ```bash
    # Create new feature with mission selection
    /spec-kitty.specify  # LLM will prompt for mission
@@ -433,6 +457,7 @@ def test_specify_workflow_with_mission(mission):
 **A:** The `--mission` flag never existed on `create-feature`. Mission selection happens during `/spec-kitty.specify`, not during feature creation.
 
 **Correct workflow:**
+
 ```bash
 # Step 1: Create feature directory (no mission)
 spec-kitty agent feature create-feature my-feature

@@ -51,6 +51,7 @@ history:
 **Primary Goal**: Implement EventStore adapter and AOP decorators for transparent event emission across CLI commands.
 
 **Success Criteria**:
+
 - ✅ EventStore class wraps spec-kitty-events library with clean API
 - ✅ `emit()` method handles clock increment, JSONL write, and clock persistence
 - ✅ `@with_event_store` decorator provides dependency injection to commands
@@ -64,6 +65,7 @@ history:
 **User Story**: US1 - Event Emission on Workflow State Changes (complete)
 
 **Independent Test**:
+
 ```bash
 # Fresh project setup
 cd /tmp/test-project
@@ -86,6 +88,7 @@ cat .kittify/events/$(date +%Y-%m-%d).jsonl | jq .
 **This work package MUST be implemented on the `2.x` branch (NOT main).**
 
 Verify you're on 2.x:
+
 ```bash
 git branch --show-current  # Must output: 2.x
 ```
@@ -100,11 +103,13 @@ git branch --show-current  # Must output: 2.x
 ### Architectural Constraints
 
 **From plan.md (lines 9-13)**:
+
 - AOP-style middleware for event emission integration
 - AOP decorator pattern for EventStore dependency injection (`@with_event_store`)
 - Events-only on 2.x branch (no YAML logs)
 
 **From data-model.md (EventStore)**:
+
 - Emit operation: tick clock → create event → append JSONL → update index → save clock
 - Read operation: query index (if filters) or read all JSONL files
 - Wraps spec-kitty-events library via adapter (from WP01)
@@ -126,6 +131,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Create store module**:
+
    ```python
    # src/specify_cli/events/store.py (new file)
 
@@ -239,9 +245,11 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/store.py` (new file, ~120 lines)
 
 **Validation**:
+
 - [ ] `__init__()` initializes directories, loads clock, creates file writer
 - [ ] `emit()` ticks clock, creates event, writes JSONL, saves clock
 - [ ] Returns Event object with correct fields (event_id ULID, lamport_clock incremented)
@@ -249,6 +257,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] Import succeeds: `from specify_cli.events.store import EventStore`
 
 **Edge Cases**:
+
 - First event (clock.json missing): Initializes clock to 1
 - JSONL write fails: IOError propagated (clock not saved, ensuring consistency)
 - Idempotency check: Not implemented in emit() (delegated to calling code via causation_id)
@@ -264,6 +273,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Add performance benchmarking**:
+
    ```python
    # In src/specify_cli/events/store.py (add method)
 
@@ -302,6 +312,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Test performance**:
+
    ```bash
    # Test performance in Python REPL
    from specify_cli.events.store import EventStore
@@ -314,14 +325,17 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/store.py` (modify: add benchmark_emit method)
 
 **Validation**:
+
 - [ ] `emit()` completes in <15ms on average (performance goal)
 - [ ] Latency breakdown: clock tick (<1ms) + JSONL write (5-10ms) + clock save (2-3ms)
 - [ ] Benchmark utility available for profiling
 
 **Edge Cases**:
+
 - First emit slower (directory creation overhead): Expected, subsequent emits faster
 - Large payloads (>1KB): Latency increases linearly (acceptable)
 - Concurrent emits: File locking serializes (still <15ms per emit due to fast lock acquisition)
@@ -337,6 +351,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Create middleware module**:
+
    ```python
    # src/specify_cli/events/middleware.py (new file)
 
@@ -397,6 +412,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Handle repo root detection** (if get_repo_root doesn't exist):
+
    ```python
    # In src/specify_cli/core/repo.py (create if missing)
 
@@ -429,18 +445,21 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/events/middleware.py` (new file, ~60 lines)
 - `src/specify_cli/core/repo.py` (create if missing, ~25 lines)
 
 **Validation**:
+
 - [ ] `@with_event_store` decorator injects EventStore as keyword argument
 - [ ] Decorated function receives `event_store` parameter automatically
 - [ ] Repo root detected via `git rev-parse --show-toplevel`
 - [ ] Clear error if not in git repository
 
 **Edge Cases**:
+
 - Not in git repository: RuntimeError with clear message
-- EventStore initialization fails (library missing): Propagates error from EventStore.__init__
+- EventStore initialization fails (library missing): Propagates error from EventStore.**init**
 - Multiple decorators: Order matters (`@with_error_storage @with_event_store` injects both)
 
 **Parallel?**: Yes - Can implement in parallel with T013-T014
@@ -454,6 +473,7 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Locate move_task command**:
+
    ```bash
    # Find the command implementation
    find src -name "*tasks*" -type f | xargs grep -l "move_task"
@@ -461,6 +481,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 2. **Add event emission to move_task**:
+
    ```python
    # In src/specify_cli/cli/commands/agent/tasks.py (modify)
 
@@ -519,6 +540,7 @@ git branch --show-current  # Must output: 2.x
    ```
 
 3. **Add agent detection utility** (if missing):
+
    ```python
    # In src/specify_cli/core/agent.py (create if missing)
 
@@ -544,10 +566,12 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/agent/tasks.py` (modify: add @with_event_store and emit() call)
 - `src/specify_cli/core/agent.py` (create if missing: agent detection utility)
 
 **Validation**:
+
 - [ ] `move_task` decorated with `@with_event_store`
 - [ ] Event emitted AFTER successful frontmatter update
 - [ ] Payload includes: feature_slug, old_status, new_status, reason
@@ -555,6 +579,7 @@ git branch --show-current  # Must output: 2.x
 - [ ] Test: Run `spec-kitty agent tasks move-task WP01 --to doing`, verify event in JSONL
 
 **Edge Cases**:
+
 - Invalid transition: ValidationError raised BEFORE event emission (correct)
 - Event emission fails: Warning logged, command succeeds (best-effort)
 - Agent detection fails: Defaults to "user"
@@ -570,12 +595,14 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Locate setup-spec command**:
+
    ```bash
    find src -name "*feature*" -type f | xargs grep -l "setup-spec"
    # Likely in: src/specify_cli/cli/commands/agent/feature.py
    ```
 
 2. **Add event emission to setup-spec**:
+
    ```python
    # In src/specify_cli/cli/commands/agent/feature.py (modify)
 
@@ -624,15 +651,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/agent/feature.py` (modify: add event emission)
 
 **Validation**:
+
 - [ ] `setup_spec` decorated with `@with_event_store`
 - [ ] Event emitted AFTER spec.md created
 - [ ] Payload includes: title (from spec.md), mission, created_by
 - [ ] Test: Run `spec-kitty agent feature setup-spec`, verify SpecCreated event
 
 **Edge Cases**:
+
 - Title extraction fails: Use placeholder "Untitled Feature"
 - Mission not specified: Default to "software-dev"
 - Event emission fails: Warning logged, command succeeds
@@ -648,12 +678,14 @@ git branch --show-current  # Must output: 2.x
 **Steps**:
 
 1. **Locate finalize-tasks command**:
+
    ```bash
    find src -name "*feature*" -type f | xargs grep -l "finalize-tasks"
    # Likely in: src/specify_cli/cli/commands/agent/feature.py
    ```
 
 2. **Add event emission to finalize-tasks**:
+
    ```python
    # In src/specify_cli/cli/commands/agent/feature.py (modify)
 
@@ -712,15 +744,18 @@ git branch --show-current  # Must output: 2.x
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/agent/feature.py` (modify: add event emission loop)
 
 **Validation**:
+
 - [ ] `finalize_tasks` decorated with `@with_event_store`
 - [ ] Event emitted for EACH work package file
 - [ ] Payload includes: work_package_id, title, dependencies, subtasks
 - [ ] Test: Run `spec-kitty agent feature finalize-tasks`, verify N WPCreated events (N = WP count)
 
 **Edge Cases**:
+
 - No WP files found: No events emitted (expected)
 - WP frontmatter parsing fails: Skip that WP, log warning, continue
 - Event emission fails for one WP: Log warning, continue with remaining WPs
@@ -734,6 +769,7 @@ git branch --show-current  # Must output: 2.x
 **No separate test files** (constitution: tests not explicitly requested).
 
 **Validation approach**:
+
 1. **T013-T014**: Unit test - `store.emit()` creates event, writes JSONL, saves clock
 2. **T015**: Decorator test - `@with_event_store` injects EventStore parameter
 3. **T016**: Integration test - `move_task` emits `WPStatusChanged` event
@@ -741,6 +777,7 @@ git branch --show-current  # Must output: 2.x
 5. **T018**: Integration test - `finalize_tasks` emits multiple `WPCreated` events
 
 **End-to-end integration test**:
+
 ```bash
 # Setup fresh project
 cd /tmp/test-e2e
@@ -777,6 +814,7 @@ echo "✓ End-to-end test passed: All events emitted"
 **Impact**: Violates performance goal (FR-043: CLI < 2 seconds)
 
 **Mitigation**:
+
 - T014 benchmark validates <15ms target
 - Synchronous write prioritizes reliability (validated in planning)
 - 15ms overhead is 0.75% of 2-second budget (acceptable)
@@ -786,6 +824,7 @@ echo "✓ End-to-end test passed: All events emitted"
 **Impact**: Commands crash with cryptic errors
 
 **Mitigation**:
+
 - T013 raises RuntimeError with clear message if library missing
 - T015 decorator propagates error immediately (early failure)
 - T016-T018 wrap emit() in try/except (log warning, continue)
@@ -795,6 +834,7 @@ echo "✓ End-to-end test passed: All events emitted"
 **Impact**: Commands fail after adding event emission
 
 **Mitigation**:
+
 - T016-T018 use best-effort pattern (warning on failure, don't crash)
 - Event emission happens AFTER state change (doesn't block operation)
 - Integration test validates commands still work end-to-end
@@ -849,6 +889,7 @@ echo "✓ End-to-end test passed: All events emitted"
    - ✓ Failures don't block finalization
 
 **Reviewers should**:
+
 - Run end-to-end test (verify all 3 event types emitted)
 - Check JSONL files (verify correct JSON structure)
 - Measure latency (verify <15ms average)
@@ -860,6 +901,7 @@ echo "✓ End-to-end test passed: All events emitted"
 - 2026-01-27T00:00:00Z – system – lane=planned – Prompt created via /spec-kitty.tasks
 
 ---
+
 - 2026-01-30T11:04:33Z – unknown – shell_pid=14744 – lane=for_review – Ready for review: implemented EventStore and event middleware; integrated event emission into move-task, create-feature/setup-spec, and finalize-tasks.
 - 2026-01-30T11:06:03Z – claude-final-reviewer – shell_pid=78964 – lane=doing – Started review via workflow command
 - 2026-01-30T11:08:24Z – claude-final-reviewer – shell_pid=78964 – lane=done – Review passed: EventStore and AOP middleware fully implemented. All 3 required events (WPStatusChanged, SpecCreated, WPCreated) integrated into CLI commands. Clean architecture with dependency injection via @with_event_store decorator.

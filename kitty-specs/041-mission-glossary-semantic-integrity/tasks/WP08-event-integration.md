@@ -27,7 +27,6 @@ history:
 
 **Issue 1 (blocking)**: Test suite hard-codes `EVENTS_AVAILABLE is False`, so running in the intended canonical setup (where `spec_kitty_events` is installed) fails immediately at `tests/specify_cli/glossary/test_event_emission.py:1211-1213`. That makes the suite unusable once the canonical events package is present, undermining the “progressive enhancement” goal and preventing verification that the canonical emission path works. Fix: gate the assertion with `pytest.skipif(EVENTS_AVAILABLE)` (or remove it) and structure tests to patch `EVENTS_AVAILABLE` per scenario instead of assuming the package is absent.
 
-
 ## Review Feedback
 
 *(No feedback yet -- this section will be populated if the WP is returned from review.)*
@@ -37,6 +36,7 @@ history:
 **Primary Objective**: Replace all event emission stubs with real implementations that import Feature 007 canonical event contracts from spec-kitty-events package, emit events at middleware boundaries with correct payloads, persist events to JSONL files in `.kittify/events/glossary/`, and verify emission ordering matches the middleware pipeline sequence.
 
 **Success Criteria**:
+
 1. Event emission adapters import canonical event classes from spec-kitty-events package with graceful fallback if package unavailable.
 2. All 8 canonical events are emitted at correct middleware boundaries (GlossaryScopeActivated, TermCandidateObserved, SemanticCheckEvaluated, GlossaryClarificationRequested, GlossaryClarificationResolved, GlossarySenseUpdated, GenerationBlockedBySemanticConflict, StepCheckpointed).
 3. Event payloads conform to Feature 007 schemas with all required fields present.
@@ -48,6 +48,7 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `spec.md` FR-011: System MUST store all glossary state in the event log using existing event architecture
 - `spec.md` FR-003: System MUST emit SemanticCheckEvaluated events conforming to Feature 007 event contracts
 - `plan.md` research Finding 2: Event contracts imported from spec-kitty-events package (not redefined locally)
@@ -56,12 +57,14 @@ history:
 - `data-model.md` event emission occurs at middleware boundaries (extraction, check, gate, clarification, checkpoint)
 
 **Dependency Artifacts Available** (from completed WPs):
+
 - WP01-WP07 provide event emission stubs in `glossary/events.py` (logging only)
 - WP05 provides GenerationGateMiddleware with stub emission before blocking
 - WP06 provides ClarificationMiddleware with stub emission for clarification events
 - WP07 provides checkpoint emission stub and StepCheckpoint model
 
 **Constraints**:
+
 - Python 3.11+ only (per constitution requirement)
 - spec-kitty-events package may not be available yet (graceful fallback to stubs)
 - Event payloads must be JSON-serializable (no custom objects, use dicts)
@@ -79,7 +82,9 @@ history:
 **Purpose**: Create adapters that import canonical event classes from spec-kitty-events package with graceful fallback to stubs if package is unavailable, enabling progressive enhancement as Feature 007 events become available.
 
 **Steps**:
+
 1. Update `src/specify_cli/glossary/events.py` with import adapters:
+
    ```python
    """Event emission adapters for Feature 007 canonical glossary events.
 
@@ -168,6 +173,7 @@ history:
    ```
 
 2. Add helper for event log path resolution:
+
    ```python
    def get_event_log_path(
        repo_root: Path,
@@ -191,10 +197,12 @@ history:
 3. Export from `glossary/__init__.py`: `EVENTS_AVAILABLE`, event classes, `get_event_log_path`.
 
 **Files**:
+
 - `src/specify_cli/glossary/events.py` (rewrite ~120 lines)
 - `src/specify_cli/glossary/__init__.py` (update exports)
 
 **Validation**:
+
 - [ ] Import succeeds if spec-kitty-events package is installed
 - [ ] Import falls back to stubs if package is not installed
 - [ ] `EVENTS_AVAILABLE` flag is set correctly (True if package, False if stubs)
@@ -204,6 +212,7 @@ history:
 - [ ] Stub `append_event()` logs event class name
 
 **Edge Cases**:
+
 - spec-kitty-events package is installed but has different version: import succeeds (version compatibility is package responsibility)
 - `.kittify/events/` directory doesn't exist: created automatically with parents
 - Mission ID has special characters (e.g., slashes): sanitized in filename (use slugify or replace)
@@ -217,7 +226,9 @@ history:
 **Purpose**: Replace all event emission stubs in middleware components with real implementations that create event instances with correct payloads and call persistence functions.
 
 **Steps**:
+
 1. Update extraction middleware (from WP03) to emit `TermCandidateObserved`:
+
    ```python
    # In GlossaryCandidateExtractionMiddleware.process()
    from specify_cli.glossary.events import (
@@ -250,6 +261,7 @@ history:
    ```
 
 2. Update semantic check middleware (from WP04) to emit `SemanticCheckEvaluated`:
+
    ```python
    # In SemanticCheckMiddleware.process()
    from specify_cli.glossary.events import SemanticCheckEvaluated
@@ -292,6 +304,7 @@ history:
    ```
 
 3. Update generation gate middleware (from WP05) to emit `GenerationBlockedBySemanticConflict`:
+
    ```python
    # In GenerationGateMiddleware.process(), when blocking
    from specify_cli.glossary.events import GenerationBlockedBySemanticConflict
@@ -331,6 +344,7 @@ history:
    ```
 
 4. Update clarification middleware (from WP06) to emit clarification events:
+
    ```python
    # In ClarificationMiddleware._emit_deferred()
    from specify_cli.glossary.events import GlossaryClarificationRequested
@@ -414,6 +428,7 @@ history:
    ```
 
 5. Update checkpoint emission (from WP07) to emit `StepCheckpointed`:
+
    ```python
    # In events.py, replace emit_step_checkpointed() stub
    from specify_cli.glossary.events import StepCheckpointed
@@ -457,10 +472,12 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/middleware.py` (update all middleware classes, ~100 lines modified)
 - `src/specify_cli/glossary/events.py` (replace stubs with real implementations, ~150 lines)
 
 **Validation**:
+
 - [ ] All 8 event types are emitted at correct middleware boundaries
 - [ ] Event payloads include all required fields from Feature 007 schemas
 - [ ] Event payloads are JSON-serializable (no custom objects)
@@ -469,6 +486,7 @@ history:
 - [ ] Event ordering matches middleware pipeline: extraction → check → gate → clarification → checkpoint
 
 **Edge Cases**:
+
 - Event payload has nested objects: convert to dicts before emission
 - Event payload has datetime objects: convert to ISO format strings
 - Event emission raises exception: log error but don't crash middleware
@@ -482,7 +500,9 @@ history:
 **Purpose**: Implement JSONL persistence for events using the spec-kitty-events package's `append_event()` function, ensuring events are written to `.kittify/events/glossary/{mission_id}.events.jsonl` in append-only format.
 
 **Steps**:
+
 1. Verify `append_event()` usage in all middleware (from T037):
+
    ```python
    # Pattern used throughout middleware
    if EVENTS_AVAILABLE:
@@ -493,6 +513,7 @@ history:
    ```
 
 2. Add helper for reading events (for checkpoint loading, WP07):
+
    ```python
    # In events.py
    import json
@@ -534,6 +555,7 @@ history:
    ```
 
 3. Update checkpoint loading (from WP07 T032) to use `read_events()`:
+
    ```python
    # In checkpoint.py, update load_checkpoint()
    from specify_cli.glossary.events import read_events, get_event_log_path
@@ -587,10 +609,12 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/glossary/events.py` (add `read_events()`, ~40 lines)
 - `src/specify_cli/glossary/checkpoint.py` (update `load_checkpoint()`, ~30 lines)
 
 **Validation**:
+
 - [ ] Events are appended to JSONL file (one event per line)
 - [ ] Event log directory is created if it doesn't exist
 - [ ] Event log file is created if it doesn't exist
@@ -600,6 +624,7 @@ history:
 - [ ] `load_checkpoint()` scans all mission event logs and returns latest
 
 **Edge Cases**:
+
 - Event log file is empty: `read_events()` yields nothing (graceful)
 - Event log has malformed JSON on some lines: skip those lines with warning, continue
 - Multiple missions have same step_id: `load_checkpoint()` returns latest across all missions
@@ -613,9 +638,11 @@ history:
 **Purpose**: Write comprehensive integration tests that verify event emission for all middleware paths, validate payloads against Feature 007 schemas, and verify event ordering.
 
 **Steps**:
+
 1. Create `tests/specify_cli/glossary/test_event_emission.py`:
 
 2. Implement test fixtures:
+
    ```python
    import pytest
    from unittest.mock import MagicMock, patch, mock_open
@@ -657,6 +684,7 @@ history:
 3. Write test cases for event emission:
 
    **Test: Event log path creation**:
+
    ```python
    def test_get_event_log_path_creates_directory(tmp_path):
        """Event log path helper creates directory if it doesn't exist."""
@@ -667,6 +695,7 @@ history:
    ```
 
    **Test: Event persistence (if package available)**:
+
    ```python
    @pytest.mark.skipif(not EVENTS_AVAILABLE, reason="spec-kitty-events not available")
    def test_event_persistence_writes_jsonl(temp_event_log, mock_context):
@@ -706,6 +735,7 @@ history:
    ```
 
    **Test: Event ordering**:
+
    ```python
    @pytest.mark.skipif(not EVENTS_AVAILABLE, reason="spec-kitty-events not available")
    def test_event_ordering_matches_pipeline(temp_event_log, mock_context):
@@ -767,6 +797,7 @@ history:
    ```
 
    **Test: Read events filtering**:
+
    ```python
    def test_read_events_filters_by_type(temp_event_log):
        """read_events() filters by event_type."""
@@ -787,6 +818,7 @@ history:
    ```
 
    **Test: Stub logging (when package unavailable)**:
+
    ```python
    @pytest.mark.skipif(EVENTS_AVAILABLE, reason="spec-kitty-events is available")
    def test_stub_logging_when_package_unavailable(caplog, mock_context):
@@ -807,6 +839,7 @@ history:
    ```
 
 4. Add contract validation tests (if package available):
+
    ```python
    @pytest.mark.skipif(not EVENTS_AVAILABLE, reason="spec-kitty-events not available")
    def test_event_payload_schema_compliance():
@@ -851,9 +884,11 @@ history:
    ```
 
 **Files**:
+
 - `tests/specify_cli/glossary/test_event_emission.py` (new file, ~400 lines)
 
 **Validation**:
+
 - [ ] Event log path creation tested
 - [ ] Event persistence tested (if package available)
 - [ ] Event ordering tested (pipeline sequence)
@@ -863,6 +898,7 @@ history:
 - [ ] Test coverage >90% on events.py
 
 **Edge Cases**:
+
 - Event log file doesn't exist: created on first append
 - Event log has malformed JSON: `read_events()` skips with warning
 - Multiple events appended in sequence: all persisted in order
@@ -874,21 +910,25 @@ history:
 ## Test Strategy
 
 **Unit Tests** (in `tests/specify_cli/glossary/test_events.py`):
+
 - Test `get_event_log_path()` creates directory correctly
 - Test `read_events()` with various JSONL formats (valid, malformed, empty)
 - Test stub fallback when spec-kitty-events unavailable
 
 **Integration Tests** (in `tests/specify_cli/glossary/test_event_emission.py`):
+
 - Test full middleware pipeline emits events in correct order
 - Test event persistence to JSONL file (if package available)
 - Test event filtering by type
 - Test schema compliance (if package available)
 
 **Contract Tests** (if spec-kitty-events package available):
+
 - Validate all event payloads against Feature 007 schemas
 - Test round-trip serialization (emit → persist → read)
 
 **Running Tests**:
+
 ```bash
 # Unit tests
 python -m pytest tests/specify_cli/glossary/test_events.py -v
@@ -928,6 +968,7 @@ python -m pytest tests/specify_cli/glossary/ -v --cov=src/specify_cli/glossary/e
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **Import adapters work correctly**:
    - Try/except imports spec-kitty-events package gracefully
    - Stub classes defined for all 8 event types
@@ -972,7 +1013,7 @@ When reviewing this WP, verify:
 - 2026-02-16T16:42:51Z – codex – shell_pid=33593 – lane=doing – Started review via workflow command
 - 2026-02-16T16:46:36Z – codex – shell_pid=33593 – lane=planned – Moved to planned
 - 2026-02-16T16:47:04Z – coordinator – shell_pid=35487 – lane=doing – Started implementation via workflow command
-- 2026-02-16T16:59:50Z – coordinator – shell_pid=35487 – lane=for_review – Fixed: canonical contracts, 8/8 events emitted, log-only fallback for append_event, local persistence via _local_append_event. All 428 tests pass.
+- 2026-02-16T16:59:50Z – coordinator – shell_pid=35487 – lane=for_review – Fixed: canonical contracts, 8/8 events emitted, log-only fallback for append_event, local persistence via_local_append_event. All 428 tests pass.
 - 2026-02-16T17:00:17Z – codex – shell_pid=39799 – lane=doing – Started review via workflow command
 - 2026-02-16T17:04:37Z – codex – shell_pid=39799 – lane=planned – Moved to planned
 - 2026-02-16T17:05:13Z – coordinator – shell_pid=41876 – lane=doing – Started implementation via workflow command

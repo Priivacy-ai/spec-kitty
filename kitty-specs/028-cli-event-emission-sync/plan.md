@@ -13,6 +13,7 @@ This feature implements a singleton `EventEmitter` class that manages event crea
 
 **Language/Version**: Python 3.11+ (spec-kitty existing requirement)
 **Primary Dependencies**:
+
 - spec-kitty-events (Feature 003) - Lamport clocks, event schemas, validation
 - typer - CLI framework
 - rich - Console output
@@ -43,6 +44,7 @@ This feature implements a singleton `EventEmitter` class that manages event crea
 | Offline-first | ✅ Pass | Core design principle |
 
 **No constitution violations identified.** Feature aligns with:
+
 - ADR-11: Dual-Repository Pattern (spec-kitty-events integration)
 - ADR-12: Two-Branch Strategy (targets 2.x branch)
 - Private dependency workflow (events library via Git commit pin)
@@ -262,11 +264,13 @@ def emit_wp_status_changed(
 ## Test Strategy
 
 ### Unit Tests (WP07)
+
 - `test_events.py`: EventEmitter methods, event builders, validation
 - `test_clock.py`: LamportClock persistence, tick(), receive()
 - `test_background.py`: Background sync scheduling, exponential backoff
 
 ### Integration Tests (WP07)
+
 - `test_integration.py`: Full flow with mock SaaS server
   - Event emission → queue → batch sync
   - Auth token refresh during sync
@@ -277,6 +281,7 @@ def emit_wp_status_changed(
   - `finalize-tasks` → FeatureCreated + WPCreated batch
 
 ### Coverage Target
+
 - 90%+ line coverage for new code
 - All event types have dedicated test cases
 - Edge cases from spec covered (network failure, queue overflow, clock desync)

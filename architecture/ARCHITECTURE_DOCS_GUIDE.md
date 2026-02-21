@@ -5,6 +5,7 @@
 Spec Kitty uses **Architectural Decision Records (ADRs)** to document significant architectural decisions.
 
 ADRs:
+
 - Capture **why** decisions were made, not just what was decided
 - Are **immutable** once accepted (preserve decision context over time)
 - Are **concise** (1-2 pages maximum)
@@ -41,21 +42,25 @@ ADRs document **architectural decisions** - the significant choices that shape t
 Create ADRs for **architecturally significant decisions**:
 
 **Technology Choices:**
+
 - Frameworks, libraries, tools
 - Build systems, development environments
 - Programming language or paradigm adoption
 
 **Architectural Patterns:**
+
 - System structure (monolith vs microservices)
 - Component organization (layered, modular, etc.)
 - Integration patterns (REST vs GraphQL, event-driven, etc.)
 
 **Non-Functional Requirements:**
+
 - Security approaches (auth methods, encryption)
 - Performance optimizations (caching, indexing)
 - Scalability patterns (horizontal vs vertical)
 
 **Development Processes:**
+
 - Git workflows, branching strategies
 - Testing strategies, CI/CD design
 - Release processes
@@ -73,7 +78,8 @@ Create ADRs for **architecturally significant decisions**:
 
 **Ask yourself:** "Is this an architecturally significant DECISION?"
 
-### Create an ADR if:
+### Create an ADR if
+
 - ✅ You're choosing between alternatives (Option A vs Option B)
 - ✅ The decision has significant impact on the codebase
 - ✅ You want to preserve WHY you chose this approach
@@ -84,7 +90,8 @@ Create ADRs for **architecturally significant decisions**:
 **Example:** "Should we use explicit base branch tracking in frontmatter or derive it at runtime?"
 → **Yes, create ADR** (significant architectural choice)
 
-### Don't Create an ADR if:
+### Don't Create an ADR if
+
 - ❌ It's just implementation details (put in code comments/docstrings)
 - ❌ It's a temporary workaround (document in code or issue tracker)
 - ❌ It's easily reversible (no ADR needed)
@@ -123,6 +130,7 @@ architecture/
 ```
 
 **That's it!** Architecture documentation is just ADRs. Implementation details live in:
+
 - Code (docstrings, comments)
 - Tests (usage examples)
 - docs/ (user guides)
@@ -139,6 +147,7 @@ ADR template (canonical): `src/doctrine/templates/architecture/adr-template.md`
 **Read the relevant ADR** in `architecture/adrs/`
 
 ADRs answer:
+
 - What problem were we solving?
 - What options did we consider?
 - Why did we choose this option?
@@ -152,6 +161,7 @@ ADRs answer:
 **Follow code references** in ADR "More Information" section
 
 Each ADR links to:
+
 - Relevant source files
 - Test suites
 - Related ADRs
@@ -206,16 +216,19 @@ Each ADR documents **one significant decision**:
 ### How to Read Them
 
 **For understanding decisions:**
+
 1. Read relevant ADR (1-2 pages)
 2. Understand context, options, and tradeoffs
 
 **For implementation details:**
+
 1. Check "More Information" section in ADR
 2. Follow code references
 3. Read tests for usage examples
 4. Check docstrings for API details
 
 **Reading path:**
+
 ```
 ADR-2026-01-23-2 (Why explicit tracking?)
     ↓ Code References section
@@ -233,23 +246,27 @@ tests/unit/test_base_branch_tracking.py (Tests)
 **ADRs are immutable** - Never edit an accepted ADR
 
 **If implementation changes:**
+
 - Update code, docstrings, tests
 - If decision changes → Create new ADR that supersedes the old one
 - Update old ADR status to "Superseded" with link to new ADR
 
 **Example:**
+
 - Auto-merge algorithm optimization → Update code and tests (no ADR change)
 - Decide NOT to auto-merge → Create ADR-0006 superseding ADR-2026-01-23-4
 
 ### When Adding Features
 
 **If feature requires architectural decision:**
+
 1. Create ADR documenting the decision
 2. Keep it concise (1-2 pages)
 3. Reference code directly in "More Information"
 4. Update architecture/README.md
 
 **If no significant architectural choice:**
+
 - Document in code comments/docstrings
 - Add to docs/ if user-facing
 - No ADR needed

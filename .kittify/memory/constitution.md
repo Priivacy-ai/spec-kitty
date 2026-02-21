@@ -49,7 +49,7 @@ This constitution captures the technical standards, architectural principles, an
 
 ### spec-kitty-events Library
 
-**Repository:** https://github.com/Priivacy-ai/spec-kitty-events (PRIVATE)
+**Repository:** <https://github.com/Priivacy-ai/spec-kitty-events> (PRIVATE)
 
 **Purpose:** Shared event sourcing library providing:
 
@@ -71,9 +71,11 @@ This constitution captures the technical standards, architectural principles, an
 2. Commit and push to GitHub
 3. Get commit hash: `git rev-parse HEAD`
 4. Update spec-kitty `pyproject.toml` with new commit hash:
+
    ```toml
    spec-kitty-events = { git = "https://github.com/Priivacy-ai/spec-kitty-events.git", rev = "abc1234" }
    ```
+
 5. Run `poetry lock --no-update && poetry install`
 6. Test integration, commit spec-kitty changes
 

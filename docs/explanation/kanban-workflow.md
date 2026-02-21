@@ -20,9 +20,11 @@ Work packages move through four lanes during their lifecycle:
 **Meaning**: Work package is defined and ready to start.
 
 **How it gets here**:
+
 - `/spec-kitty.tasks` creates WPs in `planned` lane
 
 **What happens**:
+
 - WP waits for an agent to claim it
 - Dependencies are satisfied (or WP is independent)
 
@@ -31,10 +33,12 @@ Work packages move through four lanes during their lifecycle:
 **Meaning**: An agent is actively implementing this work package.
 
 **How it gets here**:
+
 - Agent claims WP with `spec-kitty agent tasks move-task WP01 --to doing`
 - Or automatically when running `spec-kitty implement WP01`
 
 **What happens**:
+
 - Agent works in the WP's worktree
 - Makes commits to the WP branch
 - Only ONE agent should have a WP in `doing` at a time
@@ -44,9 +48,11 @@ Work packages move through four lanes during their lifecycle:
 **Meaning**: Implementation is complete, waiting for review.
 
 **How it gets here**:
+
 - Agent moves WP with `spec-kitty agent tasks move-task WP01 --to for_review`
 
 **What happens**:
+
 - Review agent examines the implementation
 - Compares against spec and acceptance criteria
 - Either approves (→ done) or requests changes (→ planned with feedback)
@@ -56,9 +62,11 @@ Work packages move through four lanes during their lifecycle:
 **Meaning**: Work package has been reviewed and accepted.
 
 **How it gets here**:
+
 - Reviewer moves WP after approval: `spec-kitty agent tasks move-task WP01 --to done`
 
 **What happens**:
+
 - WP branch is ready for merging
 - No further changes expected
 - Once ALL WPs are in `done`, run `/spec-kitty.accept` to validate the entire feature
@@ -153,10 +161,12 @@ This design keeps all WP files in one location for easier discovery.
 ### Agents Move Work Forward
 
 Agents are responsible for:
+
 - `planned → doing` - Claiming a WP to work on
 - `doing → for_review` - Signaling completion
 
 Commands:
+
 ```bash
 # Claim a WP
 spec-kitty agent tasks move-task WP01 --to doing --assignee claude
@@ -168,10 +178,12 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Implementation com
 ### Reviewers Make Accept/Reject Decisions
 
 Reviewers are responsible for:
+
 - `for_review → done` - Approving work
 - `for_review → planned` - Requesting changes (adds feedback)
 
 Commands:
+
 ```bash
 # Review a WP (opens review workflow)
 /spec-kitty.review WP01
@@ -186,6 +198,7 @@ spec-kitty agent tasks move-task WP01 --to done
 ### Users/Orchestrators Can Move Anything
 
 Users can override any lane transition if needed:
+
 ```bash
 # Force move (e.g., to un-block stuck work)
 spec-kitty agent tasks move-task WP01 --to planned
@@ -250,6 +263,7 @@ Progress: ████████░░░░░░░░ 25% (1/4 done)
 ### One Agent Per WP in Doing
 
 When a WP is in `doing`:
+
 - Only the assigned agent should work on it
 - Other agents should work on different WPs
 - This prevents conflicts and wasted work
@@ -257,10 +271,12 @@ When a WP is in `doing`:
 ### Dependencies Must Be Satisfied
 
 Before moving a WP to `doing`:
+
 - All dependencies must be in `done` lane (or at least `for_review`)
 - If WP02 depends on WP01, WP01 should be complete first
 
 The implement command enforces this:
+
 ```bash
 spec-kitty implement WP02 --base WP01  # Ensures WP01 code is available
 ```
@@ -268,6 +284,7 @@ spec-kitty implement WP02 --base WP01  # Ensures WP01 code is available
 ### Review Before Done
 
 WPs cannot skip directly to `done`:
+
 - Must pass through `for_review`
 - Even self-review requires the transition
 - This ensures all work is validated
@@ -275,6 +292,7 @@ WPs cannot skip directly to `done`:
 ### Subtask Validation
 
 Before moving to `for_review`:
+
 - All subtasks in the WP must be marked `[x]`
 - The system blocks moves if subtasks are unchecked
 - Ensures nothing is forgotten
@@ -320,13 +338,16 @@ Work returned from review goes back to `planned` with feedback.
 *This document explains how lanes work. For practical steps on moving work, see the how-to guides.*
 
 ## Try It
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 
 ## How-To Guides
+
 - [Use the Dashboard](../how-to/use-dashboard.md)
 - [Sync Workspaces](../how-to/sync-workspaces.md)
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 
 ## Reference
+
 - [CLI Commands](../reference/cli-commands.md)
 - [Slash Commands](../reference/slash-commands.md)

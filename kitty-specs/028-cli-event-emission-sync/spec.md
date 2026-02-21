@@ -131,21 +131,27 @@ A developer working in an active session needs queued events to sync automatical
 ### Edge Cases
 
 **Network failure during event emission:**
+
 - **Given** WebSocket send fails mid-transmission, **When** error detected, **Then** event is automatically queued to offline queue (no data loss)
 
 **Invalid event schema:**
+
 - **Given** event factory produces malformed event (missing required field), **When** validation runs, **Then** error is logged but CLI action is not blocked; event is discarded with warning
 
 **Lamport clock desync:**
+
 - **Given** local Lamport clock falls behind server (e.g., client restored from backup), **When** server rejects event with clock error, **Then** client reconciles by fetching current clock from server
 
 **Queue overflow:**
+
 - **Given** offline queue reaches 10,000 event limit, **When** user attempts new action, **Then** CLI warns but action proceeds; new event is dropped with explicit warning
 
 **Concurrent event emission:**
+
 - **Given** multiple CLI processes emit events simultaneously, **When** accessing shared queue.db, **Then** SQLite handles locking; events are serialized without corruption
 
 **Token expiry during batch sync:**
+
 - **Given** access token expires mid-batch-sync, **When** 401 response received, **Then** sync pauses, refresh token is used, and sync resumes automatically
 
 ---
@@ -334,8 +340,8 @@ A developer working in an active session needs queued events to sync automatical
 
 ### External References
 
-- **ULID Spec**: https://github.com/ulid/spec - Event ID format
-- **Lamport Clocks**: https://en.wikipedia.org/wiki/Lamport_timestamp - Causal ordering
+- **ULID Spec**: <https://github.com/ulid/spec> - Event ID format
+- **Lamport Clocks**: <https://en.wikipedia.org/wiki/Lamport_timestamp> - Causal ordering
 
 ---
 
@@ -375,17 +381,20 @@ WP01 (Event Factory)
 ### Design Rationale
 
 **Why a centralized event factory?**
+
 - Single source of truth for event creation logic
 - Consistent Lamport clock management across all commands
 - Easier testing - mock the factory, not every command
 - Clean separation between domain logic (commands) and sync logic (events)
 
 **Why non-blocking event emission?**
+
 - Core CLI functionality must work offline
 - Users should never be blocked by sync issues
 - Better UX - sync happens in background, commands feel snappy
 
 **Why queue-first approach?**
+
 - Offline-first architecture per Feature 008 research
 - Events are durable even if WebSocket drops mid-send
 - Batch sync is more efficient than individual sends

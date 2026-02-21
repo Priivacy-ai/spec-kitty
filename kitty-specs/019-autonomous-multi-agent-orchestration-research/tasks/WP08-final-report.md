@@ -34,6 +34,7 @@ history:
 Write the executive summary, feasibility assessment, and architecture recommendations to complete the research project.
 
 **Success Criteria**:
+
 - Executive summary in `research.md`
 - Feasibility assessment: can autonomous orchestration work?
 - Minimum viable agent set identified
@@ -49,6 +50,7 @@ Write the executive summary, feasibility assessment, and architecture recommenda
 **Goal**: Provide actionable recommendations for implementing autonomous multi-agent orchestration.
 
 Reference documents:
+
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/spec.md` - Success criteria SC-001 through SC-007
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/research.md` - Findings to summarize
 - `kitty-specs/019-autonomous-multi-agent-orchestration-research/data-model.md` - Config schema
@@ -60,6 +62,7 @@ Reference documents:
 **Purpose**: Provide high-level overview for stakeholders.
 
 **Steps**:
+
 1. Open `research.md` and locate Executive Summary section
 2. Write 2-3 paragraph summary covering:
    - Research objective recap
@@ -70,6 +73,7 @@ Reference documents:
 4. Highlight the most important discovery
 
 **Example structure**:
+
 ```markdown
 ## Executive Summary
 
@@ -89,6 +93,7 @@ for spec-kitty.
 **Purpose**: Answer the core question: Can autonomous orchestration work?
 
 **Assessment criteria**:
+
 1. Sufficient CLI-capable agents exist (target: ≥6)
 2. Task input mechanisms support prompt files
 3. Completion detection is reliable
@@ -96,6 +101,7 @@ for spec-kitty.
 5. Configuration complexity is manageable
 
 **Steps**:
+
 1. Score each criterion based on findings
 2. Provide overall feasibility verdict:
    - **Fully Feasible**: Most agents work, clear path forward
@@ -111,6 +117,7 @@ for spec-kitty.
 **Purpose**: Define the smallest set of agents for initial orchestration.
 
 **Steps**:
+
 1. From orchestration-ready agents, identify:
    - Best implementation agent (most capable, best documented)
    - Best review agent (ideally different from implementation)
@@ -120,6 +127,7 @@ for spec-kitty.
 4. Note what's lost vs full agent roster
 
 **Example**:
+
 ```markdown
 ### Minimum Viable Agent Set
 
@@ -138,6 +146,7 @@ This set enables basic autonomous workflow with cross-agent review.
 **Purpose**: Recommend how to implement the orchestrator.
 
 **Architecture considerations**:
+
 1. Process management (spawn subprocesses, track PIDs)
 2. State tracking (WP status, agent assignment)
 3. Dependency resolution (WP graph traversal)
@@ -145,6 +154,7 @@ This set enables basic autonomous workflow with cross-agent review.
 5. Failure handling (retry, fallback, abort)
 
 **Steps**:
+
 1. Propose high-level architecture
 2. Identify key components:
    - Scheduler (assigns WPs to agents)
@@ -163,6 +173,7 @@ This set enables basic autonomous workflow with cross-agent review.
 **Purpose**: Identify what wasn't covered and what needs more investigation.
 
 **Areas to address**:
+
 1. Agents that couldn't be fully tested (why?)
 2. Features that need deeper investigation
 3. Edge cases not covered
@@ -170,6 +181,7 @@ This set enables basic autonomous workflow with cross-agent review.
 5. Performance/scaling questions
 
 **Steps**:
+
 1. List gaps discovered during research
 2. For each gap, note:
    - What's missing
@@ -184,6 +196,7 @@ This set enables basic autonomous workflow with cross-agent review.
 **Purpose**: Ensure all success criteria from spec are met.
 
 **Success Criteria from spec.md**:
+
 - SC-001: Complete CLI capability matrix ✓/✗
 - SC-002: Working example invocation for each CLI agent ✓/✗
 - SC-003: Task specification method documented ✓/✗
@@ -193,6 +206,7 @@ This set enables basic autonomous workflow with cross-agent review.
 - SC-007: Architecture recommendation provided ✓/✗
 
 **Steps**:
+
 1. Review each success criterion
 2. Mark as met or not met
 3. For any not met, document why and if it's blocking
@@ -205,6 +219,7 @@ This set enables basic autonomous workflow with cross-agent review.
 **Purpose**: Ensure all documents link to each other properly.
 
 **Steps**:
+
 1. In `research.md`:
    - Link to spec.md, plan.md, data-model.md
    - Link to individual research files

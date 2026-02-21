@@ -243,6 +243,7 @@ artifacts rather than feature artifacts.
 **Iterative decisions** (one per significant concern):
 
 For each design area (domain modeling, integration, cross-cutting, data flow):
+
 1. AI proposes pattern with rationale
 2. Architect confirms, modifies, or rejects
 3. Decision recorded as ADR or decision marker
@@ -262,6 +263,7 @@ For each design area (domain modeling, integration, cross-cutting, data flow):
 ### Phase 8: Artifact Generation
 
 **CLI commits**:
+
 - `architecture/design-vision.md` (new or updated)
 - `architecture/functional-requirements.md` (new or updated)
 - `architecture/adrs/ADR-NNN-*.md` (one per decision)
@@ -270,6 +272,7 @@ For each design area (domain modeling, integration, cross-cutting, data flow):
 ### Phase 9: Downstream Alignment
 
 **Post-design integration**:
+
 - Subsequent `/spec-kitty.plan` commands detect architecture artifacts
 - `plan.md` "Technical Context" section references architecture decisions
 - Per-feature `plan.md` cross-references relevant ADRs
@@ -400,6 +403,7 @@ captures the **system implementation** for adding a `design` mission type to the
 spec-kitty mission system (mission.yaml, templates, migrations, domain enum).
 
 The two artifacts are complementary:
+
 - This journey answers: **What does the architect experience?**
 - The feature specification answers: **How does spec-kitty implement it?**
 
@@ -416,6 +420,7 @@ design journey adds a further dimension: **architectural pattern decisions** sho
 be queryable at runtime, similar to how selected approaches shape CLI behavior.
 
 For example, if the architect selects "ports-and-adapters" during a design session:
+
 - `/spec-kitty.plan` could suggest organizing WPs by port/adapter boundaries
 - `/spec-kitty.tasks` could include port interface definition before adapter implementation
 - `/spec-kitty.review` could check that new code follows the port/adapter contract

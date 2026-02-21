@@ -222,4 +222,3 @@ Terms describing cross-cutting development practices and principles aligned with
 | **Related terms** | [Domain Classification](#domain-classification), [Core Domain](#core-domain), [Supporting Domain](#supporting-domain)                                                                                                                                                                                                            |
 
 ---
-

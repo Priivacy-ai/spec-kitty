@@ -192,6 +192,7 @@ Use tables to clearly show differences:
 ### Search Term Strategy
 
 Use both "jj" and "jujutsu" throughout documentation to ensure searchability:
+
 - Title: "Jujutsu (jj) Workflow"
 - Body: Reference as "jj" after first mention
 - Keywords: Include both terms in frontmatter

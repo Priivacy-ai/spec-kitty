@@ -29,6 +29,7 @@ subtasks:
 # Work Package Prompt: WP06 – Merge Command Updates
 
 **Implementation command:**
+
 ```bash
 spec-kitty implement WP06
 ```
@@ -56,6 +57,7 @@ spec-kitty implement WP06
 **Primary Goal**: Update `spec-kitty merge` command to handle workspace-per-WP structure by detecting multiple WP worktrees, validating all are ready for merge, and merging all WP branches to main.
 
 **Success Criteria**:
+
 - ✅ Merge command detects workspace-per-WP structure (multiple .worktrees/###-feature-WP##/ directories)
 - ✅ Validates all WP branches exist and are ready to merge
 - ✅ Merges all WP branches to main (one merge per WP)
@@ -71,11 +73,13 @@ spec-kitty implement WP06
 **Why this update**: Current merge command assumes single feature worktree (`.worktrees/###-feature/`). With workspace-per-WP, there are multiple worktrees (`.worktrees/###-feature-WP01/`, `.worktrees/###-feature-WP02/`, etc.) that must all be merged.
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Section 1.2: Modified Commands (merge)
 - [spec.md](../spec.md) - FR-019 through FR-021 (merge workflow), User Story 3 acceptance scenario 4
 - [data-model.md](../data-model.md) - Worktree lifecycle, merge workflow
 
 **Current Merge Behavior** (0.10.x):
+
 ```
 spec-kitty merge 008-unified-cli
 → Detects current branch: 008-unified-cli
@@ -86,6 +90,7 @@ spec-kitty merge 008-unified-cli
 ```
 
 **Target Behavior** (0.11.0):
+
 ```
 spec-kitty merge 010-workspace-per-wp
 → Detects workspace-per-WP structure: .worktrees/010-workspace-per-wp-WP*/
@@ -109,7 +114,9 @@ spec-kitty merge 010-workspace-per-wp
 **Purpose**: Detect whether feature uses legacy (single worktree) or workspace-per-WP (multiple worktrees) structure.
 
 **Steps**:
+
 1. In `src/specify_cli/cli/commands/merge.py`, add detection function:
+
    ```python
    def detect_worktree_structure(repo_root: Path, feature_slug: str) -> str:
        """Detect if feature uses legacy or workspace-per-WP model.
@@ -134,6 +141,7 @@ spec-kitty merge 010-workspace-per-wp
    ```
 
 2. Call early in merge() function:
+
    ```python
    structure = detect_worktree_structure(repo_root, feature_slug)
 
@@ -159,7 +167,9 @@ spec-kitty merge 010-workspace-per-wp
 **Purpose**: Find all WP worktrees for the feature to be merged.
 
 **Steps**:
+
 1. Scan `.worktrees/` for pattern `{feature_slug}-WP*/`:
+
    ```python
    def find_wp_worktrees(repo_root: Path, feature_slug: str) -> list[Path]:
        """Find all WP worktrees for a feature."""
@@ -171,6 +181,7 @@ spec-kitty merge 010-workspace-per-wp
    ```
 
 2. Extract WP IDs from worktree names:
+
    ```python
    def extract_wp_id(worktree_path: Path) -> str:
        """Extract WP ID from worktree directory name.
@@ -185,6 +196,7 @@ spec-kitty merge 010-workspace-per-wp
    ```
 
 3. Build list of (worktree_path, wp_id, branch_name) tuples:
+
    ```python
    wp_workspaces = []
    for wt_path in find_wp_worktrees(repo_root, feature_slug):
@@ -206,7 +218,9 @@ spec-kitty merge 010-workspace-per-wp
 **Purpose**: Pre-flight check before merging - ensure all WP branches exist in git and worktrees are clean.
 
 **Steps**:
+
 1. For each WP workspace found in T042, validate:
+
    ```python
    def validate_wp_ready_for_merge(worktree_path: Path, branch_name: str) -> tuple[bool, str]:
        """Validate WP workspace is ready to merge."""
@@ -233,6 +247,7 @@ spec-kitty merge 010-workspace-per-wp
    ```
 
 2. Collect validation errors and display:
+
    ```python
    errors = []
    for wt_path, wp_id, branch in wp_workspaces:
@@ -252,6 +267,7 @@ spec-kitty merge 010-workspace-per-wp
 **Parallel?**: No (validation runs sequentially)
 
 **Error Example**:
+
 ```
 Cannot merge: WP workspaces not ready
   - WP01: Worktree 010-workspace-per-wp-WP01 has uncommitted changes
@@ -265,7 +281,9 @@ Cannot merge: WP workspaces not ready
 **Purpose**: Iterate through WP branches and merge each to main in sequence.
 
 **Steps**:
+
 1. Switch to main branch (from main repo, not worktree):
+
    ```python
    os.chdir(repo_root)
    subprocess.run(["git", "checkout", "main"], check=True)
@@ -273,6 +291,7 @@ Cannot merge: WP workspaces not ready
    ```
 
 2. For each WP branch, merge to main:
+
    ```python
    for wt_path, wp_id, branch_name in wp_workspaces:
        console.print(f"[cyan]Merging {wp_id} ({branch_name})...[/cyan]")
@@ -291,6 +310,7 @@ Cannot merge: WP workspaces not ready
    ```
 
 3. Handle merge conflicts:
+
    ```python
    except subprocess.CalledProcessError as e:
        console.print(f"[red]Merge failed for {wp_id}[/red]")
@@ -311,8 +331,10 @@ Cannot merge: WP workspaces not ready
 **Purpose**: Remove all WP worktrees after successful merge (if --remove-worktree flag set).
 
 **Steps**:
+
 1. After all WP branches merged successfully (T044)
 2. If `remove_worktree` flag is True:
+
    ```python
    if remove_worktree:
        for wt_path, wp_id, branch_name in wp_workspaces:
@@ -339,8 +361,10 @@ Cannot merge: WP workspaces not ready
 **Purpose**: Delete all WP branches after successful merge (if --delete-branch flag set).
 
 **Steps**:
+
 1. After worktrees removed (T045)
 2. If `delete_branch` flag is True:
+
    ```python
    if delete_branch:
        for wt_path, wp_id, branch_name in wp_workspaces:
@@ -370,7 +394,9 @@ Cannot merge: WP workspaces not ready
 **Purpose**: Document workspace-per-WP merge behavior in command help text.
 
 **Steps**:
+
 1. Update merge command docstring:
+
    ```python
    def merge(
        strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
@@ -402,8 +428,10 @@ Cannot merge: WP workspaces not ready
 **Purpose**: Validate merge command works correctly with workspace-per-WP structure.
 
 **Steps**:
+
 1. Create test scenario in `tests/specify_cli/test_integration/test_merge_workspace_per_wp.py`
 2. Test flow:
+
    ```python
    def test_merge_workspace_per_wp(tmp_path):
        """Test merging feature with multiple WP worktrees."""
@@ -447,6 +475,7 @@ Cannot merge: WP workspaces not ready
 **Parallel?**: Can be written in parallel with implementation
 
 **Test Cases**:
+
 - Happy path: 3 WP workspaces, all merge successfully
 - Error case: WP has uncommitted changes (merge blocked)
 - Error case: WP branch doesn't exist (merge blocked)
@@ -458,6 +487,7 @@ Cannot merge: WP workspaces not ready
 ## Implementation Flow
 
 **Overall merge workflow:**
+
 ```python
 def merge(strategy: str, delete_branch: bool, remove_worktree: bool, ...):
     """Merge feature to main."""
@@ -507,11 +537,13 @@ def merge(strategy: str, delete_branch: bool, remove_worktree: bool, ...):
 **Test File**: `tests/specify_cli/test_integration/test_merge_workspace_per_wp.py`
 
 **Execution**:
+
 ```bash
 pytest tests/specify_cli/test_integration/test_merge_workspace_per_wp.py -v
 ```
 
 **Coverage**:
+
 - Workspace-per-WP merge (happy path)
 - Error handling (uncommitted changes, missing branches)
 - Cleanup (worktree removal, branch deletion)
@@ -522,18 +554,22 @@ pytest tests/specify_cli/test_integration/test_merge_workspace_per_wp.py -v
 ## Risks & Mitigations
 
 **Risk 1: Merge conflict in one WP blocks entire merge**
+
 - Impact: WP01 merges successfully, WP02 has conflict, WP03 not merged
 - Mitigation: Validate all WPs before starting any merges (pre-flight check), stop if any validation fails
 
 **Risk 2: Partial cleanup if removal fails**
+
 - Impact: Some worktrees removed, others remain
 - Mitigation: Continue cleanup even if one fails, log all failures at end
 
 **Risk 3: Wrong merge order causes dependency issues**
+
 - Impact: WP02 (depends on WP01) merges before WP01
 - Mitigation: Alphabetical sort ensures WP01 < WP02 in merge order, document dependency ordering in help
 
 **Risk 4: Breaking legacy merge**
+
 - Impact: Features 001-008 can't merge after this change
 - Mitigation: Detect structure type, use legacy code path for legacy worktrees
 
@@ -557,6 +593,7 @@ pytest tests/specify_cli/test_integration/test_merge_workspace_per_wp.py -v
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. **No regression**: Legacy merge still works for features 001-008
 2. **All WPs merged**: Verify all WP branches integrated to main (check git log)
 3. **Clean cleanup**: No orphaned worktrees or branches after merge
@@ -564,6 +601,7 @@ pytest tests/specify_cli/test_integration/test_merge_workspace_per_wp.py -v
 5. **Alphabetical merge order**: WP01 merges before WP02 (dependency-safe)
 
 **Key Acceptance Checkpoints**:
+
 - Run merge on workspace-per-WP feature → all WPs merged, worktrees removed
 - Run merge on legacy feature → works as before (no regression)
 - Trigger error (uncommitted changes) → clear error message, merge blocked
@@ -579,11 +617,13 @@ pytest tests/specify_cli/test_integration/test_merge_workspace_per_wp.py -v
 ### Updating Lane Status
 
 Move this WP between lanes using:
+
 ```bash
 spec-kitty agent workflow implement WP06
 ```
 
 Or edit the `lane:` field in frontmatter directly.
+
 - 2026-01-08T09:25:44Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-08T09:32:19Z – unknown – lane=for_review – Implementation complete and tested. All subtasks completed:
 - T041: Detect workspace-per-WP structure ✓
@@ -592,6 +632,7 @@ Or edit the `lane:` field in frontmatter directly.
 - T048: Write integration tests (15 tests, all passing) ✓
 
 Key features:
+
 - Detects workspace-per-WP vs legacy structure automatically
 - Validates all WP branches before merging (uncommitted changes, branch existence)
 - Merges all WP branches in alphabetical order (WP01, WP02, WP03...)
@@ -601,6 +642,7 @@ Key features:
 - Backward compatible with legacy single-worktree features
 
 Tests: All 15 integration tests pass, no regressions in existing tests.
+
 - 2026-01-08T09:40:55Z – agent – lane=doing – Started review via workflow command
 - 2026-01-08T09:50:04Z – unknown – lane=for_review – Fixed all review feedback: (1) Workspace-per-WP detection now works from within worktrees via new get_main_repo_root() function, (2) Mixed structure detection now prioritizes workspace-per-WP over legacy, (3) Added true integration tests that exercise merge_workspace_per_wp() and validate all critical behavior. All 20 tests passing, no regressions.
 - 2026-01-08T09:51:29Z – agent – lane=doing – Started review via workflow command

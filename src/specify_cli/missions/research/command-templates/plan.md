@@ -18,6 +18,7 @@ Before proceeding with planning, verify you are in the correct working directory
 ```
 
 **What this validates**:
+
 - Current branch follows the feature pattern like `001-feature-name`
 - You're not attempting to run from `main` or any release branch
 - The validator prints clear navigation instructions if you're outside the feature worktree
@@ -82,6 +83,7 @@ Planning requirements (scale to complexity):
    - For each integration → patterns task
 
 2. **Generate and dispatch research agents**:
+
    ```
    For each unknown in Technical Context:
      Task: "Research {unknown} for {feature context}"

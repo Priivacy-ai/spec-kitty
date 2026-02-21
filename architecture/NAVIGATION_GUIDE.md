@@ -5,11 +5,13 @@
 ### New to Spec Kitty Architecture?
 
 **Start here:** [`README.md`](README.md)
+
 - Quick overview of what's in this directory
 - Table of all ADRs with topics
 - Quick reference for common questions
 
 **Then read:** [`ARCHITECTURE_DOCS_GUIDE.md`](ARCHITECTURE_DOCS_GUIDE.md)
+
 - Complete guide to ADRs
 - When to create an ADR
 - How to write good ADRs
@@ -24,11 +26,13 @@
 **→ Read the relevant ADR in [`adrs/`](adrs/)**
 
 **Example questions:**
+
 - "Why do we track base branch in frontmatter?" → [ADR-2026-01-23-2](adrs/2026-01-23-2-explicit-base-branch-tracking.md)
 - "Why auto-merge instead of manual merge?" → [ADR-2026-01-23-4](adrs/2026-01-23-4-auto-merge-multi-parent-dependencies.md)
 - "Why use decorators for validation?" → [ADR-2026-01-23-5](adrs/2026-01-23-5-decorator-based-context-validation.md)
 
 **What you'll find:**
+
 - Problem being solved
 - Options that were considered
 - Why the chosen option was selected
@@ -41,11 +45,13 @@
 **→ Read the ADR, then follow code references**
 
 **Example questions:**
+
 - "How does auto-merge work?" → Read [ADR-2026-01-23-4](adrs/2026-01-23-4-auto-merge-multi-parent-dependencies.md), then check `src/specify_cli/core/multi_parent_merge.py`
 - "What's the API for workspace context?" → Read [ADR-2026-01-23-3](adrs/2026-01-23-3-centralized-workspace-context-storage.md), then check `src/specify_cli/workspace_context.py`
 - "How do I use context validation decorators?" → Read [ADR-2026-01-23-5](adrs/2026-01-23-5-decorator-based-context-validation.md), then check code references
 
 **What you'll find:**
+
 - **In ADR:** Decision context, alternatives, tradeoffs, brief implementation summary
 - **In code:** Detailed implementation, API, docstrings
 - **In tests:** Usage examples, edge cases
@@ -59,18 +65,21 @@
 **Example: Git Repository Management**
 
 **Step 1:** Read ADRs (the decisions)
+
 1. [ADR-2026-01-23-2](adrs/2026-01-23-2-explicit-base-branch-tracking.md) - Why explicit tracking?
 2. [ADR-2026-01-23-3](adrs/2026-01-23-3-centralized-workspace-context-storage.md) - Why centralized storage?
 3. [ADR-2026-01-23-4](adrs/2026-01-23-4-auto-merge-multi-parent-dependencies.md) - Why auto-merge?
 4. [ADR-2026-01-23-5](adrs/2026-01-23-5-decorator-based-context-validation.md) - Why decorators?
 
 **Step 2:** Explore implementation
+
 - Check code references in each ADR
 - Read docstrings in referenced files
 - Run tests to see examples
 - Experiment with APIs
 
 **Step 3:** Understand relationships
+
 - See how ADRs reference each other
 - Understand how decisions build on each other
 - Follow code references to see complete implementation
@@ -160,6 +169,7 @@ Do you need to document something?
 ### By Topic
 
 **Git/VCS:**
+
 - ADRs: 0002, 0003, 0004, 0005
 - Code: `src/specify_cli/workspace_context.py`, `src/specify_cli/core/multi_parent_merge.py`, `src/specify_cli/core/context_validation.py`
 
@@ -186,26 +196,31 @@ Do you need to document something?
 ### For New Contributors
 
 **Day 1:** Read all ADRs (5 documents, ~30 minutes)
+
 - Understand key architectural decisions
 - Learn why the system is designed this way
 
 **Day 2:** Skim spec overviews
+
 - Get sense of major features
 - Identify areas relevant to your work
 
 **Ongoing:** Reference as needed
+
 - Check ADRs before making architectural changes
 - Read specs when working on specific features
 
 ### For AI Agents
 
 **Before implementing features:**
+
 1. Search ADRs for relevant decisions
 2. Read specs for technical details
 3. Reference code locations listed in docs
 4. Follow patterns established in ADRs
 
 **When creating new features:**
+
 1. Check if architectural decision needed
 2. Create ADR if significant choice required
 3. Create spec for complex implementations
@@ -218,18 +233,21 @@ Do you need to document something?
 ### Keeping Documentation Current
 
 **ADRs:**
+
 - **Immutable once accepted** - never edit
 - If decision changes → Create new ADR superseding the old one
 - Update old ADR status to "Superseded" with link to new ADR
 - Add date to status change
 
 **Code/Tests:**
+
 - **Update as implementation evolves**
 - Keep docstrings current
 - Update test examples
 - Document breaking changes in code comments
 
 **README:**
+
 - **Update when adding new ADRs**
 - Keep ADR table current (add new rows)
 - Update topic groupings

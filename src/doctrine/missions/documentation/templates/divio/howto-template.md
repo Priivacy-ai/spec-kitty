@@ -51,10 +51,12 @@ If you're experienced, here's the short version:
 ```
 
 **Options**:
+
 - `--option1`: {When to use this}
 - `--option2`: {When to use this}
 
 **Common variations**:
+
 - **If you need {variation}**: Use `{alternative command}`
 - **If you're using {different setup}**: Modify the command to `{modified version}`
 
@@ -87,6 +89,7 @@ To confirm it worked:
 ```
 
 You should see:
+
 ```
 {expected-output}
 ```
@@ -96,12 +99,14 @@ You should see:
 ### Issue: {Common problem}
 
 **Symptoms**:
+
 - {What user sees}
 - {Error message or behavior}
 
 **Cause**: {Why this happens}
 
 **Solution**:
+
 ```bash
 {fix-command}
 ```
@@ -117,11 +122,13 @@ You should see:
 **Method 1** (described above): Best when {scenario}
 
 **Method 2**: If you need {different requirement}, use this instead:
+
 ```bash
 {alternative-approach}
 ```
 
 **Method 3**: For {specific use case}:
+
 ```bash
 {another-approach}
 ```
@@ -137,6 +144,7 @@ You should see:
 ## Write the Docs Best Practices (Remove this section before publishing)
 
 **How-To Principles**:
+
 - ✅ Goal-oriented: Solve a specific problem
 - ✅ Assume reader has basic knowledge (not for beginners)
 - ✅ Focus on practical steps, minimal theory
@@ -147,6 +155,7 @@ You should see:
 - ✅ Use imperative mood ("Do this", not "You might want to")
 
 **Accessibility**:
+
 - ✅ Proper heading hierarchy
 - ✅ Alt text for all images
 - ✅ Clear, plain language
@@ -154,11 +163,13 @@ You should see:
 - ✅ Descriptive link text
 
 **Inclusivity**:
+
 - ✅ Diverse examples
 - ✅ Gender-neutral language
 - ✅ No cultural assumptions
 
 **How-To Specific Guidelines**:
+
 - Start with the goal (what will be accomplished)
 - Provide quick summary for experienced users
 - Offer options and variations (real-world scenarios vary)

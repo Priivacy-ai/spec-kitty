@@ -25,6 +25,7 @@ Refactor the spec-kitty mission system to address 6 architectural concerns ident
 
 **Language/Version**: Python 3.11+ (existing spec-kitty codebase requirement)
 **Primary Dependencies**:
+
 - **Existing**: typer (CLI), rich (console output), pyyaml (mission.yaml parsing), pathlib (path operations)
 - **NEW: Schema Validation**: pydantic>=2.0 (selected after research - superior error messages justify 5MB dependency)
 - **Citation Validation**: Python standard library only (csv, re for format validation) - zero new dependencies
@@ -34,12 +35,14 @@ Refactor the spec-kitty mission system to address 6 architectural concerns ident
 **Target Platform**: Cross-platform CLI (macOS, Linux, Windows with symlink fallback)
 **Project Type**: Single Python CLI project
 **Performance Goals**:
+
 - Mission loading <100ms
 - Mission switching <2 seconds
 - Schema validation <50ms
 - Pre-flight checks <200ms
 
 **Constraints**:
+
 - No breaking changes to existing mission.yaml structure (additive only)
 - Backwards compatibility with existing custom missions
 - Windows symlink fallback must continue working
@@ -47,6 +50,7 @@ Refactor the spec-kitty mission system to address 6 architectural concerns ident
 - Zero new runtime dependencies preferred (research will evaluate)
 
 **Scale/Scope**:
+
 - Current: 2 missions (software-dev, research)
 - Expected: 5-10 missions long-term
 - Custom missions: community-contributed
@@ -72,6 +76,7 @@ Refactor the spec-kitty mission system to address 6 architectural concerns ident
    - Implementation: Non-blocking warnings at mission switch, blocking errors at acceptance
 
 **Research Completed** (Phase 0):
+
 - ✅ **Schema Validation**: Pydantic v2 selected for superior error messages (A+ quality, worth 5MB dependency)
 - ✅ **Citation Formats**: Progressive validation - enforce completeness, warn on format, support BibTeX/APA/Simple
 - ✅ **Dashboard Integration**: Hybrid approach - server-side rendering with manual refresh button (resists complexity per user guidance)
@@ -226,6 +231,7 @@ Phase 3 - Integration (Sequential):
 ### Work Distribution
 
 **Sequential Foundation Work** (must complete first):
+
 1. **Phase 0 Research** (1-2 days)
    - Schema library comparison and selection
    - Citation format patterns
@@ -240,21 +246,25 @@ Phase 3 - Integration (Sequential):
 **Parallel Streams** (can work simultaneously after foundation):
 
 **Stream A - Mission Schema & CLI** (2-3 days)
+
 - Files: `src/specify_cli/mission.py`, `src/specify_cli/cli/commands/mission.py`
 - Owner: Agent/dev focused on CLI architecture
 - Dependencies: None (can start immediately after research)
 
 **Stream B - Research Mission** (2-3 days)
+
 - Files: `.kittify/missions/research/*`, `src/specify_cli/validators/research.py`
 - Owner: Agent/dev with research domain knowledge
 - Dependencies: None (can start immediately after research)
 
 **Stream C - Command Prompts** (1-2 days)
+
 - Files: All command `.md` files in both missions
 - Owner: Agent/dev focused on AI agent UX
 - Dependencies: **Requires guards.py from Phase 1**
 
 **Stream D - Docs & Dashboard** (1-2 days)
+
 - Files: `README.md`, `src/specify_cli/dashboard/server.py`
 - Owner: Agent/dev focused on documentation
 - Dependencies: None (can start immediately)
@@ -262,18 +272,21 @@ Phase 3 - Integration (Sequential):
 ### Coordination Points
 
 **Sync Schedule**:
+
 - After Phase 0 Research: Review and confirm schema library selection
 - After Phase 1 Guards: Merge to main, tag as milestone, unblock Stream C
 - During Parallel Streams: Daily check-ins on progress, no code merges
 - After Parallel Streams: Integration testing begins
 
 **Integration Strategy**:
+
 - Use feature worktree (`005-refactor-mission-system`) for all work
 - Each stream works on separate files (minimal conflicts)
 - Stream C must wait for guards.py merge before starting
 - Integration tests run after all streams complete
 
 **File Ownership to Avoid Conflicts**:
+
 - **guards.py**: Stream Foundation only
 - **mission.py**: Stream A only
 - **validators/**: Stream B only
@@ -284,6 +297,7 @@ Phase 3 - Integration (Sequential):
 **Parallel Benefit**: Streams A, B, D can work during Stream C execution = saves 4-6 days
 
 **Estimated Timeline**:
+
 - Sequential only: ~10-12 days
 - With parallelization: ~6-8 days
 - Single developer: ~8-10 days (less context switching overhead)

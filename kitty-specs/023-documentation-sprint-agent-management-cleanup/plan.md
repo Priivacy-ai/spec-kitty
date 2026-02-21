@@ -24,18 +24,21 @@ Update spec-kitty user documentation to reflect recent architectural changes in 
 **Performance Goals**: N/A
 **Constraints**: Must not introduce implementation details; documentation stays at user/business level
 **Scale/Scope**:
+
 - 1 new how-to guide (`manage-agents.md`)
 - 1 new migration guide section (may be separate file or section in existing guide)
 - Updates to 14+ existing docs (CLI reference, configuration, init docs, etc.)
 - Removal of 5+ jujutsu file references
 
 **Source Files for Validation** (read-only, no modifications):
+
 - `src/specify_cli/cli/commands/agent/config.py` - Command implementations, help text, error messages
 - `src/specify_cli/orchestrator/agent_config.py` - `AgentConfig` and `AgentSelectionConfig` dataclasses
 - `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` - `AGENT_DIRS` and `AGENT_DIR_TO_KEY` mappings
 - `architecture/adrs/2026-01-23-6-config-driven-agent-management.md` - Architectural decision context
 
 **Validation Strategy**:
+
 - Agent reads source files directly
 - Extracts command signatures from CLI help strings and function definitions
 - Extracts config schema from dataclass type hints
@@ -89,10 +92,12 @@ docs/
 ```
 
 **Files to Create**:
+
 - `docs/how-to/manage-agents.md` (new)
 - Optional: `docs/how-to/upgrade-to-0-12-0.md` (if migration guide warrants separate file)
 
 **Files to Update** (audit and fix):
+
 - `docs/reference/cli-commands.md` (add agent config commands)
 - `docs/reference/agent-subcommands.md` (add to command index)
 - `docs/reference/configuration.md` (explain config-driven model)
@@ -102,6 +107,7 @@ docs/
 - All docs with broken jj links or jj workflow references
 
 **Jujutsu Files Removed** (validate no lingering references):
+
 - `docs/explanation/auto-rebase-and-conflicts.md` (deleted)
 - `docs/explanation/jujutsu-for-multi-agent.md` (deleted)
 - `docs/how-to/handle-conflicts-jj.md` (deleted)
@@ -123,10 +129,12 @@ N/A - No constitution violations (no constitution exists, and this is documentat
 **Goal**: Extract exact command signatures, flags, defaults, and error messages from implementation
 
 **Sources**:
+
 - `src/specify_cli/cli/commands/agent/config.py` (lines 1-382)
 - Run `spec-kitty agent config --help` and subcommand help
 
 **Expected Findings**:
+
 - Command structure: `spec-kitty agent config {list|add|remove|status|sync}`
 - Flag details: `--keep-config`, `--create-missing`, `--remove-orphaned`, defaults
 - Error handling: Invalid agent keys show list of valid agents
@@ -139,10 +147,12 @@ N/A - No constitution violations (no constitution exists, and this is documentat
 **Goal**: Document config.yaml structure for agent configuration
 
 **Sources**:
+
 - `src/specify_cli/orchestrator/agent_config.py` (AgentConfig dataclass, lines 46-108)
 - Example: `.kittify/config.yaml` from initialized project
 
 **Expected Findings**:
+
 ```yaml
 agents:
   available:
@@ -161,9 +171,11 @@ agents:
 **Goal**: Document all 12 agent keys and their directory mappings
 
 **Sources**:
+
 - `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` (`AGENT_DIR_TO_KEY` constant)
 
 **Expected Findings**:
+
 - Standard: `claude` → `.claude/commands`, `gemini` → `.gemini/commands`
 - Special cases: `copilot` → `.github/prompts`, `auggie` → `.augment/commands`, `q` → `.amazonq/prompts`
 
@@ -174,6 +186,7 @@ agents:
 **Goal**: Identify all remaining jujutsu/jj references in documentation
 
 **Method**:
+
 ```bash
 grep -r "jujutsu\|jj\s\|\.jj" docs/ | grep -v ".jj/" | grep -v "jjust"
 ```
@@ -187,9 +200,11 @@ grep -r "jujutsu\|jj\s\|\.jj" docs/ | grep -v ".jj/" | grep -v "jjust"
 **Goal**: Extract key points for 0.11.x → 0.12.0 migration guide
 
 **Sources**:
+
 - `architecture/adrs/2026-01-23-6-config-driven-agent-management.md`
 
 **Expected Findings**:
+
 - Problem: Migrations recreated deleted agent directories
 - Solution: config.yaml as single source of truth
 - User workflow: Use `spec-kitty agent config remove` instead of manual deletion
@@ -200,6 +215,7 @@ grep -r "jujutsu\|jj\s\|\.jj" docs/ | grep -v ".jj/" | grep -v "jjust"
 ### Research Consolidation
 
 **Findings Summary**:
+
 - All agent config commands validated against source
 - Config schema extracted from dataclasses
 - Agent mappings confirmed (12 agents, 3 special cases)
@@ -317,33 +333,40 @@ Add new section:
    ```
 
 2. Remove unwanted agents (if any):
+
    ```bash
    spec-kitty agent config remove gemini cursor
    ```
 
 3. Verify configuration:
+
    ```bash
    cat .kittify/config.yaml
    ```
 
 4. Run upgrade:
+
    ```bash
    spec-kitty upgrade
    ```
 
 5. Confirm agents not recreated:
+
    ```bash
    spec-kitty agent config status
    ```
 
 ### Why This Change
+
 - Previous behavior: Manually deleted directories recreated on upgrade
 - New behavior: config.yaml tracks user intent, migrations respect it
 - See ADR #6 for architectural details
 
 ### Troubleshooting
+
 - "Orphaned directories found": Run `spec-kitty agent config sync`
 - "Agent directory missing": Run `spec-kitty agent config sync --create-missing`
+
 ```
 
 #### Update: `docs/reference/cli-commands.md`
@@ -384,6 +407,7 @@ spec-kitty agent config list
 ---
 
 [Continue with add, remove, status, sync subcommands following same format]
+
 ```
 
 ### Quickstart Guide
@@ -485,6 +509,7 @@ Phase 2 artifacts (tasks.md, tasks/*.md) are generated by the `/spec-kitty.tasks
 ## Deliverables Summary
 
 **Generated Artifacts** (in `kitty-specs/023-documentation-sprint-agent-management-cleanup/`):
+
 - ✅ `plan.md` - This file
 - ✅ `research.md` - Research findings (R1-R5)
 - ⏭️ `data-model.md` - N/A (no data entities)
@@ -492,10 +517,12 @@ Phase 2 artifacts (tasks.md, tasks/*.md) are generated by the `/spec-kitty.tasks
 - ✅ `quickstart.md` - Fast-start implementation guide
 
 **Documentation Files to Create** (in `docs/`):
+
 - `docs/how-to/manage-agents.md` (new)
 - Optional: `docs/how-to/upgrade-to-0-12-0.md` (if migration content warrants separate file)
 
 **Documentation Files to Update** (in `docs/`):
+
 - `docs/reference/cli-commands.md` (add agent config section)
 - `docs/reference/agent-subcommands.md` (add to index)
 - `docs/reference/configuration.md` (config-driven model)

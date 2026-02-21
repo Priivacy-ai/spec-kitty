@@ -96,6 +96,7 @@ No dependencies — branches directly from target branch.
   2. Import `EventStore` ABC from `specify_cli.spec_kitty_events.storage`
   3. Import `Event` from `specify_cli.spec_kitty_events.models`
   4. Implement `SimpleJsonStore(EventStore)`:
+
      ```python
      class SimpleJsonStore(EventStore):
          def __init__(self, file_path: Path) -> None:
@@ -106,6 +107,7 @@ No dependencies — branches directly from target branch.
          def load_events(self, aggregate_id: str) -> list[Event]: ...
          def load_all_events(self) -> list[Event]: ...
      ```
+
   5. `save_event()`: Create parent dirs, open in append mode, write `json.dumps(event.to_dict(), sort_keys=True) + "\n"`
   6. `load_events(aggregate_id)`: Read all events, filter by `event.aggregate_id == aggregate_id`, sort by `(lamport_clock, node_id)`
   7. `load_all_events()`: Read all events, sort by `(lamport_clock, node_id)`
@@ -132,6 +134,7 @@ No dependencies — branches directly from target branch.
 - **Purpose**: Prevent duplicate events when `save_event()` is called with the same `event_id` twice.
 - **Steps**:
   1. Add lazy-loaded `_known_ids` set to `SimpleJsonStore`:
+
      ```python
      def _ensure_known_ids(self) -> set[str]:
          if self._known_ids is None:
@@ -147,6 +150,7 @@ No dependencies — branches directly from target branch.
                              pass  # Skip corrupt lines during ID scan
          return self._known_ids
      ```
+
   2. In `save_event()`, check `event.event_id in self._ensure_known_ids()` before writing
   3. After successful write, add `event.event_id` to `_known_ids`
   4. If event_id already exists, return silently (no error, no write)
@@ -158,6 +162,7 @@ No dependencies — branches directly from target branch.
 - **Purpose**: Skip corrupted JSONL lines (partial writes from crashes) without failing the entire read.
 - **Steps**:
   1. In `_read_all_raw()`, wrap `json.loads(line)` and `Event.from_dict(data)` in try/except:
+
      ```python
      try:
          data = json.loads(line)
@@ -165,6 +170,7 @@ No dependencies — branches directly from target branch.
      except (json.JSONDecodeError, KeyError, TypeError, ValidationError) as e:
          logger.warning("Skipping malformed event line: %s", str(e)[:100])
      ```
+
   2. Use `logging.getLogger(__name__)` for the warning
   3. Count skipped lines and log a summary if any were skipped
 - **Files**: `src/specify_cli/telemetry/store.py` (modify)

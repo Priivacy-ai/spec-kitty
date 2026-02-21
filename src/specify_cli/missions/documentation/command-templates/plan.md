@@ -30,6 +30,7 @@ git branch --show-current  # Should show "main"
 ## Planning Interrogation
 
 For documentation missions, planning interrogation is lighter than software-dev:
+
 - **Simple projects** (single language, initial docs): 1-2 questions about structure preferences
 - **Complex projects** (multiple languages, existing docs): 2-3 questions about integration approach
 
@@ -37,6 +38,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 
 **Q1: Documentation Framework**
 "Do you have a preferred documentation framework/generator?"
+
 - Sphinx (Python ecosystem standard)
 - MkDocs (Markdown-focused, simple)
 - Docusaurus (React-based, modern)
@@ -47,6 +49,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 
 **Q2: Generator Integration Approach** (if multiple languages detected)
 "How should API reference for different languages be organized?"
+
 - Unified (all APIs in one reference section)
 - Separated (language-specific reference sections)
 - Parallel (side-by-side comparison)
@@ -163,6 +166,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
    **For Each Generator**:
 
    **Sphinx (Python)**:
+
    ```python
    # docs/conf.py
    project = '{project_name}'
@@ -182,6 +186,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
    ```
 
    **JSDoc (JavaScript)**:
+
    ```json
    {
      "source": {
@@ -197,6 +202,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
    ```
 
    **rustdoc (Rust)**:
+
    ```toml
    [package.metadata.docs.rs]
    all-features = true
@@ -261,6 +267,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 ## Key Guidelines
 
 **For Agents**:
+
 - Run gap analysis only for gap-filling mode
 - Auto-detect documentation framework from existing docs
 - Configure generators based on detected languages
@@ -269,6 +276,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
 - Plan includes both auto-generated and manual documentation
 
 **For Users**:
+
 - Planning designs documentation structure, doesn't write content yet
 - Generator configs enable automated API reference
 - Gap analysis (if iterating) shows what needs attention

@@ -32,10 +32,12 @@ Establish the foundational package structure, core data models, exception hierar
 This is the foundational work package for the glossary feature. It creates the basic building blocks that all other components depend on: data models (TermSurface, TermSense, SemanticConflict), exceptions (BlockedByConflict, DeferredToAsync), and the GlossaryScope enum.
 
 **Design references**:
+
 - [data-model.md](../data-model.md) - Complete entity definitions
 - [plan.md](../plan.md) - Architecture and technical context
 
 **Key architectural decisions**:
+
 - Event sourcing: All state in event log, no side-channel files
 - Python 3.11+ dataclasses with type annotations
 - GlossaryScope resolution order: mission_local → team_domain → audience_domain → spec_kitty_core
@@ -59,12 +61,14 @@ spec-kitty implement WP01
 **Steps**:
 
 1. Create package directory:
+
    ```bash
    mkdir -p src/specify_cli/glossary
    touch src/specify_cli/glossary/__init__.py
    ```
 
 2. Create module files:
+
    ```
    src/specify_cli/glossary/
    ├── __init__.py          # Public API exports
@@ -82,6 +86,7 @@ spec-kitty implement WP01
    ```
 
 3. Add public API exports to `__init__.py`:
+
    ```python
    """Glossary semantic integrity runtime for mission framework."""
 
@@ -119,6 +124,7 @@ spec-kitty implement WP01
    ```
 
 4. Create test directory:
+
    ```bash
    mkdir -p tests/specify_cli/glossary
    touch tests/specify_cli/glossary/__init__.py
@@ -126,6 +132,7 @@ spec-kitty implement WP01
    ```
 
 **Files created**:
+
 - `src/specify_cli/glossary/__init__.py` (~30 lines)
 - `src/specify_cli/glossary/models.py` (stub, filled in T002)
 - `src/specify_cli/glossary/exceptions.py` (stub, filled in T003)
@@ -134,9 +141,10 @@ spec-kitty implement WP01
 - 8 other module stubs (filled in later WPs)
 
 **Validation**:
+
 - [ ] Package imports successfully: `python -c "import specify_cli.glossary"`
 - [ ] No import errors
-- [ ] __version__ is accessible
+- [ ] **version** is accessible
 
 ---
 
@@ -378,10 +386,12 @@ spec-kitty implement WP01
    ```
 
 **Files modified**:
+
 - `src/specify_cli/glossary/models.py` (~150 lines)
 - `tests/specify_cli/glossary/test_models.py` (~80 lines)
 
 **Validation**:
+
 - [ ] Can create TermSurface with normalized text
 - [ ] TermSurface rejects non-normalized text
 - [ ] TermSense validates confidence range (0.0-1.0)
@@ -496,10 +506,12 @@ spec-kitty implement WP01
    ```
 
 **Files created**:
+
 - `src/specify_cli/glossary/exceptions.py` (~40 lines)
 - `tests/specify_cli/glossary/test_exceptions.py` (~50 lines)
 
 **Validation**:
+
 - [ ] BlockedByConflict stores conflicts list
 - [ ] DeferredToAsync stores conflict_id
 - [ ] AbortResume stores reason
@@ -637,9 +649,11 @@ spec-kitty implement WP01
    ```
 
 **Files modified**:
+
 - `tests/specify_cli/glossary/conftest.py` (~80 lines)
 
 **Validation**:
+
 - [ ] Fixtures import successfully
 - [ ] sample_term_surface creates valid TermSurface
 - [ ] mock_primitive_context has expected attributes
@@ -749,10 +763,12 @@ spec-kitty implement WP01
    ```
 
 **Files created**:
+
 - `src/specify_cli/glossary/scope.py` (~40 lines)
 - `tests/specify_cli/glossary/test_scope.py` (~30 lines)
 
 **Validation**:
+
 - [ ] GlossaryScope has 4 enum values
 - [ ] SCOPE_RESOLUTION_ORDER is correct
 - [ ] get_scope_precedence returns 0-3
@@ -764,6 +780,7 @@ spec-kitty implement WP01
 ## Definition of Done
 
 **Code Complete**:
+
 - [ ] All 5 subtasks implemented (T001-T005)
 - [ ] Package structure created with 12 module files
 - [ ] Core data models defined (TermSurface, TermSense, SemanticConflict)
@@ -772,6 +789,7 @@ spec-kitty implement WP01
 - [ ] Test infrastructure with fixtures and mocks
 
 **Tests**:
+
 - [ ] test_models.py: 3 tests passing (TermSurface, TermSense, SemanticConflict validation)
 - [ ] test_exceptions.py: 4 tests passing (exception behavior)
 - [ ] test_scope.py: 3 tests passing (scope precedence)
@@ -779,11 +797,13 @@ spec-kitty implement WP01
 - [ ] mypy --strict passes for all glossary modules
 
 **Documentation**:
+
 - [ ] Docstrings on all public classes and functions
 - [ ] Type annotations on all functions (mypy --strict compliant)
 - [ ] README.md in glossary package (optional)
 
 **Integration**:
+
 - [ ] Package imports successfully: `python -c "import specify_cli.glossary"`
 - [ ] No circular import errors
 - [ ] pytest-cov reports >90% coverage for this WP's code
@@ -793,6 +813,7 @@ spec-kitty implement WP01
 ## Testing Strategy
 
 **Unit tests**:
+
 - Data model validation (normalization, ranges, required fields)
 - Exception behavior (message formatting, attribute storage)
 - Scope precedence calculation
@@ -800,6 +821,7 @@ spec-kitty implement WP01
 **No integration tests yet** (no dependencies on other components).
 
 **Test commands**:
+
 ```bash
 # Run all glossary tests
 pytest tests/specify_cli/glossary/ -v
@@ -830,18 +852,21 @@ mypy src/specify_cli/glossary/ --strict
 ## Reviewer Guidance
 
 **Focus areas**:
+
 1. **Data model validation**: Verify TermSurface rejects non-normalized text, TermSense validates confidence/definition
 2. **Exception messages**: Ensure error messages are actionable (include next steps)
 3. **Type annotations**: Check all functions have complete type hints (mypy --strict compliant)
 4. **Test fixtures**: Verify fixtures are reusable and don't couple tests
 
 **How to verify**:
+
 1. Run tests: `pytest tests/specify_cli/glossary/ -v` (all should pass)
 2. Run type check: `mypy src/specify_cli/glossary/ --strict` (no errors)
 3. Check coverage: `pytest --cov=src/specify_cli/glossary --cov-report=html` (>90%)
 4. Import test: `python -c "from specify_cli.glossary import TermSurface, SemanticConflict"` (no errors)
 
 **Acceptance checklist**:
+
 - [ ] All 10 tests pass
 - [ ] mypy --strict passes
 - [ ] Coverage >90%
@@ -853,6 +878,7 @@ mypy src/specify_cli/glossary/ --strict
 ## Next Steps
 
 After WP01 completion:
+
 - **WP02**: Scope Management & Storage (depends on WP01 models)
 - **WP03**: Term Extraction (depends on WP01 models, can run parallel with WP02)
 

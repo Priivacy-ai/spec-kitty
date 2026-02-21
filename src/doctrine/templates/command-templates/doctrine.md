@@ -3,9 +3,7 @@ description: Curate external concepts and import them into doctrine artifacts wi
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `src/doctrine/curation/imports/<source-id>/`). Never refer to a folder by name alone.
 
-
 *Path: [templates/commands/doctrine.md](templates/commands/doctrine.md)*
-
 
 ## User Input
 

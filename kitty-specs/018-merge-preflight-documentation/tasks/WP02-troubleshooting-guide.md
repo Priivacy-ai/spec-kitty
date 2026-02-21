@@ -45,6 +45,7 @@ history:
 **Date**: 2026-01-18
 
 **Issue 1**: Error message reference is still not exact/complete. It must list the exact user-facing strings. Please add the missing lines and fix mismatches, for example:
+
 - `Error: No merge state to resume` (currently missing the `Error:` prefix)
 - `Error: Working directory has uncommitted changes.` (missing `Error:` prefix)
 - `Merge failed. Resolve conflicts and try again.` (distinct from `Merge failed. You may need to resolve conflicts.`)
@@ -54,12 +55,12 @@ Include other exact red/error strings from `src/specify_cli/cli/commands/merge.p
 
 **Issue 2**: “Missing Worktree” remediation text is inconsistent. The error text says to run `spec-kitty agent workflow implement WP##`, but the guide then adds extra `spec-kitty implement` commands. Please align the fix steps to the actual instruction and avoid redundant/conflicting commands.
 
-
 ## Objectives & Success Criteria
 
 Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge recovery and conflict resolution.
 
 **Success Criteria:**
+
 - A user with an interrupted merge can recover within 5 minutes using only this guide
 - All error messages are documented with solutions
 - --resume and --abort usage is clear with examples
@@ -69,6 +70,7 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 ## Context & Constraints
 
 **Source Files:**
+
 - `src/specify_cli/cli/commands/merge.py` - Error messages, --resume/--abort handling
 - `src/specify_cli/merge/state.py` - MergeState dataclass, JSON structure
 - `src/specify_cli/merge/executor.py` - Merge workflow, error conditions
@@ -82,6 +84,7 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 ## Subtasks & Detailed Guidance
 
 ### Subtask T009 – Extract error messages from merge code
+
 - **Purpose**: Document all user-facing errors
 - **Steps**:
   1. Grep for `console.print.*Error` and `console.print.*red` in merge files
@@ -95,6 +98,7 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 - **Command**: `grep -rn "Error\|red" src/specify_cli/merge/ src/specify_cli/cli/commands/merge.py`
 
 ### Subtask T010 – Document MergeState structure
+
 - **Purpose**: Help users understand state file for debugging
 - **Steps**:
   1. Read `src/specify_cli/merge/state.py`
@@ -107,6 +111,7 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 - **Parallel?**: Yes
 
 ### Subtask T011 – Document status file auto-resolution
+
 - **Purpose**: Explain automatic conflict handling
 - **Steps**:
   1. Read `src/specify_cli/merge/status_resolver.py`
@@ -117,10 +122,12 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 - **Parallel?**: Yes
 
 ### Subtask T012 – Write troubleshoot-merge.md structure
+
 - **Purpose**: Establish document skeleton with decision tree
 - **Steps**:
   1. Create `docs/how-to/troubleshoot-merge.md`
   2. Start with "Quick Reference" decision tree:
+
      ```
      Merge failed?
      ├── Pre-flight failed → Section: Pre-flight Failures
@@ -128,11 +135,13 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
      ├── Interrupted (terminal closed) → Section: --resume
      └── Want to start over → Section: --abort
      ```
+
   3. Add standard sections: Command Reference, See Also
 - **Files**: `docs/how-to/troubleshoot-merge.md`
 - **Parallel?**: No (must complete before T013-T017)
 
 ### Subtask T013 – --resume usage section
+
 - **Purpose**: Guide users through resuming interrupted merges
 - **Steps**:
   1. Add "Resume an Interrupted Merge" section
@@ -144,6 +153,7 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 - **Parallel?**: Yes (after T012)
 
 ### Subtask T014 – --abort usage section
+
 - **Purpose**: Guide users through aborting and starting fresh
 - **Steps**:
   1. Add "Abort and Start Fresh" section
@@ -155,6 +165,7 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 - **Parallel?**: Yes (after T012)
 
 ### Subtask T015 – Conflict resolution section
+
 - **Purpose**: Document manual conflict resolution workflow
 - **Steps**:
   1. Add "Resolve Merge Conflicts" section
@@ -169,6 +180,7 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 - **Parallel?**: Yes (after T012)
 
 ### Subtask T016 – Pre-flight failure section
+
 - **Purpose**: Document each pre-flight failure and fix
 - **Steps**:
   1. Add "Pre-flight Validation Failures" section
@@ -181,6 +193,7 @@ Create `docs/how-to/troubleshoot-merge.md` - a problem-solution guide for merge 
 - **Parallel?**: Yes (after T012)
 
 ### Subtask T017 – Error message reference table
+
 - **Purpose**: Quick lookup for any error
 - **Steps**:
   1. Add "Error Message Reference" section

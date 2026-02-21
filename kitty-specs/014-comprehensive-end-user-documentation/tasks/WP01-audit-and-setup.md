@@ -40,21 +40,24 @@ history:
 **Date**: 2026-01-16
 
 **Issue 1: No updates since prior review**
+
 - The WP01 branch has no new commits since the previous review and the earlier feedback has not been addressed.
 
 **Issue 2: Broken internal links remain**
+
 - docs/how-to/upgrade-to-0-11-0.md:132 and docs/how-to/upgrade-to-0-11-0.md:511 still reference `workspace-per-wp.md` (now in `docs/explanation/`).
 - docs/explanation/workspace-per-wp.md:557 and docs/explanation/workspace-per-wp.md:567 still reference `upgrading-to-0-11-0.md` (now in `docs/how-to/`).
 - docs/explanation/multi-agent-orchestration.md:63 and docs/explanation/multi-agent-orchestration.md:65 still reference `kanban-dashboard-guide.md` and `claude-code-workflow.md` (now in `docs/how-to/` and `docs/tutorials/`).
 - docs/tutorials/claude-code-integration.md:605 and docs/tutorials/claude-code-integration.md:607 still reference `kanban-dashboard-guide.md` and `multi-agent-orchestration.md` (now in `docs/how-to/` and `docs/explanation/`).
 
 **Issue 3: Missing placeholder in docs/reference/**
+
 - `docs/reference/` is empty with no `.gitkeep` or placeholder README.
 
 **Issue 4: Unaccounted deletions in audit**
+
 - The removal of `docs/ARCHITECTURE.md`, `docs/CONTEXT_SWITCHING_GUIDE.md`, `docs/encoding-requirements.md`, `docs/encoding-validation.md`, `docs/plan-validation-guardrail.md`, `docs/spec-workflow-automation.md`, and `docs/task-metadata-validation.md` is still not justified in `kitty-specs/014-comprehensive-end-user-documentation/research.md`.
 Please either restore these files or update the audit findings to explicitly classify and justify their removal.
-
 
 ## Objectives & Success Criteria
 
@@ -72,6 +75,7 @@ Please either restore these files or update the audit findings to explicitly cla
 - **Target Audience**: End users only (not contributors)
 
 ### Key Decisions from Research
+
 - **Preserve**: installation.md, workspace-per-wp.md, upgrading-to-0-11-0.md, documentation-mission.md
 - **Remove**: testing-guidelines.md, local-development.md, releases/readiness-checklist.md (contributor docs)
 - **Rewrite**: index.md, quickstart.md (outdated)
@@ -79,6 +83,7 @@ Please either restore these files or update the audit findings to explicitly cla
 ## Subtasks & Detailed Guidance
 
 ### Subtask T001 – Audit Existing Documentation
+
 - **Purpose**: Document current state of all docs for migration decisions
 - **Steps**:
   1. List all files in `docs/` directory
@@ -92,6 +97,7 @@ Please either restore these files or update the audit findings to explicitly cla
 - **Notes**: Use research.md findings as starting point
 
 ### Subtask T002 – Create Divio Directory Structure
+
 - **Purpose**: Establish the 4-type documentation organization
 - **Steps**:
   1. Create `docs/tutorials/` directory
@@ -108,6 +114,7 @@ Please either restore these files or update the audit findings to explicitly cla
 - **Notes**: Simple directory creation
 
 ### Subtask T003 – Remove Outdated/Out-of-Scope Docs
+
 - **Purpose**: Clean up docs that don't belong in end-user documentation
 - **Steps**:
   1. Remove contributor documentation:
@@ -124,6 +131,7 @@ Please either restore these files or update the audit findings to explicitly cla
 - **Notes**: Git commit removals with clear message
 
 ### Subtask T004 – Migrate Salvageable Content
+
 - **Purpose**: Move good content to appropriate Divio locations
 - **Steps**:
   1. Move `docs/workspace-per-wp.md` → `docs/explanation/workspace-per-wp.md`

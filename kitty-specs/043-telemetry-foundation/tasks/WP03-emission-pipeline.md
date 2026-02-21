@@ -83,6 +83,7 @@ Depends on WP01 (SimpleJsonStore).
 - **Steps**:
   1. Create `src/specify_cli/telemetry/emit.py`
   2. Implement:
+
      ```python
      def emit_execution_event(
          feature_dir: Path,
@@ -102,11 +103,13 @@ Depends on WP01 (SimpleJsonStore).
          node_id: str = "cli",
      ) -> None:
      ```
+
   3. Inside the function:
      - Generate a ULID for `event_id` (use `python-ulid`: `from ulid import ULID; str(ULID())`)
      - Get current UTC timestamp: `datetime.now(timezone.utc)`
      - Tick the Lamport clock (see T012)
      - Construct `Event` from `spec_kitty_events.models`:
+
        ```python
        event = Event(
            event_id=str(ULID()),
@@ -131,6 +134,7 @@ Depends on WP01 (SimpleJsonStore).
            },
        )
        ```
+
      - Save via `SimpleJsonStore(feature_dir / "execution.events.jsonl").save_event(event)`
 - **Files**: `src/specify_cli/telemetry/emit.py` (new, ~70 lines)
 - **Notes**: The `Event` constructor validates via Pydantic — invalid data raises `ValidationError`. This is caught by the fire-and-forget wrapper (T013).
@@ -140,6 +144,7 @@ Depends on WP01 (SimpleJsonStore).
 - **Purpose**: Ensure execution events have monotonically increasing logical clock values for causal ordering.
 - **Steps**:
   1. Create a simple file-backed `ClockStorage` implementation in `telemetry/emit.py` (or `telemetry/clock.py` if cleaner):
+
      ```python
      class FileClockStorage(ClockStorage):
          def __init__(self, file_path: Path) -> None:
@@ -167,11 +172,14 @@ Depends on WP01 (SimpleJsonStore).
                  json.dumps(data, sort_keys=True), encoding="utf-8"
              )
      ```
+
   2. In `emit_execution_event()`, instantiate:
+
      ```python
      clock_storage = FileClockStorage(feature_dir / ".telemetry-clock.json")
      clock = LamportClock(node_id=node_id, storage=clock_storage)
      ```
+
   3. Call `clock.tick()` to get the next clock value for the event
   4. Clock file location: per-feature `<feature_dir>/.telemetry-clock.json`
 - **Files**: `src/specify_cli/telemetry/emit.py` (modify, ~40 lines added)
@@ -182,6 +190,7 @@ Depends on WP01 (SimpleJsonStore).
 - **Purpose**: Ensure telemetry emission never blocks or crashes the orchestrator pipeline.
 - **Steps**:
   1. Wrap the entire body of `emit_execution_event()` in try/except:
+
      ```python
      def emit_execution_event(...) -> None:
          try:
@@ -189,6 +198,7 @@ Depends on WP01 (SimpleJsonStore).
          except Exception as e:
              logger.warning("Telemetry emission failed for %s/%s: %s", feature_slug, wp_id, e)
      ```
+
   2. Use `logging.getLogger(__name__)` for the logger
   3. The function returns `None` in all cases — no return value, no exception propagation
   4. Log at WARNING level (not ERROR) — telemetry failure is degraded, not broken
@@ -217,6 +227,7 @@ Depends on WP01 (SimpleJsonStore).
 - **Steps**:
   1. Open `src/specify_cli/orchestrator/agents/base.py`
   2. Add optional fields to the `InvocationResult` dataclass:
+
      ```python
      @dataclass
      class InvocationResult:
@@ -235,6 +246,7 @@ Depends on WP01 (SimpleJsonStore).
          output_tokens: int | None = None
          cost_usd: float | None = None
      ```
+
   3. Verify all existing code that constructs `InvocationResult` still works (new fields have defaults)
   4. Run existing orchestrator tests to confirm no breakage
 - **Files**: `src/specify_cli/orchestrator/agents/base.py` (modify, 4 lines added)
@@ -247,6 +259,7 @@ Depends on WP01 (SimpleJsonStore).
   1. Open `src/specify_cli/orchestrator/integration.py`
   2. Locate where `execute_with_logging()` returns in `process_wp_implementation()` (after the result is obtained, before status transitions)
   3. Add emission call:
+
      ```python
      # Telemetry emission (fire-and-forget)
      try:
@@ -269,6 +282,7 @@ Depends on WP01 (SimpleJsonStore).
      except Exception as e:
          logger.warning("Telemetry emission failed for %s: %s", wp_id, e)
      ```
+
   4. The outer try/except catches import errors or any unexpected failure — double safety net
 - **Files**: `src/specify_cli/orchestrator/integration.py` (modify, ~15 lines added)
 - **Parallel?**: Yes — independent from T017 (different function).
@@ -280,6 +294,7 @@ Depends on WP01 (SimpleJsonStore).
 - **Steps**:
   1. In `src/specify_cli/orchestrator/integration.py`, locate `process_wp_review()`
   2. Add the same emission pattern as T016, with `role="reviewer"`:
+
      ```python
      try:
          from specify_cli.telemetry.emit import emit_execution_event
@@ -301,6 +316,7 @@ Depends on WP01 (SimpleJsonStore).
      except Exception as e:
          logger.warning("Telemetry emission failed for %s review: %s", wp_id, e)
      ```
+
 - **Files**: `src/specify_cli/orchestrator/integration.py` (modify, ~15 lines added)
 - **Parallel?**: Yes — independent from T016 (different function).
 

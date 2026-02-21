@@ -9,6 +9,7 @@
 This feature integrates event sourcing into the CLI using the spec-kitty-events library. The data model consists of core entities for event storage, clock management, and query optimization.
 
 **Design Principles**:
+
 - Events are immutable (append-only)
 - JSONL files are source of truth
 - SQLite index is derived state (rebuilds from JSONL)
@@ -26,6 +27,7 @@ This feature integrates event sourcing into the CLI using the spec-kitty-events 
 **Storage**: JSONL files (`.kittify/events/YYYY-MM-DD.jsonl`)
 
 **Schema**:
+
 ```python
 @dataclass
 class Event:
@@ -43,6 +45,7 @@ class Event:
 ```
 
 **Example** (WP status change):
+
 ```json
 {
   "event_id": "01HN3R5K8D1234567890ABCDEF",
@@ -65,12 +68,14 @@ class Event:
 ```
 
 **Constraints**:
+
 - `event_id` must be globally unique (ULID guarantees)
 - `lamport_clock` must be monotonically increasing within project
 - `event_type` must match registered type (validation on write)
 - `payload` structure varies by event_type (weak schema, tolerate missing fields)
 
 **Relationships**:
+
 - `entity_id` references WorkPackage, FeatureSpec, or Subtask (polymorphic)
 - `causation_id` enables idempotency check (reject duplicate command IDs)
 - `correlation_id` groups related events (e.g., all events in implement session)
@@ -84,6 +89,7 @@ class Event:
 **Storage**: JSON file (`.kittify/clock.json`)
 
 **Schema**:
+
 ```python
 @dataclass
 class LamportClock:
@@ -92,6 +98,7 @@ class LamportClock:
 ```
 
 **Example**:
+
 ```json
 {
   "value": 42,
@@ -100,16 +107,19 @@ class LamportClock:
 ```
 
 **Operations**:
+
 - `tick()`: Increment clock by 1, return new value
 - `update(remote_clock: int)`: Set clock to max(local_clock, remote_clock) + 1 (for sync protocol)
 - `initialize()`: Set clock to 1 (on first event or corruption recovery)
 
 **Persistence Strategy**:
+
 - Write to file after every event emission (durability)
 - Read on CLI startup (cache in memory during command execution)
 - Reinitialize from max(event log clocks) + 1 if file corrupted
 
 **Constraints**:
+
 - Clock value must never decrease
 - Clock increments are atomic (file locking during write)
 
@@ -122,6 +132,7 @@ class LamportClock:
 **Responsibility**: Append events to daily JSONL file with atomic writes
 
 **Implementation** (wraps spec-kitty-events library):
+
 ```python
 class EventStore:
     def __init__(self, repo_root: Path):
@@ -181,11 +192,13 @@ class EventStore:
 ```
 
 **File Operations**:
+
 - Daily rotation: Events append to `YYYY-MM-DD.jsonl`
 - Atomic appends: POSIX advisory lock (`fcntl.flock`) during write
 - Error handling: Skip invalid JSON lines with warning, continue processing
 
 **Integration with spec-kitty-events**:
+
 ```python
 # EventStore wraps library's core types
 from spec_kitty_events import Event as LibEvent, LamportClock as LibClock
@@ -208,6 +221,7 @@ event = LibEvent(
 **Storage**: SQLite database (`.kittify/events/index.db`)
 
 **Schema** (SQL):
+
 ```sql
 CREATE TABLE events (
     event_id TEXT PRIMARY KEY,
@@ -225,6 +239,7 @@ CREATE TABLE events (
 ```
 
 **Operations**:
+
 ```python
 class EventIndex:
     def update(self, event: Event):
@@ -269,10 +284,12 @@ class EventIndex:
 ```
 
 **Index Update Strategy**:
+
 - **MVP (Phase 1)**: Synchronous (inline during emit)
 - **Phase 2**: Asynchronous (background worker)
 
 **Rebuild Triggers**:
+
 - Index file missing: Rebuild on first read
 - Index corruption detected: Delete and rebuild
 - Manual rebuild: `spec-kitty agent events rebuild-index`
@@ -286,6 +303,7 @@ class EventIndex:
 **Storage**: JSON file (`.kittify/clock.json`)
 
 **Operations**:
+
 ```python
 class ClockStorage:
     def load(self, clock_file: Path) -> LamportClock:
@@ -304,6 +322,7 @@ class ClockStorage:
 ```
 
 **Corruption Recovery**:
+
 ```python
 def recover_clock(events_dir: Path) -> LamportClock:
     """Rebuild clock from max value in event log."""
@@ -325,6 +344,7 @@ def recover_clock(events_dir: Path) -> LamportClock:
 **Storage**: JSONL files (`.kittify/errors/YYYY-MM-DD.jsonl`)
 
 **Schema**:
+
 ```python
 @dataclass
 class ErrorEvent:
@@ -338,6 +358,7 @@ class ErrorEvent:
 ```
 
 **Example** (invalid state transition):
+
 ```json
 {
   "error_id": "01HN3R5K8E9876543210FEDCBA",
@@ -355,6 +376,7 @@ class ErrorEvent:
 ```
 
 **Usage**:
+
 - Agent reviews error log before attempting operations (learn from past mistakes)
 - Dashboard displays recent errors for debugging
 - Analytics: Track most common error types
@@ -414,6 +436,7 @@ def reconstruct_wp_status(wp_id: str, event_store: EventStore) -> str:
 ```
 
 **Optimization (Phase 2 - Snapshotting)**:
+
 ```python
 def reconstruct_wp_status_optimized(wp_id: str, event_store: EventStore) -> str:
     """Use snapshot + replay events since snapshot."""
@@ -524,6 +547,7 @@ def detect_and_resolve_conflict(event_store: EventStore):
 ## Validation Rules
 
 ### Event Validation (on emit)
+
 - `event_id` must be valid ULID format
 - `event_type` must be registered type (validate against enum)
 - `entity_id` must not be empty
@@ -531,11 +555,13 @@ def detect_and_resolve_conflict(event_store: EventStore):
 - `payload` must be valid JSON (no circular references)
 
 ### State Transition Validation (before emit)
+
 - Valid transitions defined per entity type (e.g., WP: planned → doing → for_review → done)
 - Dependencies checked (Validator pattern from Jira research)
 - Gates checked (e.g., CI must pass before for_review → done)
 
 ### Index Integrity
+
 - All events in JSONL must have corresponding index entry
 - Index rebuild available if mismatch detected: `spec-kitty agent events rebuild-index`
 
@@ -544,21 +570,25 @@ def detect_and_resolve_conflict(event_store: EventStore):
 ## Performance Characteristics
 
 **Write Performance**:
+
 - Event emission: ~10-15ms (JSONL write 5-10ms + SQLite index 2-5ms)
 - Lamport clock persist: ~1-2ms (small JSON file)
 - Daily file rotation: ~0ms (just change filename)
 
 **Read Performance**:
+
 - Query with index: <100ms for 1000 events (SQLite indexed query)
 - Full replay without index: ~500ms for 1000 events (read all JSONL)
 - Status reconstruction: ~50ms (read + replay for single WP)
 
 **Storage Growth**:
+
 - Event size: ~300-500 bytes per event (JSON overhead)
 - Expected volume: 100-500 events per feature (spec → tasks → review → done)
 - Annual growth: ~10-50MB for active project (100-500 events/month)
 
 **Scalability Limits** (Phase 1):
+
 - Up to 10,000 events before index queries degrade (SQLite limit)
 - Up to 1,000 events per WP before snapshotting needed (replay time)
 - Daily JSONL files up to 1MB each (Git merge-friendly)
@@ -587,6 +617,7 @@ def detect_and_resolve_conflict(event_store: EventStore):
 ## Testing Strategy
 
 ### Unit Tests
+
 - Event serialization/deserialization (JSON round-trip)
 - Lamport clock increment atomicity
 - JSONL append with file locking
@@ -594,12 +625,14 @@ def detect_and_resolve_conflict(event_store: EventStore):
 - Conflict detection logic
 
 ### Integration Tests
+
 - End-to-end: `move_task` command emits event → status reads event → kanban board updated
 - Corruption recovery: Delete clock.json → rebuild from event log
 - Index rebuild: Delete index.db → rebuild from JSONL files
 - Daily rotation: Emit events across simulated day boundary
 
 ### Performance Tests
+
 - Benchmark event write latency (target: <15ms)
 - Benchmark status reconstruction (target: <50ms for 100 events)
 - Benchmark index query (target: <100ms for 1000 events)
@@ -611,11 +644,13 @@ def detect_and_resolve_conflict(event_store: EventStore):
 **Event Immutability**: Events are append-only. No updates or deletes (prevents audit trail tampering).
 
 **Sensitive Data**: Events should NOT contain:
+
 - Credentials or secrets
 - PII (personally identifiable information)
 - API keys or tokens
 
 **Access Control**: File permissions (`.kittify/` directory):
+
 - Owner: Read/write
 - Group: Read-only (for team collaboration)
 - Other: No access
@@ -627,6 +662,7 @@ def detect_and_resolve_conflict(event_store: EventStore):
 ## Summary
 
 This data model provides a robust foundation for event sourcing in the CLI:
+
 - ✅ Immutable event log with causal ordering (Lamport clocks)
 - ✅ Query optimization via SQLite index (derived state)
 - ✅ Corruption recovery (rebuild from JSONL source of truth)

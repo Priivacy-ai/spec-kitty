@@ -34,6 +34,7 @@ history:
 **Goal**: Integrate VCS abstraction across codebase, add merge command, update worktree.py, deprecate direct git calls.
 
 **Success Criteria**:
+
 - New `spec-kitty merge` command completes WP merging workflow
 - worktree.py updated to use VCS abstraction
 - Direct git calls in commands deprecated with warnings
@@ -47,16 +48,19 @@ history:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `src/specify_cli/core/worktree.py` - Existing worktree management
 - `src/specify_cli/cli/commands/` - All command files
 - `kitty-specs/015-first-class-jujutsu-vcs-integration/plan.md` - Migration strategy
 
 **Architecture Decisions**:
+
 - Phase 3 focuses on migration and polish
 - Deprecation warnings guide users to new abstractions
 - Merge command unifies WP completion workflow
 
 **Constraints**:
+
 - Must maintain backward compatibility during transition
 - Deprecation period before removing direct git calls
 - Full test coverage required for integration
@@ -68,8 +72,10 @@ history:
 **Purpose**: Implement new merge command for WP completion.
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/merge.py`
 2. Implement merge workflow:
+
    ```python
    import typer
    from rich.console import Console
@@ -94,7 +100,9 @@ history:
        # 4. Optionally delete workspace
        pass
    ```
+
 3. Implement VCS-agnostic merge:
+
    ```python
    def _merge_workspace(workspace_path: Path, target: str) -> bool:
        vcs = get_vcs(workspace_path)
@@ -108,9 +116,11 @@ history:
    ```
 
 **Files**:
+
 - Create: `src/specify_cli/cli/commands/merge.py`
 
 **Notes**:
+
 - Merge strategies may differ between git and jj
 - jj supports squash workflow natively
 - Consider --squash flag for git
@@ -122,8 +132,10 @@ history:
 **Purpose**: Migrate worktree.py from direct git calls to VCS abstraction.
 
 **Steps**:
+
 1. Open `src/specify_cli/core/worktree.py`
 2. Replace direct git subprocess calls with VCS abstraction:
+
    ```python
    # Before:
    subprocess.run(["git", "worktree", "add", ...])
@@ -133,6 +145,7 @@ history:
    vcs = get_vcs(repo_path)
    result = vcs.create_workspace(...)
    ```
+
 3. Update all worktree functions:
    - `create_worktree()` → use `vcs.create_workspace()`
    - `remove_worktree()` → use `vcs.remove_workspace()`
@@ -141,9 +154,11 @@ history:
 4. Add deprecation warnings to old function signatures if needed
 
 **Files**:
+
 - Modify: `src/specify_cli/core/worktree.py`
 
 **Notes**:
+
 - This is critical for full abstraction
 - Existing callers should work without changes
 - Internal implementation changes only
@@ -155,8 +170,10 @@ history:
 **Purpose**: Mark direct git calls as deprecated with migration guidance.
 
 **Steps**:
+
 1. Find remaining direct git subprocess calls in commands
 2. Add deprecation warnings:
+
    ```python
    import warnings
 
@@ -169,13 +186,16 @@ history:
        )
        # ... existing implementation
    ```
+
 3. Document migration path in deprecation message
 
 **Files**:
+
 - Modify: Various command files with direct git calls
 - Focus on: `implement.py`, `review.py`, `accept.py`
 
 **Notes**:
+
 - Deprecation period allows gradual migration
 - Warnings visible to developers
 - Full removal in future version
@@ -187,15 +207,19 @@ history:
 **Purpose**: Add merge command to spec-kitty CLI.
 
 **Steps**:
+
 1. Open `src/specify_cli/cli/main.py`
 2. Add merge command:
+
    ```python
    from specify_cli.cli.commands import merge
    app.add_typer(merge.app, name="merge")
    ```
+
 3. Verify command appears in `spec-kitty --help`
 
 **Files**:
+
 - Modify: `src/specify_cli/cli/main.py`
 
 ---
@@ -205,8 +229,10 @@ history:
 **Purpose**: End-to-end tests for full workflow with both backends.
 
 **Steps**:
+
 1. Create `tests/specify_cli/test_vcs_integration.py`
 2. Add full workflow tests:
+
    ```python
    @pytest.mark.parametrize("backend", [
        "git",
@@ -245,6 +271,7 @@ history:
    ```
 
 **Files**:
+
 - Create: `tests/specify_cli/test_vcs_integration.py`
 
 **Parallel?**: Yes - can start once commands implemented
@@ -256,8 +283,10 @@ history:
 **Purpose**: Document jj workflow for agent users.
 
 **Steps**:
+
 1. Open `/Users/robert/Code/spec-kitty/CLAUDE.md`
 2. Add jj-specific section:
+
    ```markdown
    ## Jujutsu (jj) VCS Integration (0.12.0+)
 
@@ -297,10 +326,12 @@ history:
    - Both `.jj/` and `.git/` directories present
    - Can use either tool interchangeably
    - Recommended for teams transitioning to jj
+
    ```
 3. Update existing sections to mention VCS abstraction
 
 **Files**:
+
 - Modify: `CLAUDE.md`
 
 ---
@@ -310,8 +341,10 @@ history:
 **Purpose**: Update worktree tests for VCS abstraction.
 
 **Steps**:
+
 1. Open `tests/specify_cli/core/test_worktree.py`
 2. Add parametrized tests for VCS abstraction:
+
    ```python
    @pytest.mark.parametrize("backend", [
        "git",
@@ -321,9 +354,11 @@ history:
        # Verify worktree.py uses VCS abstraction
        pass
    ```
+
 3. Update existing tests to work with abstraction
 
 **Files**:
+
 - Modify: `tests/specify_cli/core/test_worktree.py`
 
 **Parallel?**: Yes - can proceed alongside T055
@@ -335,8 +370,10 @@ history:
 **Purpose**: Test merge command for both backends.
 
 **Steps**:
+
 1. Create `tests/specify_cli/cli/commands/test_merge.py`
 2. Add tests:
+
    ```python
    @pytest.mark.parametrize("backend", [
        "git",
@@ -376,6 +413,7 @@ history:
    ```
 
 **Files**:
+
 - Create: `tests/specify_cli/cli/commands/test_merge.py`
 
 **Parallel?**: Yes - can start once T051 scaffolded
@@ -405,6 +443,7 @@ history:
 ## Review Guidance
 
 **Key Checkpoints**:
+
 1. Verify merge command works for both backends
 2. Verify worktree.py fully migrated to abstraction
 3. Verify deprecation warnings are clear and actionable
@@ -415,10 +454,10 @@ history:
 ## Activity Log
 
 - 2026-01-17T10:38:23Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
-- 2026-01-17T13:19:13Z – __AGENT__ – shell_pid=28786 – lane=doing – Started implementation via workflow command
-- 2026-01-17T13:34:12Z – __AGENT__ – shell_pid=28786 – lane=for_review – Moved to for_review
-- 2026-01-17T13:37:34Z – __AGENT__ – shell_pid=35958 – lane=doing – Started review via workflow command
-- 2026-01-17T13:40:41Z – __AGENT__ – shell_pid=35958 – lane=planned – Moved to planned
-- 2026-01-17T13:52:47Z – __AGENT__ – shell_pid=9401 – lane=doing – Started implementation via workflow command
-- 2026-01-17T13:58:01Z – __AGENT__ – shell_pid=9401 – lane=for_review – Ready for review: add legacy git deprecation warnings for implement/merge
-- 2026-01-17T14:11:08Z – __AGENT__ – shell_pid=9401 – lane=done – Tests passed: added legacy git deprecation warnings for implement/merge
+- 2026-01-17T13:19:13Z – **AGENT** – shell_pid=28786 – lane=doing – Started implementation via workflow command
+- 2026-01-17T13:34:12Z – **AGENT** – shell_pid=28786 – lane=for_review – Moved to for_review
+- 2026-01-17T13:37:34Z – **AGENT** – shell_pid=35958 – lane=doing – Started review via workflow command
+- 2026-01-17T13:40:41Z – **AGENT** – shell_pid=35958 – lane=planned – Moved to planned
+- 2026-01-17T13:52:47Z – **AGENT** – shell_pid=9401 – lane=doing – Started implementation via workflow command
+- 2026-01-17T13:58:01Z – **AGENT** – shell_pid=9401 – lane=for_review – Ready for review: add legacy git deprecation warnings for implement/merge
+- 2026-01-17T14:11:08Z – **AGENT** – shell_pid=9401 – lane=done – Tests passed: added legacy git deprecation warnings for implement/merge

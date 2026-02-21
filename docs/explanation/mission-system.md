@@ -13,6 +13,7 @@ Not all projects are the same:
 | **Documentation** | Clear docs | Audit gaps, create content, validate accessibility |
 
 A workflow designed for software development doesn't fit research:
+
 - "All tests pass" makes no sense for a literature review
 - "Documented sources" isn't relevant for code implementation
 - Phases like "gather data" don't apply to feature development
@@ -33,6 +34,7 @@ When you run `/spec-kitty.specify`, Spec Kitty prompts for the mission type:
 ```
 
 Your choice determines:
+
 - Workflow phases
 - Required artifacts
 - Validation rules
@@ -51,6 +53,7 @@ The mission selection is stored per-feature:
 ```
 
 Different features can use different missions:
+
 - `kitty-specs/012-user-auth/` → Software Dev Kitty
 - `kitty-specs/013-market-analysis/` → Deep Research Kitty
 - `kitty-specs/014-user-docs/` → Documentation Kitty
@@ -70,6 +73,7 @@ Each mission provides:
 **Focus**: Building software features with test-driven development.
 
 **Workflow phases**:
+
 1. **research** - Research technologies and best practices
 2. **design** - Define architecture and contracts
 3. **implement** - Write code following TDD
@@ -77,17 +81,20 @@ Each mission provides:
 5. **review** - Code review and quality checks
 
 **Key practices**:
+
 - Tests before code (non-negotiable)
 - Library-first architecture
 - CLI interfaces for all features
 - Real dependencies over mocks in testing
 
 **Required artifacts**:
+
 - `spec.md` - Feature specification
 - `plan.md` - Technical design
 - `tasks.md` - Work packages
 
 **Validation checks**:
+
 - Git is clean (no uncommitted changes)
 - All tests pass
 - Kanban board complete (all WPs done)
@@ -98,6 +105,7 @@ Each mission provides:
 **Focus**: Systematic research with evidence-based conclusions.
 
 **Workflow phases**:
+
 1. **question** - Define research question and scope
 2. **methodology** - Design research methodology
 3. **gather** - Collect data and sources
@@ -106,18 +114,21 @@ Each mission provides:
 6. **publish** - Prepare for publication
 
 **Key practices**:
+
 - Document ALL sources in source register (CSV)
 - Extract findings to evidence log with confidence levels
 - Distinguish raw evidence from interpretation
 - Every claim must have a citation
 
 **Required artifacts**:
+
 - `spec.md` - Research question and scope
 - `plan.md` - Methodology plan
 - `tasks.md` - Research work packages
 - `findings.md` - Synthesized findings
 
 **Validation checks**:
+
 - All sources documented
 - Methodology clearly stated
 - Findings synthesized
@@ -128,6 +139,7 @@ Each mission provides:
 **Focus**: Creating documentation following Write the Docs best practices.
 
 **Workflow phases**:
+
 1. **discover** - Identify documentation needs
 2. **audit** - Analyze existing docs, identify gaps
 3. **design** - Plan structure and Divio types
@@ -136,18 +148,21 @@ Each mission provides:
 6. **publish** - Deploy documentation
 
 **Key practices**:
+
 - Documentation as code (in version control)
 - Divio 4-type system (tutorial, how-to, reference, explanation)
 - Accessibility and bias-free language
 - Iterative improvement (gap-filling mode)
 
 **Required artifacts**:
+
 - `spec.md` - Documentation needs
 - `plan.md` - Structure and generator config
 - `tasks.md` - Documentation work packages
 - `gap-analysis.md` - Coverage matrix and gaps
 
 **Validation checks**:
+
 - All Divio types valid
 - No conflicting generators
 - Templates populated (no `[TODO]` markers)
@@ -186,12 +201,14 @@ Each mission customizes the slash commands with domain-appropriate prompts:
 ### Before 0.8.0: Project-Wide Mission
 
 Early versions set the mission at project level:
+
 ```
 .kittify/
 └── mission.yaml  # One mission for entire project
 ```
 
 **Problem**: Real projects need different approaches for different features:
+
 - Feature A is new software development
 - Feature B is researching which library to use
 - Feature C is writing user documentation
@@ -199,6 +216,7 @@ Early versions set the mission at project level:
 ### After 0.8.0: Per-Feature Mission
 
 Now missions are selected per-feature:
+
 ```
 kitty-specs/
 ├── 010-auth-system/
@@ -210,6 +228,7 @@ kitty-specs/
 ```
 
 **Benefits**:
+
 - Choose the right workflow for each task
 - Same project can have software, research, and documentation features
 - No need to reconfigure between different types of work
@@ -240,12 +259,15 @@ These instructions guide AI agents to behave appropriately for the domain.
 *This document explains why missions exist and how they differ. For how to select and use missions, see the tutorials and how-to guides.*
 
 ## Try It
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 
 ## Reference
+
 - [Missions](../reference/missions.md)
 - [Slash Commands](../reference/slash-commands.md)

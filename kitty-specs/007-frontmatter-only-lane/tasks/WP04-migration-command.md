@@ -39,12 +39,14 @@ subtasks:
 ## Objectives & Success Criteria
 
 Implement the `spec-kitty upgrade` command to migrate projects from directory-based to frontmatter-only lanes:
+
 1. Flatten lane directories (`tasks/planned/`, `tasks/doing/`, etc.) into flat `tasks/`
 2. Preserve lane value in frontmatter from source directory
 3. Process main repo and all worktrees
 4. Require user confirmation before modification
 
 **Success Criteria** (from spec FR-009 to FR-013, SC-004):
+
 - `spec-kitty upgrade` migrates `tasks/planned/WP01.md` to `tasks/WP01.md` with `lane: "planned"` preserved
 - User sees explicit warning and must confirm before changes
 - All worktrees are migrated in single operation
@@ -54,6 +56,7 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Spec: `kitty-specs/007-frontmatter-only-lane/spec.md` (User Story 3)
 - Data Model: `kitty-specs/007-frontmatter-only-lane/data-model.md` (Migration Flow)
 
@@ -70,8 +73,10 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
 **Purpose**: Establish the command entry point.
 
 **Steps**:
+
 1. Create `src/specify_cli/commands/upgrade.py`
 2. Set up basic command structure:
+
    ```python
    """Migration command to upgrade from directory-based to frontmatter-only lanes."""
    from pathlib import Path
@@ -96,6 +101,7 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
        repo_root = find_repo_root()
        # Implementation in subsequent subtasks
    ```
+
 3. Register command in CLI app (check existing command registration pattern)
 
 **Files**: `src/specify_cli/commands/upgrade.py` (NEW)
@@ -107,7 +113,9 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
 **Purpose**: Find all features that need migration in main repo and worktrees.
 
 **Steps**:
+
 1. Add scanning function:
+
    ```python
    def find_features_to_migrate(repo_root: Path) -> List[Tuple[Path, str]]:
        """Find all features with legacy format in main repo and worktrees.
@@ -138,6 +146,7 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
 
        return features
    ```
+
 2. Import `is_legacy_format` from `legacy_detector.py` (WP01)
 
 **Files**: `src/specify_cli/commands/upgrade.py` (MODIFY)
@@ -149,7 +158,9 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
 **Purpose**: Core migration algorithm for one feature.
 
 **Steps**:
+
 1. Add migration function:
+
    ```python
    def migrate_feature(feature_dir: Path, dry_run: bool = False) -> Tuple[int, int]:
        """Migrate a single feature from directory-based to flat structure.
@@ -205,7 +216,9 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
 **Purpose**: Set `lane:` field from source directory if not already correct.
 
 **Steps**:
+
 1. Add helper function:
+
    ```python
    def ensure_lane_in_frontmatter(content: str, expected_lane: str) -> str:
        """Ensure frontmatter has correct lane field.
@@ -240,6 +253,7 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
        new_frontmatter = yaml.dump(frontmatter, default_flow_style=False, sort_keys=False)
        return f"---\n{new_frontmatter}---{body}"
    ```
+
 2. Use ruamel.yaml if available for better formatting preservation
 
 **Files**: `src/specify_cli/commands/upgrade.py` (MODIFY)
@@ -251,7 +265,9 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
 **Purpose**: Iterate and migrate all worktree features.
 
 **Steps**:
+
 1. Integrate worktree handling into main upgrade flow:
+
    ```python
    def upgrade_command(...):
        # ... (confirmation logic from T022)
@@ -289,7 +305,9 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
 **Purpose**: Prevent accidental migration; inform user of changes.
 
 **Steps**:
+
 1. Add confirmation logic:
+
    ```python
    def upgrade_command(force: bool = False, dry_run: bool = False):
        repo_root = find_repo_root()
@@ -338,11 +356,13 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
 **Purpose**: Safe to run multiple times without data loss.
 
 **Steps**:
+
 1. Add idempotency checks (partially in T019):
    - Skip files already in flat `tasks/`
    - Skip features that don't have lane subdirectories
    - Don't fail on already-migrated features
 2. Add reporting for skipped items:
+
    ```python
    if target.exists():
        # Check if content is identical
@@ -363,7 +383,9 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
 **Purpose**: Remove empty directories after migration.
 
 **Steps**:
+
 1. Add cleanup at end of feature migration:
+
    ```python
    def cleanup_empty_lane_dirs(tasks_dir: Path, dry_run: bool = False):
        """Remove empty lane subdirectories after migration."""
@@ -383,6 +405,7 @@ Implement the `spec-kitty upgrade` command to migrate projects from directory-ba
                        lane_dir.rmdir()
                        console.print(f"  [dim]Removed empty: {lane}/ directory[/dim]")
    ```
+
 2. Call at end of `migrate_feature()`
 
 **Files**: `src/specify_cli/commands/upgrade.py` (MODIFY)

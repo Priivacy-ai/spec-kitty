@@ -20,6 +20,7 @@
 <!-- Preview/staging environment URL -->
 
 **Domain Configuration**:
+
 - Custom domain: {custom_domain} (or N/A)
 - DNS provider: {dns_provider}
 - SSL/TLS: {ssl_configuration}
@@ -29,6 +30,7 @@
 ## Build Output
 
 **Build Command**:
+
 ```bash
 {build_command}
 ```
@@ -38,6 +40,7 @@
 <!-- Example: docs/_build/html/ -->
 
 **Build Requirements**:
+
 - {requirement_1}
 - {requirement_2}
 <!-- Examples: Node.js 18+, Python 3.11+, Sphinx 7.x -->
@@ -65,16 +68,19 @@
 If automated deployment is not available, follow these steps:
 
 1. **Build documentation locally**:
+
    ```bash
    {manual_build_step_1}
    ```
 
 2. **Verify build output**:
+
    ```bash
    {manual_verify_step}
    ```
 
 3. **Deploy to hosting**:
+
    ```bash
    {manual_deploy_step}
    ```
@@ -107,6 +113,7 @@ If automated deployment is not available, follow these steps:
 ## Access & Credentials
 
 **Hosting Platform Access**:
+
 - Login URL: {platform_login_url}
 - Access method: {access_method}
   <!-- Examples: SSO via GitHub, Email/password, API key -->
@@ -114,11 +121,13 @@ If automated deployment is not available, follow these steps:
   <!-- Examples: Team password manager, Environment secrets, 1Password vault -->
 
 **Required Permissions**:
+
 - {permission_1}
 - {permission_2}
 <!-- Examples: Admin access to Read the Docs project, GitHub Pages write permissions -->
 
 **Team Members with Access**:
+
 - {name_1} - {role_1} - {email_1}
 - {name_2} - {role_2} - {email_2}
 
@@ -131,6 +140,7 @@ If automated deployment is not available, follow these steps:
 **Backup Maintainer**: {backup_maintainer_name}
 
 **Maintenance Schedule**:
+
 - Documentation reviews: {review_frequency}
   <!-- Example: Quarterly, After each release, Monthly -->
 - Dependency updates: {dependency_update_frequency}
@@ -139,6 +149,7 @@ If automated deployment is not available, follow these steps:
   <!-- Example: With each product release, As needed -->
 
 **Known Issues**:
+
 - {known_issue_1}
 - {known_issue_2}
 <!-- Document any current limitations, broken features, or planned improvements -->
@@ -153,11 +164,13 @@ If automated deployment is not available, follow these steps:
 **Dashboard URL**: {analytics_dashboard_url}
 
 **Key Metrics**:
+
 - Page views tracked: {yes_no}
 - Search queries tracked: {yes_no}
 - User feedback collected: {yes_no}
 
 **Monitoring**:
+
 - Uptime monitoring: {uptime_service}
   <!-- Examples: UptimeRobot, Pingdom, None -->
 - Build status: {build_status_url}
@@ -198,11 +211,13 @@ Use this checklist when transferring documentation ownership:
 
 **Symptom**: Changes committed but not visible on live site
 **Causes**:
+
 - Cache not cleared
 - Deployment pipeline failed silently
 - Wrong branch deployed
 
 **Solutions**:
+
 - Check CI/CD logs for errors
 - Clear browser cache and CDN cache
 - Verify correct branch is configured for deployment

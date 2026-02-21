@@ -18,21 +18,26 @@
 **Prompt**: `tasks/WP01-merge-subpackage-setup.md`
 
 ### Included Subtasks
+
 - [x] T001 Create `src/specify_cli/merge/` directory with `__init__.py` and module stubs
 - [x] T002 Add `topological_sort()` function to `src/specify_cli/core/dependency_graph.py`
 
 ### Implementation Notes
+
 - Create empty module files: `preflight.py`, `forecast.py`, `ordering.py`, `status_resolver.py`, `state.py`, `executor.py`
 - Implement Kahn's algorithm for topological sort in `dependency_graph.py`
 - Export new function in `__all__`
 
 ### Parallel Opportunities
+
 - T001 and T002 can proceed in parallel (different files)
 
 ### Dependencies
+
 - None (starting package)
 
 ### Risks & Mitigations
+
 - None significant; foundational scaffolding only
 
 ---
@@ -44,6 +49,7 @@
 **Prompt**: `tasks/WP02-preflight-validation.md`
 
 ### Included Subtasks
+
 - [x] T003 [P] Implement `WPStatus` and `PreflightResult` dataclasses in `merge/preflight.py`
 - [x] T004 [P] Implement `check_worktree_status()` for uncommitted change detection
 - [x] T005 [P] Implement `check_target_divergence()` for fast-forward verification
@@ -52,6 +58,7 @@
 - [x] T027 Add `--feature <slug>` flag for invocation from main branch
 
 ### Implementation Notes
+
 1. Dataclasses use `@dataclass` from dataclasses module
 2. `check_worktree_status()` runs `git status --porcelain` in each worktree
 3. `check_target_divergence()` compares local and origin refs
@@ -60,12 +67,15 @@
 6. CLI changes add new flags without breaking existing behavior
 
 ### Parallel Opportunities
+
 - T003, T004, T005 can proceed in parallel (independent functions)
 
 ### Dependencies
+
 - Depends on WP01 (subpackage structure)
 
 ### Risks & Mitigations
+
 - Risk: Worktree detection fails in edge cases → reuse existing `find_wp_worktrees()` from merge.py
 
 ---
@@ -77,6 +87,7 @@
 **Prompt**: `tasks/WP03-smart-merge-ordering.md`
 
 ### Included Subtasks
+
 - [x] T010 [P] Implement `get_merge_order()` in `merge/ordering.py` using `build_dependency_graph()` and `topological_sort()`
 - [x] T011 [P] Add cycle detection error reporting with clear cycle path display
 - [x] T012 [P] Implement fallback to numerical order when frontmatter lacks dependencies
@@ -85,6 +96,7 @@
 - [x] T023 Integrate ordering into executor (use ordered list instead of sorted glob)
 
 ### Implementation Notes
+
 1. `get_merge_order()` calls `build_dependency_graph()` on feature's tasks/ directory
 2. If graph has dependencies, call `topological_sort()`; else sort by WP number
 3. Cycle detection uses existing `detect_cycles()` from `dependency_graph.py`
@@ -92,14 +104,17 @@
 5. Executor takes ordered WP list and processes sequentially
 
 ### Parallel Opportunities
+
 - T010, T011, T012 can proceed in parallel (different concerns)
 - T021, T022, T023 must be sequential (refactoring chain)
 
 ### Dependencies
+
 - Depends on WP01 (topological_sort)
 - Depends on WP02 (preflight integration)
 
 ### Risks & Mitigations
+
 - Risk: Refactoring breaks existing merge behavior → keep legacy paths until fully tested
 
 ---
@@ -111,11 +126,13 @@
 **Prompt**: `tasks/WP04-conflict-forecast.md`
 
 ### Included Subtasks
+
 - [x] T007 [P] Implement `ConflictPrediction` dataclass in `merge/forecast.py`
 - [x] T008 [P] Implement `build_file_wp_mapping()` using `git diff --name-only`
 - [x] T009 [P] Implement `detect_status_files()` pattern matching for `kitty-specs/**/tasks/*.md`
 
 ### Implementation Notes
+
 1. For each WP branch, run `git diff --name-only <target>...<branch>` to get modified files
 2. Build dict: `{file_path: [wp_ids]}` where len > 1 indicates potential conflict
 3. Use `fnmatch` to detect status file patterns
@@ -123,13 +140,16 @@
 5. Integrate into executor's dry-run path
 
 ### Parallel Opportunities
+
 - All subtasks can proceed in parallel (independent functions)
 
 ### Dependencies
+
 - Depends on WP01 (subpackage)
 - Depends on WP03 (executor integration point)
 
 ### Risks & Mitigations
+
 - Risk: git merge-tree not available (< 2.38) → use diff-based heuristic as fallback
 
 ---
@@ -141,6 +161,7 @@
 **Prompt**: `tasks/WP05-status-file-auto-resolution.md`
 
 ### Included Subtasks
+
 - [x] T013 [P] Implement `parse_conflict_markers()` to extract HEAD/theirs content from conflict markers
 - [x] T014 [P] Implement `resolve_lane_conflict()` with "more done" wins logic
 - [x] T015 [P] Implement `resolve_checkbox_conflict()` preferring `[x]` over `[ ]`
@@ -150,6 +171,7 @@
 - [x] T029 [P] Update slash command templates for all 12 agents with new merge features
 
 ### Implementation Notes
+
 1. After `git merge`, check `git diff --name-only --diff-filter=U` for conflicted files
 2. For each file matching `kitty-specs/**/tasks/*.md` or `kitty-specs/**/tasks.md`:
    - Parse conflict markers (<<<<<<< / ======= / >>>>>>>)
@@ -160,13 +182,16 @@
 4. Lane priority: done > for_review > doing > planned
 
 ### Parallel Opportunities
+
 - T013-T016 can proceed in parallel (independent resolution functions)
 - T029 can proceed in parallel with implementation
 
 ### Dependencies
+
 - Depends on WP03 (executor)
 
 ### Risks & Mitigations
+
 - Risk: Malformed YAML causes resolution failure → validate with ruamel.yaml, skip file if invalid
 - Risk: Non-status content in status files → only resolve recognized patterns
 
@@ -179,6 +204,7 @@
 **Prompt**: `tasks/WP06-merge-state-and-resume.md`
 
 ### Included Subtasks
+
 - [x] T017 [P] Implement `MergeState` dataclass in `merge/state.py`
 - [x] T018 [P] Implement `save_state()` and `load_state()` for `.kittify/merge-state.json`
 - [x] T019 Implement `--resume` flag detection and continuation logic in CLI
@@ -186,6 +212,7 @@
 - [x] T025 Integrate state persistence into executor (save after each WP)
 
 ### Implementation Notes
+
 1. `MergeState` fields: feature_slug, target_branch, wp_order, completed_wps, current_wp, has_pending_conflicts, strategy, timestamps
 2. Save state to `.kittify/merge-state.json` after each WP merge
 3. On `--resume`: load state, skip completed WPs, continue from current_wp
@@ -193,13 +220,16 @@
 5. Clear state file on success or explicit `--abort` flag
 
 ### Parallel Opportunities
+
 - T017, T018 can proceed in parallel (dataclass and I/O)
 - T019, T020, T025 must be sequential (integration chain)
 
 ### Dependencies
+
 - Depends on WP03 (executor)
 
 ### Risks & Mitigations
+
 - Risk: State file corruption → validate JSON on load, clear and restart if invalid
 - Risk: Git merge state mismatch → check MERGE_HEAD before resuming
 

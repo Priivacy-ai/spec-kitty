@@ -54,11 +54,13 @@ history:
 ## Moving Between Lanes
 
 Use the CLI (updates frontmatter only, no file movement):
+
 ```bash
 spec-kitty agent tasks move-task <WPID> --to <lane>
 ```
 
 Example:
+
 ```bash
 spec-kitty agent tasks move-task WP01 --to doing
 ```

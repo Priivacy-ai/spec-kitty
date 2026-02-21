@@ -54,6 +54,7 @@ history:
 ## Moving Between Lanes
 
 Workflow commands handle lane transitions automatically:
+
 ```bash
 spec-kitty agent workflow implement <WPID>
 spec-kitty agent workflow review <WPID>

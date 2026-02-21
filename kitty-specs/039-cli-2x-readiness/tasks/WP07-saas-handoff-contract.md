@@ -154,6 +154,7 @@ Depends on WP02 (error format). Use WP02 as base; pull in lane mapping notes fro
 - **Purpose**: Prove that the fixture data is valid according to the CLI's Pydantic models.
 - **Steps**:
   1. Create `tests/contract/test_handoff_fixtures.py`:
+
      ```python
      import pytest
      import json
@@ -183,6 +184,7 @@ Depends on WP02 (error format). Use WP02 as base; pull in lane mapping notes fro
          expected = {"WPStatusChanged", "WPCreated", "WPAssigned", "FeatureCreated", "FeatureCompleted", "HistoryAdded", "ErrorLogged", "DependencyResolved"}
          assert types == expected, f"Missing types: {expected - types}"
      ```
+
   2. Create `tests/contract/__init__.py`
   3. Run: `python -m pytest tests/contract/test_handoff_fixtures.py -v`
 - **Files**: `tests/contract/test_handoff_fixtures.py` (new), `tests/contract/__init__.py` (new)
@@ -216,4 +218,4 @@ Depends on WP02 (error format). Use WP02 as base; pull in lane mapping notes fro
 - 2026-02-12T10:26:30Z – wp07-agent – shell_pid=67771 – lane=doing – Assigned agent via workflow command
 - 2026-02-12T10:34:14Z – wp07-agent – shell_pid=67771 – lane=for_review – Ready for review: SaaS handoff contract doc and tests. 33 contract tests all pass. Corrected lane mapping discrepancy from Phase 1 draft.
 - 2026-02-12T10:34:57Z – wp07-reviewer – shell_pid=75824 – lane=doing – Started review via workflow command
-- 2026-02-12T10:37:38Z – wp07-reviewer – shell_pid=75824 – lane=done – Review passed: All 33 contract tests pass. Contract doc covers all 8 event types with accurate payload schemas. Lane mapping (7-to-4 collapse) verified against _SYNC_LANE_MAP implementation. 5 fixture JSON files cover success, mixed batch, duplicate, rejected, and HTTP 400 scenarios. Error categorization matches batch.py keywords. Document is self-contained for SaaS team consumption.
+- 2026-02-12T10:37:38Z – wp07-reviewer – shell_pid=75824 – lane=done – Review passed: All 33 contract tests pass. Contract doc covers all 8 event types with accurate payload schemas. Lane mapping (7-to-4 collapse) verified against_SYNC_LANE_MAP implementation. 5 fixture JSON files cover success, mixed batch, duplicate, rejected, and HTTP 400 scenarios. Error categorization matches batch.py keywords. Document is self-contained for SaaS team consumption.

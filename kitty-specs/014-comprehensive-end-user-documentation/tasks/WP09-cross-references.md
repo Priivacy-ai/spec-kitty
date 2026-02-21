@@ -55,12 +55,14 @@ history:
 WP10 (Validation & Polish) is based on an outdated branch that lacks the content created by WP03-WP09. The branch needs to be rebased/merged to include:
 
 **Missing from tutorials/ (WP03/WP04 content):**
+
 - `getting-started.md`
 - `your-first-feature.md`
 - `multi-agent-workflow.md`
 - `missions-overview.md`
 
 **Missing from how-to/ (WP05 content):**
+
 - `create-specification.md`
 - `implement-work-package.md`
 - `review-work-package.md`
@@ -68,10 +70,12 @@ WP10 (Validation & Polish) is based on an outdated branch that lacks the content
 - `parallel-development.md`
 
 **Missing from reference/ (WP07 content):**
+
 - Entire reference/ directory is empty
 - All CLI and slash command references missing
 
 **Missing from explanation/ (WP08 content):**
+
 - `spec-driven-development.md`
 - `git-worktrees.md`
 - `mission-system.md`
@@ -82,6 +86,7 @@ WP10 (Validation & Polish) is based on an outdated branch that lacks the content
 ## Root Cause
 
 WP10 was created from WP02's branch but was not updated to include content from:
+
 - WP03: Tutorials content
 - WP04: More tutorials  
 - WP05: How-to guides
@@ -93,11 +98,13 @@ WP10 was created from WP02's branch but was not updated to include content from:
 ## Required Actions
 
 1. **Rebase WP10 branch** to include changes from all dependent WPs:
+
    ```bash
    cd .worktrees/014-comprehensive-end-user-documentation-WP10
    git fetch origin
    git rebase 014-comprehensive-end-user-documentation-WP09
    ```
+
    (Or merge from WP09 which should have all prior work)
 
 2. **Re-run validation** after rebase:
@@ -107,7 +114,6 @@ WP10 was created from WP02's branch but was not updated to include content from:
    - Verify success criteria
 
 The current state cannot be approved because validation was performed on incomplete documentation.
-
 
 ## Objectives & Success Criteria
 
@@ -122,6 +128,7 @@ The current state cannot be approved because validation was performed on incompl
 - **Dependencies**: All content WPs must be complete (WP03-WP08)
 
 ### Cross-Reference Principles
+
 - Each tutorial should link to related how-tos and reference docs
 - Each how-to should link to related reference and explanations
 - Each explanation should link back to tutorials and how-tos
@@ -130,6 +137,7 @@ The current state cannot be approved because validation was performed on incompl
 ## Subtasks & Detailed Guidance
 
 ### Subtask T038 – Add Cross-References to Tutorials
+
 - **Purpose**: Connect tutorials to related practical guides
 - **Steps**:
   1. For each tutorial in `docs/tutorials/`:
@@ -137,6 +145,7 @@ The current state cannot be approved because validation was performed on incompl
      - Add "Reference Documentation" section
      - Add "Learn More" section with explanations
   2. Example additions:
+
      ```markdown
      ## Related How-To Guides
      - [Create a Specification](../how-to/create-specification.md)
@@ -149,10 +158,12 @@ The current state cannot be approved because validation was performed on incompl
      ## Learn More
      - [Spec-Driven Development](../explanation/spec-driven-development.md)
      ```
+
 - **Files**: All files in `docs/tutorials/`
 - **Parallel?**: Yes
 
 ### Subtask T039 – Add Cross-References to How-To Guides
+
 - **Purpose**: Connect how-tos to reference and conceptual content
 - **Steps**:
   1. For each how-to in `docs/how-to/`:
@@ -160,6 +171,7 @@ The current state cannot be approved because validation was performed on incompl
      - Add "See Also" section for related how-tos
      - Add "Background" section linking to explanations
   2. Example:
+
      ```markdown
      ## Command Reference
      - [`spec-kitty implement`](../reference/cli-commands.md#spec-kitty-implement)
@@ -173,16 +185,19 @@ The current state cannot be approved because validation was performed on incompl
      - [Git Worktrees Explained](../explanation/git-worktrees.md)
      - [Workspace-per-WP Model](../explanation/workspace-per-wp.md)
      ```
+
 - **Files**: All files in `docs/how-to/`
 - **Parallel?**: Yes
 
 ### Subtask T040 – Add Cross-References to Reference Docs
+
 - **Purpose**: Connect reference docs to practical usage guides
 - **Steps**:
   1. For each reference doc in `docs/reference/`:
      - Add "Getting Started" links to tutorials
      - Add "Practical Usage" links to how-tos
   2. Example in cli-commands.md:
+
      ```markdown
      ## spec-kitty implement
      ...
@@ -190,10 +205,12 @@ The current state cannot be approved because validation was performed on incompl
      - Tutorial: [Your First Feature](../tutorials/your-first-feature.md)
      - How-To: [Implement a Work Package](../how-to/implement-work-package.md)
      ```
+
 - **Files**: All files in `docs/reference/`
 - **Parallel?**: Yes
 
 ### Subtask T041 – Add Cross-References to Explanations
+
 - **Purpose**: Connect conceptual content to practical guides
 - **Steps**:
   1. For each explanation in `docs/explanation/`:
@@ -201,6 +218,7 @@ The current state cannot be approved because validation was performed on incompl
      - Add "How-To Guides" for practical application
      - Add "Reference" for detailed command info
   2. Example:
+
      ```markdown
      ## Try It
      - [Multi-Agent Workflow Tutorial](../tutorials/multi-agent-workflow.md)
@@ -212,10 +230,12 @@ The current state cannot be approved because validation was performed on incompl
      ## Reference
      - [File Structure](../reference/file-structure.md)
      ```
+
 - **Files**: All files in `docs/explanation/`
 - **Parallel?**: Yes
 
 ### Subtask T042 – Verify All Internal Links
+
 - **Purpose**: Ensure no broken links in the documentation
 - **Steps**:
   1. Use a link checker tool or manual verification
@@ -223,6 +243,7 @@ The current state cannot be approved because validation was performed on incompl
   3. Verify anchor links (e.g., `#spec-kitty-implement`) exist
   4. Fix any broken links found
   5. Options for verification:
+
      ```bash
      # Option 1: DocFX build (warns about missing files)
      docfx docs/docfx.json
@@ -232,6 +253,7 @@ The current state cannot be approved because validation was performed on incompl
 
      # Option 3: Use a link checker tool
      ```
+
 - **Files**: All files in `docs/`
 - **Parallel?**: No - run after T038-T041
 - **Notes**: Important for user experience
@@ -262,13 +284,13 @@ The current state cannot be approved because validation was performed on incompl
 ## Activity Log
 
 - 2026-01-16T16:16:58Z – system – lane=planned – Prompt generated via /spec-kitty.tasks
-- 2026-01-16T17:42:56Z – __AGENT__ – shell_pid=25767 – lane=doing – Started implementation via workflow command
-- 2026-01-16T17:55:04Z – __AGENT__ – shell_pid=25767 – lane=for_review – Ready for review: added cross-references across tutorials/how-to/reference/explanations, fixed broken links, updated toc/index, verified internal links
-- 2026-01-16T18:00:42Z – __AGENT__ – shell_pid=28468 – lane=doing – Started review via workflow command
-- 2026-01-16T18:06:26Z – __AGENT__ – shell_pid=25767 – lane=doing – Started review via workflow command
-- 2026-01-16T18:07:41Z – __AGENT__ – shell_pid=25767 – lane=planned – Changes requested: restore toc/index coverage for existing docs
-- 2026-01-16T18:07:49Z – __AGENT__ – shell_pid=25767 – lane=planned – Moved to planned
-- 2026-01-16T18:07:59Z – __AGENT__ – shell_pid=26746 – lane=doing – Started implementation via workflow command
-- 2026-01-16T18:14:43Z – __AGENT__ – shell_pid=26746 – lane=for_review – Ready for review: rebased WP10 onto WP09 and reran DocFX (warnings only).
+- 2026-01-16T17:42:56Z – **AGENT** – shell_pid=25767 – lane=doing – Started implementation via workflow command
+- 2026-01-16T17:55:04Z – **AGENT** – shell_pid=25767 – lane=for_review – Ready for review: added cross-references across tutorials/how-to/reference/explanations, fixed broken links, updated toc/index, verified internal links
+- 2026-01-16T18:00:42Z – **AGENT** – shell_pid=28468 – lane=doing – Started review via workflow command
+- 2026-01-16T18:06:26Z – **AGENT** – shell_pid=25767 – lane=doing – Started review via workflow command
+- 2026-01-16T18:07:41Z – **AGENT** – shell_pid=25767 – lane=planned – Changes requested: restore toc/index coverage for existing docs
+- 2026-01-16T18:07:49Z – **AGENT** – shell_pid=25767 – lane=planned – Moved to planned
+- 2026-01-16T18:07:59Z – **AGENT** – shell_pid=26746 – lane=doing – Started implementation via workflow command
+- 2026-01-16T18:14:43Z – **AGENT** – shell_pid=26746 – lane=for_review – Ready for review: rebased WP10 onto WP09 and reran DocFX (warnings only).
 - 2026-01-16T18:24:21Z – claude – shell_pid=82691 – lane=doing – Started review via workflow command
 - 2026-01-16T18:26:15Z – claude – shell_pid=82691 – lane=done – Review passed: All cross-references properly added to tutorials, how-tos, reference docs, and explanations. DocFX build succeeds (12 warnings: 6 external file refs acceptable, 6 internal link issues exist but were already fixed in WP10 which incorporates this work). Primary objectives T038-T042 completed.

@@ -113,9 +113,11 @@ This event is fire-and-forget. If the command fails, continue normally — telem
 4. Replace `<feature-slug>` with the appropriate template variable or instruction to use the feature slug from the create-feature output
 
 **Files**:
+
 - `src/specify_cli/missions/software-dev/command-templates/specify.md` (modify, add ~20 lines)
 
 **Notes**:
+
 - Keep consistent formatting with the rest of the template
 - The telemetry section should be clearly labeled and easy to find
 - Include the fire-and-forget disclaimer
@@ -149,6 +151,7 @@ Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if yo
 ```
 
 **Files**:
+
 - `src/specify_cli/missions/software-dev/command-templates/plan.md` (modify, add ~15 lines)
 
 ---
@@ -182,6 +185,7 @@ Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if yo
 ```
 
 **Files**:
+
 - `src/specify_cli/missions/software-dev/command-templates/tasks.md` (modify, add ~15 lines)
 
 ---
@@ -216,6 +220,7 @@ Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if av
 ```
 
 **Files**:
+
 - `src/specify_cli/missions/software-dev/command-templates/review.md` (modify, add ~15 lines)
 
 ---
@@ -247,6 +252,7 @@ Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if av
 ```
 
 **Files**:
+
 - `src/specify_cli/missions/software-dev/command-templates/merge.md` (modify, add ~15 lines)
 
 ---
@@ -260,9 +266,11 @@ Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if av
 1. Determine next migration version number by checking existing migrations in `src/specify_cli/upgrade/migrations/`
 2. Create new migration file following naming convention (e.g., `m_X_Y_Z_telemetry_emit_templates.py`)
 3. Import the config-aware helper:
+
    ```python
    from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
    ```
+
 4. Migration logic:
    - Get configured agent dirs via `get_agent_dirs_for_project(project_path)`
    - For each configured agent:
@@ -272,9 +280,11 @@ Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if av
 5. Follow the migration class pattern used by existing migrations (check the latest one for the interface)
 
 **Files**:
+
 - `src/specify_cli/upgrade/migrations/m_X_Y_Z_telemetry_emit_templates.py` (new, ~80 lines)
 
 **Notes**:
+
 - DO NOT create agent directories that don't exist — respect user deletions
 - DO NOT hardcode `AGENT_DIRS` — import from `m_0_9_1`
 - Use `importlib.resources` to locate source templates (same pattern as existing migrations)
@@ -301,9 +311,11 @@ Include `--input-tokens`, `--output-tokens`, `--cost-usd`, `--duration-ms` if av
 4. Create minimal config.yaml and agent directories for testing
 
 **Files**:
+
 - `tests/specify_cli/upgrade/test_telemetry_template_migration.py` (new, ~120 lines)
 
 **Notes**:
+
 - Follow existing migration test patterns (check `tests/specify_cli/test_agent_config_migration.py` for reference)
 - Use `@pytest.mark.parametrize` for agent type variations
 
@@ -319,6 +331,7 @@ Constitution requires ATDD + TDD. Implementation order:
 4. Refactor if needed
 
 **Commands**:
+
 ```bash
 pytest tests/specify_cli/upgrade/test_telemetry_template_migration.py -v
 mypy --strict src/specify_cli/upgrade/migrations/m_X_Y_Z_telemetry_emit_templates.py

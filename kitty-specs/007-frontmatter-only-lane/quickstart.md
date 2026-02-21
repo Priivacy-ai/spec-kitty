@@ -28,6 +28,7 @@ spec-kitty upgrade
 ```
 
 This will:
+
 1. Find all features in `kitty-specs/` and `.worktrees/*/kitty-specs/`
 2. Move WP files from `tasks/{lane}/` to flat `tasks/`
 3. Preserve `lane:` frontmatter from source directory
@@ -53,11 +54,13 @@ This is now the **recommended approach** for AI agents.
 To change a work package's lane:
 
 **Option 1**: Use the update command
+
 ```bash
 spec-kitty agent workflow review WP01
 ```
 
 **Option 2**: Edit frontmatter directly
+
 ```yaml
 # In tasks/WP01-description.md
 ---
@@ -78,6 +81,7 @@ activity_log: |
 ### Legacy Format Detection
 
 If you see this error:
+
 ```
 Error: Legacy directory-based lanes detected.
 Run 'spec-kitty upgrade' to migrate to frontmatter-only lanes.

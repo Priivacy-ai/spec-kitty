@@ -135,6 +135,7 @@ git branch --show-current  # Should show the target branch (meta.json → target
 7. **Finalize tasks with dependency parsing and commit**:
 
    **CRITICAL**: Run this command from repo root:
+
    ```bash
    spec-kitty agent feature finalize-tasks --json
    ```
@@ -155,21 +156,25 @@ git branch --show-current  # Should show the target branch (meta.json → target
 ## Research-Specific Task Generation Rules
 
 **Evidence Tracking**:
+
 - Every subtask that produces findings MUST specify output to evidence-log.csv
 - Every subtask that identifies sources MUST specify output to source-register.csv
 - Include subtasks for evidence validation and citation verification
 
 **Parallel Opportunities**:
+
 - Database searches are parallel (`[P]`) - different databases can be searched simultaneously
 - Source reviews are parallel (`[P]`) - different sources can be reviewed simultaneously
 - Researcher batches are parallel (`[P]`) - work can be split across reviewers
 
 **Quality Subtasks**:
+
 - Include confidence level assignment for findings
 - Include bias checking for source selection
 - Include methodology adherence verification
 
 **Work Package Scope**:
+
 - Each methodology phase typically gets its own work package
 - Phase transitions are natural dependency boundaries
 - Quality validation is always the final work package
@@ -211,6 +216,7 @@ history:
 ## Key Guidelines
 
 **For Agents**:
+
 - Use methodology phases as natural WP boundaries
 - Mark parallel subtasks (database searches, source reviews)
 - Include evidence tracking in every WP prompt
@@ -218,6 +224,7 @@ history:
 - Use `spec-kitty agent tasks move-task` to change lanes
 
 **For Users**:
+
 - Tasks.md shows the full research work breakdown
 - Work packages follow methodology phases
 - MVP is typically the literature search phase

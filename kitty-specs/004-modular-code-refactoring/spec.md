@@ -1,10 +1,11 @@
 # Feature Specification: Modular Code Refactoring
+
 *Path: [kitty-specs/004-modular-code-refactoring/spec.md](kitty-specs/004-modular-code-refactoring/spec.md)*
 
 **Feature Branch**: `004-modular-code-refactoring`
 **Created**: 2025-11-11
 **Status**: Draft
-**Input**: User description: "__init__ and dashboard are now massive monolithic files. We need to refactor them so that file lengths stay (ideally) under 200 lines. This means identifying the subsystems of each and making libraries or utilities or components in separate files. The imports in each case must work locally and if installed via pip or uv."
+**Input**: User description: "**init** and dashboard are now massive monolithic files. We need to refactor them so that file lengths stay (ideally) under 200 lines. This means identifying the subsystems of each and making libraries or utilities or components in separate files. The imports in each case must work locally and if installed via pip or uv."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -135,7 +136,9 @@ A new developer joins the project and needs to understand the codebase structure
 ### Current State Analysis
 
 #### `__init__.py` (2,700 lines)
+
 The main CLI module has grown to 2,700 lines containing 15 distinct subsystems:
+
 - UI Components (140 lines): Interactive menus and progress tracking
 - Template Management (550 lines): Template discovery, copying, and rendering
 - GitHub Operations (350 lines): API interactions and downloads
@@ -150,7 +153,9 @@ The main CLI module has grown to 2,700 lines containing 15 distinct subsystems:
 - Plus various utilities and helpers
 
 #### `dashboard.py` (3,030 lines)
+
 The dashboard module has grown to 3,030 lines containing 7 major subsystems:
+
 - Utility Functions (195 lines): Path formatting, port finding, etc.
 - Diagnostics System (150 lines): Project health checking
 - Feature Scanning (125 lines): Feature discovery and metadata
@@ -221,6 +226,7 @@ src/specify_cli/
 To ensure imports work in all contexts (local development, pip install, subprocess):
 
 1. **Relative imports within packages**:
+
    ```python
    # Within cli/commands/init.py
    from ..ui import StepTracker
@@ -229,6 +235,7 @@ To ensure imports work in all contexts (local development, pip install, subproce
    ```
 
 2. **Absolute imports for subprocess/detached contexts**:
+
    ```python
    # In dashboard handlers that spawn subprocesses
    try:
@@ -238,6 +245,7 @@ To ensure imports work in all contexts (local development, pip install, subproce
    ```
 
 3. **Entry point compatibility**:
+
    ```python
    # In __init__.py
    from .cli import commands
@@ -248,30 +256,35 @@ To ensure imports work in all contexts (local development, pip install, subproce
 ### Refactoring Phases
 
 #### Phase 1: Core Infrastructure (Week 1)
+
 1. Create directory structure
 2. Extract `core/` modules (config, utils, git_ops)
 3. Extract `cli/ui.py` (UI components)
 4. Ensure imports work locally
 
 #### Phase 2: Template System (Week 1-2)
+
 1. Extract template manager components
 2. Separate GitHub client
 3. Move renderer and asset generation
 4. Test pip installation
 
 #### Phase 3: Dashboard Decomposition (Week 2)
+
 1. Extract HTML/CSS/JS to files
 2. Split HTTP handler into modules
 3. Extract diagnostics and scanning
 4. Test subprocess imports
 
 #### Phase 4: CLI Commands (Week 3)
+
 1. Move each command to separate module
 2. Refactor init command (largest)
 3. Update command registration
 4. Integration testing
 
 #### Phase 5: Cleanup & Documentation (Week 3)
+
 1. Remove dead code
 2. Update import statements
 3. Document module structure

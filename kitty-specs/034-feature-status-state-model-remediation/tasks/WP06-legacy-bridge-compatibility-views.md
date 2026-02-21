@@ -83,6 +83,7 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 - **Data Model**: `kitty-specs/034-feature-status-state-model-remediation/data-model.md` -- File Layout, Authority hierarchy
 
 **Key constraints**:
+
 - Use `FrontmatterManager` from `src/specify_cli/frontmatter.py` for reading/writing WP frontmatter
 - WP task files are at: `kitty-specs/<feature>/tasks/WP##-*.md` (glob pattern for discovery)
 - The `lane` field in frontmatter is a scalar string value
@@ -94,6 +95,7 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 - No fallback mechanisms -- if frontmatter write fails, the error propagates
 
 **Existing code references**:
+
 - `src/specify_cli/frontmatter.py` -- `FrontmatterManager` class with `read_frontmatter()`, `write_frontmatter()`, `update_field()` methods
 - `src/specify_cli/status/reducer.py` -- `StatusSnapshot` dataclass, `materialize()` function
 - `src/specify_cli/status/phase.py` -- `resolve_phase()` function
@@ -107,7 +109,9 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 **Purpose**: Main module for generating compatibility views from canonical StatusSnapshot.
 
 **Steps**:
+
 1. Create `src/specify_cli/status/legacy_bridge.py` with imports:
+
    ```python
    from __future__ import annotations
 
@@ -123,6 +127,7 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
    ```
 
 2. Implement the three public functions:
+
    ```python
    def update_all_views(
        feature_dir: Path,
@@ -169,11 +174,13 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 **Files**: `src/specify_cli/status/legacy_bridge.py` (new file)
 
 **Validation**:
+
 - `update_all_views()` with Phase 0 does nothing (verify frontmatter unchanged)
 - `update_all_views()` with Phase 1 updates both frontmatter and tasks.md
 - `update_all_views()` with Phase 2 also updates both (views are regenerated, just not read as authority)
 
 **Edge Cases**:
+
 - `repo_root` is None: derive from feature_dir path structure
 - Feature directory does not exist: functions should handle gracefully (no WP files to update)
 - Snapshot has WPs that don't have corresponding task files: log warning, skip
@@ -185,7 +192,9 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 **Purpose**: For each WP in the snapshot, find the corresponding task file and update its frontmatter `lane` field.
 
 **Steps**:
+
 1. Implement `update_frontmatter_views()`:
+
    ```python
    def update_frontmatter_views(
        feature_dir: Path,
@@ -252,11 +261,13 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 **Files**: `src/specify_cli/status/legacy_bridge.py` (same file)
 
 **Validation**:
+
 - Create WP01.md with `lane: planned`, set snapshot WP01 to `for_review`, call update, verify frontmatter reads `for_review`
 - If frontmatter already matches snapshot, no file write occurs (verify via file modification time)
 - If WP file does not exist, warning logged but no error raised
 
 **Edge Cases**:
+
 - WP file has `lane: doing` (old alias): update to canonical value from snapshot (e.g., `in_progress`)
 - WP file has extra frontmatter fields: preserve them (FrontmatterManager handles this)
 - WP file has no frontmatter at all: FrontmatterManager.read() may raise -- let it propagate
@@ -270,7 +281,9 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 **Purpose**: Update the status sections in tasks.md to reflect the canonical snapshot state.
 
 **Steps**:
+
 1. Implement `update_tasks_md_views()`:
+
    ```python
    def update_tasks_md_views(
        feature_dir: Path,
@@ -296,6 +309,7 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
    ```
 
 2. Implement `_update_wp_status_in_tasks_md()`:
+
    ```python
    import re
 
@@ -339,11 +353,13 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 **Files**: `src/specify_cli/status/legacy_bridge.py` (same file)
 
 **Validation**:
+
 - Calling `update_tasks_md_views()` does not modify tasks.md content (current implementation is pass-through)
 - If tasks.md does not exist, function returns without error
 - If tasks.md exists, it is read and compared but not modified (no unnecessary writes)
 
 **Edge Cases**:
+
 - tasks.md does not exist: no-op, debug log
 - tasks.md is empty: no-op
 - tasks.md has unexpected format: no modifications made (safe pass-through)
@@ -355,6 +371,7 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 **Purpose**: Ensure the legacy bridge behaves correctly in each of the three phases.
 
 **Steps**:
+
 1. Phase behavior is already implemented in `update_all_views()` (T027). This subtask ensures the behavior is correct and documents the phase semantics:
 
    **Phase 0 (Hardening)**:
@@ -386,12 +403,14 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 **Files**: `src/specify_cli/status/legacy_bridge.py` (same file)
 
 **Validation**:
+
 - Mock `resolve_phase()` to return each phase value (0, 1, 2) and verify behavior:
   - Phase 0: no file modifications
   - Phase 1: frontmatter updated
   - Phase 2: frontmatter updated (same as Phase 1 in terms of view generation)
 
 **Edge Cases**:
+
 - Phase value changes between calls: each `update_all_views()` call checks current phase
 - `resolve_phase()` fails (e.g., config file corrupted): error propagates, no view updates
 
@@ -402,6 +421,7 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 **Purpose**: Comprehensive testing of view generation, phase behavior, and round-trip consistency.
 
 **Steps**:
+
 1. Create `tests/specify_cli/status/test_legacy_bridge.py`
 2. Use `tmp_path` fixture to create test feature directory structure
 3. Create helper functions to set up WP files with frontmatter
@@ -438,6 +458,7 @@ Create the legacy bridge -- the backward compatibility layer that generates huma
 **Validation**: `python -m pytest tests/specify_cli/status/test_legacy_bridge.py -v` -- all pass
 
 **Edge Cases**:
+
 - Test with WP file that has no body (only frontmatter)
 - Test snapshot with empty work_packages dict (no WPs to update)
 

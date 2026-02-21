@@ -90,10 +90,13 @@
 [Master list of all documentation sources consulted]
 
 ### Official Documentation
+
 - [Links to be added]
 
 ### GitHub Repositories
+
 - [Links to be added]
 
 ### Package Registries
+
 - [Links to be added]

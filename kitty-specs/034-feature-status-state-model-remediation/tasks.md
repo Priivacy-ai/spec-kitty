@@ -17,6 +17,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [x] T001 Create `src/specify_cli/status/__init__.py` with public API exports
 - [x] T002 Create `src/specify_cli/status/models.py` — Lane enum, StatusEvent dataclass, DoneEvidence, ReviewApproval, RepoEvidence, VerificationResult, StatusSnapshot
 - [x] T003 Create `src/specify_cli/status/transitions.py` — CANONICAL_LANES, LANE_ALIASES, ALLOWED_TRANSITIONS set, guard condition functions
@@ -24,18 +25,22 @@
 - [x] T005 [P] Unit tests for transitions — all legal/illegal pairs, alias resolution, guard conditions, force override behavior
 
 ### Implementation Notes
+
 - Lane enum should use `StrEnum` for JSON serialization compatibility
 - StatusEvent uses ULID for event_id (import pattern from `sync/emitter.py`)
 - Guard conditions are validator functions returning `(ok: bool, error: str | None)`
 - Transition validation must accept `doing` alias and resolve to `in_progress` before checking matrix
 
 ### Parallel Opportunities
+
 - T004 and T005 can be written in parallel (different test files)
 
 ### Dependencies
+
 - None (starting package)
 
 ### Risks & Mitigations
+
 - Risk: `StrEnum` requires Python 3.11+ → already enforced by constitution
 - Risk: ULID import path differs between `ulid-py` and `python-ulid` → use same pattern as `sync/emitter.py`
 
@@ -49,6 +54,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [ ] T006 Create `src/specify_cli/status/store.py` — `append_event()`, `read_events()`, `read_events_raw()` functions
 - [ ] T007 JSONL serialization with deterministic key ordering; deserialization with per-line validation
 - [ ] T008 Corruption detection — invalid JSON lines reported with line number, fail-fast (no silent skip)
@@ -56,18 +62,22 @@
 - [ ] T010 [P] Unit tests for store — append, read, corruption, atomicity, empty file handling
 
 ### Implementation Notes
+
 - Use `open(path, "a")` for single-writer append; `json.dumps(event, sort_keys=True)` per line
 - For reading: iterate lines, `json.loads()` each, collect into list
 - File path: `kitty-specs/<feature>/status.events.jsonl`
 - Must handle the case where the file doesn't exist yet (first event creates it)
 
 ### Parallel Opportunities
+
 - T010 can start as soon as the store interface is defined
 
 ### Dependencies
+
 - Depends on WP01 (uses StatusEvent model for serialization/deserialization)
 
 ### Risks & Mitigations
+
 - Risk: Concurrent writers (multiple agents) → resolved at git merge time; ULID deduplication handles overlaps
 - Risk: Large files → read_events returns generator for lazy evaluation
 
@@ -81,6 +91,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [ ] T011 Create `src/specify_cli/status/reducer.py` — `reduce()` function implementing dedupe/sort/reduce algorithm
 - [ ] T012 Rollback-aware precedence logic — reviewer rollback (`for_review → in_progress` with `review_ref`) beats concurrent forward progression
 - [ ] T013 Byte-identical output serialization — `json.dumps(snapshot, sort_keys=True, indent=2, ensure_ascii=False) + "\n"`
@@ -89,6 +100,7 @@
 - [ ] T016 [P] Unit tests for rollback-aware conflict resolution — concurrent diverging events
 
 ### Implementation Notes
+
 - Sorting key: `(event.at, event.event_id)` — both fields sort lexicographically
 - Deduplication: first occurrence by event_id wins
 - Rollback detection: event has `review_ref` set AND transition is `for_review → in_progress`
@@ -96,12 +108,15 @@
 - Atomic write: write to temp file, `os.replace()` to target
 
 ### Parallel Opportunities
+
 - T015 and T016 can be written in parallel (different test concerns)
 
 ### Dependencies
+
 - Depends on WP01 (models), WP02 (store read)
 
 ### Risks & Mitigations
+
 - Risk: Non-deterministic JSON serialization → enforce `sort_keys=True` and deterministic indent
 - Risk: Floating-point timestamps → use ISO 8601 strings, not floats
 
@@ -115,6 +130,7 @@
 **Estimated Size**: ~300 lines
 
 ### Included Subtasks
+
 - [ ] T017 Create `src/specify_cli/status/phase.py` — `resolve_phase()` returning `(phase: int, source: str)`
 - [ ] T018 [P] Add `status.phase` key to `.kittify/config.yaml` schema (config loading)
 - [ ] T019 [P] Add `status_phase` field to `meta.json` loading in feature detection
@@ -122,18 +138,22 @@
 - [ ] T021 [P] Unit tests for phase resolution — precedence, cap, source description
 
 ### Implementation Notes
+
 - Load config via existing config loader pattern (see `agent_config.py`)
 - Load meta.json via existing `json.loads()` pattern in `feature_detection.py`
 - Built-in default: Phase 1 (dual-write)
 - Phase values: 0 (hardening), 1 (dual-write), 2 (read-cutover)
 
 ### Parallel Opportunities
+
 - T018, T019, T021 can proceed in parallel
 
 ### Dependencies
+
 - Depends on WP01 (uses Lane enum for phase validation context)
 
 ### Risks & Mitigations
+
 - Risk: Config file schema change → additive only, existing configs remain valid
 
 ---
@@ -146,6 +166,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [ ] T022 Update `src/specify_cli/tasks_support.py` — expand LANES tuple to 7 canonical lanes, add LANE_ALIASES map
 - [ ] T023 Update `src/specify_cli/frontmatter.py` — expand `valid_lanes` in `validate()` to 7 lanes
 - [ ] T024 Update `ensure_lane()` in tasks_support.py to resolve aliases before validation
@@ -153,6 +174,7 @@
 - [ ] T026 [P] Unit tests for expanded lane validation, alias resolution, and backward compatibility
 
 ### Implementation Notes
+
 - Old LANES: `("planned", "doing", "for_review", "done")`
 - New LANES: `("planned", "claimed", "in_progress", "for_review", "done", "blocked", "canceled")`
 - `ensure_lane("doing")` → returns `"in_progress"` (resolved alias)
@@ -160,12 +182,15 @@
 - Must update `agent_utils/status.py` lane references too
 
 ### Parallel Opportunities
+
 - T026 can start once interface changes are clear
 
 ### Dependencies
+
 - Depends on WP01 (uses Lane enum as reference)
 
 ### Risks & Mitigations
+
 - Risk: Breaking existing tests that assert on 4-lane set → update test expectations
 - Risk: Grep may miss hardcoded lane references → thorough codebase audit in T025
 
@@ -179,6 +204,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [ ] T027 Create `src/specify_cli/status/legacy_bridge.py` — `update_frontmatter_views()`, `update_tasks_md_views()`
 - [ ] T028 Frontmatter lane field regeneration from StatusSnapshot per WP
 - [ ] T029 tasks.md status section regeneration from StatusSnapshot
@@ -186,18 +212,22 @@
 - [ ] T031 [P] Unit tests for legacy bridge — view generation, phase behavior, round-trip consistency
 
 ### Implementation Notes
+
 - Use existing `FrontmatterManager.update_field()` for WP frontmatter updates
 - For tasks.md: parse existing content, find/replace status sections
 - Phase 1: views updated after every emit (dual-write)
 - Phase 2: views regenerated on materialize; manual edits detected as drift by validate
 
 ### Parallel Opportunities
+
 - T031 can start once interface is defined
 
 ### Dependencies
+
 - Depends on WP03 (reducer/snapshot), WP05 (expanded lane support in frontmatter)
 
 ### Risks & Mitigations
+
 - Risk: tasks.md parsing fragility → use robust section marker detection
 - Risk: Partial frontmatter updates leaving stale data → always write full normalized frontmatter
 
@@ -211,6 +241,7 @@
 **Estimated Size**: ~500 lines
 
 ### Included Subtasks
+
 - [ ] T032 Create emit orchestration function in `status/__init__.py` or dedicated module — the full pipeline
 - [ ] T033 Integration with `sync/events.py` for SaaS fan-out (conditional on sync availability via try/except import)
 - [ ] T034 Atomic operation wrapping — if any step fails, no partial state persisted
@@ -219,18 +250,22 @@
 - [ ] T037 [P] Integration tests for emit pipeline — end-to-end flow verification
 
 ### Implementation Notes
+
 - Pipeline order: validate_transition() → append_event() → materialize() → update_views() → saas_emit()
 - SaaS import: `try: from specify_cli.sync.events import emit_wp_status_changed; except ImportError: saas_emit = lambda **kw: None`
 - Atomic: append to JSONL first. If materialize fails, the event is still in the log (recoverable). If frontmatter update fails, log is still canonical (views regenerable).
 - The orchestration function accepts: feature_slug, wp_id, to_lane, actor, force, reason, evidence, review_ref, execution_mode
 
 ### Parallel Opportunities
+
 - T037 can start once the pipeline interface is defined
 
 ### Dependencies
+
 - Depends on WP02 (store), WP03 (reducer), WP04 (phase), WP06 (legacy bridge)
 
 ### Risks & Mitigations
+
 - Risk: Circular imports between status/ and sync/ → use lazy imports for sync
 - Risk: SaaS emit failure shouldn't block local persistence → emit is best-effort after canonical append
 
@@ -244,6 +279,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [ ] T038 Create `src/specify_cli/cli/commands/agent/status.py` — typer command group `app`
 - [ ] T039 `status emit` command — accepts wp_id, --to, --actor, --force, --reason, --evidence-json, --review-ref, --execution-mode; delegates to orchestration
 - [ ] T040 `status materialize` command — accepts --feature; rebuilds status.json and views from log
@@ -251,18 +287,22 @@
 - [ ] T042 [P] Integration tests for CLI commands — invoke via typer CliRunner
 
 ### Implementation Notes
+
 - Follow existing pattern in `cli/commands/agent/tasks.py` for typer app structure
 - Feature detection: reuse `detect_feature_slug()` from `core.feature_detection`
 - JSON output support: `--json` flag for machine-readable output
 - Evidence: accept as JSON string `--evidence-json '{"review": {...}}'`
 
 ### Parallel Opportunities
+
 - T042 can start once command signatures are defined
 
 ### Dependencies
+
 - Depends on WP07 (emit orchestration)
 
 ### Risks & Mitigations
+
 - Risk: CLI registration conflicts → follow existing agent app registration pattern
 
 ---
@@ -275,6 +315,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [ ] T043 Refactor `move_task()` — replace set_scalar/write/emit sequence with call to `status.emit`
 - [ ] T044 Retain existing pre-validation: subtask checks, review readiness, agent ownership, uncommitted changes
 - [ ] T045 Map move-task parameters to status.emit arguments (assignee, review_status, reviewed_by as event metadata)
@@ -282,18 +323,22 @@
 - [ ] T047 [P] Integration tests for move-task → status.emit delegation; verify identical behavior to pre-refactor
 
 ### Implementation Notes
+
 - Current flow: ensure_lane → validate → set_scalar → write → commit → emit_wp_status_changed
 - New flow: resolve_alias → validate → status.emit(orchestration) → commit
 - The `status.emit` orchestration handles: event append, materialize, frontmatter update, SaaS emit
 - Git commit step remains in `move_task()` (commits both JSONL and frontmatter changes)
 
 ### Parallel Opportunities
+
 - T047 can start once delegation interface is clear
 
 ### Dependencies
+
 - Depends on WP07 (emit orchestration), WP05 (lane expansion/alias in tasks_support)
 
 ### Risks & Mitigations
+
 - Risk: Breaking existing agent workflows → extensive backward compatibility testing
 - Risk: Git commit now includes additional files (status.events.jsonl, status.json) → verify git add patterns
 
@@ -307,6 +352,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [ ] T048 Update `merge/status_resolver.py` — expand LANE_PRIORITY to 7 lanes
 - [ ] T049 Implement rollback detection — identify reviewer rollback signals in history entries
 - [ ] T050 Replace monotonic resolver with rollback-aware logic: rollback wins over forward progression
@@ -314,18 +360,22 @@
 - [ ] T052 [P] Unit tests for rollback resolution and event log merge
 
 ### Implementation Notes
+
 - Current LANE_PRIORITY: `{"done": 4, "for_review": 3, "doing": 2, "planned": 1}`
 - New: add `"claimed": 2, "in_progress": 3, "blocked": 0, "canceled": 5` (but precedence is secondary to rollback awareness)
 - Rollback signal: history entry with "review" and "changes requested" OR frontmatter `review_status: "has_feedback"`
 - For JSONL merge: read both files, concatenate, dedupe by event_id, sort by (at, event_id), write merged file
 
 ### Parallel Opportunities
+
 - T052 can start once resolution interface is defined
 
 ### Dependencies
+
 - Depends on WP01 (models/lanes), WP03 (reducer for event log merge)
 
 ### Risks & Mitigations
+
 - Risk: Changing merge behavior could break existing merges → extensive test coverage of edge cases
 - Risk: Event log deduplication must handle partial overlaps → test with overlapping event sets
 
@@ -339,6 +389,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [ ] T053 Create validation engine in `status/` — event schema validation (per-event field checks)
 - [ ] T054 Transition legality audit — replay events and verify each transition is legal
 - [ ] T055 Done-evidence completeness check — every `done` event has evidence or force flag
@@ -347,18 +398,22 @@
 - [ ] T058 [P] CLI `status validate` command + integration tests
 
 ### Implementation Notes
+
 - Validate returns structured results: errors (blocking), warnings (informational), phase source
 - Phase-aware: Phase 1 → drift is warning; Phase 2 → drift is error
 - Output should include event_id and context for each violation
 - CI integration: exit code 0 for pass, 1 for failures
 
 ### Parallel Opportunities
+
 - T058 can start once validation engine interface is defined
 
 ### Dependencies
+
 - Depends on WP03 (reducer for drift detection), WP06 (legacy bridge for view comparison)
 
 ### Risks & Mitigations
+
 - Risk: Large event logs slow down validation → optimize with early termination on first error (optional)
 
 ---
@@ -371,6 +426,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [ ] T059 Create `src/specify_cli/status/doctor.py` — health check framework with pluggable checks
 - [ ] T060 Stale claim detection — WPs in `claimed` or `in_progress` beyond configurable threshold
 - [ ] T061 Orphan workspace/worktree detection — worktrees for completed/canceled features
@@ -378,17 +434,21 @@
 - [ ] T063 [P] CLI `status doctor` command + unit tests
 
 ### Implementation Notes
+
 - Default staleness threshold: 7 days for `claimed`, 14 days for `in_progress`
 - Orphan detection: scan `.worktrees/` for directories whose features are all `done`
 - Output: structured report with recommended actions per finding
 
 ### Parallel Opportunities
+
 - T063 can start once doctor interface is defined
 
 ### Dependencies
+
 - Depends on WP03 (reducer for state inspection)
 
 ### Risks & Mitigations
+
 - Risk: Worktree scanning may be slow on large repos → limit to feature-specific scans
 
 ---
@@ -401,6 +461,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [ ] T064 Create `src/specify_cli/status/reconcile.py` — cross-repo drift scanning framework
 - [ ] T065 WP-to-commit linkage detection — scan target repos for WP-linked commits (branch naming, commit messages)
 - [ ] T066 Reconciliation event generation — create StatusEvents that would align planning with implementation
@@ -409,18 +470,22 @@
 - [ ] T069 [P] CLI `status reconcile` command (--dry-run, --apply, --feature) + unit tests
 
 ### Implementation Notes
+
 - Detect WP-linked commits: search for branch patterns `*-WP##` and commit messages containing `WP##`
 - Reconciliation events have `actor: "reconcile"` and `execution_mode: "direct_repo"`
 - 0.1x cap: apply mode gated behind branch check (see phase.py)
 - Evidence for reconciliation: auto-generated from commit metadata
 
 ### Parallel Opportunities
+
 - T069 can start once reconcile interface is defined
 
 ### Dependencies
+
 - Depends on WP03 (reducer), WP07 (emit orchestration for apply mode)
 
 ### Risks & Mitigations
+
 - Risk: Target repo access may not be available → graceful degradation with informative error
 - Risk: False positives in commit linkage → require explicit WP reference in commit or branch name
 
@@ -434,6 +499,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [ ] T070 Create migration function — read existing frontmatter lanes, generate bootstrap events per WP
 - [ ] T071 Alias mapping in bootstrap events — `doing` → `in_progress`
 - [ ] T072 Idempotency — skip features that already have `status.events.jsonl`
@@ -441,17 +507,21 @@
 - [ ] T074 [P] Integration tests — migrate legacy feature, verify event log, materialize, compare with pre-migration state
 
 ### Implementation Notes
+
 - Bootstrap event: `from_lane: null, to_lane: <current_lane>, actor: "migration"`, timestamp from frontmatter history or current time
 - For features with history entries: optionally replay history into multiple events
 - Migration report: list of features migrated, WPs per feature, any aliases resolved
 
 ### Parallel Opportunities
+
 - T074 can start once migration interface is defined
 
 ### Dependencies
+
 - Depends on WP02 (store for event append), WP03 (reducer for verification), WP05 (alias mapping)
 
 ### Risks & Mitigations
+
 - Risk: Features with corrupted frontmatter → skip with warning, don't fail entire migration
 - Risk: `doing` lanes must map correctly → explicit alias resolution test
 
@@ -465,6 +535,7 @@
 **Estimated Size**: ~500 lines
 
 ### Included Subtasks
+
 - [ ] T075 Dual-write integration tests — Phase 1 behavior: event appended AND frontmatter updated
 - [ ] T076 Read-cutover integration tests — Phase 2 behavior: reads from status.json only
 - [ ] T077 End-to-end CLI integration tests — emit → validate → materialize → doctor pipeline
@@ -473,18 +544,22 @@
 - [ ] T080 Migration integration tests — legacy → event log → materialize → verify parity
 
 ### Implementation Notes
+
 - Parity fixtures: create `tests/cross_branch/fixtures/` with sample event logs and expected snapshots
 - These fixtures are shared between branches — copy to 0.1x during backport
 - Use pytest parametrize for multi-phase testing (phase 0, 1, 2)
 - Use tmp_path fixtures for isolated test environments
 
 ### Parallel Opportunities
+
 - All test files can be written in parallel (different test concerns)
 
 ### Dependencies
+
 - Depends on WP09 (move-task delegation), WP11 (validate command)
 
 ### Risks & Mitigations
+
 - Risk: Test isolation — each test must create its own feature directory → use pytest tmp_path
 - Risk: Parity fixtures must be deterministic → use fixed timestamps and event_ids
 
@@ -498,6 +573,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [ ] T081 Identify 0.1x branch targets — main, release/0.13.x branches
 - [ ] T082 Cherry-pick/adapt status engine modules to 0.1x — adjust imports, remove SaaS dependencies
 - [ ] T083 SaaS fan-out as no-op on 0.1x — conditional import, graceful skip
@@ -506,18 +582,22 @@
 - [ ] T086 [P] Generate parity matrix document — list every feature with delta status (identical/adapted/missing)
 
 ### Implementation Notes
+
 - Start from 2.x implementation, create backport branch from main
 - Key adaptations: `sync/events.py` import → no-op wrapper; `status reconcile --apply` → disabled
 - Parity matrix columns: Module | 2.x Status | 0.1x Status | Delta | Notes
 - Must update pyproject.toml on 0.1x if ULID dependency is missing
 
 ### Parallel Opportunities
+
 - T086 can proceed alongside backport work
 
 ### Dependencies
+
 - Depends on WP01–WP15 (all implementation and tests complete on 2.x)
 
 ### Risks & Mitigations
+
 - Risk: Cherry-pick conflicts with 0.1x changes → manual adaptation per file
 - Risk: 0.1x missing dependencies → add minimal dependencies, verify compatibility
 
@@ -531,6 +611,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [ ] T087 Update operator documentation — new commands, phases, migration steps in docs/
 - [ ] T088 Update contributor documentation — architecture, data model, integration points
 - [ ] T089 Generate final report — branch-by-branch commit list, migration/cutover notes
@@ -539,17 +620,21 @@
 - [ ] T092 [P] Validate quickstart.md scenario — verify all commands work as documented
 
 ### Implementation Notes
+
 - Final report structure: Executive Summary → Commit List → Migration Notes → Parity Table → Risk Register → Rollback Plan
 - Update CLAUDE.md with status model patterns
 - Validate quickstart.md by running each command in sequence
 
 ### Parallel Opportunities
+
 - T090, T091, T092 can proceed in parallel
 
 ### Dependencies
+
 - Depends on WP16 (backport complete, parity data available)
 
 ### Risks & Mitigations
+
 - Risk: Documentation drift → tie doc updates to specific code changes
 
 ---
@@ -604,7 +689,7 @@ This gives: models, store, reducer, lane expansion, legacy bridge, emit orchestr
 
 | Subtask | Summary | WP | Priority | Parallel? |
 |---------|---------|------|----------|-----------|
-| T001 | Create status/__init__.py | WP01 | P0 | No |
+| T001 | Create status/**init**.py | WP01 | P0 | No |
 | T002 | Create status/models.py | WP01 | P0 | No |
 | T003 | Create status/transitions.py | WP01 | P0 | No |
 | T004 | Unit tests for models | WP01 | P0 | Yes |

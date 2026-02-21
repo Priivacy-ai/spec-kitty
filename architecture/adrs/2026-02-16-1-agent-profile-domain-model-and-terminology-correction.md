@@ -126,21 +126,21 @@ Create `src/doctrine/` as a new top-level Python package. Move the profile domai
 ## More Information
 
 **Related ADRs:**
-- ADR 2026-01-23-6 (Config-Driven Agent Management) — established `config.yaml` as agent config source; this ADR renames the concept from "agent" to "tool"
+* ADR 2026-01-23-6 (Config-Driven Agent Management) — established `config.yaml` as agent config source; this ADR renames the concept from "agent" to "tool"
 
 **Design Sources:**
-- `doctrine_ref/templates/automation/NEW_SPECIALIST.agent.md` — 6-section profile template
-- `doctrine_ref/decisions/DDR-011-agent-specialization-hierarchy.md` — hierarchy design
-- `doctrine_ref/directives/005_agent_profiles.md` — profile directive
-- `doctrine_ref/directives/009_role_capabilities.md` — canonical verbs
-- `doctrine_ref/approaches/language-first-architecture.md` — linguistic architecture approach
-- `doctrine_ref/docs/ddd-core-concepts-reference.md` — DDD modeling reference
+* `doctrine_ref/templates/automation/NEW_SPECIALIST.agent.md` — 6-section profile template
+* `doctrine_ref/decisions/DDR-011-agent-specialization-hierarchy.md` — hierarchy design
+* `doctrine_ref/directives/005_agent_profiles.md` — profile directive
+* `doctrine_ref/directives/009_role_capabilities.md` — canonical verbs
+* `doctrine_ref/approaches/language-first-architecture.md` — linguistic architecture approach
+* `doctrine_ref/docs/ddd-core-concepts-reference.md` — DDD modeling reference
 
 **Feature Spec:**
-- `kitty-specs/047-agent-profile-domain-model/spec.md`
+* `kitty-specs/047-agent-profile-domain-model/spec.md`
 
 **Consuming Features:**
-- 042 (Bootstrap) — profile selection during onboarding
-- 044 (Governance) — profile validation at lifecycle hooks
-- 045 (Constitution Sync) — profile extraction to `agents.yaml`
-- 046 (Routing) — specialization hierarchy for model selection
+* 042 (Bootstrap) — profile selection during onboarding
+* 044 (Governance) — profile validation at lifecycle hooks
+* 045 (Constitution Sync) — profile extraction to `agents.yaml`
+* 046 (Routing) — specialization hierarchy for model selection

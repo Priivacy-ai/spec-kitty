@@ -12,6 +12,7 @@ This feature creates comprehensive user-facing documentation for the Autonomous 
 **Scope**: User-facing documentation only. Developer/contributor documentation is out of scope.
 
 **Key documentation areas**:
+
 - The `spec-kitty orchestrate` command and its workflow
 - Agent configuration during `spec-kitty init`
 - The implement→review→rework state machine
@@ -114,6 +115,7 @@ A user wants to understand how the orchestrator works internally: the state mach
 | T1 | `tutorials/autonomous-orchestration.md` | Step-by-step guide to run first autonomous orchestration |
 
 **T1 Content Requirements**:
+
 - Time estimate and prerequisites
 - Step 1: Prepare a feature with tasks (link to existing tutorials)
 - Step 2: Configure agents during init (or use existing config)
@@ -134,6 +136,7 @@ A user wants to understand how the orchestrator works internally: the state mach
 | H5 | `how-to/override-orchestration-agents.md` | Use CLI flags to override agents |
 
 **H1-H5 Content Requirements**:
+
 - Prerequisites section
 - Numbered steps with code examples
 - "What happens" section explaining the outcome
@@ -148,17 +151,20 @@ A user wants to understand how the orchestrator works internally: the state mach
 | R3 | `reference/orchestration-state.md` | State file structure reference |
 
 **R1 Content Requirements**:
+
 - Synopsis, description, arguments
 - Options table with all flags (--feature, --status, --resume, --abort, --skip, --cleanup, --impl-agent, --review-agent)
 - Examples section
 
 **R2 Content Requirements**:
+
 - agents.available list
 - agents.selection.strategy (preferred/random)
 - agents.selection.preferred_implementer
 - agents.selection.preferred_reviewer
 
 **R3 Content Requirements**:
+
 - State file location (`.kittify/orchestration-state.json`)
 - JSON schema with field descriptions
 - WP status values and meanings
@@ -171,6 +177,7 @@ A user wants to understand how the orchestrator works internally: the state mach
 | E2 | Update `explanation/multi-agent-orchestration.md` | Add autonomous orchestration section |
 
 **E1 Content Requirements**:
+
 - Overview of autonomous orchestration concept
 - The implement→review→rework state machine diagram (ASCII or description)
 - Why cross-agent review matters
@@ -188,6 +195,7 @@ A user wants to understand how the orchestrator works internally: the state mach
 ### Style Requirements
 
 All documentation must:
+
 - Follow existing docs/ style conventions
 - Include `**Divio type**: <type>` header for tutorials
 - Use `---` frontmatter with title/description for explanations

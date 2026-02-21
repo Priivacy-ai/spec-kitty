@@ -182,40 +182,47 @@ A project uses jj but needs git compatibility for CI/CD, GitHub integration, or 
 ### Functional Requirements
 
 #### VCS Abstraction Layer
+
 - **FR-001**: System MUST provide a VCS abstraction layer with implementations for both git and jujutsu
 - **FR-002**: System MUST detect available VCS tools at runtime (check PATH for `jj` and `git`)
 - **FR-003**: System MUST prefer jj when available, falling back to git otherwise
 - **FR-004**: System MUST allow explicit VCS override via `--vcs=git` or `--vcs=jj` flags
 
 #### Project and Feature Configuration
+
 - **FR-005**: System MUST store project-level VCS preference in `.kittify/config.yaml`
 - **FR-006**: System MUST store per-feature VCS selection in feature's `meta.json`
 - **FR-007**: System MUST lock VCS selection at feature creation (cannot change mid-feature)
 - **FR-008**: System MUST display informational message during `init` recommending jj installation if not present
 
 #### Workspace Management
+
 - **FR-009**: System MUST create workspaces using `jj workspace add` when feature uses jj
 - **FR-010**: System MUST create workspaces using `git worktree add` when feature uses git
 - **FR-011**: System MUST support `--base` flag for dependent workspaces in both VCS backends
 - **FR-012**: System MUST use colocated mode (both .jj/ and .git/) when both tools are available
 
 #### Synchronization
+
 - **FR-013**: System MUST provide `spec-kitty sync` command that works for both VCS backends
 - **FR-014**: System MUST detect stale workspaces and prompt for sync
 - **FR-015**: System MUST report conflicts after sync with file paths and line ranges
 
 #### Conflict Handling
+
 - **FR-016**: System MUST allow jj operations to complete even when conflicts exist (non-blocking)
 - **FR-017**: System MUST block review command when workspace has unresolved conflicts
 - **FR-018**: System MUST block merge command when any WP has unresolved conflicts
 - **FR-019**: System MUST display clear conflict status in `spec-kitty status` output
 
 #### Operation History
+
 - **FR-020**: System MUST provide `spec-kitty ops log` to display operation history
 - **FR-021**: System MUST provide `spec-kitty ops undo` to reverse recent operations
 - **FR-022**: System MUST use jj operation log for jj features, git reflog for git features
 
 #### Testing Requirements
+
 - **FR-023**: System MUST have jj-specific tests that require jj to be installed (skip if unavailable)
 - **FR-024**: System MUST NOT mock jj behavior in tests - real jj execution required
 

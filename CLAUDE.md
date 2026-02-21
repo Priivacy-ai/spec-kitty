@@ -12,6 +12,7 @@
 The directories like `.claude/commands/`, `.amazonq/prompts/`, etc. are **GENERATED COPIES** that get deployed to projects that USE spec-kitty. They are NOT source code.
 
 **To fix a template bug:**
+
 ```bash
 # ✅ CORRECT: Edit the source template
 vim src/specify_cli/missions/software-dev/command-templates/implement.md
@@ -22,6 +23,7 @@ vim .amazonq/prompts/spec-kitty.implement.md  # NO!
 ```
 
 **How templates flow:**
+
 ```
 src/specify_cli/missions/*/command-templates/*.md  (SOURCE - edit here!)
     ↓ (copied by migrations during `spec-kitty upgrade`)
@@ -54,6 +56,7 @@ Spec Kitty supports **12 AI agents** with slash commands. When adding features t
 **Canonical source**: `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` → `AGENT_DIRS`
 
 **When modifying**:
+
 - Migrations that update slash commands: Use `get_agent_dirs_for_project()` helper (config-aware)
 - Template changes: Will propagate to all agents via migration
 - Testing: Verify at least .claude, .codex, .opencode (most common)
@@ -65,6 +68,7 @@ Spec Kitty supports **12 AI agents** with slash commands. When adding features t
 ### For Users
 
 **Adding/Removing Agents:**
+
 ```bash
 # List configured agents
 spec-kitty agent config list
@@ -83,11 +87,13 @@ spec-kitty agent config sync
 ```
 
 **DO:**
+
 - ✅ Use `spec-kitty agent config add/remove` commands
 - ✅ Let migrations respect your agent configuration
 - ✅ Keep agents you actually use configured
 
 **DON'T:**
+
 - ❌ Manually delete agent directories without updating config
 - ❌ Expect manually deleted agents to stay deleted (pre-0.12.0 bug)
 - ❌ Modify `.kittify/config.yaml` directly (use CLI commands)
@@ -95,6 +101,7 @@ spec-kitty agent config sync
 ### For Developers
 
 **Writing Migrations:**
+
 ```python
 # ALWAYS use config-aware helper:
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -114,18 +121,21 @@ def apply(self, project_path: Path, dry_run: bool = False):
 ```
 
 **DO:**
+
 - ✅ Import `get_agent_dirs_for_project()` from `m_0_9_1_complete_lane_migration`
 - ✅ Use `continue` if directory doesn't exist (respect deletions)
 - ✅ Test with both configured and unconfigured agents
 - ✅ Test legacy projects without config.yaml (should fallback to all)
 
 **DON'T:**
+
 - ❌ Hardcode `AGENT_DIRS` in new migrations (import from `m_0_9_1`)
 - ❌ Create missing directories (`mkdir`) - respect user deletions
 - ❌ Assume all 12 agents are always present
 - ❌ Process agents not in config.yaml
 
 **Testing Migrations:**
+
 ```python
 # Test config-aware behavior
 def test_migration_respects_config(tmp_path):
@@ -148,6 +158,7 @@ def test_migration_respects_config(tmp_path):
 ```
 
 **Agent Key Mappings:**
+
 - `copilot` → `.github/prompts` (not `.copilot`)
 - `auggie` → `.augment/commands` (not `.auggie`)
 - `q` → `.amazonq/prompts` (not `.q`)
@@ -157,6 +168,7 @@ Use `AGENT_DIR_TO_KEY` mapping for conversions.
 ### Architecture
 
 **Single Source of Truth:** `.kittify/config.yaml`
+
 ```yaml
 agents:
   available:
@@ -165,16 +177,19 @@ agents:
 ```
 
 **Derived State:** Agent directories on filesystem
+
 - Only configured agents have directories
 - Migrations only process configured agents
 - Deletions are respected across upgrades
 
 **Key Functions:**
+
 - `get_agent_dirs_for_project(project_path)` - Returns list of (dir, subdir) tuples for configured agents
 - `load_agent_config(repo_root)` - Loads AgentConfig from config.yaml
 - `save_agent_config(repo_root, config)` - Saves AgentConfig to config.yaml
 
 **See Also:**
+
 - ADR #6: Config-Driven Agent Management
 - `tests/specify_cli/test_agent_config_migration.py` - Integration tests
 - `tests/specify_cli/cli/commands/test_agent_config.py` - CLI command tests
@@ -186,6 +201,7 @@ agents:
 *Auto-generated from all feature plans. Last updated: 2025-11-10*
 
 ## Active Technologies
+
 - Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (for console output), subprocess (for git operations) (003-auto-protect-agent)
 - Python 3.11+ (existing spec-kitty codebase) + yper, rich, httpx, pyyaml, readchar (004-modular-code-refactoring)
 - File system (no database) (004-modular-code-refactoring)
@@ -206,7 +222,9 @@ agents:
 
 - Python 3.11+ (existing spec-kitty codebase) + `spec_kitty_events` (vendored Pydantic event model, Lamport clocks, EventStore ABC), `typer` (CLI), `rich` (console output), `ruamel.yaml` (pricing table parsing) (043-telemetry-foundation)
 - Per-feature JSONL files (`kitty-specs/<feature>/execution.events.jsonl`) — append-only, stream-parsed (043-telemetry-foundation)
+
 ## Project Structure
+
 ```
 architecture/           # Architectural design decisions and technical specifications
   ├── README.md        # Overview of architecture documentation
@@ -226,30 +244,36 @@ docs/                 # User documentation
 ```
 
 **When adding new architectural designs**:
+
 - Store in `architecture/` directory
 - Follow the template in `architecture/README.md`
 - Update the architecture README index
 - Reference from code comments for major components
 
 ## Commands
+
 cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
 
 ## Testing
 
 **Run tests in headless mode** (prevents browser windows from opening):
+
 ```bash
 PWHEADLESS=1 pytest tests/
 ```
 
 Or use pytest flags:
+
 ```bash
 pytest tests/ --browser-channel=chromium --headed=false
 ```
 
 ## Code Style
+
 Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
 ## Recent Changes
+
 - 043-telemetry-foundation: Added Python 3.11+ (existing spec-kitty codebase) + `spec_kitty_events` (vendored Pydantic event model, Lamport clocks, EventStore ABC), `typer` (CLI), `rich` (console output), `ruamel.yaml` (pricing table parsing)
 - 015-first-class-jujutsu-vcs-integration: Adding VCS abstraction layer (Protocol-based), jj as first-class citizen alongside git, new vcs/ subpackage
 - 011-constitution-packaging-safety-and-redesign: Added psutil for cross-platform process management, relocated templates from .kittify/ to src/specify_cli/
@@ -261,12 +285,14 @@ Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 **CRITICAL: NEVER manually create releases! You MUST use the Github release process.**
 
 Only cut a release when the user explicitly says:
+
 - "cut a release"
 - "release v0.X.Y"
 - "push to PyPI"
 - Similar clear instructions
 
 **DO NOT**:
+
 - Automatically release after fixing bugs
 - Release without verification
 - Assume a fix should be released immediately
@@ -296,6 +322,7 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
 ### Planning Workflow
 
 **All planning happens in main repository:**
+
 - `/spec-kitty.specify` → Creates `kitty-specs/###-feature/` in main, commits to main
 - `/spec-kitty.plan` → Creates `plan.md` in main, commits to main
 - `/spec-kitty.tasks` → LLM creates `tasks.md` and `tasks/*.md` in main
@@ -307,11 +334,13 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
 ### Implementation Workflow
 
 **Worktrees created on-demand:**
+
 - `spec-kitty implement WP01` → Creates `.worktrees/###-feature-WP01/`
 - One worktree per work package (not per feature)
 - Each WP has isolated workspace with dedicated branch
 
 **Example implementation sequence:**
+
 ```bash
 # After planning completes in main:
 spec-kitty implement WP01              # Creates first workspace
@@ -322,6 +351,7 @@ spec-kitty implement WP03              # Independent WP, parallel with WP02
 ### Dependency Handling
 
 **Declare in WP frontmatter:**
+
 ```yaml
 ---
 work_package_id: "WP02"
@@ -331,19 +361,23 @@ dependencies: ["WP01"]  # This WP depends on WP01
 ```
 
 **Generated during `/spec-kitty.tasks` and `finalize-tasks`:**
+
 - LLM creates tasks.md with dependency descriptions (phase grouping, explicit mentions)
 - `finalize-tasks` parses dependencies from tasks.md
 - Writes `dependencies: []` field to each WP's frontmatter
 - Validates no cycles, no self-dependencies, no invalid references
 
 **Use --base flag during implementation:**
+
 ```bash
 spec-kitty implement WP02 --base WP01  # Branches from WP01's branch
 ```
 
 **Multiple dependencies:**
+
 - Git limitation: Can only branch from ONE base
 - If WP04 depends on WP02 and WP03, use `--base WP03`, then manually merge WP02:
+
   ```bash
   spec-kitty implement WP04 --base WP03
   cd .worktrees/###-feature-WP04/
@@ -353,11 +387,13 @@ spec-kitty implement WP02 --base WP01  # Branches from WP01's branch
 ### Testing Requirements
 
 **For workspace-per-WP features:**
+
 - Write migration tests for template updates (parametrized across all 12 agents)
 - Write integration tests for full workflow (specify → implement → merge)
 - Write dependency graph tests (cycle detection, validation, inverse graph)
 
 **Example test structure:**
+
 ```python
 # tests/specify_cli/test_workspace_per_wp_migration.py
 @pytest.mark.parametrize("agent_key", [
@@ -374,6 +410,7 @@ def test_implement_template_updated(tmp_path, agent_key):
 **When modifying workflow commands, update ALL 12 agents:**
 
 Use `AGENT_DIRS` constant from migrations:
+
 ```python
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import AGENT_DIRS
 
@@ -382,11 +419,13 @@ for agent_key, (agent_dir, _) in AGENT_DIRS.items():
 ```
 
 **Test with migration test:**
+
 ```bash
 pytest tests/specify_cli/test_workspace_per_wp_migration.py -v
 ```
 
 **Template files to update (per agent):**
+
 - `specify.md` - Remove worktree creation, document main repo workflow
 - `plan.md` - Remove worktree references
 - `tasks.md` - Document dependency generation, validation
@@ -395,6 +434,7 @@ pytest tests/specify_cli/test_workspace_per_wp_migration.py -v
 ### Review Warnings
 
 **When WP enters review, check for dependents:**
+
 ```python
 from specify_cli.core.dependency_graph import DependencyGraph
 
@@ -421,6 +461,7 @@ WP status is tracked in the **main branch** via kitty-specs files. When you run 
 3. **This is normal parallel workflow behavior** - Multiple agents work simultaneously. Status changes from other agents are expected. Focus only on YOUR assigned WP.
 
 **Don't panic if:**
+
 - You moved WP to "for_review" but the board shows "doing" → A reviewer may have started or requested changes
 - You see commits from other WPs → Other agents are working in parallel, ignore them
 - Status seems out of sync → The source of truth is the WP file in main branch
@@ -430,11 +471,13 @@ WP status is tracked in the **main branch** via kitty-specs files. When you run 
 This workspace-per-WP feature (010) used the NEW model:
 
 **Planning phase:**
+
 - Ran `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks` in main
 - NO worktrees created
 - All artifacts committed to main (3 commits)
 
 **Implementation phase:**
+
 - WP01 (dependency graph) → Independent, branched from main
 - WP02, WP03, WP06 → Parallel wave (3 agents simultaneously)
 - WP04 → Depended on WP02 and WP03 (manual merge required)
@@ -442,10 +485,12 @@ This workspace-per-WP feature (010) used the NEW model:
 - WP10 → Documentation (depended on everything)
 
 **Timeline:**
+
 - Legacy model (0.10.x): ~10 time units (sequential)
 - Workspace-per-WP (0.11.0): ~6 time units (40% faster due to parallelization)
 
 **Lessons learned:**
+
 - Parallelization significantly reduces time-to-completion
 - Dependency tracking in frontmatter works well
 - Manual merges for multi-parent dependencies are annoying but manageable
@@ -455,9 +500,11 @@ This workspace-per-WP feature (010) used the NEW model:
 ### Common Patterns
 
 **Linear chain:**
+
 ```
 WP01 → WP02 → WP03
 ```
+
 ```bash
 spec-kitty implement WP01
 spec-kitty implement WP02 --base WP01
@@ -465,11 +512,13 @@ spec-kitty implement WP03 --base WP02
 ```
 
 **Fan-out (parallel):**
+
 ```
         WP01
        /  |  \
     WP02 WP03 WP04
 ```
+
 ```bash
 spec-kitty implement WP01
 # After WP01 completes, run in parallel:
@@ -479,6 +528,7 @@ spec-kitty implement WP04 --base WP01 &
 ```
 
 **Diamond (complex):**
+
 ```
         WP01
        /    \
@@ -486,6 +536,7 @@ spec-kitty implement WP04 --base WP01 &
        \    /
         WP04
 ```
+
 ```bash
 spec-kitty implement WP01
 spec-kitty implement WP02 --base WP01 &  # Parallel
@@ -499,16 +550,19 @@ git merge ###-feature-WP02  # Manual merge second dependency
 ### Migration to 0.11.0
 
 **Before migrating:**
+
 - Complete or delete all in-progress features (legacy worktrees)
 - Use `spec-kitty list-legacy-features` to check
 - Upgrade blocked if legacy worktrees exist
 
 **Migration script (`m_0_11_0_workspace_per_wp.py`):**
+
 - Detects legacy worktrees, blocks with actionable error
 - Regenerates all agent templates with new workflow
 - Updates mission templates (specify, plan, tasks, implement)
 
 **Post-migration:**
+
 - All new features use workspace-per-WP model
 - Planning in main, worktrees on-demand
 - Dependency tracking in frontmatter
@@ -516,14 +570,17 @@ git merge ###-feature-WP02  # Manual merge second dependency
 ### Troubleshooting
 
 **"Base workspace does not exist":**
+
 - Implement dependency first: `spec-kitty implement WP01`
 - Then implement dependent: `spec-kitty implement WP02 --base WP01`
 
 **"Circular dependency detected":**
+
 - Fix tasks.md to remove cycle
 - Ensure dependencies form a DAG (directed acyclic graph)
 
 **"Legacy worktrees detected" during upgrade:**
+
 - Complete or delete features before upgrading
 - Use `spec-kitty list-legacy-features` to identify
 - Follow [upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md)
@@ -531,16 +588,16 @@ git merge ###-feature-WP02  # Manual merge second dependency
 ### Documentation
 
 **For users:**
+
 - [docs/workspace-per-wp.md](docs/workspace-per-wp.md) - Workflow guide with examples
 - [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) - Migration instructions
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/quickstart.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/quickstart.md) - Quick reference
 
 **For contributors:**
+
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/spec.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/spec.md) - Full specification
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/plan.md) - Technical design
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/data-model.md) - Entities and relationships
-
-
 
 ## Merge & Preflight Patterns (0.11.0+)
 
@@ -579,10 +636,12 @@ Merge progress is saved in `.kittify/merge-state.json` to enable resuming interr
 | `updated_at` | `str` | ISO timestamp of last state update |
 
 **Helper properties:**
+
 - `remaining_wps` → List of WPs not yet merged
 - `progress_percent` → Completion percentage (0-100)
 
 **State functions (import from `specify_cli.merge`):**
+
 ```python
 from specify_cli.merge import (
     MergeState,
@@ -635,6 +694,7 @@ if not result.passed:
 | `error` | `str \| None` | Error message if check failed |
 
 **Checks performed:**
+
 1. All expected WPs have worktrees (based on tasks in kitty-specs)
 2. All worktrees are clean (no uncommitted changes)
 3. Target branch is not behind origin
@@ -642,6 +702,7 @@ if not result.passed:
 ### Programmatic Access
 
 **Check for active merge:**
+
 ```python
 from pathlib import Path
 from specify_cli.merge import load_state, has_active_merge
@@ -656,6 +717,7 @@ if has_active_merge(repo_root):
 ```
 
 **Run preflight validation:**
+
 ```python
 from pathlib import Path
 from specify_cli.merge import run_preflight
@@ -678,6 +740,7 @@ for status in result.wp_statuses:
 ```
 
 **Conflict forecasting (dry-run):**
+
 ```python
 from pathlib import Path
 from specify_cli.merge import predict_conflicts
@@ -697,21 +760,25 @@ for pred in predictions:
 ### Common Patterns
 
 **Resume interrupted merge:**
+
 ```bash
 spec-kitty merge --resume
 ```
 
 **Abort and start fresh:**
+
 ```bash
 spec-kitty merge --abort
 ```
 
 **Preview merge with conflict forecast:**
+
 ```bash
 spec-kitty merge --dry-run
 ```
 
 **Merge from main branch:**
+
 ```bash
 spec-kitty merge --feature 017-my-feature
 ```
@@ -724,7 +791,6 @@ spec-kitty merge --feature 017-my-feature
 - `src/specify_cli/merge/forecast.py` - Conflict prediction for dry-run
 - `src/specify_cli/merge/status_resolver.py` - Auto-resolution for status file conflicts
 - `src/specify_cli/cli/commands/merge.py` - CLI command with --resume/--abort flags
-
 
 ## Status Model Patterns (034+)
 
@@ -824,7 +890,6 @@ phase, source = resolve_phase(repo_root, "034-feature")
 - Data model: [kitty-specs/034-feature-status-state-model-remediation/data-model.md](kitty-specs/034-feature-status-state-model-remediation/data-model.md)
 - Quickstart: [kitty-specs/034-feature-status-state-model-remediation/quickstart.md](kitty-specs/034-feature-status-state-model-remediation/quickstart.md)
 
-
 ## Agent Utilities for Work Package Status
 
 **Quick Status Check (Recommended for Agents)**
@@ -837,11 +902,13 @@ spec-kitty agent tasks status --feature 012-documentation-mission
 ```
 
 **What You Get:**
+
 - Kanban board (planned/doing/for_review/done lanes)
 - Progress bar (█████░░░) with percentage
 - Summary metrics panel
 
 **When to Use:**
+
 - Before starting work (check what's ready)
 - During implementation (track progress)
 - After completing a WP (see what's next)
@@ -859,6 +926,7 @@ result = show_kanban_status("012-documentation-mission")
 ```
 
 Returns structured data:
+
 ```python
 {
     'progress_percentage': 80.0,
@@ -875,6 +943,7 @@ Returns structured data:
 ## Documentation Mission Patterns (0.11.0+)
 
 **When to Use Documentation Mission**:
+
 - Creating comprehensive docs for a new project (initial mode)
 - Filling gaps in existing documentation (gap-filling mode)
 - Documenting a specific feature or component (feature-specific mode)
@@ -882,17 +951,20 @@ Returns structured data:
 ### Key Concepts
 
 **Divio 4-Type System**:
+
 - **Tutorial**: Learning-oriented, teaches beginners step-by-step
 - **How-To**: Task-oriented, solves specific problems
 - **Reference**: Information-oriented, describes APIs (often auto-generated)
 - **Explanation**: Understanding-oriented, explains architecture and "why"
 
 **Iteration Modes**:
+
 - **initial**: Create docs from scratch (no gap analysis)
 - **gap_filling**: Audit existing docs, prioritize gaps, fill high-priority missing content
 - **feature_specific**: Document a specific feature/module only
 
 **Generators**:
+
 - **JSDoc**: JavaScript/TypeScript API reference (requires `npx`)
 - **Sphinx**: Python API reference (requires `sphinx-build`)
 - **rustdoc**: Rust API reference (requires `cargo`)
@@ -900,6 +972,7 @@ Returns structured data:
 ### Workflow
 
 **Planning Phase**:
+
 ```bash
 /spec-kitty.specify Create documentation [describe what you need]
 # Prompts: iteration_mode, divio_types, target_audience, generators
@@ -908,6 +981,7 @@ Returns structured data:
 ```
 
 **Implementation Phase**:
+
 ```bash
 /spec-kitty.implement
 # Creates Divio templates, configures generators, generates API docs
@@ -918,6 +992,7 @@ Returns structured data:
 ### Gap Analysis
 
 **Gap-filling mode automatically**:
+
 1. Detects documentation framework (Sphinx, MkDocs, Docusaurus, etc.)
 2. Classifies existing docs by Divio type (frontmatter or content heuristics)
 3. Builds coverage matrix (area × Divio type)
@@ -932,6 +1007,7 @@ Returns structured data:
 ### Generator Configuration
 
 **Sphinx (Python)**:
+
 ```python
 # docs/conf.py
 extensions = [
@@ -942,6 +1018,7 @@ extensions = [
 ```
 
 **JSDoc (JavaScript/TypeScript)**:
+
 ```json
 // jsdoc.json
 {
@@ -951,6 +1028,7 @@ extensions = [
 ```
 
 **rustdoc (Rust)**:
+
 ```toml
 # Cargo.toml
 [package.metadata.docs.rs]
@@ -960,6 +1038,7 @@ all-features = true
 ### State Management
 
 Documentation state persisted in `meta.json`:
+
 ```json
 {
   "documentation_state": {
@@ -982,16 +1061,19 @@ Documentation state persisted in `meta.json`:
 ### Common Patterns
 
 **Initial project documentation**:
+
 - Include all 4 Divio types
 - Configure generator for primary language
 - Create comprehensive suite (tutorial → reference → explanations)
 
 **Gap-filling existing docs**:
+
 - Run audit first (detects framework, classifies docs)
 - Focus on HIGH priority gaps (tutorials, core reference)
 - Iteratively improve coverage
 
 **Feature-specific docs**:
+
 - Select only relevant Divio types (e.g., how-to + reference for new API)
 - Integrate with existing structure
 - Update coverage metadata
@@ -999,6 +1081,7 @@ Documentation state persisted in `meta.json`:
 ### Troubleshooting
 
 **Generator not found**:
+
 ```bash
 # Install required tools
 pip install sphinx sphinx-rtd-theme  # Python
@@ -1008,6 +1091,7 @@ curl --proto '=https' -sSf https://sh.rustup.rs | sh  # Rust
 
 **Low confidence classification**:
 Add frontmatter to existing docs:
+
 ```markdown
 ---
 type: tutorial  # or how-to, reference, explanation
@@ -1020,12 +1104,14 @@ Replace all `[TODO: ...]` placeholders with actual content during validation pha
 ### Documentation
 
 **User Guide**: [docs/documentation-mission.md](docs/documentation-mission.md)
+
 - Complete workflow with examples
 - Generator setup instructions
 - Divio type explanations
 - Troubleshooting guide
 
 **Implementation**:
+
 - Mission config: `src/specify_cli/missions/documentation/mission.yaml`
 - Generators: `src/specify_cli/doc_generators.py`
 - Gap analysis: `src/specify_cli/gap_analysis.py`
@@ -1056,12 +1142,14 @@ unset GITHUB_TOKEN && gh issue close <issue>
 ```
 
 **Background**:
+
 - `gh` checks GITHUB_TOKEN env var first, then falls back to keyring
 - GITHUB_TOKEN (ghp_*) may have limited scopes for security
 - Keyring token (gho_*) often has full 'repo' scope
 - For organization repos, you need 'repo' and 'read:org' scopes
 
 **Verify fix worked**:
+
 ```bash
 unset GITHUB_TOKEN && gh auth status
 # Should show keyring token with 'repo' scope as active

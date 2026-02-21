@@ -1,10 +1,11 @@
 # Agent: Kilocode
 
 ## Basic Info
+
 - **Directory**: `.kilocode/`
 - **Primary Interface**: CLI / IDE (VS Code extension with full-featured CLI)
 - **Vendor**: Kilo Code (kilo.ai)
-- **Documentation**: https://kilo.ai/docs/
+- **Documentation**: <https://kilo.ai/docs/>
 
 ## CLI Availability
 
@@ -25,6 +26,7 @@ kilo --version
 **License**: Apache-2.0
 
 ### Verification
+
 ```bash
 # Command to verify installation
 which kilocode
@@ -32,6 +34,7 @@ kilocode --version
 ```
 
 ### Local Test Results
+
 ```bash
 $ which kilocode
 /opt/homebrew/bin/kilocode
@@ -79,6 +82,7 @@ Commands:
 ## Task Specification
 
 ### How to Pass Instructions
+
 - [x] Command line argument (positional prompt argument)
 - [x] Stdin (with `--json-io` mode)
 - [ ] File path (--file, -f)
@@ -86,6 +90,7 @@ Commands:
 - [x] Environment variable (for configuration)
 
 ### Example Invocation
+
 ```bash
 # Interactive mode
 kilocode "Refactor the authentication module"
@@ -110,6 +115,7 @@ kilocode -pv openai-1 -mo gpt-4o "Your task"
 ```
 
 ### Context Handling
+
 - Automatically reads codebase from workspace directory (`-w` flag or current directory)
 - Supports MCP (Model Context Protocol) for custom tools and APIs
 - Configuration stored at `~/.kilocode/config.json`
@@ -118,12 +124,14 @@ kilocode -pv openai-1 -mo gpt-4o "Your task"
 ## Completion Detection
 
 ### Exit Codes
+
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
 | 1 | Error / Task failed |
 
 ### Output Format
+
 - [x] Stdout (plain text) - default TUI mode
 - [x] Stdout (JSON) - with `--json` flag
 - [x] Structured logs - via `--json-io` mode
@@ -132,15 +140,18 @@ kilocode -pv openai-1 -mo gpt-4o "Your task"
 ## Parallel Execution
 
 ### Rate Limits
+
 Depends on the underlying LLM provider (OpenAI, Anthropic, etc.). No Kilocode-specific rate limits documented.
 
 ### Concurrent Sessions
+
 - Yes, multiple instances can run simultaneously
 - Built-in `--parallel` flag creates separate git branches automatically
 - Can use `--existing-branch` to target specific branches
 - Each session can have a unique `--session` ID
 
 ### Resource Requirements
+
 - Node.js 22+ required
 - Memory depends on context size and provider
 - Token limits depend on configured model
@@ -148,15 +159,19 @@ Depends on the underlying LLM provider (OpenAI, Anthropic, etc.). No Kilocode-sp
 ## Orchestration Assessment
 
 ### Can participate in autonomous workflow?
+
 [x] Yes
 
 ### Limitations
+
 - Requires authentication via `kilocode auth`
 - YOLO mode (`--yolo`) needed for fully unattended operation
 - Timeout must be set for autonomous mode
 
 ### Integration Complexity
+
 **Low** - Kilocode has excellent CLI support with:
+
 - Full autonomous mode (`-a`)
 - JSON I/O for programmatic integration (`-i`, `-j`)
 - Parallel branch support (`-p`)
@@ -166,17 +181,20 @@ Depends on the underlying LLM provider (OpenAI, Anthropic, etc.). No Kilocode-sp
 ## VS Code Extension Patterns
 
 Kilocode demonstrates the gold standard for VS Code extension CLI support:
+
 - The CLI bundles the entire extension codebase at build time using esbuild
 - `ExtensionHost` class provides a VS Code API facade that maps VS Code-specific APIs to CLI equivalents
 - Extension code runs unmodified in both VS Code and CLI environments
 - Full feature parity between VS Code extension and CLI
 
 ### Headless Workarounds
+
 - No workarounds needed - native CLI support
 - Works in CI/CD pipelines
 - Runs anywhere Node.js runs (serverless, cron jobs, containers)
 
 ## Sources
+
 - [Kilo Code VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=kilocode.Kilo-Code)
 - [Kilo Code Documentation](https://kilo.ai/docs/)
 - [npm: @kilocode/cli](https://www.npmjs.com/package/@kilocode/cli)

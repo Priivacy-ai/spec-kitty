@@ -79,9 +79,11 @@ No dependencies — branches directly from the 2.x branch.
   2. Read `src/specify_cli/cli/commands/agent/feature.py` on 2.x to understand its current state
   3. Compare with the fix on main (commit 5332408f) — identify the exact import that was added
   4. The function `get_feature_mission_key` likely lives in `src/specify_cli/mission.py` or a related module. Find its actual location on 2.x:
+
      ```bash
      grep -r "def get_feature_mission_key" src/specify_cli/
      ```
+
   5. Add the correct import statement to `feature.py`
   6. Verify the import resolves: `python -c "from specify_cli.cli.commands.agent.feature import *"`
 - **Files**: `src/specify_cli/cli/commands/agent/feature.py` (edit)
@@ -95,9 +97,11 @@ No dependencies — branches directly from the 2.x branch.
   1. Read the test: `tests/integration/test_planning_workflow.py` (find the xfail-marked test)
   2. Check the xfail reason string — it should describe why it's expected to fail
   3. After applying T001 fix, run the test without the xfail marker:
+
      ```bash
      python -m pytest tests/integration/test_planning_workflow.py::test_full_planning_workflow_no_worktrees -x -v
      ```
+
   4. **If it passes**: Remove the xfail marker. Done.
   5. **If it fails with `ModuleNotFoundError: typer`**: This is a test environment issue (typer not installed in test-created venvs). Fix by:
      - Ensuring typer is in `test` dependencies in `pyproject.toml`
@@ -113,14 +117,18 @@ No dependencies — branches directly from the 2.x branch.
 - **Purpose**: Confirm no regressions from the import fix.
 - **Steps**:
   1. Run the full planning workflow test suite:
+
      ```bash
      python -m pytest tests/integration/test_planning_workflow.py -x -v
      python -m pytest tests/integration/test_task_workflow.py -x -v
      ```
+
   2. Run the CLI command unit tests for agent feature:
+
      ```bash
      python -m pytest tests/specify_cli/cli/commands/agent/ -x -v
      ```
+
   3. Verify all tests pass (excluding pre-existing xfail markers unrelated to this feature)
   4. If any tests fail, investigate and fix — do NOT leave regressions
 - **Files**: No changes expected (verification only)

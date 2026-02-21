@@ -33,6 +33,7 @@ history:
 ## Review Feedback Status
 
 > **IMPORTANT**: Before starting implementation, check the `review_status` field in this file's frontmatter.
+>
 > - If `review_status` is empty or `""`, proceed with implementation as described below.
 > - If `review_status` is `"has_feedback"`, read the **Review Feedback** section below FIRST and address all feedback items before continuing.
 > - If `review_status` is `"approved"`, this WP has been accepted -- no further implementation needed.
@@ -46,6 +47,7 @@ history:
 **Primary Objective**: Create the central orchestration pipeline that is the single entry point for ALL state changes in the canonical status model. The pipeline validates a transition, appends an event to the JSONL log, materializes a status snapshot, updates legacy compatibility views, and emits SaaS telemetry.
 
 **Success Criteria**:
+
 1. A single function call (`emit_status_transition()`) performs the entire pipeline end-to-end.
 2. After a successful emit, `status.events.jsonl` contains the new event, `status.json` reflects the updated state, and WP frontmatter lanes match.
 3. SaaS telemetry is emitted when the sync module is available; failures do not block canonical persistence.
@@ -56,6 +58,7 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `plan.md` AD-6 defines the unified fan-out architecture for this orchestration.
 - `plan.md` AD-8 shows how `move_task()` will delegate to this pipeline (implemented in WP09).
 - `data-model.md` defines StatusEvent, StatusSnapshot, DoneEvidence schemas.
@@ -63,12 +66,14 @@ history:
 - `contracts/snapshot-schema.json` is the JSON Schema for materialized snapshots.
 
 **Dependency Artifacts Available** (from completed WPs):
+
 - WP02 provides `status/store.py` with `append_event()` and `read_events()`.
 - WP03 provides `status/reducer.py` with `reduce()` and `materialize()`.
 - WP04 provides `status/phase.py` with `resolve_phase()`.
 - WP06 provides `status/legacy_bridge.py` with `update_frontmatter_views()` and `update_tasks_md_views()`.
 
 **Constraints**:
+
 - Python 3.11+ only. No legacy fallbacks.
 - No new external dependencies.
 - SaaS sync import must use try/except to handle 0.1x branch where `sync/` is absent.
@@ -85,8 +90,10 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Purpose**: Build the central `emit_status_transition()` function that orchestrates the entire canonical pipeline.
 
 **Steps**:
+
 1. Create `src/specify_cli/status/emit.py` (or add to `status/__init__.py` -- prefer a dedicated module for clarity).
 2. Define the function signature:
+
    ```python
    def emit_status_transition(
        feature_dir: Path,
@@ -103,6 +110,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
        repo_root: Path | None = None,
    ) -> StatusEvent:
    ```
+
 3. Implement the pipeline in this exact order:
    - `resolved_lane = resolve_lane_alias(to_lane)` -- from `transitions.py`
    - Read current lane: `events = store.read_events(feature_dir)`, derive `from_lane` from the last event for this WP (or `"planned"` if no events exist)
@@ -120,6 +128,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Validation**: Unit test calling `emit_status_transition()` with a valid transition and verifying the event is returned with all fields populated.
 
 **Edge Cases**:
+
 - First event for a WP: `from_lane` should be `"planned"` (initial state).
 - Multiple events for same WP: `from_lane` is derived from the last event's `to_lane`.
 - WP has never been seen: treat as starting from `"planned"`.
@@ -129,7 +138,9 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Purpose**: After canonical persistence, conditionally emit a SaaS telemetry event via the existing sync pipeline.
 
 **Steps**:
+
 1. Create a private helper function `_saas_fan_out()` in `emit.py`:
+
    ```python
    def _saas_fan_out(
        event: StatusEvent,
@@ -152,6 +163,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
                event.event_id,
            )
    ```
+
 2. The try/except ImportError handles the 0.1x branch where `sync/` module does not exist.
 3. The broad Exception catch ensures SaaS failures NEVER block canonical persistence.
 4. Log a warning on SaaS failure but do not raise.
@@ -161,6 +173,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Validation**: Test with mock that verifies `emit_wp_status_changed` is called when available. Test with ImportError to verify graceful skip.
 
 **Edge Cases**:
+
 - `sync.events` exists but `emit_wp_status_changed` raises a network error: must not propagate.
 - `sync.events` import succeeds but the emitter is not configured: should still not fail.
 
@@ -169,6 +182,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Purpose**: Ensure that validation failures never result in persisted data, while allowing recovery from post-append failures.
 
 **Steps**:
+
 1. The pipeline order in T032 is itself the atomicity contract:
    - `validate_transition()` is called BEFORE `append_event()`. If validation fails, nothing is persisted.
    - `append_event()` is called BEFORE `materialize()`. If append succeeds but materialize fails, the event is in the JSONL log and can be recovered by running `status materialize` manually.
@@ -182,6 +196,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Validation**: Test that a failed validation does not create any event. Test that a failed materialize still leaves the event in JSONL.
 
 **Edge Cases**:
+
 - Disk full during append: store.append_event() should raise; orchestration should propagate.
 - Corrupted existing JSONL: read_events() for from_lane detection should fail-fast (not silently skip).
 
@@ -190,6 +205,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Purpose**: When `force=True`, bypass guard conditions but still validate the audit trail.
 
 **Steps**:
+
 1. In the validate step within `emit_status_transition()`:
    - If `force=True`: verify `actor` is non-empty and `reason` is non-empty. Raise `TransitionError` if either is missing.
    - If `force=True`: skip guard condition checks (e.g., subtask completeness, workspace context).
@@ -200,12 +216,14 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Files**: `src/specify_cli/status/emit.py`
 
 **Validation**:
+
 - Test force=True with actor and reason: succeeds even for normally-illegal transitions (e.g., `done -> in_progress`).
 - Test force=True without reason: rejected with clear error.
 - Test force=True without actor: rejected with clear error.
 - Test force=True with invalid to_lane (e.g., `"invalid"`): rejected.
 
 **Edge Cases**:
+
 - Force from `done` state: this is the only way to exit the terminal `done` state.
 - Force to `done` without evidence: allowed (force bypasses evidence requirement).
 
@@ -214,6 +232,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Purpose**: Enforce that transitions to `done` include structured evidence unless force-overridden.
 
 **Steps**:
+
 1. In `validate_transition()` or as a guard condition:
    - When `to_lane == "done"` and `force == False`:
      - `evidence` parameter must not be None.
@@ -223,6 +242,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
      - Evidence is optional (force bypasses the requirement).
      - Actor and reason are still required (handled in T035).
 2. Build `DoneEvidence` from the provided dict:
+
    ```python
    if evidence:
        done_evidence = DoneEvidence(
@@ -235,17 +255,20 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
            verification=[VerificationResult(**v) for v in evidence.get("verification", [])],
        )
    ```
+
 3. The event's `evidence` field stores the serialized DoneEvidence.
 
 **Files**: `src/specify_cli/status/emit.py`, potentially `src/specify_cli/status/transitions.py`
 
 **Validation**:
+
 - Test `to_lane="done"` with valid evidence: succeeds.
 - Test `to_lane="done"` without evidence: rejected.
 - Test `to_lane="done"` with evidence missing `review.reviewer`: rejected.
 - Test `to_lane="done"` with `force=True` and no evidence: succeeds.
 
 **Edge Cases**:
+
 - Evidence dict with extra fields: should be accepted (forward-compatible).
 - Evidence with `verdict: "changes_requested"`: this is valid -- a reviewer can mark done with changes_requested if they choose to force.
 
@@ -254,6 +277,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Purpose**: Verify the full emit pipeline end-to-end in a realistic filesystem environment.
 
 **Steps**:
+
 1. Create `tests/integration/test_status_emit_flow.py`.
 2. Test cases:
 
@@ -280,6 +304,7 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
    **test_emit_alias_resolution**: Call with `to_lane="doing"`. Verify event has `to_lane="in_progress"`.
 
 3. Use `tmp_path` fixture for isolated filesystem. Create minimal feature directory structure:
+
    ```python
    feature_dir = tmp_path / "kitty-specs" / "034-test-feature"
    feature_dir.mkdir(parents=True)
@@ -293,27 +318,32 @@ You may also need to merge WP02, WP03, and WP04 branches if they are not already
 **Validation**: All tests pass. Coverage of emit.py reaches 90%+.
 
 **Edge Cases**:
+
 - Empty feature directory (no prior events): first emit creates JSONL file.
 - Concurrent access: not tested here (handled by git merge semantics).
 
 ## Test Strategy
 
 **Unit Tests** (in `tests/specify_cli/status/test_emit.py`):
+
 - Test `emit_status_transition()` with mocked store, reducer, and legacy_bridge to verify pipeline order.
 - Test `_saas_fan_out()` with mocked sync module.
 - Test validation is called before persistence.
 
 **Integration Tests** (in `tests/integration/test_status_emit_flow.py` -- T037):
+
 - Full filesystem tests with real store, reducer, and legacy bridge.
 - Verify all artifacts created correctly.
 
 **Test Dependencies**:
+
 - WP02 store must be functional.
 - WP03 reducer must be functional.
 - WP06 legacy bridge must be functional.
 - WP01 models must be importable.
 
 **Running Tests**:
+
 ```bash
 python -m pytest tests/specify_cli/status/test_emit.py -x -q
 python -m pytest tests/integration/test_status_emit_flow.py -x -q
@@ -332,6 +362,7 @@ python -m pytest tests/integration/test_status_emit_flow.py -x -q
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **Pipeline order is correct**: validate -> append -> materialize -> update_views -> saas. No reordering.
 2. **No partial persistence on validation failure**: If validate raises, nothing is written to disk.
 3. **SaaS isolation**: Confirm the try/except pattern truly prevents SaaS failures from blocking.

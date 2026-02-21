@@ -30,6 +30,7 @@ history:
 Establish the orchestrator package structure and configuration system that all other components depend on.
 
 **Success Criteria**:
+
 - Orchestrator package exists at `src/specify_cli/orchestrator/`
 - All enums from data-model.md implemented
 - OrchestratorConfig and AgentConfig dataclasses implemented
@@ -39,16 +40,19 @@ Establish the orchestrator package structure and configuration system that all o
 ## Context & Constraints
 
 **Reference Documents**:
+
 - [spec.md](../spec.md) - FR-016, FR-017, FR-018 (configuration requirements)
 - [plan.md](../plan.md) - Project structure, technical context
 - [data-model.md](../data-model.md) - Entity schemas, validation rules, file schemas
 
 **Constraints**:
+
 - Use Python 3.11+ features (dataclasses, `|` union syntax)
 - Use `ruamel.yaml` for YAML parsing (existing codebase convention)
 - Follow existing spec-kitty code patterns
 
 **Implementation Command**:
+
 ```bash
 spec-kitty implement WP01
 ```
@@ -60,12 +64,14 @@ spec-kitty implement WP01
 **Purpose**: Establish the directory structure and `__init__.py` files for the new orchestrator package.
 
 **Steps**:
+
 1. Create directory: `src/specify_cli/orchestrator/`
 2. Create `__init__.py` with public API exports
 3. Create `agents/` subdirectory with its own `__init__.py`
 4. Create placeholder files for all modules listed in plan.md
 
 **Files**:
+
 ```
 src/specify_cli/orchestrator/
 ├── __init__.py          # Export main classes
@@ -80,6 +86,7 @@ src/specify_cli/orchestrator/
 ```
 
 **Notes**:
+
 - Use docstrings in `__init__.py` to document the package
 - Placeholders can be empty with just a docstring
 
@@ -90,6 +97,7 @@ src/specify_cli/orchestrator/
 **Purpose**: Define the status enums used throughout orchestration.
 
 **Steps**:
+
 1. Create enums matching data-model.md exactly:
    - `OrchestrationStatus`: PENDING, RUNNING, PAUSED, COMPLETED, FAILED
    - `WPStatus`: PENDING, READY, IMPLEMENTATION, REVIEW, COMPLETED, FAILED
@@ -97,9 +105,11 @@ src/specify_cli/orchestrator/
 2. Use `str` as mixin for JSON serialization: `class OrchestrationStatus(str, Enum)`
 
 **Files**:
+
 - `src/specify_cli/orchestrator/config.py` (or a separate `enums.py`)
 
 **Example**:
+
 ```python
 from enum import Enum
 
@@ -120,7 +130,9 @@ class OrchestrationStatus(str, Enum):
 **Purpose**: Define dataclasses for agent and orchestrator configuration.
 
 **Steps**:
+
 1. Implement `AgentConfig` dataclass:
+
    ```python
    @dataclass
    class AgentConfig:
@@ -133,6 +145,7 @@ class OrchestrationStatus(str, Enum):
    ```
 
 2. Implement `OrchestratorConfig` dataclass:
+
    ```python
    @dataclass
    class OrchestratorConfig:
@@ -148,6 +161,7 @@ class OrchestrationStatus(str, Enum):
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/config.py`
 
 **Parallel?**: Yes - can proceed alongside T002
@@ -159,6 +173,7 @@ class OrchestrationStatus(str, Enum):
 **Purpose**: Parse `.kittify/agents.yaml` into OrchestratorConfig with validation.
 
 **Steps**:
+
 1. Implement `load_config(path: Path) -> OrchestratorConfig`:
    - Read YAML file using `ruamel.yaml`
    - Parse into OrchestratorConfig dataclass
@@ -173,9 +188,11 @@ class OrchestrationStatus(str, Enum):
 3. Raise `ConfigValidationError` with clear messages on failures
 
 **Files**:
+
 - `src/specify_cli/orchestrator/config.py`
 
 **Example**:
+
 ```python
 def load_config(config_path: Path) -> OrchestratorConfig:
     """Load and validate orchestrator configuration."""
@@ -198,6 +215,7 @@ def load_config(config_path: Path) -> OrchestratorConfig:
 **Purpose**: Generate sensible defaults when no `agents.yaml` exists.
 
 **Steps**:
+
 1. Implement `generate_default_config() -> OrchestratorConfig`:
    - Detect installed agents using `shutil.which()`
    - Order by default priority: claude > codex > copilot > gemini > qwen > opencode > kilocode > augment > cursor
@@ -209,6 +227,7 @@ def load_config(config_path: Path) -> OrchestratorConfig:
      - `max_retries`: 3
 
 2. Agent detection order and CLI commands:
+
    ```python
    AGENT_COMMANDS = {
        "claude-code": "claude",
@@ -224,9 +243,11 @@ def load_config(config_path: Path) -> OrchestratorConfig:
    ```
 
 **Files**:
+
 - `src/specify_cli/orchestrator/config.py`
 
 **Notes**:
+
 - If no agents installed, raise clear error with installation instructions
 - Log which agents were detected
 

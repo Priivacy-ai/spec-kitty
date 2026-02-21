@@ -13,12 +13,14 @@ Override automatic feature detection.
 **Purpose**: Force Spec Kitty to use a specific feature when automatic detection fails (e.g., in non-Git repositories or CI environments).
 
 **Example**:
+
 ```bash
 export SPECIFY_FEATURE=014-comprehensive-docs
 spec-kitty agent tasks status
 ```
 
 **When to use**:
+
 - Running commands outside a Git repository
 - CI/CD pipelines where Git context is unavailable
 - Testing with a specific feature
@@ -34,12 +36,14 @@ Use local templates instead of fetching from GitHub.
 **Purpose**: Point to a local directory containing Spec Kitty templates. Useful for template development or air-gapped environments.
 
 **Example**:
+
 ```bash
 export SPEC_KITTY_TEMPLATE_ROOT=/path/to/spec-kitty/src/specify_cli/templates
 spec-kitty init my-project --ai claude
 ```
 
 **When to use**:
+
 - Developing or testing template changes
 - Environments without internet access
 - Custom template workflows
@@ -51,12 +55,14 @@ Override the GitHub repository for templates.
 **Purpose**: Fetch templates from a different GitHub repository instead of the default.
 
 **Example**:
+
 ```bash
 export SPECIFY_TEMPLATE_REPO=my-org/custom-spec-kitty-templates
 spec-kitty upgrade
 ```
 
 **When to use**:
+
 - Organizations with custom templates
 - Forked template repositories
 - Enterprise GitHub instances
@@ -72,12 +78,14 @@ Configure GitHub Codex CLI to find project prompts.
 **Purpose**: Point the Codex CLI to the project's `.codex/` directory for slash commands.
 
 **Example**:
+
 ```bash
 export CODEX_HOME="$(pwd)/.codex"
 codex
 ```
 
 **When to use**:
+
 - Using GitHub Codex as your AI agent
 - Codex can't find slash commands automatically
 
@@ -92,6 +100,7 @@ Authenticate with GitHub API.
 **Purpose**: Required for operations that use the GitHub API, such as fetching templates or creating pull requests.
 
 **Example**:
+
 ```bash
 export GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
 spec-kitty init my-project
@@ -100,6 +109,7 @@ spec-kitty init my-project
 **Precedence**: `GH_TOKEN` takes precedence if both are set.
 
 **When to use**:
+
 - CI/CD pipelines
 - Automated workflows
 - Rate-limited environments (authenticated requests have higher limits)
@@ -115,12 +125,14 @@ Enable debug logging.
 **Purpose**: Output verbose debug information for troubleshooting.
 
 **Example**:
+
 ```bash
 export SPEC_KITTY_DEBUG=1
 spec-kitty agent tasks status
 ```
 
 **When to use**:
+
 - Troubleshooting unexpected behavior
 - Reporting bugs
 - Understanding internal operations
@@ -132,12 +144,14 @@ Disable colored output.
 **Purpose**: Remove ANSI color codes from terminal output.
 
 **Example**:
+
 ```bash
 export SPEC_KITTY_NO_COLOR=1
 spec-kitty agent tasks status
 ```
 
 **When to use**:
+
 - CI/CD logs that don't support colors
 - Piping output to files
 - Accessibility needs
@@ -149,12 +163,14 @@ Force non-interactive mode for CLI commands that normally prompt.
 **Purpose**: Disable prompts and arrow-key menus (useful for CI/CD).
 
 **Example**:
+
 ```bash
 export SPEC_KITTY_NON_INTERACTIVE=1
 spec-kitty init my-project --ai codex --non-interactive
 ```
 
 **When to use**:
+
 - CI/CD pipelines
 - Headless scripts
 - Non-TTY automation
@@ -184,8 +200,10 @@ spec-kitty init my-project --ai codex --non-interactive
 - [Non-Interactive Init](../how-to/non-interactive-init.md) — Common automation patterns
 
 ## Getting Started
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## Practical Usage
+
 - [Non-Interactive Init](../how-to/non-interactive-init.md)
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)

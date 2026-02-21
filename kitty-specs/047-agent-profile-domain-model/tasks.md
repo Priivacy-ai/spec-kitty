@@ -18,6 +18,7 @@
 **Prompt**: `tasks/WP01-package-scaffolding.md`
 
 ### Included Subtasks
+
 - [ ] T001 Create `src/doctrine/` package directory with `__init__.py` and `py.typed`
 - [ ] T002 Create empty subpackage directories: `model/`, `repository/`, `schema/`, `agents/`
 - [ ] T003 Update `pyproject.toml` to include `src/doctrine` in wheel packages
@@ -25,18 +26,22 @@
 - [ ] T005 Create `tests/doctrine/conftest.py` with shared fixtures
 
 ### Implementation Notes
+
 - The `__init__.py` files should export nothing yet — just make the packages importable.
 - `py.typed` is an empty marker file for PEP 561 typed package support.
 - The boundary test walks all `.py` files in `src/doctrine/` and asserts none import from `specify_cli`.
 - `pyproject.toml` change: add `"src/doctrine"` to `[tool.hatch.build.targets.wheel] packages`.
 
 ### Parallel Opportunities
+
 - T004 and T005 (tests) can be written in parallel with T001-T003 (package structure).
 
 ### Dependencies
+
 - None (starting package).
 
 ### Risks & Mitigations
+
 - Package resolution: Ensure `hatchling` correctly discovers both packages. Verify with `pip install -e .` and `python -c "import doctrine"`.
 
 ---
@@ -48,6 +53,7 @@
 **Prompt**: `tasks/WP02-domain-model.md`
 
 ### Included Subtasks
+
 - [ ] T006 [P] Implement `Role` StrEnum and `RoleCapabilities` in `src/doctrine/model/capabilities.py`
 - [ ] T007 Implement value objects in `src/doctrine/model/profile.py`: `Specialization`, `CollaborationContract`, `ContextSources`, `ModeDefault`, `DirectiveRef`, `SpecializationContext`
 - [ ] T008 Implement `AgentProfile` frozen dataclass with all 6 sections in `src/doctrine/model/profile.py`
@@ -57,6 +63,7 @@
 - [ ] T012 [P] Write unit tests for `RoleCapabilities` in `tests/doctrine/model/test_capabilities.py`
 
 ### Implementation Notes
+
 - Follow the frozen dataclass + manual `to_dict()`/`from_dict()` pattern from `src/specify_cli/status/models.py`.
 - `Role` uses `StrEnum`. Custom roles accepted as plain strings via `Role | str` typing.
 - `validate()` returns a `list[str]` of error messages (empty = valid).
@@ -64,13 +71,16 @@
 - `routing_priority` range: 0-100, default 50. `max_concurrent_tasks` range: >0, default 5.
 
 ### Parallel Opportunities
+
 - T006 (capabilities.py) and T007-T010 (profile.py) work on different files and can proceed in parallel.
 - T011 and T012 (tests) are on different files.
 
 ### Dependencies
+
 - Depends on WP01 (package exists and is importable).
 
 ### Risks & Mitigations
+
 - Complex nested dataclass serialization: Test round-trip thoroughly with all field combinations.
 - `StrEnum` + custom string union: Ensure `from_dict` correctly handles both known roles and arbitrary strings.
 
@@ -83,6 +93,7 @@
 **Prompt**: `tasks/WP03-hierarchy-and-matching.md`
 
 ### Included Subtasks
+
 - [ ] T013 Implement `TaskContext` frozen dataclass (input to matching)
 - [ ] T014 Implement `HierarchyNode` frozen dataclass (profile + parent + children + depth)
 - [ ] T015 Implement `SpecializationHierarchy.build()` class method (tree construction from profile list)
@@ -93,6 +104,7 @@
 - [ ] T020 Write comprehensive tests in `tests/doctrine/model/test_hierarchy.py`
 
 ### Implementation Notes
+
 - Weighted scoring: language 40%, framework 20%, file_patterns 20%, keywords 10%, exact_id 10%.
 - Workload penalties: 0-2 tasks=1.0, 3-4=0.85, 5+=0.70.
 - Complexity adjustments: low→specialist+10%, medium→neutral, high→parent+10%/specialist-10%.
@@ -101,12 +113,15 @@
 - Handle edge cases: missing parent (treat as root with warning), duplicate profile_id (last wins with warning).
 
 ### Parallel Opportunities
+
 - T013-T014 (dataclasses) can be written before T015-T018 (algorithms).
 
 ### Dependencies
+
 - Depends on WP02 (needs `AgentProfile`, `SpecializationContext`, `Role`).
 
 ### Risks & Mitigations
+
 - Scoring algorithm correctness: Use the DDR-011 reference test cases (20 scenarios from SC-002).
 - Performance with large hierarchies: 50 profiles is the target; keep O(n*m) matching where n=profiles, m=context fields.
 
@@ -119,6 +134,7 @@
 **Prompt**: `tasks/WP04-repository.md`
 
 ### Included Subtasks
+
 - [ ] T021 Implement YAML loading helpers using `ruamel.yaml` in `src/doctrine/repository/profile_repository.py`
 - [ ] T022 Implement shipped profile loading via `importlib.resources`
 - [ ] T023 Implement project-level profile loading from filesystem path
@@ -128,6 +144,7 @@
 - [ ] T027 Write comprehensive tests in `tests/doctrine/repository/test_profile_repository.py`
 
 ### Implementation Notes
+
 - Use `importlib.resources.files("doctrine") / "agents"` for shipped profiles.
 - `ruamel.yaml` for YAML I/O (matches codebase convention). `yaml.preserve_quotes = True`.
 - Invalid YAML → log warning, skip profile (FR-1.6).
@@ -136,12 +153,15 @@
 - The `save()` method writes to `project_dir` only. `delete()` removes from `project_dir` only (cannot delete shipped).
 
 ### Parallel Opportunities
+
 - T021-T024 (loading) must be sequential. T025-T026 (queries/mutations) can follow once loading works.
 
 ### Dependencies
+
 - Depends on WP02 (needs AgentProfile and value objects for parsing).
 
 ### Risks & Mitigations
+
 - `importlib.resources` path handling: Differs between editable install and wheel. Test both modes.
 - Merge semantics edge cases: Empty list in project profile — should it override shipped list or keep shipped? Decision: empty list = explicit override (project chose to clear it). Only missing/None fields retain shipped values.
 
@@ -154,12 +174,14 @@
 **Prompt**: `tasks/WP05-schema-validation.md`
 
 ### Included Subtasks
+
 - [ ] T028 Author `src/doctrine/schema/agent_profile.schema.json` covering all entity fields
 - [ ] T029 Implement `validate_profile_yaml(data: dict) → list[str]` in `src/doctrine/_validation.py`
 - [ ] T030 Integrate schema validation into repository loader (optional validation on load)
 - [ ] T031 Write tests in `tests/doctrine/test_schema_validation.py`
 
 ### Implementation Notes
+
 - JSON Schema uses `jsonschema` library (already a dependency).
 - Schema loaded via `importlib.resources.files("doctrine") / "schema" / "agent_profile.schema.json"`.
 - `validate_profile_yaml()` returns a list of validation error messages (empty = valid).
@@ -167,12 +189,15 @@
 - Repository integration: Add an optional `validate=True` parameter to loading. Default `True` for project profiles, `False` for shipped (trusted).
 
 ### Parallel Opportunities
+
 - T028 (schema authoring) and T029 (validation code) can proceed in parallel.
 
 ### Dependencies
+
 - Depends on WP02 (schema must match AgentProfile dataclass fields exactly).
 
 ### Risks & Mitigations
+
 - Schema drift from dataclass: Keep schema and dataclass in sync. The test suite validates that all shipped profiles pass the schema.
 
 ---
@@ -184,6 +209,7 @@
 **Prompt**: `tasks/WP06-reference-profiles.md`
 
 ### Included Subtasks
+
 - [ ] T032 [P] Create `architect.agent.yaml` adapted from `doctrine_ref/agents/architect.agent.md`
 - [ ] T033 [P] Create `implementer.agent.yaml` (generalist implementer role)
 - [ ] T034 [P] Create `reviewer.agent.yaml` adapted from doctrine reference
@@ -193,6 +219,7 @@
 - [ ] T038 Write integration test: load all profiles, validate schema, build hierarchy
 
 ### Implementation Notes
+
 - Each profile is a full `.agent.yaml` with all 6 sections populated (see data-model.md for format).
 - Adapt Markdown sections to YAML keys: frontmatter → top-level fields, sections → nested objects.
 - Core 6 are root profiles (no `specializes_from`). They form the foundation that users extend with specialists.
@@ -201,12 +228,15 @@
 - Canonical verbs per role (from Directive 009): architect=audit/synthesize/plan, implementer=generate/refine, reviewer=audit/refine, planner=plan/synthesize, researcher=audit/synthesize, curator=audit/translate.
 
 ### Parallel Opportunities
+
 - All 6 profiles (T032-T037) can be written in parallel — they're independent files.
 
 ### Dependencies
+
 - Depends on WP04 (repository must be working to load/validate profiles) and WP05 (schema validation).
 
 ### Risks & Mitigations
+
 - Content quality: Profiles are adapted from proven doctrine reference, not invented. Review against original `.agent.md` files.
 - Hierarchy coherence: Integration test (T038) validates the full profile set.
 
@@ -219,6 +249,7 @@
 **Prompt**: `tasks/WP07-toolconfig-rename.md`
 
 ### Included Subtasks
+
 - [ ] T039 Create `src/specify_cli/orchestrator/tool_config.py` with renamed classes and functions
 - [ ] T040 Replace `agent_config.py` with deprecation alias module
 - [ ] T041 Update `config.yaml` reader to check `tools:` first, fall back to `agents:`
@@ -230,6 +261,7 @@
 - [ ] T047 Write tests in `tests/specify_cli/orchestrator/test_tool_config.py`
 
 ### Implementation Notes
+
 - Step 1: Copy `agent_config.py` → `tool_config.py`, rename all classes/functions inside.
 - Step 2: Replace `agent_config.py` content with deprecation alias imports.
 - Step 3: Update each importing file one by one, running tests after each change.
@@ -237,12 +269,15 @@
 - Keep existing test files passing throughout — the alias ensures backward compat.
 
 ### Parallel Opportunities
+
 - T044, T045, T046 (import updates in different files) can proceed in parallel after T039-T041 are done.
 
 ### Dependencies
+
 - Depends on WP01 only (no dependency on doctrine model — this is a specify_cli-only change).
 
 ### Risks & Mitigations
+
 - Missed import: Run `grep -r "agent_config" src/` after all changes to verify no leftover direct imports.
 - Test breakage: Run full test suite after each file change. The alias module prevents breakage during transition.
 
@@ -255,6 +290,7 @@
 **Prompt**: `tasks/WP08-cli-profile-commands.md`
 
 ### Included Subtasks
+
 - [ ] T048 Create `src/specify_cli/cli/commands/agent/profile.py` with typer app
 - [ ] T049 Implement `list` subcommand with Rich table output
 - [ ] T050 Implement `show <profile_id>` subcommand with formatted profile display
@@ -265,6 +301,7 @@
 - [ ] T055 Write CLI integration tests in `tests/specify_cli/cli/commands/agent/test_profile_cli.py`
 
 ### Implementation Notes
+
 - Follow existing CLI patterns: `app = typer.Typer(name="profile", ...)`, `@app.command()` decorators.
 - `list` table columns: ID, Name, Role, Parent, Priority, Source (shipped/custom/override).
 - `show` uses Rich Panel/Markdown for formatted display of all 6 sections.
@@ -275,12 +312,15 @@
 - The profile commands import from `doctrine.repository` (the specify_cli → doctrine direction is allowed).
 
 ### Parallel Opportunities
+
 - T049-T053 (individual subcommands) can be implemented in parallel once T048 (skeleton) exists.
 
 ### Dependencies
+
 - Depends on WP04 (needs AgentProfileRepository for loading/querying profiles).
 
 ### Risks & Mitigations
+
 - Rich formatting: Test with `from rich.console import Console; console = Console(record=True)` for snapshot testing.
 - Interactive mode: Use `readchar` or `typer.prompt()` for field-by-field input (both are dependencies).
 
@@ -307,6 +347,7 @@ Phase 3 (Integration — after Phase 2):
 ```
 
 **Parallelization highlights**:
+
 - WP02 + WP07 can run in parallel after WP01 (different packages)
 - WP03 + WP04 + WP05 can run in parallel after WP02 (different modules)
 - WP06 + WP08 can run in parallel after WP04 (different packages)
@@ -366,7 +407,7 @@ Phase 3 (Integration — after Phase 2):
 | T043 | Update imports in scheduler.py | WP07 | P1 | No |
 | T044 | Update import in migration file | WP07 | P1 | Yes |
 | T045 | Update imports in init.py and agent/config.py | WP07 | P1 | Yes |
-| T046 | Update re-exports in orchestrator __init__.py, config.py, monitor.py | WP07 | P1 | Yes |
+| T046 | Update re-exports in orchestrator **init**.py, config.py, monitor.py | WP07 | P1 | Yes |
 | T047 | Write ToolConfig tests | WP07 | P1 | No |
 | T048 | Create profile.py CLI skeleton with typer app | WP08 | P2 | No |
 | T049 | Implement `list` subcommand | WP08 | P2 | Yes |
@@ -374,5 +415,5 @@ Phase 3 (Integration — after Phase 2):
 | T051 | Implement `create` subcommand | WP08 | P2 | Yes |
 | T052 | Implement `edit` subcommand | WP08 | P2 | Yes |
 | T053 | Implement `hierarchy` subcommand | WP08 | P2 | Yes |
-| T054 | Register profile subcommand in agent/__init__.py | WP08 | P2 | No |
+| T054 | Register profile subcommand in agent/**init**.py | WP08 | P2 | No |
 | T055 | Write CLI profile integration tests | WP08 | P2 | No |

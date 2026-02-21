@@ -28,6 +28,7 @@ Spec Kitty supports **12 AI coding agents** with slash commands. This document l
 Spec-kitty supports 12 AI agents (listed above). You can activate or deactivate agents at any time using the `spec-kitty agent config` command family.
 
 To manage which agents are active in your project:
+
 - **View configured agents**: `spec-kitty agent config list`
 - **Add agents**: `spec-kitty agent config add <agents>`
 - **Remove agents**: `spec-kitty agent config remove <agents>`
@@ -50,12 +51,14 @@ See [Managing AI Agents](../how-to/manage-agents.md) for complete documentation 
 | Status | Fully supported |
 
 **Features**:
+
 - Full slash command support
 - Custom command arguments
 - Project-level CLAUDE.md integration
 - Best documentation and testing coverage
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai claude
 cd my-project
@@ -75,6 +78,7 @@ claude  # Launch Claude Code
 | Status | Supported |
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai copilot
 ```
@@ -91,6 +95,7 @@ spec-kitty init my-project --ai copilot
 | Status | Supported |
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai gemini
 ```
@@ -107,6 +112,7 @@ spec-kitty init my-project --ai gemini
 | Status | Supported |
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai cursor
 ```
@@ -123,6 +129,7 @@ spec-kitty init my-project --ai cursor
 | Status | Supported |
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai qwen
 ```
@@ -141,6 +148,7 @@ spec-kitty init my-project --ai qwen
 **Note**: OpenCode uses `command/` (singular) instead of `commands/` (plural).
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai opencode
 ```
@@ -159,6 +167,7 @@ spec-kitty init my-project --ai opencode
 **Note**: Windsurf uses `workflows/` instead of `commands/`.
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai windsurf
 ```
@@ -175,11 +184,13 @@ spec-kitty init my-project --ai windsurf
 | Status | Supported |
 
 **Environment Variable**: Set `CODEX_HOME` to point to your project:
+
 ```bash
 export CODEX_HOME="$(pwd)/.codex"
 ```
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai codex
 ```
@@ -198,6 +209,7 @@ spec-kitty init my-project --ai codex
 **Note**: Kilocode uses `workflows/` instead of `commands/`.
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai kilocode
 ```
@@ -214,6 +226,7 @@ spec-kitty init my-project --ai kilocode
 | Status | Supported |
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai augment
 ```
@@ -230,6 +243,7 @@ spec-kitty init my-project --ai augment
 | Status | Supported |
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai roo
 ```
@@ -248,6 +262,7 @@ spec-kitty init my-project --ai roo
 **Limitation**: Amazon Q does not support custom slash command arguments. Commands like `/spec-kitty.specify <description>` may not pass the description to the command.
 
 **Usage**:
+
 ```bash
 spec-kitty init my-project --ai q
 ```
@@ -332,11 +347,13 @@ See [Slash Commands](slash-commands.md) for complete documentation.
 ### Slash commands not appearing
 
 1. Verify the agent directory exists:
+
    ```bash
    ls -la .claude/commands/
    ```
 
 2. Regenerate commands:
+
    ```bash
    spec-kitty upgrade
    ```
@@ -348,6 +365,7 @@ See [Slash Commands](slash-commands.md) for complete documentation.
 **Amazon Q**: Commands may not receive arguments. Enter the description when prompted instead of passing it to the command.
 
 **Codex**: Ensure `CODEX_HOME` is set:
+
 ```bash
 export CODEX_HOME="$(pwd)/.codex"
 ```
@@ -361,11 +379,14 @@ export CODEX_HOME="$(pwd)/.codex"
 - [Install & Upgrade](../how-to/install-spec-kitty.md) — Installation guide
 
 ## Getting Started
+
 - [Claude Code Integration](../tutorials/claude-code-integration.md)
 
 ## Practical Usage
+
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 - [Use the Dashboard](../how-to/use-dashboard.md)
 
 ## Background
+
 - [AI Agent Architecture](../explanation/ai-agent-architecture.md)

@@ -167,6 +167,7 @@ but a set of continuously-referenced resources that downstream commands
 ### Phase 1: Stakeholder Discovery
 
 **Interview questions** (AI Agent asks):
+
 1. "Who will use this system day-to-day?"
 2. "Who develops and maintains it?"
 3. "Who pays for it or decides its future?"
@@ -180,6 +181,7 @@ but a set of continuously-referenced resources that downstream commands
 ### Phase 2: Language Harvesting
 
 **Automated analysis** (AI Agent performs):
+
 1. Scan source code: class names, method names, module names, constants
 2. Scan existing docs: README, vision.md, constitution.md, any existing glossary
 3. Scan git history: commit messages for domain vocabulary
@@ -193,6 +195,7 @@ but a set of continuously-referenced resources that downstream commands
 ### Phase 3: Glossary Refinement
 
 **Interactive dialogue** (Architect validates each term group):
+
 1. AI presents term cluster: "These terms seem related to [domain area]"
 2. Architect confirms, renames, merges, or splits terms
 3. AI flags: "The term 'session' appears in auth module (meaning: login session) and in billing module (meaning: subscription period) — is this intentional?"
@@ -206,6 +209,7 @@ but a set of continuously-referenced resources that downstream commands
 ### Phase 4: Context Mapping
 
 **Based on Phase 3 findings** (AI proposes, Architect decides):
+
 1. Terms with conflicting meanings across modules → proposed context boundaries
 2. AI presents lightweight context map: "Based on terminology, I see N distinct areas"
 3. For each boundary: proposed integration pattern (ACL, shared kernel, etc.)
@@ -218,6 +222,7 @@ but a set of continuously-referenced resources that downstream commands
 ### Phase 5: User Journey Capture
 
 **Interactive dialogue** (AI interviews for key flows):
+
 1. "What are the 2-3 most important things users do with this system?"
 2. For each: walk through actors, phases, system interactions
 3. AI generates journey using `user-journey-template.md`
@@ -230,6 +235,7 @@ but a set of continuously-referenced resources that downstream commands
 ### Phase 6: Constraint & NFR Capture
 
 **Interview questions**:
+
 1. "What technologies are you committed to?"
 2. "What are your performance expectations?"
 3. "What security or compliance requirements exist?"
@@ -243,6 +249,7 @@ but a set of continuously-referenced resources that downstream commands
 ### Phase 7: Decision Formalization
 
 **AI reviews all decisions surfaced during Phases 1-6**:
+
 1. Terminology decisions (e.g., "we call it X, not Y")
 2. Boundary decisions (e.g., "billing is a separate context from auth")
 3. Pattern decisions (e.g., "ACL between contexts, not shared kernel")
@@ -260,6 +267,7 @@ CLI commits all artifacts produced during the session.
 ### Phase 9: Downstream Integration
 
 Post-design, the artifacts are passively consumed:
+
 - `/spec-kitty.specify` — discovery interview references glossary and stakeholders
 - `/spec-kitty.plan` — "Technical Context" section cross-references ADRs
 - `/spec-kitty.review` — checks terminology consistency against glossary

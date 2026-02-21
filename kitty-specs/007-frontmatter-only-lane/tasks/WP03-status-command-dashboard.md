@@ -36,11 +36,13 @@ subtasks:
 ## Objectives & Success Criteria
 
 Enhance the status command and update dashboard scanner to read lanes from frontmatter:
+
 1. Status command shows WPs grouped by `lane:` frontmatter value
 2. Auto-detect current feature from worktree/branch when argument omitted
 3. Dashboard scanner reads lane from frontmatter, not directory
 
 **Success Criteria** (from spec FR-006 to FR-008, SC-003, SC-006):
+
 - `tasks_cli.py status 007-feature` shows all WPs grouped by lane
 - `tasks_cli.py status` (no arg) auto-detects feature from worktree
 - Status returns within 1 second for features with 50 WPs
@@ -49,10 +51,12 @@ Enhance the status command and update dashboard scanner to read lanes from front
 ## Context & Constraints
 
 **Reference Documents**:
+
 - Spec: `kitty-specs/007-frontmatter-only-lane/spec.md` (User Stories 2 & 5)
 - Research: `kitty-specs/007-frontmatter-only-lane/research.md`
 
 **Key Files**:
+
 - `scripts/tasks/tasks_cli.py` - status command
 - `src/specify_cli/dashboard/scanner.py` - `scan_feature_kanban()`, `scan_all_features()`
 - `src/specify_cli/acceptance.py` - lane collection for acceptance checks
@@ -68,9 +72,11 @@ Enhance the status command and update dashboard scanner to read lanes from front
 **Purpose**: Provide clear visibility of WP lane distribution.
 
 **Steps**:
+
 1. Open `scripts/tasks/tasks_cli.py`
 2. Find or create `status_command()` function
 3. Implement formatted output:
+
    ```python
    @app.command("status")
    def status_command(
@@ -123,7 +129,9 @@ Enhance the status command and update dashboard scanner to read lanes from front
 **Purpose**: Convenience for users working in feature worktrees.
 
 **Steps**:
+
 1. Create helper function:
+
    ```python
    def detect_feature_from_context(repo_root: Path) -> Optional[str]:
        """Detect feature name from current branch or worktree path.
@@ -163,6 +171,7 @@ Enhance the status command and update dashboard scanner to read lanes from front
 
        return None
    ```
+
 2. Integrate with status_command (done in T012)
 
 **Files**: `scripts/tasks/tasks_cli.py` (MODIFY)
@@ -174,9 +183,11 @@ Enhance the status command and update dashboard scanner to read lanes from front
 **Purpose**: Dashboard kanban view reads lane from frontmatter.
 
 **Steps**:
+
 1. Open `src/specify_cli/dashboard/scanner.py`
 2. Find `scan_feature_kanban()` function (around line 293-370)
 3. Replace directory-based logic:
+
    ```python
    # OLD (around line 310-315):
    for lane in lanes.keys():
@@ -225,8 +236,10 @@ Enhance the status command and update dashboard scanner to read lanes from front
 **Purpose**: Feature list view counts WPs by frontmatter lane.
 
 **Steps**:
+
 1. Find `scan_all_features()` function (around line 235-290)
 2. Update lane counting logic:
+
    ```python
    # OLD (around line 259-267):
    for lane in ["planned", "doing", "for_review", "done"]:
@@ -251,6 +264,7 @@ Enhance the status command and update dashboard scanner to read lanes from front
 
        return counts
    ```
+
 3. Integrate into `scan_all_features()` where lane counts are needed
 
 **Files**: `src/specify_cli/dashboard/scanner.py` (MODIFY)
@@ -262,9 +276,11 @@ Enhance the status command and update dashboard scanner to read lanes from front
 **Purpose**: Acceptance checks must read lanes from frontmatter.
 
 **Steps**:
+
 1. Open `src/specify_cli/acceptance.py`
 2. Find where `lanes` dict is populated (look for `AcceptanceSummary`)
 3. Update to read from frontmatter:
+
    ```python
    def collect_wp_lanes(feature_dir: Path) -> Dict[str, List[str]]:
        """Collect work package IDs grouped by lane from frontmatter."""
@@ -285,6 +301,7 @@ Enhance the status command and update dashboard scanner to read lanes from front
 
        return lanes
    ```
+
 4. Update `AcceptanceSummary` initialization to use this function
 
 **Files**: `src/specify_cli/acceptance.py` (MODIFY)

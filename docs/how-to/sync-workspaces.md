@@ -69,6 +69,7 @@ spec-kitty sync --verbose
 ```
 
 Output includes:
+
 - Rebase operations performed
 - Any conflicts detected
 
@@ -85,6 +86,7 @@ spec-kitty sync --repair
 > **Warning**: `--repair` may lose uncommitted changes. Commit your work first when possible.
 
 This attempts to:
+
 1. Reset the workspace to a known good state
 2. Rebase your commits on top of the upstream base
 

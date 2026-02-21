@@ -56,14 +56,17 @@ history:
 ### New Pages to Add
 
 **Tutorials section**:
+
 - `tutorials/jujutsu-workflow.md` - "Jujutsu (jj) Workflow"
 
 **How-To Guides section**:
+
 - `how-to/sync-workspaces.md` - "Sync Workspaces"
 - `how-to/handle-conflicts-jj.md` - "Handle Conflicts (jj)"
 - `how-to/use-operation-history.md` - "Use Operation History"
 
 **Explanations section**:
+
 - `explanation/jujutsu-for-multi-agent.md` - "Jujutsu for Multi-Agent Development"
 - `explanation/auto-rebase-and-conflicts.md` - "Auto-Rebase and Non-Blocking Conflicts"
 

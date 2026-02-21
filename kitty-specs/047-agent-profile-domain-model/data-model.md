@@ -209,6 +209,7 @@ AgentProfileRepository
 ### Field-Level Merge Semantics
 
 When a project profile overrides a shipped profile:
+
 - Each top-level field is compared independently
 - If the project profile provides a non-default value, it replaces the shipped value
 - If the project profile omits a field (or provides default/empty), the shipped value is retained

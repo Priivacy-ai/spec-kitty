@@ -49,15 +49,18 @@ Implement end-to-end tests for happy path orchestration:
 ## Context & Constraints
 
 **Reference Documents**:
+
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/spec.md` - User Story 1
 - `kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md` - Test behavior
 
 **Existing Code**:
+
 - `src/specify_cli/orchestrator/` - Orchestrator implementation
 - `tests/fixtures/orchestrator/` - Checkpoint fixtures from WP05
 - `tests/specify_cli/orchestrator/conftest.py` - pytest fixtures from WP06
 
 **Constraints**:
+
 - Use real agents (no mocks)
 - Start from checkpoint fixtures
 - Mark with `@pytest.mark.slow` and `@pytest.mark.orchestrator_happy_path`
@@ -71,7 +74,9 @@ Implement end-to-end tests for happy path orchestration:
 **Purpose**: Verify basic orchestration flow for a single work package.
 
 **Steps**:
+
 1. Create `tests/specify_cli/orchestrator/test_happy_path.py`:
+
    ```python
    """Happy path end-to-end tests for orchestrator.
 
@@ -148,6 +153,7 @@ Implement end-to-end tests for happy path orchestration:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_happy_path.py` (~80 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -159,7 +165,9 @@ Implement end-to-end tests for happy path orchestration:
 **Purpose**: Verify orchestrator can run independent WPs concurrently.
 
 **Steps**:
+
 1. Add to `test_happy_path.py`:
+
    ```python
    @pytest.mark.slow
    @pytest.mark.orchestrator_happy_path
@@ -216,6 +224,7 @@ Implement end-to-end tests for happy path orchestration:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_happy_path.py` (add ~55 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -227,7 +236,9 @@ Implement end-to-end tests for happy path orchestration:
 **Purpose**: Verify OrchestrationRun state file integrity after completion.
 
 **Steps**:
+
 1. Add to `test_happy_path.py`:
+
    ```python
    import json
 
@@ -336,6 +347,7 @@ Implement end-to-end tests for happy path orchestration:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_happy_path.py` (add ~90 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -347,7 +359,9 @@ Implement end-to-end tests for happy path orchestration:
 **Purpose**: Verify WP frontmatter lane matches state file.
 
 **Steps**:
+
 1. Add to `test_happy_path.py`:
+
    ```python
    import re
    import yaml
@@ -438,6 +452,7 @@ Implement end-to-end tests for happy path orchestration:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_happy_path.py` (add ~85 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -449,7 +464,9 @@ Implement end-to-end tests for happy path orchestration:
 **Purpose**: Verify git commits exist in worktree branches.
 
 **Steps**:
+
 1. Add to `test_happy_path.py`:
+
    ```python
    import subprocess
 
@@ -575,6 +592,7 @@ Implement end-to-end tests for happy path orchestration:
    ```
 
 **Files**:
+
 - `tests/specify_cli/orchestrator/test_happy_path.py` (add ~110 lines)
 
 **Parallel?**: Yes - once fixtures ready
@@ -593,6 +611,7 @@ Implement end-to-end tests for happy path orchestration:
 ## Review Guidance
 
 **Key Acceptance Checkpoints**:
+
 - [ ] Single WP test completes in reasonable time (<5 minutes)
 - [ ] State file validation catches invalid states
 - [ ] Lane consistency test detects mismatches
@@ -600,6 +619,7 @@ Implement end-to-end tests for happy path orchestration:
 - [ ] All tests pass with at least 1 core agent available
 
 **Code Quality**:
+
 - Tests are independent (can run in any order)
 - Clear assertion messages explain failures
 - Proper cleanup via fixtures

@@ -38,8 +38,9 @@ history:
 ---
 
 ## Markdown Formatting
+
 Wrap HTML/XML tags in backticks: `` `<div>` ``, `` `<script>` ``
-Use language identifiers in code blocks: ````python`, ````bash`
+Use language identifiers in code blocks: ````python`,````bash`
 
 ---
 
@@ -54,14 +55,17 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Context & Constraints
 
 ### Reference Documents
+
 - **Spec**: `kitty-specs/028-cli-event-emission-sync/spec.md` - User Story 5
 - **Plan**: `kitty-specs/028-cli-event-emission-sync/plan.md` - Orchestration events
 - **Data Model**: `kitty-specs/028-cli-event-emission-sync/data-model.md` - WPAssigned, FeatureCompleted, DependencyResolved
 
 ### Functional Requirements
+
 - FR-023: `orchestrate` MUST emit `WPAssigned` events when agents are assigned to WPs
 
 ### Dependencies
+
 - WP01 (Event Factory) must be complete
 - Import from `specify_cli.sync.events`
 
@@ -75,6 +79,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Open `src/specify_cli/cli/commands/orchestrate.py`
   2. Add import:
+
      ```python
      from specify_cli.sync.events import (
          emit_wp_assigned,
@@ -82,8 +87,10 @@ Use language identifiers in code blocks: ````python`, ````bash`
          emit_dependency_resolved,
      )
      ```
+
   3. Locate the point where orchestrator assigns an agent to a WP
   4. Emit event after assignment decision:
+
      ```python
      try:
          emit_wp_assigned(
@@ -95,6 +102,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      except Exception as e:
          console.print(f"[yellow]Warning:[/yellow] WPAssigned emission failed: {e}")
      ```
+
 - **Files**: `src/specify_cli/cli/commands/orchestrate.py`
 - **Parallel?**: No (establishes pattern for T024-T028)
 - **Notes**:
@@ -107,6 +115,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Identify the point where implementation agent is selected
   2. Emit event with `phase="implementation"`:
+
      ```python
      emit_wp_assigned(
          wp_id=wp_id,
@@ -115,6 +124,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          retry_count=retry_count,
      )
      ```
+
   3. Ensure this happens BEFORE the agent starts actual work
 - **Files**: `src/specify_cli/cli/commands/orchestrate.py`
 - **Parallel?**: No (part of assignment flow)
@@ -128,6 +138,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. Identify the point where review agent is selected
   2. Emit event with `phase="review"`:
+
      ```python
      emit_wp_assigned(
          wp_id=wp_id,
@@ -136,6 +147,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          retry_count=0,
      )
      ```
+
   3. This typically happens after implementation is complete and WP moves to for_review
 - **Files**: `src/specify_cli/cli/commands/orchestrate.py`
 - **Parallel?**: Yes (independent from T024 logic path)
@@ -151,6 +163,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   2. On first assignment: `retry_count=0`
   3. On fallback assignment: `retry_count=1`, `retry_count=2`, etc.
   4. Pass retry_count to emit_wp_assigned:
+
      ```python
      emit_wp_assigned(
          wp_id=wp_id,
@@ -159,6 +172,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          retry_count=current_retry_count,
      )
      ```
+
   5. Dashboard can use this to show "WP01: opencode (retry 2)"
 - **Files**: `src/specify_cli/cli/commands/orchestrate.py`
 - **Parallel?**: No (cross-cutting tracking)
@@ -172,6 +186,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. After each WP completes, check if ALL WPs are done
   2. If all done, emit FeatureCompleted:
+
      ```python
      if all_wps_done(feature_slug):
          try:
@@ -184,6 +199,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          except Exception as e:
              console.print(f"[yellow]Warning:[/yellow] FeatureCompleted emission failed: {e}")
      ```
+
   3. This should only emit ONCE per feature
 - **Files**: `src/specify_cli/cli/commands/orchestrate.py`
 - **Parallel?**: No (final event in lifecycle)
@@ -197,6 +213,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Steps**:
   1. When a WP reaches done status, find WPs that depend on it
   2. For each dependent WP, emit DependencyResolved:
+
      ```python
      for dependent_wp in get_dependents(completed_wp_id):
          try:
@@ -208,6 +225,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
          except Exception as e:
              console.print(f"[yellow]Warning:[/yellow] DependencyResolved emission failed: {e}")
      ```
+
   3. resolution_type values: "completed", "skipped", "merged"
 - **Files**: `src/specify_cli/cli/commands/orchestrate.py`
 - **Parallel?**: Yes (can emit multiple in parallel conceptually)
@@ -220,6 +238,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Test Strategy
 
 Tests are covered in WP07, but verify manually:
+
 ```bash
 # Run orchestrate on a test feature
 spec-kitty orchestrate --feature 028-cli-event-emission-sync --dry-run
@@ -238,6 +257,7 @@ for e in assign_events:
 ```
 
 Verify:
+
 1. WPAssigned events emitted for each agent assignment
 2. phase field correctly distinguishes implementation vs review
 3. retry_count increments on fallback assignments
@@ -282,6 +302,7 @@ To change a work package's lane, either:
 2. **Use CLI**: `spec-kitty agent tasks move-task WP05 --to <lane> --note "message"` (recommended)
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+
 - 2026-02-04T11:41:17Z – unknown – shell_pid=37428 – lane=for_review – Ready for review: Added event emissions (WPAssigned, FeatureCompleted, DependencyResolved) to orchestrator integration module. All 286 orchestrator tests pass.
 - 2026-02-04T12:10:53Z – codex – shell_pid=25757 – lane=doing – Started review via workflow command
 - 2026-02-04T12:11:33Z – codex – shell_pid=25757 – lane=done – Review passed: orchestrator emits WPAssigned/FeatureCompleted/DependencyResolved with safe warnings

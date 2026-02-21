@@ -66,6 +66,7 @@ tests/
 ### 1. Distribution Tests Without SPEC_KITTY_TEMPLATE_ROOT
 
 Distribution tests (`test_distribution.py`) will:
+
 - Build wheel from source using `python -m build`
 - Install into fresh venv without `SPEC_KITTY_TEMPLATE_ROOT`
 - Validate template resolution uses packaged templates

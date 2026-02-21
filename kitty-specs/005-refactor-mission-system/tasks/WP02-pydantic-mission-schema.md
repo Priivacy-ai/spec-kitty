@@ -31,6 +31,7 @@ subtasks:
 **Goal**: Add Pydantic v2 schema validation to `src/specify_cli/mission.py`, catching mission.yaml typos and structural errors with clear field-level error messages.
 
 **Success Criteria**:
+
 - Pydantic models defined for all mission.yaml sections
 - Mission loading validates against schema and raises ValidationError for issues
 - Typo like `validaton:` caught with clear error listing valid fields
@@ -42,6 +43,7 @@ subtasks:
 ## Context & Constraints
 
 **Problem Statement**: Current `mission.py` uses `.get()` with empty defaults, causing silent failures:
+
 ```python
 # Current code (line 166)
 def get_validation_checks(self) -> List[str]:
@@ -51,17 +53,20 @@ def get_validation_checks(self) -> List[str]:
 If user types `validaton:` instead of `validation:`, checks silently return `[]` - no error raised.
 
 **Supporting Documents**:
+
 - Spec: `kitty-specs/005-refactor-mission-system/spec.md` (User Story 2, FR-004 through FR-007)
 - Research: `kitty-specs/005-refactor-mission-system/research.md` (R1: Schema validation library comparison - Pydantic selected)
 - Data Model: `kitty-specs/005-refactor-mission-system/data-model.md` (Complete Pydantic model definitions)
 
 **Design Decisions from Research**:
+
 - **Library**: Pydantic v2 (superior error messages justify 5MB dependency)
 - **Strategy**: extra="forbid" to catch typos
 - **Compatibility**: Coerce types where reasonable (version: 1 → "1"), error otherwise
 - **Error Formatting**: Field-level details with suggestions
 
 **Existing Code to Preserve**:
+
 - Mission class API (properties, methods)
 - Function signatures (get_active_mission, etc.)
 - Error types (MissionError, MissionNotFoundError)
@@ -73,6 +78,7 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
 **Purpose**: Install Pydantic v2 for schema validation.
 
 **Steps**:
+
 1. Locate dependency file: Check if project uses `pyproject.toml`, `requirements.txt`, or `setup.py`
 2. Add Pydantic:
    - If `pyproject.toml`: Add to `dependencies = ["pydantic>=2.0"]`
@@ -93,13 +99,16 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
 **Purpose**: Define models for nested mission.yaml sections.
 
 **Steps**:
+
 1. Add imports to mission.py:
+
    ```python
    from pydantic import BaseModel, Field
    from typing import Literal, List, Dict, Optional
    ```
 
 2. Define models (add after MissionError classes, before Mission class):
+
    ```python
    class PhaseConfig(BaseModel):
        """Workflow phase definition."""
@@ -139,7 +148,9 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
 **Purpose**: Define remaining nested models.
 
 **Steps**:
+
 1. Add models to mission.py:
+
    ```python
    class WorkflowConfig(BaseModel):
        """Workflow configuration."""
@@ -186,7 +197,9 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
 **Purpose**: Define top-level mission configuration model.
 
 **Steps**:
+
 1. Add MissionConfig model to mission.py:
+
    ```python
    class MissionConfig(BaseModel):
        """Complete mission configuration schema."""
@@ -238,8 +251,10 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
 **Purpose**: Test that valid mission.yaml files load successfully.
 
 **Steps**:
+
 1. Create test file: `tests/unit/test_mission_schema.py`
 2. Add test cases for valid configurations:
+
    ```python
    import pytest
    from specify_cli.mission import MissionConfig
@@ -288,7 +303,9 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
 **Purpose**: Verify Pydantic catches errors with clear messages.
 
 **Steps**:
+
 1. Add test cases to test_mission_schema.py:
+
    ```python
    from pydantic import ValidationError
 
@@ -350,13 +367,15 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
 
 ---
 
-### Subtask T014 – Update Mission.__init__ with Pydantic validation
+### Subtask T014 – Update Mission.**init** with Pydantic validation
 
 **Purpose**: Replace dict-based config loading with Pydantic validation.
 
 **Steps**:
+
 1. Locate Mission._load_config() method (current line ~43)
 2. Update to use Pydantic:
+
    ```python
    def _load_config(self) -> MissionConfig:  # Changed return type
        """Load mission configuration from mission.yaml.
@@ -405,7 +424,9 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
 **Purpose**: Make Pydantic validation errors user-friendly.
 
 **Steps**:
+
 1. Update MissionError raising in _load_config():
+
    ```python
    except ValidationError as e:
        # Format Pydantic errors nicely
@@ -448,7 +469,9 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
 **Purpose**: Verify backwards compatibility with existing mission.yaml files.
 
 **Steps**:
+
 1. Load software-dev mission:
+
    ```python
    from pathlib import Path
    from specify_cli.mission import Mission
@@ -461,6 +484,7 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
    ```
 
 2. Load research mission:
+
    ```python
    mission_path = Path(".kittify/missions/research")
    mission = Mission(mission_path)
@@ -470,6 +494,7 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
    ```
 
 3. Verify no breaking changes to existing API:
+
    ```python
    # These should still work (properties unchanged)
    assert isinstance(mission.name, str)
@@ -497,6 +522,7 @@ If user types `validaton:` instead of `validation:`, checks silently return `[]`
 4. **Validate** (T016): Ensure no regressions
 
 **Test Organization**:
+
 ```
 tests/unit/test_mission_schema.py
 ├── Valid configs (T012)
@@ -517,6 +543,7 @@ tests/unit/test_mission_schema.py
 ```
 
 **Commands**:
+
 - Run tests: `pytest tests/unit/test_mission_schema.py -v`
 - Coverage: `pytest tests/unit/test_mission_schema.py --cov=src/specify_cli/mission`
 - Specific test: `pytest tests/unit/test_mission_schema.py::test_typo_in_field_name -vv`
@@ -526,18 +553,23 @@ tests/unit/test_mission_schema.py
 ## Risks & Mitigations
 
 **Risk 1**: Pydantic too strict, rejects valid missions
+
 - **Mitigation**: Use optional fields with defaults, allow extra in paths dict, test with real missions
 
 **Risk 2**: Breaking changes to existing custom missions
+
 - **Mitigation**: Document migration guide, provide clear error messages, test with both built-in missions
 
 **Risk 3**: Pydantic dependency rejected
+
 - **Mitigation**: Research.md documents dataclasses fallback, but requires 2-3 extra days
 
 **Risk 4**: Error messages too technical
+
 - **Mitigation**: Add user-friendly formatting in T015, test with non-developers
 
 **Risk 5**: Performance regression from validation
+
 - **Mitigation**: Pydantic v2 is fast (Rust core), measure with existing benchmarks
 
 ---
@@ -561,6 +593,7 @@ tests/unit/test_mission_schema.py
 ## Review Guidance
 
 **Critical Checkpoints**:
+
 1. Load existing missions → should work without errors
 2. Introduce typo in mission.yaml → should see clear Pydantic error
 3. Missing required field → error lists field name and requirement
@@ -568,6 +601,7 @@ tests/unit/test_mission_schema.py
 5. Error messages include suggestions for fixing
 
 **What Reviewers Should Verify**:
+
 - Run `python -c "from specify_cli.mission import get_active_mission; m = get_active_mission(); print(m.name)"`
 - Create test mission with typo, verify error quality
 - Check test coverage report

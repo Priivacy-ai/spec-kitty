@@ -19,7 +19,6 @@ history:
 ---
 *Path: [templates/task-prompt-template.md](templates/task-prompt-template.md)*
 
-
 # Work Package Prompt: {{work_package_id}} – {{title}}
 
 ## ⚠️ IMPORTANT: Review Feedback Status
@@ -46,12 +45,14 @@ history:
 **If this WP depends on other WPs** (check frontmatter `dependencies:` field):
 
 When a parent WP changes during review:
+
 1. You'll need to rebase your workspace to get latest changes
 2. Command: `cd .worktrees/{{feature_slug}}-{{work_package_id}} && git rebase {{feature_slug}}-{{base_wp_id}}`
 3. Resolve any conflicts
 4. Continue work on updated foundation
 
 **Check if rebase needed**:
+
 ```bash
 cd .worktrees/{{feature_slug}}-{{work_package_id}}
 git log --oneline main..{{base_branch}}  # Shows commits in base not in your workspace
@@ -60,11 +61,13 @@ git log --oneline main..{{base_branch}}  # Shows commits in base not in your wor
 **If this WP has dependent WPs** (other WPs depend on this one):
 
 When you make changes:
+
 1. Notify agents working on dependent WPs
 2. They'll need to rebase their workspaces to get your changes
 3. This is a git limitation - future jj integration will auto-rebase
 
 The `spec-kitty implement` command will display warnings when:
+
 - You resume work and the base has changed
 - You start work and other WPs depend on you
 
@@ -84,6 +87,7 @@ The `spec-kitty implement` command will display warnings when:
 ## Subtasks & Detailed Guidance
 
 ### Subtask TXXX – Replace with summary
+
 - **Purpose**: Explain why this subtask exists.
 - **Steps**: Detailed, actionable instructions.
 - **Files**: Canonical paths to update or create.
@@ -91,6 +95,7 @@ The `spec-kitty implement` command will display warnings when:
 - **Notes**: Edge cases, dependencies, or data requirements.
 
 ### Subtask TYYY – Replace with summary
+
 - Repeat the structure above for every included `Txxx` entry.
 
 ## Test Strategy (include only when tests are required)
@@ -116,6 +121,7 @@ The `spec-kitty implement` command will display warnings when:
 ### How to Add Activity Log Entries
 
 **When adding an entry**:
+
 1. Scroll to the bottom of this file (Activity Log section below "Valid lanes")
 2. **APPEND the new entry at the END** (do NOT prepend or insert in middle)
 3. Use exact format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – lane=<lane> – <action>`
@@ -124,11 +130,13 @@ The `spec-kitty implement` command will display warnings when:
 6. Agent ID should identify who made the change (claude-sonnet-4-5, codex, etc.)
 
 **Format**:
+
 ```
 - YYYY-MM-DDTHH:MM:SSZ – <agent_id> – lane=<lane> – <brief action description>
 ```
 
 **Example (correct chronological order)**:
+
 ```
 - 2026-01-12T10:00:00Z – system – lane=planned – Prompt created
 - 2026-01-12T10:30:00Z – claude – lane=doing – Started implementation
@@ -137,6 +145,7 @@ The `spec-kitty implement` command will display warnings when:
 ```
 
 **Common mistakes (DO NOT DO THIS)**:
+
 - ❌ Adding new entry at the top (breaks chronological order)
 - ❌ Using future timestamps (causes acceptance validation to fail)
 - ❌ Lane mismatch: frontmatter says `lane: "done"` but log entry says `lane=doing`
@@ -145,6 +154,7 @@ The `spec-kitty implement` command will display warnings when:
 **Why this matters**: The acceptance system reads the LAST activity log entry as the current state. If entries are out of order, acceptance will fail even when the work is complete.
 
 **Initial entry**:
+
 - {{TIMESTAMP}} – system – lane=planned – Prompt created.
 
 ---

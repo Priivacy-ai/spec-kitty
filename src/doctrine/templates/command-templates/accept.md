@@ -6,9 +6,7 @@ scripts:
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
-
 *Path: [templates/commands/accept.md](templates/commands/accept.md)*
-
 
 ## User Input
 
@@ -36,9 +34,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 3. **Validation commands**:
    - Search recent git log for test/build commands:
+
      ```bash
      git log --oneline -20 | grep -iE "(test|build|check|cargo|npm|pytest|make)"
      ```
+
    - Look for common patterns in project:
      - Rust: `cargo test`, `cargo build --release`, `cargo check`
      - Python: `pytest`, `python -m pytest`, `make test`
@@ -56,6 +56,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Execution Flow
 
 **Preferred flow (no user questions):**
+
 ```
 1. Auto-detect feature slug from git branch
 2. Use mode=local by default
@@ -64,11 +65,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 ```
 
 **Only ask the user if:**
+
 - Feature slug cannot be auto-detected (e.g., on main branch)
 - User explicitly provides conflicting information in $ARGUMENTS
 - Auto-detection fails for technical reasons
 
 **Present auto-detected values clearly:**
+
 ```
 Running acceptance with auto-detected values:
 - Feature: 001-privacy-compiler-cli (from git branch)
@@ -77,6 +80,7 @@ Running acceptance with auto-detected values:
 ```
 
 **Never use `WAITING_FOR_ACCEPTANCE_INPUT` unless:**
+
 - Feature slug detection fails AND user didn't provide one
 - User explicitly asks a question that needs an answer
 
@@ -85,6 +89,7 @@ If user provides explicit values in $ARGUMENTS, those override auto-detected val
 ## Execution Plan
 
 1. **Auto-detect parameters** (run these commands silently):
+
    ```bash
    # Detect feature slug
    git branch --show-current
@@ -100,6 +105,7 @@ If user provides explicit values in $ARGUMENTS, those override auto-detected val
    - Actor: `__AGENT__` (always)
 
 3. **Present detected values to user** (brief confirmation):
+
    ```
    Running acceptance for feature 001-privacy-cli (mode: local)
    Validation: cargo test --all, cargo build --release

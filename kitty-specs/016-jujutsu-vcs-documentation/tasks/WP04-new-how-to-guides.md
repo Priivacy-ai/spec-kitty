@@ -41,7 +41,6 @@ history:
 
 **Issue 1** (Sync troubleshooting still implies fetch): The sync guide still uses “Failed to fetch: network error,” but `spec-kitty sync` doesn’t fetch; it rebases the base branch (git) or runs `jj workspace update-stale` + auto-rebase. Update the troubleshooting heading/text to avoid fetch semantics (e.g., “Failed to sync/update base”). (`docs/how-to/sync-workspaces.md`)
 
-
 ## Objectives & Success Criteria
 
 - Create three task-oriented how-to guides for jj-specific operations
@@ -58,6 +57,7 @@ history:
 ### Divio How-To Guidelines
 
 How-to guides are:
+
 - **Task-oriented**: Focus on achieving a specific goal
 - **Practical**: Real-world scenarios, not theoretical
 - **Problem-solving**: Address a specific need
@@ -99,6 +99,7 @@ spec-kitty ops restore OPERATION_ID   # jj only
 - **Files**: `docs/how-to/sync-workspaces.md`
 - **Parallel?**: Yes - can be written alongside T021, T022
 - **Example structure**:
+
   ```markdown
   # How to Sync Workspaces
 

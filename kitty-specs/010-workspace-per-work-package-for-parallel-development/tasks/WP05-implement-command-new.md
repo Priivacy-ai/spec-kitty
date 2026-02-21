@@ -31,6 +31,7 @@ subtasks:
 # Work Package Prompt: WP05 – Implement Command (NEW)
 
 **Implementation command:**
+
 ```bash
 spec-kitty implement WP05 --base WP03
 ```
@@ -58,6 +59,7 @@ spec-kitty implement WP05 --base WP03
 **Primary Goal**: Create new `spec-kitty implement WP##` command that creates workspace-per-WP on-demand, with `--base` flag for dependency-aware branching.
 
 **Success Criteria**:
+
 - ✅ New command `spec-kitty implement WP01` creates `.worktrees/###-feature-WP01/` workspace
 - ✅ Command branches from main for WPs with no dependencies
 - ✅ Command accepts `--base WPXX` flag and branches from specified WP's branch
@@ -73,11 +75,13 @@ spec-kitty implement WP05 --base WP03
 **Why this command**: The implement command is the entry point for workspace creation in the workspace-per-WP model. It replaces the worktree creation that previously happened during `/spec-kitty.specify`.
 
 **Reference Documents**:
+
 - [plan.md](../plan.md) - Section 1.2: Command Design (implement WP## [--base WPXX])
 - [spec.md](../spec.md) - User Story 2 (Dependency-Aware Workspace Creation), FR-004 through FR-008
 - [data-model.md](../data-model.md) - Worktree entity definition
 
 **Command Signature**:
+
 ```python
 def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
@@ -87,6 +91,7 @@ def implement(
 ```
 
 **Git Commands**:
+
 ```bash
 # No dependencies (branch from main)
 git worktree add .worktrees/010-feature-WP01 -b 010-feature-WP01
@@ -104,8 +109,10 @@ git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP0
 **Purpose**: Create new CLI command file for the implement command.
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/implement.py`
 2. Add standard imports:
+
    ```python
    from __future__ import annotations
    import subprocess
@@ -119,6 +126,7 @@ git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP0
    )
    from specify_cli.tasks_support import find_repo_root
    ```
+
 3. Define `implement()` function with typer decorators
 4. Add to CLI router (will be done in T039)
 
@@ -133,7 +141,9 @@ git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP0
 **Purpose**: Core logic to create git worktree for WP workspace with proper branching.
 
 **Steps**:
+
 1. In `implement()` function, determine workspace path and branch name:
+
    ```python
    # Parse feature number from current directory or git branch
    feature_number, feature_slug = detect_feature_context()
@@ -144,6 +154,7 @@ git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP0
    ```
 
 2. Create worktree with correct base:
+
    ```python
    if base is None:
        # Branch from main
@@ -157,6 +168,7 @@ git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP0
    ```
 
 3. Handle workspace directory existence:
+
    ```python
    if workspace_path.exists():
        # Check if valid worktree
@@ -185,12 +197,15 @@ git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP0
 **Purpose**: Implement --base flag validation to ensure base workspace exists before creating dependent workspace.
 
 **Steps**:
+
 1. Add `--base` parameter to implement function:
+
    ```python
    base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)")
    ```
 
 2. Validate base workspace exists if --base provided:
+
    ```python
    if base:
        base_workspace = repo_root / ".worktrees" / f"{feature_slug}-{base}"
@@ -215,6 +230,7 @@ git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP0
 **Parallel?**: No (part of core logic in T032)
 
 **Error Messages**:
+
 - Base missing: "Base workspace WP01 does not exist. Implement WP01 first"
 - Base invalid: "Directory exists but is not a valid worktree"
 
@@ -225,9 +241,11 @@ git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP0
 **Purpose**: Read WP's dependencies from frontmatter, suggest --base flag if missing.
 
 **Steps**:
+
 1. Locate WP file in main repo: `kitty-specs/###-feature/tasks/WP##-*.md`
 2. Parse frontmatter using dependency_graph.parse_wp_dependencies()
 3. Check if WP has dependencies but --base not provided:
+
    ```python
    from specify_cli.core.dependency_graph import parse_wp_dependencies
 
@@ -242,6 +260,7 @@ git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP0
    ```
 
 4. If --base provided, validate it matches declared dependencies:
+
    ```python
    if base and base not in declared_deps:
        console.print(f"[yellow]Warning:[/yellow] {wp_id} does not declare dependency on {base}")
@@ -252,6 +271,7 @@ git worktree add .worktrees/010-feature-WP02 -b 010-feature-WP02 010-feature-WP0
 **Files**: `src/specify_cli/cli/commands/implement.py`
 
 **Helper Function**:
+
 ```python
 def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
     """Find WP file in kitty-specs/###-feature/tasks/ directory."""
@@ -272,7 +292,9 @@ def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
 **Purpose**: Automatically determine feature number and slug from current working directory or git branch.
 
 **Steps**:
+
 1. Implement feature context detection:
+
    ```python
    def detect_feature_context() -> tuple[str, str]:
        """Detect feature number and slug from current context.
@@ -314,6 +336,7 @@ def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
 **Parallel?**: No (utility function)
 
 **Edge Cases**:
+
 - Running from main branch → error (no feature context)
 - Running from non-feature branch → error
 - Running from WP workspace (010-feature-WP01 branch) → extract feature slug (010-feature)
@@ -325,6 +348,7 @@ def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
 **Purpose**: Establish consistent naming for WP workspaces and branches.
 
 **Steps**:
+
 1. Workspace directory naming: `.worktrees/{feature_slug}-{wp_id}/`
    - Example: `.worktrees/010-workspace-per-wp-WP01/`
 2. Branch naming: `{feature_slug}-{wp_id}`
@@ -334,6 +358,7 @@ def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
 **Files**: `src/specify_cli/cli/commands/implement.py`
 
 **Implementation**:
+
 ```python
 # In implement() function
 feature_number, feature_slug = detect_feature_context()
@@ -354,7 +379,9 @@ branch_name = workspace_name  # Branch and directory have same name
 **Purpose**: Create correct git worktree command based on whether WP has dependencies.
 
 **Steps**:
+
 1. Determine base branch:
+
    ```python
    if base is None:
        # No dependencies - branch from main
@@ -377,6 +404,7 @@ branch_name = workspace_name  # Branch and directory have same name
    ```
 
 2. Execute git command:
+
    ```python
    try:
        subprocess.run(cmd, cwd=repo_root, check=True, capture_output=True)
@@ -400,8 +428,10 @@ branch_name = workspace_name  # Branch and directory have same name
 **Purpose**: Provide user feedback during workspace creation using Rich StepTracker.
 
 **Steps**:
+
 1. Import StepTracker: `from specify_cli.cli import StepTracker`
 2. Create tracker with steps:
+
    ```python
    tracker = StepTracker(f"Implement {wp_id}")
    tracker.add("detect", "Detect feature context")
@@ -411,6 +441,7 @@ branch_name = workspace_name  # Branch and directory have same name
    ```
 
 3. Update tracker at each stage:
+
    ```python
    tracker.start("detect")
    feature_number, feature_slug = detect_feature_context()
@@ -428,6 +459,7 @@ branch_name = workspace_name  # Branch and directory have same name
    ```
 
 4. Handle errors with tracker.error():
+
    ```python
    except Exception as e:
        tracker.error("create", str(e))
@@ -440,6 +472,7 @@ branch_name = workspace_name  # Branch and directory have same name
 **Parallel?**: No (integrated throughout command)
 
 **Example Output**:
+
 ```
 Implement WP01
   ✓ Detect feature context → Feature: 010-workspace-per-wp
@@ -457,22 +490,27 @@ Implement WP01
 **Purpose**: Make `spec-kitty implement` command available in CLI.
 
 **Steps**:
+
 1. Locate CLI app registration (likely in `src/specify_cli/cli/app.py` or `src/specify_cli/cli/__init__.py`)
 2. Import implement command: `from specify_cli.cli.commands.implement import implement`
 3. Register with typer app:
+
    ```python
    app.command(name="implement", help="Create workspace for work package implementation")(implement)
    ```
+
 4. Verify command shows in help: `spec-kitty --help` should list implement
 5. Test command is accessible: `spec-kitty implement --help`
 
 **Files**:
+
 - `src/specify_cli/cli/commands/implement.py` (command definition)
 - `src/specify_cli/cli/app.py` or similar (command registration)
 
 **Parallel?**: No (final integration step)
 
 **Validation**:
+
 ```bash
 spec-kitty implement --help
 # Should display:
@@ -494,6 +532,7 @@ spec-kitty implement --help
 **Purpose**: Test implement command logic with mocked git operations.
 
 **Steps**:
+
 1. Create `tests/specify_cli/test_implement_command.py`
 2. Mock git subprocess calls to avoid creating actual worktrees
 3. Test cases:
@@ -507,6 +546,7 @@ spec-kitty implement --help
 **Files**: `tests/specify_cli/test_implement_command.py`
 
 **Example Test**:
+
 ```python
 from unittest.mock import patch, MagicMock
 
@@ -537,6 +577,7 @@ def test_implement_no_dependencies(tmp_path, monkeypatch):
 ### Feature Context Detection
 
 **detect_feature_context() implementation:**
+
 ```python
 def detect_feature_context() -> tuple[str, str]:
     """Detect feature number and slug from current context."""
@@ -585,6 +626,7 @@ def detect_feature_context() -> tuple[str, str]:
 ### Workspace Path Validation
 
 **Ensure workspace path doesn't conflict:**
+
 ```python
 def validate_workspace_path(workspace_path: Path, wp_id: str):
     """Ensure workspace path is available or reusable."""
@@ -619,6 +661,7 @@ def validate_workspace_path(workspace_path: Path, wp_id: str):
 **Unit Tests**: `tests/specify_cli/test_implement_command.py`
 
 **Test Coverage**:
+
 - Feature context detection (various branches, directories)
 - Workspace creation (no deps, with deps)
 - Validation (base exists, dependencies match, errors)
@@ -626,6 +669,7 @@ def validate_workspace_path(workspace_path: Path, wp_id: str):
 - Error paths (missing base, invalid WP ID, etc.)
 
 **Execution**:
+
 ```bash
 pytest tests/specify_cli/test_implement_command.py -v
 ```
@@ -637,18 +681,22 @@ pytest tests/specify_cli/test_implement_command.py -v
 ## Risks & Mitigations
 
 **Risk 1: Feature context detection fails in edge cases**
+
 - Impact: Command can't determine which feature to create workspace for
 - Mitigation: Support multiple detection methods (git branch, directory path), clear error if all fail
 
 **Risk 2: Race condition when multiple agents run implement simultaneously**
+
 - Impact: Two agents try to create same workspace, one fails
 - Mitigation: Workspace existence check, reuse if valid worktree exists
 
 **Risk 3: Git worktree add fails**
+
 - Impact: Workspace creation fails mid-operation, leaves partial state
 - Mitigation: Git worktree add is atomic, clear error messages with git stderr output
 
 **Risk 4: Base branch doesn't exist in git**
+
 - Impact: Trying to branch from WP01 branch that was never created
 - Mitigation: Validate base branch exists in git before worktree creation
 
@@ -674,6 +722,7 @@ pytest tests/specify_cli/test_implement_command.py -v
 ## Review Guidance
 
 **Reviewers should verify**:
+
 1. **Command is user-friendly**: Clear error messages, helpful suggestions for missing --base
 2. **Validation is robust**: All edge cases handled (missing base, invalid IDs, etc.)
 3. **Git commands are correct**: Proper worktree add syntax with base branch parameter
@@ -681,12 +730,14 @@ pytest tests/specify_cli/test_implement_command.py -v
 5. **Tests are comprehensive**: Cover happy paths and error paths
 
 **Key Acceptance Checkpoints**:
+
 - Run `spec-kitty implement WP01` → workspace created from main
 - Run `spec-kitty implement WP02 --base WP01` → workspace created from WP01 branch
 - Run `spec-kitty implement WP02` (missing --base but has deps) → clear error with suggestion
 - Run `spec-kitty implement WP02 --base WP99` (missing base) → clear error
 
 **Manual Testing Commands**:
+
 ```bash
 # Create test feature in main
 cd /path/to/test-project
@@ -717,11 +768,13 @@ git log --oneline --graph --all  # Should show WP02 branched from WP01
 ### Updating Lane Status
 
 Move this WP between lanes using:
+
 ```bash
 spec-kitty agent workflow implement WP05
 ```
 
 Or edit the `lane:` field in frontmatter directly.
+
 - 2026-01-08T10:06:42Z – agent – lane=doing – Started implementation via workflow command
 - 2026-01-08T10:13:01Z – unknown – lane=for_review – Ready for review - all tests passing, command working correctly
 - 2026-01-08T10:15:11Z – agent – lane=doing – Started review via workflow command

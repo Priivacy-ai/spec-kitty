@@ -27,7 +27,6 @@ history:
 
 **Issue 1**: Deprecated glossary senses are coerced to draft, so the CLI never shows or filters them as deprecated. In `src/specify_cli/glossary/scope.py:105-116` and `src/specify_cli/cli/commands/glossary.py:93-106`, any status other than "active" is forced to `SenseStatus.DRAFT`. This drops the `deprecated` state defined in `TermSense` and advertised in `--status` help, so a term marked `status: deprecated` (in seeds or `GlossarySenseUpdated` events) will render as `draft` and `--status deprecated` always returns empty. Please map status strings to all three enum values (`active`, `draft`, `deprecated`) for seeds and event replay, and add a regression test to ensure `glossary list --status deprecated` surfaces deprecated terms.
 
-
 ## Review Feedback
 
 *(No feedback yet -- this section will be populated if the WP is returned from review.)*
@@ -37,6 +36,7 @@ history:
 **Primary Objective**: Implement CLI commands for glossary management that enable users to list terms across all scopes, view conflict history, resolve conflicts asynchronously, and inspect glossary state for debugging and auditing purposes.
 
 **Success Criteria**:
+
 1. `spec-kitty glossary list` displays all terms from all active scopes in a Rich table with scope, surface, definition, status, and confidence columns.
 2. `spec-kitty glossary list --scope team_domain` filters output to show only terms from the specified scope.
 3. `spec-kitty glossary conflicts` displays conflict history from event log with term, type, severity, status (unresolved/resolved), and timestamp columns.
@@ -48,12 +48,14 @@ history:
 ## Context & Constraints
 
 **Architecture References**:
+
 - `plan.md` CLI commands section: glossary management operations
 - `contracts/events.md` defines canonical events for conflict resolution
 - `data-model.md` defines GlossaryScope, TermSense, SemanticConflict entities
 - `spec.md` FR-009: System MUST allow users to defer conflict resolution to async mode
 
 **Dependency Artifacts Available** (from completed WPs):
+
 - WP01 provides `glossary/models.py` with entity classes (TermSurface, TermSense, SemanticConflict)
 - WP02 provides `glossary/scope.py` with GlossaryStore for term lookup
 - WP05 provides `glossary/strictness.py` with Strictness and Severity enums
@@ -61,6 +63,7 @@ history:
 - WP09 provides `glossary/pipeline.py` with full middleware integration
 
 **Constraints**:
+
 - Python 3.11+ only (per constitution requirement)
 - Use typer for CLI commands (existing spec-kitty dependency)
 - Use Rich for table formatting (existing spec-kitty dependency)
@@ -78,9 +81,11 @@ history:
 **Purpose**: Create a CLI command to list all terms across all active scopes with Rich table formatting.
 
 **Steps**:
+
 1. Create `src/specify_cli/cli/commands/glossary.py`:
 
 2. Implement the `glossary list` command:
+
    ```python
    import typer
    from pathlib import Path
@@ -167,6 +172,7 @@ history:
    ```
 
 3. Add helper to GlossaryStore for retrieving all terms:
+
    ```python
    # In src/specify_cli/glossary/scope.py
 
@@ -211,6 +217,7 @@ history:
    ```
 
 4. Register glossary command group in main CLI:
+
    ```python
    # In src/specify_cli/cli/main.py
 
@@ -220,11 +227,13 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/glossary.py` (new file, ~100 lines)
 - `src/specify_cli/glossary/scope.py` (add get_all_terms method, ~30 lines)
 - `src/specify_cli/cli/main.py` (register glossary command group, ~2 lines)
 
 **Validation**:
+
 - [ ] `spec-kitty glossary list` displays all terms from all scopes
 - [ ] `--scope team_domain` filters to only team_domain terms
 - [ ] `--status active` filters to only active terms
@@ -234,6 +243,7 @@ history:
 - [ ] Command executes < 500ms for 1000+ terms
 
 **Edge Cases**:
+
 - No terms in glossary: display "No terms found" message
 - Invalid --scope value: typer should reject with validation error
 - Glossary store not initialized: display error message with setup instructions
@@ -247,7 +257,9 @@ history:
 **Purpose**: Create a CLI command to display conflict history from the event log with filtering and Rich table formatting.
 
 **Steps**:
+
 1. Add `conflicts` command to `glossary.py`:
+
    ```python
    from specify_cli.glossary.events import read_events
 
@@ -357,6 +369,7 @@ history:
    ```
 
 2. Add helper to events module for reading event log:
+
    ```python
    # In src/specify_cli/glossary/events.py
 
@@ -387,10 +400,12 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/glossary.py` (add conflicts command, ~80 lines)
 - `src/specify_cli/glossary/events.py` (add read_events helper, ~20 lines)
 
 **Validation**:
+
 - [ ] `spec-kitty glossary conflicts` displays all conflicts from event log
 - [ ] `--mission software-dev` filters to specific mission
 - [ ] `--unresolved` shows only unresolved conflicts
@@ -400,6 +415,7 @@ history:
 - [ ] Summary shows total and unresolved count
 
 **Edge Cases**:
+
 - No conflicts in event log: display "No conflicts found" message
 - Event log doesn't exist: display "No event log found" (graceful fallback)
 - Malformed JSONL: skip invalid lines, log warning
@@ -413,7 +429,9 @@ history:
 **Purpose**: Create a CLI command for asynchronous conflict resolution that prompts user interactively (reusing clarification middleware logic).
 
 **Steps**:
+
 1. Add `resolve` command to `glossary.py`:
+
    ```python
    from specify_cli.glossary.clarification import ClarificationMiddleware
    from specify_cli.glossary.models import SemanticConflict, ConflictType, Severity
@@ -502,9 +520,11 @@ history:
    ```
 
 **Files**:
+
 - `src/specify_cli/cli/commands/glossary.py` (add resolve command, ~90 lines)
 
 **Validation**:
+
 - [ ] `spec-kitty glossary resolve <conflict_id>` prompts user interactively
 - [ ] User can select candidate sense (1..N)
 - [ ] User can provide custom sense (C)
@@ -514,6 +534,7 @@ history:
 - [ ] Already-resolved conflicts show warning and prompt for confirmation
 
 **Edge Cases**:
+
 - Conflict ID doesn't exist: display error message, exit 1
 - Conflict already resolved: show warning, prompt to re-resolve
 - No candidate senses available: prompt for custom sense only (no numbered options)
@@ -527,9 +548,11 @@ history:
 **Purpose**: Write comprehensive tests for all glossary CLI commands using CliRunner and mocked event log.
 
 **Steps**:
+
 1. Create `tests/specify_cli/cli/commands/test_glossary.py`:
 
 2. Implement test fixtures:
+
    ```python
    import pytest
    from pathlib import Path
@@ -609,6 +632,7 @@ history:
 3. Write test cases:
 
    **Test: glossary list (all scopes)**:
+
    ```python
    def test_glossary_list_all_scopes(mock_glossary_store, monkeypatch):
        """Verify glossary list displays all terms."""
@@ -624,6 +648,7 @@ history:
    ```
 
    **Test: glossary list --scope filter**:
+
    ```python
    def test_glossary_list_scope_filter(mock_glossary_store, monkeypatch):
        """Verify --scope filter works."""
@@ -637,6 +662,7 @@ history:
    ```
 
    **Test: glossary list --json output**:
+
    ```python
    def test_glossary_list_json_output(mock_glossary_store, monkeypatch):
        """Verify --json produces valid JSON."""
@@ -652,6 +678,7 @@ history:
    ```
 
    **Test: glossary conflicts (all)**:
+
    ```python
    def test_glossary_conflicts_all(mock_event_log, monkeypatch):
        """Verify conflicts command displays all conflicts."""
@@ -667,6 +694,7 @@ history:
    ```
 
    **Test: glossary conflicts --unresolved**:
+
    ```python
    def test_glossary_conflicts_unresolved_only(mock_event_log, monkeypatch):
        """Verify --unresolved filter works."""
@@ -680,6 +708,7 @@ history:
    ```
 
    **Test: glossary resolve (interactive)**:
+
    ```python
    def test_glossary_resolve_interactive(mock_event_log, monkeypatch):
        """Verify resolve command prompts user."""
@@ -698,6 +727,7 @@ history:
    ```
 
    **Test: glossary resolve (not found)**:
+
    ```python
    def test_glossary_resolve_not_found(mock_event_log, monkeypatch):
        """Verify resolve handles missing conflict ID."""
@@ -710,9 +740,11 @@ history:
    ```
 
 **Files**:
+
 - `tests/specify_cli/cli/commands/test_glossary.py` (new file, ~250 lines)
 
 **Validation**:
+
 - [ ] All 7 test cases pass
 - [ ] CliRunner successfully invokes all commands
 - [ ] Rich table output is captured in result.stdout
@@ -721,6 +753,7 @@ history:
 - [ ] Interactive prompts are correctly mocked
 
 **Edge Cases**:
+
 - Empty glossary: "No terms found" message
 - Empty event log: "No conflicts found" message
 - Invalid --scope value: exit 1 with validation error
@@ -732,17 +765,20 @@ history:
 ## Test Strategy
 
 **Unit Tests** (in `test_glossary.py`):
+
 - Test each command with CliRunner
 - Mock glossary store with test data
 - Mock event log with conflict events
 - Test all CLI flags (--scope, --mission, --unresolved, --json)
 
 **Integration Tests** (manual verification recommended):
+
 - Run commands against real `.kittify/` directory
 - Verify Rich table formatting visually
 - Test interactive resolve flow end-to-end
 
 **Running Tests**:
+
 ```bash
 # Unit tests
 python -m pytest tests/specify_cli/cli/commands/test_glossary.py -v
@@ -777,6 +813,7 @@ python -m pytest tests/specify_cli/cli/ -v --cov=src/specify_cli/cli/commands/gl
 ## Review Guidance
 
 When reviewing this WP, verify:
+
 1. **Commands work correctly**:
    - `glossary list` displays all terms with proper filtering
    - `glossary conflicts` shows conflict history with status tracking

@@ -7,6 +7,7 @@ Git worktrees are the technology that enables Spec Kitty's parallel development 
 A git worktree is a linked working directory that lets you check out multiple branches simultaneously, each in its own directory. Unlike cloning a repository multiple times, all worktrees share the same `.git` directory and repository history.
 
 **Normal git workflow** (one branch at a time):
+
 ```bash
 # You can only have one branch checked out
 git checkout feature-a
@@ -15,6 +16,7 @@ git checkout feature-b  # Now you're on feature-b, feature-a is gone
 ```
 
 **With worktrees** (multiple branches simultaneously):
+
 ```bash
 # Main repo stays on main branch
 my-repo/               # main branch
@@ -41,11 +43,13 @@ All three agents work simultaneously, each with their own files, their own uncom
 ### Each Work Package Gets Isolated Workspace
 
 Problems with shared workspaces:
+
 - Agent A edits `config.py`, breaks it
 - Agent B (working on unrelated task) tries to run tests—they fail
 - Both agents are now debugging each other's problems
 
 With workspace-per-WP:
+
 - Agent A's broken `config.py` only exists in WP01's workspace
 - Agent B's workspace has clean files
 - Isolation prevents cross-contamination
@@ -53,6 +57,7 @@ With workspace-per-WP:
 ### Multiple Agents Can Work Simultaneously
 
 Spec Kitty's parallel model requires:
+
 1. Multiple independent branches
 2. Multiple independent working directories
 3. Shared repository history (for merging later)
@@ -64,6 +69,7 @@ Git worktrees provide all three.
 ### The .git Directory
 
 When you clone a repository, git creates a `.git` directory containing:
+
 - All commits
 - All branches
 - All tags
@@ -87,6 +93,7 @@ my-repo/
 ### What Worktrees Share
 
 All worktrees share:
+
 - Commit history (all commits are in one place)
 - Branch definitions (branches exist in main `.git`)
 - Configuration (global git settings)
@@ -95,6 +102,7 @@ All worktrees share:
 ### What Worktrees Don't Share
 
 Each worktree has its own:
+
 - Working directory (files on disk)
 - Index (staging area)
 - Current HEAD (which commit is checked out)
@@ -114,11 +122,13 @@ This means Agent A can have uncommitted changes to `config.py` without affecting
 | **Independence** | Partial | Complete |
 
 **Use worktrees when**:
+
 - Working on the same project
 - Need to merge branches together later
 - Want to minimize disk usage
 
 **Use clones when**:
+
 - Working on different projects
 - Complete isolation is required
 - May never merge together
@@ -132,6 +142,7 @@ git worktree list
 ```
 
 Example output:
+
 ```
 /path/to/my-repo               abc1234 [main]
 /path/to/my-repo/.worktrees/feature-WP01  def5678 [feature-WP01]
@@ -173,6 +184,7 @@ git worktree prune
 A sparse checkout limits which files appear in your working directory. Combined with worktrees, this allows each WP workspace to have only the files it needs.
 
 **Without sparse checkout**:
+
 ```
 .worktrees/feature-WP01/
 ├── docs/           # Agent doesn't need docs
@@ -183,6 +195,7 @@ A sparse checkout limits which files appear in your working directory. Combined 
 ```
 
 **With sparse checkout**:
+
 ```
 .worktrees/feature-WP01/
 └── src/
@@ -190,6 +203,7 @@ A sparse checkout limits which files appear in your working directory. Combined 
 ```
 
 Spec Kitty uses sparse checkouts to:
+
 - Keep the `kitty-specs/` directory only in the main repo
 - Reduce noise in WP workspaces
 - Ensure status tracking stays centralized
@@ -209,6 +223,7 @@ git sparse-checkout set src/ tests/
 ### "Worktree already exists"
 
 **Error**:
+
 ```
 fatal: 'feature-WP01' already has a worktree at '.worktrees/feature-WP01'
 ```
@@ -216,6 +231,7 @@ fatal: 'feature-WP01' already has a worktree at '.worktrees/feature-WP01'
 **Cause**: You're trying to create a worktree for a branch that's already checked out somewhere.
 
 **Solution**:
+
 ```bash
 # Find where it's checked out
 git worktree list
@@ -230,6 +246,7 @@ cd .worktrees/feature-WP01
 ### "Branch is already checked out"
 
 **Error**:
+
 ```
 fatal: 'feature-WP01' is already checked out at '/path/to/other/worktree'
 ```
@@ -237,6 +254,7 @@ fatal: 'feature-WP01' is already checked out at '/path/to/other/worktree'
 **Cause**: Git won't let two worktrees have the same branch checked out.
 
 **Solution**:
+
 ```bash
 # Find the other worktree
 git worktree list
@@ -253,11 +271,13 @@ cd /path/to/other/worktree
 If Spec Kitty or your system crashes mid-operation, worktrees may be left in an inconsistent state.
 
 **Symptoms**:
+
 - `git worktree list` shows non-existent directories
 - Errors about locked worktrees
 - Can't create new worktrees
 
 **Solution**:
+
 ```bash
 # Clean up stale worktree references
 git worktree prune
@@ -276,6 +296,7 @@ git worktree list
 **Cause**: Worktree was created from a commit, not a branch.
 
 **Solution**:
+
 ```bash
 cd .worktrees/feature-WP01
 git checkout -b feature-WP01  # Create and switch to branch
@@ -297,12 +318,15 @@ git checkout -b feature-WP01  # Create and switch to branch
 *This document explains git worktrees for understanding. For practical steps in Spec Kitty, see the how-to guides.*
 
 ## Try It
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
+
 - [Upgrade to 0.11.0](../how-to/upgrade-to-0-11-0.md)
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 
 ## Reference
+
 - [File Structure](../reference/file-structure.md)
 - [CLI Commands](../reference/cli-commands.md)

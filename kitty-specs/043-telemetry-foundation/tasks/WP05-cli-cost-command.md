@@ -37,6 +37,7 @@ spec-kitty implement WP05 --base WP04
 ```
 
 Depends on WP02 (query layer) and WP04 (cost aggregation). Use `--base WP04`, then merge WP02:
+
 ```bash
 spec-kitty implement WP05 --base WP04
 cd .worktrees/043-telemetry-foundation-WP05/
@@ -85,6 +86,7 @@ git merge 043-telemetry-foundation-WP02
 - **Steps**:
   1. Create `src/specify_cli/cli/commands/agent/telemetry.py`
   2. Define the Typer app:
+
      ```python
      import typer
 
@@ -94,7 +96,9 @@ git merge 043-telemetry-foundation-WP02
          no_args_is_help=True,
      )
      ```
+
   3. Add the `cost` command skeleton:
+
      ```python
      @app.command("cost")
      def cost_cmd(
@@ -107,6 +111,7 @@ git merge 043-telemetry-foundation-WP02
          """Show cost report for AI agent invocations."""
          ...
      ```
+
 - **Files**: `src/specify_cli/cli/commands/agent/telemetry.py` (new, ~30 lines initially)
 - **Notes**: Use `str | None` type hints (Python 3.11+). Typer handles optional arguments natively.
 
@@ -115,11 +120,14 @@ git merge 043-telemetry-foundation-WP02
 - **Purpose**: Wire CLI flags to the query and cost layers.
 - **Steps**:
   1. In `cost_cmd()`, resolve the repo root:
+
      ```python
      from specify_cli.cli.utils import get_repo_root  # or however repo root is resolved
      repo_root = get_repo_root()
      ```
+
   2. Build `EventFilter`:
+
      ```python
      from specify_cli.telemetry.query import EventFilter, query_execution_events, query_project_events
      from datetime import datetime
@@ -130,6 +138,7 @@ git merge 043-telemetry-foundation-WP02
          until=datetime.fromisoformat(until) if until else None,
      )
      ```
+
   3. Query events:
      - If `--feature` provided: find matching feature dir, call `query_execution_events(feature_dir, filters)`
      - If no `--feature`: call `query_project_events(repo_root, filters)`
@@ -144,6 +153,7 @@ git merge 043-telemetry-foundation-WP02
 - **Purpose**: Display a human-readable cost report with Rich tables.
 - **Steps**:
   1. For non-JSON output, build a Rich table:
+
      ```python
      from rich.console import Console
      from rich.table import Table
@@ -157,7 +167,9 @@ git merge 043-telemetry-foundation-WP02
      table.add_column("Events", justify="right")
      table.add_column("Estimated", justify="center")
      ```
+
   2. Add a row for each `CostSummary`:
+
      ```python
      for summary in summaries:
          estimated_flag = "~" if summary.estimated_cost_usd > 0 else ""
@@ -170,7 +182,9 @@ git merge 043-telemetry-foundation-WP02
              estimated_flag,
          )
      ```
+
   3. Add a footer row with project totals:
+
      ```python
      total_cost = sum(s.total_cost_usd for s in summaries)
      total_events = sum(s.event_count for s in summaries)
@@ -183,8 +197,10 @@ git merge 043-telemetry-foundation-WP02
          style="bold",
      )
      ```
+
   4. Print: `console.print(table)`
   5. For `--json` output:
+
      ```python
      if json_output:
          import json
@@ -192,6 +208,7 @@ git merge 043-telemetry-foundation-WP02
          console.print_json(json.dumps(output, indent=2))
          return
      ```
+
 - **Files**: `src/specify_cli/cli/commands/agent/telemetry.py` (modify, ~40 lines added)
 - **Notes**: The "Estimated" column uses `~` to flag groups where some costs were estimated from the pricing table (not reported by the agent). This gives operators a visual cue about data quality.
 
@@ -201,13 +218,17 @@ git merge 043-telemetry-foundation-WP02
 - **Steps**:
   1. Open `src/specify_cli/cli/commands/agent/__init__.py`
   2. Import the telemetry module:
+
      ```python
      from specify_cli.cli.commands.agent import telemetry
      ```
+
   3. Register the sub-command:
+
      ```python
      app.add_typer(telemetry.app, name="telemetry")
      ```
+
   4. Verify `spec-kitty agent telemetry --help` shows the `cost` command
   5. Verify `spec-kitty agent telemetry cost --help` shows all flags
 - **Files**: `src/specify_cli/cli/commands/agent/__init__.py` (modify, 2 lines added)

@@ -305,6 +305,7 @@ As a spec-kitty user, I want spec-kitty to ship with a catalog of well-crafted r
 ## Scope Boundaries
 
 ### In Scope
+
 - `AgentProfile` domain entity with 6-section structure
 - `SpecializationHierarchy` with parent-child inheritance, context matching, workload and complexity adjustments
 - `AgentProfileRepository` with two-source loading and merge semantics
@@ -315,6 +316,7 @@ As a spec-kitty user, I want spec-kitty to ship with a catalog of well-crafted r
 - Profile YAML schema with versioning
 
 ### Out of Scope
+
 - Governance hooks and rule evaluation — owned by Feature 044
 - Model routing and fallback chains — owned by Feature 046
 - Constitution parsing and YAML extraction — owned by Feature 045

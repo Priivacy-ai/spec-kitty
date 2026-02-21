@@ -4,6 +4,7 @@
 missions and templates.
 
 Use styleguides for cross-cutting guidance such as:
+
 - Python coding conventions
 - Documentation structure conventions
 - Test-writing conventions

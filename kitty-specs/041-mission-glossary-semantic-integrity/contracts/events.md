@@ -23,6 +23,7 @@ This document references the canonical glossary event schemas defined in Feature
 **Purpose**: Record which glossary scopes are active for this mission run
 
 **Required fields**:
+
 ```python
 {
     "event_type": "GlossaryScopeActivated",
@@ -37,6 +38,7 @@ This document references the canonical glossary event schemas defined in Feature
 **Consumers**: Orchestration runtime, projection layer
 
 **Example**:
+
 ```python
 GlossaryScopeActivated(
     scope_id="team_domain",
@@ -55,6 +57,7 @@ GlossaryScopeActivated(
 **Purpose**: Record term extraction for candidate glossary entry
 
 **Required fields**:
+
 ```python
 {
     "event_type": "TermCandidateObserved",
@@ -73,6 +76,7 @@ GlossaryScopeActivated(
 **Consumers**: Candidate scorer, clarification policy
 
 **Example**:
+
 ```python
 TermCandidateObserved(
     term="workspace",
@@ -95,6 +99,7 @@ TermCandidateObserved(
 **Purpose**: Record conflict detection results and recommended action
 
 **Required fields**:
+
 ```python
 {
     "event_type": "SemanticCheckEvaluated",
@@ -112,6 +117,7 @@ TermCandidateObserved(
 ```
 
 **ConflictFinding structure**:
+
 ```python
 {
     "term": str,
@@ -124,6 +130,7 @@ TermCandidateObserved(
 ```
 
 **SenseRef structure**:
+
 ```python
 {
     "surface": str,
@@ -136,6 +143,7 @@ TermCandidateObserved(
 **Consumers**: Execution gate, UX prompt, dashboards
 
 **Example**:
+
 ```python
 SemanticCheckEvaluated(
     step_id="step-specify-001",
@@ -173,6 +181,7 @@ SemanticCheckEvaluated(
 **Purpose**: Record clarification question sent to user
 
 **Required fields**:
+
 ```python
 {
     "event_type": "GlossaryClarificationRequested",
@@ -191,6 +200,7 @@ SemanticCheckEvaluated(
 **Consumers**: Mission participant UI, CLI, SaaS decision inbox
 
 **Example**:
+
 ```python
 GlossaryClarificationRequested(
     question="What does 'workspace' mean in this context?",
@@ -216,6 +226,7 @@ GlossaryClarificationRequested(
 **Purpose**: Record conflict resolution (selected from candidates)
 
 **Required fields**:
+
 ```python
 {
     "event_type": "GlossaryClarificationResolved",
@@ -230,6 +241,7 @@ GlossaryClarificationRequested(
 ```
 
 **ActorIdentity structure**:
+
 ```python
 {
     "actor_id": str,
@@ -239,6 +251,7 @@ GlossaryClarificationRequested(
 ```
 
 **Provenance structure**:
+
 ```python
 {
     "source": str,      # e.g., "user_clarification"
@@ -250,6 +263,7 @@ GlossaryClarificationRequested(
 **Consumers**: Glossary updater, execution gate
 
 **Example**:
+
 ```python
 GlossaryClarificationResolved(
     conflict_id="uuid-1234-5678",
@@ -283,6 +297,7 @@ GlossaryClarificationResolved(
 **Purpose**: Record glossary modification
 
 **Required fields**:
+
 ```python
 {
     "event_type": "GlossarySenseUpdated",
@@ -297,6 +312,7 @@ GlossaryClarificationResolved(
 ```
 
 **TermSense structure**:
+
 ```python
 {
     "surface": str,
@@ -310,6 +326,7 @@ GlossaryClarificationResolved(
 **Consumers**: Projection, audit views
 
 **Example**:
+
 ```python
 GlossarySenseUpdated(
     term_surface="workspace",
@@ -340,6 +357,7 @@ GlossarySenseUpdated(
 **Purpose**: Record generation gate block decision
 
 **Required fields**:
+
 ```python
 {
     "event_type": "GenerationBlockedBySemanticConflict",
@@ -356,6 +374,7 @@ GlossarySenseUpdated(
 **Consumers**: Execution runtime, dashboards, audit logs
 
 **Example**:
+
 ```python
 GenerationBlockedBySemanticConflict(
     step_id="step-specify-001",
@@ -387,6 +406,7 @@ GenerationBlockedBySemanticConflict(
 **Purpose**: Save minimal state for deterministic resume after conflict resolution
 
 **Required fields**:
+
 ```python
 {
     "event_type": "StepCheckpointed",
@@ -403,6 +423,7 @@ GenerationBlockedBySemanticConflict(
 ```
 
 **ScopeRef structure**:
+
 ```python
 {
     "scope": str,          # e.g., "team_domain"
@@ -413,6 +434,7 @@ GenerationBlockedBySemanticConflict(
 **Consumers**: Resume middleware, replay engine
 
 **Example**:
+
 ```python
 StepCheckpointed(
     mission_id="041-mission",
@@ -437,6 +459,7 @@ StepCheckpointed(
 ## Event Emission Guidelines
 
 1. **Import from spec-kitty-events package**:
+
    ```python
    from spec_kitty_events.glossary.events import (
        GlossaryScopeActivated,
@@ -468,16 +491,19 @@ StepCheckpointed(
 ## Testing Event Contracts
 
 **Unit tests** (src/specify_cli/glossary/tests/test_events.py):
+
 - Verify event emission at correct middleware boundaries
 - Validate event payload conforms to schema (all required fields present)
 - Test event ordering (extraction → check → gate → clarification → resolution)
 
 **Integration tests**:
+
 - Full pipeline: extract → check → block → clarify → resolve → resume
 - Verify events emitted in correct order
 - Replay events, assert glossary state matches
 
 **Contract tests** (if spec-kitty-events package available):
+
 - Import canonical event classes
 - Assert CLI payloads match package schemas
 - Test serialization/deserialization round-trip

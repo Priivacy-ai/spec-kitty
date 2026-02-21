@@ -27,12 +27,14 @@ In Spec Kitty, **CODE IS THE SOURCE OF TRUTH** - it represents what exists NOW. 
 ### Why This Matters
 
 **For LLMs working with Spec Kitty:**
+
 - **Always read the code** to understand current implementation
 - The specification tells you WHAT TO CHANGE, not what currently exists
 - Don't assume the spec documents the entire system
 - Code truth > spec documentation
 
 **For developers:**
+
 - Specs describe "we want to ADD authentication" not "the system includes authentication"
 - Specs are forward-looking change requests, not backward-looking documentation
 - Keep specs focused on the delta, not comprehensive system documentation
@@ -41,12 +43,14 @@ In Spec Kitty, **CODE IS THE SOURCE OF TRUTH** - it represents what exists NOW. 
 ### The Philosophical Break from Spec Kit
 
 **Traditional Spec-Driven Development (Spec Kit approach):**
+
 - Specification attempts to be comprehensive documentation
 - Spec describes the entire system state
 - Updates try to keep spec in sync with code
 - Spec serves as system documentation
 
 **Spec Kitty Philosophy:**
+
 - Code is always the definitive source of truth
 - Specifications are change requests (deltas)
 - LLMs read code to understand NOW, read specs to understand FUTURE
@@ -57,6 +61,7 @@ In Spec Kitty, **CODE IS THE SOURCE OF TRUTH** - it represents what exists NOW. 
 AI agents have a superpower: **they can read and understand code instantly**. Traditional specs tried to save humans from reading code by documenting everything. But LLMs don't need that protection - they can read thousands of lines of code in seconds.
 
 **Benefits:**
+
 - ✅ Specs stay focused and concise (describe only what changes)
 - ✅ No spec drift (specs don't try to track current state)
 - ✅ LLMs always work from ground truth (the actual code)
@@ -66,6 +71,7 @@ AI agents have a superpower: **they can read and understand code instantly**. Tr
 **Example:**
 
 **Traditional approach (Spec Kit):**
+
 ```
 Specification: "The system has user authentication with email/password,
 session management, and password reset. It uses JWT tokens stored in
@@ -74,6 +80,7 @@ httpOnly cookies. The UserService handles authentication logic..."
 ```
 
 **Spec Kitty approach:**
+
 ```
 Specification: "Add OAuth2 social login (Google, GitHub) alongside
 existing email/password authentication. Keep current JWT session
@@ -225,18 +232,21 @@ Before any coding begins, `/spec-kitty.implement` requires each work package to 
 
 1. **Move prompt to doing lane**: Use `spec-kitty agent workflow implement WPxx` (workflow command handles this automatically)
 2. **Update frontmatter metadata**:
+
    ```yaml
    lane: "doing"
    assignee: "Agent Name"
    agent: "claude"  # or codex, gemini, copilot, etc.
    shell_pid: "12345"  # from echo $$
    ```
+
 3. **Add activity log entry**: Timestamped ISO 8601 entry recording the lane transition
 4. **Commit the move**: Preserve git history of the workflow transition
 
 **Validation Checkpoint:**
 
 The agent must verify before proceeding to implementation:
+
 - Prompt file exists in flat `tasks/` directory
 - Frontmatter shows `lane: "doing"`
 - `shell_pid` is captured
@@ -265,6 +275,7 @@ After implementing the work package, the agent must:
 5. Commit the transition
 
 This discipline ensures:
+
 - **Full traceability**: Every work package has complete history of who worked on it, when, and in which environment (shell_pid)
 - **No stalled work**: Prompts can't languish in doing without accountability
 - **Clear handoffs**: Review gates enforce quality checks before work is marked complete

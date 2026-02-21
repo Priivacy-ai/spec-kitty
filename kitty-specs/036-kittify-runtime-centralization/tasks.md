@@ -19,6 +19,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [x] T001 Create `src/specify_cli/runtime/` subpackage with `__init__.py`
 - [x] T002 Implement `get_kittify_home()` in `src/specify_cli/runtime/home.py`
 - [x] T003 Implement `get_package_asset_root()` in `src/specify_cli/runtime/home.py`
@@ -26,17 +27,21 @@
 - [x] T005 [P] Write unit tests for `SPEC_KITTY_HOME` env var override in `tests/unit/runtime/test_home.py`
 
 ### Implementation Notes
+
 - `get_kittify_home()`: `SPEC_KITTY_HOME` env var > `Path.home() / ".kittify"` (Unix) > `platformdirs.user_data_dir("kittify")` (Windows)
 - `get_package_asset_root()`: `importlib.resources.files("specify_cli")` > `Path(specify_cli.__file__).parent` > `SPEC_KITTY_TEMPLATE_ROOT` env var
 - No fallback mechanisms — raise errors for invalid paths
 
 ### Parallel Opportunities
+
 - T004 and T005 can run in parallel after T001-T003
 
 ### Dependencies
+
 - None (starting package)
 
 ### Risks & Mitigations
+
 - Windows path testing on Unix CI: mock `os.name` and `platformdirs`
 
 ---
@@ -49,6 +54,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [x] T006 Implement `_merge_package_assets()` in `src/specify_cli/runtime/merge.py`
 - [x] T007 Implement `ensure_runtime()` with file locking in `src/specify_cli/runtime/bootstrap.py`
 - [x] T008 Implement `populate_from_package()` in `src/specify_cli/runtime/bootstrap.py`
@@ -58,6 +64,7 @@
 - [x] T012 Write interrupted update recovery test (F-Bootstrap-001)
 
 ### Implementation Notes
+
 - File locking: `fcntl.flock()` on Unix, `msvcrt.locking()` on Windows — platform detection at import time
 - Fast path: read `version.lock`, compare, return — no lock acquired
 - Slow path: acquire exclusive lock, double-check version, build temp dir, merge, write `version.lock` last
@@ -66,12 +73,15 @@
 - NEVER_TOUCH: `config.yaml`, `missions/custom/`, `cache/` (except `version.lock`)
 
 ### Parallel Opportunities
+
 - T009, T010, T011 can run in parallel after T006-T008
 
 ### Dependencies
+
 - Depends on WP01 (`get_kittify_home()`, `get_package_asset_root()`)
 
 ### Risks & Mitigations
+
 - Concurrent corruption: file lock serializes all updates; test with multiprocessing
 - Interrupted update: version.lock written last; no lock = incomplete = retry next start
 
@@ -85,6 +95,7 @@
 **Estimated Size**: ~450 lines
 
 ### Included Subtasks
+
 - [x] T013 Implement `ResolutionTier` enum and `ResolutionResult` dataclass in `src/specify_cli/runtime/resolver.py`
 - [x] T014 Implement `resolve_template()`, `resolve_command()`, `resolve_mission()` in `src/specify_cli/runtime/resolver.py`
 - [x] T015 Implement `_warn_legacy_asset()` deprecation warning
@@ -94,19 +105,23 @@
 - [x] T019 Write legacy resolution tests (F-Legacy-001, F-Legacy-002, F-Legacy-003) in `tests/unit/runtime/test_resolver.py`
 
 ### Implementation Notes
+
 - Resolution order: (1) `.kittify/overrides/{type}/{name}` > (2) `.kittify/{type}/{name}` + deprecation warning > (3) `~/.kittify/missions/{mission}/{type}/{name}` > (4) `PACKAGE_DIR/defaults/{type}/{name}` > raise FileNotFoundError
 - Legacy tier emits warning via Python logging: `"Legacy asset resolved: {path} — run 'spec-kitty migrate' to clean up"`
 - `resolve_template()` needs `name`, `project_dir`, `mission` parameters
 - `resolve_command()` and `resolve_mission()` have similar signatures
 
 ### Parallel Opportunities
+
 - T016 and T017 integration can run in parallel
 - T018 and T019 tests can run in parallel
 
 ### Dependencies
+
 - Depends on WP01 (`get_kittify_home()`)
 
 ### Risks & Mitigations
+
 - Breaking existing template resolution: careful integration testing; run full test suite after changes
 
 ---
@@ -119,6 +134,7 @@
 **Estimated Size**: ~400 lines
 
 ### Included Subtasks
+
 - [x] T020 Implement `classify_asset()` function in `src/specify_cli/runtime/migrate.py`
 - [x] T021 Implement `execute_migration()` function in `src/specify_cli/runtime/migrate.py`
 - [x] T022 Implement `spec-kitty migrate` CLI command in `src/specify_cli/cli/commands/migrate_cmd.py`
@@ -126,6 +142,7 @@
 - [x] T024 Write migration customization tests — F-Legacy-003 (customized moved to overrides)
 
 ### Implementation Notes
+
 - File classification via `filecmp.cmp(shallow=False)` — byte-identical comparison
 - Categories: IDENTICAL (remove), CUSTOMIZED (move to `overrides/`), PROJECT_SPECIFIC (keep), UNKNOWN (keep + warn)
 - PROJECT_SPECIFIC paths: `config.yaml`, `metadata.yaml`, `memory/`, `workspaces/`, `logs/`
@@ -133,12 +150,15 @@
 - Idempotency: running twice produces same result with no errors
 
 ### Parallel Opportunities
+
 - T023 and T024 tests can run in parallel
 
 ### Dependencies
+
 - Depends on WP01 (`get_kittify_home()`) and WP03 (resolver context for determining what constitutes "shared assets")
 
 ### Risks & Mitigations
+
 - Accidental data loss: `--dry-run` as default safety; require `--force` for unattended operation
 
 ---
@@ -151,24 +171,29 @@
 **Estimated Size**: ~280 lines
 
 ### Included Subtasks
+
 - [x] T025 Implement `show_origin()` function that enumerates all resolvable assets
 - [x] T026 Add `--show-origin` flag to existing config CLI command
 - [x] T027 Write tests for `--show-origin` output (1A-14, 1A-15)
 - [x] T028 [P] Implement version pin warning for `runtime.pin_version` in config (F-Pin-001, 1A-16)
 
 ### Implementation Notes
+
 - Enumerate: templates (spec.md, plan.md, tasks.md, etc.), missions (software-dev, research, etc.), commands, scripts, AGENTS.md
 - For each asset, call resolver and capture `ResolutionResult` with tier label
 - Display format: `Template: spec.md\n  Resolved: <path> (<tier label>)`
 - Pin warning: check for `runtime.pin_version` in project config, emit "pinning not yet supported" warning
 
 ### Parallel Opportunities
+
 - T028 (pin warning) independent of T025-T027
 
 ### Dependencies
+
 - Depends on WP03 (resolver)
 
 ### Risks & Mitigations
+
 - Existing `config` command structure may need adaptation; review current CLI structure before modifying
 
 ---
@@ -181,6 +206,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [x] T029 Implement global runtime health check functions in `src/specify_cli/runtime/doctor.py`
 - [x] T030 Integrate global checks into existing `spec-kitty doctor` command
 - [x] T031 Write test: missing `~/.kittify/` detected (1A-11)
@@ -189,18 +215,22 @@
 - [x] T034 Write test: stale legacy assets counted with migration recommendation (1A-10)
 
 ### Implementation Notes
+
 - Health checks: `~/.kittify/` existence, `version.lock` vs CLI version, expected mission dirs present, legacy asset scan in project
 - Each check returns `DoctorCheck(name, passed, message, severity)`
 - Rich console output: checkmarks for pass, warnings for issues, error for corruption
 - Stale legacy count: scan project `.kittify/` for files that exist at global path
 
 ### Parallel Opportunities
+
 - T031-T034 tests can all run in parallel
 
 ### Dependencies
+
 - Depends on WP01 (`get_kittify_home()`) and WP02 (`ensure_runtime()` context)
 
 ### Risks & Mitigations
+
 - Must not break existing doctor checks; add new section, don't replace existing
 
 ---
@@ -213,6 +243,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [x] T035 Modify init template preparation to skip shared asset copying
 - [x] T036 Update init to read templates from global `~/.kittify/` via resolver
 - [x] T037 Ensure agent directory generation reads from global runtime
@@ -220,6 +251,7 @@
 - [x] T039 Write tests: init with populated `~/.kittify/` resolves shared assets correctly
 
 ### Implementation Notes
+
 - Existing `init.py` is ~900 lines. Modify the template copying section (lines 619-630 area)
 - Skip: mission copying, template copying, script copying, AGENTS.md copying
 - Create only: `.kittify/config.yaml`, `.kittify/metadata.yaml`, `.kittify/memory/constitution.md`
@@ -227,12 +259,15 @@
 - Ensure `ensure_runtime()` is called before init (global runtime must exist)
 
 ### Parallel Opportunities
+
 - T038 and T039 tests can run in parallel
 
 ### Dependencies
+
 - Depends on WP01, WP02, WP03 (global runtime must be operational and resolver must work)
 
 ### Risks & Mitigations
+
 - Init is complex (~900 lines); minimize changes to avoid breaking existing flows
 - Run full init integration test suite after changes
 
@@ -246,6 +281,7 @@
 **Estimated Size**: ~350 lines
 
 ### Included Subtasks
+
 - [x] T040 Wire `ensure_runtime()` into Typer app callback (CLI entry point)
 - [x] T041 Register `migrate` command in CLI app
 - [x] T042 Add `ensure_runtime()` import and call to CLI startup
@@ -254,18 +290,22 @@
 - [x] T045 Run existing test suite to verify no regressions
 
 ### Implementation Notes
+
 - CLI entry point: find Typer `app.callback()` or equivalent main startup hook
 - `ensure_runtime()` must be called BEFORE any command handler runs
 - `migrate` command registered as `spec-kitty migrate` with `--dry-run`, `--verbose`, `--force`
 - End-to-end tests verify the complete flow from install to resolution
 
 ### Parallel Opportunities
+
 - T043 and T044 integration tests can run in parallel
 
 ### Dependencies
+
 - Depends on WP01, WP02, WP03, WP04, WP05, WP06, WP07 (all components must be ready)
 
 ### Risks & Mitigations
+
 - Regression risk: run full existing test suite (2032+ tests) after integration
 - Performance impact: verify `ensure_runtime()` fast path is truly <100ms
 
@@ -335,6 +375,7 @@
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
+
 - WP01: done
 - WP02: done
 - WP03: done

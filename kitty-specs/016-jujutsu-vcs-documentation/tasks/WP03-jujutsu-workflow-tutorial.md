@@ -52,7 +52,6 @@ history:
 
 **Issue 4**: Conflict resolution guidance uses `jj squash`, which is not a clear or correct way to resolve conflicts. Please replace with an accurate jj conflict-resolution step (e.g., edit conflicts then `jj resolve` or note that editing the files resolves conflicts and you can continue/commit), consistent with jj docs.
 
-
 ## Objectives & Success Criteria
 
 - Create comprehensive tutorial at `docs/tutorials/jujutsu-workflow.md`
@@ -69,6 +68,7 @@ history:
 ### Divio Tutorial Guidelines
 
 Tutorials are:
+
 - **Learning-oriented**: Teaching beginners by doing
 - **Step-by-step**: Clear sequence from start to finish
 - **Concrete**: Use realistic examples, not abstract concepts
@@ -78,6 +78,7 @@ Tutorials are:
 ### Key jj Concepts to Cover
 
 From research.md and feature 015:
+
 - Auto-rebase: Dependent workspaces update automatically
 - Non-blocking conflicts: Conflicts stored in files, work continues
 - Operation log: Full history with undo capability
@@ -96,6 +97,7 @@ From research.md and feature 015:
   4. Include estimated time (30-45 minutes)
 - **Files**: `docs/tutorials/jujutsu-workflow.md`
 - **Structure**:
+
   ```markdown
   # Jujutsu (jj) Workflow Tutorial
 
@@ -136,6 +138,7 @@ From research.md and feature 015:
   5. Explain colocated mode if both jj and git available
 - **Files**: `docs/tutorials/jujutsu-workflow.md`
 - **Include output example**:
+
   ```
   $ spec-kitty init my-project --ai claude
   ✓ Detected jj (0.23.0) - using jujutsu for version control

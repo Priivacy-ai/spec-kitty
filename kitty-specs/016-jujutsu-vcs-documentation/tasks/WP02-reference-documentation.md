@@ -46,7 +46,6 @@ history:
 
 **Issue 1**: `spec-kitty init` VCS detection order is still inaccurate and contradictory. The section says “When `--vcs` is not specified” but lists `--vcs` as step 1 and omits the mismatch error behavior. Please align this with the actual rules (explicit backend first; conflicting `--vcs` vs feature lock errors; then feature `meta.json`, then tool availability). Update `docs/reference/cli-commands.md:72` to match the configuration docs.
 
-
 ## Objectives & Success Criteria
 
 - Add complete reference documentation for `spec-kitty sync` and `spec-kitty ops` commands
@@ -63,6 +62,7 @@ history:
 ### Command Reference Source (from research.md)
 
 **spec-kitty sync**:
+
 ```
 Usage: spec-kitty sync [OPTIONS]
 
@@ -76,6 +76,7 @@ Backend Differences:
 ```
 
 **spec-kitty ops**:
+
 ```
 Usage: spec-kitty ops COMMAND [ARGS]
 
@@ -86,6 +87,7 @@ Commands:
 ```
 
 **spec-kitty ops log**:
+
 ```
 Options:
   --limit, -n INTEGER   Number of operations to show [default: 20]
@@ -93,6 +95,7 @@ Options:
 ```
 
 **spec-kitty ops undo**:
+
 ```
 Arguments:
   operation_id    Operation ID to undo (defaults to last operation)
@@ -100,6 +103,7 @@ Backend: jj only
 ```
 
 **spec-kitty ops restore**:
+
 ```
 Arguments:
   operation_id    Operation ID to restore to (required)
@@ -107,6 +111,7 @@ Backend: jj only
 ```
 
 **spec-kitty init --vcs**:
+
 ```
 --vcs TEXT    VCS to use: 'git' or 'jj'. Defaults to jj if available.
 ```
@@ -123,6 +128,7 @@ Backend: jj only
   4. Cross-reference to `how-to/sync-workspaces.md`
 - **Files**: `docs/reference/cli-commands.md`
 - **Example format**:
+
   ```markdown
   ### spec-kitty sync
 
@@ -205,6 +211,7 @@ Backend: jj only
 - **Steps**:
   1. Read `docs/reference/configuration.md`
   2. Add section for VCS configuration in `.kittify/config.yaml`:
+
      ```yaml
      vcs:
        preferred: "auto"  # "auto" | "jj" | "git"
@@ -212,6 +219,7 @@ Backend: jj only
          min_version: "0.20.0"
          colocate: true
      ```
+
   3. Document per-feature VCS lock in meta.json
 - **Files**: `docs/reference/configuration.md`
 - **Parallel?**: Yes - different file from T004-T010
