@@ -1,7 +1,7 @@
 ---
 work_package_id: WP09
 title: Determinism Test Suite
-lane: "doing"
+lane: "for_review"
 dependencies:
 - WP01
 - WP05
@@ -473,3 +473,4 @@ When reviewing WP09:
 ## Activity Log
 
 - 2026-02-21T15:59:53Z – coordinator – shell_pid=99215 – lane=doing – Assigned agent via workflow command
+- 2026-02-21T16:02:44Z – coordinator – shell_pid=99215 – lane=for_review – Determinism test suite complete: 36 tests passing (T046-T050)
